@@ -62,7 +62,7 @@ export function Shell() {
   const tabs: ShellTab[] = [
     { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
     ...(auth.user
-      ? []
+      ? [{ href: '/settings', label: 'Settings', icon: 'user' as const, active: pathname.startsWith('/settings') }]
       : [{ href: '/login', label: 'Sign in', icon: 'user' as const, active: pathname === '/login', loading: !auth.ready }]),
   ];
 
@@ -100,7 +100,14 @@ export function Shell() {
           auth.user && (
             <Sidebar
               label="Areas"
-              sections={[{ items: [{ active: pathname === '/', href: '/', icon: 'home', label: 'Home' }] }]}
+              sections={[
+                { items: [{ active: pathname === '/', href: '/', icon: 'home', label: 'Home' }] },
+                {
+                  items: [
+                    { active: pathname.startsWith('/settings'), href: '/settings', icon: 'user', label: 'Settings' },
+                  ],
+                },
+              ]}
             />
           )
         }

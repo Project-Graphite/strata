@@ -25,6 +25,7 @@
     "vitest": "5.0.1"
   },
   "dependencies": {
-    "@project-graphite/ui": "https://github.com/project-graphite/graphite-ui/releases/download/v0.2.1/project-graphite-ui-0.2.1.tgz"
+    "@project-graphite/ui": "https://github.com/project-graphite/graphite-ui/releases/download/v0.2.1/project-graphite-ui-0.2.1.tgz",
+    "uqr": "0.1.3"
   }
 }

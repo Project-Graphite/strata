@@ -12,7 +12,25 @@ accounts and the app shell.
   - password reset by email.
 
   Registration never reveals whether an email address already has an account. The owner gets a
-  notice instead.
+  notice instead. Failed sign-ins take the same time whether or not the account exists.
+- **Two-step sign-in**:
+  - authenticator-app codes (TOTP), set up from a QR code;
+  - ten recovery codes, each usable once and stored only as hashes;
+  - sign-in asks for a code after the password, with five attempts per sign-in;
+  - each code works only once.
+- **Sensitive changes** need your password and, with two-step sign-in on, a code. That covers the
+  password, email, two-step settings and account deletion.
+- **Devices and sessions**:
+  - every signed-in device is listed, and any or all of them can be signed out;
+  - a signed-out device stops working straight away;
+  - a sign-in from a new device sends an email.
+- **Security emails**: new-device sign-ins, password changes and two-step changes.
+- **Passwords**: passwords found in data breaches are refused. The check sends only the first five
+  characters of the password's SHA-1 hash to Have I Been Pwned.
+- **Encryption**: authenticator secrets are stored encrypted with AES-256-GCM, under a key that lives
+  outside the database.
+- **Settings**: profile and time zone, email change, password, two-step sign-in, devices, data
+  export and account deletion.
 - **Security**:
   - a strict content security policy and isolation headers on every response;
   - settings checked at start-up, so a missing secret stops the server instead of failing later;
@@ -77,6 +95,8 @@ in Coolify:
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
 - `AUTH_ACCESS_TOKEN_SECRET`, at least 32 characters
+- `DATA_ENCRYPTION_KEY`, 32 random bytes in base64 (`openssl rand -base64 32`). Never change it
+  without re-encrypting the stored secrets, or every two-step sign-in breaks.
 - `EMAIL_HOST_PASSWORD`
 
 It also needs `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER` and `DEFAULT_FROM_EMAIL`.

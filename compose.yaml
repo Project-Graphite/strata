@@ -10,6 +10,7 @@ services:
       REDIS_URL: redis://redis:6379
       AUTH_ACCESS_TOKEN_SECRET: ${AUTH_ACCESS_TOKEN_SECRET:-local-access-token-secret-change-me-please}
       AUTH_TRUSTED_ORIGINS: http://localhost:4104,http://localhost:4102
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-bG9jYWwtZGV2ZWxvcG1lbnQta2V5LWNoYW5nZS1tZSE=}
       APP_URL: http://localhost:4104
       DEFAULT_FROM_EMAIL: Strata <strata@localhost>
     depends_on:

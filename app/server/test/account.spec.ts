@@ -13,6 +13,7 @@ import { validate } from 'class-validator';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../src/auth/auth.service';
+import { PasswordService } from '../src/auth/password.service';
 import { MailDeliveryError, MailService } from '../src/mail/mail.service';
 import { UpdateProfileDto } from '../src/users/dto/users.dto';
 
@@ -54,22 +55,35 @@ function setup(overrides: Record<string, object> = {}) {
       create: vi.fn(),
     },
     refreshSession: {
-      create: vi.fn(),
+      create: vi.fn().mockResolvedValue({ id: 'session-id' }),
       updateMany: vi.fn().mockReturnValue('session-revoke'),
+      deleteMany: vi.fn().mockReturnValue('session-delete'),
     },
     $transaction: vi.fn((work: unknown) =>
       typeof work === 'function' ? (work as (client: unknown) => unknown)(prisma) : work,
     ),
     ...overrides,
   };
-  const mail = { send: vi.fn(), link: (path: string) => `https://strata.example${path}` };
+  const mail = {
+    send: vi.fn(),
+    link: (path: string) => `https://strata.example${path}`,
+    logger: new Logger(MailService.name),
+    trySend(message: object) {
+      return MailService.prototype.trySend.call(this as never, message as never);
+    },
+  };
+  const passwords = new PasswordService();
+  const breachCheck = vi.spyOn(passwords, 'assertNotBreached').mockResolvedValue();
+  const twoStep = { enabled: vi.fn().mockResolvedValue(false), verify: vi.fn() };
   const service = new AuthService(
     prisma as never,
     new JwtService(),
     new ConfigService({ AUTH_ACCESS_TOKEN_SECRET: 'test-secret' }),
     mail as never,
+    passwords,
+    twoStep as never,
   );
-  return { mail, prisma, service };
+  return { breachCheck, mail, prisma, service, twoStep };
 }
 
 function sentToken(mail: { send: ReturnType<typeof vi.fn> }, to?: string) {
@@ -263,10 +277,7 @@ describe('Account email flows', () => {
         purpose: { in: [TokenPurpose.CHANGE_EMAIL, TokenPurpose.RESET_PASSWORD] },
       },
     });
-    expect(prisma.refreshSession.updateMany).toHaveBeenCalledWith({
-      where: { userId: user.id, revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
+    expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
 
     prisma.verificationToken.findUnique.mockResolvedValueOnce({
       userId: user.id,
@@ -282,18 +293,23 @@ describe('Account email flows', () => {
   it('requires the current password to change the password, email or delete the account', async () => {
     const { mail, prisma, service } = setup();
 
-    await expect(service.changePassword(user.id, 'wrong', 'a brand new password')).rejects.toBeInstanceOf(
+    await expect(service.changePassword(user.id, { password: 'wrong' }, 'a brand new password', { hash: 'device-hash', label: 'Firefox on Windows' })).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-    await expect(service.requestEmailChange(user.id, 'new@example.com', 'wrong')).rejects.toBeInstanceOf(
+    await expect(service.requestEmailChange(user.id, 'new@example.com', { password: 'wrong' })).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-    await expect(service.deleteAccount(user.id, 'wrong')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.deleteAccount(user.id, { password: 'wrong' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.user.delete).not.toHaveBeenCalled();
     expect(mail.send).not.toHaveBeenCalled();
 
-    const session = await service.changePassword(user.id, 'correct horse battery', 'a brand new password');
+    const session = await service.changePassword(
+      user.id,
+      { password: 'correct horse battery' },
+      'a brand new password',
+      { hash: 'device-hash', label: 'Firefox on Windows' },
+    );
     expect(session.user.id).toBe(user.id);
     expect(prisma.verificationToken.deleteMany).toHaveBeenCalledWith({
       where: {
@@ -301,13 +317,10 @@ describe('Account email flows', () => {
         purpose: { in: [TokenPurpose.CHANGE_EMAIL, TokenPurpose.RESET_PASSWORD] },
       },
     });
-    expect(prisma.refreshSession.updateMany).toHaveBeenCalledWith({
-      where: { userId: user.id, revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
+    expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
     expect(prisma.refreshSession.create).toHaveBeenCalledTimes(1);
 
-    await service.deleteAccount(user.id, 'correct horse battery');
+    await service.deleteAccount(user.id, { password: 'correct horse battery' });
     expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: user.id } });
   });
 
@@ -316,7 +329,7 @@ describe('Account email flows', () => {
     prisma.user.findUnique.mockResolvedValueOnce({ id: 'someone-else' });
 
     await expect(
-      service.requestEmailChange(user.id, 'taken@example.com', 'correct horse battery'),
+      service.requestEmailChange(user.id, 'taken@example.com', { password: 'correct horse battery' }),
     ).resolves.toBeUndefined();
     expect(mail.send).not.toHaveBeenCalledWith(expect.objectContaining({ to: 'taken@example.com' }));
     expect(prisma.verificationToken.create).not.toHaveBeenCalled();
@@ -326,7 +339,7 @@ describe('Account email flows', () => {
   it('sends an email change confirmation to the new address and warns the old one', async () => {
     const { mail, prisma, service } = setup();
 
-    await service.requestEmailChange(user.id, 'new@example.com', 'correct horse battery');
+    await service.requestEmailChange(user.id, 'new@example.com', { password: 'correct horse battery' });
     expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'new@example.com' }));
     expect(prisma.verificationToken.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -349,7 +362,7 @@ describe('Account email flows', () => {
     mail.send.mockRejectedValueOnce(refusedRecipient());
 
     await expect(
-      service.requestEmailChange(user.id, 'new@example.com', 'correct horse battery'),
+      service.requestEmailChange(user.id, 'new@example.com', { password: 'correct horse battery' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(mail.send).toHaveBeenCalledTimes(1);
     warn.mockRestore();

@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, type Location } from 'react-router';
-import { FormPanelSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
+import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { HomePage } from './pages/HomePage';
@@ -8,7 +9,21 @@ import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
+import { DataSettings } from './pages/settings/DataSettings';
+import { ProfileSettings } from './pages/settings/ProfileSettings';
+import { SecuritySettings } from './pages/settings/SecuritySettings';
+import { SessionsSettings } from './pages/settings/SessionsSettings';
+import { SettingsLayout } from './pages/settings/SettingsLayout';
 import { VerifyPage } from './pages/VerifyPage';
+
+function Protected({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const location = useLocation();
+  if (!auth.ready) {
+    return <PageSkeleton label="Loading your session" />;
+  }
+  return auth.user ? children : <Navigate replace state={{ from: location }} to="/login" />;
+}
 
 function SignedOutLogin() {
   const auth = useAuth();
@@ -37,6 +52,19 @@ export function App() {
           <Route path="login" element={<SignedOutLogin />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
+          <Route
+            path="settings"
+            element={
+              <Protected>
+                <SettingsLayout />
+              </Protected>
+            }
+          >
+            <Route index element={<ProfileSettings />} />
+            <Route path="security" element={<SecuritySettings />} />
+            <Route path="sessions" element={<SessionsSettings />} />
+            <Route path="data" element={<DataSettings />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

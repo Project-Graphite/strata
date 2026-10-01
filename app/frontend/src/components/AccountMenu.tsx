@@ -14,7 +14,10 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
           <p className="mono-sm m-0 truncate text-faint">@{handle}</p>
         </div>
       }
-      items={[{ label: 'Sign out', onSelect: onSignOut }]}
+      items={[
+        { label: 'Settings', href: '/settings' },
+        { label: 'Sign out', onSelect: onSignOut, separated: true },
+      ]}
       label="Account"
       trigger={displayName.charAt(0).toUpperCase()}
       triggerLabel={`Account menu for ${displayName}`}

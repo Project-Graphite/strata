@@ -36,12 +36,14 @@ describe('JwtAuthGuard', () => {
         {
           provide: PrismaService,
           useValue: {
-            user: {
-              findUnique: vi.fn().mockResolvedValue({
-                id: 'admin-id',
-                isActive: true,
-                role: 'ADMIN',
-              }),
+            refreshSession: {
+              findUnique: vi.fn(({ where }: { where: { id: string } }) =>
+                Promise.resolve(
+                  where.id === 'live-session'
+                    ? { userId: 'admin-id', revokedAt: null, user: { isActive: true, role: 'ADMIN' } }
+                    : { userId: 'admin-id', revokedAt: new Date(), user: { isActive: true, role: 'ADMIN' } },
+                ),
+              ),
             },
           },
         },
@@ -54,8 +56,9 @@ describe('JwtAuthGuard', () => {
 
   afterAll(() => app.close());
 
-  it('refuses anonymous requests, recognises a signed-in member and refuses a forged token', async () => {
-    const token = await new JwtService().signAsync({ sub: 'admin-id' }, { secret, expiresIn: 60 });
+  it('refuses anonymous requests, recognises a signed-in member, and refuses forged tokens and ended sessions', async () => {
+    const token = await new JwtService().signAsync({ sub: 'admin-id', sid: 'live-session' }, { secret, expiresIn: 60 });
+    const signedOut = await new JwtService().signAsync({ sub: 'admin-id', sid: 'ended-session' }, { secret, expiresIn: 60 });
     const call = (authorization?: string) =>
       fetch(base, { headers: authorization ? { Authorization: authorization } : {} });
 
@@ -63,8 +66,10 @@ describe('JwtAuthGuard', () => {
 
     const signedIn = await call(`Bearer ${token}`);
     await expect(signedIn.json()).resolves.toEqual({
-      viewer: { id: 'admin-id', isAdmin: true, isSystemManager: false },
+      viewer: { id: 'admin-id', sessionId: 'live-session', isAdmin: true, isSystemManager: false },
     });
+
+    expect((await call(`Bearer ${signedOut}`)).status).toBe(401);
 
     expect((await call('Bearer not-a-token')).status).toBe(401);
   });

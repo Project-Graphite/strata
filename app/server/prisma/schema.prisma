@@ -32,6 +32,10 @@ model User {
   updatedAt          DateTime            @updatedAt @map("updated_at")
   verificationTokens VerificationToken[]
   refreshSessions    RefreshSession[]
+  twoStepCredential  TwoStepCredential?
+  recoveryCodes      RecoveryCode[]
+  knownDevices       KnownDevice[]
+  signInChallenges   SignInChallenge[]
 
   @@map("users")
 }
@@ -51,14 +55,64 @@ model VerificationToken {
 }
 
 model RefreshSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  deviceHash  String?   @map("device_hash")
+  deviceLabel String    @default("Unknown device") @map("device_label")
+  signedInAt  DateTime  @default(now()) @map("signed_in_at")
+  lastUsedAt  DateTime  @default(now()) @map("last_used_at")
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_sessions")
+}
+
+model TwoStepCredential {
+  userId          String    @id @map("user_id") @db.Uuid
+  secretEncrypted String    @map("secret_encrypted")
+  confirmedAt     DateTime? @map("confirmed_at")
+  lastUsedStep    Int?      @map("last_used_step")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("two_step_credentials")
+}
+
+model RecoveryCode {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
-  tokenHash String    @unique @map("token_hash")
-  expiresAt DateTime  @map("expires_at")
-  revokedAt DateTime? @map("revoked_at")
+  codeHash  String    @unique @map("code_hash")
+  usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@map("refresh_sessions")
+  @@map("recovery_codes")
+}
+
+model KnownDevice {
+  userId      String   @map("user_id") @db.Uuid
+  deviceHash  String   @map("device_hash")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, deviceHash])
+  @@map("known_devices")
+}
+
+model SignInChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sign_in_challenges")
 }

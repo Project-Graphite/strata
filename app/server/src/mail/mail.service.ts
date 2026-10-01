@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createTransport, type Transporter } from 'nodemailer';
 
@@ -31,6 +31,7 @@ export class MailDeliveryError extends Error {
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private transport?: Transporter;
 
   constructor(private readonly config: ConfigService) {}
@@ -55,6 +56,18 @@ export class MailService {
       });
     } catch (error) {
       throw new MailDeliveryError(error);
+    }
+  }
+
+  async trySend(message: MailMessage) {
+    try {
+      await this.send(message);
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `"${message.subject}" was not sent: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return false;
     }
   }
 

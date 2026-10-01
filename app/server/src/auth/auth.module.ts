@@ -5,6 +5,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
+import { PasswordService } from './password.service';
+import { SessionsService } from './sessions.service';
+import { TwoStepService } from './two-step.service';
 
 @Module({
   imports: [
@@ -12,7 +15,7 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
-  exports: [PassportModule, JwtAuthGuard, AuthService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, PasswordService, SessionsService, TwoStepService],
+  exports: [PassportModule, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
 })
 export class AuthModule {}
