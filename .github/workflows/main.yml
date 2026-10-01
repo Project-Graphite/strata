@@ -1,0 +1,33 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  services:
+    name: Detect
+    uses: project-graphite/actions/.github/workflows/reusable-detect-services.yml@main
+
+  build:
+    name: Build
+    needs: services
+    permissions:
+      contents: read
+      packages: write
+    uses: project-graphite/actions/.github/workflows/reusable-docker-build-push.yml@main
+    with:
+      services: ${{ needs.services.outputs.services }}
+
+  deploy:
+    name: Deploy
+    needs: [services, build]
+    uses: project-graphite/actions/.github/workflows/reusable-deploy.yml@main
+    with:
+      services: ${{ needs.services.outputs.services }}
+      tag: ${{ needs.build.outputs.tag }}
+    secrets: inherit

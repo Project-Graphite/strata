@@ -1,0 +1,41 @@
+name: PR
+
+on: pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  services:
+    name: Detect
+    uses: project-graphite/actions/.github/workflows/reusable-detect-services.yml@main
+
+  checks:
+    name: Checks
+    needs: services
+    uses: project-graphite/actions/.github/workflows/reusable-checks.yml@main
+    with:
+      services: ${{ needs.services.outputs.services }}
+
+  images:
+    name: Images
+    needs: services
+    permissions:
+      contents: read
+    uses: project-graphite/actions/.github/workflows/reusable-docker-build-push.yml@main
+    with:
+      services: ${{ needs.services.outputs.services }}
+      push: false
+
+  secrets:
+    name: Secrets
+    uses: project-graphite/actions/.github/workflows/reusable-gitleaks.yml@main
+
+  conventions:
+    name: Conventions
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: project-graphite/actions/.github/workflows/reusable-pr-checks.yml@main

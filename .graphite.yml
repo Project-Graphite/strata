@@ -1,0 +1,75 @@
+# Registry manifest for this repository. On every push to this file on `main`, a workflow
+# dispatches to `platform`, which pulls this file, validates it against
+# platform/schema/project.schema.json, compiles it into the public registry, and syncs the
+# result into graphite-hub. See docs/adding-a-project.md and docs/reference/registry.md.
+#
+# `projects` is a list because one repo can register more than one entry — for example an epic
+# and its child projects together (see windhawk-mods/.graphite.yml for a real example). Most
+# repos, including this template, register exactly one.
+#
+# Do not add a `repo` field: the registry sync sets it from this repository's name and
+# overwrites any value given here.
+#
+# The entry below is project-template's own registration; replace it in a new repository.
+# Fields and blocks it does not use are shown as comments.
+
+projects:
+  - slug: project-template # required. Lowercase, matches the repo name. ^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$
+
+    # parent: windhawk-mods
+    # Optional. Set this only when this project is a child of an epic declared elsewhere in the
+    # registry (same pattern as slug). The referenced entry must have kind: epic, must itself be
+    # top-level (no parent of its own), and this project's repo must be the same repository as
+    # the epic's.
+
+    kind: project # required. One of: project | epic. An epic is a project that groups children via their `parent`.
+    name: Project template # required. 2-60 characters, the display name.
+    summary: > # required. 20-240 characters, one or two sentences.
+      The starting point every project is created from: shared CI wiring, the compose setup and the
+      service convention.
+
+    tags: [github-actions, docker] # optional, up to 6, lowercase, e.g. ^[a-z0-9][a-z0-9+.-]*$
+
+    owner: amrmscll # required. Lowercase handle of the person in platform/people/ who maintains this project.
+    authors: [AmrMsCLL] # required, at least one GitHub username (case as it appears on GitHub).
+
+    status: source-only # required. One of: live | wip | archived | source-only.
+    listed: false # optional, defaults to true. Set false to keep an entry out of the public portfolio (used by platform-internal repos like this template).
+
+    # showcase:
+    #   Optional. Add this block once the project has a real story to tell — a short case study
+    #   shown on its detail page. All four fields are required if the block is present at all,
+    #   and every contribution's `github` must already be listed in `authors` above.
+    #   problem: >    # required, 20-500 characters. What situation or gap this project addresses.
+    #     Starting a new project meant recreating the same CI wiring, compose setup and service
+    #     conventions by hand every time, with no guarantee they matched the rest of the org.
+    #   approach: >   # required, 20-700 characters. What was actually built and how.
+    #     project-template packages the shared GitHub Actions workflows, a working Compose stack
+    #     and a documented conventions checklist that a new repository starts from directly.
+    #   outcome: >    # required, 20-500 characters. What changed as a result.
+    #     Every new project begins from the same known-good baseline instead of a blank repository.
+    #   contributions: # required, at least one entry.
+    #     - github: AmrMsCLL       # required, must be one of `authors` above.
+    #       summary: >             # required, 20-300 characters.
+    #         Designed and maintains the shared CI wiring, compose baseline and conventions this
+    #         template packages for every new project.
+
+    deploy:
+      # Exactly one shape is allowed here (schema `oneOf`); the other two are shown below as
+      # comments. Swap the active block for one of them if this project is deployed.
+      kind: none # this project is not deployed on its own — templates and libraries typically use this.
+
+      # kind: compose
+      # host: my-project.project-graphite.com   # required. Subdomain of project-graphite.com, or exactly project-graphite.com.
+      # source:
+      #   file: compose.production.yaml         # required. Path to the compose file, no leading slash, no "..".
+      #   service: web                          # required. Lowercase service name from that compose file to expose.
+      #   port: 80                               # required. 1-65535, the container port that service listens on.
+      # secrets: [SECRET_KEY, POSTGRES_PASSWORD] # optional. UPPER_SNAKE_CASE env var names Coolify must inject.
+
+      # kind: pages
+      # host: my-project.project-graphite.com   # required. Same host rules as above.
+      # source:
+      #   directory: web-app                    # required. Lowercase kebab-case source directory to build.
+      #   output: dist                          # required. Build output directory, relative to `directory`.
+      #   command: npm run build                # optional. Recorded for reference; the Cloudflare Pages project defines the build.
