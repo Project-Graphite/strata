@@ -6,6 +6,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   services:
     name: Detect
@@ -20,13 +23,10 @@ jobs:
 
   images:
     name: Images
-    needs: services
-    permissions:
-      contents: read
-    uses: project-graphite/actions/.github/workflows/reusable-docker-build-push.yml@main
-    with:
-      services: ${{ needs.services.outputs.services }}
-      push: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --target server app
 
   secrets:
     name: Secrets

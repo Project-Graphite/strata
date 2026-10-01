@@ -1,15 +1,32 @@
-name: project-template
+name: strata
 
 services:
-  web:
-    image: ghcr.io/project-graphite/project-template/web:${IMAGE_TAG:-latest}
+  app:
+    image: ghcr.io/project-graphite/strata/app:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://strata:${POSTGRES_PASSWORD:?}@postgres:5432/strata
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+      AUTH_ACCESS_TOKEN_SECRET: ${AUTH_ACCESS_TOKEN_SECRET:?}
+      AUTH_TRUSTED_ORIGINS: https://strata.project-graphite.com
+      APP_URL: https://strata.project-graphite.com
+      EMAIL_HOST: ${EMAIL_HOST:?}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     expose:
-      - "80"
+      - '3000'
     healthcheck:
-      test: [CMD, wget, --quiet, --tries=1, --spider, http://localhost/]
+      test: [CMD, wget, --quiet, --tries=1, --spider, http://127.0.0.1:3000/api/v1/health]
       interval: 30s
       timeout: 5s
-      start_period: 10s
+      start_period: 20s
       retries: 3
     init: true
     restart: unless-stopped
@@ -18,5 +35,58 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
+          cpus: '0.75'
+          memory: 512M
+
+  postgres:
+    image: postgres:18-alpine
+    command: [postgres, -c, shared_buffers=64MB, -c, work_mem=4MB, -c, max_connections=40]
+    environment:
+      POSTGRES_DB: strata
+      POSTGRES_USER: strata
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U strata -d strata]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 320M
+
+  redis:
+    image: redis:8.10-alpine
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --maxmemory 48mb --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+volumes:
+  postgres-data:
+  redis-data:
