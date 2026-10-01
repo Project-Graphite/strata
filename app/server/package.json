@@ -40,7 +40,7 @@
     "@types/cookie-parser": "1.4.10",
     "@types/node": "26.6.2",
     "@types/passport-jwt": "4.0.1",
-    "typescript": "6.0.2",
+    "typescript": "7.0.2",
     "vitest": "5.0.1"
   }
 }
