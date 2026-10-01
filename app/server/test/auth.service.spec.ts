@@ -19,12 +19,14 @@ function serviceWith(session: Record<string, unknown> | null, rotated = 1) {
   const refreshSession = {
     findUnique: vi.fn().mockResolvedValue(session && { user, ...session }),
     updateMany: vi.fn().mockResolvedValue({ count: rotated }),
-    create: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue({ id: 'new-session-id' }),
   };
   const service = new AuthService(
     { refreshSession } as never,
     new JwtService(),
     new ConfigService({ AUTH_ACCESS_TOKEN_SECRET: 'test-secret' }),
+    {} as never,
+    {} as never,
     {} as never,
   );
   return { refreshSession, service };
@@ -78,6 +80,13 @@ describe('AuthService refresh', () => {
     await expect(service.refresh('raw-token')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+    expect(refreshSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses a device that was signed out without signing out the others', async () => {
+    const { refreshSession, service } = serviceWith(null);
+
+    await expect(service.refresh('raw-token')).rejects.toBeInstanceOf(UnauthorizedException);
     expect(refreshSession.updateMany).not.toHaveBeenCalled();
   });
 

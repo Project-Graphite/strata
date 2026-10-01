@@ -7,6 +7,7 @@ const settings = {
   AUTH_TRUSTED_ORIGINS: 'http://localhost:4104',
   APP_URL: 'http://localhost:4104',
   DEFAULT_FROM_EMAIL: 'Strata <strata@example.com>',
+  DATA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
 };
 
 async function compile() {

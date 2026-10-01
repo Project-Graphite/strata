@@ -28,6 +28,9 @@ class Environment {
   @Matches(origins)
   AUTH_TRUSTED_ORIGINS!: string;
 
+  @Matches(/^[A-Za-z0-9+/]{43}=$/, { message: 'DATA_ENCRYPTION_KEY must be 32 random bytes in base64' })
+  DATA_ENCRYPTION_KEY!: string;
+
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   APP_URL!: string;
 

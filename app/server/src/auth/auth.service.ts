@@ -3,23 +3,25 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, TokenPurpose, UserRole } from '@prisma/client';
-import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
-import { promisify } from 'node:util';
-import { MailMessage, MailService } from '../mail/mail.service';
+import { createHash, randomBytes } from 'node:crypto';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Device } from './device';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { PasswordService } from './password.service';
+import { TwoStepService } from './two-step.service';
 
-const scryptAsync = promisify<string, Buffer, number, ScryptOptions, Buffer>(scrypt);
 export const refreshLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 const refreshReuseGraceMs = 30 * 1000;
+const challengeLifetimeMs = 5 * 60 * 1000;
+const challengeAttempts = 5;
 const tokenLifetimesMs: Record<TokenPurpose, number> = {
   VERIFY_EMAIL: 24 * 60 * 60 * 1000,
   CHANGE_EMAIL: 24 * 60 * 60 * 1000,
@@ -28,7 +30,19 @@ const tokenLifetimesMs: Record<TokenPurpose, number> = {
 
 const accountTokens = [TokenPurpose.CHANGE_EMAIL, TokenPurpose.RESET_PASSWORD];
 
-const scryptCost = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
+export interface Proof {
+  password: string;
+  code?: string;
+}
+
+interface SessionUser {
+  id: string;
+  email: string;
+  handle: string;
+  displayName: string;
+  role: UserRole;
+  timeZone: string;
+}
 
 function uniqueViolation(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
@@ -44,19 +58,21 @@ function emailUnavailable() {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  private unknownAccountHash?: Promise<string>;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly passwords: PasswordService,
+    private readonly twoStep: TwoStepService,
   ) {}
 
   async register(input: RegisterDto) {
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
-      await this.deliver({
+      await this.mail.trySend({
         to: existing.email,
         subject: 'Someone tried to create a Strata account with your email',
         text: [
@@ -74,7 +90,8 @@ export class AuthService {
     if (await this.prisma.user.findUnique({ where: { handle: input.handle }, select: { id: true } })) {
       throw handleTaken();
     }
-    const passwordHash = await this.hashPassword(input.password);
+    await this.passwords.assertNotBreached(input.password);
+    const passwordHash = await this.passwords.hash(input.password);
     try {
       await this.prisma.$transaction(
         async (transaction) => {
@@ -144,11 +161,16 @@ export class AuthService {
     return { verified: true };
   }
 
-  async login(input: LoginDto) {
+  async login(input: LoginDto, device: Device) {
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
     });
-    if (!user || !(await this.verifyPassword(input.password, user.passwordHash))) {
+    if (!user) {
+      this.unknownAccountHash ??= this.passwords.hash(randomBytes(16).toString('hex'));
+      await this.passwords.verify(input.password, await this.unknownAccountHash);
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
+    if (!(await this.passwords.verify(input.password, user.passwordHash))) {
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!user.verifiedAt) {
@@ -157,7 +179,44 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is inactive');
     }
-    return this.issueSession(user);
+    if (await this.twoStep.enabled(user.id)) {
+      const challenge = randomBytes(32).toString('hex');
+      await this.prisma.signInChallenge.create({
+        data: {
+          userId: user.id,
+          tokenHash: this.digest(challenge),
+          expiresAt: new Date(Date.now() + challengeLifetimeMs),
+        },
+      });
+      return { challenge };
+    }
+    return { session: await this.issueSession(user, device, { alertNewDevice: true }) };
+  }
+
+  async completeTwoStep(challenge: string, code: string, device: Device) {
+    const record = await this.prisma.signInChallenge.findUnique({
+      where: { tokenHash: this.digest(challenge) },
+      include: { user: true },
+    });
+    if (!record || record.expiresAt <= new Date()) {
+      throw new UnauthorizedException('This sign-in has expired. Sign in again.');
+    }
+    const counted = await this.prisma.signInChallenge.updateMany({
+      where: { id: record.id, attempts: { lt: challengeAttempts } },
+      data: { attempts: { increment: 1 } },
+    });
+    if (counted.count === 0) {
+      await this.prisma.signInChallenge.deleteMany({ where: { id: record.id } });
+      throw new UnauthorizedException('Too many wrong codes. Sign in again.');
+    }
+    if (!(await this.twoStep.verify(record.userId, code))) {
+      throw new UnauthorizedException('That code is not right');
+    }
+    const consumed = await this.prisma.signInChallenge.deleteMany({ where: { id: record.id } });
+    if (consumed.count === 0 || !record.user.isActive) {
+      throw new UnauthorizedException('This sign-in has expired. Sign in again.');
+    }
+    return this.issueSession(record.user, device, { alertNewDevice: true });
   }
 
   async refresh(rawToken: string) {
@@ -193,15 +252,16 @@ export class AuthService {
     if (!session.user.isActive || !session.user.verifiedAt) {
       throw new UnauthorizedException('Refresh session is invalid');
     }
-    return this.issueSession(session.user);
+    return this.issueSession(
+      session.user,
+      { hash: session.deviceHash, label: session.deviceLabel },
+      { signedInAt: session.signedInAt },
+    );
   }
 
   async logout(rawToken: string | undefined) {
     if (rawToken) {
-      await this.prisma.refreshSession.updateMany({
-        where: { tokenHash: this.digest(rawToken), revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+      await this.prisma.refreshSession.deleteMany({ where: { tokenHash: this.digest(rawToken) } });
     }
   }
 
@@ -211,7 +271,7 @@ export class AuthService {
       return;
     }
     const token = await this.createToken(this.prisma, user.id, TokenPurpose.RESET_PASSWORD);
-    await this.deliver({
+    await this.mail.trySend({
       to: user.email,
       subject: 'Reset your Strata password',
       text: [
@@ -229,7 +289,7 @@ export class AuthService {
   async resetPassword(token: string, password: string) {
     const record = await this.prisma.verificationToken.findUnique({
       where: { tokenHash: this.digest(token) },
-      include: { user: { select: { verifiedAt: true } } },
+      include: { user: { select: { verifiedAt: true, email: true, displayName: true } } },
     });
     if (
       !record ||
@@ -238,45 +298,43 @@ export class AuthService {
     ) {
       throw new UnauthorizedException('Reset link is invalid or expired');
     }
+    await this.passwords.assertNotBreached(password);
     const now = new Date();
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: record.userId },
         data: {
-          passwordHash: await this.hashPassword(password),
+          passwordHash: await this.passwords.hash(password),
           verifiedAt: record.user.verifiedAt ?? now,
         },
       }),
       this.prisma.verificationToken.deleteMany({
         where: { userId: record.userId, purpose: { in: accountTokens } },
       }),
-      this.prisma.refreshSession.updateMany({
-        where: { userId: record.userId, revokedAt: null },
-        data: { revokedAt: now },
-      }),
+      this.prisma.refreshSession.deleteMany({ where: { userId: record.userId } }),
     ]);
+    await this.passwordChangedNotice(record.user);
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await this.userWithPassword(userId, currentPassword);
+  async changePassword(userId: string, proof: Proof, newPassword: string, device: Device) {
+    const user = await this.reauthenticate(userId, proof);
+    await this.passwords.assertNotBreached(newPassword);
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
-        data: { passwordHash: await this.hashPassword(newPassword) },
+        data: { passwordHash: await this.passwords.hash(newPassword) },
       }),
       this.prisma.verificationToken.deleteMany({
         where: { userId, purpose: { in: accountTokens } },
       }),
-      this.prisma.refreshSession.updateMany({
-        where: { userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
+      this.prisma.refreshSession.deleteMany({ where: { userId } }),
     ]);
-    return this.issueSession(user);
+    await this.passwordChangedNotice(user);
+    return this.issueSession(user, device, {});
   }
 
-  async requestEmailChange(userId: string, email: string, password: string) {
-    const user = await this.userWithPassword(userId, password);
+  async requestEmailChange(userId: string, email: string, proof: Proof) {
+    const user = await this.reauthenticate(userId, proof);
     if (email === user.email) {
       throw new BadRequestException('This is already your email address');
     }
@@ -284,7 +342,7 @@ export class AuthService {
     if (!taken && !(await this.sendVerification(this.prisma, user, TokenPurpose.CHANGE_EMAIL, email))) {
       throw emailUnavailable();
     }
-    await this.deliver({
+    await this.mail.trySend({
       to: user.email,
       subject: 'Your Strata email is being changed',
       text: [
@@ -299,33 +357,49 @@ export class AuthService {
     });
   }
 
-  async confirmPassword(userId: string, password: string) {
-    await this.userWithPassword(userId, password);
-  }
-
-  async deleteAccount(userId: string, password: string) {
-    await this.userWithPassword(userId, password);
+  async deleteAccount(userId: string, proof: Proof) {
+    await this.reauthenticate(userId, proof);
     await this.prisma.user.delete({ where: { id: userId } });
   }
 
-  private async issueSession(user: {
-    id: string;
-    email: string;
-    handle: string;
-    displayName: string;
-    role: UserRole;
-    timeZone: string;
-  }) {
+  async reauthenticate(userId: string, proof: Proof) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await this.passwords.verify(proof.password, user.passwordHash))) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+    if (await this.twoStep.enabled(userId)) {
+      if (!proof.code) {
+        throw new ForbiddenException('Enter a code from your authenticator app or a recovery code');
+      }
+      if (!(await this.twoStep.verify(userId, proof.code))) {
+        throw new ForbiddenException('That code is not right');
+      }
+    }
+    return user;
+  }
+
+  private async issueSession(
+    user: SessionUser,
+    device: { hash: string | null; label: string },
+    options: { alertNewDevice?: boolean; signedInAt?: Date },
+  ) {
     const refreshToken = randomBytes(48).toString('base64url');
-    await this.prisma.refreshSession.create({
+    const session = await this.prisma.refreshSession.create({
       data: {
         userId: user.id,
         tokenHash: this.digest(refreshToken),
+        deviceHash: device.hash,
+        deviceLabel: device.label,
+        signedInAt: options.signedInAt,
         expiresAt: new Date(Date.now() + refreshLifetimeMs),
       },
+      select: { id: true },
     });
+    if (options.alertNewDevice && device.hash) {
+      await this.rememberDevice(user, device.hash, device.label);
+    }
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id },
+      { sub: user.id, sid: session.id },
       {
         secret: this.config.getOrThrow<string>('AUTH_ACCESS_TOKEN_SECRET'),
         expiresIn: 15 * 60,
@@ -345,12 +419,44 @@ export class AuthService {
     };
   }
 
-  private async userWithPassword(userId: string, password: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!(await this.verifyPassword(password, user.passwordHash))) {
-      throw new ForbiddenException('Current password is incorrect');
+  private async rememberDevice(user: SessionUser, hash: string, label: string) {
+    const known = await this.prisma.knownDevice.count({ where: { userId: user.id } });
+    const added = await this.prisma.knownDevice.createMany({
+      data: [{ userId: user.id, deviceHash: hash }],
+      skipDuplicates: true,
+    });
+    if (added.count === 1 && known > 0) {
+      await this.mail.trySend({
+        to: user.email,
+        subject: 'New sign-in to your Strata account',
+        text: [
+          `Hi ${user.displayName},`,
+          '',
+          `Your Strata account was just signed in to from a new device: ${label}, at ${new Date().toUTCString()}.`,
+          '',
+          'If this was you, there is nothing to do. If not, reset your password now, then sign out the devices you do not recognise:',
+          '',
+          this.mail.link('/forgot-password'),
+          this.mail.link('/settings/sessions'),
+        ].join('\n'),
+      });
     }
-    return user;
+  }
+
+  private passwordChangedNotice(user: { email: string; displayName: string }) {
+    return this.mail.trySend({
+      to: user.email,
+      subject: 'Your Strata password was changed',
+      text: [
+        `Hi ${user.displayName},`,
+        '',
+        'The password of your Strata account was just changed, and every device was signed out.',
+        '',
+        'If this was not you, reset it again now:',
+        '',
+        this.mail.link('/forgot-password'),
+      ].join('\n'),
+    });
   }
 
   private async sendVerification(
@@ -361,7 +467,7 @@ export class AuthService {
   ) {
     const changing = purpose === TokenPurpose.CHANGE_EMAIL;
     const token = await this.createToken(client, user.id, purpose, changing ? to : null);
-    return this.deliver({
+    return this.mail.trySend({
       to,
       subject: changing
         ? 'Confirm your new Strata email'
@@ -378,18 +484,6 @@ export class AuthService {
         'The link works for 24 hours. If you did not ask for this, ignore this email.',
       ].join('\n'),
     });
-  }
-
-  private async deliver(message: MailMessage) {
-    try {
-      await this.mail.send(message);
-      return true;
-    } catch (error) {
-      this.logger.warn(
-        `"${message.subject}" was not sent: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
-      return false;
-    }
   }
 
   private async createToken(
@@ -410,28 +504,6 @@ export class AuthService {
       },
     });
     return token;
-  }
-
-  private async hashPassword(password: string) {
-    const salt = randomBytes(16);
-    const key = (await scryptAsync(password, salt, 64, scryptCost)) as Buffer;
-    const { N, r, p } = scryptCost;
-    return `scrypt$${N}$${r}$${p}$${salt.toString('hex')}$${key.toString('hex')}`;
-  }
-
-  private async verifyPassword(password: string, encoded: string) {
-    const [scheme, N, r, p, saltHex, keyHex] = encoded.split('$');
-    if (scheme !== 'scrypt' || !N || !r || !p || !saltHex || !keyHex) {
-      return false;
-    }
-    const expected = Buffer.from(keyHex, 'hex');
-    const actual = (await scryptAsync(password, Buffer.from(saltHex, 'hex'), expected.length, {
-      N: Number(N),
-      r: Number(r),
-      p: Number(p),
-      maxmem: scryptCost.maxmem,
-    })) as Buffer;
-    return timingSafeEqual(expected, actual);
   }
 
   private digest(token: string) {

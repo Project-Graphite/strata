@@ -26,6 +26,11 @@ interface Session {
   user: User;
 }
 
+export interface Proof {
+  password: string;
+  code?: string;
+}
+
 interface AuthContextValue {
   user?: User;
   ready: boolean;
@@ -37,8 +42,12 @@ interface AuthContextValue {
     password: string;
   }): Promise<void>;
   verify(token: string): Promise<void>;
-  login(email: string, password: string): Promise<void>;
+  login(email: string, password: string): Promise<{ challenge: string } | undefined>;
+  completeTwoStep(challenge: string, code: string): Promise<void>;
   logout(): Promise<void>;
+  changePassword(proof: Proof, newPassword: string): Promise<void>;
+  deleteAccount(proof: Proof): Promise<void>;
+  updateUser(changes: Partial<Pick<User, 'displayName' | 'timeZone'>>): void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -127,16 +136,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       },
       login: async (email, password) => {
+        const result = await apiRequest<Session | { twoStep: true; challenge: string }>('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        });
+        if ('challenge' in result) return { challenge: result.challenge };
+        applySession(result);
+        return undefined;
+      },
+      completeTwoStep: async (challenge, code) => {
         applySession(
-          await apiRequest<Session>('/auth/login', {
+          await apiRequest<Session>('/auth/two-step', {
             method: 'POST',
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ challenge, code }),
           }),
         );
       },
       logout: async () => {
         await apiRequest('/auth/logout', { method: 'POST' });
         applySession(undefined);
+      },
+      changePassword: async (proof, newPassword) => {
+        applySession(
+          await request<Session>('/auth/password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword: proof.password, code: proof.code, newPassword }),
+          }),
+        );
+      },
+      deleteAccount: async (proof) => {
+        await request('/me', { method: 'DELETE', body: JSON.stringify(proof) });
+        applySession(undefined);
+      },
+      updateUser: (changes) => {
+        const active = current.current;
+        if (active) applySession({ ...active, user: { ...active.user, ...changes } });
       },
     }),
     [applySession, ready, request, session],
