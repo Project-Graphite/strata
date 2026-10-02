@@ -42,6 +42,10 @@ function describeActivity(event: ActivityEvent) {
       return `${who} restored ${title}`;
     case 'item.deleted':
       return `${who} deleted ${title} for good`;
+    case 'task.completed':
+      return data.nextDue ? `${who} finished ${title}, next due ${String(data.nextDue)}` : `${who} finished ${title}`;
+    case 'task.reopened':
+      return `${who} reopened ${title}`;
     case 'tag.created':
       return `${who} added the tag “${String(data.name)}”`;
     case 'tag.updated':

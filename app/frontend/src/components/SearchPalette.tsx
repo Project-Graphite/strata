@@ -10,6 +10,7 @@ interface SearchResults {
 
 const pages = [
   ['/', 'Home'],
+  ['/today', 'Today'],
   ['/spaces', 'Spaces'],
   ['/inbox', 'Inbox'],
   ['/invitations', 'Invitations'],
@@ -54,7 +55,12 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
       hint: `${item.kind} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
-      href: `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
+      href:
+        item.kind === 'task'
+          ? `/spaces/${item.spaceId}/tasks`
+          : item.kind === 'list'
+            ? `/spaces/${item.spaceId}/tasks?list=${item.id}`
+            : `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
       id: `item-${item.id}`,
       label: item.title || 'Untitled',
     })),
