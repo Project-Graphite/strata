@@ -11,7 +11,7 @@ describe('Dashboards against Postgres', () => {
 
     const [home] = (await owner.call('GET', '/me/dashboards')).body;
     expect(home).toMatchObject({ name: 'Home' });
-    expect(home.layout.widgets.map((widget: { type: string }) => widget.type)).toEqual(['clock', 'today', 'recurring', 'inbox']);
+    expect(home.layout.widgets.map((widget: { type: string }) => widget.type)).toEqual(['clock', 'today', 'agenda', 'recurring', 'inbox']);
     expect((await owner.call('GET', '/me/dashboards')).body).toHaveLength(1);
 
     const layout = {
