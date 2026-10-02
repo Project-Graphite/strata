@@ -15,10 +15,9 @@ export function SpaceItems() {
   const [params] = useSearchParams();
   const page = Number(params.get('page')) || 1;
   const archived = params.get('archived') === 'true';
-  const items = useResource<Page<Item>>(
-    `/spaces/${space.id}/items?page=${page}${archived ? '&archived=true' : ''}`,
-    true,
-  );
+  const tag = params.get('tag');
+  const filters = `${archived ? '&archived=true' : ''}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}`;
+  const items = useResource<Page<Item>>(`/spaces/${space.id}/items?page=${page}${filters}`, true);
   const action = useAction();
   const uploading = useAction();
   const base = `/spaces/${space.id}`;
@@ -51,9 +50,16 @@ export function SpaceItems() {
   return (
     <div className="fade-in grid max-w-3xl gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link className="mono-sm w-fit text-faint" to={archived ? base : `${base}?archived=true`}>
-          {archived ? 'show current items' : 'show archived items'}
-        </Link>
+        <div className="flex flex-wrap gap-4">
+          <Link className="mono-sm w-fit text-faint" to={archived ? base : `${base}?archived=true`}>
+            {archived ? 'show current items' : 'show archived items'}
+          </Link>
+          {tag && (
+            <Link className="mono-sm w-fit text-faint" to={base}>
+              showing one tag · show everything
+            </Link>
+          )}
+        </div>
         {editable && !archived && (
           <label className={`secondary-button inline-flex cursor-pointer px-3 py-2 text-sm ${uploading.busy ? 'opacity-60' : ''}`}>
             {uploading.busy ? 'Uploading…' : 'Upload files'}
@@ -126,7 +132,7 @@ export function SpaceItems() {
       {action.status}
       <Pagination
         page={items.data.page}
-        pageHref={(next) => `${base}?page=${next}${archived ? '&archived=true' : ''}`}
+        pageHref={(next) => `${base}?page=${next}${filters}`}
         totalPages={items.data.totalPages}
       />
     </div>
