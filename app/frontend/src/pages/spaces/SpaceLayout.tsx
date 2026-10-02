@@ -28,6 +28,7 @@ export function SpaceLayout() {
     [base, 'Items'],
     [`${base}/tags`, 'Tags'],
     [`${base}/members`, 'Members'],
+    [`${base}/activity`, 'Activity'],
   ] as const;
 
   return (

@@ -5,6 +5,7 @@ import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
 import { HomePage } from './pages/HomePage';
+import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
@@ -17,6 +18,7 @@ import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
 import { SessionsSettings } from './pages/settings/SessionsSettings';
 import { SettingsLayout } from './pages/settings/SettingsLayout';
+import { SpaceActivity } from './pages/spaces/SpaceActivity';
 import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
 import { SpaceMembers } from './pages/spaces/SpaceMembers';
@@ -80,8 +82,17 @@ export function App() {
             <Route index element={<SpaceItems />} />
             <Route path="tags" element={<SpaceTags />} />
             <Route path="members" element={<SpaceMembers />} />
+            <Route path="activity" element={<SpaceActivity />} />
           </Route>
           <Route path="invite/:code" element={<InvitePage />} />
+          <Route
+            path="inbox"
+            element={
+              <Protected>
+                <InboxPage />
+              </Protected>
+            }
+          />
           <Route
             path="invitations"
             element={
