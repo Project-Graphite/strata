@@ -4,7 +4,7 @@ import { useAuth } from '../auth';
 export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
   const auth = useAuth();
   if (!auth.user) return null;
-  const { displayName, handle } = auth.user;
+  const { displayName, handle, role } = auth.user;
 
   return (
     <Menu
@@ -16,6 +16,8 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
       }
       items={[
         { label: 'Settings', href: '/settings' },
+        { label: 'Invitations', href: '/invitations' },
+        ...(role === 'system_manager' ? [{ label: 'Site settings', href: '/admin' }] : []),
         { label: 'Sign out', onSelect: onSignOut, separated: true },
       ]}
       label="Account"

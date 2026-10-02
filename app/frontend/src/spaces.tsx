@@ -43,6 +43,15 @@ export function useSpaces() {
   return context;
 }
 
+export async function addJoinedSpace(
+  request: <T>(path: string) => Promise<T>,
+  spaces: Resource<Space[]>,
+  spaceId: string,
+) {
+  const space = await request<Space>(`/spaces/${spaceId}`);
+  spaces.mutate((current) => [...current.filter((shown) => shown.id !== space.id), space]);
+}
+
 export function SpaceDot({ color }: { color: TagColor }) {
   return <span aria-hidden="true" className={`tag-dot tag-${color}`} />;
 }

@@ -3,7 +3,10 @@ import { Link, Navigate, Route, Routes, useLocation, type Location } from 'react
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { useAuth } from './auth';
 import { Shell } from './components/Shell';
+import { AdminPage } from './pages/AdminPage';
 import { HomePage } from './pages/HomePage';
+import { InvitationsPage } from './pages/InvitationsPage';
+import { InvitePage } from './pages/InvitePage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -78,6 +81,23 @@ export function App() {
             <Route path="tags" element={<SpaceTags />} />
             <Route path="members" element={<SpaceMembers />} />
           </Route>
+          <Route path="invite/:code" element={<InvitePage />} />
+          <Route
+            path="invitations"
+            element={
+              <Protected>
+                <InvitationsPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="admin"
+            element={
+              <Protected>
+                <AdminPage />
+              </Protected>
+            }
+          />
           <Route
             path="trash"
             element={

@@ -5,6 +5,7 @@ import { useAuth } from '../../auth';
 import { useSpaces, type SpaceRole } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
+import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace } from './SpaceLayout';
 
 interface Member {
@@ -89,6 +90,7 @@ export function SpaceMembers() {
         ))}
       </ul>
       {action.status}
+      {manages && space.kind === 'shared' && <SpaceInvitations space={space} />}
 
       {removing && (
         <ConfirmDialog
