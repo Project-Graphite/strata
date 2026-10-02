@@ -27,6 +27,7 @@ export interface Item {
   kind: string;
   title: string;
   tags: Tag[];
+  file: { mimeType: string; sizeBytes: number; width: number | null; height: number | null } | null;
   archivedAt: string | null;
   trashedAt: string | null;
   createdAt: string;

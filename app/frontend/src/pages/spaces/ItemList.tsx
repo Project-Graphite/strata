@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { TagChip } from '@project-graphite/ui';
+import { FilePreview, hasPreview } from '../../files';
 import type { Item } from '../../spaces';
 
 export function ItemList({
@@ -15,7 +16,8 @@ export function ItemList({
     <ul className="m-0 grid list-none gap-0 p-0">
       {items.map((item) => (
         <li className="flex items-center justify-between gap-4 border-b border-line-soft py-4" key={item.id}>
-          <div className="min-w-0">
+          {hasPreview(item) && <FilePreview item={item} />}
+          <div className="min-w-0 flex-1">
             <p className="m-0 truncate text-ink">{item.title || 'Untitled'}</p>
             <p className="mono-sm m-0 mt-1 text-faint">
               {item.kind} · {detail(item)}
