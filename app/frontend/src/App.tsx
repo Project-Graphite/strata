@@ -4,6 +4,8 @@ import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@
 import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
+import { AgendaPage } from './pages/AgendaPage';
+import { EventPage } from './pages/EventPage';
 import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
@@ -14,6 +16,7 @@ import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
+import { RsvpPage, SharePage } from './pages/RsvpPages';
 import { DataSettings } from './pages/settings/DataSettings';
 import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
@@ -92,6 +95,24 @@ export function App() {
             <Route path="activity" element={<SpaceActivity />} />
           </Route>
           <Route path="invite/:code" element={<InvitePage />} />
+          <Route path="rsvp/:code" element={<RsvpPage />} />
+          <Route path="share/:code" element={<SharePage />} />
+          <Route
+            path="agenda"
+            element={
+              <Protected>
+                <AgendaPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="events/:id"
+            element={
+              <Protected>
+                <EventPage />
+              </Protected>
+            }
+          />
           <Route
             path="recurring"
             element={
