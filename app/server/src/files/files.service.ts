@@ -47,7 +47,7 @@ export class FilesService {
     const sha256 = createHash('sha256').update(file.data).digest('hex');
     const item = await this.prisma.$transaction(
       async (transaction) => {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sha256}::text))`;
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sha256}::text))`;
         await transaction.fileBlob.upsert({
           where: { sha256 },
           create: { sha256, sizeBytes: file.data.length },
@@ -109,7 +109,7 @@ export class FilesService {
     });
     for (const { sha256 } of orphans) {
       await this.prisma.$transaction(async (transaction) => {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sha256}::text))`;
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sha256}::text))`;
         const removed = await transaction.fileBlob.deleteMany({ where: { sha256, files: { none: {} } } });
         if (removed.count === 1) {
           await this.store.remove(sha256);
