@@ -40,11 +40,15 @@ function firstSlot(event: Pick<EventRow, 'startsOn' | 'startTime' | 'endsOn' | '
   return { start, end };
 }
 
+function overlaps(slot: Slot, from: Date) {
+  return slot.end > from || slot.start >= from;
+}
+
 function slots(event: EventRow, from: Date, to: Date, limit = 200): Slot[] {
   const first = firstSlot(event);
   const length = first.end.getTime() - first.start.getTime();
   if (!event.repeatRule) {
-    return first.end > from && first.start < to ? [first] : [];
+    return overlaps(first, from) && first.start < to ? [first] : [];
   }
   return occurrences(
     parseRule(event.repeatRule),
@@ -53,7 +57,7 @@ function slots(event: EventRow, from: Date, to: Date, limit = 200): Slot[] {
     limit,
   )
     .map((start) => ({ start, end: new Date(start.getTime() + length) }))
-    .filter((slot) => slot.end > from);
+    .filter((slot) => overlaps(slot, from));
 }
 
 function checkedRule(text: string | null | undefined) {
