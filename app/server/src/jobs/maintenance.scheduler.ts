@@ -59,6 +59,9 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
     await this.prisma.scheduledJob.deleteMany({
       where: { OR: [{ doneAt: { lt: ago(30) } }, { failedAt: { lt: ago(30) } }] },
     });
+    await this.prisma.accessToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: ago(30) } }, { revokedAt: { lt: ago(30) } }] },
+    });
     await this.files.removeOrphans(now);
   }
 }

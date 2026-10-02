@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -13,6 +14,7 @@ export class SpacesController {
   constructor(private readonly spaces: SpacesService) {}
 
   @Get()
+  @Scope('spaces:read')
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.spaces.list(user.id);
   }
@@ -24,6 +26,7 @@ export class SpacesController {
   }
 
   @Get(':id')
+  @Scope('spaces:read')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.spaces.get(user.id, id);
   }
@@ -44,6 +47,7 @@ export class SpacesController {
   }
 
   @Get(':id/members')
+  @Scope('spaces:read')
   members(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.spaces.members(user.id, id);
   }
