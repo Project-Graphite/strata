@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
   errorMessage,
+  Icon,
   OutageGate,
   Sidebar,
   Skeleton,
@@ -11,6 +12,7 @@ import {
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
 import { useAuth } from '../auth';
+import { InboxContext } from '../inbox';
 import { SpacesContext, type Space } from '../spaces';
 import { useResource } from '../useResource';
 import { AccountMenu } from './AccountMenu';
@@ -51,6 +53,15 @@ export function Shell() {
   const { pathname } = useLocation();
   const [error, setError] = useState('');
   const spaces = useResource<Space[]>('/spaces', true);
+  const inbox = useResource<{ unread: number }>('/me/inbox/summary', true);
+  const { reload: checkInbox } = inbox;
+  const unread = inbox.data?.unread ?? 0;
+
+  useEffect(() => {
+    if (!auth.user) return;
+    const timer = setInterval(checkInbox, 60_000);
+    return () => clearInterval(timer);
+  }, [auth.user, checkInbox]);
 
   async function signOut() {
     setError('');
@@ -74,75 +85,84 @@ export function Shell() {
 
   return (
     <SpacesContext.Provider value={spaces}>
-      <SnackbarProvider>
-        <ScrollToTop />
-        <AppShell
-          actions={
-            !auth.ready ? (
-              <Skeleton className="h-9 w-9 rounded-full" />
-            ) : auth.user ? (
-              <AccountMenu onSignOut={() => void signOut()} />
-            ) : (
-              <>
-                <NavLink className={(state) => `${navClass(state)} mono-sm px-2`} to="/login">
-                  sign in
-                </NavLink>
-                <Link className="primary-button hidden px-3 py-2 text-sm sm:inline-flex" to="/register">
-                  Create account
-                </Link>
-              </>
-            )
-          }
-          alert={
-            error && (
-              <p className="shell error-message mb-3" role="alert">
-                {error}
-              </p>
-            )
-          }
-          brand={{ href: '/', mark: <StrataMark />, name: 'Strata' }}
-          footer={<SiteFooter />}
-          nav={[]}
-          sidebar={
-            auth.user && (
-              <Sidebar
-                label="Areas"
-                sections={[
-                  { items: [{ active: pathname === '/', href: '/', icon: 'home', label: 'Home' }] },
-                  {
-                    label: 'Spaces',
-                    items: [
-                      ...(spaces.data ?? []).map((space) => ({
-                        active: pathname === `/spaces/${space.id}` || pathname.startsWith(`/spaces/${space.id}/`),
-                        href: `/spaces/${space.id}`,
-                        label: space.name,
-                      })),
-                      { active: pathname === '/spaces', href: '/spaces', icon: 'library', label: 'All spaces' },
-                    ],
-                  },
-                  {
-                    items: [
-                      { active: pathname === '/invitations', href: '/invitations', label: 'Invitations' },
-                      { active: pathname === '/trash', href: '/trash', label: 'Trash' },
-                      { active: pathname.startsWith('/settings'), href: '/settings', icon: 'user', label: 'Settings' },
-                    ],
-                  },
-                ]}
-              />
-            )
-          }
-          tabs={tabs}
-        >
-          <OutageGate
-            healthUrl="/api/v1/health"
-            offlineHint="Reconnect to the internet to carry on."
-            productName="Strata"
-            subscribe={onOutage}
+      <InboxContext.Provider value={inbox}>
+        <SnackbarProvider>
+          <ScrollToTop />
+          <AppShell
+            actions={
+              !auth.ready ? (
+                <Skeleton className="h-9 w-9 rounded-full" />
+              ) : auth.user ? (
+                <>
+                  <Link aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'} className="icon-button relative" to="/inbox">
+                    <Icon name="bell" />
+                    {unread > 0 && <span className="count-badge">{unread > 9 ? '9+' : unread}</span>}
+                  </Link>
+                  <AccountMenu onSignOut={() => void signOut()} />
+                </>
+              ) : (
+                <>
+                  <NavLink className={(state) => `${navClass(state)} mono-sm px-2`} to="/login">
+                    sign in
+                  </NavLink>
+                  <Link className="primary-button hidden px-3 py-2 text-sm sm:inline-flex" to="/register">
+                    Create account
+                  </Link>
+                </>
+              )
+            }
+            alert={
+              error && (
+                <p className="shell error-message mb-3" role="alert">
+                  {error}
+                </p>
+              )
+            }
+            brand={{ href: '/', mark: <StrataMark />, name: 'Strata' }}
+            footer={<SiteFooter />}
+            nav={[]}
+            sidebar={
+              auth.user && (
+                <Sidebar
+                  label="Areas"
+                  sections={[
+                    { items: [{ active: pathname === '/', href: '/', icon: 'home', label: 'Home' }] },
+                    {
+                      label: 'Spaces',
+                      items: [
+                        ...(spaces.data ?? []).map((space) => ({
+                          active: pathname === `/spaces/${space.id}` || pathname.startsWith(`/spaces/${space.id}/`),
+                          href: `/spaces/${space.id}`,
+                          label: space.name,
+                        })),
+                        { active: pathname === '/spaces', href: '/spaces', icon: 'library', label: 'All spaces' },
+                      ],
+                    },
+                    {
+                      items: [
+                        { active: pathname === '/inbox', badge: unread || undefined, href: '/inbox', icon: 'bell', label: 'Inbox' },
+                        { active: pathname === '/invitations', href: '/invitations', label: 'Invitations' },
+                        { active: pathname === '/trash', href: '/trash', label: 'Trash' },
+                        { active: pathname.startsWith('/settings'), href: '/settings', icon: 'user', label: 'Settings' },
+                      ],
+                    },
+                  ]}
+                />
+              )
+            }
+            tabs={tabs}
           >
-            <Outlet />
-          </OutageGate>
-        </AppShell>
-      </SnackbarProvider>
+            <OutageGate
+              healthUrl="/api/v1/health"
+              offlineHint="Reconnect to the internet to carry on."
+              productName="Strata"
+              subscribe={onOutage}
+            >
+              <Outlet />
+            </OutageGate>
+          </AppShell>
+        </SnackbarProvider>
+      </InboxContext.Provider>
     </SpacesContext.Provider>
   );
 }

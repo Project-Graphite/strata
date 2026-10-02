@@ -2,6 +2,7 @@ import { ListSkeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
+import { SecurityLog } from './SecurityLog';
 import { SettingsSection } from './SettingsLayout';
 
 interface Session {
@@ -72,6 +73,9 @@ export function SessionsSettings() {
           Sign out every other device
         </button>
       )}
+      <div className="mt-6">
+        <SecurityLog />
+      </div>
     </div>
   );
 }
