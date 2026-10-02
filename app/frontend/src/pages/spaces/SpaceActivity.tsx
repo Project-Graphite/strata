@@ -30,6 +30,8 @@ function describeActivity(event: ActivityEvent) {
       return `${who} removed ${String(data.member)}`;
     case 'member.role_changed':
       return `${who} made ${String(data.member)} ${withArticle(data.role)}`;
+    case 'item.created':
+      return `${who} added ${title}`;
     case 'item.updated':
       if (data.renamedFrom !== undefined) return `${who} renamed “${String(data.renamedFrom || 'Untitled')}” to ${title}`;
       if (data.archived !== undefined) return `${who} ${data.archived ? 'archived' : 'unarchived'} ${title}`;

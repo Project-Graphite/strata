@@ -37,10 +37,18 @@ function reportOutage() {
 
 const gatewayStatuses = [500, 502, 503, 504];
 
+export const readBlob = (response: Response) => response.blob();
+
+async function readJson(response: Response) {
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
   accessToken?: string,
+  read: (response: Response) => Promise<unknown> = readJson,
 ) {
   let response: Response;
   try {
@@ -71,6 +79,5 @@ export async function apiRequest<T>(
       : body?.message;
     throw new ApiError(message ?? `Something went wrong (error ${response.status}). Try again.`, response.status);
   }
-  const text = await response.text();
-  return (text ? JSON.parse(text) : null) as T;
+  return (await read(response)) as T;
 }

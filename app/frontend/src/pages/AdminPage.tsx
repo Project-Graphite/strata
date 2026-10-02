@@ -1,4 +1,4 @@
-import { FormSkeleton, Toggle } from '@project-graphite/ui';
+import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -6,12 +6,14 @@ import { NotFoundPage } from './NotFoundPage';
 
 interface SiteSettings {
   inviteOnly: boolean;
+  fileQuotaMb: number;
 }
 
 export function AdminPage() {
   const auth = useAuth();
   const site = useResource<SiteSettings>('/site');
   const saving = useAction();
+  const quota = useAction();
 
   if (auth.user?.role !== 'system_manager') return <NotFoundPage />;
   if (site.error) return <p className="error-message">{site.error}</p>;
@@ -40,6 +42,37 @@ export function AdminPage() {
         }
       />
       {saving.status}
+      <form
+        className="grid max-w-sm gap-4"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          const fileQuotaMb = Number(new FormData(event.currentTarget).get('fileQuotaMb'));
+          void quota.run(async () => {
+            const saved = await auth.request<SiteSettings>('/admin/site', {
+              method: 'PATCH',
+              body: JSON.stringify({ fileQuotaMb }),
+            });
+            site.mutate(() => saved);
+            return `Everyone can now store up to ${saved.fileQuotaMb} MB.`;
+          }, 'Could not save the storage limit');
+        }}
+      >
+        <TextField
+          defaultValue={site.data.fileQuotaMb}
+          hint="Counted from the files each person uploads. Files can be at most 25 MB each."
+          inputMode="numeric"
+          label="File storage per person (MB)"
+          max={10240}
+          min={1}
+          name="fileQuotaMb"
+          type="number"
+        />
+        {quota.status}
+        <button className="primary-button inline-flex w-fit" disabled={quota.busy} type="submit">
+          {quota.busy ? 'Saving…' : 'Save limit'}
+        </button>
+      </form>
     </section>
   );
 }

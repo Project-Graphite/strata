@@ -34,7 +34,7 @@ export interface Proof {
 interface AuthContextValue {
   user?: User;
   ready: boolean;
-  request<T>(path: string, init?: RequestInit): Promise<T>;
+  request<T>(path: string, init?: RequestInit, read?: (response: Response) => Promise<unknown>): Promise<T>;
   register(input: {
     email: string;
     handle: string;
@@ -100,10 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, session]);
 
   const request = useCallback(
-    async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
+    async function authenticatedRequest<T>(
+      path: string,
+      init: RequestInit = {},
+      read?: (response: Response) => Promise<unknown>,
+    ) {
       const token = current.current?.accessToken;
       try {
-        return await apiRequest<T>(path, init, token);
+        return await apiRequest<T>(path, init, token, read);
       } catch (reason) {
         if (!(reason instanceof ApiError && reason.status === 401 && token)) {
           throw reason;
@@ -113,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!renewed) {
           throw reason;
         }
-        return apiRequest<T>(path, init, renewed.accessToken);
+        return apiRequest<T>(path, init, renewed.accessToken, read);
       }
     },
     [applySession],
