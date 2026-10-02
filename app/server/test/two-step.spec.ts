@@ -138,6 +138,8 @@ describe('AuthService with two-step sign-in', () => {
       sent as never,
       passwords,
       twoStep as never,
+      { get: vi.fn().mockResolvedValue({ inviteOnly: false }) } as never,
+      {} as never,
     );
     return { mail: sent, passwords, prisma, service, twoStep };
   }

@@ -33,6 +33,16 @@ enum LinkKind {
   ATTACHMENT @map("attachment")
 }
 
+enum InvitationKind {
+  APP   @map("app")
+  SPACE @map("space")
+}
+
+enum ShareAccess {
+  VIEW @map("view")
+  EDIT @map("edit")
+}
+
 enum TokenPurpose {
   VERIFY_EMAIL   @map("verify_email")
   CHANGE_EMAIL   @map("change_email")
@@ -40,29 +50,33 @@ enum TokenPurpose {
 }
 
 model User {
-  id                 String              @id @default(uuid()) @db.Uuid
-  email              String              @unique
-  handle             String              @unique
-  displayName        String              @map("display_name")
-  passwordHash       String              @map("password_hash")
-  verifiedAt         DateTime?           @map("verified_at")
-  timeZone           String              @default("Etc/UTC") @map("time_zone")
-  isActive           Boolean             @default(true) @map("is_active")
-  role               UserRole            @default(MEMBER)
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
-  verificationTokens VerificationToken[]
-  refreshSessions    RefreshSession[]
-  twoStepCredential  TwoStepCredential?
-  recoveryCodes      RecoveryCode[]
-  knownDevices       KnownDevice[]
-  signInChallenges   SignInChallenge[]
-  personalSpace      Space?              @relation("PersonalSpace")
-  createdSpaces      Space[]             @relation("CreatedSpaces")
-  memberships        SpaceMember[]
-  createdItems       Item[]              @relation("CreatedItems")
-  updatedItems       Item[]              @relation("UpdatedItems")
-  createdLinks       ItemLink[]
+  id                  String                 @id @default(uuid()) @db.Uuid
+  email               String                 @unique
+  handle              String                 @unique
+  displayName         String                 @map("display_name")
+  passwordHash        String                 @map("password_hash")
+  verifiedAt          DateTime?              @map("verified_at")
+  timeZone            String                 @default("Etc/UTC") @map("time_zone")
+  isActive            Boolean                @default(true) @map("is_active")
+  role                UserRole               @default(MEMBER)
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  verificationTokens  VerificationToken[]
+  refreshSessions     RefreshSession[]
+  twoStepCredential   TwoStepCredential?
+  recoveryCodes       RecoveryCode[]
+  knownDevices        KnownDevice[]
+  signInChallenges    SignInChallenge[]
+  personalSpace       Space?                 @relation("PersonalSpace")
+  createdSpaces       Space[]                @relation("CreatedSpaces")
+  memberships         SpaceMember[]
+  createdItems        Item[]                 @relation("CreatedItems")
+  updatedItems        Item[]                 @relation("UpdatedItems")
+  createdLinks        ItemLink[]
+  sentInvitations     Invitation[]           @relation("SentInvitations")
+  receivedInvitations Invitation[]           @relation("ReceivedInvitations")
+  redemptions         InvitationRedemption[]
+  createdShareLinks   ShareLink[]
 
   @@map("users")
 }
@@ -157,6 +171,7 @@ model Space {
   members         SpaceMember[]
   items           Item[]
   tags            Tag[]
+  invitations     Invitation[]
 
   @@map("spaces")
 }
@@ -175,22 +190,23 @@ model SpaceMember {
 }
 
 model Item {
-  id          String     @id @default(uuid()) @db.Uuid
-  spaceId     String     @map("space_id") @db.Uuid
+  id          String      @id @default(uuid()) @db.Uuid
+  spaceId     String      @map("space_id") @db.Uuid
   kind        ItemKind
-  title       String     @default("")
-  createdById String?    @map("created_by") @db.Uuid
-  updatedById String?    @map("updated_by") @db.Uuid
-  archivedAt  DateTime?  @map("archived_at")
-  trashedAt   DateTime?  @map("trashed_at")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  space       Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  createdBy   User?      @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?      @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
+  title       String      @default("")
+  createdById String?     @map("created_by") @db.Uuid
+  updatedById String?     @map("updated_by") @db.Uuid
+  archivedAt  DateTime?   @map("archived_at")
+  trashedAt   DateTime?   @map("trashed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  space       Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?       @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
   tags        ItemTag[]
-  linksOut    ItemLink[] @relation("LinkSource")
-  linksIn     ItemLink[] @relation("LinkTarget")
+  linksOut    ItemLink[]  @relation("LinkSource")
+  linksIn     ItemLink[]  @relation("LinkTarget")
+  shareLinks  ShareLink[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -233,4 +249,67 @@ model ItemLink {
   @@unique([sourceItemId, targetItemId, kind])
   @@index([targetItemId])
   @@map("item_links")
+}
+
+model SiteSettings {
+  id         Int      @id @default(1)
+  inviteOnly Boolean  @default(false) @map("invite_only")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model Invitation {
+  id          String                 @id @default(uuid()) @db.Uuid
+  kind        InvitationKind
+  spaceId     String?                @map("space_id") @db.Uuid
+  role        SpaceRole?
+  email       String?
+  inviteeId   String?                @map("invitee_id") @db.Uuid
+  tokenHash   String                 @unique @map("token_hash")
+  inviterId   String?                @map("inviter_id") @db.Uuid
+  note        String?
+  maxUses     Int                    @default(1) @map("max_uses")
+  useCount    Int                    @default(0) @map("use_count")
+  expiresAt   DateTime               @map("expires_at")
+  revokedAt   DateTime?              @map("revoked_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  space       Space?                 @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  invitee     User?                  @relation("ReceivedInvitations", fields: [inviteeId], references: [id], onDelete: Cascade)
+  inviter     User?                  @relation("SentInvitations", fields: [inviterId], references: [id], onDelete: SetNull)
+  redemptions InvitationRedemption[]
+
+  @@index([spaceId])
+  @@index([email])
+  @@index([inviteeId])
+  @@index([inviterId])
+  @@map("invitations")
+}
+
+model InvitationRedemption {
+  invitationId String     @map("invitation_id") @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  redeemedAt   DateTime   @default(now()) @map("redeemed_at")
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([invitationId, userId])
+  @@index([userId])
+  @@map("invitation_redemptions")
+}
+
+model ShareLink {
+  id          String      @id @default(uuid()) @db.Uuid
+  itemId      String      @map("item_id") @db.Uuid
+  access      ShareAccess
+  tokenHash   String      @unique @map("token_hash")
+  expiresAt   DateTime    @map("expires_at")
+  revokedAt   DateTime?   @map("revoked_at")
+  createdById String?     @map("created_by") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at")
+  item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([itemId])
+  @@map("share_links")
 }

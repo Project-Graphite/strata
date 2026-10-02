@@ -1,116 +1,10 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import { ItemKind, SpaceRole } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PasswordService } from '../../src/auth/password.service';
-import { ApiExceptionFilter } from '../../src/http/api-exception.filter';
-import { PrismaService } from '../../src/prisma/prisma.service';
-
-const settings = {
-  AUTH_ACCESS_TOKEN_SECRET: 'integration-access-secret-long-enough',
-  AUTH_TRUSTED_ORIGINS: 'http://localhost:4104',
-  APP_URL: 'http://localhost:4104',
-  DEFAULT_FROM_EMAIL: 'Strata <strata@example.com>',
-  DATA_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
-};
-
-const run = randomBytes(4).toString('hex');
-const password = 'integration password that is long';
-
-interface Reply {
-  status: number;
-  body: any;
-}
-
-interface Member {
-  id: string;
-  personalSpaceId: string;
-  call: (method: string, path: string, body?: unknown) => Promise<Reply>;
-}
+import { describe, expect, it } from 'vitest';
+import { integrationApp, password } from './harness';
 
 describe('Spaces, items, tags and links against Postgres', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  let base: string;
-  let passwordHash: string;
-  const members: Member[] = [];
-
-  async function member(name: string): Promise<Member> {
-    const user = await prisma.user.create({
-      data: {
-        email: `${name}-${run}@example.com`,
-        handle: `${name}${run}`,
-        displayName: name,
-        passwordHash,
-        verifiedAt: new Date(),
-      },
-    });
-    const space = await prisma.space.create({
-      data: {
-        name: 'Personal',
-        personalOwnerId: user.id,
-        createdById: user.id,
-        members: { create: { userId: user.id, role: SpaceRole.OWNER } },
-      },
-    });
-    const session = await prisma.refreshSession.create({
-      data: { userId: user.id, tokenHash: randomBytes(32).toString('hex'), expiresAt: new Date(Date.now() + 3_600_000) },
-    });
-    const token = await new JwtService().signAsync(
-      { sub: user.id, sid: session.id },
-      { secret: settings.AUTH_ACCESS_TOKEN_SECRET, expiresIn: 3_600 },
-    );
-    const created: Member = {
-      id: user.id,
-      personalSpaceId: space.id,
-      async call(method, path, body) {
-        const response = await fetch(
-          `${base}${path}`,
-          body === undefined
-            ? { method, headers: { Authorization: `Bearer ${token}` } }
-            : {
-                method,
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-              },
-        );
-        const text = await response.text();
-        return { status: response.status, body: text ? JSON.parse(text) : null };
-      },
-    };
-    members.push(created);
-    return created;
-  }
-
-  function item(spaceId: string, title: string, kind: ItemKind = ItemKind.NOTE) {
-    return prisma.item.create({ data: { spaceId, kind, title } });
-  }
-
-  async function join(spaceId: string, user: Member, role: SpaceRole) {
-    await prisma.spaceMember.create({ data: { spaceId, userId: user.id, role } });
-  }
-
-  beforeAll(async () => {
-    Object.assign(process.env, settings);
-    const { AppModule } = await import('../../src/app.module');
-    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = module.createNestApplication({ logger: false });
-    app.useGlobalFilters(new ApiExceptionFilter(app.getHttpAdapter()));
-    app.useGlobalPipes(new ValidationPipe({ forbidNonWhitelisted: true, transform: true, whitelist: true }));
-    await app.listen(0, '127.0.0.1');
-    base = await app.getUrl();
-    prisma = app.get(PrismaService);
-    passwordHash = await new PasswordService().hash(password);
-  });
-
-  afterAll(async () => {
-    const ids = members.map((created) => created.id);
-    await prisma.space.deleteMany({ where: { members: { some: { userId: { in: ids } } } } });
-    await prisma.user.deleteMany({ where: { id: { in: ids } } });
-    await app.close();
-  });
+  const strata = integrationApp();
+  const { item, join, member } = strata;
 
   it("hides one person's spaces, items and tags from everyone else", async () => {
     const alice = await member('alice');
@@ -119,7 +13,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
     const tag = await alice.call('POST', `/spaces/${alice.personalSpaceId}/tags`, { name: 'Health' });
     expect(tag.status).toBe(201);
     expect((await alice.call('PUT', `/items/${note.id}/tags`, { tagIds: [tag.body.id] })).status).toBe(200);
-    await prisma.item.update({ where: { id: note.id }, data: { trashedAt: new Date() } });
+    await strata.prisma.item.update({ where: { id: note.id }, data: { trashedAt: new Date() } });
 
     expect((await mallory.call('GET', '/spaces')).body.map((space: { id: string }) => space.id)).toEqual([
       mallory.personalSpaceId,
@@ -207,7 +101,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
     expect((await viewer.call('GET', `/spaces/${spaceId}/items?archived=true`)).body.totalResults).toBe(1);
     await viewer.call('POST', `/items/${task.id}/trash`);
     expect((await viewer.call('DELETE', `/items/${task.id}`)).status).toBe(204);
-    expect(await prisma.item.count({ where: { id: task.id } })).toBe(0);
+    expect(await strata.prisma.item.count({ where: { id: task.id } })).toBe(0);
   });
 
   it('keeps tag names unique per space and tags inside their own space', async () => {
@@ -247,7 +141,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
     expect(editorView.backlinks.map((shown: { item: { id: string } }) => shown.item.id)).toEqual([editorNote.id]);
 
     expect((await owner.call('GET', `/items/${privateNote.id}/links`)).body.backlinks).toHaveLength(1);
-    await prisma.item.update({ where: { id: sharedNote.id }, data: { trashedAt: new Date() } });
+    await strata.prisma.item.update({ where: { id: sharedNote.id }, data: { trashedAt: new Date() } });
     expect((await owner.call('GET', `/items/${privateNote.id}/links`)).body.backlinks).toEqual([]);
 
     expect((await editor.call('DELETE', `/items/${sharedNote.id}/links/${link.body.id}`)).status).toBe(204);
@@ -285,7 +179,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
 
     await owner.call('PATCH', `/spaces/${kept.body.id}/members/${editor.id}`, { role: 'owner' });
     expect((await owner.call('DELETE', '/me', { password })).status).toBe(204);
-    expect(await prisma.space.count({ where: { id: { in: [solo.body.id, owner.personalSpaceId] } } })).toBe(0);
+    expect(await strata.prisma.space.count({ where: { id: { in: [solo.body.id, owner.personalSpaceId] } } })).toBe(0);
     expect((await editor.call('GET', `/spaces/${kept.body.id}/members`)).body.map((shown: { userId: string }) => shown.userId)).toEqual([
       editor.id,
     ]);
