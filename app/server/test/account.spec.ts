@@ -80,6 +80,8 @@ function setup(overrides: Record<string, object> = {}) {
   const passwords = new PasswordService();
   const breachCheck = vi.spyOn(passwords, 'assertNotBreached').mockResolvedValue();
   const twoStep = { enabled: vi.fn().mockResolvedValue(false), verify: vi.fn() };
+  const site = { get: vi.fn().mockResolvedValue({ inviteOnly: false }) };
+  const invitations = { redeemOnSignUp: vi.fn() };
   const service = new AuthService(
     prisma as never,
     new JwtService(),
@@ -87,8 +89,10 @@ function setup(overrides: Record<string, object> = {}) {
     mail as never,
     passwords,
     twoStep as never,
+    site as never,
+    invitations as never,
   );
-  return { breachCheck, mail, prisma, service, twoStep };
+  return { breachCheck, invitations, mail, prisma, service, site, twoStep };
 }
 
 function sentToken(mail: { send: ReturnType<typeof vi.fn> }, to?: string) {
@@ -156,6 +160,23 @@ describe('Account email flows', () => {
       expect.objectContaining({ to: user.email, text: expect.stringContaining('https://strata.example/forgot-password') }),
     );
     expect(sentToken(mail)).toBe('');
+  });
+
+  it('refuses sign-up without an invite while Strata is invite-only, and redeems an invite inside the sign-up', async () => {
+    const { invitations, prisma, service, site } = setup();
+    site.get.mockResolvedValue({ inviteOnly: true });
+    const input = {
+      email: 'new@example.com',
+      handle: 'newcomer',
+      displayName: 'New',
+      password: 'another long password',
+    };
+
+    await expect(service.register(input)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+
+    await service.register({ ...input, invite: 'i'.repeat(43) });
+    expect(invitations.redeemOnSignUp).toHaveBeenCalledWith(prisma, 'i'.repeat(43), user);
   });
 
   it('refuses a handle that is already taken', async () => {

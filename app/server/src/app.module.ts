@@ -9,6 +9,8 @@ import { ItemsModule } from './items/items.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { ShareLinksModule } from './share-links/share-links.module';
+import { SiteModule } from './site/site.module';
 import { SpacesModule } from './spaces/spaces.module';
 import { TagsModule } from './tags/tags.module';
 import { UsersModule } from './users/users.module';
@@ -19,6 +21,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     CryptoModule,
     AccessModule,
+    SiteModule,
     RedisModule,
     MailModule,
     AuthModule,
@@ -26,6 +29,7 @@ import { UsersModule } from './users/users.module';
     SpacesModule,
     TagsModule,
     ItemsModule,
+    ShareLinksModule,
     HealthModule,
   ],
 })

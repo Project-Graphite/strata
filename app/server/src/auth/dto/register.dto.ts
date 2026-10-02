@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
@@ -22,4 +22,9 @@ export class RegisterDto {
   @IsString()
   @Length(12, 128, { message: 'Passwords are 12 to 128 characters long.' })
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(43, 43, { message: 'This invite link is incomplete. Open the whole link.' })
+  invite?: string;
 }

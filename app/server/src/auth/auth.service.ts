@@ -10,9 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, SpaceRole, TokenPurpose, UserRole } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
+import { InvitationsService } from '../invitations/invitations.service';
 import { MailService } from '../mail/mail.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
+import { SiteSettingsService } from '../site/site-settings.service';
 import type { Device } from './device';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -64,9 +66,14 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly passwords: PasswordService,
     private readonly twoStep: TwoStepService,
+    private readonly site: SiteSettingsService,
+    private readonly invitations: InvitationsService,
   ) {}
 
   async register(input: RegisterDto) {
+    if (!input.invite && (await this.site.get()).inviteOnly) {
+      throw new ForbiddenException('Strata is invite-only right now. Ask someone who uses it for an invite.');
+    }
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
       await this.mail.trySend({
@@ -109,6 +116,9 @@ export class AuthService {
               members: { create: { userId: user.id, role: SpaceRole.OWNER } },
             },
           });
+          if (input.invite) {
+            await this.invitations.redeemOnSignUp(transaction, input.invite, user);
+          }
           if (
             !(await this.sendVerification(transaction, user, TokenPurpose.VERIFY_EMAIL, user.email))
           ) {
