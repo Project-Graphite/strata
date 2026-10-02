@@ -16,6 +16,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { SearchModule } from './search/search.module';
 import { ShareLinksModule } from './share-links/share-links.module';
 import { SiteModule } from './site/site.module';
 import { SpacesModule } from './spaces/spaces.module';
@@ -44,6 +45,7 @@ import { UsersModule } from './users/users.module';
     ShareLinksModule,
     FilesModule,
     AccessTokensModule,
+    SearchModule,
     HealthModule,
   ],
 })
