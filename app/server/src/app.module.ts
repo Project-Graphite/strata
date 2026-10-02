@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AccessModule } from './access/access.module';
+import { AccessTokensModule } from './access-tokens/access-tokens.module';
+import { TokenAuthModule } from './access-tokens/token-auth.module';
 import { ActivityModule } from './activity/activity.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
@@ -26,6 +28,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     CryptoModule,
     AccessModule,
+    TokenAuthModule,
     ActivityModule,
     AuditModule,
     InboxModule,
@@ -40,6 +43,7 @@ import { UsersModule } from './users/users.module';
     ItemsModule,
     ShareLinksModule,
     FilesModule,
+    AccessTokensModule,
     HealthModule,
   ],
 })

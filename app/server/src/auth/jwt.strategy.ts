@@ -38,6 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       sessionId: payload.sid,
       isAdmin: session.user.role !== UserRole.MEMBER,
       isSystemManager: session.user.role === UserRole.SYSTEM_MANAGER,
+      scopes: null,
     };
   }
 }

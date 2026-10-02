@@ -18,6 +18,7 @@ import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
 import { SessionsSettings } from './pages/settings/SessionsSettings';
 import { SettingsLayout } from './pages/settings/SettingsLayout';
+import { TokensSettings } from './pages/settings/TokensSettings';
 import { SpaceActivity } from './pages/spaces/SpaceActivity';
 import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
@@ -128,6 +129,7 @@ export function App() {
             <Route index element={<ProfileSettings />} />
             <Route path="security" element={<SecuritySettings />} />
             <Route path="sessions" element={<SessionsSettings />} />
+            <Route path="tokens" element={<TokensSettings />} />
             <Route path="data" element={<DataSettings />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

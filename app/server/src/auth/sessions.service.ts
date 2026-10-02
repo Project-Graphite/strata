@@ -9,7 +9,7 @@ export class SessionsService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(userId: string, currentSessionId: string) {
+  async list(userId: string, currentSessionId: string | null) {
     const sessions = await this.prisma.refreshSession.findMany({
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
       orderBy: [{ lastUsedAt: 'desc' }, { id: 'asc' }],
@@ -28,9 +28,9 @@ export class SessionsService {
     await this.audit.record(userId, 'session_signed_out');
   }
 
-  async revokeOthers(userId: string, currentSessionId: string) {
+  async revokeOthers(userId: string, currentSessionId: string | null) {
     await this.prisma.refreshSession.deleteMany({
-      where: { userId, id: { not: currentSessionId } },
+      where: { userId, ...(currentSessionId ? { id: { not: currentSessionId } } : {}) },
     });
     await this.audit.record(userId, 'other_sessions_signed_out');
   }

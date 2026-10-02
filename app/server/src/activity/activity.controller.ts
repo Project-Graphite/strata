@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,6 +13,7 @@ export class ActivityController {
   constructor(private readonly activity: ActivityService) {}
 
   @Get()
+  @Scope('spaces:read')
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Param('spaceId', UuidPipe) spaceId: string,

@@ -4,6 +4,8 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Scope } from '../src/access-tokens/scopes';
+import { TokenAuthenticator } from '../src/access-tokens/token-authenticator';
 import type { AuthenticatedUser } from '../src/auth/auth.types';
 import { CurrentUser } from '../src/auth/current-user.decorator';
 import { JwtStrategy } from '../src/auth/jwt.strategy';
@@ -19,6 +21,18 @@ class ProbeController {
   probe(@CurrentUser() viewer: AuthenticatedUser) {
     return { viewer };
   }
+
+  @Get('items')
+  @Scope('items:read')
+  items(@CurrentUser() viewer: AuthenticatedUser) {
+    return { viewer };
+  }
+
+  @Get('write')
+  @Scope('items:write')
+  write() {
+    return {};
+  }
 }
 
 describe('JwtAuthGuard', () => {
@@ -33,6 +47,18 @@ describe('JwtAuthGuard', () => {
         JwtStrategy,
         JwtAuthGuard,
         { provide: ConfigService, useValue: new ConfigService({ AUTH_ACCESS_TOKEN_SECRET: secret }) },
+        {
+          provide: TokenAuthenticator,
+          useValue: {
+            authenticate: vi.fn((raw: string) =>
+              Promise.resolve(
+                raw === `strata_pat_${'k'.repeat(43)}`
+                  ? { id: 'reader-id', sessionId: null, isAdmin: false, isSystemManager: false, scopes: ['items:read'] }
+                  : null,
+              ),
+            ),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {
@@ -66,11 +92,26 @@ describe('JwtAuthGuard', () => {
 
     const signedIn = await call(`Bearer ${token}`);
     await expect(signedIn.json()).resolves.toEqual({
-      viewer: { id: 'admin-id', sessionId: 'live-session', isAdmin: true, isSystemManager: false },
+      viewer: { id: 'admin-id', sessionId: 'live-session', isAdmin: true, isSystemManager: false, scopes: null },
     });
 
     expect((await call(`Bearer ${signedOut}`)).status).toBe(401);
 
     expect((await call('Bearer not-a-token')).status).toBe(401);
+  });
+
+  it('lets an access token reach only endpoints marked with a scope it holds', async () => {
+    const call = (path: string, token: string) =>
+      fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    const token = `strata_pat_${'k'.repeat(43)}`;
+
+    const items = await call('/items', token);
+    expect(items.status).toBe(200);
+    await expect(items.json()).resolves.toEqual({
+      viewer: { id: 'reader-id', sessionId: null, isAdmin: false, isSystemManager: false, scopes: ['items:read'] },
+    });
+    expect((await call('', token)).status).toBe(403);
+    expect((await call('/write', token)).status).toBe(403);
+    expect((await call('/items', `strata_pat_${'x'.repeat(43)}`)).status).toBe(401);
   });
 });

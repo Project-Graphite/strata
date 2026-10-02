@@ -15,7 +15,9 @@ export type AuditAction =
   | 'two_step_disabled'
   | 'recovery_codes_regenerated'
   | 'session_signed_out'
-  | 'other_sessions_signed_out';
+  | 'other_sessions_signed_out'
+  | 'access_token_created'
+  | 'access_token_revoked';
 
 @Injectable()
 export class AuditService {

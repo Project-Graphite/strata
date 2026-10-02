@@ -6,7 +6,7 @@ import { SettingsSection } from './SettingsLayout';
 interface AuditEvent {
   id: string;
   action: string;
-  data: { device?: string; reason?: string };
+  data: { device?: string; reason?: string; name?: string };
   createdAt: string;
 }
 
@@ -22,6 +22,8 @@ const actions: Record<string, string> = {
   recovery_codes_regenerated: 'New recovery codes made',
   session_signed_out: 'A device was signed out',
   other_sessions_signed_out: 'Every other device was signed out',
+  access_token_created: 'Access token created',
+  access_token_revoked: 'Access token revoked',
 };
 
 const reasons: Record<string, string> = { password: 'wrong password', code: 'wrong code' };
@@ -44,10 +46,12 @@ export function SecurityLog() {
             <li className="flex items-baseline justify-between gap-4 border-b border-line-soft py-3" key={event.id}>
               <span className={`min-w-0 text-ink ${event.action === 'sign_in_failed' ? 'font-medium' : ''}`}>
                 {actions[event.action] ?? event.action}
-                {(event.data.device || event.data.reason) && (
+                {(event.data.device || event.data.reason || event.data.name) && (
                   <span className="mono-sm text-faint">
                     {' · '}
-                    {[event.data.reason && reasons[event.data.reason], event.data.device].filter(Boolean).join(' · ')}
+                    {[event.data.reason && reasons[event.data.reason], event.data.device, event.data.name]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                 )}
               </span>

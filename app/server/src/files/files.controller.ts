@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -68,6 +69,7 @@ export class FilesController {
   constructor(private readonly files: FilesService) {}
 
   @Post('spaces/:spaceId/files')
+  @Scope('items:write')
   @RateLimit('upload', 200, 86_400)
   @UseGuards(JwtAuthGuard)
   async upload(
@@ -83,6 +85,7 @@ export class FilesController {
   }
 
   @Get('files/:id')
+  @Scope('items:read')
   @UseGuards(JwtAuthGuard)
   async download(
     @CurrentUser() user: AuthenticatedUser,
