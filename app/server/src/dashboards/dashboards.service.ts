@@ -123,10 +123,12 @@ export class DashboardsService {
   }
 
   async remove(userId: string, dashboardId: string) {
+    if (!(await this.prisma.dashboard.count({ where: { id: dashboardId, userId } }))) {
+      throw new NotFoundException('Dashboard not found');
+    }
     if ((await this.prisma.dashboard.count({ where: { userId } })) <= 1) {
       throw new BadRequestException('Keep at least one dashboard');
     }
-    const deleted = await this.prisma.dashboard.deleteMany({ where: { id: dashboardId, userId } });
-    if (deleted.count === 0) throw new NotFoundException('Dashboard not found');
+    await this.prisma.dashboard.deleteMany({ where: { id: dashboardId, userId } });
   }
 }
