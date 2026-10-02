@@ -8,9 +8,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, TokenPurpose, UserRole } from '@prisma/client';
+import { Prisma, SpaceRole, TokenPurpose, UserRole } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { MailService } from '../mail/mail.service';
+import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Device } from './device';
 import { LoginDto } from './dto/login.dto';
@@ -42,10 +43,6 @@ interface SessionUser {
   displayName: string;
   role: UserRole;
   timeZone: string;
-}
-
-function uniqueViolation(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 function handleTaken() {
@@ -103,6 +100,14 @@ export class AuthService {
               passwordHash,
             },
             select: { id: true, email: true, displayName: true },
+          });
+          await transaction.space.create({
+            data: {
+              name: 'Personal',
+              personalOwnerId: user.id,
+              createdById: user.id,
+              members: { create: { userId: user.id, role: SpaceRole.OWNER } },
+            },
           });
           if (
             !(await this.sendVerification(transaction, user, TokenPurpose.VERIFY_EMAIL, user.email))
@@ -358,8 +363,30 @@ export class AuthService {
   }
 
   async deleteAccount(userId: string, proof: Proof) {
+    const owned = await this.prisma.space.findMany({
+      where: { personalOwnerId: null, members: { some: { userId, role: SpaceRole.OWNER } } },
+      select: {
+        id: true,
+        name: true,
+        members: { where: { userId: { not: userId } }, select: { role: true } },
+      },
+    });
+    const stranded = owned.filter(
+      (space) =>
+        space.members.length > 0 && !space.members.some((member) => member.role === SpaceRole.OWNER),
+    );
+    if (stranded.length > 0) {
+      throw new ConflictException(
+        `Make someone else an owner of ${stranded.map((space) => `"${space.name}"`).join(', ')} first, or delete ${stranded.length === 1 ? 'it' : 'them'}`,
+      );
+    }
     await this.reauthenticate(userId, proof);
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.$transaction([
+      this.prisma.space.deleteMany({
+        where: { id: { in: owned.filter((space) => space.members.length === 0).map((space) => space.id) } },
+      }),
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
   }
 
   async reauthenticate(userId: string, proof: Proof) {
