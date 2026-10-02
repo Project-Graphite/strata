@@ -14,6 +14,12 @@ import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
 import { SessionsSettings } from './pages/settings/SessionsSettings';
 import { SettingsLayout } from './pages/settings/SettingsLayout';
+import { SpaceItems } from './pages/spaces/SpaceItems';
+import { SpaceLayout } from './pages/spaces/SpaceLayout';
+import { SpaceMembers } from './pages/spaces/SpaceMembers';
+import { SpacesPage } from './pages/spaces/SpacesPage';
+import { SpaceTags } from './pages/spaces/SpaceTags';
+import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
 
 function Protected({ children }: { children: ReactNode }) {
@@ -52,6 +58,34 @@ export function App() {
           <Route path="login" element={<SignedOutLogin />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
+          <Route
+            path="spaces"
+            element={
+              <Protected>
+                <SpacesPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="spaces/:id"
+            element={
+              <Protected>
+                <SpaceLayout />
+              </Protected>
+            }
+          >
+            <Route index element={<SpaceItems />} />
+            <Route path="tags" element={<SpaceTags />} />
+            <Route path="members" element={<SpaceMembers />} />
+          </Route>
+          <Route
+            path="trash"
+            element={
+              <Protected>
+                <TrashPage />
+              </Protected>
+            }
+          />
           <Route
             path="settings"
             element={
