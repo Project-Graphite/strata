@@ -40,6 +40,7 @@ interface AuthContextValue {
     handle: string;
     displayName: string;
     password: string;
+    invite?: string;
   }): Promise<void>;
   verify(token: string): Promise<void>;
   login(email: string, password: string): Promise<{ challenge: string } | undefined>;

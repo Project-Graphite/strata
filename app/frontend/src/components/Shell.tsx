@@ -122,6 +122,7 @@ export function Shell() {
                   },
                   {
                     items: [
+                      { active: pathname === '/invitations', href: '/invitations', label: 'Invitations' },
                       { active: pathname === '/trash', href: '/trash', label: 'Trash' },
                       { active: pathname.startsWith('/settings'), href: '/settings', icon: 'user', label: 'Settings' },
                     ],
