@@ -20,6 +20,8 @@ services:
         condition: service_healthy
     ports:
       - '4102:3000'
+    volumes:
+      - files-data:/data/files
 
   postgres:
     image: postgres:18-alpine
@@ -47,5 +49,6 @@ services:
       - redis-data:/data
 
 volumes:
+  files-data:
   postgres-data:
   redis-data:

@@ -81,6 +81,7 @@ model User {
   auditEvents         AuditEvent[]           @relation("AuditSubject")
   auditActions        AuditEvent[]           @relation("AuditActor")
   inbox               InboxNotification[]
+  uploadedFiles       File[]
 
   @@map("users")
 }
@@ -213,6 +214,7 @@ model Item {
   linksIn     ItemLink[]      @relation("LinkTarget")
   shareLinks  ShareLink[]
   activity    ActivityEvent[]
+  file        File?
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -258,9 +260,10 @@ model ItemLink {
 }
 
 model SiteSettings {
-  id         Int      @id @default(1)
-  inviteOnly Boolean  @default(false) @map("invite_only")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id          Int      @id @default(1)
+  inviteOnly  Boolean  @default(false) @map("invite_only")
+  fileQuotaMb Int      @default(100) @map("file_quota_mb")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")
 }
@@ -381,4 +384,32 @@ model ScheduledJob {
 
   @@index([runAt])
   @@map("scheduled_jobs")
+}
+
+model FileBlob {
+  sha256    String   @id
+  sizeBytes Int      @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at")
+  files     File[]
+
+  @@map("file_blobs")
+}
+
+model File {
+  itemId       String   @id @map("item_id") @db.Uuid
+  sha256       String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  width        Int?
+  height       Int?
+  uploadedById String?  @map("uploaded_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  blob         FileBlob @relation(fields: [sha256], references: [sha256], onDelete: Restrict)
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([sha256])
+  @@index([uploadedById])
+  @@map("files")
 }
