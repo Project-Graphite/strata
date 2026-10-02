@@ -9,6 +9,8 @@
     "dev": "nest start --watch",
     "pretest": "prisma generate",
     "test": "vitest run",
+    "pretest:integration": "prisma generate",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

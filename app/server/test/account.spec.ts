@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { TokenPurpose } from '@prisma/client';
+import { SpaceRole, TokenPurpose } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
@@ -58,6 +58,11 @@ function setup(overrides: Record<string, object> = {}) {
       create: vi.fn().mockResolvedValue({ id: 'session-id' }),
       updateMany: vi.fn().mockReturnValue('session-revoke'),
       deleteMany: vi.fn().mockReturnValue('session-delete'),
+    },
+    space: {
+      create: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockReturnValue('space-delete'),
     },
     $transaction: vi.fn((work: unknown) =>
       typeof work === 'function' ? (work as (client: unknown) => unknown)(prisma) : work,
@@ -123,6 +128,14 @@ describe('Account email flows', () => {
         email: null,
         tokenHash: digest(sentToken(mail)),
       }),
+    });
+    expect(prisma.space.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Personal',
+        personalOwnerId: user.id,
+        createdById: user.id,
+        members: { create: { userId: user.id, role: SpaceRole.OWNER } },
+      },
     });
   });
 
