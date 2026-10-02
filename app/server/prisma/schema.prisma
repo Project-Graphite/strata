@@ -44,6 +44,13 @@ enum ShareAccess {
   EDIT @map("edit")
 }
 
+enum GuestResponse {
+  PENDING @map("pending")
+  YES     @map("yes")
+  NO      @map("no")
+  MAYBE   @map("maybe")
+}
+
 enum TokenPurpose {
   VERIFY_EMAIL   @map("verify_email")
   CHANGE_EMAIL   @map("change_email")
@@ -226,6 +233,8 @@ model Item {
   subtasks       Task[]              @relation("TaskParent")
   subscription   Subscription?
   prices         SubscriptionPrice[]
+  event          Event?
+  guests         EventGuest[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -528,4 +537,38 @@ model Dashboard {
 
   @@index([userId, position])
   @@map("dashboards")
+}
+
+model Event {
+  itemId          String   @id @map("item_id") @db.Uuid
+  startsOn        DateTime @map("starts_on") @db.Date
+  startTime       String?  @map("start_time")
+  endsOn          DateTime @map("ends_on") @db.Date
+  endTime         String?  @map("end_time")
+  timeZone        String   @map("time_zone")
+  repeatRule      String?  @map("repeat_rule")
+  location        String?
+  meetingUrl      String?  @map("meeting_url")
+  description     String   @default("")
+  reminderMinutes Int?     @map("reminder_minutes")
+  item            Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([startsOn])
+  @@map("events")
+}
+
+model EventGuest {
+  id          String        @id @default(uuid()) @db.Uuid
+  itemId      String        @map("item_id") @db.Uuid
+  name        String
+  email       String?
+  tokenHash   String        @unique @map("token_hash")
+  response    GuestResponse @default(PENDING)
+  note        String?
+  invitedAt   DateTime      @default(now()) @map("invited_at")
+  respondedAt DateTime?     @map("responded_at")
+  item        Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@map("event_guests")
 }
