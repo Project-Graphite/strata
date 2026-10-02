@@ -86,6 +86,7 @@ export function Shell() {
       ? [
           { href: '/today', label: 'Today', icon: 'compass' as const, active: pathname === '/today' },
           { href: '/spaces', label: 'Spaces', icon: 'library' as const, active: pathname.startsWith('/spaces') },
+          { href: '/recurring', label: 'Recurring', icon: 'filter' as const, active: pathname === '/recurring' },
           { href: '/settings', label: 'Settings', icon: 'user' as const, active: pathname.startsWith('/settings') },
         ]
       : [{ href: '/login', label: 'Sign in', icon: 'user' as const, active: pathname === '/login', loading: !auth.ready }]),
@@ -141,6 +142,7 @@ export function Shell() {
                     items: [
                       { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
                       { active: pathname === '/today', href: '/today', icon: 'compass', label: 'Today' },
+                      { active: pathname === '/recurring', href: '/recurring', icon: 'filter', label: 'Recurring' },
                     ],
                   },
                     {
