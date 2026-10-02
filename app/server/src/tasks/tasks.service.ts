@@ -5,12 +5,12 @@ import { ActivityService } from '../activity/activity.service';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { CreateListDto, CreateTaskDto, ListTasksDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
 
 const pageSize = 100;
-const dayMs = 24 * 60 * 60 * 1000;
 const reminderKind = 'task.reminder';
 
 const taskFields = {
@@ -40,7 +40,6 @@ const taskFields = {
 
 type TaskRow = Prisma.ItemGetPayload<{ select: typeof taskFields }>;
 
-const dateText = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : null);
 
 function present(row: TaskRow) {
   const task = row.task!;
@@ -62,10 +61,6 @@ function present(row: TaskRow) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
-}
-
-function today(timeZone: string) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
 function dueInstant(task: { dueDate: Date | null; dueTime: string | null; timeZone: string }) {
@@ -184,7 +179,7 @@ export class TasksService implements OnModuleInit {
         trashedAt: null,
         task: {
           completedAt: null,
-          dueDate: { lte: new Date(`${today(user.timeZone)}T00:00:00Z`) },
+          dueDate: { lte: dateValue(localDate(user.timeZone)) },
           OR: [{ assigneeId: userId }, { assigneeId: null }],
         },
       },
@@ -237,7 +232,7 @@ export class TasksService implements OnModuleInit {
       await transaction.task.update({
         where: { itemId },
         data: next
-          ? { dueDate: new Date(`${next.date}T00:00:00Z`), repeatRule: next.rule }
+          ? { dueDate: dateValue(next.date), repeatRule: next.rule }
           : { completedAt: new Date() },
       });
       await transaction.item.update({ where: { id: itemId }, data: { updatedById: userId } });
@@ -270,13 +265,13 @@ export class TasksService implements OnModuleInit {
     const current = dueInstant(task)!;
     const [next] = occurrences(
       rule,
-      { date: dateText(task.dueDate)!, time: task.dueTime ?? '09:00', timeZone: task.timeZone },
+      { date: dateText(task.dueDate), time: task.dueTime ?? '09:00', timeZone: task.timeZone },
       { from: new Date(current.getTime() + 1), to: new Date(current.getTime() + 20 * 366 * dayMs) },
       1,
     );
     if (!next) return null;
     return {
-      date: new Intl.DateTimeFormat('en-CA', { timeZone: task.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(next),
+      date: localDate(task.timeZone, next),
       rule: formatRule({ ...rule, count: rule.count === null ? null : rule.count - 1 }),
     };
   }
@@ -323,7 +318,7 @@ export class TasksService implements OnModuleInit {
     return {
       listId: input.listId,
       parentId: input.parentId,
-      dueDate: input.dueDate === undefined ? undefined : input.dueDate === null ? null : new Date(`${input.dueDate}T00:00:00Z`),
+      dueDate: input.dueDate === undefined ? undefined : input.dueDate === null ? null : dateValue(input.dueDate),
       dueTime: input.dueTime,
       timeZone: input.timeZone,
       repeatRule,

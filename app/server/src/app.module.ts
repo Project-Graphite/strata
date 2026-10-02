@@ -20,6 +20,7 @@ import { SearchModule } from './search/search.module';
 import { ShareLinksModule } from './share-links/share-links.module';
 import { SiteModule } from './site/site.module';
 import { SpacesModule } from './spaces/spaces.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TagsModule } from './tags/tags.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
@@ -48,6 +49,7 @@ import { UsersModule } from './users/users.module';
     AccessTokensModule,
     SearchModule,
     TasksModule,
+    SubscriptionsModule,
     HealthModule,
   ],
 })

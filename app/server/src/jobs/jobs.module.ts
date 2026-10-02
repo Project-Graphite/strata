@@ -7,6 +7,6 @@ import { JobsService } from './jobs.service';
 @Module({
   imports: [FilesModule],
   providers: [JobsService, MaintenanceScheduler],
-  exports: [JobsService],
+  exports: [JobsService, MaintenanceScheduler],
 })
 export class JobsModule {}

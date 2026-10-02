@@ -18,6 +18,9 @@ export type ActivityVerb =
   | 'item.deleted'
   | 'task.completed'
   | 'task.reopened'
+  | 'subscription.renewed'
+  | 'subscription.cancelled'
+  | 'subscription.resumed'
   | 'tag.created'
   | 'tag.updated'
   | 'tag.deleted';
