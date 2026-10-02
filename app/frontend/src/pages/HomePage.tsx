@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
-import { EmptyState, PageSkeleton } from '@project-graphite/ui';
+import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { DashboardHome } from '../dashboard/Dashboard';
 
 const areas = [
   ['Home', 'A dashboard of widgets you arrange yourself: weather, agenda, tasks, feeds and shortcuts.'],
@@ -16,20 +17,7 @@ export function HomePage() {
     return <PageSkeleton label="Loading your workspace" />;
   }
   if (auth.user) {
-    return (
-      <section className="page-enter">
-        <p className="eyebrow">home</p>
-        <h1 className="page-title">Welcome, {auth.user.displayName}</h1>
-        <div className="mt-10">
-          <EmptyState title="Your workspace is being built">
-            <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-              Notes, tasks and your dashboard arrive here first, then the agenda, subscriptions and
-              whiteboards.
-            </p>
-          </EmptyState>
-        </div>
-      </section>
-    );
+    return <DashboardHome />;
   }
   return (
     <section className="page-enter">
