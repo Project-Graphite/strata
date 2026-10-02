@@ -1,28 +1,18 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
   IsIn,
-  IsInt,
   IsOptional,
   IsString,
   IsUUID,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
+import { PageDto } from '../../validation/page.dto';
 import { Trimmed } from '../../validation/trimmed.decorator';
-
-export class PageDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(1_000)
-  page = 1;
-}
 
 export class ListItemsDto extends PageDto {
   @IsOptional()

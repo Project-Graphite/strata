@@ -7,7 +7,9 @@ import {
 } from '@nestjs/common';
 import { InvitationKind, Prisma, SpaceRole } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ActivityService } from '../activity/activity.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
+import { InboxService } from '../inbox/inbox.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InviteToSpaceDto, InviteToStrataDto } from './dto/invitations.dto';
@@ -92,6 +94,8 @@ export class InvitationsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly mail: MailService,
+    private readonly activity: ActivityService,
+    private readonly inbox: InboxService,
   ) {}
 
   async inviteToStrata(userId: string, input: InviteToStrataDto) {
@@ -171,7 +175,7 @@ export class InvitationsService {
         where: { spaceId, ...target, ...this.pending() },
         data: { revokedAt: new Date() },
       });
-      return transaction.invitation.create({
+      const created = await transaction.invitation.create({
         data: {
           kind: InvitationKind.SPACE,
           spaceId,
@@ -184,6 +188,21 @@ export class InvitationsService {
         },
         select: sentFields,
       });
+      const recipient =
+        invitee ??
+        (await transaction.user.findUnique({ where: { email: input.email }, select: { id: true } }));
+      if (recipient) {
+        await this.inbox.notify(transaction, [
+          {
+            userId: recipient.id,
+            kind: 'invitation',
+            title: `${inviter.displayName} invited you to ${space.name}`,
+            body: input.note || undefined,
+            link: '/invitations',
+          },
+        ]);
+      }
+      return created;
     });
     const link = this.mail.link(invitee ? '/invitations' : `/invite/${token}`);
     const emailed = await this.mail.trySend({
@@ -328,12 +347,37 @@ export class InvitationsService {
       data: [{ invitationId: invitation.id, userId }],
       skipDuplicates: true,
     });
-    if (invitation.kind === InvitationKind.SPACE && invitation.spaceId && invitation.role) {
-      await client.spaceMember.createMany({
-        data: [{ spaceId: invitation.spaceId, userId, role: invitation.role }],
-        skipDuplicates: true,
-      });
+    if (invitation.kind !== InvitationKind.SPACE || !invitation.spaceId || !invitation.role) {
+      return;
     }
+    const spaceId = invitation.spaceId;
+    const joined = await client.spaceMember.createMany({
+      data: [{ spaceId, userId, role: invitation.role }],
+      skipDuplicates: true,
+    });
+    if (joined.count === 0) {
+      return;
+    }
+    const member = await client.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
+    const owners = await client.spaceMember.findMany({
+      where: { spaceId, role: SpaceRole.OWNER, userId: { not: userId } },
+      select: { userId: true, space: { select: { name: true } } },
+    });
+    await this.activity.record(client, {
+      spaceId,
+      actorId: userId,
+      verb: 'member.joined',
+      data: { member: member.displayName, role: invitation.role.toLowerCase() },
+    });
+    await this.inbox.notify(
+      client,
+      owners.map((owner) => ({
+        userId: owner.userId,
+        kind: 'member_joined' as const,
+        title: `${member.displayName} joined ${owner.space.name}`,
+        link: `/spaces/${spaceId}/members`,
+      })),
+    );
   }
 
   private pending(): Prisma.InvitationWhereInput {

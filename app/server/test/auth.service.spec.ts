@@ -30,6 +30,7 @@ function serviceWith(session: Record<string, unknown> | null, rotated = 1) {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
   return { refreshSession, service };
 }

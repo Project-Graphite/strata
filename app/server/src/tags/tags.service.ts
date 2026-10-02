@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ActivityService } from '../activity/activity.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTagDto, UpdateTagDto } from './dto/tags.dto';
@@ -23,6 +24,7 @@ export class TagsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly activity: ActivityService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -37,23 +39,44 @@ export class TagsService {
 
   async create(userId: string, spaceId: string, input: CreateTagDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
-    const tag = await this.prisma.tag
-      .create({ data: { spaceId, name: input.name, color: input.color }, select: tagFields })
+    const [tag] = await this.prisma
+      .$transaction([
+        this.prisma.tag.create({ data: { spaceId, name: input.name, color: input.color }, select: tagFields }),
+        this.activity.record(this.prisma, { spaceId, actorId: userId, verb: 'tag.created', data: { name: input.name } }),
+      ])
       .catch(nameTaken);
     return presentTag(tag);
   }
 
   async update(userId: string, tagId: string, input: UpdateTagDto) {
     const spaceId = await this.editableSpaceOf(userId, tagId);
-    const tag = await this.prisma.tag
-      .update({ where: { id: tagId, spaceId }, data: { name: input.name, color: input.color }, select: tagFields })
+    const [tag] = await this.prisma
+      .$transaction([
+        this.prisma.tag.update({
+          where: { id: tagId, spaceId },
+          data: { name: input.name, color: input.color },
+          select: tagFields,
+        }),
+        this.activity.record(this.prisma, {
+          spaceId,
+          actorId: userId,
+          verb: 'tag.updated',
+          data: { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) },
+        }),
+      ])
       .catch(nameTaken);
     return presentTag(tag);
   }
 
   async remove(userId: string, tagId: string) {
     const spaceId = await this.editableSpaceOf(userId, tagId);
-    await this.prisma.tag.deleteMany({ where: { id: tagId, spaceId } });
+    await this.prisma.$transaction(async (transaction) => {
+      const tag = await transaction.tag.findUnique({ where: { id: tagId }, select: { name: true } });
+      const deleted = await transaction.tag.deleteMany({ where: { id: tagId, spaceId } });
+      if (tag && deleted.count === 1) {
+        await this.activity.record(transaction, { spaceId, actorId: userId, verb: 'tag.deleted', data: { name: tag.name } });
+      }
+    });
   }
 
   private async editableSpaceOf(userId: string, tagId: string) {

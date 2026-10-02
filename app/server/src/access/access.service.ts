@@ -45,6 +45,7 @@ export class AccessService {
       select: {
         id: true,
         spaceId: true,
+        title: true,
         trashedAt: true,
         space: { select: { members: { where: { userId }, select: { role: true } } } },
       },
@@ -54,7 +55,7 @@ export class AccessService {
       throw new NotFoundException('Item not found');
     }
     this.assertRole(role, access);
-    return { id: item.id, spaceId: item.spaceId, trashedAt: item.trashedAt, role };
+    return { id: item.id, spaceId: item.spaceId, title: item.title, trashedAt: item.trashedAt, role };
   }
 
   private assertRole(role: SpaceRole, access: Access) {

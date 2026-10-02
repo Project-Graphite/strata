@@ -44,7 +44,7 @@ describe('TwoStepService', () => {
       ),
     };
     const sent = mail();
-    return { prisma, mail: sent, service: new TwoStepService(prisma as never, box, sent as never) };
+    return { prisma, mail: sent, service: new TwoStepService(prisma as never, box, sent as never, { record: vi.fn() } as never) };
   }
 
   it('stores a new authenticator secret only in sealed form and returns it once', async () => {
@@ -140,6 +140,7 @@ describe('AuthService with two-step sign-in', () => {
       twoStep as never,
       { get: vi.fn().mockResolvedValue({ inviteOnly: false }) } as never,
       {} as never,
+      { record: vi.fn() } as never,
     );
     return { mail: sent, passwords, prisma, service, twoStep };
   }
@@ -283,7 +284,7 @@ describe('Sessions', () => {
       },
     };
 
-    const sessions = await new SessionsService(prisma as never).list(user.id, 'here');
+    const sessions = await new SessionsService(prisma as never, { record: vi.fn() } as never).list(user.id, 'here');
 
     expect(sessions.map(({ id, current }) => [id, current])).toEqual([
       ['here', true],
@@ -294,7 +295,7 @@ describe('Sessions', () => {
   it('ends only the signed-in member’s own sessions', async () => {
     const prisma = { refreshSession: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) } };
 
-    await expect(new SessionsService(prisma as never).revoke(user.id, 'someone-elses')).rejects.toBeInstanceOf(
+    await expect(new SessionsService(prisma as never, { record: vi.fn() } as never).revoke(user.id, 'someone-elses')).rejects.toBeInstanceOf(
       NotFoundException,
     );
     expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({

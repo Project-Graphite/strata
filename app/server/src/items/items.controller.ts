@@ -14,8 +14,9 @@ import {
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateLinkDto, ListItemsDto, PageDto, SetItemTagsDto, UpdateItemDto } from './dto/items.dto';
+import { CreateLinkDto, ListItemsDto, SetItemTagsDto, UpdateItemDto } from './dto/items.dto';
 import { ItemsService } from './items.service';
 
 @Controller()

@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { ItemKind, SpaceRole, UserRole } from '@prisma/client';
+import cookieParser from 'cookie-parser';
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, vi } from 'vitest';
 import { PasswordService } from '../../src/auth/password.service';
@@ -71,6 +72,7 @@ export function integrationApp() {
       })
       .compile();
     app = module.createNestApplication({ logger: false });
+    app.use(cookieParser());
     app.useGlobalFilters(new ApiExceptionFilter(app.getHttpAdapter()));
     app.useGlobalPipes(new ValidationPipe({ forbidNonWhitelisted: true, transform: true, whitelist: true }));
     await app.listen(0, '127.0.0.1');
@@ -92,6 +94,7 @@ export function integrationApp() {
     get prisma() {
       return prisma;
     },
+    service: <T>(type: abstract new (...args: never[]) => T) => app.get(type),
     email: (name: string) => `${name}-${run}@example.com`,
     handle: (name: string) => `${name}${run}`,
 

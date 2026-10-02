@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AccessModule } from './access/access.module';
+import { ActivityModule } from './activity/activity.module';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnvironment } from './config/environment';
 import { CryptoModule } from './crypto/crypto.module';
 import { HealthModule } from './health/health.module';
+import { InboxModule } from './inbox/inbox.module';
 import { ItemsModule } from './items/items.module';
+import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -21,6 +25,10 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     CryptoModule,
     AccessModule,
+    ActivityModule,
+    AuditModule,
+    InboxModule,
+    JobsModule,
     SiteModule,
     RedisModule,
     MailModule,
