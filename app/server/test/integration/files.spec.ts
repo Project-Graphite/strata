@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { FilesService } from '../../src/files/files.service';
 import { integrationApp, type Member } from './harness';
 
-function png(note: string) {
+function png(note: string, pixels = 'pixels') {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(2, 0);
   header.writeUInt32BE(3, 4);
@@ -18,7 +18,7 @@ function png(note: string) {
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', header),
     chunk('tEXt', Buffer.from(`Comment\0${note}`, 'latin1')),
-    chunk('IDAT', Buffer.from('pixels', 'latin1')),
+    chunk('IDAT', Buffer.from(pixels, 'latin1')),
     chunk('IEND', Buffer.alloc(0)),
   ]);
 }
@@ -85,7 +85,7 @@ describe('The file store against Postgres', () => {
 
   it('keeps one copy of identical files and removes it once nothing uses it', async () => {
     const owner = await member('saver');
-    const data = png(`copy ${owner.id}`);
+    const data = png('copy', `pixels ${owner.id}`);
     const first = await (await upload(owner, owner.personalSpaceId, 'a.png', data)).json();
     const second = await (await upload(owner, owner.personalSpaceId, 'b.png', data)).json();
     const { sha256 } = await strata.prisma.file.findUniqueOrThrow({ where: { itemId: first.id } });
