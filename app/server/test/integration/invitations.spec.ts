@@ -149,6 +149,7 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     expect((await strata.anonymous('GET', `/share/${code}`)).body).toEqual({
       access: 'view',
       item: { kind: 'note', title: 'Packing list' },
+      event: null,
     });
     expect((await owner.call('GET', `/items/${note.id}/share-links`)).body).toHaveLength(1);
 
