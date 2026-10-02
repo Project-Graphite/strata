@@ -25,6 +25,7 @@ enum ItemKind {
   SUBSCRIPTION @map("subscription")
   BOARD        @map("board")
   FILE         @map("file")
+  LIST         @map("list")
 }
 
 enum LinkKind {
@@ -83,6 +84,7 @@ model User {
   inbox               InboxNotification[]
   uploadedFiles       File[]
   accessTokens        AccessToken[]
+  assignedTasks       Task[]
 
   @@map("users")
 }
@@ -218,6 +220,9 @@ model Item {
   activity       ActivityEvent[]
   file           File?
   searchDocument SearchDocument?
+  task           Task?           @relation("TaskItem")
+  listTasks      Task[]          @relation("TaskList")
+  subtasks       Task[]          @relation("TaskParent")
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -444,4 +449,29 @@ model SearchDocument {
 
   @@index([spaceId])
   @@map("search_documents")
+}
+
+model Task {
+  itemId          String    @id @map("item_id") @db.Uuid
+  listId          String?   @map("list_id") @db.Uuid
+  parentId        String?   @map("parent_id") @db.Uuid
+  dueDate         DateTime? @map("due_date") @db.Date
+  dueTime         String?   @map("due_time")
+  timeZone        String    @map("time_zone")
+  repeatRule      String?   @map("repeat_rule")
+  reminderMinutes Int?      @map("reminder_minutes")
+  assigneeId      String?   @map("assignee_id") @db.Uuid
+  priority        Int       @default(0)
+  position        Float     @default(0)
+  completedAt     DateTime? @map("completed_at")
+  item            Item      @relation("TaskItem", fields: [itemId], references: [id], onDelete: Cascade)
+  list            Item?     @relation("TaskList", fields: [listId], references: [id], onDelete: SetNull)
+  parent          Item?     @relation("TaskParent", fields: [parentId], references: [id], onDelete: SetNull)
+  assignee        User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([listId])
+  @@index([parentId])
+  @@index([assigneeId])
+  @@index([dueDate])
+  @@map("tasks")
 }

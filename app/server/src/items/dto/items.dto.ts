@@ -16,7 +16,7 @@ import { Trimmed } from '../../validation/trimmed.decorator';
 
 export class ListItemsDto extends PageDto {
   @IsOptional()
-  @IsIn(['note', 'task', 'event', 'subscription', 'board', 'file'], { message: 'That is not a kind of item.' })
+  @IsIn(['note', 'task', 'event', 'subscription', 'board', 'file', 'list'], { message: 'That is not a kind of item.' })
   kind?: string;
 
   @IsOptional()
