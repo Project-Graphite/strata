@@ -4,9 +4,13 @@ import { Test } from '@nestjs/testing';
 import { ItemKind, SpaceRole, UserRole } from '@prisma/client';
 import cookieParser from 'cookie-parser';
 import { randomBytes } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, vi } from 'vitest';
 import { PasswordService } from '../../src/auth/password.service';
 import { ApiExceptionFilter } from '../../src/http/api-exception.filter';
+import { securityHeaders } from '../../src/http/security-headers';
 import { MailService, type MailMessage } from '../../src/mail/mail.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
@@ -32,6 +36,7 @@ export interface Member {
   email: string;
   handle: string;
   personalSpaceId: string;
+  token: string;
   call: Call;
 }
 
@@ -42,6 +47,7 @@ export function integrationApp() {
   let prisma: PrismaService;
   let base: string;
   let passwordHash: string;
+  let filesRoot: string;
 
   function caller(token?: string): Call {
     return async (method, path, body) => {
@@ -58,7 +64,8 @@ export function integrationApp() {
   }
 
   beforeAll(async () => {
-    Object.assign(process.env, settings);
+    filesRoot = await mkdtemp(join(tmpdir(), 'strata-files-'));
+    Object.assign(process.env, settings, { FILES_ROOT: filesRoot });
     vi.spyOn(PasswordService.prototype, 'assertNotBreached').mockResolvedValue();
     const { AppModule } = await import('../../src/app.module');
     const module = await Test.createTestingModule({ imports: [AppModule] })
@@ -72,6 +79,7 @@ export function integrationApp() {
       })
       .compile();
     app = module.createNestApplication({ logger: false });
+    app.use(securityHeaders);
     app.use(cookieParser());
     app.useGlobalFilters(new ApiExceptionFilter(app.getHttpAdapter()));
     app.useGlobalPipes(new ValidationPipe({ forbidNonWhitelisted: true, transform: true, whitelist: true }));
@@ -86,6 +94,7 @@ export function integrationApp() {
     await prisma.space.deleteMany({ where: { members: { some: { user: users } } } });
     await prisma.user.deleteMany({ where: users });
     await app.close();
+    await rm(filesRoot, { recursive: true, force: true });
   });
 
   return {
@@ -93,6 +102,12 @@ export function integrationApp() {
     anonymous: (method: string, path: string, body?: unknown) => caller()(method, path, body),
     get prisma() {
       return prisma;
+    },
+    get base() {
+      return base;
+    },
+    get filesRoot() {
+      return filesRoot;
     },
     service: <T>(type: abstract new (...args: never[]) => T) => app.get(type),
     email: (name: string) => `${name}-${run}@example.com`,
@@ -124,7 +139,7 @@ export function integrationApp() {
         { sub: user.id, sid: session.id },
         { secret: settings.AUTH_ACCESS_TOKEN_SECRET, expiresIn: 3_600 },
       );
-      return { id: user.id, email: user.email, handle: user.handle, personalSpaceId: space.id, call: caller(token) };
+      return { id: user.id, email: user.email, handle: user.handle, personalSpaceId: space.id, token, call: caller(token) };
     },
 
     item(spaceId: string, title: string, kind: ItemKind = ItemKind.NOTE) {

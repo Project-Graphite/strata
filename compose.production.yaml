@@ -23,6 +23,8 @@ services:
         condition: service_healthy
     expose:
       - '3000'
+    volumes:
+      - files-data:/data/files
     healthcheck:
       test: [CMD, wget, --quiet, --tries=1, --spider, http://127.0.0.1:3000/api/v1/health]
       interval: 30s
@@ -89,5 +91,6 @@ services:
           memory: 64M
 
 volumes:
+  files-data:
   postgres-data:
   redis-data:

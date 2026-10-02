@@ -27,6 +27,7 @@ COPY package.json ./
 COPY server/package.json ./server/
 COPY server/prisma.config.ts ./server/
 COPY server/prisma ./server/prisma
+RUN mkdir -p /data/files && chown node:node /data/files
 USER node
 EXPOSE 3000
 CMD ["sh", "-c", "npm run prisma:migrate:deploy && exec node server/dist/main.js"]

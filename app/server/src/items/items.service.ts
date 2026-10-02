@@ -19,6 +19,7 @@ const itemFields = {
   createdAt: true,
   updatedAt: true,
   tags: { select: { tag: { select: tagFields } }, orderBy: { tag: { name: 'asc' } } },
+  file: { select: { mimeType: true, sizeBytes: true, width: true, height: true } },
 } satisfies Prisma.ItemSelect;
 
 const linkedFields = { id: true, spaceId: true, kind: true, title: true } satisfies Prisma.ItemSelect;
@@ -30,6 +31,7 @@ function presentItem(item: Prisma.ItemGetPayload<{ select: typeof itemFields }>)
     kind: item.kind.toLowerCase(),
     title: item.title,
     tags: item.tags.map(({ tag }) => presentTag(tag)),
+    file: item.file,
     archivedAt: item.archivedAt,
     trashedAt: item.trashedAt,
     createdAt: item.createdAt,

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { FilesService } from '../files/files.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const runIntervalMs = 5 * 60 * 1000;
@@ -10,7 +11,10 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly files: FilesService,
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => void this.run(), runIntervalMs);
@@ -55,5 +59,6 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
     await this.prisma.scheduledJob.deleteMany({
       where: { OR: [{ doneAt: { lt: ago(30) } }, { failedAt: { lt: ago(30) } }] },
     });
+    await this.files.removeOrphans(now);
   }
 }

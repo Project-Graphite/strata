@@ -11,6 +11,7 @@ export type ActivityVerb =
   | 'member.left'
   | 'member.removed'
   | 'member.role_changed'
+  | 'item.created'
   | 'item.updated'
   | 'item.trashed'
   | 'item.restored'

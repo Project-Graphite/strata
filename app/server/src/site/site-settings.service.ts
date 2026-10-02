@@ -5,7 +5,10 @@ const cacheMs = 30_000;
 
 export interface SiteSettings {
   inviteOnly: boolean;
+  fileQuotaMb: number;
 }
+
+const settingsFields = { inviteOnly: true, fileQuotaMb: true } as const;
 
 @Injectable()
 export class SiteSettingsService {
@@ -17,17 +20,17 @@ export class SiteSettingsService {
     if (this.cached && this.cached.expiresAt > Date.now()) {
       return this.cached.settings;
     }
-    const stored = await this.prisma.siteSettings.findUnique({ where: { id: 1 }, select: { inviteOnly: true } });
-    return this.remember(stored ?? { inviteOnly: false });
+    const stored = await this.prisma.siteSettings.findUnique({ where: { id: 1 }, select: settingsFields });
+    return this.remember(stored ?? { inviteOnly: false, fileQuotaMb: 100 });
   }
 
-  async update(settings: SiteSettings) {
+  async update(settings: Partial<SiteSettings>) {
     return this.remember(
       await this.prisma.siteSettings.upsert({
         where: { id: 1 },
         update: settings,
         create: settings,
-        select: { inviteOnly: true },
+        select: settingsFields,
       }),
     );
   }
