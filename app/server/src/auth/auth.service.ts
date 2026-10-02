@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, SpaceRole, TokenPurpose, UserRole } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
+import { AuditService } from '../audit/audit.service';
 import { InvitationsService } from '../invitations/invitations.service';
 import { MailService } from '../mail/mail.service';
 import { uniqueViolation } from '../prisma/errors';
@@ -68,6 +69,7 @@ export class AuthService {
     private readonly twoStep: TwoStepService,
     private readonly site: SiteSettingsService,
     private readonly invitations: InvitationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async register(input: RegisterDto) {
@@ -173,6 +175,9 @@ export class AuthService {
       }
       throw error;
     }
+    if (record.email) {
+      await this.audit.record(record.userId, 'email_changed');
+    }
     return { verified: true };
   }
 
@@ -186,6 +191,7 @@ export class AuthService {
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!(await this.passwords.verify(input.password, user.passwordHash))) {
+      await this.audit.record(user.id, 'sign_in_failed', { reason: 'password', device: device.label });
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!user.verifiedAt) {
@@ -225,6 +231,7 @@ export class AuthService {
       throw new UnauthorizedException('Too many wrong codes. Sign in again.');
     }
     if (!(await this.twoStep.verify(record.userId, code))) {
+      await this.audit.record(record.userId, 'sign_in_failed', { reason: 'code', device: device.label });
       throw new UnauthorizedException('That code is not right');
     }
     const consumed = await this.prisma.signInChallenge.deleteMany({ where: { id: record.id } });
@@ -328,6 +335,7 @@ export class AuthService {
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId: record.userId } }),
     ]);
+    await this.audit.record(record.userId, 'password_reset');
     await this.passwordChangedNotice(record.user);
   }
 
@@ -344,6 +352,7 @@ export class AuthService {
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId } }),
     ]);
+    await this.audit.record(userId, 'password_changed');
     await this.passwordChangedNotice(user);
     return this.issueSession(user, device, {});
   }
@@ -357,6 +366,7 @@ export class AuthService {
     if (!taken && !(await this.sendVerification(this.prisma, user, TokenPurpose.CHANGE_EMAIL, email))) {
       throw emailUnavailable();
     }
+    await this.audit.record(userId, 'email_change_requested');
     await this.mail.trySend({
       to: user.email,
       subject: 'Your Strata email is being changed',
@@ -432,8 +442,9 @@ export class AuthService {
       },
       select: { id: true },
     });
-    if (options.alertNewDevice && device.hash) {
-      await this.rememberDevice(user, device.hash, device.label);
+    if (options.alertNewDevice) {
+      await this.audit.record(user.id, 'signed_in', { device: device.label });
+      if (device.hash) await this.rememberDevice(user, device.hash, device.label);
     }
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, sid: session.id },

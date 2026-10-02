@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ActivityService, type ActivityVerb } from '../activity/activity.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
@@ -58,6 +59,7 @@ export class ItemsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly activity: ActivityService,
   ) {}
 
   async list(userId: string, spaceId: string, query: ListItemsDto) {
@@ -89,16 +91,30 @@ export class ItemsService {
   }
 
   async update(userId: string, itemId: string, input: UpdateItemDto) {
-    assertNotTrashed(await this.access.assertItem(userId, itemId, 'edit'));
-    const item = await this.prisma.item.update({
-      where: { id: itemId },
-      data: {
-        title: input.title,
-        archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
-        updatedById: userId,
-      },
-      select: itemFields,
-    });
+    const found = await this.access.assertItem(userId, itemId, 'edit');
+    assertNotTrashed(found);
+    const [item] = await this.prisma.$transaction([
+      this.prisma.item.update({
+        where: { id: itemId },
+        data: {
+          title: input.title,
+          archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
+          updatedById: userId,
+        },
+        select: itemFields,
+      }),
+      this.activity.record(this.prisma, {
+        spaceId: found.spaceId,
+        actorId: userId,
+        itemId,
+        verb: 'item.updated',
+        data: {
+          title: input.title ?? found.title,
+          ...(input.title !== undefined && input.title !== found.title ? { renamedFrom: found.title } : {}),
+          ...(input.archived === undefined ? {} : { archived: input.archived }),
+        },
+      }),
+    ]);
     return presentItem(item);
   }
 
@@ -117,25 +133,28 @@ export class ItemsService {
   }
 
   async moveToTrash(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
-    await this.prisma.item.updateMany({
-      where: { id: itemId, trashedAt: null },
-      data: { trashedAt: new Date(), updatedById: userId },
-    });
+    await this.changeTrash(userId, itemId, 'item.trashed', (transaction) =>
+      transaction.item.updateMany({
+        where: { id: itemId, trashedAt: null },
+        data: { trashedAt: new Date(), updatedById: userId },
+      }),
+    );
   }
 
   async restore(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
-    await this.prisma.item.updateMany({
-      where: { id: itemId, trashedAt: { not: null } },
-      data: { trashedAt: null, updatedById: userId },
-    });
+    await this.changeTrash(userId, itemId, 'item.restored', (transaction) =>
+      transaction.item.updateMany({
+        where: { id: itemId, trashedAt: { not: null } },
+        data: { trashedAt: null, updatedById: userId },
+      }),
+    );
   }
 
   async remove(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
-    const deleted = await this.prisma.item.deleteMany({ where: { id: itemId, trashedAt: { not: null } } });
-    if (deleted.count === 0) {
+    const deleted = await this.changeTrash(userId, itemId, 'item.deleted', (transaction) =>
+      transaction.item.deleteMany({ where: { id: itemId, trashedAt: { not: null } } }),
+    );
+    if (deleted === 0) {
       throw new BadRequestException('Move this item to the trash first');
     }
   }
@@ -192,6 +211,28 @@ export class ItemsService {
     if (deleted.count === 0) {
       throw new NotFoundException('That link is already gone');
     }
+  }
+
+  private async changeTrash(
+    userId: string,
+    itemId: string,
+    verb: Extract<ActivityVerb, 'item.trashed' | 'item.restored' | 'item.deleted'>,
+    change: (transaction: Prisma.TransactionClient) => Promise<{ count: number }>,
+  ) {
+    const item = await this.access.assertItem(userId, itemId, 'edit');
+    return this.prisma.$transaction(async (transaction) => {
+      const { count } = await change(transaction);
+      if (count === 1) {
+        await this.activity.record(transaction, {
+          spaceId: item.spaceId,
+          actorId: userId,
+          itemId: verb === 'item.deleted' ? undefined : itemId,
+          verb,
+          data: { title: item.title },
+        });
+      }
+      return count;
+    });
   }
 
   private async page(

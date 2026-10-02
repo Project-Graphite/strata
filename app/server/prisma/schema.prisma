@@ -77,6 +77,10 @@ model User {
   receivedInvitations Invitation[]           @relation("ReceivedInvitations")
   redemptions         InvitationRedemption[]
   createdShareLinks   ShareLink[]
+  activity            ActivityEvent[]
+  auditEvents         AuditEvent[]           @relation("AuditSubject")
+  auditActions        AuditEvent[]           @relation("AuditActor")
+  inbox               InboxNotification[]
 
   @@map("users")
 }
@@ -159,19 +163,20 @@ model SignInChallenge {
 }
 
 model Space {
-  id              String        @id @default(uuid()) @db.Uuid
+  id              String          @id @default(uuid()) @db.Uuid
   name            String
-  color           String        @default("gray")
-  personalOwnerId String?       @unique @map("personal_owner_id") @db.Uuid
-  createdById     String?       @map("created_by") @db.Uuid
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  personalOwner   User?         @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
-  createdBy       User?         @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
+  color           String          @default("gray")
+  personalOwnerId String?         @unique @map("personal_owner_id") @db.Uuid
+  createdById     String?         @map("created_by") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  personalOwner   User?           @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
+  createdBy       User?           @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
   members         SpaceMember[]
   items           Item[]
   tags            Tag[]
   invitations     Invitation[]
+  activity        ActivityEvent[]
 
   @@map("spaces")
 }
@@ -190,23 +195,24 @@ model SpaceMember {
 }
 
 model Item {
-  id          String      @id @default(uuid()) @db.Uuid
-  spaceId     String      @map("space_id") @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
+  spaceId     String          @map("space_id") @db.Uuid
   kind        ItemKind
-  title       String      @default("")
-  createdById String?     @map("created_by") @db.Uuid
-  updatedById String?     @map("updated_by") @db.Uuid
-  archivedAt  DateTime?   @map("archived_at")
-  trashedAt   DateTime?   @map("trashed_at")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-  space       Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  createdBy   User?       @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?       @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
+  title       String          @default("")
+  createdById String?         @map("created_by") @db.Uuid
+  updatedById String?         @map("updated_by") @db.Uuid
+  archivedAt  DateTime?       @map("archived_at")
+  trashedAt   DateTime?       @map("trashed_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  space       Space           @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy   User?           @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?           @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
   tags        ItemTag[]
-  linksOut    ItemLink[]  @relation("LinkSource")
-  linksIn     ItemLink[]  @relation("LinkTarget")
+  linksOut    ItemLink[]      @relation("LinkSource")
+  linksIn     ItemLink[]      @relation("LinkTarget")
   shareLinks  ShareLink[]
+  activity    ActivityEvent[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -312,4 +318,67 @@ model ShareLink {
 
   @@index([itemId])
   @@map("share_links")
+}
+
+model ActivityEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  spaceId   String   @map("space_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  itemId    String?  @map("item_id") @db.Uuid
+  verb      String
+  data      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  item      Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, createdAt])
+  @@index([itemId])
+  @@map("activity_events")
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  data      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation("AuditSubject", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model InboxNotification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  kind      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("inbox_notifications")
+}
+
+model ScheduledJob {
+  id        String    @id @default(uuid()) @db.Uuid
+  kind      String
+  runAt     DateTime  @map("run_at")
+  payload   Json      @default("{}")
+  claimedAt DateTime? @map("claimed_at")
+  attempts  Int       @default(0)
+  lastError String?   @map("last_error")
+  doneAt    DateTime? @map("done_at")
+  failedAt  DateTime? @map("failed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([runAt])
+  @@map("scheduled_jobs")
 }

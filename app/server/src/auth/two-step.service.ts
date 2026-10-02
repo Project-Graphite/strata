@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
+import { AuditService } from '../audit/audit.service';
 import { SecretBox } from '../crypto/secret-box.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,6 +28,7 @@ export class TwoStepService {
     private readonly prisma: PrismaService,
     private readonly box: SecretBox,
     private readonly mail: MailService,
+    private readonly audit: AuditService,
   ) {}
 
   async enabled(userId: string) {
@@ -81,6 +83,7 @@ export class TwoStepService {
       });
       return transaction.user.findUniqueOrThrow({ where: { id: userId } });
     });
+    await this.audit.record(userId, 'two_step_enabled');
     await this.alert(user, 'Two-step sign-in is on for your Strata account', [
       'Signing in to Strata now also needs a code from your authenticator app or one of your recovery codes.',
     ]);
@@ -93,6 +96,7 @@ export class TwoStepService {
       await transaction.recoveryCode.deleteMany({ where: { userId } });
       return transaction.user.findUniqueOrThrow({ where: { id: userId } });
     });
+    await this.audit.record(userId, 'two_step_disabled');
     await this.alert(user, 'Two-step sign-in is off for your Strata account', [
       'Signing in to Strata now needs only your password.',
     ]);
@@ -109,6 +113,7 @@ export class TwoStepService {
         data: codes.map((recovery) => ({ userId, codeHash: digest(normalizedRecoveryCode(recovery)) })),
       }),
     ]);
+    await this.audit.record(userId, 'recovery_codes_regenerated');
     return { recoveryCodes: codes };
   }
 

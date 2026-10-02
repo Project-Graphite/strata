@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class SessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(userId: string, currentSessionId: string) {
     const sessions = await this.prisma.refreshSession.findMany({
@@ -21,11 +25,13 @@ export class SessionsService {
     if (revoked.count === 0) {
       throw new NotFoundException('That session has already ended');
     }
+    await this.audit.record(userId, 'session_signed_out');
   }
 
   async revokeOthers(userId: string, currentSessionId: string) {
     await this.prisma.refreshSession.deleteMany({
       where: { userId, id: { not: currentSessionId } },
     });
+    await this.audit.record(userId, 'other_sessions_signed_out');
   }
 }

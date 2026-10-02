@@ -92,6 +92,7 @@ export function integrationApp() {
     get prisma() {
       return prisma;
     },
+    service: <T>(type: abstract new (...args: never[]) => T) => app.get(type),
     email: (name: string) => `${name}-${run}@example.com`,
     handle: (name: string) => `${name}${run}`,
 

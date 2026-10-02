@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ActivityService } from '../activity/activity.service';
+import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto } from './dto/spaces.dto';
 
@@ -44,6 +46,8 @@ export class SpacesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly activity: ActivityService,
+    private readonly inbox: InboxService,
   ) {}
 
   async list(userId: string) {
@@ -77,11 +81,19 @@ export class SpacesService {
 
   async update(userId: string, spaceId: string, input: UpdateSpaceDto) {
     const role = await this.access.assertSpace(userId, spaceId, 'manage');
-    const space = await this.prisma.space.update({
-      where: { id: spaceId },
-      data: { name: input.name, color: input.color },
-      select: spaceFields,
-    });
+    const [space] = await this.prisma.$transaction([
+      this.prisma.space.update({
+        where: { id: spaceId },
+        data: { name: input.name, color: input.color },
+        select: spaceFields,
+      }),
+      this.activity.record(this.prisma, {
+        spaceId,
+        actorId: userId,
+        verb: 'space.updated',
+        data: { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) },
+      }),
+    ]);
     return presentSpace(space, role);
   }
 
@@ -113,21 +125,51 @@ export class SpacesService {
       if (changed.count === 0) {
         throw new NotFoundException('That person is not a member of this space');
       }
-      return presentMember(
-        await transaction.spaceMember.findUniqueOrThrow({
-          where: { spaceId_userId: { spaceId, userId: memberId } },
-          select: memberFields,
-        }),
-      );
+      const member = await transaction.spaceMember.findUniqueOrThrow({
+        where: { spaceId_userId: { spaceId, userId: memberId } },
+        select: { ...memberFields, space: { select: { name: true } } },
+      });
+      await this.activity.record(transaction, {
+        spaceId,
+        actorId: userId,
+        verb: 'member.role_changed',
+        data: { member: member.user.displayName, role: input.role },
+      });
+      if (memberId !== userId) {
+        await this.inbox.notify(transaction, [
+          {
+            userId: memberId,
+            kind: 'role_changed',
+            title: `You are now ${input.role === 'viewer' ? 'a viewer' : `an ${input.role}`} in ${member.space.name}`,
+            link: `/spaces/${spaceId}`,
+          },
+        ]);
+      }
+      return presentMember(member);
     });
   }
 
   async removeMember(userId: string, spaceId: string, memberId: string) {
     await this.access.assertSpace(userId, spaceId, memberId === userId ? 'read' : 'manage');
     await this.keepingAnOwner(spaceId, async (transaction) => {
-      const removed = await transaction.spaceMember.deleteMany({ where: { spaceId, userId: memberId } });
-      if (removed.count === 0) {
+      const member = await transaction.spaceMember.findUnique({
+        where: { spaceId_userId: { spaceId, userId: memberId } },
+        select: { user: { select: { displayName: true } }, space: { select: { name: true } } },
+      });
+      if (!member) {
         throw new NotFoundException('That person is not a member of this space');
+      }
+      await transaction.spaceMember.delete({ where: { spaceId_userId: { spaceId, userId: memberId } } });
+      await this.activity.record(transaction, {
+        spaceId,
+        actorId: userId,
+        verb: memberId === userId ? 'member.left' : 'member.removed',
+        data: { member: member.user.displayName },
+      });
+      if (memberId !== userId) {
+        await this.inbox.notify(transaction, [
+          { userId: memberId, kind: 'removed_from_space', title: `You were removed from ${member.space.name}` },
+        ]);
       }
     });
   }

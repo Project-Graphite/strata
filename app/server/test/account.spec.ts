@@ -82,6 +82,7 @@ function setup(overrides: Record<string, object> = {}) {
   const twoStep = { enabled: vi.fn().mockResolvedValue(false), verify: vi.fn() };
   const site = { get: vi.fn().mockResolvedValue({ inviteOnly: false }) };
   const invitations = { redeemOnSignUp: vi.fn() };
+  const audit = { record: vi.fn() };
   const service = new AuthService(
     prisma as never,
     new JwtService(),
@@ -91,8 +92,9 @@ function setup(overrides: Record<string, object> = {}) {
     twoStep as never,
     site as never,
     invitations as never,
+    audit as never,
   );
-  return { breachCheck, invitations, mail, prisma, service, site, twoStep };
+  return { audit, breachCheck, invitations, mail, prisma, service, site, twoStep };
 }
 
 function sentToken(mail: { send: ReturnType<typeof vi.fn> }, to?: string) {
