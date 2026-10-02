@@ -95,18 +95,20 @@ describe('The file store against Postgres', () => {
 
     const later = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const files = strata.service(FilesService);
-    await owner.call('POST', `/items/${first.id}/trash`);
-    await owner.call('DELETE', `/items/${first.id}`);
+    expect((await owner.call('POST', `/items/${first.id}/trash`)).status).toBe(204);
+    expect((await owner.call('DELETE', `/items/${first.id}`)).status).toBe(204);
     await files.removeOrphans(later);
     expect(await exists(blob)).toBe(true);
 
-    await owner.call('POST', `/items/${second.id}/trash`);
-    await owner.call('DELETE', `/items/${second.id}`);
+    expect((await owner.call('POST', `/items/${second.id}/trash`)).status).toBe(204);
+    expect((await owner.call('DELETE', `/items/${second.id}`)).status).toBe(204);
+    expect(await strata.prisma.file.count({ where: { sha256 } })).toBe(0);
     await files.removeOrphans(new Date());
+    expect(await strata.prisma.fileBlob.count({ where: { sha256 } })).toBe(1);
     expect(await exists(blob)).toBe(true);
     await files.removeOrphans(later);
-    expect(await exists(blob)).toBe(false);
     expect(await strata.prisma.fileBlob.count({ where: { sha256 } })).toBe(0);
+    expect(await exists(blob)).toBe(false);
   });
 
   it('stops uploads at the storage limit the system manager sets', async () => {
