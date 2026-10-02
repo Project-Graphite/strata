@@ -4,7 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const pageSize = 20;
 
-export type InboxKind = 'invitation' | 'member_joined' | 'role_changed' | 'removed_from_space';
+export type InboxKind =
+  | 'invitation'
+  | 'member_joined'
+  | 'role_changed'
+  | 'removed_from_space'
+  | 'task_assigned'
+  | 'task_due';
 
 export interface InboxEntry {
   userId: string;

@@ -16,6 +16,8 @@ export type ActivityVerb =
   | 'item.trashed'
   | 'item.restored'
   | 'item.deleted'
+  | 'task.completed'
+  | 'task.reopened'
   | 'tag.created'
   | 'tag.updated'
   | 'tag.deleted';

@@ -21,6 +21,7 @@ import { ShareLinksModule } from './share-links/share-links.module';
 import { SiteModule } from './site/site.module';
 import { SpacesModule } from './spaces/spaces.module';
 import { TagsModule } from './tags/tags.module';
+import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module';
     FilesModule,
     AccessTokensModule,
     SearchModule,
+    TasksModule,
     HealthModule,
   ],
 })
