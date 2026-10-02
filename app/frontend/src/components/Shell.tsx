@@ -18,6 +18,7 @@ import { SpacesContext, type Space } from '../spaces';
 import { useResource } from '../useResource';
 import { AccountMenu } from './AccountMenu';
 import { SearchPalette } from './SearchPalette';
+import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -171,6 +172,7 @@ export function Shell() {
             </OutageGate>
           </AppShell>
           {searching && <SearchPalette onClose={() => setSearching(false)} />}
+          <UpdatePrompt />
         </SnackbarProvider>
       </InboxContext.Provider>
     </SpacesContext.Provider>

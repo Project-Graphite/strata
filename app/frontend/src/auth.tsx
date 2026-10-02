@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ApiError, apiRequest } from './api';
+import { wipeLocalData } from './local-data';
 
 export type UserRole = 'member' | 'admin' | 'system_manager';
 
@@ -160,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: async () => {
         await apiRequest('/auth/logout', { method: 'POST' });
         applySession(undefined);
+        await wipeLocalData();
       },
       changePassword: async (proof, newPassword) => {
         applySession(
@@ -172,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deleteAccount: async (proof) => {
         await request('/me', { method: 'DELETE', body: JSON.stringify(proof) });
         applySession(undefined);
+        await wipeLocalData();
       },
       updateUser: (changes) => {
         const active = current.current;
