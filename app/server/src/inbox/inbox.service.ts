@@ -10,7 +10,8 @@ export type InboxKind =
   | 'role_changed'
   | 'removed_from_space'
   | 'task_assigned'
-  | 'task_due';
+  | 'task_due'
+  | 'subscription_due';
 
 export interface InboxEntry {
   userId: string;
