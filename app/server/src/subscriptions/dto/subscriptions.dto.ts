@@ -80,7 +80,7 @@ class SubscriptionDetailsDto {
   @Trimmed()
   @IsString()
   @MaxLength(40, { message: 'Payment labels are at most 40 characters long.' })
-  @Matches(/^(?!.*\d{5})/, { message: 'Use a label such as "Visa ending 1234". Never enter a full card number.' })
+  @Matches(/^(?!.*\d(?:[ -]?\d){4})/, { message: 'Use a label such as "Visa ending 1234". Never enter a full card number.' })
   paymentLabel?: string | null;
 
   @IsOptional()

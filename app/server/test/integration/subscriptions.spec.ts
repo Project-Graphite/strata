@@ -20,7 +20,8 @@ describe('Subscriptions against Postgres', () => {
     const valid = { name: 'Music', amountMinor: 999, currency: 'eur', repeatRule: 'FREQ=MONTHLY', startDate: utcDate(10) };
 
     for (const [change, reason] of [
-      [{ paymentLabel: '4242 4242 4242 4242' }, 'card number'],
+      [{ paymentLabel: '4242 4242 4242 4242' }, 'spaced card number'],
+      [{ paymentLabel: 'Card 4242424242424242' }, 'card number'],
       [{ cancelUrl: 'http://example.com/cancel' }, 'plain http link'],
       [{ currency: 'EU' }, 'short currency'],
       [{ repeatRule: 'FREQ=HOURLY' }, 'unsupported rule'],
