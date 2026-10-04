@@ -11,6 +11,7 @@ interface SearchResults {
 const pages = [
   ['/', 'Home'],
   ['/today', 'Today'],
+  ['/agenda', 'Agenda and calendar'],
   ['/recurring', 'Recurring subscriptions and bills'],
   ['/spaces', 'Spaces'],
   ['/inbox', 'Inbox'],
@@ -59,7 +60,9 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       href:
         item.kind === 'task'
           ? `/spaces/${item.spaceId}/tasks`
-          : item.kind === 'subscription'
+          : item.kind === 'event'
+            ? `/events/${item.id}`
+            : item.kind === 'subscription'
             ? `/spaces/${item.spaceId}/recurring`
           : item.kind === 'list'
             ? `/spaces/${item.spaceId}/tasks?list=${item.id}`

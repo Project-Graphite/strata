@@ -13,6 +13,7 @@ const starters: Record<Template, Pick<WidgetDto, 'type' | 'size' | 'settings'>[]
   morning: [
     { type: 'clock', size: 'small', settings: {} },
     { type: 'today', size: 'medium', settings: {} },
+    { type: 'agenda', size: 'small', settings: {} },
     { type: 'recurring', size: 'small', settings: {} },
     { type: 'inbox', size: 'medium', settings: {} },
   ],

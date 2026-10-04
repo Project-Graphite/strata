@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Avatar, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
+import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { useSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
@@ -10,7 +11,7 @@ import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -296,6 +297,28 @@ function Inbox() {
   );
 }
 
+function Agenda() {
+  const today = dayKey(new Date());
+  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${today}&to=${addDays(today, 7)}`, true);
+  if (agenda.error) return <p className="error-message m-0">{agenda.error}</p>;
+  if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={3} />;
+  if (agenda.data.length === 0) return <Empty>Nothing in the next seven days.</Empty>;
+  return (
+    <ul className="m-0 grid list-none gap-1.5 p-0">
+      {agenda.data.slice(0, 6).map((entry) => (
+        <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
+          <Link className="text-ink no-underline hover:underline" to={entryLink(entry)}>
+            {entry.title}
+          </Link>
+          <span className="mono-sm block text-faint">
+            {new Date(`${entry.allDay ? entry.start : dayKey(new Date(entry.start))}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} {entryTime(entry)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const widgetKinds: Record<
   WidgetType,
   { title: string; size: WidgetSize; settings: Record<string, unknown>; View: (props: WidgetProps) => ReactNode; Settings?: (props: SettingsProps) => ReactNode }
@@ -306,4 +329,5 @@ export const widgetKinds: Record<
   shortcuts: { title: 'Shortcuts', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
   recurring: { title: 'Renewals and spend', size: 'small', settings: {}, View: Recurring },
   inbox: { title: 'Inbox', size: 'medium', settings: {}, View: Inbox },
+  agenda: { title: 'Agenda', size: 'medium', settings: {}, View: Agenda },
 };
