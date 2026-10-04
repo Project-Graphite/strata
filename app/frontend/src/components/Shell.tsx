@@ -144,6 +144,7 @@ export function Shell() {
                       { active: pathname === '/today', href: '/today', icon: 'compass', label: 'Today' },
                       { active: pathname === '/agenda' || pathname.startsWith('/events/'), href: '/agenda', label: 'Agenda' },
                       { active: pathname === '/recurring', href: '/recurring', icon: 'filter', label: 'Recurring' },
+                      { active: pathname === '/tidy', href: '/tidy', label: 'Tidy' },
                     ],
                   },
                     {

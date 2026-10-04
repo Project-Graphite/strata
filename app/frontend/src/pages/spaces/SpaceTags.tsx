@@ -6,6 +6,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
+import { TidyRules } from './TidyRules';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 
@@ -84,6 +85,8 @@ export function SpaceTags() {
           </form>
         </section>
       )}
+
+      <TidyRules tags={tags.data} />
 
       {editing && (
         <Dialog eyebrow="tag" onClose={() => setEditing(undefined)} title={`Edit ${editing.name}`}>
