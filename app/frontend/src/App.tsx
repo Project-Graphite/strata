@@ -17,6 +17,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
 import { RsvpPage, SharePage } from './pages/RsvpPages';
+import { SavePage } from './pages/SavePage';
 import { DataSettings } from './pages/settings/DataSettings';
 import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
@@ -119,6 +120,14 @@ export function App() {
             element={
               <Protected>
                 <RecurringPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="save"
+            element={
+              <Protected>
+                <SavePage />
               </Protected>
             }
           />
