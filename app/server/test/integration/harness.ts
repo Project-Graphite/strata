@@ -142,6 +142,14 @@ export function integrationApp() {
       return { id: user.id, email: user.email, handle: user.handle, personalSpaceId: space.id, token, call: caller(token) };
     },
 
+    upload(as: Member, spaceId: string, name: string, data: Buffer, type = 'application/octet-stream') {
+      return fetch(`${base}/spaces/${spaceId}/files`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${as.token}`, 'Content-Type': type, 'X-File-Name': encodeURIComponent(name) },
+        body: new Uint8Array(data),
+      });
+    },
+
     item(spaceId: string, title: string, kind: ItemKind = ItemKind.NOTE) {
       return prisma.item.create({ data: { spaceId, kind, title } });
     },

@@ -27,17 +27,9 @@ const exists = (path: string) => access(path).then(() => true, () => false);
 
 describe('The file store against Postgres', () => {
   const strata = integrationApp();
-  const { member } = strata;
+  const { member, upload } = strata;
 
   afterAll(() => strata.prisma.siteSettings.deleteMany({ where: { id: 1 } }));
-
-  function upload(as: Member, spaceId: string, name: string, data: Buffer, type = 'application/octet-stream') {
-    return fetch(`${strata.base}/spaces/${spaceId}/files`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${as.token}`, 'Content-Type': type, 'X-File-Name': encodeURIComponent(name) },
-      body: new Uint8Array(data),
-    });
-  }
 
   function download(as: Member, itemId: string) {
     return fetch(`${strata.base}/files/${itemId}`, { headers: { Authorization: `Bearer ${as.token}` } });

@@ -25,6 +25,7 @@ import { SpacesModule } from './spaces/spaces.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TagsModule } from './tags/tags.module';
 import { TasksModule } from './tasks/tasks.module';
+import { TidyModule } from './tidy/tidy.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
     SubscriptionsModule,
     DashboardsModule,
     EventsModule,
+    TidyModule,
     HealthModule,
   ],
 })

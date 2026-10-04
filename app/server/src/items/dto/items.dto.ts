@@ -14,9 +14,11 @@ import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorat
 import { PageDto } from '../../validation/page.dto';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
+export const itemKinds = ['note', 'task', 'event', 'subscription', 'board', 'file', 'list'];
+
 export class ListItemsDto extends PageDto {
   @IsOptional()
-  @IsIn(['note', 'task', 'event', 'subscription', 'board', 'file', 'list'], { message: 'That is not a kind of item.' })
+  @IsIn(itemKinds, { message: 'That is not a kind of item.' })
   kind?: string;
 
   @IsOptional()

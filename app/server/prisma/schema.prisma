@@ -51,6 +51,13 @@ enum GuestResponse {
   MAYBE   @map("maybe")
 }
 
+enum TidyAction {
+  ARCHIVE @map("archive")
+  TRASH   @map("trash")
+  TAG     @map("tag")
+  CANCEL  @map("cancel")
+}
+
 enum TokenPurpose {
   VERIFY_EMAIL   @map("verify_email")
   CHANGE_EMAIL   @map("change_email")
@@ -93,6 +100,8 @@ model User {
   accessTokens        AccessToken[]
   assignedTasks       Task[]
   dashboards          Dashboard[]
+  tidyBatches         TidyBatch[]
+  tidyRules           TidyRule[]
 
   @@map("users")
 }
@@ -190,6 +199,7 @@ model Space {
   invitations     Invitation[]
   searchDocuments SearchDocument[]
   activity        ActivityEvent[]
+  tidyRules       TidyRule[]
 
   @@map("spaces")
 }
@@ -235,19 +245,22 @@ model Item {
   prices         SubscriptionPrice[]
   event          Event?
   guests         EventGuest[]
+  tidyChanges    TidyChange[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
 }
 
 model Tag {
-  id        String    @id @default(uuid()) @db.Uuid
-  spaceId   String    @map("space_id") @db.Uuid
-  name      String
-  color     String    @default("gray")
-  createdAt DateTime  @default(now()) @map("created_at")
-  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  items     ItemTag[]
+  id          String      @id @default(uuid()) @db.Uuid
+  spaceId     String      @map("space_id") @db.Uuid
+  name        String
+  color       String      @default("gray")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  space       Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  items       ItemTag[]
+  tidyBatches TidyBatch[]
+  tidyRules   TidyRule[]
 
   @@map("tags")
 }
@@ -571,4 +584,52 @@ model EventGuest {
 
   @@index([itemId])
   @@map("event_guests")
+}
+
+model TidyBatch {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  action    TidyAction
+  tagId     String?      @map("tag_id") @db.Uuid
+  ruleId    String?      @map("rule_id") @db.Uuid
+  itemCount Int          @map("item_count")
+  createdAt DateTime     @default(now()) @map("created_at")
+  undoneAt  DateTime?    @map("undone_at")
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       Tag?         @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  rule      TidyRule?    @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  changes   TidyChange[]
+
+  @@index([userId, createdAt])
+  @@map("tidy_batches")
+}
+
+model TidyChange {
+  batchId String    @map("batch_id") @db.Uuid
+  itemId  String    @map("item_id") @db.Uuid
+  batch   TidyBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  item    Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([batchId, itemId])
+  @@index([itemId])
+  @@map("tidy_changes")
+}
+
+model TidyRule {
+  id            String      @id @default(uuid()) @db.Uuid
+  spaceId       String      @map("space_id") @db.Uuid
+  createdById   String      @map("created_by") @db.Uuid
+  titleContains String      @map("title_contains")
+  kind          ItemKind?
+  tagId         String      @map("tag_id") @db.Uuid
+  enabled       Boolean     @default(true)
+  checkedUntil  DateTime    @map("checked_until")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  space         Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy     User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  batches       TidyBatch[]
+
+  @@index([spaceId])
+  @@map("tidy_rules")
 }
