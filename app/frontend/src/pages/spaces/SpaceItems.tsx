@@ -2,7 +2,7 @@ import { Link, useSearchParams } from 'react-router';
 import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
-import { fileSize, maxUploadBytes, preparedUpload, saveBlob } from '../../files';
+import { fileSize, saveBlob, uploadFiles } from '../../files';
 import type { Item } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -25,22 +25,9 @@ export function SpaceItems() {
 
   function upload(files: File[]) {
     void uploading.run(async () => {
-      const accepted = files.filter((file) => file.size <= maxUploadBytes);
-      const refused = files.filter((file) => file.size > maxUploadBytes);
-      for (const file of accepted) {
-        await auth.request(`/spaces/${space.id}/files`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
-          body: await preparedUpload(file),
-        });
-      }
+      const message = await uploadFiles(auth.request, space.id, files);
       items.reload();
-      return [
-        accepted.length === 1 ? `Added ${accepted[0]!.name}.` : accepted.length ? `Added ${accepted.length} files.` : '',
-        refused.length ? `${refused.map((file) => file.name).join(', ')} ${refused.length === 1 ? 'is' : 'are'} over 25 MB.` : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
+      return message;
     }, 'Could not upload that file');
   }
 

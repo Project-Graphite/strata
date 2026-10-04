@@ -1,5 +1,6 @@
 const cacheName = 'strata-__VERSION__';
 const offlinePage = '/offline.html';
+const shareCache = 'strata-share';
 const precache = [...__ASSETS__, offlinePage, '/offline.css', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -10,7 +11,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((names) => Promise.all(names.filter((name) => name !== cacheName).map((name) => caches.delete(name))))
+      .then((names) => Promise.all(names.filter((name) => name !== cacheName && name !== shareCache).map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });
@@ -19,9 +20,38 @@ self.addEventListener('message', (event) => {
   if (event.data === 'activate') self.skipWaiting();
 });
 
+async function receiveShare(request) {
+  const form = await request.formData();
+  await caches.delete(shareCache);
+  const cache = await caches.open(shareCache);
+  const field = (name) => (typeof form.get(name) === 'string' ? form.get(name) : '');
+  await cache.put(
+    '/share-target/text',
+    new Response(JSON.stringify({ title: field('title'), text: field('text'), url: field('url') }), {
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+  const files = form.getAll('files').filter((file) => typeof file !== 'string').slice(0, 10);
+  await Promise.all(
+    files.map((file, index) =>
+      cache.put(
+        `/share-target/files/${index}`,
+        new Response(file, {
+          headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+        }),
+      ),
+    ),
+  );
+  return Response.redirect(new URL('/save', self.location.origin).href, 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  if (request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/share-target') {
+    event.respondWith(receiveShare(request));
+    return;
+  }
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(() => caches.match(offlinePage)));
