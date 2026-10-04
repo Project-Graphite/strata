@@ -84,4 +84,45 @@ describe('Home dashboard', () => {
     expect(saved).toEqual({ layout: { widgets: widgets.slice(0, 2) }, name: 'Home' });
     expect(titles()).toEqual(['Clock', 'Shortcuts']);
   });
+  it('opens the dashboard as a wall display that keeps the screen on, and leaves it with Escape', async () => {
+    const release = vi.fn(() => Promise.resolve());
+    const request = vi.fn(() => Promise.resolve({ release }));
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([home]));
+        if (path === '/me/inbox?page=1') return Promise.resolve(json({ page: 1, totalPages: 1, totalResults: 0, results: [] }));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+
+    const wall = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Wall display')!;
+    expect(wall.getAttribute('href')).toBe('/?d=home&display=wall');
+    await act(async () => wall.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+
+    expect(titles()).toEqual(['Clock', 'Shortcuts', 'Inbox']);
+    expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
+    expect(button('Edit dashboard')).toBeUndefined();
+    expect(request).toHaveBeenCalledWith('screen');
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(container.querySelector('.fixed.inset-0')).toBeNull();
+    expect(button('Edit dashboard')).toBeDefined();
+    expect(release).toHaveBeenCalled();
+    Reflect.deleteProperty(navigator, 'wakeLock');
+  });
 });
