@@ -148,4 +148,48 @@ describe('Tidy', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/tidy/apply', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Tagged 1 item Finance. You can undo it from Tidy.');
   });
+  it('finds duplicate files in a local folder without uploading them and deletes the chosen copy', async () => {
+    const fetchMock = serve(() => undefined);
+    await render('/tidy?view=folder');
+    expect(container.textContent).toContain('Use Chrome or Edge on a computer');
+
+    const file = (name: string, text: string, lastModified = Date.now()) => ({
+      kind: 'file' as const,
+      name,
+      getFile: () => Promise.resolve(new File([text], name, { lastModified })),
+    });
+    const folder = (name: string, entries: unknown[]) => ({
+      kind: 'directory' as const,
+      name,
+      values: async function* () {
+        yield* entries;
+      },
+      removeEntry: vi.fn(() => Promise.resolve()),
+      requestPermission: vi.fn(() => Promise.resolve('granted')),
+    });
+    const backup = folder('backup', [file('lease.pdf', 'same lease')]);
+    const documents = folder('Documents', [file('lease.pdf', 'same lease', Date.now() - 1000), file('other.pdf', 'different'), file('.hidden', 'same lease'), backup]);
+    vi.stubGlobal('showDirectoryPicker', vi.fn(() => Promise.resolve(documents)));
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/tidy?view=folder');
+
+    await act(async () => button('Choose a folder').click());
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(container.textContent).toContain('Looked at 3 files in Documents.');
+    });
+    expect(container.textContent).toContain('2 copies of 10 B');
+    await act(async () => button('Select the extra copies').click());
+    expect(container.textContent).toContain('1 file selected');
+    await act(async () => button('Delete from this computer').click());
+    expect(document.querySelector('dialog')?.textContent).toContain('backup/lease.pdf');
+    await act(async () => button('Delete 1 file').click());
+
+    expect(documents.requestPermission).toHaveBeenCalledWith({ mode: 'readwrite' });
+    expect(backup.removeEntry).toHaveBeenCalledWith('lease.pdf');
+    expect(documents.removeEntry).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('2 copies of 10 B');
+    expect(fetchMock.mock.calls.some(([path]) => String(path).includes('tidy'))).toBe(false);
+  });
 });

@@ -1,13 +1,15 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { EmptyState, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize } from '../files';
 import { useSpaces } from '../spaces';
 import { money, shortDate } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { FolderScan } from './FolderScan';
 
 interface FileEntry {
   id: string;
@@ -40,31 +42,6 @@ interface Scan {
 interface UndoResult {
   restored: number;
   skipped: { id: string; title: string | null; reason: string }[];
-}
-
-function Choice({ checked, detail, label, onToggle }: { checked: boolean; detail: string; label: string; onToggle: () => void }) {
-  return (
-    <li className="border-b border-line-soft">
-      <label className="flex cursor-pointer items-center gap-3 py-3">
-        <input checked={checked} onChange={onToggle} type="checkbox" />
-        <span className="min-w-0 flex-1 truncate text-ink">{label || 'Untitled'}</span>
-        <span className="mono-sm shrink-0 text-faint">{detail}</span>
-      </label>
-    </li>
-  );
-}
-
-function Suggestion({ action, children, hint, title }: { action?: ReactNode; children: ReactNode; hint: string; title: string }) {
-  return (
-    <section>
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="m-0 text-xl font-medium">{title}</h2>
-        {action}
-      </div>
-      <p className="mt-2 mb-0 text-sm text-muted">{hint}</p>
-      {children}
-    </section>
-  );
 }
 
 function TidySuggestions() {
@@ -317,7 +294,7 @@ function TidyHistory() {
 
 export function TidyPage() {
   const [params] = useSearchParams();
-  const history = params.get('view') === 'history';
+  const view = params.get('view');
 
   return (
     <section className="page-enter grid max-w-3xl gap-8">
@@ -330,12 +307,13 @@ export function TidyPage() {
       </div>
       <Tabs
         items={[
-          { active: !history, href: '/tidy', label: 'Suggestions' },
-          { active: history, href: '/tidy?view=history', label: 'Undo history' },
+          { active: view !== 'history' && view !== 'folder', href: '/tidy', label: 'Suggestions' },
+          { active: view === 'folder', href: '/tidy?view=folder', label: 'Folder on this computer' },
+          { active: view === 'history', href: '/tidy?view=history', label: 'Undo history' },
         ]}
         label="Tidy view"
       />
-      {history ? <TidyHistory /> : <TidySuggestions />}
+      {view === 'history' ? <TidyHistory /> : view === 'folder' ? <FolderScan /> : <TidySuggestions />}
     </section>
   );
 }
