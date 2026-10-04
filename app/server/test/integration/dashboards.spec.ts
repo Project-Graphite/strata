@@ -18,6 +18,9 @@ describe('Dashboards against Postgres', () => {
       widgets: [
         { id: 'a', type: 'today', size: 'full', settings: {} },
         { id: 'b', type: 'shortcuts', size: 'wide', settings: { links: [{ label: 'Mail', url: 'https://mail.example.com' }] } },
+        { id: 'c', type: 'countdown', size: 'small', settings: { label: 'Trip', date: '2026-12-20' } },
+        { id: 'd', type: 'focus', size: 'small', settings: { minutes: 50, breakMinutes: 10 } },
+        { id: 'e', type: 'tidy', size: 'small', settings: {} },
       ],
     };
     const saved = await owner.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Mornings', layout });
@@ -29,6 +32,9 @@ describe('Dashboards against Postgres', () => {
       [[{ id: 'a', type: 'today', size: 'small', settings: {} }, { id: 'a', type: 'inbox', size: 'small', settings: {} }], 'repeated id'],
       [[{ id: 'a', type: 'shortcuts', size: 'small', settings: { links: [{ label: 'Bad', url: 'http://example.com' }] } }], 'plain http link'],
       [[{ id: 'a', type: 'clock', size: 'small', settings: { notes: 'x'.repeat(5_000) } }], 'oversized settings'],
+      [[{ id: 'a', type: 'countdown', size: 'small', settings: { label: 'Trip', date: 'soon' } }], 'countdown without a date'],
+      [[{ id: 'a', type: 'countdown', size: 'small', settings: { label: 'x'.repeat(61), date: '2026-12-20' } }], 'long countdown label'],
+      [[{ id: 'a', type: 'focus', size: 'small', settings: { minutes: 90 } }], 'unsupported focus length'],
     ] as const) {
       expect({ reason, status: (await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: { widgets } })).status }).toEqual({
         reason,

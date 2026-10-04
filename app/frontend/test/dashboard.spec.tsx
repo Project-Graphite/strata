@@ -125,4 +125,60 @@ describe('Home dashboard', () => {
     expect(release).toHaveBeenCalled();
     Reflect.deleteProperty(navigator, 'wakeLock');
   });
+  it('counts down to a date, runs a focus timer and sums up what Tidy found', async () => {
+    const inThreeDays = new Date(Date.now() + 3 * 86_400_000);
+    const date = `${inThreeDays.getFullYear()}-${String(inThreeDays.getMonth() + 1).padStart(2, '0')}-${String(inThreeDays.getDate()).padStart(2, '0')}`;
+    const extras = {
+      ...home,
+      layout: {
+        widgets: [
+          { id: 'trip', type: 'countdown', size: 'small', settings: { label: 'Trip', date } },
+          { id: 'focus', type: 'focus', size: 'small', settings: { minutes: 50, breakMinutes: 10 } },
+          { id: 'tidy', type: 'tidy', size: 'small', settings: {} },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([extras]));
+        if (path === '/tidy/scan') {
+          return Promise.resolve(
+            json({
+              files: { duplicates: [{ savingBytes: 2 * 1024 * 1024, items: [{}, {}, {}] }], large: [], old: [{}] },
+              subscriptions: { unused: [{ id: 's' }], duplicates: [{ items: [{ id: 's' }, { id: 't' }] }], overlapping: [] },
+            }),
+          );
+        }
+        if (path === '/tidy/history') return Promise.resolve(json([]));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+
+    expect(titles()).toEqual(['Countdown', 'Focus timer', 'Tidy status']);
+    expect(container.textContent).toContain('3 days');
+    expect(container.textContent).toContain('until Trip');
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe('50:00');
+    await act(async () => button('Start').click());
+    expect(button('Pause')).toBeDefined();
+    await act(async () => button('Reset').click());
+    expect(button('Start')).toBeDefined();
+    expect(container.textContent).toContain('2 extra copies (2.0 MB)');
+    expect(container.textContent).toContain('1 old upload');
+    expect(container.textContent).toContain('2 subscriptions to check');
+    expect(container.textContent).toContain('not tidied yet');
+  });
 });
