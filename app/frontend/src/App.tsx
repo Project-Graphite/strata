@@ -9,6 +9,7 @@ import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
+import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
@@ -24,6 +25,7 @@ import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
 import { SpaceMembers } from './pages/spaces/SpaceMembers';
 import { SpacesPage } from './pages/spaces/SpacesPage';
+import { SpaceSubscriptions } from './pages/spaces/SpaceSubscriptions';
 import { SpaceTags } from './pages/spaces/SpaceTags';
 import { SpaceTasks } from './pages/spaces/SpaceTasks';
 import { TodayPage } from './pages/TodayPage';
@@ -84,11 +86,20 @@ export function App() {
           >
             <Route index element={<SpaceItems />} />
             <Route path="tasks" element={<SpaceTasks />} />
+            <Route path="recurring" element={<SpaceSubscriptions />} />
             <Route path="tags" element={<SpaceTags />} />
             <Route path="members" element={<SpaceMembers />} />
             <Route path="activity" element={<SpaceActivity />} />
           </Route>
           <Route path="invite/:code" element={<InvitePage />} />
+          <Route
+            path="recurring"
+            element={
+              <Protected>
+                <RecurringPage />
+              </Protected>
+            }
+          />
           <Route
             path="today"
             element={
