@@ -27,7 +27,7 @@ export function SubscriptionEditor({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <Dialog eyebrow="subscription" onClose={onClose} title={subscription ? `Edit ${subscription.name}` : 'New subscription'}>
+    <Dialog onClose={onClose} title={subscription ? `Edit ${subscription.name}` : 'New subscription'}>
       <form
         className="mt-5 grid gap-4"
         noValidate
@@ -140,7 +140,6 @@ export function SubscriptionEditor({
         />
         <TextField defaultValue={subscription?.cancelUrl ?? ''} inputMode="url" label="Cancel link" {...form.field('cancelUrl')} />
         <TextField defaultValue={subscription?.usedBy ?? ''} label="Who uses it" maxLength={200} name="usedBy" />
-        {saving.status}
         <div className="flex justify-end gap-3">
           <button className="secondary-button" onClick={onClose} type="button">
             Cancel

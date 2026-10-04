@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { Icon, ListSkeleton, PageHeader, Tabs } from '@project-graphite/ui';
 import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, type AgendaEntry } from '../agenda';
 import { EventEditor } from '../components/EventEditor';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
+import { LoadError } from '../components/LoadError';
 
 type View = 'list' | 'week' | 'month';
 
@@ -60,15 +61,15 @@ export function AgendaPage() {
 
   return (
     <section className="page-enter grid gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">agenda</p>
-          <h1 className="page-title">Agenda</h1>
-        </div>
-        <button className="primary-button px-3 py-2 text-sm" disabled={!spaces.data?.some((space) => space.role !== 'viewer')} onClick={() => setCreating(true)} type="button">
-          New event
-        </button>
-      </div>
+      <PageHeader
+        actions={
+          <button className="primary-button px-3 py-2 text-sm" disabled={!spaces.data?.some((space) => space.role !== 'viewer')} onClick={() => setCreating(true)} type="button">
+            <Icon name="plus" size={16} />
+            New event
+          </button>
+        }
+        title="Agenda"
+      />
       <Tabs
         items={(['list', 'week', 'month'] as const).map((option) => ({
           active: view === option,
@@ -95,7 +96,7 @@ export function AgendaPage() {
       </div>
 
       {agenda.error ? (
-        <p className="error-message">{agenda.error}</p>
+        <LoadError error={agenda.error} onRetry={agenda.reload} />
       ) : !agenda.data ? (
         <ListSkeleton label="Loading your agenda" rows={6} />
       ) : view === 'list' ? (
@@ -107,8 +108,8 @@ export function AgendaPage() {
               .filter((day) => byDay.has(day))
               .map((day) => (
                 <section key={day}>
-                  <h2 className="eyebrow m-0">
-                    {day === today ? 'today · ' : ''}
+                  <h2 className="m-0 text-sm font-medium text-muted">
+                    {day === today ? 'Today · ' : ''}
                     {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
                   </h2>
                   <div className="mt-2 grid gap-1 border-l border-line pl-3">
@@ -124,7 +125,7 @@ export function AgendaPage() {
         <div className={`grid gap-px overflow-hidden rounded-xl border border-line bg-line ${view === 'week' ? 'grid-cols-1 sm:grid-cols-7' : 'grid-cols-7'}`}>
           {view === 'month' &&
             allDays.slice(0, 7).map((day) => (
-              <p className="eyebrow m-0 bg-paper px-2 py-1" key={`head-${day}`}>
+              <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
                 {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
               </p>
             ))}

@@ -11,6 +11,7 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { LoadError } from '../components/LoadError';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
@@ -93,7 +94,7 @@ function TaskWidget({ path, empty }: { path: string | null; empty: ReactNode }) 
   const tasks = useResource<Task[] | Page<Task>>(path, true);
   const action = useAction();
   if (!path) return <Empty>{empty}</Empty>;
-  if (tasks.error) return <p className="error-message m-0">{tasks.error}</p>;
+  if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data) return <ListSkeleton label="Loading tasks" rows={3} />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
   if (list.length === 0) return <Empty>Nothing due. Enjoy it.</Empty>;
@@ -116,7 +117,6 @@ function TaskWidget({ path, empty }: { path: string | null; empty: ReactNode }) 
           />
         ))}
       </ul>
-      {action.status}
     </>
   );
 }
@@ -250,7 +250,7 @@ function Recurring() {
     '/subscriptions/summary',
     true,
   );
-  if (summary.error) return <p className="error-message m-0">{summary.error}</p>;
+  if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
   if (!summary.data) return <ListSkeleton label="Adding up your subscriptions" rows={3} />;
   if (summary.data.totals.length === 0) {
     return (
@@ -280,7 +280,7 @@ function Recurring() {
 
 function Inbox() {
   const notifications = useResource<Page<InboxNotification>>('/me/inbox?page=1', true);
-  if (notifications.error) return <p className="error-message m-0">{notifications.error}</p>;
+  if (notifications.error) return <LoadError compact error={notifications.error} onRetry={notifications.reload} />;
   if (!notifications.data) return <ListSkeleton label="Loading your inbox" rows={3} />;
   const unread = notifications.data.results.filter((notification) => !notification.read).slice(0, 5);
   if (unread.length === 0) return <Empty>You are all caught up.</Empty>;
@@ -301,7 +301,7 @@ function Inbox() {
 function Agenda() {
   const today = dayKey(new Date());
   const agenda = useResource<AgendaEntry[]>(`/agenda?from=${today}&to=${addDays(today, 7)}`, true);
-  if (agenda.error) return <p className="error-message m-0">{agenda.error}</p>;
+  if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;
   if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={3} />;
   if (agenda.data.length === 0) return <Empty>Nothing in the next seven days.</Empty>;
   return (
@@ -385,7 +385,7 @@ function Focus({ settings }: WidgetProps) {
         <p className="m-0 text-3xl text-ink" role="timer">
           {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
         </p>
-        <p className="mono-sm m-0 mt-1 text-faint">{phase === 'focus' ? 'focus' : 'break: step away for a moment'}</p>
+        <p className="mono-sm m-0 mt-1 text-faint">{phase === 'focus' ? 'Focus' : 'Break'}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} type="button">
@@ -436,7 +436,7 @@ interface TidyScanSummary {
 function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true);
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
-  if (scan.error) return <p className="error-message m-0">{scan.error}</p>;
+  if (scan.error) return <LoadError compact error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={2} />;
   const { files, subscriptions } = scan.data;
   const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
@@ -465,7 +465,7 @@ function Tidy() {
       ) : (
         <Empty>Nothing to tidy.</Empty>
       )}
-      <p className="mono-sm m-0 text-faint">{last ? `last tidied ${timeAgo(last.createdAt)}` : 'not tidied yet'}</p>
+      <p className="mono-sm m-0 text-faint">{last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet'}</p>
       <Link className="w-fit text-ink" to="/tidy">
         Open Tidy
       </Link>

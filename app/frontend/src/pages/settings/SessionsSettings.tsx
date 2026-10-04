@@ -4,6 +4,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SecurityLog } from './SecurityLog';
 import { SettingsSection } from './SettingsLayout';
+import { LoadError } from '../../components/LoadError';
 
 interface Session {
   id: string;
@@ -18,7 +19,7 @@ export function SessionsSettings() {
   const sessions = useResource<Session[]>('/me/sessions', true);
   const action = useAction();
 
-  if (sessions.error) return <p className="error-message">{sessions.error}</p>;
+  if (sessions.error) return <LoadError error={sessions.error} onRetry={sessions.reload} />;
   if (!sessions.data) return <ListSkeleton label="Loading your sessions" rows={3} />;
   const others = sessions.data.filter((session) => !session.current);
 
@@ -31,14 +32,20 @@ export function SessionsSettings() {
   }
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
+    <div className="fade-in grid max-w-3xl gap-10">
       <SettingsSection
-        description="Every device signed in to your account. Sign out anything you do not recognise, then change your password."
+        action={
+          others.length > 0 && (
+            <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => signOut()} type="button">
+              Sign out all others
+            </button>
+          )
+        }
         title="Signed-in devices"
       >
-        <ul className="mt-5 grid list-none gap-0 p-0">
+        <ul className="panel-rows m-0 grid list-none p-0">
           {sessions.data.map((session) => (
-            <li className="flex items-center justify-between gap-4 border-b border-line-soft py-4" key={session.id}>
+            <li className="flex items-center justify-between gap-4 px-4 py-3.5" key={session.id}>
               <div className="min-w-0">
                 <p className="m-0 truncate text-ink">
                   {session.deviceLabel}
@@ -62,20 +69,7 @@ export function SessionsSettings() {
           ))}
         </ul>
       </SettingsSection>
-      {action.status}
-      {others.length > 0 && (
-        <button
-          className="secondary-button inline-flex w-fit"
-          disabled={action.busy}
-          onClick={() => signOut()}
-          type="button"
-        >
-          Sign out every other device
-        </button>
-      )}
-      <div className="mt-6">
-        <SecurityLog />
-      </div>
+      <SecurityLog />
     </div>
   );
 }

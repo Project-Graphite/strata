@@ -1,10 +1,11 @@
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, PageHeader, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { LoadError } from '../components/LoadError';
 
 export function InboxPage() {
   const auth = useAuth();
@@ -28,43 +29,37 @@ export function InboxPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">inbox</p>
-          <h1 className="page-title">Inbox</h1>
-        </div>
-        {(inbox.data?.unread ?? 0) > 0 && (
-          <button
-            className="secondary-button px-3 py-2 text-sm"
-            disabled={action.busy}
-            onClick={() =>
-              void action.run(async () => {
-                await auth.request('/me/inbox/read', { method: 'POST' });
-                notifications.mutate((current) => ({
-                  ...current,
-                  results: current.results.map((shown) => ({ ...shown, read: true })),
-                }));
-                inbox.reload();
-                return 'Everything is marked read.';
-              }, 'Could not mark everything read')
-            }
-            type="button"
-          >
-            Mark all read
-          </button>
-        )}
-      </div>
-      {action.status}
+      <PageHeader
+        actions={
+          (inbox.data?.unread ?? 0) > 0 && (
+            <button
+              className="secondary-button px-3 py-2 text-sm"
+              disabled={action.busy}
+              onClick={() =>
+                void action.run(async () => {
+                  await auth.request('/me/inbox/read', { method: 'POST' });
+                  notifications.mutate((current) => ({
+                    ...current,
+                    results: current.results.map((shown) => ({ ...shown, read: true })),
+                  }));
+                  inbox.reload();
+                  return 'Everything is marked read.';
+                }, 'Could not mark everything read')
+              }
+              type="button"
+            >
+              Mark all read
+            </button>
+          )
+        }
+        title="Inbox"
+      />
       {notifications.error ? (
-        <p className="error-message">{notifications.error}</p>
+        <LoadError error={notifications.error} onRetry={notifications.reload} />
       ) : !notifications.data ? (
         <ListSkeleton label="Loading your inbox" rows={4} />
       ) : notifications.data.results.length === 0 ? (
-        <EmptyState title="Nothing new">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Invitations and changes to your spaces appear here.
-          </p>
-        </EmptyState>
+        <EmptyState title="Nothing new" />
       ) : (
         <>
           <ul className="m-0 grid list-none gap-0 p-0">

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Dialog, FormSkeleton } from '@project-graphite/ui';
+import { FormSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { FormDialog } from '../../components/FormDialog';
+import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
-import { SettingsSection, type TwoStepStatus } from './SettingsLayout';
+import { SettingsRow, SettingsRows, SettingsSection, type TwoStepStatus } from './SettingsLayout';
 
 export function DataSettings() {
   const auth = useAuth();
@@ -17,82 +19,81 @@ export function DataSettings() {
   const removalForm = useFormErrors();
   const [removing, setRemoving] = useState(false);
 
-  if (twoStep.error) return <p className="error-message">{twoStep.error}</p>;
+  if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
   if (!twoStep.data) return <FormSkeleton fields={1} />;
   const enabled = twoStep.data.enabled;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-12">
-      <SettingsSection description="Download everything Strata holds about you as a JSON file." title="Export">
-        <div className="mt-5 grid gap-4">
-          {exporting.status}
-          <button
-            className="secondary-button inline-flex w-fit"
-            disabled={exporting.busy}
-            onClick={() =>
-              void exporting.run(async () => {
-                const data = await auth.request<object>('/me/export');
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-                link.download = 'strata-export.json';
-                link.click();
-                URL.revokeObjectURL(link.href);
-                return 'Your export is downloading.';
-              }, 'Could not export your data')
+    <div className="fade-in grid max-w-3xl gap-10">
+      <SettingsSection title="Your data">
+        <SettingsRows>
+          <SettingsRow
+            action={
+              <button
+                className="secondary-button px-3 py-2 text-sm"
+                disabled={exporting.busy}
+                onClick={() =>
+                  void exporting.run(async () => {
+                    const data = await auth.request<object>('/me/export');
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+                    link.download = 'strata-export.json';
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                    return 'Your export is downloading.';
+                  }, 'Could not export your data')
+                }
+                type="button"
+              >
+                {exporting.busy ? 'Preparing…' : 'Export'}
+              </button>
             }
-            type="button"
+            label="Export"
           >
-            {exporting.busy ? 'Preparing…' : 'Export my data'}
-          </button>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        description="Deletes your account and everything in it straight away. Backups that still hold it expire on their normal schedule."
-        title="Delete account"
-      >
-        <button className="secondary-button mt-5 inline-flex" onClick={() => setRemoving(true)} type="button">
-          Delete my account
-        </button>
+            Everything Strata holds about you, as a JSON file.
+          </SettingsRow>
+          <SettingsRow
+            action={
+              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setRemoving(true)} type="button">
+                Delete
+              </button>
+            }
+            label="Delete account"
+          >
+            Your account and everything in it, permanently.
+          </SettingsRow>
+        </SettingsRows>
       </SettingsSection>
 
       {removing && (
-        <Dialog eyebrow="delete account" onClose={() => setRemoving(false)} title="Delete your Strata account?">
-          <form
-            className="mt-5 grid gap-4"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              if (
-                !removalForm.check(target, {
-                  password: [required('Enter your password to confirm.')],
-                  ...(enabled ? { code: [required('Enter a code to confirm.')] } : {}),
-                })
-              ) {
-                return;
-              }
-              void removal
-                .run(async () => {
-                  await auth.deleteAccount(proofFrom(target));
-                  return '';
-                }, 'Could not delete your account')
-                .then((deleted) => deleted && navigate('/'));
-            }}
-          >
-            <p className="m-0 text-sm text-muted">This cannot be undone.</p>
-            <ProofFields form={removalForm} twoStep={enabled} />
-            {removal.status}
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={() => setRemoving(false)} type="button">
-                Cancel
-              </button>
-              <button className="primary-button" disabled={removal.busy} type="submit">
-                {removal.busy ? 'Deleting…' : 'Delete account'}
-              </button>
-            </div>
-          </form>
-        </Dialog>
+        <FormDialog
+          busy={removal.busy}
+          busyLabel="Deleting…"
+          onClose={() => setRemoving(false)}
+          onSubmit={(target) => {
+            if (
+              !removalForm.check(target, {
+                password: [required('Enter your password to confirm.')],
+                ...(enabled ? { code: [required('Enter a code to confirm.')] } : {}),
+              })
+            ) {
+              return;
+            }
+            void removal
+              .run(async () => {
+                await auth.deleteAccount(proofFrom(target));
+                return '';
+              }, 'Could not delete your account')
+              .then((deleted) => deleted && navigate('/'));
+          }}
+          submitLabel="Delete account"
+          title="Delete your account?"
+        >
+          <p className="m-0 text-sm text-muted">
+            This can’t be undone. Backups that still hold your data expire on their normal schedule.
+          </p>
+          <ProofFields form={removalForm} twoStep={enabled} />
+        </FormDialog>
       )}
     </div>
   );

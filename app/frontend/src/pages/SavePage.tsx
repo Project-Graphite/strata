@@ -76,8 +76,7 @@ export function SavePage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">save to strata</p>
-      <h1 className="page-title">Save what you shared</h1>
+      <h1 className="page-heading">Save what you shared</h1>
       <form
         className="mt-8 grid gap-5"
         noValidate
@@ -130,7 +129,6 @@ export function SavePage() {
             </ul>
           </div>
         )}
-        {saving.status}
         <div className="flex flex-wrap gap-3">
           <button className="primary-button" disabled={saving.busy || editable.length === 0} type="submit">
             {saving.busy ? 'Saving…' : 'Save'}

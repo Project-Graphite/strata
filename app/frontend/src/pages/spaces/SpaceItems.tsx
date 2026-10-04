@@ -8,6 +8,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { ItemList } from './ItemList';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 export function SpaceItems() {
   const auth = useAuth();
@@ -31,7 +32,7 @@ export function SpaceItems() {
     }, 'Could not upload that file');
   }
 
-  if (items.error) return <p className="error-message">{items.error}</p>;
+  if (items.error) return <LoadError error={items.error} onRetry={items.reload} />;
   if (!items.data) return <ListSkeleton label="Loading the items in this space" rows={4} />;
 
   return (
@@ -39,11 +40,11 @@ export function SpaceItems() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-4">
           <Link className="mono-sm w-fit text-faint" to={archived ? base : `${base}?archived=true`}>
-            {archived ? 'show current items' : 'show archived items'}
+            {archived ? 'Show current' : 'Show archived'}
           </Link>
           {tag && (
             <Link className="mono-sm w-fit text-faint" to={base}>
-              showing one tag · show everything
+              Filtered by tag · Clear
             </Link>
           )}
         </div>
@@ -64,15 +65,8 @@ export function SpaceItems() {
           </label>
         )}
       </div>
-      {uploading.status}
       {items.data.results.length === 0 ? (
-        <EmptyState title={archived ? 'Nothing archived' : 'Nothing here yet'}>
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            {archived
-              ? 'Items you archive in this space are kept here.'
-              : 'Files, notes, tasks and everything else you keep in this space will be listed here.'}
-          </p>
-        </EmptyState>
+        <EmptyState title={archived ? 'Nothing archived' : 'Nothing here yet'} />
       ) : (
         <ItemList
           actions={(item) => (
@@ -116,7 +110,6 @@ export function SpaceItems() {
           items={items.data.results}
         />
       )}
-      {action.status}
       <Pagination
         page={items.data.page}
         pageHref={(next) => `${base}?page=${next}${filters}`}

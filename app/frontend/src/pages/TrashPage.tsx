@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, ListSkeleton, PageHeader, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ItemList } from './spaces/ItemList';
+import { LoadError } from '../components/LoadError';
 
 export function TrashPage() {
   const auth = useAuth();
@@ -20,15 +21,9 @@ export function TrashPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-6">
-      <div>
-        <p className="eyebrow">trash</p>
-        <h1 className="page-title">Trash</h1>
-        <p className="mt-3 mb-0 text-muted">
-          What you move to the trash in spaces you can edit. Restore it, or delete it for good.
-        </p>
-      </div>
+      <PageHeader title="Trash">Items here are deleted for good after 30 days.</PageHeader>
       {trash.error ? (
-        <p className="error-message">{trash.error}</p>
+        <LoadError error={trash.error} onRetry={trash.reload} />
       ) : !trash.data ? (
         <ListSkeleton label="Loading the trash" rows={4} />
       ) : trash.data.results.length === 0 ? (
@@ -63,14 +58,12 @@ export function TrashPage() {
           <Pagination page={trash.data.page} pageHref={(next) => `/trash?page=${next}`} totalPages={trash.data.totalPages} />
         </>
       )}
-      {action.status}
 
       {deleting && (
         <ConfirmDialog
           busyLabel="Deleting…"
           confirmLabel="Delete for good"
           errorFallback="Could not delete that"
-          eyebrow="delete for good"
           onClose={() => setDeleting(undefined)}
           onConfirm={async () => {
             await auth.request(`/items/${deleting.id}`, { method: 'DELETE' });

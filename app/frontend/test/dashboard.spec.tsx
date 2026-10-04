@@ -71,13 +71,13 @@ describe('Home dashboard', () => {
     expect(container.textContent).toContain('The inbox is unavailable');
     expect(container.querySelector('button[aria-label="Move Clock later"]')).toBeNull();
 
-    await act(async () => button('Edit dashboard').click());
+    await act(async () => button('Edit').click());
     await act(async () => button('Move Clock later').click());
     expect(titles()).toEqual(['Shortcuts', 'Clock', 'Inbox']);
     await act(async () => button('Undo').click());
     expect(titles()).toEqual(['Clock', 'Shortcuts', 'Inbox']);
     const removeInbox = [...container.querySelectorAll('article')].find((article) => article.getAttribute('aria-label') === 'Inbox')!;
-    await act(async () => [...removeInbox.querySelectorAll('button')].find((candidate) => candidate.textContent === 'remove')!.click());
+    await act(async () => [...removeInbox.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
     expect(saved).toBeUndefined();
 
     await act(async () => button('Done').click());
@@ -110,18 +110,18 @@ describe('Home dashboard', () => {
       ),
     );
 
-    const wall = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Wall display')!;
+    const wall = [...container.querySelectorAll('a')].find((link) => link.getAttribute('aria-label') === 'Wall display')!;
     expect(wall.getAttribute('href')).toBe('/?d=home&display=wall');
     await act(async () => wall.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
 
     expect(titles()).toEqual(['Clock', 'Shortcuts', 'Inbox']);
     expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
-    expect(button('Edit dashboard')).toBeUndefined();
+    expect(button('Edit')).toBeUndefined();
     expect(request).toHaveBeenCalledWith('screen');
 
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
     expect(container.querySelector('.fixed.inset-0')).toBeNull();
-    expect(button('Edit dashboard')).toBeDefined();
+    expect(button('Edit')).toBeDefined();
     expect(release).toHaveBeenCalled();
     Reflect.deleteProperty(navigator, 'wakeLock');
   });
@@ -179,6 +179,51 @@ describe('Home dashboard', () => {
     expect(container.textContent).toContain('2 extra copies (2.0 MB)');
     expect(container.textContent).toContain('1 old upload');
     expect(container.textContent).toContain('2 subscriptions to check');
-    expect(container.textContent).toContain('not tidied yet');
+    expect(container.textContent).toContain('Not tidied yet');
+  });
+
+  it('adds a dashboard from the plus button through a modal with a template', async () => {
+    let posted: unknown;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, init?: RequestInit) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards' && init?.method === 'POST') {
+          posted = JSON.parse(String(init.body));
+          return Promise.resolve(json({ id: 'trip', name: 'Lisbon', position: 1, layout: { widgets: [] } }, 201));
+        }
+        if (path === '/me/dashboards') return Promise.resolve(json([home]));
+        return Promise.resolve(json({ message: 'Not here' }, 404));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+
+    expect(container.querySelector('select[aria-label="New dashboard"]')).toBeNull();
+    await act(async () => button('New dashboard').click());
+    const form = container.querySelector('dialog form')!;
+    const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+    expect(name.value).toBe('Morning briefing');
+    const travel = form.querySelector<HTMLInputElement>('input[value="travel"]')!;
+    await act(async () => travel.click());
+    expect(name.value).toBe('Travel');
+    name.value = 'Lisbon';
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    expect(posted).toEqual({ name: 'Lisbon', template: 'travel' });
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(container.querySelector('h1')?.textContent).toBe('Lisbon');
   });
 });

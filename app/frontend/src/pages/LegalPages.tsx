@@ -6,8 +6,7 @@ const security = 'https://github.com/Project-Graphite/.github/blob/main/SECURITY
 function LegalPage({ children, title }: { children: ReactNode; title: string }) {
   return (
     <article className="page-enter max-w-3xl">
-      <p className="eyebrow">Strata</p>
-      <h1 className="page-title">{title}</h1>
+      <h1 className="page-heading">{title}</h1>
       <div className="mt-8 grid gap-8 text-muted [&_h2]:m-0 [&_h2]:text-xl [&_h2]:font-medium [&_h2]:text-ink [&_p]:m-0 [&_section]:grid [&_section]:gap-3">
         {children}
       </div>

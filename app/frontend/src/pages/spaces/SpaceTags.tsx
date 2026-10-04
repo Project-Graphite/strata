@@ -7,6 +7,7 @@ import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
+import { LoadError } from '../../components/LoadError';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 
@@ -24,7 +25,7 @@ export function SpaceTags() {
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
 
-  if (tags.error) return <p className="error-message">{tags.error}</p>;
+  if (tags.error) return <LoadError error={tags.error} onRetry={tags.reload} />;
   if (!tags.data) return <ListSkeleton label="Loading the tags in this space" rows={3} />;
 
   return (
@@ -78,7 +79,6 @@ export function SpaceTags() {
             }}
           >
             <NameAndColorFields field={createForm.field('name')} maxLength={40} />
-            {creating.status}
             <button className="primary-button inline-flex w-fit" disabled={creating.busy} type="submit">
               {creating.busy ? 'Adding…' : 'Add tag'}
             </button>
@@ -89,7 +89,7 @@ export function SpaceTags() {
       <TidyRules tags={tags.data} />
 
       {editing && (
-        <Dialog eyebrow="tag" onClose={() => setEditing(undefined)} title={`Edit ${editing.name}`}>
+        <Dialog onClose={() => setEditing(undefined)} title={`Edit ${editing.name}`}>
           <form
             className="mt-5 grid gap-4"
             noValidate
@@ -115,7 +115,6 @@ export function SpaceTags() {
               maxLength={40}
               name={editing.name}
             />
-            {saving.status}
             <div className="flex justify-end gap-3">
               <button className="secondary-button" onClick={() => setEditing(undefined)} type="button">
                 Cancel
@@ -133,7 +132,6 @@ export function SpaceTags() {
           busyLabel="Deleting…"
           confirmLabel="Delete tag"
           errorFallback="Could not delete the tag"
-          eyebrow="delete tag"
           onClose={() => setDeleting(undefined)}
           onConfirm={async () => {
             await auth.request(`/tags/${deleting.id}`, { method: 'DELETE' });

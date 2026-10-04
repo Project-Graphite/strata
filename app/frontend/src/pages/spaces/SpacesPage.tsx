@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ConfirmDialog, Dialog, ListSkeleton, Menu, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, ListSkeleton, Menu, type MenuItem, PageHeader } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, SpaceDot, spaceNameChecks, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
+import { LoadError } from '../../components/LoadError';
 
 export function SpacesPage() {
   const auth = useAuth();
@@ -33,17 +34,10 @@ export function SpacesPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-10">
-      <div>
-        <p className="eyebrow">spaces</p>
-        <h1 className="page-title">Spaces</h1>
-        <p className="mt-3 mb-0 text-muted">
-          Your personal space is yours alone. Shared spaces hold what you keep with family, friends or a
-          team. <Link to="/trash">Open the trash</Link>
-        </p>
-      </div>
+      <PageHeader title="Spaces" />
 
       {spaces.error ? (
-        <p className="error-message">{spaces.error}</p>
+        <LoadError error={spaces.error} onRetry={spaces.reload} />
       ) : !spaces.data ? (
         <ListSkeleton label="Loading your spaces" rows={3} />
       ) : (
@@ -56,7 +50,7 @@ export function SpacesPage() {
                   <span className="truncate">{space.name}</span>
                 </Link>
                 <p className="mono-sm m-0 mt-1 text-faint">
-                  {space.kind === 'personal' ? 'personal' : `shared · ${space.role}`}
+                  {space.kind === 'personal' ? 'Personal' : `Shared · ${space.role}`}
                 </p>
               </div>
               <Menu
@@ -73,7 +67,6 @@ export function SpacesPage() {
 
       <section>
         <h2 className="m-0 text-xl font-medium">New shared space</h2>
-        <p className="mt-2 mb-0 text-sm text-muted">You become its owner. Inviting people comes next.</p>
         <form
           className="mt-5 grid gap-4"
           noValidate
@@ -93,7 +86,6 @@ export function SpacesPage() {
           }}
         >
           <NameAndColorFields field={createForm.field('name')} maxLength={60} />
-          {creating.status}
           <button className="primary-button inline-flex w-fit" disabled={creating.busy} type="submit">
             {creating.busy ? 'Creating…' : 'Create space'}
           </button>
@@ -101,7 +93,7 @@ export function SpacesPage() {
       </section>
 
       {editing && (
-        <Dialog eyebrow="space" onClose={() => setEditing(undefined)} title={`Rename ${editing.name}`}>
+        <Dialog onClose={() => setEditing(undefined)} title={`Rename ${editing.name}`}>
           <form
             className="mt-5 grid gap-4"
             noValidate
@@ -127,7 +119,6 @@ export function SpacesPage() {
               maxLength={60}
               name={editing.name}
             />
-            {renaming.status}
             <div className="flex justify-end gap-3">
               <button className="secondary-button" onClick={() => setEditing(undefined)} type="button">
                 Cancel
@@ -145,7 +136,6 @@ export function SpacesPage() {
           busyLabel="Deleting…"
           confirmLabel="Delete space"
           errorFallback="Could not delete the space"
-          eyebrow="delete space"
           onClose={() => setDeleting(undefined)}
           onConfirm={async () => {
             await auth.request(`/spaces/${deleting.id}`, { method: 'DELETE' });
@@ -162,7 +152,6 @@ export function SpacesPage() {
           busyLabel="Leaving…"
           confirmLabel="Leave space"
           errorFallback="Could not leave the space"
-          eyebrow="leave space"
           onClose={() => setLeaving(undefined)}
           onConfirm={async () => {
             await auth.request(`/spaces/${leaving.id}/members/${auth.user!.id}`, { method: 'DELETE' });

@@ -152,4 +152,29 @@ describe('Tasks', () => {
     expect(container.textContent).toContain('Done: Bins out.');
     expect(container.querySelector('input[aria-label="Mark Bins out as done"]')).toBeNull();
   });
+
+  it('keeps the current list on screen while the next one loads', async () => {
+    let finish: (response: Response) => void = () => {};
+    serve((path) => {
+      if (path === '/spaces/home/tasks?page=1') return json(page([task({})]));
+      return undefined;
+    });
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) =>
+      String(input).endsWith('/spaces/home/tasks?page=1&completed=true')
+        ? new Promise<Response>((resolve) => (finish = resolve))
+        : base(input, init),
+    );
+    await render('/spaces/home/tasks');
+
+    const finished = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Show finished')!;
+    await act(async () => finished.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    expect(container.textContent).toContain('Bins out');
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+
+    await act(async () => finish(json(page([task({ id: 'done', title: 'Paid the rent', completedAt: '2026-10-03T10:00:00Z' })]))));
+    expect(container.textContent).toContain('Paid the rent');
+    expect(container.textContent).not.toContain('Bins out');
+  });
 });

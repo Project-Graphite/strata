@@ -7,6 +7,7 @@ import { cycleLabel, money, shortDate, type Subscription } from '../../subscript
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 export function SpaceSubscriptions() {
   const auth = useAuth();
@@ -34,14 +35,14 @@ export function SpaceSubscriptions() {
     }, 'Could not update the subscription');
   }
 
-  if (subscriptions.error) return <p className="error-message">{subscriptions.error}</p>;
+  if (subscriptions.error) return <LoadError error={subscriptions.error} onRetry={subscriptions.reload} />;
   if (!subscriptions.data) return <ListSkeleton label="Loading the subscriptions in this space" rows={4} />;
 
   return (
     <div className="fade-in grid max-w-3xl gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link className="mono-sm text-faint" to={cancelled ? base : `${base}?status=cancelled`}>
-          {cancelled ? 'show active subscriptions' : 'show cancelled subscriptions'}
+          {cancelled ? 'Show active' : 'Show cancelled'}
         </Link>
         {editable && !cancelled && (
           <button className="primary-button px-3 py-2 text-sm" onClick={() => setEditing('new')} type="button">
@@ -50,13 +51,7 @@ export function SpaceSubscriptions() {
         )}
       </div>
       {subscriptions.data.length === 0 ? (
-        <EmptyState title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'}>
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            {cancelled
-              ? 'Subscriptions you cancel are kept here with their history.'
-              : 'Add what charges you on a schedule to see what it costs and when it renews.'}
-          </p>
-        </EmptyState>
+        <EmptyState title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {subscriptions.data.map((subscription) => (
@@ -107,7 +102,6 @@ export function SpaceSubscriptions() {
           ))}
         </ul>
       )}
-      {action.status}
       {editing && (
         <SubscriptionEditor
           onClose={() => setEditing(undefined)}

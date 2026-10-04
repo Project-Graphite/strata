@@ -52,4 +52,10 @@ describe('apiRequest', () => {
     expect(listener).not.toHaveBeenCalled();
     unsubscribe();
   });
+
+  it('explains a bare error status in plain words', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 429 })));
+
+    await expect(apiRequest('/auth/login')).rejects.toMatchObject({ status: 429, message: 'Too many attempts. Wait a minute, then try again.' });
+  });
 });

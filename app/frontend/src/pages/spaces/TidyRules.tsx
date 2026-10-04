@@ -7,6 +7,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 interface Rule {
   id: string;
@@ -44,11 +45,11 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       <div>
         <h2 className="m-0 text-xl font-medium">Tagging rules</h2>
         <p className="mt-2 mb-0 text-sm text-muted">
-          A rule tags new items in this space whose title contains the words you choose. Rules check every few minutes.
+          Tag new items in this space by words in their title.
         </p>
       </div>
       {rules.error ? (
-        <p className="error-message">{rules.error}</p>
+        <LoadError error={rules.error} onRetry={rules.reload} />
       ) : !rules.data ? (
         <ListSkeleton label="Loading the tagging rules" rows={2} />
       ) : (
@@ -60,7 +61,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
                   <p className="m-0 flex flex-wrap items-center gap-2 text-ink">
                     Title contains “{rule.titleContains}”{rule.kind && `, ${kindNames[rule.kind]} only`} → <TagChip color={rule.tag.color} label={rule.tag.name} />
                   </p>
-                  <p className="mono-sm mt-1 mb-0 text-faint">{rule.enabled ? 'on' : 'paused'}</p>
+                  <p className="mono-sm mt-1 mb-0 text-faint">{rule.enabled ? 'On' : 'Paused'}</p>
                 </div>
                 {editable && (
                   <div className="flex shrink-0 flex-wrap gap-2">
@@ -106,7 +107,6 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
           </ul>
         )
       )}
-      {changing.status}
 
       {editable &&
         (tags.length === 0 ? (
@@ -161,7 +161,6 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
                 </select>
               </label>
             </div>
-            {creating.status}
             <button className="primary-button inline-flex w-fit" disabled={creating.busy} type="submit">
               {creating.busy ? 'Adding…' : 'Add rule'}
             </button>
@@ -173,7 +172,6 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
           busyLabel="Deleting…"
           confirmLabel="Delete rule"
           errorFallback="Could not delete the rule"
-          eyebrow="delete rule"
           onClose={() => setDeleting(undefined)}
           onConfirm={async () => {
             await auth.request(`/tidy-rules/${deleting.id}`, { method: 'DELETE' });

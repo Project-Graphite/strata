@@ -1,10 +1,13 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, PageSkeleton, Tabs } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, PageHeader, PageSkeleton, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { FormDialog } from '../components/FormDialog';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { atMost, required, useFormErrors } from '../validation';
 import { widgetKinds, type Widget, type WidgetSize, type WidgetType } from './widgets';
+import { LoadError } from '../components/LoadError';
 
 interface Dashboard {
   id: string;
@@ -14,11 +17,11 @@ interface Dashboard {
 }
 
 const templates = [
-  ['morning', 'Morning briefing'],
-  ['work', 'Work day'],
-  ['student', 'Student'],
-  ['travel', 'Travel'],
-  ['', 'Empty'],
+  ['morning', 'Morning briefing', 'Clock, Today, Agenda, Renewals and spend, Inbox'],
+  ['work', 'Work day', 'Today, Task list, Shortcuts, Clock'],
+  ['student', 'Student', 'Today, Task list, Shortcuts'],
+  ['travel', 'Travel', 'World clocks, Today, Shortcuts'],
+  ['', 'Empty', 'Add widgets yourself'],
 ] as const;
 
 const spans: Record<WidgetSize, string> = {
@@ -36,7 +39,7 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 
   render() {
-    return this.state.failed ? <p className="error-message m-0">This widget stopped working. Reload the page to try again.</p> : this.props.children;
+    return this.state.failed ? <p className="m-0 text-sm text-muted">This widget stopped working. Reload the page to try again.</p> : this.props.children;
   }
 }
 
@@ -92,7 +95,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow m-0">{dashboard.name}</p>
+          <p className="m-0 text-sm text-muted">{dashboard.name}</p>
           <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
@@ -106,7 +109,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
           const kind = widgetKinds[widget.type];
           return (
             <article aria-label={kind.title} className={`grid content-start gap-3 rounded-xl border border-line bg-surface p-6 ${spans[widget.size]}`} key={widget.id}>
-              <h2 className="eyebrow m-0">{kind.title}</h2>
+              <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
               <WidgetBoundary>
                 <kind.View settings={widget.settings} />
               </WidgetBoundary>
@@ -130,8 +133,10 @@ export function DashboardHome() {
   const [dragging, setDragging] = useState<number>();
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const addForm = useFormErrors();
 
-  if (dashboards.error) return <p className="error-message">{dashboards.error}</p>;
+  if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
   if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
   const current = dashboards.data.find((dashboard) => dashboard.id === params.get('d')) ?? dashboards.data[0]!;
   const widgets = draft ?? current.layout.widgets;
@@ -164,18 +169,19 @@ export function DashboardHome() {
 
   return (
     <section className="page-enter">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">home</p>
-          <h1 className="page-title">Welcome, {auth.user?.displayName}</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {editing ? (
+      <PageHeader
+        actions={
+          editing ? (
             <>
-              <button className="secondary-button px-3 py-2 text-sm" disabled={history.length === 0} onClick={() => {
-                setDraft(history.at(-1));
-                setHistory((past) => past.slice(0, -1));
-              }} type="button">
+              <button
+                className="secondary-button px-3 py-2 text-sm"
+                disabled={history.length === 0}
+                onClick={() => {
+                  setDraft(history.at(-1));
+                  setHistory((past) => past.slice(0, -1));
+                }}
+                type="button"
+              >
                 Undo
               </button>
               <button className="secondary-button px-3 py-2 text-sm" onClick={() => finish(false)} type="button">
@@ -187,37 +193,11 @@ export function DashboardHome() {
             </>
           ) : (
             <>
-              <select
-                aria-label="New dashboard"
-                className="text-sm"
-                onChange={(event) => {
-                  const template = event.currentTarget.value;
-                  event.currentTarget.value = 'choose';
-                  if (template === 'choose') return;
-                  void saving.run(async () => {
-                    const created = await auth.request<Dashboard>('/me/dashboards', {
-                      method: 'POST',
-                      body: JSON.stringify({
-                        name: templates.find(([value]) => value === template)![1],
-                        ...(template ? { template } : {}),
-                      }),
-                    });
-                    dashboards.mutate((all) => [...all, created]);
-                    navigate(`/?d=${created.id}`);
-                    return '';
-                  }, 'Could not add the dashboard');
-                }}
-                value="choose"
-              >
-                <option value="choose">New dashboard…</option>
-                {templates.map(([value, label]) => (
-                  <option key={label} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${current.id}&display=wall`}>
-                Wall display
+              <button aria-label="New dashboard" className="icon-button" onClick={() => setAdding(true)} title="New dashboard" type="button">
+                <Icon name="plus" />
+              </button>
+              <Link aria-label="Wall display" className="icon-button" title="Wall display" to={`/?d=${current.id}&display=wall`}>
+                <Icon name="monitor" />
               </Link>
               <button
                 className="secondary-button px-3 py-2 text-sm"
@@ -227,12 +207,14 @@ export function DashboardHome() {
                 }}
                 type="button"
               >
-                Edit dashboard
+                <Icon name="pencil" size={16} />
+                Edit
               </button>
             </>
-          )}
-        </div>
-      </div>
+          )
+        }
+        title={current.name}
+      />
       {dashboards.data.length > 1 && (
         <div className="mt-6">
           <Tabs
@@ -241,7 +223,6 @@ export function DashboardHome() {
           />
         </div>
       )}
-      <div className="mt-3">{saving.status}</div>
       {editing && (
         <div className="mt-4 flex flex-wrap items-end gap-4">
           <label className="field-label">
@@ -296,7 +277,7 @@ export function DashboardHome() {
               }}
             >
               <header className="flex items-center justify-between gap-2">
-                <h2 className="eyebrow m-0">{kind.title}</h2>
+                <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
                 {editing && (
                   <div className="flex flex-wrap items-center gap-1">
                     <button aria-label={`Move ${kind.title} earlier`} className="text-button mono-sm" disabled={index === 0} onClick={() => change(move(widgets, index, index - 1))} type="button">
@@ -310,18 +291,18 @@ export function DashboardHome() {
                       onChange={(event) => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, size: event.currentTarget.value as WidgetSize } : shown)))}
                       value={widget.size}
                     >
-                      <option value="small">small</option>
-                      <option value="medium">medium</option>
-                      <option value="wide">wide</option>
-                      <option value="full">full</option>
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="wide">Wide</option>
+                      <option value="full">Full</option>
                     </select>
                     {kind.Settings && (
                       <button className="text-button mono-sm" onClick={() => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id)} type="button">
-                        settings
+                        Settings
                       </button>
                     )}
                     <button className="text-button mono-sm" onClick={() => change(widgets.filter((shown) => shown.id !== widget.id))} type="button">
-                      remove
+                      Remove
                     </button>
                   </div>
                 )}
@@ -339,12 +320,59 @@ export function DashboardHome() {
           );
         })}
       </div>
+      {adding && (
+        <FormDialog
+          busy={saving.busy}
+          busyLabel="Adding…"
+          onClose={() => setAdding(false)}
+          onSubmit={(target) => {
+            if (!addForm.check(target, { name: [required('Name the dashboard.'), atMost(40, 'Use at most 40 characters.')] })) return;
+            const values = new FormData(target);
+            const template = String(values.get('template'));
+            void saving
+              .run(async () => {
+                const created = await auth.request<Dashboard>('/me/dashboards', {
+                  method: 'POST',
+                  body: JSON.stringify({ name: String(values.get('name')).trim(), ...(template ? { template } : {}) }),
+                });
+                dashboards.mutate((all) => [...all, created]);
+                navigate(`/?d=${created.id}`);
+                return '';
+              }, 'Could not add the dashboard')
+              .then((added) => added && setAdding(false));
+          }}
+          submitLabel="Add dashboard"
+          title="New dashboard"
+        >
+          <TextField autoFocus defaultValue="Morning briefing" label="Name" maxLength={40} {...addForm.field('name')} />
+          <fieldset className="m-0 grid gap-2 border-0 p-0">
+            <legend className="field-label mb-2">Start from</legend>
+            {templates.map(([value, label, contents]) => (
+              <label className="choice-card" key={label}>
+                <input
+                  defaultChecked={value === 'morning'}
+                  name="template"
+                  onChange={(event) => {
+                    const field = event.currentTarget.form?.elements.namedItem('name');
+                    if (field instanceof HTMLInputElement && templates.some(([, known]) => known === field.value)) field.value = label;
+                  }}
+                  type="radio"
+                  value={value}
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-ink">{label}</span>
+                  <span className="text-xs text-faint">{contents}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        </FormDialog>
+      )}
       {deleting && (
         <ConfirmDialog
           busyLabel="Deleting…"
           confirmLabel="Delete dashboard"
           errorFallback="Could not delete the dashboard"
-          eyebrow="delete dashboard"
           onClose={() => setDeleting(false)}
           onConfirm={async () => {
             await auth.request(`/me/dashboards/${current.id}`, { method: 'DELETE' });

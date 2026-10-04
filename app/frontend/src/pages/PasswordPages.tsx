@@ -1,18 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { errorMessage, TextField } from '@project-graphite/ui';
+import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
 
 export function ForgotPasswordPage() {
   const form = useFormErrors();
   const [sentTo, setSentTo] = useState('');
-  const [error, setError] = useState('');
+  const show = useSnackbar();
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
     if (!form.check(event.currentTarget, { email: [required('Enter your email address.'), emailAddress] })) {
       return;
     }
@@ -25,7 +24,7 @@ export function ForgotPasswordPage() {
       });
       setSentTo(email);
     } catch (reason) {
-      setError(errorMessage(reason, 'Could not send the reset link'));
+      show({ message: errorMessage(reason, 'Could not send the reset link'), tone: 'error' });
     } finally {
       setBusy(false);
     }
@@ -33,8 +32,7 @@ export function ForgotPasswordPage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">Account help</p>
-      <h1 className="page-title">Reset your password</h1>
+      <h1 className="page-heading">Reset your password</h1>
       {sentTo ? (
         <p className="mt-6 text-muted">
           If an account uses {sentTo}, a reset link is on its way. It works for one hour.
@@ -42,7 +40,6 @@ export function ForgotPasswordPage() {
       ) : (
         <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
           <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
-          {error && <p className="error-message">{error}</p>}
           <button className="primary-button" disabled={busy} type="submit">
             {busy ? 'Sending…' : 'Send reset link'}
           </button>
@@ -59,6 +56,7 @@ export function ResetPasswordPage() {
   const [parameters] = useSearchParams();
   const form = useFormErrors();
   const [done, setDone] = useState(false);
+  const show = useSnackbar();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -78,6 +76,7 @@ export function ResetPasswordPage() {
       setDone(true);
     } catch (reason) {
       setError(errorMessage(reason, 'Could not reset the password'));
+      show({ message: errorMessage(reason, 'Could not reset the password'), tone: 'error' });
     } finally {
       setBusy(false);
     }
@@ -86,8 +85,7 @@ export function ResetPasswordPage() {
   if (done) {
     return (
       <section className="form-panel page-enter">
-        <p className="eyebrow">Password changed</p>
-        <h1 className="page-title">Sign in with your new password.</h1>
+        <h1 className="page-heading">Sign in with your new password.</h1>
         <p className="mt-5 text-muted">Every device that was signed in has been signed out.</p>
         <Link className="primary-button mt-7 inline-flex" to="/login">Sign in</Link>
       </section>
@@ -96,8 +94,7 @@ export function ResetPasswordPage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">Account help</p>
-      <h1 className="page-title">Choose a new password</h1>
+      <h1 className="page-heading">Choose a new password</h1>
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField
           autoComplete="new-password"
@@ -107,8 +104,8 @@ export function ResetPasswordPage() {
           {...form.field('password')}
         />
         {error && (
-          <p className="error-message">
-            {error} <Link className="rule-link" to="/forgot-password">Request a new link</Link>
+          <p className="m-0 text-sm text-muted">
+            <Link className="rule-link" to="/forgot-password">Request a new link</Link>
           </p>
         )}
         <button className="primary-button" disabled={busy} type="submit">

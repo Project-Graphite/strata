@@ -37,6 +37,16 @@ function reportOutage() {
 
 const gatewayStatuses = [500, 502, 503, 504];
 
+const statusMessages: Record<number, string> = {
+  400: 'Something in that request was not accepted. Check it and try again.',
+  401: 'Your session has ended. Sign in again.',
+  403: 'You don’t have permission to do that.',
+  404: 'That no longer exists, or you can’t see it.',
+  409: 'Someone changed this at the same time. Reload and try again.',
+  413: 'That is too large.',
+  429: 'Too many attempts. Wait a minute, then try again.',
+};
+
 export const readBlob = (response: Response) => response.blob();
 
 async function readJson(response: Response) {
@@ -77,7 +87,10 @@ export async function apiRequest<T>(
     const message = Array.isArray(body?.message)
       ? body.message.join(', ')
       : body?.message;
-    throw new ApiError(message ?? `Something went wrong (error ${response.status}). Try again.`, response.status);
+    throw new ApiError(
+      message ?? statusMessages[response.status] ?? `Something went wrong (error ${response.status}). Try again.`,
+      response.status,
+    );
   }
   return (await read(response)) as T;
 }

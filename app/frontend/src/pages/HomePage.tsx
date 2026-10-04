@@ -1,14 +1,15 @@
 import { Link } from 'react-router';
-import { PageSkeleton } from '@project-graphite/ui';
+import { Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { DashboardHome } from '../dashboard/Dashboard';
 
-const areas = [
-  ['Home', 'A dashboard of widgets you arrange yourself: weather, agenda, tasks, feeds and shortcuts.'],
-  ['Agenda', 'Your Google Calendar beside your own events, renewals and deadlines.'],
-  ['Notes', 'Fast capture that grows into pages, databases and live whiteboards.'],
-  ['Recurring', 'Every subscription and bill, what it costs and when it renews.'],
-  ['Tidy', 'Find and clear the clutter across your files and subscriptions.'],
+const areas: [IconName, string, string][] = [
+  ['home', 'Home', 'A dashboard of widgets you arrange.'],
+  ['calendar', 'Agenda', 'Events, RSVPs, due tasks and renewals together.'],
+  ['check', 'Tasks', 'Lists, repeats, reminders and a Today view.'],
+  ['repeat', 'Recurring', 'What each subscription costs and when it renews.'],
+  ['sparkles', 'Tidy', 'Duplicate files and subscriptions you no longer use.'],
+  ['folder', 'Spaces', 'Share any of it with the people you choose.'],
 ];
 
 export function HomePage() {
@@ -21,24 +22,23 @@ export function HomePage() {
   }
   return (
     <section className="page-enter">
-      <p className="eyebrow">a personal workspace</p>
-      <h1 className="page-title max-w-3xl">Your life, in layers.</h1>
-      <p className="mt-5 max-w-2xl text-lg text-muted">
-        Strata brings your dashboard, agenda, notes, whiteboards, subscriptions and files into one
-        calm, private place. Free, open source and built by Project Graphite.
-      </p>
+      <h1 className="page-heading max-w-3xl">Tasks, events, subscriptions and files in one place.</h1>
+      <p className="mt-5 max-w-2xl text-lg text-muted">Free and open source, from Project Graphite.</p>
       <div className="mt-8 flex flex-wrap gap-3">
         <Link className="primary-button inline-flex" to="/register">
-          Create your workspace
+          Create an account
         </Link>
         <Link className="secondary-button inline-flex" to="/login">
           Sign in
         </Link>
       </div>
       <ul className="mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-        {areas.map(([name, description]) => (
+        {areas.map(([icon, name, description]) => (
           <li className="rounded-xl border border-line bg-surface p-5" key={name}>
-            <h2 className="m-0 text-lg font-medium">{name}</h2>
+            <h2 className="m-0 flex items-center gap-2 text-lg font-medium">
+              <Icon name={icon} size={18} />
+              {name}
+            </h2>
             <p className="mt-2 mb-0 text-sm text-muted">{description}</p>
           </li>
         ))}

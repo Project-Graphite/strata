@@ -3,6 +3,7 @@ import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 interface ActivityEvent {
   id: string;
@@ -69,13 +70,11 @@ export function SpaceActivity() {
   const page = Number(params.get('page')) || 1;
   const activity = useResource<Page<ActivityEvent>>(`/spaces/${space.id}/activity?page=${page}`, true);
 
-  if (activity.error) return <p className="error-message">{activity.error}</p>;
+  if (activity.error) return <LoadError error={activity.error} onRetry={activity.reload} />;
   if (!activity.data) return <ListSkeleton label="Loading what happened in this space" rows={5} />;
   if (activity.data.results.length === 0) {
     return (
-      <EmptyState title="Nothing has happened yet">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Changes people make in this space are listed here.</p>
-      </EmptyState>
+      <EmptyState title="Nothing has happened yet" />
     );
   }
 

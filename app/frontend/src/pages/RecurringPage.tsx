@@ -1,10 +1,11 @@
 import { Link } from 'react-router';
-import { EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, PageHeader } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { LoadError } from '../components/LoadError';
 
 interface Total {
   currency: string;
@@ -40,15 +41,9 @@ export function RecurringPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-10">
-      <div>
-        <p className="eyebrow">recurring</p>
-        <h1 className="page-title">Recurring</h1>
-        <p className="mt-3 mb-0 text-muted">
-          Everything that charges you on a schedule, across your spaces. Add subscriptions from a space's Recurring tab.
-        </p>
-      </div>
+      <PageHeader title="Recurring" />
       {summary.error ? (
-        <p className="error-message">{summary.error}</p>
+        <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !summary.data ? (
         <ListSkeleton label="Adding up your subscriptions" rows={4} />
       ) : summary.data.totals.length === 0 ? (
@@ -63,7 +58,7 @@ export function RecurringPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {summary.data.totals.map((total) => (
               <div className="rounded-xl border border-line bg-surface p-5" key={total.currency}>
-                <p className="eyebrow m-0">{total.currency}</p>
+                <p className="m-0 text-sm text-muted">{total.currency}</p>
                 <p className="m-0 mt-2 text-2xl text-ink">{money(total.monthlyMinor, total.currency)} a month</p>
                 <p className="mono-sm m-0 mt-1 text-faint">{money(total.yearlyMinor, total.currency)} over the next year</p>
               </div>
@@ -138,7 +133,6 @@ export function RecurringPage() {
               </ul>
             </section>
           )}
-          {action.status}
         </>
       )}
     </section>

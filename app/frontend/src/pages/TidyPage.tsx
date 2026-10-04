@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, PageHeader, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
@@ -10,6 +10,7 @@ import { money, shortDate } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
+import { LoadError } from '../components/LoadError';
 
 interface FileEntry {
   id: string;
@@ -53,7 +54,7 @@ function TidySuggestions() {
   const [request, setRequest] = useState<TidyRequest>();
   const [applied, setApplied] = useState<TidyBatch | null>();
 
-  if (scan.error) return <p className="error-message">{scan.error}</p>;
+  if (scan.error) return <LoadError error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={5} />;
   const { files, subscriptions } = scan.data;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name ?? 'a space';
@@ -109,13 +110,8 @@ function TidySuggestions() {
           )}
         </div>
       )}
-      {undoing.status}
       {empty ? (
-        <EmptyState title="Nothing to tidy">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            No duplicate, large or forgotten uploads, and no subscriptions that look unused or overlap.
-          </p>
-        </EmptyState>
+        <EmptyState title="Nothing to tidy" />
       ) : (
         saving > 0 && (
           <div className="rounded-xl border border-line bg-surface p-5">
@@ -242,7 +238,7 @@ function TidyHistory() {
   const history = useResource<TidyBatch[]>('/tidy/history', true);
   const undoing = useAction();
 
-  if (history.error) return <p className="error-message">{history.error}</p>;
+  if (history.error) return <LoadError error={history.error} onRetry={history.reload} />;
   if (!history.data) return <ListSkeleton label="Loading your undo history" rows={4} />;
 
   return (
@@ -250,7 +246,7 @@ function TidyHistory() {
       {history.data.length === 0 ? (
         <EmptyState title="Nothing tidied yet">
           <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Changes made here and by tagging rules are listed for 90 days, so you can undo them.
+            Changes stay here for 90 days, so you can undo them.
           </p>
         </EmptyState>
       ) : (
@@ -287,7 +283,6 @@ function TidyHistory() {
           ))}
         </ul>
       )}
-      {undoing.status}
     </div>
   );
 }
@@ -298,13 +293,7 @@ export function TidyPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-8">
-      <div>
-        <p className="eyebrow">tidy</p>
-        <h1 className="page-title">Tidy</h1>
-        <p className="mt-3 mb-0 text-muted">
-          Clutter across the spaces you can edit. Nothing changes until you check it and confirm, and every change can be undone.
-        </p>
-      </div>
+      <PageHeader title="Tidy" />
       <Tabs
         items={[
           { active: view !== 'history' && view !== 'folder', href: '/tidy', label: 'Suggestions' },

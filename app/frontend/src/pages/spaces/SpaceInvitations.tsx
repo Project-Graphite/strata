@@ -5,6 +5,7 @@ import type { Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
+import { LoadError } from '../../components/LoadError';
 
 export function SpaceInvitations({ space }: { space: Space }) {
   const auth = useAuth();
@@ -18,7 +19,7 @@ export function SpaceInvitations({ space }: { space: Space }) {
       <div>
         <h2 className="m-0 text-xl font-medium">Invite people</h2>
         <p className="mt-2 mb-0 text-sm text-muted">
-          Invite someone by email, or by @handle if they already use Strata. Invites work once, for 14 days.
+          By email, or by @handle if they already use Strata. Each invite works once, for 14 days.
         </p>
       </div>
       <form
@@ -64,7 +65,6 @@ export function SpaceInvitations({ space }: { space: Space }) {
           </label>
         </div>
         <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        {inviting.status}
         <button className="primary-button inline-flex w-fit" disabled={inviting.busy} type="submit">
           {inviting.busy ? 'Inviting…' : 'Send invite'}
         </button>
@@ -103,8 +103,7 @@ export function SpaceInvitations({ space }: { space: Space }) {
           </ul>
         </div>
       )}
-      {withdrawing.status}
-      {pending.error && <p className="error-message m-0">{pending.error}</p>}
+      {pending.error && <LoadError compact error={pending.error} onRetry={pending.reload} />}
     </section>
   );
 }
