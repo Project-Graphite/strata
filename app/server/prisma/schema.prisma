@@ -85,6 +85,7 @@ model User {
   uploadedFiles       File[]
   accessTokens        AccessToken[]
   assignedTasks       Task[]
+  dashboards          Dashboard[]
 
   @@map("users")
 }
@@ -513,4 +514,18 @@ model SubscriptionPrice {
 
   @@index([itemId, effectiveFrom])
   @@map("subscription_prices")
+}
+
+model Dashboard {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  position  Int      @default(0)
+  layout    Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position])
+  @@map("dashboards")
 }

@@ -8,6 +8,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnvironment } from './config/environment';
 import { CryptoModule } from './crypto/crypto.module';
+import { DashboardsModule } from './dashboards/dashboards.module';
 import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { InboxModule } from './inbox/inbox.module';
@@ -50,6 +51,7 @@ import { UsersModule } from './users/users.module';
     SearchModule,
     TasksModule,
     SubscriptionsModule,
+    DashboardsModule,
     HealthModule,
   ],
 })
