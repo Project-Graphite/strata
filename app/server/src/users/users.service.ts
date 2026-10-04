@@ -14,6 +14,7 @@ export class UsersService {
       handle: user.handle,
       displayName: user.displayName,
       timeZone: user.timeZone,
+      tidySummary: user.tidySummary,
       role: user.role.toLowerCase(),
     };
   }
@@ -21,7 +22,7 @@ export class UsersService {
   async updateProfile(userId: string, input: UpdateProfileDto) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { displayName: input.displayName, timeZone: input.timeZone },
+      data: { displayName: input.displayName, timeZone: input.timeZone, tidySummary: input.tidySummary },
     });
     return this.me(userId);
   }

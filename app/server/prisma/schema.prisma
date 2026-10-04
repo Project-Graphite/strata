@@ -72,6 +72,7 @@ model User {
   passwordHash        String                 @map("password_hash")
   verifiedAt          DateTime?              @map("verified_at")
   timeZone            String                 @default("Etc/UTC") @map("time_zone")
+  tidySummary         Boolean                @default(false) @map("tidy_summary")
   isActive            Boolean                @default(true) @map("is_active")
   role                UserRole               @default(MEMBER)
   createdAt           DateTime               @default(now()) @map("created_at")

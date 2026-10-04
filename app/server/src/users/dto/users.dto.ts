@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsString, IsTimeZone, Length, MaxLength } from 'class-validator';
+import { IsBoolean, IsString, IsTimeZone, Length, MaxLength } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 
 export class UpdateProfileDto {
@@ -14,4 +14,8 @@ export class UpdateProfileDto {
   @MaxLength(64)
   @IsTimeZone({ message: 'Choose a time zone from the list.' })
   timeZone?: string;
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  tidySummary?: boolean;
 }

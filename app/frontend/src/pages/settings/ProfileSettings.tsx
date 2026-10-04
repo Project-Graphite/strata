@@ -1,4 +1,4 @@
-import { FormSkeleton, TextField } from '@project-graphite/ui';
+import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
@@ -12,6 +12,7 @@ export function ProfileSettings() {
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
   const profile = useAction();
   const email = useAction();
+  const notifications = useAction();
   const profileForm = useFormErrors();
   const emailForm = useFormErrors();
 
@@ -74,6 +75,25 @@ export function ProfileSettings() {
             {profile.busy ? 'Saving…' : 'Save profile'}
           </button>
         </form>
+      </SettingsSection>
+
+      <SettingsSection description="What Strata puts in your inbox on its own." title="Notifications">
+        <div className="mt-5 grid gap-3">
+          <Toggle
+            checked={current.tidySummary}
+            description="Every Monday at 09:00, if Tidy finds extra copies, old uploads or subscriptions to check. Nothing is sent when there is nothing to tidy."
+            disabled={notifications.busy}
+            label="Weekly Tidy summary"
+            onChange={(tidySummary) =>
+              void notifications.run(async () => {
+                const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
+                me.mutate(() => next);
+                return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
+              }, 'Could not change the setting')
+            }
+          />
+          {notifications.status}
+        </div>
       </SettingsSection>
 
       <SettingsSection

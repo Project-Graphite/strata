@@ -8,6 +8,7 @@ export interface Me {
   handle: string;
   displayName: string;
   timeZone: string;
+  tidySummary: boolean;
   role: string;
 }
 
