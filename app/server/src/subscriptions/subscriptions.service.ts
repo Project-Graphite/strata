@@ -15,7 +15,7 @@ const reminderKind = 'subscription.reminder';
 const unusedAfterDays = 60;
 const trialWarningDays = 14;
 
-const subscriptionFields = {
+export const subscriptionFields = {
   id: true,
   spaceId: true,
   title: true,
@@ -25,7 +25,7 @@ const subscriptionFields = {
 } satisfies Prisma.ItemSelect;
 
 type SubscriptionRow = Prisma.ItemGetPayload<{ select: typeof subscriptionFields }>;
-type Details = NonNullable<SubscriptionRow['subscription']>;
+export type Details = NonNullable<SubscriptionRow['subscription']>;
 
 function present(row: SubscriptionRow) {
   const details = row.subscription!;
@@ -78,6 +78,17 @@ function renewalsBetween(details: Pick<Details, 'repeatRule' | 'startDate' | 'ti
     },
     limit,
   ).map((at) => localDate(details.timeZone, at));
+}
+
+export function yearlyCost(details: Details) {
+  const today = localDate(details.timeZone);
+  const yearAhead = dateText(new Date(dateValue(today).getTime() + 365 * dayMs));
+  return renewalsBetween(details, today, yearAhead).length * details.amountMinor;
+}
+
+export function unused(row: { createdAt: Date; subscription: Details }) {
+  const lastUse = row.subscription.lastUsedOn ?? new Date(row.createdAt.toISOString().slice(0, 10));
+  return dateValue(localDate(row.subscription.timeZone)).getTime() - lastUse.getTime() >= unusedAfterDays * dayMs;
 }
 
 function nextRenewal(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZone'>, onOrAfter: string) {
@@ -291,8 +302,7 @@ export class SubscriptionsService implements OnModuleInit {
     for (const row of rows) {
       const details = row.subscription!;
       const today = localDate(details.timeZone);
-      const yearAhead = dateText(new Date(dateValue(today).getTime() + 365 * dayMs));
-      const yearlyMinor = renewalsBetween(details, today, yearAhead).length * details.amountMinor;
+      const yearlyMinor = yearlyCost(details);
       const total = totals.get(details.currency) ?? { currency: details.currency, yearlyMinor: 0 };
       total.yearlyMinor += yearlyMinor;
       totals.set(details.currency, total);
@@ -300,8 +310,7 @@ export class SubscriptionsService implements OnModuleInit {
       const category = byCategory.get(key) ?? { category: details.category, currency: details.currency, yearlyMinor: 0 };
       category.yearlyMinor += yearlyMinor;
       byCategory.set(key, category);
-      const lastUse = details.lastUsedOn ?? new Date(row.createdAt.toISOString().slice(0, 10));
-      if (dateValue(today).getTime() - lastUse.getTime() >= unusedAfterDays * dayMs) stale.push(row);
+      if (unused({ createdAt: row.createdAt, subscription: details })) stale.push(row);
       if (details.trialEndsOn && dateText(details.trialEndsOn) >= today && details.trialEndsOn.getTime() - dateValue(today).getTime() <= trialWarningDays * dayMs) {
         trials.push(row);
       }
