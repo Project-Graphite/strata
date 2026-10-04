@@ -84,6 +84,7 @@ export function Shell() {
     { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
     ...(auth.user
       ? [
+          { href: '/today', label: 'Today', icon: 'compass' as const, active: pathname === '/today' },
           { href: '/spaces', label: 'Spaces', icon: 'library' as const, active: pathname.startsWith('/spaces') },
           { href: '/settings', label: 'Settings', icon: 'user' as const, active: pathname.startsWith('/settings') },
         ]
@@ -136,7 +137,12 @@ export function Shell() {
                 <Sidebar
                   label="Areas"
                   sections={[
-                    { items: [{ active: pathname === '/', href: '/', icon: 'home', label: 'Home' }] },
+                    {
+                    items: [
+                      { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
+                      { active: pathname === '/today', href: '/today', icon: 'compass', label: 'Today' },
+                    ],
+                  },
                     {
                       label: 'Spaces',
                       items: [

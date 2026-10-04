@@ -25,6 +25,8 @@ import { SpaceLayout } from './pages/spaces/SpaceLayout';
 import { SpaceMembers } from './pages/spaces/SpaceMembers';
 import { SpacesPage } from './pages/spaces/SpacesPage';
 import { SpaceTags } from './pages/spaces/SpaceTags';
+import { SpaceTasks } from './pages/spaces/SpaceTasks';
+import { TodayPage } from './pages/TodayPage';
 import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
 
@@ -81,11 +83,20 @@ export function App() {
             }
           >
             <Route index element={<SpaceItems />} />
+            <Route path="tasks" element={<SpaceTasks />} />
             <Route path="tags" element={<SpaceTags />} />
             <Route path="members" element={<SpaceMembers />} />
             <Route path="activity" element={<SpaceActivity />} />
           </Route>
           <Route path="invite/:code" element={<InvitePage />} />
+          <Route
+            path="today"
+            element={
+              <Protected>
+                <TodayPage />
+              </Protected>
+            }
+          />
           <Route
             path="inbox"
             element={
