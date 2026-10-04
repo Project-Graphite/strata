@@ -1,5 +1,5 @@
-import { Component, useState, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ConfirmDialog, PageSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
@@ -47,6 +47,77 @@ function move<T>(list: T[], from: number, to: number) {
   return next;
 }
 
+const wallRefreshMs = 5 * 60_000;
+
+function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
+  const navigate = useNavigate();
+  const [round, setRound] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+  const [mayDim, setMayDim] = useState(false);
+
+  useEffect(() => {
+    let lock: WakeLockSentinel | undefined;
+    const keepAwake = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!('wakeLock' in navigator)) {
+        setMayDim(true);
+        return;
+      }
+      navigator.wakeLock.request('screen').then(
+        (sentinel) => {
+          lock = sentinel;
+          setMayDim(false);
+        },
+        () => setMayDim(true),
+      );
+    };
+    const leave = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate(`/?d=${dashboard.id}`);
+    };
+    const refresh = setInterval(() => setRound((current) => current + 1), wallRefreshMs);
+    const tick = setInterval(() => setNow(new Date()), 15_000);
+    keepAwake();
+    document.addEventListener('visibilitychange', keepAwake);
+    window.addEventListener('keydown', leave);
+    return () => {
+      clearInterval(refresh);
+      clearInterval(tick);
+      document.removeEventListener('visibilitychange', keepAwake);
+      window.removeEventListener('keydown', leave);
+      void lock?.release();
+    };
+  }, [dashboard.id, navigate]);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow m-0">{dashboard.name}</p>
+          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${dashboard.id}`}>
+          Exit
+        </Link>
+      </header>
+      {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
+      <div className="mt-8 grid grid-cols-1 gap-6 text-lg lg:grid-cols-4" key={round}>
+        {dashboard.layout.widgets.map((widget) => {
+          const kind = widgetKinds[widget.type];
+          return (
+            <article aria-label={kind.title} className={`grid content-start gap-3 rounded-xl border border-line bg-surface p-6 ${spans[widget.size]}`} key={widget.id}>
+              <h2 className="eyebrow m-0">{kind.title}</h2>
+              <WidgetBoundary>
+                <kind.View settings={widget.settings} />
+              </WidgetBoundary>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardHome() {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -65,6 +136,7 @@ export function DashboardHome() {
   const current = dashboards.data.find((dashboard) => dashboard.id === params.get('d')) ?? dashboards.data[0]!;
   const widgets = draft ?? current.layout.widgets;
   const editing = draft !== undefined;
+  if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
 
   function change(next: Widget[]) {
     setHistory((past) => [...past, widgets]);
@@ -144,6 +216,9 @@ export function DashboardHome() {
                   </option>
                 ))}
               </select>
+              <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${current.id}&display=wall`}>
+                Wall display
+              </Link>
               <button
                 className="secondary-button px-3 py-2 text-sm"
                 onClick={() => {
