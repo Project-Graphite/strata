@@ -31,6 +31,7 @@ import { SpacesPage } from './pages/spaces/SpacesPage';
 import { SpaceSubscriptions } from './pages/spaces/SpaceSubscriptions';
 import { SpaceTags } from './pages/spaces/SpaceTags';
 import { SpaceTasks } from './pages/spaces/SpaceTasks';
+import { TidyPage } from './pages/TidyPage';
 import { TodayPage } from './pages/TodayPage';
 import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
@@ -118,6 +119,14 @@ export function App() {
             element={
               <Protected>
                 <RecurringPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="tidy"
+            element={
+              <Protected>
+                <TidyPage />
               </Protected>
             }
           />
