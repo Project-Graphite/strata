@@ -1,6 +1,7 @@
 import { ItemKind, SpaceRole } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { TidyRulesService } from '../../src/tidy/tidy-rules.service';
+import { TidyService } from '../../src/tidy/tidy.service';
 import { integrationApp, type Member } from './harness';
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -159,5 +160,34 @@ describe('Tidy against Postgres', () => {
 
     expect((await owner.call('DELETE', `/tidy-rules/${rule.id}`)).status).toBe(204);
     expect((await owner.call('GET', `/tidy-rules/${rule.id}/matches`)).status).toBe(404);
+  });
+
+  it('schedules a weekly summary for people who turned it on and sends it only when there is clutter', async () => {
+    const keen = await member('weekly');
+    const quiet = await member('quiet');
+    const tidy = strata.service(TidyService);
+    expect((await keen.call('PATCH', '/me', { tidySummary: true, timeZone: 'Europe/London' })).body).toMatchObject({ tidySummary: true });
+    expect((await quiet.call('GET', '/me')).body.tidySummary).toBe(false);
+
+    await tidy.scheduleSummaries(new Date('2030-01-05T12:00:00Z'));
+    await tidy.scheduleSummaries(new Date('2030-01-05T12:05:00Z'));
+    const jobs = await strata.prisma.scheduledJob.findMany({ where: { kind: 'tidy.summary', payload: { path: ['userId'], equals: keen.id } } });
+    expect(jobs.map((job) => job.runAt.toISOString())).toEqual(['2030-01-07T09:00:00.000Z']);
+    expect(await strata.prisma.scheduledJob.count({ where: { kind: 'tidy.summary', payload: { path: ['userId'], equals: quiet.id } } })).toBe(0);
+
+    await tidy.sendSummary(keen.id);
+    expect(await strata.prisma.inboxNotification.count({ where: { userId: keen.id } })).toBe(0);
+
+    const copy = Buffer.from(`weekly ${keen.id}`);
+    await file(keen, keen.personalSpaceId, 'a.txt', copy);
+    await file(keen, keen.personalSpaceId, 'b.txt', copy);
+    await tidy.sendSummary(keen.id);
+    const [entry] = await strata.prisma.inboxNotification.findMany({ where: { userId: keen.id } });
+    expect(entry).toMatchObject({ kind: 'tidy_summary', title: `Tidy found 1 extra copy (1 KB)`, link: '/tidy' });
+
+    await keen.call('PATCH', '/me', { tidySummary: false });
+    await tidy.sendSummary(keen.id);
+    expect(await strata.prisma.inboxNotification.count({ where: { userId: keen.id } })).toBe(1);
+    await strata.prisma.scheduledJob.deleteMany({ where: { id: { in: jobs.map((job) => job.id) } } });
   });
 });

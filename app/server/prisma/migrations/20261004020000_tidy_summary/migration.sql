@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "tidy_summary" BOOLEAN NOT NULL DEFAULT false;

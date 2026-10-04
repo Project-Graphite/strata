@@ -1,14 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ItemKind, Prisma, SpaceRole, TidyAction } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { InboxService } from '../inbox/inbox.service';
 import { ItemsService } from '../items/items.service';
+import { JobsService } from '../jobs/jobs.service';
+import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dayMs } from '../recurrence/dates';
+import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
+import { zonedInstant } from '../recurrence/occurrences';
 import { subscriptionFields, SubscriptionsService, unused, yearlyCost, type Details } from '../subscriptions/subscriptions.service';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { TidyActionDto, type TidyActionName } from './dto/tidy.dto';
 
 const largeFileBytes = 5 * 1024 * 1024;
+const summaryKind = 'tidy.summary';
 
 const fileFields = {
   id: true,
@@ -126,14 +131,70 @@ function undoRefusal(item: ItemState, action: TidyAction, tagId: string | null) 
   return item.tags.some((tag) => tag.tagId === tagId) ? null : 'No longer has this tag';
 }
 
+export function nextMondayMorning(timeZone: string, now: Date) {
+  const today = dateValue(localDate(timeZone, now)).getTime() / dayMs;
+  const monday = today + ((8 - new Date(today * dayMs).getUTCDay()) % 7);
+  const candidate = zonedInstant(monday, 9, 0, timeZone);
+  return candidate > now ? candidate : zonedInstant(monday + 7, 9, 0, timeZone);
+}
+
+function size(bytes: number) {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function counted(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 @Injectable()
-export class TidyService {
+export class TidyService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly items: ItemsService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly jobs: JobsService,
+    private readonly maintenance: MaintenanceScheduler,
+    private readonly inbox: InboxService,
   ) {}
+
+  onModuleInit() {
+    this.jobs.handle(summaryKind, (payload) => this.sendSummary((payload as { userId: string }).userId));
+    this.maintenance.register((now) => this.scheduleSummaries(now));
+  }
+
+  async scheduleSummaries(now: Date) {
+    const pending = await this.prisma.scheduledJob.findMany({
+      where: { kind: summaryKind, doneAt: null, failedAt: null },
+      select: { payload: true },
+    });
+    const waiting = new Set(pending.map(({ payload }) => (payload as { userId?: string }).userId));
+    const users = await this.prisma.user.findMany({ where: { tidySummary: true, isActive: true }, select: { id: true, timeZone: true } });
+    for (const user of users.filter(({ id }) => !waiting.has(id))) {
+      await this.jobs.schedule(summaryKind, nextMondayMorning(user.timeZone, now), { userId: user.id });
+    }
+  }
+
+  async sendSummary(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { tidySummary: true, isActive: true } });
+    if (!user?.tidySummary || !user.isActive) return;
+    const { files, subscriptions } = await this.scan(userId);
+    const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
+    const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
+    const toCheck = new Set(
+      [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
+        (entry) => entry.id,
+      ),
+    ).size;
+    const findings = [
+      copies ? `${counted(copies, 'extra copy', 'extra copies')} (${size(saving)})` : '',
+      files.old.length ? counted(files.old.length, 'old upload', 'old uploads') : '',
+      toCheck ? counted(toCheck, 'subscription to check', 'subscriptions to check') : '',
+    ].filter(Boolean);
+    if (findings.length === 0) return;
+    const listed = findings.length === 1 ? findings[0] : `${findings.slice(0, -1).join(', ')} and ${findings.at(-1)}`;
+    await this.inbox.notify(this.prisma, [{ userId, kind: 'tidy_summary', title: `Tidy found ${listed}`, link: '/tidy' }]);
+  }
 
   async scan(userId: string) {
     const editable = { ...this.access.itemsOf(userId, 'edit'), trashedAt: null } satisfies Prisma.ItemWhereInput;

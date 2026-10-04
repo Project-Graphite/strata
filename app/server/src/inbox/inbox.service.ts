@@ -12,7 +12,8 @@ export type InboxKind =
   | 'task_assigned'
   | 'task_due'
   | 'subscription_due'
-  | 'event_soon';
+  | 'event_soon'
+  | 'tidy_summary';
 
 export interface InboxEntry {
   userId: string;
