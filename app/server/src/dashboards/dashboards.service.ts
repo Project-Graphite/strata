@@ -60,6 +60,17 @@ function validShortcut(link: unknown) {
   );
 }
 
+function validCountdown({ label, date }: Record<string, unknown>) {
+  return (
+    (label === undefined || (typeof label === 'string' && label.length <= 60)) &&
+    (date === undefined || (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date))))
+  );
+}
+
+function validFocus({ minutes, breakMinutes }: Record<string, unknown>) {
+  return (minutes === undefined || [15, 25, 50].includes(minutes as number)) && (breakMinutes === undefined || [5, 10, 15].includes(breakMinutes as number));
+}
+
 function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
   const ids = new Set<string>();
   for (const widget of layout.widgets) {
@@ -71,6 +82,12 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
     const links = widget.settings.links;
     if (widget.type === 'shortcuts' && !(Array.isArray(links) && links.length <= 24 && links.every(validShortcut))) {
       throw new BadRequestException('Shortcuts need a label of up to 40 characters and an https:// link, at most 24 of them');
+    }
+    if (widget.type === 'countdown' && !validCountdown(widget.settings)) {
+      throw new BadRequestException('A countdown needs a label of up to 60 characters and a date');
+    }
+    if (widget.type === 'focus' && !validFocus(widget.settings)) {
+      throw new BadRequestException('Focus lasts 15, 25 or 50 minutes, with a break of 5, 10 or 15 minutes');
     }
   }
   return {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Avatar, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
+import { fileSize } from '../files';
 import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { useSpaces } from '../spaces';
@@ -11,7 +12,7 @@ import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -319,6 +320,159 @@ function Agenda() {
   );
 }
 
+function Countdown({ settings }: WidgetProps) {
+  const label = typeof settings.label === 'string' && settings.label ? settings.label : 'the day';
+  if (typeof settings.date !== 'string') return <Empty>Choose a date in this widget's settings.</Empty>;
+  const days = Math.round((new Date(`${settings.date}T00:00:00`).getTime() - new Date(`${dayKey(new Date())}T00:00:00`).getTime()) / 86_400_000);
+  return (
+    <div>
+      <p className="m-0 text-3xl text-ink">{days === 0 ? 'Today' : `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`}</p>
+      <p className="mono-sm m-0 mt-1 text-faint">
+        {days === 0 ? `${label} is today` : days > 0 ? `until ${label}` : `since ${label}`} · {shortDate(settings.date)}
+      </p>
+    </div>
+  );
+}
+
+function CountdownSettings({ onChange, settings }: SettingsProps) {
+  return (
+    <div className="grid gap-3">
+      <label className="field-label">
+        Label
+        <input maxLength={60} onChange={(event) => onChange({ ...settings, label: event.currentTarget.value })} value={typeof settings.label === 'string' ? settings.label : ''} />
+      </label>
+      <label className="field-label">
+        Date
+        <input
+          onChange={(event) => onChange({ ...settings, date: event.currentTarget.value || undefined })}
+          type="date"
+          value={typeof settings.date === 'string' ? settings.date : ''}
+        />
+      </label>
+    </div>
+  );
+}
+
+const minuteMs = 60_000;
+
+function Focus({ settings }: WidgetProps) {
+  const focusMinutes = typeof settings.minutes === 'number' ? settings.minutes : 25;
+  const breakMinutes = typeof settings.breakMinutes === 'number' ? settings.breakMinutes : 5;
+  const [phase, setPhase] = useState<'focus' | 'break'>('focus');
+  const [left, setLeft] = useState(focusMinutes * minuteMs);
+  const [endsAt, setEndsAt] = useState<number>();
+
+  useEffect(() => {
+    if (endsAt === undefined) return;
+    const timer = window.setInterval(() => {
+      const remaining = endsAt - Date.now();
+      if (remaining > 0) {
+        setLeft(remaining);
+        return;
+      }
+      const next = phase === 'focus' ? 'break' : 'focus';
+      setPhase(next);
+      setEndsAt(undefined);
+      setLeft((next === 'focus' ? focusMinutes : breakMinutes) * minuteMs);
+    }, 1_000);
+    return () => window.clearInterval(timer);
+  }, [endsAt, phase, focusMinutes, breakMinutes]);
+
+  const seconds = Math.ceil(left / 1_000);
+  return (
+    <div className="grid gap-3">
+      <div>
+        <p className="m-0 text-3xl text-ink" role="timer">
+          {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+        </p>
+        <p className="mono-sm m-0 mt-1 text-faint">{phase === 'focus' ? 'focus' : 'break: step away for a moment'}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} type="button">
+          {endsAt === undefined ? 'Start' : 'Pause'}
+        </button>
+        <button
+          className="secondary-button px-3 py-2 text-sm"
+          onClick={() => {
+            setEndsAt(undefined);
+            setPhase('focus');
+            setLeft(focusMinutes * minuteMs);
+          }}
+          type="button"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FocusSettings({ onChange, settings }: SettingsProps) {
+  const choice = (key: 'minutes' | 'breakMinutes', label: string, options: number[], fallback: number) => (
+    <label className="field-label">
+      {label}
+      <select onChange={(event) => onChange({ ...settings, [key]: Number(event.currentTarget.value) })} value={typeof settings[key] === 'number' ? settings[key] : fallback}>
+        {options.map((minutes) => (
+          <option key={minutes} value={minutes}>
+            {minutes} minutes
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {choice('minutes', 'Focus', [15, 25, 50], 25)}
+      {choice('breakMinutes', 'Break', [5, 10, 15], 5)}
+    </div>
+  );
+}
+
+interface TidyScanSummary {
+  files: { duplicates: { savingBytes: number; items: unknown[] }[]; old: unknown[] };
+  subscriptions: { unused: { id: string }[]; duplicates: { items: { id: string }[] }[]; overlapping: { items: { id: string }[] }[] };
+}
+
+function Tidy() {
+  const scan = useResource<TidyScanSummary>('/tidy/scan', true);
+  const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
+  if (scan.error) return <p className="error-message m-0">{scan.error}</p>;
+  if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={2} />;
+  const { files, subscriptions } = scan.data;
+  const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
+  const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
+  const toCheck = new Set(
+    [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
+      (entry) => entry.id,
+    ),
+  ).size;
+  const findings = [
+    copies ? `${copies} extra cop${copies === 1 ? 'y' : 'ies'} (${fileSize(saving)})` : '',
+    files.old.length ? `${files.old.length} old upload${files.old.length === 1 ? '' : 's'}` : '',
+    toCheck ? `${toCheck} subscription${toCheck === 1 ? '' : 's'} to check` : '',
+  ].filter(Boolean);
+  const last = history.data?.[0];
+  return (
+    <div className="grid gap-2 text-sm">
+      {findings.length ? (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {findings.map((finding) => (
+            <li className="text-ink" key={finding}>
+              {finding}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty>Nothing to tidy.</Empty>
+      )}
+      <p className="mono-sm m-0 text-faint">{last ? `last tidied ${timeAgo(last.createdAt)}` : 'not tidied yet'}</p>
+      <Link className="w-fit text-ink" to="/tidy">
+        Open Tidy
+      </Link>
+    </div>
+  );
+}
+
 export const widgetKinds: Record<
   WidgetType,
   { title: string; size: WidgetSize; settings: Record<string, unknown>; View: (props: WidgetProps) => ReactNode; Settings?: (props: SettingsProps) => ReactNode }
@@ -330,4 +484,7 @@ export const widgetKinds: Record<
   recurring: { title: 'Renewals and spend', size: 'small', settings: {}, View: Recurring },
   inbox: { title: 'Inbox', size: 'medium', settings: {}, View: Inbox },
   agenda: { title: 'Agenda', size: 'medium', settings: {}, View: Agenda },
+  countdown: { title: 'Countdown', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
+  focus: { title: 'Focus timer', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
+  tidy: { title: 'Tidy status', size: 'small', settings: {}, View: Tidy },
 };
