@@ -200,29 +200,31 @@ model SpaceMember {
 }
 
 model Item {
-  id             String          @id @default(uuid()) @db.Uuid
-  spaceId        String          @map("space_id") @db.Uuid
+  id             String              @id @default(uuid()) @db.Uuid
+  spaceId        String              @map("space_id") @db.Uuid
   kind           ItemKind
-  title          String          @default("")
-  createdById    String?         @map("created_by") @db.Uuid
-  updatedById    String?         @map("updated_by") @db.Uuid
-  archivedAt     DateTime?       @map("archived_at")
-  trashedAt      DateTime?       @map("trashed_at")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  space          Space           @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  createdBy      User?           @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy      User?           @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
+  title          String              @default("")
+  createdById    String?             @map("created_by") @db.Uuid
+  updatedById    String?             @map("updated_by") @db.Uuid
+  archivedAt     DateTime?           @map("archived_at")
+  trashedAt      DateTime?           @map("trashed_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  space          Space               @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy      User?               @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?               @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
   tags           ItemTag[]
-  linksOut       ItemLink[]      @relation("LinkSource")
-  linksIn        ItemLink[]      @relation("LinkTarget")
+  linksOut       ItemLink[]          @relation("LinkSource")
+  linksIn        ItemLink[]          @relation("LinkTarget")
   shareLinks     ShareLink[]
   activity       ActivityEvent[]
   file           File?
   searchDocument SearchDocument?
-  task           Task?           @relation("TaskItem")
-  listTasks      Task[]          @relation("TaskList")
-  subtasks       Task[]          @relation("TaskParent")
+  task           Task?               @relation("TaskItem")
+  listTasks      Task[]              @relation("TaskList")
+  subtasks       Task[]              @relation("TaskParent")
+  subscription   Subscription?
+  prices         SubscriptionPrice[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -474,4 +476,41 @@ model Task {
   @@index([assigneeId])
   @@index([dueDate])
   @@map("tasks")
+}
+
+model Subscription {
+  itemId       String    @id @map("item_id") @db.Uuid
+  amountMinor  Int       @map("amount_minor")
+  currency     String
+  repeatRule   String    @map("repeat_rule")
+  startDate    DateTime  @map("start_date") @db.Date
+  nextRenewal  DateTime  @map("next_renewal") @db.Date
+  timeZone     String    @map("time_zone")
+  trialEndsOn  DateTime? @map("trial_ends_on") @db.Date
+  noticeDays   Int?      @map("notice_days")
+  category     String    @default("other")
+  paymentLabel String?   @map("payment_label")
+  cancelUrl    String?   @map("cancel_url")
+  supportUrl   String?   @map("support_url")
+  usedBy       String?   @map("used_by")
+  reminderDays Int?      @map("reminder_days")
+  lastUsedOn   DateTime? @map("last_used_on") @db.Date
+  cancelledOn  DateTime? @map("cancelled_on") @db.Date
+  item         Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([nextRenewal])
+  @@map("subscriptions")
+}
+
+model SubscriptionPrice {
+  id            String   @id @default(uuid()) @db.Uuid
+  itemId        String   @map("item_id") @db.Uuid
+  amountMinor   Int      @map("amount_minor")
+  currency      String
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at")
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, effectiveFrom])
+  @@map("subscription_prices")
 }

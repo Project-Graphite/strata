@@ -8,6 +8,7 @@ const dayMs = 24 * 60 * 60 * 1000;
 @Injectable()
 export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MaintenanceScheduler.name);
+  private readonly steps: ((now: Date) => Promise<unknown>)[] = [];
   private timer?: NodeJS.Timeout;
   private running = false;
 
@@ -24,6 +25,10 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     clearInterval(this.timer);
+  }
+
+  register(step: (now: Date) => Promise<unknown>) {
+    this.steps.push(step);
   }
 
   async run(now = new Date()) {
@@ -63,5 +68,8 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
       where: { OR: [{ expiresAt: { lt: ago(30) } }, { revokedAt: { lt: ago(30) } }] },
     });
     await this.files.removeOrphans(now);
+    for (const step of this.steps) {
+      await step(now);
+    }
   }
 }
