@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
@@ -9,6 +9,7 @@ import {
   Skeleton,
   SnackbarProvider,
   type ShellTab,
+  useCommandShortcut,
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
 import { useAuth } from '../auth';
@@ -16,6 +17,7 @@ import { InboxContext } from '../inbox';
 import { SpacesContext, type Space } from '../spaces';
 import { useResource } from '../useResource';
 import { AccountMenu } from './AccountMenu';
+import { SearchPalette } from './SearchPalette';
 import { StrataMark } from './StrataMark';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -56,6 +58,10 @@ export function Shell() {
   const inbox = useResource<{ unread: number }>('/me/inbox/summary', true);
   const { reload: checkInbox } = inbox;
   const unread = inbox.data?.unread ?? 0;
+  const [searching, setSearching] = useState(false);
+  const signedIn = Boolean(auth.user);
+  const openSearch = useCallback(() => signedIn && setSearching(true), [signedIn]);
+  useCommandShortcut(openSearch);
 
   useEffect(() => {
     if (!auth.user) return;
@@ -94,6 +100,9 @@ export function Shell() {
                 <Skeleton className="h-9 w-9 rounded-full" />
               ) : auth.user ? (
                 <>
+                  <button aria-label="Search (Ctrl+K)" className="icon-button" onClick={openSearch} type="button">
+                    <Icon name="search" />
+                  </button>
                   <Link aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'} className="icon-button relative" to="/inbox">
                     <Icon name="bell" />
                     {unread > 0 && <span className="count-badge">{unread > 9 ? '9+' : unread}</span>}
@@ -161,6 +170,7 @@ export function Shell() {
               <Outlet />
             </OutageGate>
           </AppShell>
+          {searching && <SearchPalette onClose={() => setSearching(false)} />}
         </SnackbarProvider>
       </InboxContext.Provider>
     </SpacesContext.Provider>
