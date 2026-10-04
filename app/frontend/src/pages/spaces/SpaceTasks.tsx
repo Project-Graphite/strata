@@ -4,6 +4,8 @@ import { EmptyState, ListSkeleton, Pagination } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useAuth } from '../../auth';
 import { TaskEditor } from '../../components/TaskEditor';
+import { describeQuickTask, parseQuickTask } from '../../quick-add';
+import type { Tag } from '../../spaces';
 import { TaskRow, type Task, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -21,9 +23,13 @@ export function SpaceTasks() {
   const tasks = useResource<Page<Task>>(`/spaces/${space.id}/tasks?page=${page}${filters}`, true);
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);
   const members = useResource<{ userId: string; displayName: string }[]>(`/spaces/${space.id}/members`, true);
+  const tags = useResource<Tag[]>(`/spaces/${space.id}/tags`, true);
   const adding = useAction();
   const action = useAction();
   const [editing, setEditing] = useState<Task>();
+  const [quickText, setQuickText] = useState('');
+  const preview = parseQuickTask(quickText, (tags.data ?? []).map((tag) => tag.name));
+  const understood = describeQuickTask(preview);
   const editable = space.role !== 'viewer';
   const link = (next: { list?: string | null; completed?: boolean; page?: number }) => {
     const query = new URLSearchParams();
@@ -70,27 +76,55 @@ export function SpaceTasks() {
             event.preventDefault();
             const target = event.currentTarget;
             const values = new FormData(target);
-            const title = String(values.get('title')).trim();
-            const dueDate = String(values.get('dueDate'));
-            if (!title) return;
+            const quick = parseQuickTask(String(values.get('title')), (tags.data ?? []).map((tag) => tag.name));
+            const dueDate = String(values.get('dueDate')) || quick.dueDate;
+            const tagIds = (tags.data ?? []).filter((tag) => quick.tagNames.includes(tag.name)).map((tag) => tag.id);
+            if (!quick.title) return;
             void adding
               .run(async () => {
                 const created = await auth.request<Task>(`/spaces/${space.id}/tasks`, {
                   method: 'POST',
-                  body: JSON.stringify({ title, ...(listId ? { listId } : {}), ...(dueDate ? { dueDate } : {}) }),
+                  body: JSON.stringify({
+                    title: quick.title,
+                    ...(listId ? { listId } : {}),
+                    ...(dueDate ? { dueDate } : {}),
+                    ...(dueDate && quick.dueTime ? { dueTime: quick.dueTime } : {}),
+                    ...(quick.priority ? { priority: quick.priority } : {}),
+                  }),
                 });
-                tasks.mutate((current) => ({ ...current, totalResults: current.totalResults + 1, results: [...current.results, created] }));
+                if (tagIds.length) {
+                  await auth.request(`/items/${created.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
+                  tasks.reload();
+                } else {
+                  tasks.mutate((current) => ({ ...current, totalResults: current.totalResults + 1, results: [...current.results, created] }));
+                }
                 lists.reload();
                 return '';
               }, 'Could not add the task')
-              .then((added) => added && target.reset());
+              .then((added) => {
+                if (!added) return;
+                target.reset();
+                setQuickText('');
+              });
           }}
         >
-          <input aria-label="New task" className="min-w-0 flex-1" maxLength={200} name="title" placeholder="Add a task" />
+          <input
+            aria-label="New task"
+            className="min-w-0 flex-1"
+            maxLength={200}
+            name="title"
+            onInput={(event) => setQuickText(event.currentTarget.value)}
+            placeholder="Add a task, e.g. pay rent friday 9am #home !2"
+          />
           <input aria-label="Due date" name="dueDate" type="date" />
           <button className="primary-button px-4" disabled={adding.busy} type="submit">
             Add
           </button>
+          {quickText.trim() && (understood || !preview.title) && (
+            <p className="mono-sm m-0 w-full text-faint" role="status">
+              {[understood, !preview.title && 'add a title for the task'].filter(Boolean).join(' · ')}
+            </p>
+          )}
         </form>
       )}
       {adding.status}

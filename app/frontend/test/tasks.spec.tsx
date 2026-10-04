@@ -105,6 +105,39 @@ describe('Tasks', () => {
     );
   });
 
+  it('reads a plain-language task, shows what it understood and sends the parts', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/tasks?page=1') return json(page([]));
+      if (path === '/spaces/home/tags') return json([{ id: 'tag-home', spaceId: 'home', name: 'home', color: 'green' }]);
+      if (path === '/spaces/home/tasks' && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body))).toEqual({ title: 'pay rent', dueDate: '2030-01-04', dueTime: '09:00', priority: 2 });
+        return json(task({ id: 'rent', title: 'pay rent', dueDate: '2030-01-04', dueTime: '09:00', repeatRule: null, priority: 2 }), 201);
+      }
+      if (path === '/items/rent/tags' && init?.method === 'PUT') {
+        expect(JSON.parse(String(init.body))).toEqual({ tagIds: ['tag-home'] });
+        return json({ id: 'rent' });
+      }
+      return undefined;
+    });
+    await render('/spaces/home/tasks');
+
+    const form = container.querySelector('form')!;
+    const input = form.querySelector<HTMLInputElement>('input[name="title"]')!;
+    input.value = 'pay rent 2030-01-04 9am #home !2';
+    await act(async () => {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(form.querySelector('[role="status"]')?.textContent).toBe(
+      `due ${new Date('2030-01-04T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} 09:00 · tag home · medium priority`,
+    );
+
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/rent/tags', expect.objectContaining({ method: 'PUT' }));
+    expect(form.querySelector('[role="status"]')).toBeNull();
+  });
+
   it('lists what is due today across spaces and clears a finished task', async () => {
     serve((path) => {
       if (path === '/tasks/today') return json([task({ repeatRule: null, dueTime: null })]);
