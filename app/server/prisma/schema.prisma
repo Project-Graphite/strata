@@ -105,6 +105,7 @@ model User {
   tidyBatches         TidyBatch[]
   tidyRules           TidyRule[]
   noteVersions        NoteVersion[]
+  habitCheckIns       HabitCheckIn[]
 
   @@map("users")
 }
@@ -203,6 +204,7 @@ model Space {
   searchDocuments SearchDocument[]
   activity        ActivityEvent[]
   tidyRules       TidyRule[]
+  habits          Habit[]
 
   @@map("spaces")
 }
@@ -712,4 +714,31 @@ model NoteProperty {
 
   @@id([itemId, propertyId])
   @@map("note_properties")
+}
+
+model Habit {
+  id        String         @id @default(uuid()) @db.Uuid
+  spaceId   String         @map("space_id") @db.Uuid
+  name      String
+  perWeek   Int            @default(7) @map("per_week")
+  position  Int            @default(0)
+  createdAt DateTime       @default(now()) @map("created_at")
+  space     Space          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  checkIns  HabitCheckIn[]
+
+  @@index([spaceId, position])
+  @@map("habits")
+}
+
+model HabitCheckIn {
+  habitId   String   @map("habit_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  day       DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([habitId, userId, day])
+  @@index([userId, day])
+  @@map("habit_check_ins")
 }

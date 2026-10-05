@@ -4,6 +4,7 @@ import { Avatar, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { fileSize } from '../files';
+import { HabitRow, type Habit } from '../habits';
 import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { useSpaces } from '../spaces';
@@ -16,7 +17,7 @@ import { Capture } from './capture-widget';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -424,6 +425,22 @@ interface TidyScanSummary {
   subscriptions: { unused: { id: string }[]; duplicates: { items: { id: string }[] }[]; overlapping: { items: { id: string }[] }[] };
 }
 
+function Habits() {
+  const habits = useResource<Habit[]>('/me/habits', true);
+  if (habits.error) return <LoadError error={habits.error} onRetry={habits.reload} />;
+  if (!habits.data) return <ListSkeleton label="Loading your habits" rows={3} />;
+  if (habits.data.length === 0) return <Empty>No habits yet. Add them in a space’s Habits tab.</Empty>;
+  return (
+    <ul className="m-0 grid list-none gap-3 p-0">
+      {habits.data.map((habit) => (
+        <li key={habit.id}>
+          <HabitRow habit={habit} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true);
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
@@ -481,4 +498,5 @@ export const widgetKinds: Record<
   weather: { title: 'Weather', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
   news: { title: 'News', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
   capture: { title: 'Quick note', size: 'medium', settings: {}, View: Capture },
+  habits: { title: 'Habits', size: 'medium', settings: {}, View: Habits },
 };

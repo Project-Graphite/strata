@@ -30,6 +30,7 @@ export function SpaceLayout() {
     [`${base}/notes`, 'Notes'],
     [`${base}/tasks`, 'Tasks'],
     [`${base}/recurring`, 'Recurring'],
+    [`${base}/habits`, 'Habits'],
     [`${base}/tags`, 'Tags'],
     [`${base}/members`, 'Members'],
     [`${base}/activity`, 'Activity'],

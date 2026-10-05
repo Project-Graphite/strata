@@ -30,6 +30,7 @@ import { SpaceActivity } from './pages/spaces/SpaceActivity';
 import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
 import { SpaceMembers } from './pages/spaces/SpaceMembers';
+import { SpaceHabits } from './pages/spaces/SpaceHabits';
 import { SpaceNotes } from './pages/spaces/SpaceNotes';
 import { SpacesPage } from './pages/spaces/SpacesPage';
 import { SpaceSubscriptions } from './pages/spaces/SpaceSubscriptions';
@@ -96,6 +97,7 @@ export function App() {
             <Route path="notes" element={<SpaceNotes />} />
             <Route path="tasks" element={<SpaceTasks />} />
             <Route path="recurring" element={<SpaceSubscriptions />} />
+            <Route path="habits" element={<SpaceHabits />} />
             <Route path="tags" element={<SpaceTags />} />
             <Route path="members" element={<SpaceMembers />} />
             <Route path="activity" element={<SpaceActivity />} />

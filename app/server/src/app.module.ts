@@ -12,6 +12,7 @@ import { DashboardsModule } from './dashboards/dashboards.module';
 import { EventsModule } from './events/events.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { FilesModule } from './files/files.module';
+import { HabitsModule } from './habits/habits.module';
 import { HealthModule } from './health/health.module';
 import { InboxModule } from './inbox/inbox.module';
 import { ItemsModule } from './items/items.module';
@@ -61,6 +62,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     EventsModule,
     ExchangeRatesModule,
     TidyModule,
+    HabitsModule,
     NotesModule,
     RealtimeModule,
     WidgetsModule,
