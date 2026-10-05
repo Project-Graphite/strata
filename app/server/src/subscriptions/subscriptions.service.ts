@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { convertMinor, ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
@@ -105,6 +106,7 @@ export class SubscriptionsService implements OnModuleInit {
     private readonly inbox: InboxService,
     private readonly jobs: JobsService,
     private readonly maintenance: MaintenanceScheduler,
+    private readonly exchangeRates: ExchangeRatesService,
   ) {}
 
   onModuleInit() {
@@ -316,7 +318,9 @@ export class SubscriptionsService implements OnModuleInit {
       }
     }
     const withMonthly = <T extends { yearlyMinor: number }>(entry: T) => ({ ...entry, monthlyMinor: Math.round(entry.yearlyMinor / 12) });
+    const { homeCurrency } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } });
     return {
+      home: homeCurrency && totals.size > 0 ? await this.homeTotal(homeCurrency, [...totals.values()]) : null,
       totals: [...totals.values()].map(withMonthly).sort((a, b) => a.currency.localeCompare(b.currency)),
       categories: [...byCategory.values()].map(withMonthly).sort((a, b) => b.yearlyMinor - a.yearlyMinor),
       upcoming: [...rows]
@@ -326,6 +330,18 @@ export class SubscriptionsService implements OnModuleInit {
       trials: trials.map(present),
       stillWorthIt: stale.map(present),
     };
+  }
+
+  private async homeTotal(currency: string, totals: { currency: string; yearlyMinor: number }[]) {
+    const { publishedOn, rates } = await this.exchangeRates.table();
+    let yearlyMinor = 0;
+    const missing: string[] = [];
+    for (const total of totals) {
+      const converted = convertMinor(total.yearlyMinor, total.currency, currency, rates);
+      if (converted === null) missing.push(total.currency);
+      else yearlyMinor += converted;
+    }
+    return { currency, yearlyMinor, monthlyMinor: Math.round(yearlyMinor / 12), ratesOn: publishedOn, missing };
   }
 
   async advanceRenewals(now: Date) {

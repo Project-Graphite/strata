@@ -14,6 +14,7 @@ interface Total {
 }
 
 interface Summary {
+  home: (Total & { ratesOn: string | null; missing: string[] }) | null;
   totals: Total[];
   categories: (Total & { category: string })[];
   upcoming: Subscription[];
@@ -55,6 +56,19 @@ export function RecurringPage() {
         </EmptyState>
       ) : (
         <>
+          {summary.data.home && summary.data.totals.length > 1 && (
+            <div className="rounded-xl border border-line bg-surface p-5">
+              <p className="m-0 text-sm text-muted">All together, in {summary.data.home.currency}</p>
+              <p className="m-0 mt-2 text-3xl text-ink">≈ {money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month</p>
+              <p className="mono-sm m-0 mt-1 text-faint">
+                {money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year
+                {summary.data.home.ratesOn && ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}`}
+              </p>
+              {summary.data.home.missing.length > 0 && (
+                <p className="m-0 mt-2 text-sm text-muted">Not included, with no rate available: {summary.data.home.missing.join(', ')}.</p>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             {summary.data.totals.map((total) => (
               <div className="rounded-xl border border-line bg-surface p-5" key={total.currency}>

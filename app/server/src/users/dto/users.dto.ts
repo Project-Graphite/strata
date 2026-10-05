@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsString, IsTimeZone, Length, MaxLength } from 'class-validator';
+import { IsBoolean, IsString, IsTimeZone, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 
 export class UpdateProfileDto {
@@ -18,4 +18,8 @@ export class UpdateProfileDto {
   @IsOptionalNotNull()
   @IsBoolean()
   tidySummary?: boolean;
+
+  @ValidateIf((_input, value) => value !== undefined && value !== null)
+  @Matches(/^[A-Z]{3}$/, { message: 'Choose a currency from the list.' })
+  homeCurrency?: string | null;
 }

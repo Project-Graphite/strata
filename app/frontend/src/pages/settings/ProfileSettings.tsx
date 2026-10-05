@@ -13,6 +13,7 @@ export function ProfileSettings() {
   const auth = useAuth();
   const me = useResource<Me>('/me', true);
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
+  const currencies = useResource<{ currencies: string[] }>('/exchange-rates', true);
   const profile = useAction();
   const email = useAction();
   const notifications = useAction();
@@ -49,6 +50,7 @@ export function ProfileSettings() {
                 body: JSON.stringify({
                   displayName: String(values.get('displayName')).trim(),
                   timeZone: String(values.get('timeZone')),
+                  homeCurrency: String(values.get('homeCurrency')) || null,
                 }),
               });
               me.mutate(() => next);
@@ -71,6 +73,17 @@ export function ProfileSettings() {
                 {zones.map((zone) => (
                   <option key={zone} value={zone}>
                     {zone.replaceAll('_', ' ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-label">
+              Home currency
+              <select defaultValue={current.homeCurrency ?? ''} key={currencies.data ? 'loaded' : 'loading'} name="homeCurrency">
+                <option value="">None, keep each currency separate</option>
+                {[...new Set([...(current.homeCurrency ? [current.homeCurrency] : []), ...(currencies.data?.currencies ?? [])])].map((code) => (
+                  <option key={code} value={code}>
+                    {code}
                   </option>
                 ))}
               </select>

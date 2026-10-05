@@ -73,6 +73,7 @@ model User {
   verifiedAt          DateTime?              @map("verified_at")
   timeZone            String                 @default("Etc/UTC") @map("time_zone")
   tidySummary         Boolean                @default(false) @map("tidy_summary")
+  homeCurrency        String?                @map("home_currency")
   isActive            Boolean                @default(true) @map("is_active")
   role                UserRole               @default(MEMBER)
   createdAt           DateTime               @default(now()) @map("created_at")
@@ -633,4 +634,13 @@ model TidyRule {
 
   @@index([spaceId])
   @@map("tidy_rules")
+}
+
+model ExchangeRate {
+  currency    String   @id
+  perEuro     Float    @map("per_euro")
+  publishedOn DateTime @map("published_on") @db.Date
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("exchange_rates")
 }
