@@ -97,7 +97,7 @@ export class CostSplitsService {
 
   async settle(userId: string, spaceId: string, input: CreateSettlementDto) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    if (userId !== input.fromUserId && userId !== input.toUserId) throw new ForbiddenException('Record only payments you made or received');
+    if (userId !== input.toUserId) throw new ForbiddenException('Only the person who was paid can record a payment');
     if (input.fromUserId === input.toUserId) throw new BadRequestException('Choose two different members');
     const members = await this.members(spaceId);
     if (!members.has(input.fromUserId) || !members.has(input.toUserId)) throw new BadRequestException('Settle only between members of this space');

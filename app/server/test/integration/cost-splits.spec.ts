@@ -62,6 +62,7 @@ describe('Cost splitting against Postgres', () => {
 
     const payment = { fromUserId: amr.id, toUserId: sam.id, amountMinor: 300, currency: 'EUR', month: '2026-10' };
     expect((await vic.call('POST', `/spaces/${flat.id}/settlements`, payment)).status).toBe(403);
+    expect((await amr.call('POST', `/spaces/${flat.id}/settlements`, payment)).status).toBe(403);
     expect((await outsider.call('POST', `/spaces/${flat.id}/settlements`, payment)).status).toBe(404);
     const settled = (await sam.call('POST', `/spaces/${flat.id}/settlements`, payment)).body;
     const after = (await amr.call('GET', `/spaces/${flat.id}/balances?month=2026-10`)).body;

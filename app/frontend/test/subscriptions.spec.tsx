@@ -294,7 +294,7 @@ describe('Recurring', () => {
 
     const balances = container.querySelector('section[aria-label="Split costs"]')!;
     expect(balances.textContent).toContain(`Sam owes Amr ${euros(2000)}`);
-    await act(async () => [...balances.querySelectorAll('button')].find((button) => button.textContent === 'Settle up')!.click());
+    await act(async () => [...balances.querySelectorAll('button')].find((button) => button.textContent === 'Mark as paid')!.click());
     expect(sent[1]).toEqual({ fromUserId: 'sam', toUserId: 'me', amountMinor: 2000, currency: 'EUR', month: new Date().toISOString().slice(0, 7) });
     expect(container.querySelector('section[aria-label="Split costs"]')!.textContent).toContain('Everyone is square.');
   });

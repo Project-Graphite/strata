@@ -86,9 +86,9 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
                   <span className="text-ink">
                     {debt.fromName} owes {debt.toName} {money(debt.amountMinor, debt.currency)}
                   </span>
-                  {(me === debt.fromUserId || me === debt.toUserId) && (
+                  {me === debt.toUserId && (
                     <button className="secondary-button px-3 py-1.5 text-sm" disabled={action.busy} onClick={() => settle(debt)} type="button">
-                      Settle up
+                      Mark as paid
                     </button>
                   )}
                 </li>
