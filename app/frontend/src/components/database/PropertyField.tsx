@@ -1,11 +1,7 @@
 import type { ReactNode } from 'react';
 import { Popover, TagChip } from '@project-graphite/ui';
 import type { Property } from '../../notes';
-
-export interface Member {
-  userId: string;
-  displayName: string;
-}
+import type { Member } from '../../spaces';
 
 const optionsOf = (property: Property, ids: unknown) =>
   (Array.isArray(ids) ? ids : [ids]).flatMap((id) => property.options?.filter((option) => option.id === id) ?? []);

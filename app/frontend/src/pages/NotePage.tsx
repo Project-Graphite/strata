@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { DatabaseView } from '../components/database/DatabaseView';
-import { PropertyField, type Member } from '../components/database/PropertyField';
+import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
 import { NoteHistory } from '../components/NoteHistory';
 import { noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
-import { itemHref, useSpaces } from '../spaces';
+import { itemHref, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
