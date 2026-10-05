@@ -138,6 +138,7 @@ describe('Notes and real-time editing against Postgres', () => {
 
     const refused = await new Promise<number>((resolve) => {
       const socket = new WebSocket(`${strata.base.replace(/^http/, 'ws')}/api/v1/realtime`, { origin: 'https://evil.example' });
+      socket.on('error', () => undefined);
       socket.on('unexpected-response', (_request, response) => {
         resolve(response.statusCode ?? 0);
         socket.terminate();
