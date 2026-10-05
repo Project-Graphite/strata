@@ -25,6 +25,7 @@ export function NotePage() {
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
   const renaming = useAction();
   const adding = useAction();
+  const marking = useAction();
   const [history, setHistory] = useState(false);
 
   if (note.status === 404) {
@@ -66,9 +67,27 @@ export function NotePage() {
             </Fragment>
           ))}
         </nav>
-        <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
-          History
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          {details.editable && (
+            <button
+              className="text-button text-sm"
+              disabled={marking.busy}
+              onClick={() =>
+                void marking.run(async () => {
+                  const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ template: !details.template }) });
+                  note.mutate((current) => ({ ...current, ...saved }));
+                  return saved.template ? 'New pages in this space can start from this one.' : 'This page is no longer a template.';
+                }, 'Could not change the page')
+              }
+              type="button"
+            >
+              {details.template ? 'Stop using as a template' : 'Use as a template'}
+            </button>
+          )}
+          <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
+            History
+          </button>
+        </div>
       </div>
       <input
         aria-label="Page title"

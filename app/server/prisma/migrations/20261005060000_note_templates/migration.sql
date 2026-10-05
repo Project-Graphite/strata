@@ -1,0 +1,1 @@
+ALTER TABLE "notes" ADD COLUMN "template" BOOLEAN NOT NULL DEFAULT false;

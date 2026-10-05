@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { CommandPalette, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { itemHref, useSpaces, type Tag } from '../spaces';
@@ -27,6 +28,8 @@ const pages = [
 export function SearchPalette({ onClose }: { onClose: () => void }) {
   const { request, user } = useAuth();
   const spaces = useSpaces();
+  const navigate = useNavigate();
+  const personal = spaces.data?.find((space) => space.kind === 'personal');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>();
   const text = query.trim();
@@ -53,7 +56,22 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
   const matches = (label: string) => label.toLowerCase().includes(text.toLowerCase());
   const spaceName = (spaceId: string) => spaces.data?.find((space) => space.id === spaceId)?.name;
+  const actions: CommandItem[] = personal
+    ? [
+        {
+          group: 'Create',
+          id: 'new-page',
+          label: 'New page',
+          onSelect: () =>
+            void request<{ id: string }>(`/spaces/${personal.id}/notes`, { method: 'POST', body: JSON.stringify({}) }).then((created) =>
+              navigate(`/notes/${created.id}`),
+            ),
+        },
+        { group: 'Create', href: `/spaces/${personal.id}/tasks`, id: 'new-task', label: 'New task' },
+      ]
+    : [];
   const items: CommandItem[] = [
+    ...actions.filter((action) => !text || matches(action.label)),
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
       hint: `${item.kind} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,

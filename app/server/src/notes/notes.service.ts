@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma, SpaceRole } from '@prisma/client';
+import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { documentText } from './document-text';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
+import { templateDocument, textDocument, type BuiltInTemplate } from './templates';
 
 const noteFields = {
   id: true,
@@ -11,7 +14,7 @@ const noteFields = {
   title: true,
   createdAt: true,
   updatedAt: true,
-  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true } },
+  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
@@ -25,6 +28,7 @@ function present(row: NoteRow) {
     position: row.note?.position ?? 0,
     icon: row.note?.icon ?? null,
     pinnedAt: row.note?.pinnedAt ?? null,
+    template: row.note?.template ?? false,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -51,6 +55,7 @@ export class NotesService {
   async create(userId: string, spaceId: string, input: CreateNoteDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if (input.parentId) await this.parentIn(spaceId, input.parentId);
+    const initial = await this.initialState(spaceId, input);
     const last = await this.prisma.note.aggregate({
       where: { parentId: input.parentId ?? null, item: { spaceId, trashedAt: null } },
       _max: { position: true },
@@ -68,6 +73,10 @@ export class NotesService {
         select: noteFields,
       });
       await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: item.title } });
+      if (initial) {
+        await transaction.noteDocument.create({ data: { itemId: item.id, state: Buffer.from(Y.encodeStateAsUpdate(initial)) } });
+        await transaction.searchDocument.updateMany({ where: { itemId: item.id }, data: { bodyText: documentText(initial) } });
+      }
       return item;
     });
     return present(created);
@@ -105,12 +114,14 @@ export class NotesService {
           position: position ?? 0,
           icon: input.icon ?? null,
           pinnedAt: input.pinned ? new Date() : null,
+          template: input.template ?? false,
         },
         update: {
           parentId: input.parentId,
           position,
           icon: input.icon,
           pinnedAt: input.pinned === undefined ? undefined : input.pinned ? new Date() : null,
+          template: input.template,
         },
       });
       const item = await transaction.item.update({
@@ -137,6 +148,20 @@ export class NotesService {
     const item = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true } });
     if (item.kind !== ItemKind.NOTE) throw new NotFoundException('Note not found');
     return found;
+  }
+
+  private async initialState(spaceId: string, input: CreateNoteDto) {
+    if (input.template) return templateDocument(input.template as BuiltInTemplate);
+    if (input.text?.trim()) return textDocument(input.text.trim());
+    if (!input.fromNoteId) return null;
+    const source = await this.prisma.note.findFirst({
+      where: { itemId: input.fromNoteId, template: true, item: { spaceId, trashedAt: null } },
+      select: { item: { select: { noteDocument: { select: { state: true } } } } },
+    });
+    if (!source) throw new BadRequestException('Choose a template from this space');
+    const document = new Y.Doc();
+    if (source.item.noteDocument) Y.applyUpdate(document, new Uint8Array(source.item.noteDocument.state));
+    return document;
   }
 
   private async parentIn(spaceId: string, parentId: string) {

@@ -240,4 +240,33 @@ describe('Notes and real-time editing against Postgres', () => {
     realtime.hocuspocus.flushPendingStores();
     expect(await until(links, (rows) => rows.length === 1)).toEqual([{ kind: 'ATTACHMENT', targetItemId: picture.id }]);
   });
+
+  it('starts pages from built-in templates, space templates or captured text', async () => {
+    const owner = await member('templater');
+    const space = owner.personalSpaceId;
+    const stored = async (id: string) => {
+      const row = await strata.prisma.noteDocument.findUnique({ where: { itemId: id } });
+      const document = new Y.Doc();
+      if (row) Y.applyUpdate(document, new Uint8Array(row.state));
+      return document;
+    };
+
+    const meeting = (await owner.call('POST', `/spaces/${space}/notes`, { title: 'Standup', template: 'meeting' })).body;
+    const meetingDocument = await stored(meeting.id);
+    expect(textOf(meetingDocument)).toContain('<heading level="2">Attendees</heading>');
+    expect(textOf(meetingDocument)).toContain('<tasklist><taskitem checked="false"><paragraph></paragraph></taskitem></tasklist>');
+    expect((await owner.call('POST', `/spaces/${space}/notes`, { template: 'diary' })).status).toBe(400);
+
+    const captured = (await owner.call('POST', `/spaces/${space}/notes`, { text: 'Call the bank\nAsk about fees' })).body;
+    expect((await strata.prisma.searchDocument.findUnique({ where: { itemId: captured.id } }))?.bodyText).toBe('Call the bank\nAsk about fees');
+
+    expect((await owner.call('POST', `/spaces/${space}/notes`, { fromNoteId: captured.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${captured.id}`, { template: true })).body.template).toBe(true);
+    const copy = (await owner.call('POST', `/spaces/${space}/notes`, { title: 'Copy', fromNoteId: captured.id })).body;
+    expect(copy.template).toBe(false);
+    expect(textOf(await stored(copy.id))).toBe(textOf(await stored(captured.id)));
+
+    const elsewhere = await member('borrower');
+    expect((await elsewhere.call('POST', `/spaces/${elsewhere.personalSpaceId}/notes`, { fromNoteId: captured.id })).status).toBe(400);
+  });
 });

@@ -656,6 +656,7 @@ model Note {
   position Float     @default(0)
   icon     String?
   pinnedAt DateTime? @map("pinned_at")
+  template Boolean   @default(false)
   item     Item      @relation("NoteItem", fields: [itemId], references: [id], onDelete: Cascade)
   parent   Item?     @relation("NoteParent", fields: [parentId], references: [id], onDelete: SetNull)
 
