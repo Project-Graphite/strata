@@ -553,6 +553,9 @@ model Dashboard {
   name      String
   position  Int      @default(0)
   layout    Json
+  showFrom  Int?     @map("show_from")
+  showUntil Int?     @map("show_until")
+  showOn    String   @default("any") @map("show_on")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -55,4 +55,25 @@ describe('Dashboards against Postgres', () => {
     expect((await owner.call('DELETE', `/me/dashboards/${home.id}`)).status).toBe(204);
     expect((await owner.call('GET', '/me/dashboards')).body.map((dashboard: { name: string }) => dashboard.name)).toEqual(['Trip']);
   });
+
+  it('keeps when and where a dashboard opens by itself', async () => {
+    const owner = await member('scheduler');
+    const [home] = (await owner.call('GET', '/me/dashboards')).body;
+    expect(home).toMatchObject({ showFrom: null, showUntil: null, showOn: 'any' });
+
+    const morning = await owner.call('PATCH', `/me/dashboards/${home.id}`, { showFrom: 22 * 60, showUntil: 6 * 60, showOn: 'phone' });
+    expect(morning.body).toMatchObject({ showFrom: 1320, showUntil: 360, showOn: 'phone' });
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Night' })).body).toMatchObject({ name: 'Night', showFrom: 1320, showOn: 'phone' });
+
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { showFrom: 60 })).status).toBe(400);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { showFrom: 60, showUntil: 60 })).status).toBe(400);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { showFrom: 60, showUntil: 1440 })).status).toBe(400);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { showOn: 'tablet' })).status).toBe(400);
+
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { showFrom: null, showUntil: null, showOn: 'any' })).body).toMatchObject({
+      showFrom: null,
+      showUntil: null,
+      showOn: 'any',
+    });
+  });
 });

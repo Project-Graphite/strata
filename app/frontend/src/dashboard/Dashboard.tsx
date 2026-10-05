@@ -9,12 +9,48 @@ import { atMost, required, useFormErrors } from '../validation';
 import { widgetKinds, type Widget, type WidgetSize, type WidgetType } from './widgets';
 import { LoadError } from '../components/LoadError';
 
+type Device = 'any' | 'phone' | 'desktop';
+
 interface Dashboard {
   id: string;
   name: string;
   position: number;
   layout: { widgets: Widget[] };
+  showFrom: number | null;
+  showUntil: number | null;
+  showOn: Device;
 }
+
+const chosenKey = 'strata-dashboard';
+
+function rememberedDashboard() {
+  try {
+    return sessionStorage.getItem(chosenKey);
+  } catch {
+    return null;
+  }
+}
+
+function rememberDashboard(id: string) {
+  try {
+    sessionStorage.setItem(chosenKey, id);
+  } catch {
+    return;
+  }
+}
+
+export function automaticDashboard<T extends Pick<Dashboard, 'showFrom' | 'showUntil' | 'showOn'>>(dashboards: T[], now: Date, phone: boolean) {
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const fits = dashboards.filter(
+    ({ showFrom, showUntil, showOn }) =>
+      (showFrom === null || showUntil === null || (showFrom < showUntil ? minute >= showFrom && minute < showUntil : minute >= showFrom || minute < showUntil)) &&
+      (showOn === 'any' || showOn === (phone ? 'phone' : 'desktop')),
+  );
+  return fits.find((dashboard) => dashboard.showFrom !== null || dashboard.showOn !== 'any') ?? fits[0] ?? dashboards[0];
+}
+
+const clockTime = (minutes: number | null) => (minutes === null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
+const minutesOf = (time: string) => (time ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) : null);
 
 const templates = [
   ['morning', 'Morning briefing', 'Clock, Today, Agenda, Renewals and spend, Inbox'],
@@ -134,11 +170,20 @@ export function DashboardHome() {
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [schedule, setSchedule] = useState({ from: '', until: '', on: 'any' as Device });
   const addForm = useFormErrors();
+  const chosen = params.get('d');
+
+  useEffect(() => {
+    if (chosen) rememberDashboard(chosen);
+  }, [chosen]);
 
   if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
   if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
-  const current = dashboards.data.find((dashboard) => dashboard.id === params.get('d')) ?? dashboards.data[0]!;
+  const picked = chosen ?? rememberedDashboard();
+  const current =
+    dashboards.data.find((dashboard) => dashboard.id === picked) ??
+    automaticDashboard(dashboards.data, new Date(), window.matchMedia('(max-width: 767px)').matches)!;
   const widgets = draft ?? current.layout.widgets;
   const editing = draft !== undefined;
   if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
@@ -157,9 +202,17 @@ export function DashboardHome() {
     }
     void saving
       .run(async () => {
+        if (Boolean(schedule.from) !== Boolean(schedule.until)) throw new Error('Set both times, or neither.');
+        const showFrom = minutesOf(schedule.from);
+        const showUntil = minutesOf(schedule.until);
         const saved = await auth.request<Dashboard>(`/me/dashboards/${current.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({ layout: { widgets }, ...(name.trim() ? { name: name.trim() } : {}) }),
+          body: JSON.stringify({
+            layout: { widgets },
+            ...(name.trim() ? { name: name.trim() } : {}),
+            ...(showFrom !== current.showFrom || showUntil !== current.showUntil ? { showFrom, showUntil } : {}),
+            ...(schedule.on !== current.showOn ? { showOn: schedule.on } : {}),
+          }),
         });
         dashboards.mutate((all) => all.map((dashboard) => (dashboard.id === saved.id ? saved : dashboard)));
         return '';
@@ -203,6 +256,7 @@ export function DashboardHome() {
                 className="secondary-button px-3 py-2 text-sm"
                 onClick={() => {
                   setName(current.name);
+                  setSchedule({ from: clockTime(current.showFrom), until: clockTime(current.showUntil), on: current.showOn });
                   setDraft(current.layout.widgets);
                 }}
                 type="button"
@@ -229,6 +283,25 @@ export function DashboardHome() {
             Name
             <input maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
           </label>
+          <fieldset className="m-0 flex flex-wrap items-end gap-3 border-0 p-0">
+            <legend className="field-label mb-1.5 p-0">Opens by itself</legend>
+            <label className="field-label">
+              From
+              <input onChange={(event) => setSchedule({ ...schedule, from: event.currentTarget.value })} type="time" value={schedule.from} />
+            </label>
+            <label className="field-label">
+              Until
+              <input onChange={(event) => setSchedule({ ...schedule, until: event.currentTarget.value })} type="time" value={schedule.until} />
+            </label>
+            <label className="field-label">
+              On
+              <select onChange={(event) => setSchedule({ ...schedule, on: event.currentTarget.value as Device })} value={schedule.on}>
+                <option value="any">Any device</option>
+                <option value="phone">Phones</option>
+                <option value="desktop">Computers</option>
+              </select>
+            </label>
+          </fieldset>
           {dashboards.data.length > 1 && (
             <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDeleting(true)} type="button">
               Delete this dashboard

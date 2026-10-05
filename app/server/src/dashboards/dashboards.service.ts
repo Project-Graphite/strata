@@ -35,7 +35,7 @@ const starters: Record<Template, Pick<WidgetDto, 'type' | 'size' | 'settings'>[]
   ],
 };
 
-const dashboardFields = { id: true, name: true, position: true, layout: true, updatedAt: true } satisfies Prisma.DashboardSelect;
+const dashboardFields = { id: true, name: true, position: true, layout: true, showFrom: true, showUntil: true, showOn: true, updatedAt: true } satisfies Prisma.DashboardSelect;
 
 function starterLayout(template: Template): Prisma.InputJsonObject {
   return {
@@ -161,9 +161,21 @@ export class DashboardsService {
   }
 
   async update(userId: string, dashboardId: string, input: UpdateDashboardDto) {
+    if ((input.showFrom ?? null) === null ? (input.showUntil ?? null) !== null : (input.showUntil ?? null) === null) {
+      throw new BadRequestException('Set both the start and the end of the time range');
+    }
+    if (input.showFrom != null && input.showFrom === input.showUntil) {
+      throw new BadRequestException('The time range needs a start and an end that differ');
+    }
     const [updated] = await this.prisma.dashboard.updateManyAndReturn({
       where: { id: dashboardId, userId },
-      data: { name: input.name, layout: input.layout ? checkedLayout(input.layout) : undefined },
+      data: {
+        name: input.name,
+        layout: input.layout ? checkedLayout(input.layout) : undefined,
+        showFrom: input.showFrom,
+        showUntil: input.showUntil,
+        showOn: input.showOn,
+      },
       select: dashboardFields,
     });
     if (!updated) throw new NotFoundException('Dashboard not found');
