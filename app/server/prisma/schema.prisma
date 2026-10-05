@@ -247,6 +247,9 @@ model Item {
   prices         SubscriptionPrice[]
   event          Event?
   guests         EventGuest[]
+  note           Note?               @relation("NoteItem")
+  childNotes     Note[]              @relation("NoteParent")
+  noteDocument   NoteDocument?
   tidyChanges    TidyChange[]
 
   @@index([spaceId, updatedAt])
@@ -643,4 +646,26 @@ model ExchangeRate {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("exchange_rates")
+}
+
+model Note {
+  itemId   String    @id @map("item_id") @db.Uuid
+  parentId String?   @map("parent_id") @db.Uuid
+  position Float     @default(0)
+  icon     String?
+  pinnedAt DateTime? @map("pinned_at")
+  item     Item      @relation("NoteItem", fields: [itemId], references: [id], onDelete: Cascade)
+  parent   Item?     @relation("NoteParent", fields: [parentId], references: [id], onDelete: SetNull)
+
+  @@index([parentId])
+  @@map("notes")
+}
+
+model NoteDocument {
+  itemId    String   @id @map("item_id") @db.Uuid
+  state     Bytes
+  updatedAt DateTime @updatedAt @map("updated_at")
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("note_documents")
 }

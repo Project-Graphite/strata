@@ -17,7 +17,9 @@ import { InboxModule } from './inbox/inbox.module';
 import { ItemsModule } from './items/items.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
+import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { RedisModule } from './redis/redis.module';
 import { SearchModule } from './search/search.module';
 import { ShareLinksModule } from './share-links/share-links.module';
@@ -59,6 +61,8 @@ import { WidgetsModule } from './widgets/widgets.module';
     EventsModule,
     ExchangeRatesModule,
     TidyModule,
+    NotesModule,
+    RealtimeModule,
     WidgetsModule,
     HealthModule,
   ],

@@ -18,6 +18,6 @@ import { TwoStepService } from './two-step.service';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard, PasswordService, SessionsService, TwoStepService],
-  exports: [PassportModule, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
+  exports: [PassportModule, JwtModule, JwtStrategy, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
 })
 export class AuthModule {}
