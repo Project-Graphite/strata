@@ -5,7 +5,7 @@ import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
 import { NoteHistory } from '../components/NoteHistory';
 import { noteTitle, type Note, type NoteDetails } from '../notes';
-import { useSpaces } from '../spaces';
+import { itemHref, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -18,6 +18,11 @@ export function NotePage() {
   const navigate = useNavigate();
   const note = useResource<NoteDetails>(`/notes/${id}`, true);
   const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
+  const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; title: string } }[] }>(
+    note.data ? `/items/${note.data.id}/links` : null,
+    true,
+  );
+  const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
   const renaming = useAction();
   const adding = useAction();
   const [history, setHistory] = useState(false);
@@ -82,7 +87,7 @@ export function NotePage() {
         readOnly={!details.editable}
       />
       <Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
-        <NoteEditor editable={details.editable} key={details.id} noteId={details.id} />
+        <NoteEditor editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
       </Suspense>
       {(children.length > 0 || details.editable) && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
@@ -119,6 +124,21 @@ export function NotePage() {
               Add a page inside
             </button>
           )}
+        </section>
+      )}
+      {backlinks.length > 0 && (
+        <section className="grid gap-2 border-t border-line-soft pt-6">
+          <h2 className="m-0 text-sm font-medium text-muted">Linked from</h2>
+          <ul className="m-0 grid list-none gap-1 p-0">
+            {backlinks.map(({ id: linkId, item }) => (
+              <li key={linkId}>
+                <Link className="text-ink no-underline hover:underline" to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
+                  {noteTitle(item)}
+                </Link>
+                <span className="mono-sm text-faint"> · {item.kind}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
       {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}

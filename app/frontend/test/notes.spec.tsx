@@ -180,4 +180,28 @@ describe('Notes', () => {
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'History')!.click());
     expect([...container.querySelectorAll('dialog button')].some((button) => button.textContent === 'Restore this version')).toBe(false);
   });
+
+  it('lists the pages that mention this one', async () => {
+    serve((path) => {
+      if (path === '/notes/lisbon') return json({ ...note('lisbon', 'Lisbon', 'trips'), editable: true, path: [{ id: 'trips', title: 'Trips' }] });
+      if (path === '/items/lisbon/links') {
+        return json({
+          outgoing: [],
+          backlinks: [
+            { id: 'l1', kind: 'mention', item: { id: 'plan', spaceId: 'home', kind: 'note', title: 'Holiday plan' } },
+            { id: 'l2', kind: 'reference', item: { id: 'other', spaceId: 'home', kind: 'note', title: 'Not a mention' } },
+            { id: 'l3', kind: 'mention', item: { id: 'book', spaceId: 'home', kind: 'task', title: 'Book flights' } },
+          ],
+        });
+      }
+      return undefined;
+    });
+    await render('/notes/lisbon');
+
+    const section = [...container.querySelectorAll('section')].find((candidate) => candidate.textContent?.startsWith('Linked from'))!;
+    expect([...section.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Holiday plan', '/notes/plan'],
+      ['Book flights', '/spaces/home/tasks'],
+    ]);
+  });
 });
