@@ -4,11 +4,12 @@ import { Icon, ListSkeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
+import type { Member } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { LoadError } from '../LoadError';
 import { PropertiesDialog } from './PropertiesDialog';
-import { PropertyField, propertyDisplay, type Member } from './PropertyField';
+import { PropertyField, propertyDisplay } from './PropertyField';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 

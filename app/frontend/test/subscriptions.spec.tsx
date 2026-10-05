@@ -237,4 +237,65 @@ describe('Recurring', () => {
     ]);
     expect(container.textContent).toContain('Added 1 subscription.');
   });
+
+  it('splits a shared subscription and settles up what is owed', async () => {
+    const flat = { id: 'flat', name: 'Flat', color: 'teal', kind: 'shared', role: 'editor', createdAt: '2026-10-01T00:00:00Z' };
+    const internet = { ...music, id: 'internet', spaceId: 'flat', name: 'Internet', split: null };
+    const owes = { fromUserId: 'sam', fromName: 'Sam', toUserId: 'me', toName: 'Amr', amountMinor: 2000, currency: 'EUR' };
+    let settled = false;
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, init?: RequestInit) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([flat]));
+        if (path === '/spaces/flat') return Promise.resolve(json(flat));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/spaces/flat/subscriptions') return Promise.resolve(json([internet]));
+        if (path === '/spaces/flat/members') {
+          return Promise.resolve(json([{ userId: 'me', displayName: 'Amr', role: 'owner' }, { userId: 'sam', displayName: 'Sam', role: 'editor' }]));
+        }
+        if (path === '/subscriptions/internet/split') {
+          sent.push(JSON.parse(String(init?.body)));
+          return Promise.resolve(json({ payerId: 'me', shares: [{ userId: 'me', weight: 1 }, { userId: 'sam', weight: 2 }] }));
+        }
+        if (path.startsWith('/spaces/flat/balances?month=')) {
+          return Promise.resolve(
+            json({
+              month: path.slice(-7),
+              charges: [{ itemId: 'internet', name: 'Internet', payerName: 'Amr', amountMinor: 3000, currency: 'EUR', renewals: [] }],
+              debts: settled ? [] : [owes],
+              settlements: settled ? [{ ...owes, id: 'paid' }] : [],
+            }),
+          );
+        }
+        if (path === '/spaces/flat/settlements') {
+          sent.push(JSON.parse(String(init?.body)));
+          settled = true;
+          return Promise.resolve(json({ id: 'paid' }, 201));
+        }
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await render('/spaces/flat/recurring');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Split')!.click());
+    const dialog = document.querySelector('dialog')!;
+    const samShares = dialog.querySelector<HTMLInputElement>('input[aria-label="Shares for Sam"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(samShares, '2');
+      samShares.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(dialog.textContent).toContain('67%');
+    await submit(dialog.querySelector('form')!);
+    expect(sent[0]).toEqual({ payerId: 'me', shares: [{ userId: 'me', weight: 1 }, { userId: 'sam', weight: 2 }] });
+    expect(container.textContent).toContain('split · paid by Amr');
+
+    const balances = container.querySelector('section[aria-label="Split costs"]')!;
+    expect(balances.textContent).toContain(`Sam owes Amr ${euros(2000)}`);
+    await act(async () => [...balances.querySelectorAll('button')].find((button) => button.textContent === 'Settle up')!.click());
+    expect(sent[1]).toEqual({ fromUserId: 'sam', toUserId: 'me', amountMinor: 2000, currency: 'EUR', month: new Date().toISOString().slice(0, 7) });
+    expect(container.querySelector('section[aria-label="Split costs"]')!.textContent).toContain('Everyone is square.');
+  });
 });

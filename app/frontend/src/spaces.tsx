@@ -14,6 +14,11 @@ export interface Space {
   createdAt: string;
 }
 
+export interface Member {
+  userId: string;
+  displayName: string;
+}
+
 export interface Tag {
   id: string;
   spaceId: string;

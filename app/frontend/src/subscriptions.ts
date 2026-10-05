@@ -1,3 +1,8 @@
+export interface CostSplit {
+  payerId: string;
+  shares: { userId: string; weight: number }[];
+}
+
 export interface Subscription {
   id: string;
   spaceId: string;
@@ -18,6 +23,7 @@ export interface Subscription {
   reminderDays: number | null;
   lastUsedOn: string | null;
   cancelledOn: string | null;
+  split: CostSplit | null;
 }
 
 export const categories = [

@@ -106,6 +106,10 @@ model User {
   tidyRules           TidyRule[]
   noteVersions        NoteVersion[]
   habitCheckIns       HabitCheckIn[]
+  paidSplits          CostSplit[]
+  costShares          CostShare[]
+  settlementsPaid     Settlement[]           @relation("SettlementFrom")
+  settlementsReceived Settlement[]           @relation("SettlementTo")
 
   @@map("users")
 }
@@ -205,6 +209,7 @@ model Space {
   activity        ActivityEvent[]
   tidyRules       TidyRule[]
   habits          Habit[]
+  settlements     Settlement[]
 
   @@map("spaces")
 }
@@ -257,6 +262,7 @@ model Item {
   databaseSchema DatabaseSchema?
   properties     NoteProperty[]
   tidyChanges    TidyChange[]
+  costSplit      CostSplit?
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -741,4 +747,44 @@ model HabitCheckIn {
   @@id([habitId, userId, day])
   @@index([userId, day])
   @@map("habit_check_ins")
+}
+
+model CostSplit {
+  itemId  String      @id @map("item_id") @db.Uuid
+  payerId String      @map("payer_id") @db.Uuid
+  item    Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  payer   User        @relation(fields: [payerId], references: [id], onDelete: Cascade)
+  shares  CostShare[]
+
+  @@index([payerId])
+  @@map("cost_splits")
+}
+
+model CostShare {
+  itemId String    @map("item_id") @db.Uuid
+  userId String    @map("user_id") @db.Uuid
+  weight Int       @default(1)
+  split  CostSplit @relation(fields: [itemId], references: [itemId], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, userId])
+  @@index([userId])
+  @@map("cost_shares")
+}
+
+model Settlement {
+  id          String   @id @default(uuid()) @db.Uuid
+  spaceId     String   @map("space_id") @db.Uuid
+  fromUserId  String   @map("from_user_id") @db.Uuid
+  toUserId    String   @map("to_user_id") @db.Uuid
+  amountMinor Int      @map("amount_minor")
+  currency    String
+  month       String
+  createdAt   DateTime @default(now()) @map("created_at")
+  space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  fromUser    User     @relation("SettlementFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User     @relation("SettlementTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId, month])
+  @@map("settlements")
 }

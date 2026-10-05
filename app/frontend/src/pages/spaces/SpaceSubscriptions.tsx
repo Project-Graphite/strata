@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { EmptyState, ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
+import type { Member } from '../../spaces';
 import { cycleLabel, money, shortDate, type Subscription } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
+import { SpaceBalances } from './SpaceBalances';
 import { useSpace } from './SpaceLayout';
 import { LoadError } from '../../components/LoadError';
 
@@ -21,7 +24,12 @@ export function SpaceSubscriptions() {
   );
   const action = useAction();
   const [editing, setEditing] = useState<Subscription | 'new'>();
+  const [splitting, setSplitting] = useState<Subscription>();
   const editable = space.role !== 'viewer';
+  const shared = space.kind === 'shared';
+  const members = useResource<Member[]>(shared ? `/spaces/${space.id}/members` : null, true);
+  const memberName = (userId: string) => members.data?.find((member) => member.userId === userId)?.displayName ?? 'a former member';
+  const splitVersion = (subscriptions.data ?? []).map((subscription) => JSON.stringify(subscription.split ?? null)).join();
 
   function act(subscription: Subscription, verb: 'used' | 'cancel' | 'resume', message: string) {
     void action.run(async () => {
@@ -50,6 +58,7 @@ export function SpaceSubscriptions() {
           </button>
         )}
       </div>
+      {shared && !cancelled && <SpaceBalances key={splitVersion} spaceId={space.id} />}
       {subscriptions.data.length === 0 ? (
         <EmptyState title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />
       ) : (
@@ -67,6 +76,7 @@ export function SpaceSubscriptions() {
                     cancelled ? `cancelled ${shortDate(subscription.cancelledOn!)}` : `renews ${shortDate(subscription.nextRenewal)}`,
                     subscription.trialEndsOn && !cancelled && `trial ends ${shortDate(subscription.trialEndsOn)}`,
                     subscription.paymentLabel,
+                    subscription.split && `split · paid by ${memberName(subscription.split.payerId)}`,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -83,6 +93,11 @@ export function SpaceSubscriptions() {
                       <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(subscription)} type="button">
                         Edit
                       </button>
+                      {shared && members.data && members.data.length > 1 && (
+                        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setSplitting(subscription)} type="button">
+                          Split
+                        </button>
+                      )}
                       <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => act(subscription, 'used', `Noted that you used ${subscription.name}.`)} type="button">
                         I used this
                       </button>
@@ -101,6 +116,14 @@ export function SpaceSubscriptions() {
             </li>
           ))}
         </ul>
+      )}
+      {splitting && members.data && (
+        <SplitEditor
+          members={members.data}
+          onClose={() => setSplitting(undefined)}
+          onSaved={(split) => subscriptions.mutate((current) => current.map((shown) => (shown.id === splitting.id ? { ...shown, split } : shown)))}
+          subscription={splitting}
+        />
       )}
       {editing && (
         <SubscriptionEditor

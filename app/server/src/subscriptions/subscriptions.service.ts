@@ -23,6 +23,7 @@ export const subscriptionFields = {
   createdAt: true,
   updatedAt: true,
   subscription: true,
+  costSplit: { select: { payerId: true, shares: { select: { userId: true, weight: true }, orderBy: { userId: 'asc' } } } },
 } satisfies Prisma.ItemSelect;
 
 type SubscriptionRow = Prisma.ItemGetPayload<{ select: typeof subscriptionFields }>;
@@ -50,6 +51,7 @@ function present(row: SubscriptionRow) {
     reminderDays: details.reminderDays,
     lastUsedOn: dateText(details.lastUsedOn),
     cancelledOn: dateText(details.cancelledOn),
+    split: row.costSplit,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -69,7 +71,7 @@ function checkedRule(text: string) {
   }
 }
 
-function renewalsBetween(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZone'>, from: string, to: string, limit = 400) {
+export function renewalsBetween(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZone'>, from: string, to: string, limit = 400) {
   return occurrences(
     parseRule(details.repeatRule),
     { date: dateText(details.startDate), time: '00:00', timeZone: details.timeZone },
