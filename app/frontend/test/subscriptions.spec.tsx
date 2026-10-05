@@ -186,4 +186,55 @@ describe('Recurring', () => {
     expect(container.textContent).toContain('ECB rates of');
     expect(container.textContent).toContain('Not included, with no rate available: XAU.');
   });
+
+  it('suggests subscriptions from a statement read in the browser and skips ones already tracked', async () => {
+    const created: unknown[] = [];
+    const fetchMock = serve((path, init) => {
+      if (path === '/subscriptions/summary') {
+        return json({ home: null, totals: [{ currency: 'EUR', yearlyMinor: 11_988, monthlyMinor: 999 }], categories: [], upcoming: [music], trials: [], stillWorthIt: [] });
+      }
+      if (path === '/spaces/home/subscriptions' && init?.method === 'POST') {
+        created.push(JSON.parse(String(init.body)));
+        return json(music, 201);
+      }
+      if (path === '/spaces/home/subscriptions') return json([music]);
+      return undefined;
+    });
+    await render('/recurring');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Import a statement')!.click());
+    const statement = [
+      'Booked;Payee;Amount',
+      '03/01/2026;NETFLIX.COM 866;-15,49',
+      '03/02/2026;NETFLIX.COM 866;-15,49',
+      '03/03/2026;NETFLIX.COM 866;-15,49',
+      '14/01/2026;Music Ltd;-9,99',
+      '14/02/2026;Music Ltd;-9,99',
+      '14/03/2026;Music Ltd;-9,99',
+    ].join('\n');
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Statement file"]')!;
+    Object.defineProperty(input, 'files', { value: [new File([statement], 'statement.csv', { type: 'text/csv' })] });
+    await act(async () => {
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    const dialog = document.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('6 charges read · 2 look recurring');
+    expect(dialog.textContent).toContain('already tracked in this space');
+    expect(fetchMock.mock.calls.some(([path]) => String(path).includes('statement'))).toBe(false);
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Add 1 subscription')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(created).toEqual([
+      {
+        name: 'Netflix',
+        amountMinor: 1549,
+        currency: 'EUR',
+        repeatRule: 'FREQ=MONTHLY',
+        startDate: '2026-03-03',
+        category: 'streaming',
+        cancelUrl: 'https://www.netflix.com/cancelplan',
+      },
+    ]);
+    expect(container.textContent).toContain('Added 1 subscription.');
+  });
 });

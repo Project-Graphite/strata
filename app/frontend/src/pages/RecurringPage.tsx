@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { EmptyState, ListSkeleton, PageHeader } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -6,6 +7,7 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { StatementImport } from '../components/StatementImport';
 
 interface Total {
   currency: string;
@@ -39,10 +41,27 @@ export function RecurringPage() {
   const spaces = useSpaces();
   const summary = useResource<Summary>('/subscriptions/summary', true);
   const action = useAction();
+  const [importing, setImporting] = useState(false);
 
   return (
     <section className="page-enter grid max-w-3xl gap-10">
-      <PageHeader title="Recurring" />
+      <PageHeader
+        actions={
+          spaces.data?.some((space) => space.role !== 'viewer') && (
+            <button className="secondary-button px-3 py-2 text-sm" onClick={() => setImporting(true)} type="button">
+              Import a statement
+            </button>
+          )
+        }
+        title="Recurring"
+      />
+      {importing && (
+        <StatementImport
+          defaultCurrency={summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR'}
+          onAdded={summary.reload}
+          onClose={() => setImporting(false)}
+        />
+      )}
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !summary.data ? (
