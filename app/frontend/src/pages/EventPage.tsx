@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import { EmptyState, PageSkeleton, TextField } from '@project-graphite/ui';
+import { EmptyState, Icon, PageHeader, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { EventEditor } from '../components/EventEditor';
@@ -8,6 +8,7 @@ import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
+import { LoadError } from '../components/LoadError';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -42,7 +43,7 @@ export function EventPage() {
       </EmptyState>
     );
   }
-  if (event.error) return <p className="error-message">{event.error}</p>;
+  if (event.error) return <LoadError error={event.error} onRetry={event.reload} />;
   if (!event.data) return <PageSkeleton label="Loading the event" />;
   const details = event.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
@@ -50,33 +51,35 @@ export function EventPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">event{space ? ` · ${space.name}` : ''}</p>
-          <h1 className="page-title">{details.title}</h1>
-          <p className="mt-3 mb-0 text-muted">{eventWhen(details)}</p>
-          {details.location && (
-            <p className="mt-1 mb-0 text-muted">
-              {details.location} ·{' '}
-              <a href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(details.location)}`} rel="noopener noreferrer" target="_blank">
-                map
-              </a>
-            </p>
-          )}
-          {details.meetingUrl && (
-            <p className="mt-1 mb-0">
-              <a href={details.meetingUrl} rel="noopener noreferrer" target="_blank">
-                Join the meeting
-              </a>
-            </p>
-          )}
-        </div>
-        {editable && (
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(true)} type="button">
-            Edit event
-          </button>
+      <PageHeader
+        actions={
+          editable && (
+            <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(true)} type="button">
+              <Icon name="pencil" size={16} />
+              Edit
+            </button>
+          )
+        }
+        eyebrow={space?.name}
+        title={details.title}
+      >
+        <p className="m-0">{eventWhen(details)}</p>
+        {details.location && (
+          <p className="mt-1 mb-0">
+            {details.location} ·{' '}
+            <a href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(details.location)}`} rel="noopener noreferrer" target="_blank">
+              Map
+            </a>
+          </p>
         )}
-      </div>
+        {details.meetingUrl && (
+          <p className="mt-1 mb-0">
+            <a href={details.meetingUrl} rel="noopener noreferrer" target="_blank">
+              Join the meeting
+            </a>
+          </p>
+        )}
+      </PageHeader>
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
 
       <section>
@@ -114,7 +117,6 @@ export function EventPage() {
             ))}
           </ul>
         )}
-        {removing.status}
       </section>
 
       {editable && (
@@ -146,7 +148,6 @@ export function EventPage() {
               <TextField label="Name" maxLength={80} {...form.field('name')} />
               <TextField inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
             </div>
-            {inviting.status}
             {personalLink && <CopyLink link={personalLink} />}
             <button className="primary-button inline-flex w-fit" disabled={inviting.busy} type="submit">
               Invite
@@ -155,7 +156,6 @@ export function EventPage() {
           <div className="grid gap-3">
             <h3 className="m-0 text-base font-medium">Open invitation link</h3>
             <p className="m-0 text-sm text-muted">Anyone with this link can answer with their name for 60 days. They see only this event.</p>
-            {sharing.status}
             {openLink ? (
               <CopyLink link={openLink} />
             ) : (

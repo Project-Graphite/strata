@@ -89,7 +89,7 @@ export function TidyPreview({
   }, [send, request]);
 
   return (
-    <Dialog eyebrow="tidy" onClose={onClose} title="Check before you tidy">
+    <Dialog onClose={onClose} title="Check before you tidy">
       {error ? (
         <p className="error-message mt-5">{error}</p>
       ) : !preview ? (
@@ -122,7 +122,6 @@ export function TidyPreview({
               </ul>
             </section>
           )}
-          {applying.status}
           <div className="flex justify-end gap-3">
             <button className="secondary-button" onClick={onClose} type="button">
               Close

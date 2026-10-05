@@ -1,8 +1,9 @@
-import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
+import { FormSkeleton, PageHeader, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundPage } from './NotFoundPage';
+import { LoadError } from '../components/LoadError';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -16,15 +17,12 @@ export function AdminPage() {
   const quota = useAction();
 
   if (auth.user?.role !== 'system_manager') return <NotFoundPage />;
-  if (site.error) return <p className="error-message">{site.error}</p>;
+  if (site.error) return <LoadError error={site.error} onRetry={site.reload} />;
   if (!site.data) return <FormSkeleton fields={1} />;
 
   return (
     <section className="page-enter grid max-w-3xl gap-8">
-      <div>
-        <p className="eyebrow">admin</p>
-        <h1 className="page-title">Site settings</h1>
-      </div>
+      <PageHeader title="Site settings" />
       <Toggle
         checked={site.data.inviteOnly}
         description="New accounts need an invite while this is on. People who already have an account are not affected."
@@ -41,7 +39,6 @@ export function AdminPage() {
           }, 'Could not save the setting')
         }
       />
-      {saving.status}
       <form
         className="grid max-w-sm gap-4"
         noValidate
@@ -68,7 +65,6 @@ export function AdminPage() {
           name="fileQuotaMb"
           type="number"
         />
-        {quota.status}
         <button className="primary-button inline-flex w-fit" disabled={quota.busy} type="submit">
           {quota.busy ? 'Saving…' : 'Save limit'}
         </button>

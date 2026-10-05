@@ -31,7 +31,7 @@ export function TaskEditor({
   const text = (values: FormData, name: string) => String(values.get(name) ?? '').trim();
 
   return (
-    <Dialog eyebrow="task" onClose={onClose} title={editable ? 'Edit task' : task.title}>
+    <Dialog onClose={onClose} title={editable ? 'Edit task' : task.title}>
       <form
         className="mt-5 grid gap-4"
         noValidate
@@ -133,7 +133,6 @@ export function TaskEditor({
           </div>
         </fieldset>
         <p className="mono-sm m-0 text-faint">Times are in {task.timeZone.replaceAll('_', ' ')}.</p>
-        {saving.status}
         <div className="flex justify-end gap-3">
           <button className="secondary-button" onClick={onClose} type="button">
             {editable ? 'Cancel' : 'Close'}

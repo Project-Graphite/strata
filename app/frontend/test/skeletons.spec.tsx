@@ -46,13 +46,13 @@ describe('Skeleton loaders', () => {
     );
 
     const header = container.querySelector('header')!;
-    expect(header.textContent).not.toContain('sign in');
+    expect(header.textContent).not.toContain('Sign in');
     expect(header.querySelectorAll('.skeleton')).toHaveLength(1);
     expect(container.querySelector('nav[aria-label="Main"]')?.textContent).not.toContain('Sign in');
 
     await act(async () => restore(new Response(null, { status: 401 })));
 
-    expect(header.textContent).toContain('sign in');
+    expect(header.textContent).toContain('Sign in');
     expect(header.querySelector('.skeleton')).toBeNull();
   });
 

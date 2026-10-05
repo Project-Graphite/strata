@@ -10,8 +10,7 @@ import { required, useFormErrors } from '../validation';
 function EventSummary({ event }: { event: PublicEvent }) {
   return (
     <>
-      <p className="eyebrow">invitation</p>
-      <h1 className="page-title">{event.title}</h1>
+      <h1 className="page-heading">{event.title}</h1>
       <p className="mt-4 mb-0 text-muted">{eventWhen(event)}</p>
       {event.location && <p className="mt-1 mb-0 text-muted">{event.location}</p>}
       {event.meetingUrl && (
@@ -83,7 +82,6 @@ export function RsvpPage() {
         <p className="m-0 text-ink">Hi {guest.name}.</p>
         <ResponseFields current={guest.response} />
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        {answering.status}
         <button className="primary-button" disabled={answering.busy} type="submit">
           {answering.busy ? 'Saving…' : 'Send answer'}
         </button>
@@ -112,8 +110,8 @@ export function SharePage() {
   if (!shared.data.event) {
     return (
       <section className="form-panel page-enter">
-        <p className="eyebrow">shared {shared.data.item.kind}</p>
-        <h1 className="page-title">{shared.data.item.title || 'Untitled'}</h1>
+        <p className="m-0 text-sm text-faint">Shared {shared.data.item.kind}</p>
+        <h1 className="page-heading">{shared.data.item.title || 'Untitled'}</h1>
       </section>
     );
   }
@@ -143,7 +141,6 @@ export function SharePage() {
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
         <ResponseFields />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        {answering.status}
         <button className="primary-button" disabled={answering.busy} type="submit">
           {answering.busy ? 'Saving…' : 'Send answer'}
         </button>

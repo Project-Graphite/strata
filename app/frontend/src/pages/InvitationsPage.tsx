@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ListSkeleton, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, PageHeader, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
 import { addJoinedSpace, SpaceDot, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, useFormErrors } from '../validation';
+import { LoadError } from '../components/LoadError';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
   pending: 'waiting',
@@ -35,15 +36,12 @@ export function InvitationsPage() {
 
   return (
     <section className="page-enter grid max-w-3xl gap-12">
-      <div>
-        <p className="eyebrow">invitations</p>
-        <h1 className="page-title">Invitations</h1>
-      </div>
+      <PageHeader title="Invitations" />
 
       <section>
         <h2 className="m-0 text-xl font-medium">For you</h2>
         {received.error ? (
-          <p className="error-message">{received.error}</p>
+          <LoadError error={received.error} onRetry={received.reload} />
         ) : !received.data ? (
           <ListSkeleton label="Loading your invitations" rows={2} />
         ) : received.data.length === 0 ? (
@@ -84,13 +82,12 @@ export function InvitationsPage() {
             ))}
           </ul>
         )}
-        <div className="mt-3">{answering.status}</div>
       </section>
 
       <section>
         <h2 className="m-0 text-xl font-medium">Invite someone to Strata</h2>
         <p className="mt-2 mb-0 text-sm text-muted">
-          Each invite works once, for 14 days. Leave the email empty to get a link you send yourself.
+          Each invite works once, for 14 days. Leave the email empty to get a link to send yourself.
         </p>
         <form
           className="mt-5 grid gap-4"
@@ -117,7 +114,6 @@ export function InvitationsPage() {
         >
           <TextField autoComplete="off" inputMode="email" label="Email (optional)" type="email" {...inviteForm.field('email')} />
           <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...inviteForm.field('note')} />
-          {inviting.status}
           {link && (
             <div className="flex flex-wrap items-center gap-3">
               <code className="mono-sm break-all text-ink">{link}</code>
@@ -139,7 +135,7 @@ export function InvitationsPage() {
       <section>
         <h2 className="m-0 text-xl font-medium">Sent</h2>
         {sent.error ? (
-          <p className="error-message">{sent.error}</p>
+          <LoadError error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
           <ListSkeleton label="Loading the invites you sent" rows={2} />
         ) : sent.data.length === 0 ? (

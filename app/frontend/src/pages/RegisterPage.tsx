@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { errorMessage, FormPanelSkeleton, TextField } from '@project-graphite/ui';
+import { errorMessage, FormPanelSkeleton, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ResendVerification } from '../components/ResendVerification';
 import { invitedLine, type InviteDetails } from '../invitations';
@@ -10,7 +10,7 @@ import { atLeast, atMost, emailAddress, password, required, useFormErrors } from
 export function RegisterPage() {
   const auth = useAuth();
   const form = useFormErrors();
-  const [error, setError] = useState('');
+  const show = useSnackbar();
   const [createdEmail, setCreatedEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [params] = useSearchParams();
@@ -20,7 +20,6 @@ export function RegisterPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
     if (
       !form.check(event.currentTarget, {
         displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')],
@@ -52,7 +51,7 @@ export function RegisterPage() {
       });
       setCreatedEmail(email);
     } catch (reason) {
-      setError(errorMessage(reason, 'Registration failed'));
+      show({ message: errorMessage(reason, 'Registration failed'), tone: 'error' });
     } finally {
       setBusy(false);
     }
@@ -61,8 +60,7 @@ export function RegisterPage() {
   if (createdEmail) {
     return (
       <section className="form-panel page-enter">
-        <p className="eyebrow">Almost there</p>
-        <h1 className="page-title">Check your inbox</h1>
+        <h1 className="page-heading">Check your inbox</h1>
         <p className="mt-5 text-muted">
           We sent an email to {createdEmail}. Open the verification link in it within 24 hours to
           finish setting up your account. If that address already has an account, the email explains
@@ -80,8 +78,7 @@ export function RegisterPage() {
   if (!invite.data && site.data?.inviteOnly) {
     return (
       <section className="form-panel page-enter">
-        <p className="eyebrow">Invite only</p>
-        <h1 className="page-title">Sign-up is closed for now</h1>
+        <h1 className="page-heading">Sign-up is closed for now</h1>
         <p className="mt-5 text-muted">
           {invite.error || 'Strata is taking new accounts by invitation only at the moment.'} Ask someone who
           uses Strata to invite you, then open the link in their invite.
@@ -95,8 +92,7 @@ export function RegisterPage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">Start your workspace</p>
-      <h1 className="page-title">Create your account</h1>
+      <h1 className="page-heading">Create your account</h1>
       {invite.data && <p className="mt-4 mb-0 text-muted">{invitedLine(invite.data)}</p>}
       {invite.error && <p className="error-message mt-4 mb-0">{invite.error}</p>}
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
@@ -124,7 +120,6 @@ export function RegisterPage() {
           type="password"
           {...form.field('password')}
         />
-        {error && <p className="error-message">{error}</p>}
         <button className="primary-button" disabled={busy} type="submit">
           {busy ? 'Creating…' : 'Create account'}
         </button>

@@ -10,6 +10,7 @@ import { TaskRow, type Task, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 export function SpaceTasks() {
   const auth = useAuth();
@@ -50,7 +51,7 @@ export function SpaceTasks() {
     lists.reload();
   }
 
-  if (tasks.error) return <p className="error-message">{tasks.error}</p>;
+  if (tasks.error) return <LoadError error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data || !lists.data) return <ListSkeleton label="Loading the tasks in this space" rows={5} />;
 
   return (
@@ -127,14 +128,9 @@ export function SpaceTasks() {
           )}
         </form>
       )}
-      {adding.status}
 
       {tasks.data.results.length === 0 ? (
-        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'}>
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            {completed ? 'Finished tasks are kept here.' : 'Tasks you add to this space appear here, soonest first.'}
-          </p>
-        </EmptyState>
+        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.results.map((task) => (
@@ -156,11 +152,10 @@ export function SpaceTasks() {
           ))}
         </ul>
       )}
-      {action.status}
 
       <div className="flex flex-wrap justify-between gap-4">
         <Link className="mono-sm text-faint" to={link({ completed: !completed })}>
-          {completed ? 'show open tasks' : 'show finished tasks'}
+          {completed ? 'Show open' : 'Show finished'}
         </Link>
         {editable && (
           <form

@@ -47,8 +47,9 @@ export function useResource<T>(path: string | null, authenticated = false) {
   const reload = useCallback(() => setVersion((current) => current + 1), []);
 
   const current = key && state.key === key ? state : undefined;
+  const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|`)) : true;
   return {
-    data: current?.data,
+    data: current ? current.data : key && sameViewer ? state.data : undefined,
     error: current?.error ?? '',
     status: current?.status,
     loading: Boolean(key) && !current?.error && current?.data === undefined,

@@ -7,6 +7,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace } from './SpaceLayout';
+import { LoadError } from '../../components/LoadError';
 
 interface Member {
   userId: string;
@@ -27,7 +28,7 @@ export function SpaceMembers() {
   const manages = space.role === 'owner';
   const self = auth.user?.id;
 
-  if (members.error) return <p className="error-message">{members.error}</p>;
+  if (members.error) return <LoadError error={members.error} onRetry={members.reload} />;
   if (!members.data) return <ListSkeleton label="Loading the members of this space" rows={3} />;
 
   function changeRole(member: Member, role: SpaceRole) {
@@ -89,7 +90,6 @@ export function SpaceMembers() {
           </li>
         ))}
       </ul>
-      {action.status}
       {manages && space.kind === 'shared' && <SpaceInvitations space={space} />}
 
       {removing && (
@@ -97,7 +97,6 @@ export function SpaceMembers() {
           busyLabel={removing.userId === self ? 'Leaving…' : 'Removing…'}
           confirmLabel={removing.userId === self ? 'Leave space' : 'Remove'}
           errorFallback="Could not finish this"
-          eyebrow={removing.userId === self ? 'leave space' : 'remove member'}
           onClose={() => setRemoving(undefined)}
           onConfirm={async () => {
             await auth.request(`/spaces/${space.id}/members/${removing.userId}`, { method: 'DELETE' });

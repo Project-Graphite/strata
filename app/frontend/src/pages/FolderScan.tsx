@@ -153,7 +153,6 @@ export function FolderScan() {
         >
           {scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
         </button>
-        {scanning.status}
       </div>
 
       {report && (
@@ -223,7 +222,6 @@ export function FolderScan() {
           busyLabel="Deleting…"
           confirmLabel={`Delete ${chosen.length} file${chosen.length === 1 ? '' : 's'}`}
           errorFallback="Could not delete the files"
-          eyebrow="delete files"
           onClose={() => setConfirming(false)}
           onConfirm={async () => {
             if ((await root.requestPermission({ mode: 'readwrite' })) !== 'granted') {

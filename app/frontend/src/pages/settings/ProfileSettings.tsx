@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { FormDialog } from '../../components/FormDialog';
+import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
-import { SettingsSection, type Me, type TwoStepStatus } from './SettingsLayout';
+import { SettingsRow, SettingsRows, SettingsSection, type Me, type TwoStepStatus } from './SettingsLayout';
 
 export function ProfileSettings() {
   const auth = useAuth();
@@ -15,17 +18,19 @@ export function ProfileSettings() {
   const notifications = useAction();
   const profileForm = useFormErrors();
   const emailForm = useFormErrors();
+  const [changingEmail, setChangingEmail] = useState(false);
 
-  if (me.error) return <p className="error-message">{me.error}</p>;
+  if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
+  if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
   if (!me.data || !twoStep.data) return <FormSkeleton fields={3} />;
   const current = me.data;
   const zones = [...new Set([current.timeZone, ...Intl.supportedValuesOf('timeZone')])];
 
   return (
-    <div className="fade-in grid max-w-3xl gap-12">
-      <SettingsSection description="How you appear to people in the spaces you share." title="Profile">
+    <div className="fade-in grid max-w-3xl gap-10">
+      <SettingsSection title="Profile">
         <form
-          className="mt-5 grid gap-4"
+          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -52,60 +57,69 @@ export function ProfileSettings() {
             }, 'Could not save your profile');
           }}
         >
-          <TextField
-            autoComplete="name"
-            defaultValue={current.displayName}
-            label="Display name"
-            maxLength={80}
-            {...profileForm.field('displayName')}
-          />
-          <label className="field-label">
-            Time zone
-            <select defaultValue={current.timeZone} name="timeZone">
-              {zones.map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone.replaceAll('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="mono-sm m-0 text-faint">@{current.handle} · handles cannot be changed</p>
-          {profile.status}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              autoComplete="name"
+              defaultValue={current.displayName}
+              label="Display name"
+              maxLength={80}
+              {...profileForm.field('displayName')}
+            />
+            <label className="field-label">
+              Time zone
+              <select defaultValue={current.timeZone} name="timeZone">
+                {zones.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone.replaceAll('_', ' ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <button className="primary-button inline-flex w-fit" disabled={profile.busy} type="submit">
-            {profile.busy ? 'Saving…' : 'Save profile'}
+            {profile.busy ? 'Saving…' : 'Save'}
           </button>
         </form>
       </SettingsSection>
 
-      <SettingsSection description="What Strata puts in your inbox on its own." title="Notifications">
-        <div className="mt-5 grid gap-3">
-          <Toggle
-            checked={current.tidySummary}
-            description="Every Monday at 09:00, if Tidy finds extra copies, old uploads or subscriptions to check. Nothing is sent when there is nothing to tidy."
-            disabled={notifications.busy}
-            label="Weekly Tidy summary"
-            onChange={(tidySummary) =>
-              void notifications.run(async () => {
-                const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
-                me.mutate(() => next);
-                return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
-              }, 'Could not change the setting')
+      <SettingsSection title="Account">
+        <SettingsRows>
+          <SettingsRow
+            action={
+              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setChangingEmail(true)} type="button">
+                Change
+              </button>
             }
-          />
-          {notifications.status}
-        </div>
+            label="Email"
+          >
+            {current.email}
+          </SettingsRow>
+          <SettingsRow label="Handle">@{current.handle}</SettingsRow>
+        </SettingsRows>
       </SettingsSection>
 
-      <SettingsSection
-        description={`Signed in as ${current.email}. A new address takes over once you open the link sent to it, and your current address is told about the change.`}
-        title="Email"
-      >
-        <form
-          className="mt-5 grid gap-4"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const target = event.currentTarget;
+      <SettingsSection title="Notifications">
+        <Toggle
+          checked={current.tidySummary}
+          description="Mondays at 09:00, only when Tidy finds something."
+          disabled={notifications.busy}
+          label="Weekly Tidy summary"
+          onChange={(tidySummary) =>
+            void notifications.run(async () => {
+              const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
+              me.mutate(() => next);
+              return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
+            }, 'Could not change the setting')
+          }
+        />
+      </SettingsSection>
+
+      {changingEmail && (
+        <FormDialog
+          busy={email.busy}
+          busyLabel="Sending…"
+          onClose={() => setChangingEmail(false)}
+          onSubmit={(target) => {
             if (
               !emailForm.check(target, {
                 email: [required('Enter the new email address.'), emailAddress],
@@ -124,17 +138,16 @@ export function ProfileSettings() {
                 });
                 return 'Check the new inbox for a confirmation link.';
               }, 'Could not start the email change')
-              .then((changed) => changed && target.reset());
+              .then((sent) => sent && setChangingEmail(false));
           }}
+          submitLabel="Send link"
+          title="Change email"
         >
-          <TextField autoComplete="email" inputMode="email" label="New email" type="email" {...emailForm.field('email')} />
+          <p className="m-0 text-sm text-muted">The new address takes over once you open the link we send to it.</p>
+          <TextField autoComplete="email" autoFocus inputMode="email" label="New email" type="email" {...emailForm.field('email')} />
           <ProofFields form={emailForm} twoStep={twoStep.data.enabled} />
-          {email.status}
-          <button className="secondary-button inline-flex w-fit" disabled={email.busy} type="submit">
-            {email.busy ? 'Sending…' : 'Change email'}
-          </button>
-        </form>
-      </SettingsSection>
+        </FormDialog>
+      )}
     </div>
   );
 }

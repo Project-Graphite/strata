@@ -72,7 +72,9 @@ describe('Access tokens', () => {
       ),
     );
 
-    const form = container.querySelector('form')!;
+    expect(container.querySelector('input[name="name"]')).toBeNull();
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New token')!.click());
+    const form = container.querySelector('dialog form')!;
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Backup';
     form.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'my password';
     await act(async () => {
@@ -80,7 +82,7 @@ describe('Access tokens', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/tokens', expect.objectContaining({ method: 'POST' }));
-    expect(container.querySelector('code')?.textContent).toBe(secret);
+    expect(container.querySelector('dialog code')?.textContent).toBe(secret);
     expect(container.textContent).toContain('spaces:read, items:read · never used');
   });
 });

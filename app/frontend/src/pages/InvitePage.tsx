@@ -28,8 +28,7 @@ export function InvitePage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">invitation</p>
-      <h1 className="page-title">{invitedLine(invite.data)}</h1>
+      <h1 className="page-heading">{invitedLine(invite.data)}</h1>
       {!auth.user ? (
         <>
           <p className="mt-5 text-muted">
@@ -52,7 +51,6 @@ export function InvitePage() {
         </p>
       ) : (
         <div className="mt-8 grid gap-4">
-          {joining.status}
           <button
             className="primary-button inline-flex w-fit"
             disabled={joining.busy}

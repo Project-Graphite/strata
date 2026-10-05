@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { errorMessage } from '@project-graphite/ui';
+import { errorMessage, useSnackbar } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 
 export function ResendVerification({ email }: { email: string }) {
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
-  const [error, setError] = useState('');
+  const show = useSnackbar();
 
   async function resend() {
     setState('sending');
-    setError('');
     try {
       await apiRequest('/auth/resend-verification', {
         method: 'POST',
@@ -16,7 +15,7 @@ export function ResendVerification({ email }: { email: string }) {
       });
       setState('sent');
     } catch (reason) {
-      setError(errorMessage(reason, 'Could not send the link'));
+      show({ message: errorMessage(reason, 'Could not send the link'), tone: 'error' });
       setState('idle');
     }
   }
@@ -38,7 +37,6 @@ export function ResendVerification({ email }: { email: string }) {
           </button>
         </p>
       )}
-      {error && <p className="error-message mt-2 mb-0">{error}</p>}
     </div>
   );
 }

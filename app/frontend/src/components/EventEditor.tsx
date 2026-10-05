@@ -27,7 +27,7 @@ export function EventEditor({
   const custom = event?.repeatRule && !repeatPresets.some(([value]) => value === event.repeatRule);
 
   return (
-    <Dialog eyebrow="event" onClose={onClose} title={event ? `Edit ${event.title}` : 'New event'}>
+    <Dialog onClose={onClose} title={event ? `Edit ${event.title}` : 'New event'}>
       <form
         className="mt-5 grid gap-4"
         noValidate
@@ -124,7 +124,6 @@ export function EventEditor({
         <TextField defaultValue={event?.location ?? ''} label="Where" maxLength={200} name="location" />
         <TextField defaultValue={event?.meetingUrl ?? ''} inputMode="url" label="Meeting link" {...form.field('meetingUrl')} />
         <TextAreaField defaultValue={event?.description ?? ''} label="Description" maxLength={5000} name="description" rows={3} />
-        {saving.status}
         <div className="flex justify-end gap-3">
           <button className="secondary-button" onClick={onClose} type="button">
             Cancel

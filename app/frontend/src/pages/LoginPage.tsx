@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { CodeInput, errorMessage, TextField } from '@project-graphite/ui';
+import { CodeInput, errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ResendVerification } from '../components/ResendVerification';
 import { emailAddress, required, useFormErrors } from '../validation';
@@ -11,12 +11,11 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
   const auth = useAuth();
   const form = useFormErrors();
   const [recovery, setRecovery] = useState(false);
-  const [error, setError] = useState('');
+  const show = useSnackbar();
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
     if (!form.check(event.currentTarget, { code: [required(recovery ? 'Enter a recovery code.' : 'Enter the code.')] })) {
       return;
     }
@@ -24,15 +23,14 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
     try {
       await auth.completeTwoStep(challenge, String(new FormData(event.currentTarget).get('code')).trim());
     } catch (reason) {
-      setError(errorMessage(reason, 'Sign in failed'));
+      show({ message: errorMessage(reason, 'Sign in failed'), tone: 'error' });
       setBusy(false);
     }
   }
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">Two-step sign-in</p>
-      <h1 className="page-title">Enter your code</h1>
+      <h1 className="page-heading">Enter your code</h1>
       <p className="mt-4 text-muted">
         {recovery
           ? 'Type one of the recovery codes you saved. Each one works once.'
@@ -50,7 +48,6 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
         ) : (
           <CodeInput autoFocus label="Six-digit code" {...form.field('code')} />
         )}
-        {error && <p className="error-message">{error}</p>}
         <button className="primary-button" disabled={busy} type="submit">
           {busy ? 'Checking…' : 'Sign in'}
         </button>
@@ -72,6 +69,7 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
 export function LoginPage() {
   const auth = useAuth();
   const form = useFormErrors();
+  const show = useSnackbar();
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -100,6 +98,7 @@ export function LoginPage() {
       }
     } catch (reason) {
       setError(errorMessage(reason, 'Sign in failed'));
+      show({ message: errorMessage(reason, 'Sign in failed'), tone: 'error' });
       setBusy(false);
     }
   }
@@ -110,12 +109,10 @@ export function LoginPage() {
 
   return (
     <section className="form-panel page-enter">
-      <p className="eyebrow">Welcome back</p>
-      <h1 className="page-title">Sign in</h1>
+      <h1 className="page-heading">Sign in</h1>
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
-        {error && <p className="error-message">{error}</p>}
         <button className="primary-button" disabled={busy} type="submit">
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
