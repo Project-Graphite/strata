@@ -148,6 +148,39 @@ describe('Tidy', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/tidy/apply', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Tagged 1 item Finance. You can undo it from Tidy.');
   });
+
+  it('adds a rule for a file type without words to look for', async () => {
+    const rule = { id: 'pdfs', spaceId: 'club', titleContains: '', kind: null, fileType: 'pdf', tag: finance, enabled: true, createdAt: '2026-10-05T10:00:00Z' };
+    const sent: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/spaces/club') return json(club);
+      if (path === '/spaces/club/tags') return json([finance]);
+      if (path === '/spaces/club/tidy-rules' && init?.method === 'POST') {
+        sent.push(JSON.parse(String(init.body)));
+        return json(rule, 201);
+      }
+      if (path === '/spaces/club/tidy-rules') return json([]);
+      return undefined;
+    });
+    await render('/spaces/club/tags');
+
+    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('New rule'))!;
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toContain('Enter words to look for, or choose a file type.');
+    expect(sent).toEqual([]);
+
+    form.querySelector<HTMLSelectElement>('select[name="fileType"]')!.value = 'pdf';
+    form.querySelector<HTMLSelectElement>('select[name="kind"]')!.value = 'note';
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(sent).toEqual([{ titleContains: '', fileType: 'pdf', tagId: 'finance' }]);
+    expect(container.textContent).toContain('PDFs uploaded from now on will be tagged Finance.');
+    expect(container.textContent).toContain('PDFs → Finance');
+  });
+
   it('finds duplicate files in a local folder without uploading them and deletes the chosen copy', async () => {
     const fetchMock = serve(() => undefined);
     await render('/tidy?view=folder');

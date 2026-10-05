@@ -16,7 +16,7 @@ export interface TidyBatch {
   id: string;
   action: TidyAction;
   tag: Tag | null;
-  rule: { id: string; titleContains: string } | null;
+  rule: { id: string; titleContains: string; fileType: string | null } | null;
   itemCount: number;
   remaining: number;
   createdAt: string;

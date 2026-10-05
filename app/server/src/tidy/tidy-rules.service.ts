@@ -5,6 +5,7 @@ import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { CreateTidyRuleDto } from './dto/tidy.dto';
+import { fileTypes, type FileType } from './file-types';
 
 const settleMs = 60_000;
 
@@ -13,6 +14,7 @@ const ruleFields = {
   spaceId: true,
   titleContains: true,
   kind: true,
+  fileType: true,
   enabled: true,
   createdAt: true,
   tag: { select: tagFields },
@@ -24,18 +26,20 @@ function presentRule(rule: Prisma.TidyRuleGetPayload<{ select: typeof ruleFields
     spaceId: rule.spaceId,
     titleContains: rule.titleContains,
     kind: rule.kind?.toLowerCase() ?? null,
+    fileType: rule.fileType,
     tag: presentTag(rule.tag),
     enabled: rule.enabled,
     createdAt: rule.createdAt,
   };
 }
 
-function matching(rule: { spaceId: string; titleContains: string; kind: ItemKind | null; tagId: string }) {
+function matching(rule: { spaceId: string; titleContains: string; kind: ItemKind | null; fileType: string | null; tagId: string }) {
   return {
     spaceId: rule.spaceId,
     trashedAt: null,
     kind: rule.kind ?? undefined,
-    title: { contains: rule.titleContains, mode: 'insensitive' },
+    title: rule.titleContains ? { contains: rule.titleContains, mode: 'insensitive' } : undefined,
+    file: rule.fileType ? { mimeType: fileTypes[rule.fileType as FileType] } : undefined,
     tags: { none: { tagId: rule.tagId } },
   } satisfies Prisma.ItemWhereInput;
 }
@@ -64,6 +68,7 @@ export class TidyRulesService implements OnModuleInit {
 
   async create(userId: string, spaceId: string, input: CreateTidyRuleDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
+    if (!input.titleContains && !input.fileType) throw new BadRequestException('Look for words in the title, a file type, or both');
     if (!(await this.prisma.tag.count({ where: { id: input.tagId, spaceId } }))) {
       throw new BadRequestException("Choose a tag from this rule's space");
     }
@@ -71,7 +76,8 @@ export class TidyRulesService implements OnModuleInit {
       data: {
         spaceId,
         createdById: userId,
-        titleContains: input.titleContains,
+        titleContains: input.titleContains ?? '',
+        fileType: input.fileType ?? null,
         kind: input.kind ? (input.kind.toUpperCase() as ItemKind) : null,
         tagId: input.tagId,
         checkedUntil: new Date(),
@@ -99,7 +105,7 @@ export class TidyRulesService implements OnModuleInit {
   async matches(userId: string, ruleId: string) {
     const rule = await this.prisma.tidyRule.findFirst({
       where: { id: ruleId, space: this.access.spacesOf(userId) },
-      select: { spaceId: true, titleContains: true, kind: true, tagId: true },
+      select: { spaceId: true, titleContains: true, kind: true, fileType: true, tagId: true },
     });
     if (!rule) throw new NotFoundException('Rule not found');
     const [total, items] = await this.prisma.$transaction([
@@ -118,7 +124,7 @@ export class TidyRulesService implements OnModuleInit {
     const until = new Date(now.getTime() - settleMs);
     const rules = await this.prisma.tidyRule.findMany({
       where: { enabled: true, checkedUntil: { lt: until } },
-      select: { id: true, spaceId: true, createdById: true, titleContains: true, kind: true, tagId: true, checkedUntil: true },
+      select: { id: true, spaceId: true, createdById: true, titleContains: true, kind: true, fileType: true, tagId: true, checkedUntil: true },
       take: 500,
     });
     for (const rule of rules) {

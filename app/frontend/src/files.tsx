@@ -82,3 +82,13 @@ export function FilePreview({ item }: { item: Item }) {
     <span aria-hidden="true" className="h-14 w-14 shrink-0 rounded-lg border border-line bg-surface" />
   );
 }
+
+export const fileTypeNames: Record<string, string> = {
+  image: 'Images',
+  pdf: 'PDFs',
+  document: 'Documents',
+  spreadsheet: 'Spreadsheets',
+  presentation: 'Presentations',
+  archive: 'Zip archives',
+  text: 'Text files',
+};

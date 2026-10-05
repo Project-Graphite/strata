@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
+import { fileTypeNames } from '../../files';
 import type { Tag } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -14,6 +15,7 @@ interface Rule {
   spaceId: string;
   titleContains: string;
   kind: string | null;
+  fileType: string | null;
   tag: Tag;
   enabled: boolean;
   createdAt: string;
@@ -28,6 +30,12 @@ const kindNames: Record<string, string> = {
   board: 'boards',
   file: 'files',
 };
+
+function ruleText(rule: Rule) {
+  const words = rule.titleContains && `“${rule.titleContains}” in the title`;
+  if (rule.fileType) return `${fileTypeNames[rule.fileType]}${words ? ` with ${words}` : ''}`;
+  return `Title contains “${rule.titleContains}”${rule.kind ? `, ${kindNames[rule.kind]} only` : ''}`;
+}
 
 export function TidyRules({ tags }: { tags: Tag[] }) {
   const auth = useAuth();
@@ -45,7 +53,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       <div>
         <h2 className="m-0 text-xl font-medium">Tagging rules</h2>
         <p className="mt-2 mb-0 text-sm text-muted">
-          Tag new items in this space by words in their title.
+          Tag new items in this space by words in their title, by file type, or both.
         </p>
       </div>
       {rules.error ? (
@@ -59,7 +67,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
               <li className="flex flex-wrap items-center justify-between gap-4 border-b border-line-soft py-3" key={rule.id}>
                 <div className="min-w-0">
                   <p className="m-0 flex flex-wrap items-center gap-2 text-ink">
-                    Title contains “{rule.titleContains}”{rule.kind && `, ${kindNames[rule.kind]} only`} → <TagChip color={rule.tag.color} label={rule.tag.name} />
+                    {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
                   </p>
                   <p className="mono-sm mt-1 mb-0 text-faint">{rule.enabled ? 'On' : 'Paused'}</p>
                 </div>
@@ -118,8 +126,10 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
             onSubmit={(event) => {
               event.preventDefault();
               const target = event.currentTarget;
-              if (!form.check(target, { titleContains: [required('Enter the words to look for.'), atMost(100, 'Use at most 100 characters.')] })) return;
               const values = new FormData(target);
+              const fileType = values.get('fileType');
+              const limit = atMost(100, 'Use at most 100 characters.');
+              if (!form.check(target, { titleContains: fileType ? [limit] : [required('Enter words to look for, or choose a file type.'), limit] })) return;
               void creating
                 .run(async () => {
                   const created = await auth.request<Rule>(`/spaces/${space.id}/tidy-rules`, {
@@ -127,18 +137,32 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
                     body: JSON.stringify({
                       titleContains: String(values.get('titleContains')).trim(),
                       tagId: values.get('tagId'),
-                      ...(values.get('kind') ? { kind: values.get('kind') } : {}),
+                      ...(fileType ? { fileType } : values.get('kind') ? { kind: values.get('kind') } : {}),
                     }),
                   });
                   rules.mutate((current) => [...current, created]);
-                  return `New items with “${created.titleContains}” in the title will be tagged ${created.tag.name}.`;
+                  const words = created.titleContains && `“${created.titleContains}” in the title`;
+                  return created.fileType
+                    ? `${fileTypeNames[created.fileType]} uploaded from now on${words ? ` with ${words}` : ''} will be tagged ${created.tag.name}.`
+                    : `New items with ${words} will be tagged ${created.tag.name}.`;
                 }, 'Could not add the rule')
                 .then((added) => added && target.reset());
             }}
           >
             <h3 className="m-0 text-base font-medium">New rule</h3>
             <TextField label="Title contains" maxLength={100} {...form.field('titleContains')} />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="field-label">
+                File type
+                <select defaultValue="" name="fileType">
+                  <option value="">Any</option>
+                  {Object.entries(fileTypeNames).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="field-label">
                 Kind of item
                 <select defaultValue="" name="kind">
@@ -177,9 +201,9 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
             await auth.request(`/tidy-rules/${deleting.id}`, { method: 'DELETE' });
             rules.mutate((current) => current.filter((rule) => rule.id !== deleting.id));
           }}
-          title={`Delete the rule for “${deleting.titleContains}”?`}
+          title="Delete this rule?"
         >
-          Items it already tagged keep the tag.
+          {ruleText(deleting)}. Items it already tagged keep the tag.
         </ConfirmDialog>
       )}
 

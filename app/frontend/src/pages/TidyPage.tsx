@@ -4,7 +4,7 @@ import { EmptyState, ListSkeleton, PageHeader, Tabs, timeAgo } from '@project-gr
 import { useAuth } from '../auth';
 import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
-import { fileSize } from '../files';
+import { fileSize, fileTypeNames } from '../files';
 import { useSpaces } from '../spaces';
 import { money, shortDate } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -257,7 +257,7 @@ function TidyHistory() {
                 <p className="m-0 text-ink">{batchSummary(batch)}</p>
                 <p className="mono-sm mt-1 mb-0 text-faint">
                   {timeAgo(batch.createdAt)}
-                  {batch.rule && ` · by the rule “${batch.rule.titleContains}”`}
+                  {batch.rule && ` · by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`}
                   {batch.undoneAt
                     ? ' · undone'
                     : batch.remaining < batch.itemCount && ` · ${itemsText(batch.itemCount - batch.remaining)} since deleted`}

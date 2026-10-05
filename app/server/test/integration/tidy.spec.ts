@@ -162,6 +162,29 @@ describe('Tidy against Postgres', () => {
     expect((await owner.call('GET', `/tidy-rules/${rule.id}/matches`)).status).toBe(404);
   });
 
+  it('matches rules by file type, with or without words in the title', async () => {
+    const owner = await member('filer');
+    const papers = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Papers' })).body;
+    const pdf = await file(owner, owner.personalSpaceId, 'lease.pdf', Buffer.from(`%PDF-1.4 lease ${owner.id}`));
+    await file(owner, owner.personalSpaceId, 'lease.txt', Buffer.from(`lease ${owner.id}`));
+    await strata.item(owner.personalSpaceId, 'lease notes');
+
+    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { tagId: papers.id })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { fileType: 'video', tagId: papers.id })).status).toBe(400);
+    const rule = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { fileType: 'pdf', tagId: papers.id })).body;
+    expect(rule).toMatchObject({ titleContains: '', fileType: 'pdf', kind: null });
+    expect(ids((await owner.call('GET', `/tidy-rules/${rule.id}/matches`)).body.results)).toEqual([pdf.id]);
+
+    const both = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { titleContains: 'invoice', fileType: 'pdf', tagId: papers.id })).body;
+    expect((await owner.call('GET', `/tidy-rules/${both.id}/matches`)).body.total).toBe(0);
+
+    const later = await file(owner, owner.personalSpaceId, 'invoice.pdf', Buffer.from(`%PDF-1.4 invoice ${owner.id}`));
+    await file(owner, owner.personalSpaceId, 'invoice.txt', Buffer.from(`invoice ${owner.id}`));
+    await strata.service(TidyRulesService).applyRules(new Date(Date.now() + 2 * 60_000));
+    const tagged = await strata.prisma.itemTag.findMany({ where: { tagId: papers.id }, select: { itemId: true } });
+    expect(tagged.map((entry) => entry.itemId)).toEqual([later.id]);
+  });
+
   it('schedules a weekly summary for people who turned it on and sends it only when there is clutter', async () => {
     const keen = await member('weekly');
     const quiet = await member('quiet');
