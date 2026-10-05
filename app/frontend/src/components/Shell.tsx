@@ -13,6 +13,7 @@ import {
 import { onOutage } from '../api';
 import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
+import { areaSections, moreAreas } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
@@ -94,7 +95,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
           { href: '/today', label: 'Today', icon: 'check' as const, active: pathname === '/today' },
           { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname.startsWith('/events/') },
           { href: '/spaces', label: 'Spaces', icon: 'folder' as const, active: pathname.startsWith('/spaces') },
-          { href: '/settings', label: 'Settings', icon: 'settings' as const, active: pathname.startsWith('/settings') },
+          { href: '/menu', label: 'More', icon: 'filter' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
         ]
       : [{ href: '/login', label: 'Sign in', icon: 'user' as const, active: pathname === '/login', loading: !auth.ready }]),
   ];
@@ -145,41 +146,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             <Sidebar
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={[
-                {
-                  items: [
-                    { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
-                    { active: pathname === '/today', href: '/today', icon: 'check', label: 'Today' },
-                    { active: pathname === '/agenda' || pathname.startsWith('/events/'), href: '/agenda', icon: 'calendar', label: 'Agenda' },
-                    { active: pathname === '/recurring', href: '/recurring', icon: 'repeat', label: 'Recurring' },
-                    { active: pathname === '/tidy', href: '/tidy', icon: 'sparkles', label: 'Tidy' },
-                  ],
-                },
-                {
-                  label: 'Spaces',
-                  items: [
-                    ...(spaces.data ?? []).map((space) => ({
-                      active: pathname === `/spaces/${space.id}` || pathname.startsWith(`/spaces/${space.id}/`),
-                      href: `/spaces/${space.id}`,
-                      icon: (
-                        <span aria-hidden="true" className={`tag-mark tag-${space.color}`}>
-                          {space.name.charAt(0).toUpperCase()}
-                        </span>
-                      ),
-                      label: space.name,
-                    })),
-                    { active: pathname === '/spaces', href: '/spaces', icon: 'folder', label: 'All spaces' },
-                  ],
-                },
-                {
-                  items: [
-                    { active: pathname === '/inbox', badge: unread || undefined, href: '/inbox', icon: 'bell', label: 'Inbox' },
-                    { active: pathname === '/invitations', href: '/invitations', icon: 'mail', label: 'Invitations' },
-                    { active: pathname === '/trash', href: '/trash', icon: 'trash', label: 'Trash' },
-                    { active: pathname.startsWith('/settings'), href: '/settings', icon: 'settings', label: 'Settings' },
-                  ],
-                },
-              ]}
+              sections={areaSections(pathname, spaces.data, unread)}
             />
           )
         }
