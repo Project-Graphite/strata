@@ -1,11 +1,12 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsIn, IsObject, IsOptional, IsString, Length, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Max, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const widgetTypes = ['clock', 'today', 'tasks', 'shortcuts', 'recurring', 'inbox', 'agenda', 'countdown', 'focus', 'tidy', 'weather', 'news', 'capture'] as const;
 export const widgetSizes = ['small', 'medium', 'wide', 'full'] as const;
 export const templates = ['morning', 'work', 'student', 'travel'] as const;
+export const devices = ['any', 'phone', 'desktop'] as const;
 
 export class WidgetDto {
   @IsString()
@@ -54,4 +55,22 @@ export class UpdateDashboardDto {
   @ValidateNested()
   @Type(() => LayoutDto)
   layout?: LayoutDto;
+
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  showFrom?: number | null;
+
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  showUntil?: number | null;
+
+  @IsOptionalNotNull()
+  @IsIn(devices, { message: 'Choose any device, phones or computers.' })
+  showOn?: (typeof devices)[number];
 }

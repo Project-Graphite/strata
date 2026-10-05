@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import { automaticDashboard } from '../src/dashboard/Dashboard';
 import { AuthProvider } from '../src/auth';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -16,7 +17,7 @@ const widgets = [
   { id: 'links', type: 'shortcuts', size: 'wide', settings: { links: [{ label: 'Mail', url: 'https://mail.example.com' }] } },
   { id: 'inbox', type: 'inbox', size: 'medium', settings: {} },
 ];
-const home = { id: 'home', name: 'Home', position: 0, layout: { widgets } };
+const home = { id: 'home', name: 'Home', position: 0, layout: { widgets }, showFrom: null, showUntil: null, showOn: 'any' };
 
 describe('Home dashboard', () => {
   let container: HTMLDivElement;
@@ -329,5 +330,89 @@ describe('Home dashboard', () => {
     await type('Buy bin bags\nthe big ones');
     await act(async () => button('Save as task').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/flat/tasks', expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Buy bin bags' }) }));
+  });
+
+  it('opens the dashboard that fits the time and device unless one was chosen in this visit', async () => {
+    const plain = { id: 'plain', showFrom: null, showUntil: null, showOn: 'any' as const };
+    const night = { id: 'night', showFrom: 22 * 60, showUntil: 6 * 60, showOn: 'any' as const };
+    const commute = { id: 'commute', showFrom: 7 * 60, showUntil: 9 * 60, showOn: 'phone' as const };
+    const all = [plain, night, commute];
+    expect(automaticDashboard(all, new Date(2026, 9, 5, 23, 30), false)?.id).toBe('night');
+    expect(automaticDashboard(all, new Date(2026, 9, 5, 5, 59), true)?.id).toBe('night');
+    expect(automaticDashboard(all, new Date(2026, 9, 5, 8, 0), true)?.id).toBe('commute');
+    expect(automaticDashboard(all, new Date(2026, 9, 5, 8, 0), false)?.id).toBe('plain');
+    expect(automaticDashboard([commute], new Date(2026, 9, 5, 12, 0), false)?.id).toBe('commute');
+
+    vi.useFakeTimers({ now: new Date(2026, 9, 5, 23, 0), toFake: ['Date'] });
+    sessionStorage.clear();
+    let saved: unknown;
+    const late = { ...home, id: 'late', name: 'Late', position: 1, showFrom: 22 * 60, showUntil: 6 * 60 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, init?: RequestInit) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([{ ...home, layout: { widgets: [] } }, { ...late, layout: { widgets: [] } }]));
+        if (path === '/me/dashboards/late' && init?.method === 'PATCH') {
+          saved = JSON.parse(String(init.body));
+          return Promise.resolve(json({ ...late, layout: { widgets: [] }, showFrom: 21 * 60, showOn: 'desktop' }));
+        }
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    try {
+      await act(async () =>
+        root.render(
+          <MemoryRouter initialEntries={['/']}>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </MemoryRouter>,
+        ),
+      );
+      expect(container.querySelector('h1')?.textContent).toBe('Late');
+
+      await act(async () => button('Edit').click());
+      const time = (label: string) => [...container.querySelectorAll('label')].find((candidate) => candidate.textContent?.startsWith(label))!.querySelector('input')!;
+      expect(time('From').value).toBe('22:00');
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(time('From'), '21:00');
+        time('From').dispatchEvent(new Event('input', { bubbles: true }));
+        const device = [...container.querySelectorAll('label')].find((candidate) => candidate.textContent?.startsWith('On'))!.querySelector('select')!;
+        device.value = 'desktop';
+        device.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await act(async () => button('Done').click());
+      expect(saved).toEqual({ layout: { widgets: [] }, name: 'Late', showFrom: 1260, showUntil: 360, showOn: 'desktop' });
+
+      act(() => root.unmount());
+      root = createRoot(container);
+      await act(async () =>
+        root.render(
+          <MemoryRouter initialEntries={['/?d=home']}>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </MemoryRouter>,
+        ),
+      );
+      act(() => root.unmount());
+      root = createRoot(container);
+      await act(async () =>
+        root.render(
+          <MemoryRouter initialEntries={['/']}>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </MemoryRouter>,
+        ),
+      );
+      expect(container.querySelector('h1')?.textContent).toBe('Home');
+    } finally {
+      vi.useRealTimers();
+      sessionStorage.clear();
+    }
   });
 });
