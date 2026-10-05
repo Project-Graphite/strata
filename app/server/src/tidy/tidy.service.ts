@@ -32,7 +32,7 @@ const batchFields = {
   createdAt: true,
   undoneAt: true,
   tag: { select: tagFields },
-  rule: { select: { id: true, titleContains: true } },
+  rule: { select: { id: true, titleContains: true, fileType: true } },
   _count: { select: { changes: true } },
 } satisfies Prisma.TidyBatchSelect;
 

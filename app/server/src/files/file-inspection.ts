@@ -13,14 +13,14 @@ interface Image {
 
 export const inlineTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-const officeTypes: Record<string, string> = {
+export const officeTypes = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   odt: 'application/vnd.oasis.opendocument.text',
   ods: 'application/vnd.oasis.opendocument.spreadsheet',
   odp: 'application/vnd.oasis.opendocument.presentation',
-};
+} as const;
 
 const jpegFrameMarkers = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
 const jpegMetadataMarkers = new Set([0xe1, 0xed, 0xfe]);
@@ -149,7 +149,7 @@ export function inspectFile(data: Buffer, name: string): InspectedFile | null {
   }
   if (data.toString('latin1', 0, 5) === '%PDF-') return attachment('application/pdf', data);
   if (startsWith(data, 0x50, 0x4b, 0x03, 0x04) || startsWith(data, 0x50, 0x4b, 0x05, 0x06)) {
-    return attachment(officeTypes[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/zip', data);
+    return attachment(officeTypes[(name.split('.').pop()?.toLowerCase() ?? '') as keyof typeof officeTypes] ?? 'application/zip', data);
   }
   const content = text(data);
   if (content === null) return null;

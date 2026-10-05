@@ -628,8 +628,9 @@ model TidyRule {
   id            String      @id @default(uuid()) @db.Uuid
   spaceId       String      @map("space_id") @db.Uuid
   createdById   String      @map("created_by") @db.Uuid
-  titleContains String      @map("title_contains")
+  titleContains String      @default("") @map("title_contains")
   kind          ItemKind?
+  fileType      String?     @map("file_type")
   tagId         String      @map("tag_id") @db.Uuid
   enabled       Boolean     @default(true)
   checkedUntil  DateTime    @map("checked_until")

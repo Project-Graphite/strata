@@ -1,5 +1,6 @@
 import { ArrayMaxSize, ArrayNotEmpty, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 import { itemKinds } from '../../items/dto/items.dto';
+import { fileTypes } from '../file-types';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const tidyActions = ['archive', 'trash', 'tag', 'cancel'] as const;
@@ -22,10 +23,15 @@ export class TidyActionDto {
 }
 
 export class CreateTidyRuleDto {
+  @IsOptional()
   @Trimmed()
   @IsString()
-  @Length(1, 100, { message: 'Enter 1 to 100 characters to look for.' })
-  titleContains!: string;
+  @Length(0, 100, { message: 'Look for at most 100 characters.' })
+  titleContains?: string;
+
+  @IsOptional()
+  @IsIn(Object.keys(fileTypes), { message: 'Choose a file type from the list.' })
+  fileType?: string;
 
   @IsOptional()
   @IsIn(itemKinds, { message: 'That is not a kind of item.' })
