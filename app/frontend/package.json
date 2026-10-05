@@ -25,7 +25,17 @@
     "vitest": "5.0.1"
   },
   "dependencies": {
+    "@hocuspocus/provider": "4.7.0",
     "@project-graphite/ui": "https://github.com/project-graphite/graphite-ui/releases/download/v0.3.0/project-graphite-ui-0.3.0.tgz",
-    "uqr": "0.1.3"
+    "@tiptap/core": "3.31.4",
+    "@tiptap/extension-collaboration": "3.31.4",
+    "@tiptap/extension-collaboration-caret": "3.31.4",
+    "@tiptap/extension-list": "3.31.4",
+    "@tiptap/extensions": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "uqr": "0.1.3",
+    "yjs": "13.6.33"
   }
 }

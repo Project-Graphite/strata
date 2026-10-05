@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { TagChip } from '@project-graphite/ui';
 import { FilePreview, hasPreview } from '../../files';
-import type { Item } from '../../spaces';
+import { itemHref, type Item } from '../../spaces';
 
 export function ItemList({
   actions,
@@ -18,7 +19,15 @@ export function ItemList({
         <li className="flex items-center justify-between gap-4 border-b border-line-soft py-4" key={item.id}>
           {hasPreview(item) && <FilePreview item={item} />}
           <div className="min-w-0 flex-1">
-            <p className="m-0 truncate text-ink">{item.title || 'Untitled'}</p>
+            <p className="m-0 truncate text-ink">
+              {!item.trashedAt && itemHref(item) ? (
+                <Link className="text-ink no-underline hover:underline" to={itemHref(item)!}>
+                  {item.title || 'Untitled'}
+                </Link>
+              ) : (
+                item.title || 'Untitled'
+              )}
+            </p>
             <p className="mono-sm m-0 mt-1 text-faint">
               {item.kind} · {detail(item)}
             </p>

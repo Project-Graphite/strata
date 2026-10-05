@@ -29,7 +29,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker()],
   server: {
     proxy: {
-      '/api': process.env.VITE_API_ORIGIN ?? 'http://localhost:3000',
+      '/api': { target: process.env.VITE_API_ORIGIN ?? 'http://localhost:3000', ws: true },
     },
   },
 });
