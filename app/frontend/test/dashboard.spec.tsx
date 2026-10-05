@@ -275,4 +275,59 @@ describe('Home dashboard', () => {
     expect(news.querySelector('a')?.getAttribute('rel')).toBe('noopener noreferrer');
     expect(news.textContent).toContain('1 of 3 feeds didn’t load.');
   });
+
+  it('saves a quick note as a page or as a task in the chosen space', async () => {
+    const quick = { ...home, layout: { widgets: [{ id: 'jot', type: 'capture', size: 'medium', settings: {} }] } };
+    const spaces = [
+      { id: 'mine', name: 'Mine', color: 'teal', kind: 'personal', role: 'owner', createdAt: '2026-10-01T00:00:00Z' },
+      { id: 'flat', name: 'Flat', color: 'blue', kind: 'shared', role: 'editor', createdAt: '2026-10-01T00:00:00Z' },
+      { id: 'club', name: 'Club', color: 'red', kind: 'shared', role: 'viewer', createdAt: '2026-10-01T00:00:00Z' },
+    ];
+    const fetchMock = vi.fn((input: string, init?: RequestInit) => {
+      const path = input.replace('/api/v1', '');
+      if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+      if (path === '/spaces') return Promise.resolve(json(spaces));
+      if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/me/dashboards') return Promise.resolve(json([quick]));
+      if (init?.method === 'POST') return Promise.resolve(json({ id: 'new' }, 201));
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+
+    const widget = container.querySelector('article[aria-label="Quick note"]')!;
+    const note = widget.querySelector<HTMLTextAreaElement>('textarea')!;
+    const space = widget.querySelector<HTMLSelectElement>('select')!;
+    expect([...space.options].map((option) => option.textContent)).toEqual(['Mine', 'Flat']);
+    const type = async (text: string) =>
+      act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(note, text);
+        note.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+    await type('Call the landlord\nabout the boiler');
+    await act(async () => button('Save as page').click());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/spaces/mine/notes',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Call the landlord\nabout the boiler' }) }),
+    );
+    expect(note.value).toBe('');
+
+    await act(async () => {
+      space.value = 'flat';
+      space.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await type('Buy bin bags\nthe big ones');
+    await act(async () => button('Save as task').click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/flat/tasks', expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Buy bin bags' }) }));
+  });
 });

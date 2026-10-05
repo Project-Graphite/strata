@@ -3,7 +3,7 @@ import { ArrayMaxSize, IsArray, IsIn, IsObject, IsOptional, IsString, Length, Va
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const widgetTypes = ['clock', 'today', 'tasks', 'shortcuts', 'recurring', 'inbox', 'agenda', 'countdown', 'focus', 'tidy', 'weather', 'news'] as const;
+export const widgetTypes = ['clock', 'today', 'tasks', 'shortcuts', 'recurring', 'inbox', 'agenda', 'countdown', 'focus', 'tidy', 'weather', 'news', 'capture'] as const;
 export const widgetSizes = ['small', 'medium', 'wide', 'full'] as const;
 export const templates = ['morning', 'work', 'student', 'travel'] as const;
 

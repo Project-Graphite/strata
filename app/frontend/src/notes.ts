@@ -6,6 +6,7 @@ export interface Note {
   position: number;
   icon: string | null;
   pinnedAt: string | null;
+  template: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,5 +42,12 @@ export function flattenTree(notes: Note[]) {
 export function realtimeUrl() {
   return `${window.location.origin.replace(/^http/, 'ws')}/api/v1/realtime`;
 }
+
+export const builtInTemplates = [
+  ['meeting', 'Meeting notes'],
+  ['journal', 'Journal'],
+  ['project', 'Project brief'],
+  ['recipe', 'Recipe'],
+] as const;
 
 export const noteTitle = (note: { title: string }) => note.title || 'Untitled';

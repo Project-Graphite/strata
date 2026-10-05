@@ -25,6 +25,7 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   position,
   icon: null,
   pinnedAt: null,
+  template: false,
   createdAt: '2026-10-05T10:00:00Z',
   updatedAt: '2026-10-05T10:00:00Z',
 });
@@ -33,8 +34,10 @@ const pages = [note('trips', 'Trips'), note('lisbon', 'Lisbon', 'trips'), note('
 describe('Notes', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let listed = pages;
 
   beforeEach(() => {
+    listed = pages;
     container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
@@ -52,7 +55,7 @@ describe('Notes', () => {
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
       if (path === '/spaces') return Promise.resolve(json([home]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
-      if (path === '/spaces/home/notes' && !init?.method) return Promise.resolve(json(pages));
+      if (path === '/spaces/home/notes' && !init?.method) return Promise.resolve(json(listed));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -203,5 +206,45 @@ describe('Notes', () => {
       ['Holiday plan', '/notes/plan'],
       ['Book flights', '/spaces/home/tasks'],
     ]);
+  });
+
+  it('starts pages from built-in and space templates and marks a page as a template', async () => {
+    const withTemplate = [...pages, { ...note('standup', 'Standup'), template: true }];
+    const created: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/spaces/home/notes' && init?.method === 'POST') {
+        created.push(JSON.parse(String(init.body)));
+        return json(note('fresh', 'Fresh'), 201);
+      }
+      if (path === '/notes/fresh') return json({ ...note('fresh', 'Fresh'), editable: true, path: [] });
+      if (path === '/notes/standup' && init?.method === 'PATCH') {
+        expect(JSON.parse(String(init.body))).toEqual({ template: false });
+        return json({ ...note('standup', 'Standup'), template: false });
+      }
+      if (path === '/notes/standup') return json({ ...note('standup', 'Standup'), template: true, editable: true, path: [] });
+      return undefined;
+    });
+    listed = withTemplate;
+    await render('/spaces/home/notes');
+
+    expect(container.textContent).toContain('Templates in this space');
+    expect([...container.querySelectorAll('main ul')][0]!.textContent).not.toContain('Standup');
+    const menu = container.querySelector<HTMLButtonElement>('button[aria-label="Start a page from a template"]')!;
+    await act(async () => menu.click());
+    await act(async () => [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === 'Meeting notes')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(created[0]).toEqual({ template: 'meeting', title: 'Meeting notes' });
+
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/spaces/home/notes');
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Start a page from a template"]')!.click());
+    await act(async () => [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === 'Standup')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(created[1]).toEqual({ fromNoteId: 'standup', title: 'Standup' });
+
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/notes/standup');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop using as a template')!.click());
+    expect([...container.querySelectorAll('button')].some((button) => button.textContent === 'Use as a template')).toBe(true);
   });
 });

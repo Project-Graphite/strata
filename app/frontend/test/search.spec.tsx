@@ -74,4 +74,39 @@ describe('Search palette', () => {
     expect(options).toEqual(['Flat rotanote · Flat', 'Flat billsFlat', 'Flat']);
     expect(container.querySelector<HTMLAnchorElement>('[role="option"]')?.getAttribute('href')).toBe('/notes/rota');
   });
+
+  it('creates a page in the personal space from the palette', async () => {
+    const home = { ...flat, id: 'home', name: 'Home', kind: 'personal', role: 'owner' };
+    const fetchMock = vi.fn((input: string, init?: RequestInit) => {
+      const path = input.replace('/api/v1', '');
+      if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+      if (path === '/spaces') return Promise.resolve(json([home, flat]));
+      if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/spaces/home/notes' && init?.method === 'POST') return Promise.resolve(json({ id: 'fresh' }, 201));
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+    const labels = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+    expect(labels).toEqual(expect.arrayContaining(['New page', 'New task']));
+    const task = [...container.querySelectorAll<HTMLAnchorElement>('[role="option"]')].find((option) => option.textContent === 'New task')!;
+    expect(task.getAttribute('href')).toBe('/spaces/home/tasks');
+
+    await act(async () =>
+      [...container.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'New page')!.click(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST', body: '{}' }));
+  });
 });
