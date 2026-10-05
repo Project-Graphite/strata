@@ -1,5 +1,8 @@
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
+import { IsColor } from '../../validation/color.decorator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
@@ -57,4 +60,65 @@ export class UpdateNoteDto {
   @IsOptionalNotNull()
   @IsBoolean()
   template?: boolean;
+}
+
+export class PropertyOptionDto {
+  @IsString()
+  @Length(1, 40)
+  id!: string;
+
+  @Trimmed()
+  @IsString()
+  @Length(1, 60, { message: 'Option names are 1 to 60 characters long.' })
+  name!: string;
+
+  @IsColor()
+  color!: string;
+}
+
+export class PropertyDto {
+  @IsString()
+  @Length(1, 40)
+  id!: string;
+
+  @Trimmed()
+  @IsString()
+  @Length(1, 60, { message: 'Property names are 1 to 60 characters long.' })
+  name!: string;
+
+  @IsIn(propertyTypes, { message: 'Choose a kind of property from the list.' })
+  type!: (typeof propertyTypes)[number];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50, { message: 'A property can have at most 50 options.' })
+  @ValidateNested({ each: true })
+  @Type(() => PropertyOptionDto)
+  options?: PropertyOptionDto[];
+}
+
+export class SaveDatabaseDto {
+  @IsArray()
+  @ArrayMaxSize(30, { message: 'A database can have at most 30 properties.' })
+  @ValidateNested({ each: true })
+  @Type(() => PropertyDto)
+  properties!: PropertyDto[];
+
+  @IsIn(databaseViews, { message: 'Choose table, board, list or calendar.' })
+  view!: (typeof databaseViews)[number];
+
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsString()
+  groupBy?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsString()
+  dateBy?: string | null;
+}
+
+export class SetPropertiesDto {
+  @IsObject()
+  values!: Record<string, unknown>;
 }

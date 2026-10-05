@@ -1,10 +1,12 @@
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { DatabaseView } from '../components/database/DatabaseView';
+import { PropertyField, type Member } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
 import { NoteHistory } from '../components/NoteHistory';
-import { noteTitle, type Note, type NoteDetails } from '../notes';
+import { noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -22,11 +24,18 @@ export function NotePage() {
     note.data ? `/items/${note.data.id}/links` : null,
     true,
   );
+  const members = useResource<Member[]>(
+    note.data?.row?.properties.some((property) => property.type === 'person') ? `/spaces/${note.data.spaceId}/members` : null,
+    true,
+  );
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
   const renaming = useAction();
   const adding = useAction();
   const marking = useAction();
+  const converting = useAction();
+  const setting = useAction();
   const [history, setHistory] = useState(false);
+  const [unconverting, setUnconverting] = useState(false);
 
   if (note.status === 404) {
     return (
@@ -51,8 +60,32 @@ export function NotePage() {
     }, 'Could not rename the page');
   }
 
+  function turnIntoDatabase() {
+    const option = (name: string, color: string) => ({ id: crypto.randomUUID(), name, color });
+    const status = { id: crypto.randomUUID(), name: 'Status', type: 'select', options: [option('To do', 'gray'), option('Doing', 'blue'), option('Done', 'green')] };
+    void converting.run(async () => {
+      await auth.request(`/notes/${details.id}/database`, {
+        method: 'PUT',
+        body: JSON.stringify({ properties: [status, { id: crypto.randomUUID(), name: 'Date', type: 'date' }], view: 'table', groupBy: status.id }),
+      });
+      note.mutate((current) => ({ ...current, database: true }));
+      return '';
+    }, 'Could not turn the page into a database');
+  }
+
+  function setValue(propertyId: string, value: unknown) {
+    void setting.run(async () => {
+      const saved = await auth.request<{ values: PropertyValues }>(`/notes/${details.id}/properties`, {
+        method: 'PATCH',
+        body: JSON.stringify({ values: { [propertyId]: value } }),
+      });
+      note.mutate((current) => ({ ...current, row: current.row && { ...current.row, values: saved.values } }));
+      return '';
+    }, 'Could not save that');
+  }
+
   return (
-    <article className="page-enter grid max-w-3xl gap-6">
+    <article className={`page-enter grid gap-6 ${details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
           <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
@@ -68,6 +101,16 @@ export function NotePage() {
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-4">
+          {details.editable && (
+            <button
+              className="text-button text-sm"
+              disabled={converting.busy}
+              onClick={() => (details.database ? setUnconverting(true) : turnIntoDatabase())}
+              type="button"
+            >
+              {details.database ? 'Turn back into a page' : 'Turn into a database'}
+            </button>
+          )}
           {details.editable && (
             <button
               className="text-button text-sm"
@@ -105,10 +148,29 @@ export function NotePage() {
         placeholder="Untitled"
         readOnly={!details.editable}
       />
+      {details.row && details.row.properties.length > 0 && (
+        <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
+          {details.row.properties.map((property) => (
+            <Fragment key={property.id}>
+              <dt className="text-muted">{property.name}</dt>
+              <dd className="m-0">
+                <PropertyField
+                  editable={details.editable}
+                  members={members.data ?? []}
+                  onChange={(value) => setValue(property.id, value)}
+                  property={property}
+                  value={details.row!.values[property.id]}
+                />
+              </dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
       <Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
         <NoteEditor editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
       </Suspense>
-      {(children.length > 0 || details.editable) && (
+      {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
+      {!details.database && (children.length > 0 || details.editable) && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
           <h2 className="m-0 text-sm font-medium text-muted">Pages inside</h2>
           {children.length > 0 && (
@@ -159,6 +221,21 @@ export function NotePage() {
             ))}
           </ul>
         </section>
+      )}
+      {unconverting && (
+        <ConfirmDialog
+          confirmLabel="Turn back into a page"
+          errorFallback="Could not change the page"
+          onClose={() => setUnconverting(false)}
+          onConfirm={async () => {
+            await auth.request(`/notes/${details.id}/database`, { method: 'DELETE' });
+            note.mutate((current) => ({ ...current, database: false }));
+            setUnconverting(false);
+          }}
+          title="Turn back into a page?"
+        >
+          <p className="m-0 text-sm text-muted">The pages inside stay, but the values of their properties are deleted.</p>
+        </ConfirmDialog>
       )}
       {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}
     </article>

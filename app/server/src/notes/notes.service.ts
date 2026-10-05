@@ -4,22 +4,24 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { valueMap } from './database';
 import { documentText } from './document-text';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
 import { templateDocument, textDocument, type BuiltInTemplate } from './templates';
 
-const noteFields = {
+export const noteFields = {
   id: true,
   spaceId: true,
   title: true,
   createdAt: true,
   updatedAt: true,
   note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true } },
+  databaseSchema: { select: { itemId: true } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
 
-function present(row: NoteRow) {
+export function present(row: NoteRow) {
   return {
     id: row.id,
     spaceId: row.spaceId,
@@ -29,6 +31,7 @@ function present(row: NoteRow) {
     icon: row.note?.icon ?? null,
     pinnedAt: row.note?.pinnedAt ?? null,
     template: row.note?.template ?? false,
+    database: Boolean(row.databaseSchema),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -85,7 +88,16 @@ export class NotesService {
   async get(userId: string, noteId: string) {
     const found = await this.note(userId, noteId, 'read');
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: noteFields });
-    return { ...present(row), editable: found.role !== SpaceRole.VIEWER, path: await this.ancestors(row.note?.parentId ?? null) };
+    const parentId = row.note?.parentId ?? null;
+    const database = parentId ? await this.prisma.databaseSchema.findUnique({ where: { itemId: parentId }, select: { properties: true } }) : null;
+    return {
+      ...present(row),
+      editable: found.role !== SpaceRole.VIEWER,
+      path: await this.ancestors(parentId),
+      row: database
+        ? { properties: database.properties, values: valueMap(await this.prisma.noteProperty.findMany({ where: { itemId: noteId } })) }
+        : null,
+    };
   }
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {
