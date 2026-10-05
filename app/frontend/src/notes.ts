@@ -1,3 +1,5 @@
+import type { TagColor } from '@project-graphite/ui';
+
 export interface Note {
   id: string;
   spaceId: string;
@@ -7,6 +9,7 @@ export interface Note {
   icon: string | null;
   pinnedAt: string | null;
   template: boolean;
+  database: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,7 +17,55 @@ export interface Note {
 export interface NoteDetails extends Note {
   editable: boolean;
   path: { id: string; title: string }[];
+  row: { properties: Property[]; values: PropertyValues } | null;
 }
+
+export type PropertyType = 'text' | 'number' | 'select' | 'multiSelect' | 'date' | 'checkbox' | 'person' | 'link';
+export type PropertyValues = Record<string, unknown>;
+export type DatabaseView = 'table' | 'board' | 'list' | 'calendar';
+
+export interface PropertyOption {
+  id: string;
+  name: string;
+  color: TagColor;
+}
+
+export interface Property {
+  id: string;
+  name: string;
+  type: PropertyType;
+  options?: PropertyOption[];
+}
+
+export interface DatabaseRow extends Note {
+  values: PropertyValues;
+}
+
+export interface NoteDatabase {
+  properties: Property[];
+  view: DatabaseView;
+  groupBy: string | null;
+  dateBy: string | null;
+  rows: DatabaseRow[];
+}
+
+export const propertyTypes: [PropertyType, string][] = [
+  ['text', 'Text'],
+  ['number', 'Number'],
+  ['select', 'Select'],
+  ['multiSelect', 'Multi-select'],
+  ['date', 'Date'],
+  ['checkbox', 'Checkbox'],
+  ['person', 'Person'],
+  ['link', 'Link'],
+];
+
+export const databaseViews: [DatabaseView, string][] = [
+  ['table', 'Table'],
+  ['board', 'Board'],
+  ['list', 'List'],
+  ['calendar', 'Calendar'],
+];
 
 export interface NoteBranch {
   note: Note;

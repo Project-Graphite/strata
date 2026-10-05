@@ -252,6 +252,8 @@ model Item {
   childNotes     Note[]              @relation("NoteParent")
   noteDocument   NoteDocument?
   noteVersions   NoteVersion[]
+  databaseSchema DatabaseSchema?
+  properties     NoteProperty[]
   tidyChanges    TidyChange[]
 
   @@index([spaceId, updatedAt])
@@ -684,4 +686,26 @@ model NoteVersion {
 
   @@index([itemId, createdAt])
   @@map("note_versions")
+}
+
+model DatabaseSchema {
+  itemId     String   @id @map("item_id") @db.Uuid
+  properties Json     @default("[]")
+  view       String   @default("table")
+  groupBy    String?  @map("group_by")
+  dateBy     String?  @map("date_by")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("database_schemas")
+}
+
+model NoteProperty {
+  itemId     String @map("item_id") @db.Uuid
+  propertyId String @map("property_id")
+  value      Json
+  item       Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, propertyId])
+  @@map("note_properties")
 }

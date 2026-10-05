@@ -51,6 +51,13 @@ export function addDays(key: string, days: number) {
   return dayKey(date);
 }
 
+export function monthDays(anchor: string) {
+  const date = new Date(`${anchor}T00:00:00`);
+  const first = dayKey(new Date(date.getFullYear(), date.getMonth(), 1));
+  const from = addDays(first, -((new Date(`${first}T00:00:00`).getDay() + 6) % 7));
+  return { from, to: addDays(from, 42), days: 42 };
+}
+
 export function entryDay(entry: AgendaEntry) {
   return entry.allDay ? entry.start : dayKey(new Date(entry.start));
 }

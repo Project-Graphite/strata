@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
+import { CreateNoteDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
+import { NoteDatabasesService } from './note-databases.service';
 import { NoteVersionsService } from './note-versions.service';
 import { NotesService } from './notes.service';
 
@@ -14,6 +15,7 @@ export class NotesController {
   constructor(
     private readonly notes: NotesService,
     private readonly versions: NoteVersionsService,
+    private readonly databases: NoteDatabasesService,
   ) {}
 
   @Get('spaces/:spaceId/notes')
@@ -57,5 +59,30 @@ export class NotesController {
   @Scope('items:write')
   update(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateNoteDto) {
     return this.notes.update(user.id, id, input);
+  }
+
+  @Get('notes/:id/database')
+  @Scope('items:read')
+  database(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.databases.get(user.id, id);
+  }
+
+  @Put('notes/:id/database')
+  @Scope('items:write')
+  saveDatabase(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: SaveDatabaseDto) {
+    return this.databases.save(user.id, id, input);
+  }
+
+  @Delete('notes/:id/database')
+  @Scope('items:write')
+  @HttpCode(204)
+  async removeDatabase(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    await this.databases.remove(user.id, id);
+  }
+
+  @Patch('notes/:id/properties')
+  @Scope('items:write')
+  setProperties(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: SetPropertiesDto) {
+    return this.databases.setValues(user.id, id, input);
   }
 }

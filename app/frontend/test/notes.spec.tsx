@@ -26,6 +26,7 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   icon: null,
   pinnedAt: null,
   template: false,
+  database: false,
   createdAt: '2026-10-05T10:00:00Z',
   updatedAt: '2026-10-05T10:00:00Z',
 });
@@ -246,5 +247,135 @@ describe('Notes', () => {
     await render('/notes/standup');
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop using as a template')!.click());
     expect([...container.querySelectorAll('button')].some((button) => button.textContent === 'Use as a template')).toBe(true);
+  });
+
+  const status = {
+    id: 'status',
+    name: 'Status',
+    type: 'select',
+    options: [
+      { id: 'todo', name: 'To do', color: 'gray' },
+      { id: 'done', name: 'Done', color: 'green' },
+    ],
+  };
+  const due = { id: 'due', name: 'Due', type: 'date' };
+  const cost = { id: 'cost', name: 'Cost', type: 'number' };
+  const repairs = (view: string) => ({
+    properties: [status, due, cost],
+    view,
+    groupBy: 'status',
+    dateBy: 'due',
+    rows: [
+      { ...note('boiler', 'Boiler', 'trips'), values: { status: 'todo', due: '2026-10-20', cost: 120 } },
+      { ...note('window', 'Window', 'trips'), values: { status: 'done' } },
+    ],
+  });
+
+  it('turns a page into a database and edits values in its table', async () => {
+    const sent: { path: string; method?: string; body: unknown }[] = [];
+    let converted = false;
+    serve((path, init) => {
+      if (init?.method) sent.push({ path, method: init.method, body: JSON.parse(String(init.body)) });
+      if (path === '/notes/trips' && !init?.method) return json({ ...note('trips', 'Trips'), database: converted, editable: true, path: [], row: null });
+      if (path === '/notes/trips/database' && init?.method === 'PUT') {
+        converted = true;
+        return json(repairs('table'));
+      }
+      if (path === '/notes/trips/database') return json(repairs('table'));
+      if (path === '/notes/boiler/properties') return json({ values: { status: 'todo', due: '2026-10-20', cost: 95 } });
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn into a database')!.click());
+    expect(sent[0]).toMatchObject({ path: '/notes/trips/database', method: 'PUT', body: { view: 'table' } });
+    expect((sent[0]!.body as { properties: { name: string; type: string }[] }).properties.map(({ name, type }) => `${name}:${type}`)).toEqual(['Status:select', 'Date:date']);
+
+    const table = container.querySelector('table')!;
+    expect([...table.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual(['Name', 'Status', 'Due', 'Cost']);
+    expect([...table.querySelectorAll('tbody th')].map((cell) => cell.textContent)).toEqual(['Boiler', 'Window']);
+    const costInput = table.querySelector<HTMLInputElement>('tbody tr input[aria-label="Cost"]')!;
+    expect(costInput.value).toBe('120');
+    await act(async () => {
+      costInput.value = '95';
+      costInput.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+    expect(sent[1]).toEqual({ path: '/notes/boiler/properties', method: 'PATCH', body: { values: { cost: 95 } } });
+    expect(table.querySelector<HTMLInputElement>('tbody tr input[aria-label="Cost"]')!.value).toBe('95');
+  });
+
+  it('groups database pages on a board, lists them and places them on a calendar', async () => {
+    const sent: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/notes/trips' && !init?.method) return json({ ...note('trips', 'Trips'), database: true, editable: true, path: [], row: null });
+      if (path === '/notes/trips/database' && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        sent.push(body);
+        return json(repairs(body.view));
+      }
+      if (path === '/notes/trips/database') return json(repairs('board'));
+      if (path === '/notes/window/properties') {
+        sent.push(JSON.parse(String(init!.body)));
+        return json({ values: { status: 'todo' } });
+      }
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    const columns = () => [...container.querySelectorAll<HTMLElement>('.database-column')];
+    expect(columns().map((column) => [column.getAttribute('aria-label'), [...column.querySelectorAll('article')].map((card) => card.querySelector('a')!.textContent)])).toEqual([
+      ['To do', ['Boiler']],
+      ['Done', ['Window']],
+      ['No Status', []],
+    ]);
+    const transfer = new Map<string, string>();
+    const dataTransfer = { setData: (type: string, value: string) => transfer.set(type, value), getData: (type: string) => transfer.get(type) ?? '' };
+    await act(async () => {
+      const start = new Event('dragstart', { bubbles: true });
+      Object.assign(start, { dataTransfer });
+      columns()[1]!.querySelector('article')!.dispatchEvent(start);
+      const drop = new Event('drop', { bubbles: true });
+      Object.assign(drop, { dataTransfer });
+      columns()[0]!.dispatchEvent(drop);
+    });
+    expect(sent[0]).toEqual({ values: { status: 'todo' } });
+    expect(columns()[0]!.textContent).toContain('Window');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'List')!.click());
+    expect(sent[1]).toMatchObject({ view: 'list', groupBy: 'status', dateBy: 'due' });
+    expect([...container.querySelectorAll('section[aria-label="Database"] li')].map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Boiler'),
+      expect.stringContaining('Window'),
+    ]);
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Calendar')!.click());
+    const later = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Later →')!;
+    const target = new Date(2026, 9, 20).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    for (let step = 0; step < 24 && !container.querySelector(`[role="group"][aria-label="${target}"] a`); step += 1) {
+      await act(async () => later.click());
+    }
+    expect(container.querySelector(`[role="group"][aria-label="${target}"] a`)?.textContent).toBe('Boiler');
+    expect(container.textContent).toContain('No date:');
+  });
+
+  it('shows the properties of a database page above its content and saves changes', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/boiler' && !init?.method) {
+        return json({ ...note('boiler', 'Boiler', 'trips'), editable: true, path: [{ id: 'trips', title: 'Repairs' }], row: { properties: [status, due], values: { status: 'todo' } } });
+      }
+      if (path === '/notes/boiler/properties') return json({ values: { status: 'done' } });
+      return undefined;
+    });
+    await render('/notes/boiler');
+
+    const panel = container.querySelector('dl[aria-label="Properties"]')!;
+    expect([...panel.querySelectorAll('dt')].map((term) => term.textContent)).toEqual(['Status', 'Due']);
+    const select = panel.querySelector<HTMLSelectElement>('select[aria-label="Status"]')!;
+    await act(async () => {
+      select.value = 'done';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/boiler/properties', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ values: { status: 'done' } }) }));
+    expect(panel.querySelector<HTMLSelectElement>('select[aria-label="Status"]')!.value).toBe('done');
   });
 });

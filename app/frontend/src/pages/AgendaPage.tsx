@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, PageHeader, Tabs } from '@project-graphite/ui';
-import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, type AgendaEntry } from '../agenda';
+import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, monthDays, type AgendaEntry } from '../agenda';
 import { EventEditor } from '../components/EventEditor';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
@@ -16,9 +16,7 @@ function range(view: View, anchor: string) {
     const from = addDays(anchor, -((date.getDay() + 6) % 7));
     return { from, to: addDays(from, 7), days: 7 };
   }
-  const first = dayKey(new Date(date.getFullYear(), date.getMonth(), 1));
-  const from = addDays(first, -((new Date(`${first}T00:00:00`).getDay() + 6) % 7));
-  return { from, to: addDays(from, 42), days: 42 };
+  return monthDays(anchor);
 }
 
 function EntryLine({ entry, compact = false }: { entry: AgendaEntry; compact?: boolean }) {
