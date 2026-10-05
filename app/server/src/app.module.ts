@@ -27,6 +27,7 @@ import { TagsModule } from './tags/tags.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TidyModule } from './tidy/tidy.module';
 import { UsersModule } from './users/users.module';
+import { WidgetsModule } from './widgets/widgets.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     DashboardsModule,
     EventsModule,
     TidyModule,
+    WidgetsModule,
     HealthModule,
   ],
 })

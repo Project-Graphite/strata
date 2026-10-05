@@ -226,4 +226,53 @@ describe('Home dashboard', () => {
     expect(container.querySelector('dialog')).toBeNull();
     expect(container.querySelector('h1')?.textContent).toBe('Lisbon');
   });
+
+  it('shows the weather for the chosen place and merges stories from several feeds', async () => {
+    const outside = {
+      ...home,
+      layout: {
+        widgets: [
+          { id: 'sky', type: 'weather', size: 'small', settings: { place: { name: 'Lisbon, Portugal', latitude: 38.72, longitude: -9.13 }, unit: 'celsius' } },
+          { id: 'paper', type: 'news', size: 'medium', settings: { feeds: ['https://one.example/feed', 'https://two.example/feed', 'https://down.example/feed'], count: 3 } },
+        ],
+      },
+    };
+    const fetchMock = vi.fn((input: string) => {
+      const path = input.replace('/api/v1', '');
+      if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+      if (path === '/spaces') return Promise.resolve(json([]));
+      if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/me/dashboards') return Promise.resolve(json([outside]));
+      if (path.startsWith('/widgets/weather?')) {
+        return Promise.resolve(json({ unit: 'celsius', current: { temperature: 18, code: 61, wind: 12 }, daily: [{ date: '2026-10-05', code: 61, high: 19, low: 11 }] }));
+      }
+      if (path === `/widgets/feed?url=${encodeURIComponent('https://one.example/feed')}`) {
+        return Promise.resolve(json({ title: 'One', items: [{ title: 'Older story', link: 'https://one.example/a', published: '2026-10-01T10:00:00.000Z' }] }));
+      }
+      if (path === `/widgets/feed?url=${encodeURIComponent('https://two.example/feed')}`) {
+        return Promise.resolve(json({ title: 'Two', items: [{ title: 'Newest story', link: 'https://two.example/b', published: '2026-10-04T10:00:00.000Z' }] }));
+      }
+      return Promise.resolve(json({ message: 'Could not read that feed' }, 502));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/widgets/weather?latitude=38.72&longitude=-9.13&unit=celsius', expect.anything());
+    const weather = container.querySelector('article[aria-label="Weather"]')!;
+    expect(weather.textContent).toContain('18°C');
+    expect(weather.textContent).toContain('Rain · Lisbon · wind 12 km/h');
+    const news = container.querySelector('article[aria-label="News"]')!;
+    expect([...news.querySelectorAll('a')].map((link) => link.textContent)).toEqual(['Newest story', 'Older story']);
+    expect(news.querySelector('a')?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(news.textContent).toContain('1 of 3 feeds didn’t load.');
+  });
 });

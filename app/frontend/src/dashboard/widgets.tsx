@@ -12,8 +12,10 @@ import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
+import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -21,18 +23,6 @@ export interface Widget {
   type: WidgetType;
   size: WidgetSize;
   settings: Record<string, unknown>;
-}
-
-interface WidgetProps {
-  settings: Record<string, unknown>;
-}
-
-interface SettingsProps extends WidgetProps {
-  onChange: (settings: Record<string, unknown>) => void;
-}
-
-function Empty({ children }: { children: ReactNode }) {
-  return <p className="m-0 text-sm text-muted">{children}</p>;
 }
 
 function Clock({ settings }: WidgetProps) {
@@ -487,4 +477,6 @@ export const widgetKinds: Record<
   countdown: { title: 'Countdown', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
   focus: { title: 'Focus timer', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
   tidy: { title: 'Tidy status', size: 'small', settings: {}, View: Tidy },
+  weather: { title: 'Weather', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
+  news: { title: 'News', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
 };

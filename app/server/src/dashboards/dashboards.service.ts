@@ -71,6 +71,30 @@ function validFocus({ minutes, breakMinutes }: Record<string, unknown>) {
   return (minutes === undefined || [15, 25, 50].includes(minutes as number)) && (breakMinutes === undefined || [5, 10, 15].includes(breakMinutes as number));
 }
 
+function validWeather({ place, unit }: Record<string, unknown>) {
+  const spot = place as { name?: unknown; latitude?: unknown; longitude?: unknown } | undefined;
+  return (
+    (unit === undefined || unit === 'celsius' || unit === 'fahrenheit') &&
+    (spot === undefined ||
+      (typeof spot === 'object' &&
+        spot !== null &&
+        typeof spot.name === 'string' &&
+        spot.name.length <= 120 &&
+        typeof spot.latitude === 'number' &&
+        Math.abs(spot.latitude) <= 90 &&
+        typeof spot.longitude === 'number' &&
+        Math.abs(spot.longitude) <= 180))
+  );
+}
+
+function validNews({ feeds, count }: Record<string, unknown>) {
+  return (
+    (feeds === undefined ||
+      (Array.isArray(feeds) && feeds.length <= 5 && feeds.every((feed) => typeof feed === 'string' && /^https:\/\/\S{1,492}$/.test(feed)))) &&
+    (count === undefined || [3, 5, 10].includes(count as number))
+  );
+}
+
 function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
   const ids = new Set<string>();
   for (const widget of layout.widgets) {
@@ -85,6 +109,12 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
     }
     if (widget.type === 'countdown' && !validCountdown(widget.settings)) {
       throw new BadRequestException('A countdown needs a label of up to 60 characters and a date');
+    }
+    if (widget.type === 'weather' && !validWeather(widget.settings)) {
+      throw new BadRequestException('Weather needs a place with a name and coordinates, in celsius or fahrenheit');
+    }
+    if (widget.type === 'news' && !validNews(widget.settings)) {
+      throw new BadRequestException('News takes at most 5 https:// feed addresses and shows 3, 5 or 10 stories');
     }
     if (widget.type === 'focus' && !validFocus(widget.settings)) {
       throw new BadRequestException('Focus lasts 15, 25 or 50 minutes, with a break of 5, 10 or 15 minutes');

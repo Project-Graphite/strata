@@ -21,13 +21,15 @@ describe('Dashboards against Postgres', () => {
         { id: 'c', type: 'countdown', size: 'small', settings: { label: 'Trip', date: '2026-12-20' } },
         { id: 'd', type: 'focus', size: 'small', settings: { minutes: 50, breakMinutes: 10 } },
         { id: 'e', type: 'tidy', size: 'small', settings: {} },
+        { id: 'f', type: 'weather', size: 'small', settings: { place: { name: 'Lisbon, Portugal', latitude: 38.72, longitude: -9.13 }, unit: 'celsius' } },
+        { id: 'g', type: 'news', size: 'medium', settings: { feeds: ['https://example.com/feed.xml'], count: 5 } },
       ],
     };
     const saved = await owner.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Mornings', layout });
     expect(saved.body).toMatchObject({ name: 'Mornings', layout });
 
     for (const [widgets, reason] of [
-      [[{ id: 'a', type: 'weather', size: 'small', settings: {} }], 'unknown widget'],
+      [[{ id: 'a', type: 'lottery', size: 'small', settings: {} }], 'unknown widget'],
       [[{ id: 'a', type: 'today', size: 'huge', settings: {} }], 'unknown size'],
       [[{ id: 'a', type: 'today', size: 'small', settings: {} }, { id: 'a', type: 'inbox', size: 'small', settings: {} }], 'repeated id'],
       [[{ id: 'a', type: 'shortcuts', size: 'small', settings: { links: [{ label: 'Bad', url: 'http://example.com' }] } }], 'plain http link'],
@@ -35,6 +37,8 @@ describe('Dashboards against Postgres', () => {
       [[{ id: 'a', type: 'countdown', size: 'small', settings: { label: 'Trip', date: 'soon' } }], 'countdown without a date'],
       [[{ id: 'a', type: 'countdown', size: 'small', settings: { label: 'x'.repeat(61), date: '2026-12-20' } }], 'long countdown label'],
       [[{ id: 'a', type: 'focus', size: 'small', settings: { minutes: 90 } }], 'unsupported focus length'],
+      [[{ id: 'a', type: 'weather', size: 'small', settings: { place: { name: 'Nowhere', latitude: 95, longitude: 0 } } }], 'impossible latitude'],
+      [[{ id: 'a', type: 'news', size: 'small', settings: { feeds: ['http://example.com/feed'] } }], 'plain http feed'],
     ] as const) {
       expect({ reason, status: (await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: { widgets } })).status }).toEqual({
         reason,
