@@ -1,5 +1,5 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
-import { SpaceRole } from '@prisma/client';
+import { ItemKind, SpaceRole } from '@prisma/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
@@ -204,5 +204,40 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(kept.map(({ createdAt }) => createdAt.toISOString())).toEqual(
       [at(120, 9), at(115, 9), at(10, 15), at(1, 9), at(1, 10)].map((date) => date.toISOString()),
     );
+  });
+
+  it('turns mentions and images into links, and never links what the writer cannot read', async () => {
+    const owner = await member('linker');
+    const stranger = await member('private');
+    const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Hub' })).body;
+    const target = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Target' })).body;
+    const hidden = (await stranger.call('POST', `/spaces/${stranger.personalSpaceId}/notes`, { title: 'Hidden' })).body;
+    const picture = await strata.item(owner.personalSpaceId, 'photo.png', ItemKind.FILE);
+    const realtime = strata.service(RealtimeService);
+
+    const editing = await open(owner, note.id);
+    const paragraph = new Y.XmlElement('paragraph');
+    const mention = new Y.XmlElement('mention');
+    mention.setAttribute('id', target.id);
+    const secret = new Y.XmlElement('mention');
+    secret.setAttribute('id', hidden.id);
+    paragraph.insert(0, [new Y.XmlText('See '), mention, secret]);
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', picture.id);
+    editing.document.getXmlFragment('default').push([paragraph, image]);
+    const links = () => strata.prisma.itemLink.findMany({ where: { sourceItemId: note.id }, orderBy: { kind: 'asc' }, select: { kind: true, targetItemId: true } });
+
+    await until(async () => textOf(realtime.hocuspocus.documents.get(note.id)!), (text) => text.includes('mention'));
+    realtime.hocuspocus.flushPendingStores();
+    expect(await until(links, (rows) => rows.length === 2)).toEqual([
+      { kind: 'MENTION', targetItemId: target.id },
+      { kind: 'ATTACHMENT', targetItemId: picture.id },
+    ]);
+    expect((await owner.call('GET', `/items/${target.id}/links`)).body.backlinks).toEqual([expect.objectContaining({ kind: 'mention', item: expect.objectContaining({ id: note.id }) })]);
+
+    editing.document.transact(() => paragraph.delete(1, 2));
+    await until(async () => textOf(realtime.hocuspocus.documents.get(note.id)!), (text) => !text.includes('mention'));
+    realtime.hocuspocus.flushPendingStores();
+    expect(await until(links, (rows) => rows.length === 1)).toEqual([{ kind: 'ATTACHMENT', targetItemId: picture.id }]);
   });
 });

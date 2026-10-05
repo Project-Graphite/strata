@@ -4,13 +4,18 @@ import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import * as Y from 'yjs';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
+import { maxUploadBytes, preparedUpload } from '../files';
 import { realtimeUrl } from '../notes';
+import type { Item } from '../spaces';
+import { mentionExtension, StoredImageExtension } from './note-extensions';
 
 interface Connection {
   document: Y.Doc;
@@ -68,9 +73,10 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-function CollaborativeEditor({ connection, editable }: { connection: Connection; editable: boolean }) {
+function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connection: Connection; editable: boolean; noteId: string; spaceId: string }) {
   const auth = useAuth();
   const show = useSnackbar();
+  const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [unsynced, setUnsynced] = useState(0);
@@ -86,11 +92,47 @@ function CollaborativeEditor({ connection, editable }: { connection: Connection;
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
+        mentionExtension(auth.request, noteId),
+        StoredImageExtension,
       ],
-      editorProps: { attributes: { 'aria-label': 'Page content', class: 'note-content' } },
+      editorProps: {
+        attributes: { 'aria-label': 'Page content', class: 'note-content' },
+        handleClickOn: (_view, _position, node) => {
+          if (node.type.name !== 'mention' || !node.attrs.href) return false;
+          navigate(String(node.attrs.href));
+          return true;
+        },
+        handlePaste: (view, event) => insertImages(view, [...(event.clipboardData?.files ?? [])]),
+        handleDrop: (view, event) => insertImages(view, [...((event as DragEvent).dataTransfer?.files ?? [])]),
+      },
     },
     [connection],
   );
+
+  function insertImages(view: EditorView, files: File[]) {
+    const images = files.filter((file) => file.type.startsWith('image/'));
+    if (!editable || images.length === 0) return false;
+    void (async () => {
+      for (const file of images) {
+        if (file.size > maxUploadBytes) {
+          show({ message: `${file.name} is over 25 MB.`, tone: 'error' });
+          continue;
+        }
+        try {
+          const uploaded = await auth.request<Item>(`/spaces/${spaceId}/files`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+            body: await preparedUpload(file),
+          });
+          const image = view.state.schema.nodes.image!.create({ fileId: uploaded.id, alt: file.name });
+          view.dispatch(view.state.tr.replaceSelectionWith(image));
+        } catch {
+          show({ message: `Could not upload ${file.name}.`, tone: 'error' });
+        }
+      }
+    })();
+    return true;
+  }
 
   useEffect(() => {
     const { provider } = connection;
@@ -153,7 +195,7 @@ function CollaborativeEditor({ connection, editable }: { connection: Connection;
   );
 }
 
-export default function NoteEditor({ editable, noteId }: { editable: boolean; noteId: string }) {
+export default function NoteEditor({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
   const auth = useAuth();
   const [connection, setConnection] = useState<Connection>();
   const accessToken = useRef(auth.accessToken);
@@ -175,5 +217,5 @@ export default function NoteEditor({ editable, noteId }: { editable: boolean; no
   }, [noteId]);
 
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
-  return <CollaborativeEditor connection={connection} editable={editable} />;
+  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} spaceId={spaceId} />;
 }

@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ItemKind, SpaceRole } from '@prisma/client';
+import { ItemKind, LinkKind, SpaceRole } from '@prisma/client';
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { JwtStrategy } from '../auth/jwt.strategy';
-import { documentText } from '../notes/document-text';
+import { documentLinks, documentText } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const realtimePath = '/api/v1/realtime';
@@ -19,6 +19,7 @@ const maxDocumentBytes = 5 * 1024 * 1024;
 const maxDocumentsPerSocket = 20;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
+const maxLinksPerNote = 200;
 
 export interface RealtimeContext {
   userId: string;
@@ -88,6 +89,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
             data: { updatedById: lastContext?.userId ?? undefined, updatedAt: new Date() },
           }),
         ]);
+        if (lastContext?.userId) await this.syncLinks(documentName, document, lastContext.userId);
         await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },
       onDisconnect: async ({ clientsCount, context, document, documentName, socketId }) => {
@@ -112,6 +114,29 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     this.hocuspocus.flushPendingStores();
     for (const client of this.sockets.clients) client.terminate();
     this.sockets.close();
+  }
+
+  async syncLinks(noteId: string, document: Y.Doc, userId: string) {
+    const { files, mentions } = documentLinks(document);
+    for (const [kind, wanted] of [
+      [LinkKind.MENTION, mentions],
+      [LinkKind.ATTACHMENT, files],
+    ] as const) {
+      wanted.delete(noteId);
+      const existing = await this.prisma.itemLink.findMany({ where: { sourceItemId: noteId, kind }, select: { id: true, targetItemId: true } });
+      const stale = existing.filter((link) => !wanted.has(link.targetItemId)).map((link) => link.id);
+      if (stale.length) await this.prisma.itemLink.deleteMany({ where: { id: { in: stale } } });
+      const known = new Set(existing.map((link) => link.targetItemId));
+      for (const targetItemId of [...wanted].filter((id) => !known.has(id)).slice(0, maxLinksPerNote)) {
+        const readable = await this.access.assertItem(userId, targetItemId, 'read').then(
+          () => true,
+          () => false,
+        );
+        if (readable) {
+          await this.prisma.itemLink.createMany({ data: [{ sourceItemId: noteId, targetItemId, kind, createdById: userId }], skipDuplicates: true });
+        }
+      }
+    }
   }
 
   async snapshot(itemId: string, state: Uint8Array, userId: string | null, sessionEnded: boolean) {
