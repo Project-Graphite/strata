@@ -13,6 +13,7 @@ import { InvitePage } from './pages/InvitePage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
+import { MenuPage } from './pages/MenuPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
@@ -120,6 +121,14 @@ export function App() {
             element={
               <Protected>
                 <RecurringPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="menu"
+            element={
+              <Protected>
+                <MenuPage />
               </Protected>
             }
           />
