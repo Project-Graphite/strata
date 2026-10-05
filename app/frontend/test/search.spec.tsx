@@ -72,6 +72,6 @@ describe('Search palette', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/search?q=fla', expect.anything());
     const options = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
     expect(options).toEqual(['Flat rotanote · Flat', 'Flat billsFlat', 'Flat']);
-    expect(container.querySelector<HTMLAnchorElement>('[role="option"]')?.getAttribute('href')).toBe('/spaces/flat');
+    expect(container.querySelector<HTMLAnchorElement>('[role="option"]')?.getAttribute('href')).toBe('/notes/rota');
   });
 });

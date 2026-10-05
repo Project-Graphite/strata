@@ -50,6 +50,7 @@ interface AuthContextValue {
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
   updateUser(changes: Partial<Pick<User, 'displayName' | 'timeZone'>>): void;
+  accessToken(): string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -180,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const active = current.current;
         if (active) applySession({ ...active, user: { ...active.user, ...changes } });
       },
+      accessToken: () => current.current?.accessToken ?? '',
     }),
     [applySession, ready, request, session],
   );

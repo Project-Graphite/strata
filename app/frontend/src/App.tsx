@@ -15,6 +15,7 @@ import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
 import { MenuPage } from './pages/MenuPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { NotePage } from './pages/NotePage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
 import { RsvpPage, SharePage } from './pages/RsvpPages';
@@ -29,6 +30,7 @@ import { SpaceActivity } from './pages/spaces/SpaceActivity';
 import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
 import { SpaceMembers } from './pages/spaces/SpaceMembers';
+import { SpaceNotes } from './pages/spaces/SpaceNotes';
 import { SpacesPage } from './pages/spaces/SpacesPage';
 import { SpaceSubscriptions } from './pages/spaces/SpaceSubscriptions';
 import { SpaceTags } from './pages/spaces/SpaceTags';
@@ -91,6 +93,7 @@ export function App() {
             }
           >
             <Route index element={<SpaceItems />} />
+            <Route path="notes" element={<SpaceNotes />} />
             <Route path="tasks" element={<SpaceTasks />} />
             <Route path="recurring" element={<SpaceSubscriptions />} />
             <Route path="tags" element={<SpaceTags />} />
@@ -105,6 +108,14 @@ export function App() {
             element={
               <Protected>
                 <AgendaPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="notes/:id"
+            element={
+              <Protected>
+                <NotePage />
               </Protected>
             }
           />

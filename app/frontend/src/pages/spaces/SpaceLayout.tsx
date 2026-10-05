@@ -27,6 +27,7 @@ export function SpaceLayout() {
   const base = `/spaces/${space.id}`;
   const tabs = [
     [base, 'Items'],
+    [`${base}/notes`, 'Notes'],
     [`${base}/tasks`, 'Tasks'],
     [`${base}/recurring`, 'Recurring'],
     [`${base}/tags`, 'Tags'],

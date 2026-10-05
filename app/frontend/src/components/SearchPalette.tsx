@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CommandPalette, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { useSpaces, type Tag } from '../spaces';
+import { itemHref, useSpaces, type Tag } from '../spaces';
 
 interface SearchResults {
   items: { id: string; spaceId: string; spaceName: string; kind: string; title: string; archived: boolean }[];
@@ -57,16 +57,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
       hint: `${item.kind} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
-      href:
-        item.kind === 'task'
-          ? `/spaces/${item.spaceId}/tasks`
-          : item.kind === 'event'
-            ? `/events/${item.id}`
-            : item.kind === 'subscription'
-            ? `/spaces/${item.spaceId}/recurring`
-          : item.kind === 'list'
-            ? `/spaces/${item.spaceId}/tasks?list=${item.id}`
-            : `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
+      href: itemHref(item) ?? `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
       id: `item-${item.id}`,
       label: item.title || 'Untitled',
     })),
