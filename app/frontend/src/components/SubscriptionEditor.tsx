@@ -1,5 +1,6 @@
 import { Dialog, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { catalogue, knownService } from '../catalogue';
 import { billingCycles, categories, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
@@ -76,7 +77,29 @@ export function SubscriptionEditor({
             .then((saved) => saved && onClose());
         }}
       >
-        <TextField defaultValue={subscription?.name} label="Name" maxLength={100} {...form.field('name')} />
+        <TextField
+          autoComplete="off"
+          defaultValue={subscription?.name}
+          label="Name"
+          list="known-services"
+          maxLength={100}
+          {...form.field('name')}
+          onInput={(event) => {
+            form.field('name').onInput();
+            const known = knownService(event.currentTarget.value);
+            const fields = event.currentTarget.form?.elements;
+            if (!known || subscription || !fields) return;
+            const category = fields.namedItem('category');
+            const cancelUrl = fields.namedItem('cancelUrl');
+            if (category instanceof HTMLSelectElement && category.value === 'other') category.value = known.category;
+            if (cancelUrl instanceof HTMLInputElement && !cancelUrl.value) cancelUrl.value = known.cancelUrl;
+          }}
+        />
+        <datalist id="known-services">
+          {catalogue.map((service) => (
+            <option key={service.name} value={service.name} />
+          ))}
+        </datalist>
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField
             defaultValue={subscription ? fromMinor(subscription.amountMinor, subscription.currency) : ''}

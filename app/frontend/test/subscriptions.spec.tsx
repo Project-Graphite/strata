@@ -144,4 +144,46 @@ describe('Recurring', () => {
     expect(container.textContent).toContain('Still worth it?');
     expect(container.textContent).toContain('Old app');
   });
+
+  it('fills the category and cancel link for a known service', async () => {
+    serve((path) => (path === '/spaces/home/subscriptions' ? json([]) : undefined));
+    await render('/spaces/home/recurring');
+
+    const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Add subscription')!;
+    await act(async () => add.click());
+    const form = document.querySelector('dialog form') as HTMLFormElement;
+    expect([...form.querySelectorAll('datalist option')].map((option) => option.getAttribute('value'))).toContain('Netflix');
+    const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+    name.value = 'netflix';
+    await act(async () => {
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(form.querySelector<HTMLSelectElement>('select[name="category"]')!.value).toBe('streaming');
+    expect(form.querySelector<HTMLInputElement>('input[name="cancelUrl"]')!.value).toBe('https://www.netflix.com/cancelplan');
+  });
+
+  it('adds up every currency in the home currency at ECB rates', async () => {
+    serve((path) =>
+      path === '/subscriptions/summary'
+        ? json({
+            home: { currency: 'EUR', yearlyMinor: 24_000, monthlyMinor: 2000, ratesOn: '2026-10-05', missing: ['XAU'] },
+            totals: [
+              { currency: 'EUR', yearlyMinor: 11_988, monthlyMinor: 999 },
+              { currency: 'USD', yearlyMinor: 12_000, monthlyMinor: 1000 },
+            ],
+            categories: [],
+            upcoming: [],
+            trials: [],
+            stillWorthIt: [],
+          })
+        : undefined,
+    );
+    await render('/recurring');
+
+    expect(container.textContent).toContain('All together, in EUR');
+    expect(container.textContent).toContain(`≈ ${euros(2000)} a month`);
+    expect(container.textContent).toContain('ECB rates of');
+    expect(container.textContent).toContain('Not included, with no rate available: XAU.');
+  });
 });

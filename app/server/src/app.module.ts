@@ -10,6 +10,7 @@ import { validateEnvironment } from './config/environment';
 import { CryptoModule } from './crypto/crypto.module';
 import { DashboardsModule } from './dashboards/dashboards.module';
 import { EventsModule } from './events/events.module';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { InboxModule } from './inbox/inbox.module';
@@ -56,6 +57,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     SubscriptionsModule,
     DashboardsModule,
     EventsModule,
+    ExchangeRatesModule,
     TidyModule,
     WidgetsModule,
     HealthModule,
