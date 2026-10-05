@@ -145,4 +145,39 @@ describe('Notes', () => {
     await render('/notes/gone');
     expect(container.textContent).toContain('Page not found');
   });
+
+  it('previews an earlier version and restores it, but only for editors', async () => {
+    const versions = [
+      { id: 'v2', createdAt: '2026-10-05T11:00:00Z', createdBy: 'Sam' },
+      { id: 'v1', createdAt: '2026-10-05T09:00:00Z', createdBy: 'Amr' },
+    ];
+    let editable = true;
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable, path: [] });
+      if (path === '/notes/trips/versions') return json(versions);
+      if (path === '/notes/trips/versions/v1') return json({ id: 'v1', createdAt: versions[1]!.createdAt, text: 'Lisbon\nPorto' });
+      if (path === '/notes/trips/versions/v1/restore' && init?.method === 'POST') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'History')!.click());
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('Sam');
+    const restore = [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Restore this version')!;
+    expect(restore.disabled).toBe(true);
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent?.includes('Amr'))!.click());
+    expect(dialog.textContent).toContain('Lisbon\nPorto');
+    await act(async () => restore.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/trips/versions/v1/restore', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Restored.');
+
+    editable = false;
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/notes/trips');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'History')!.click());
+    expect([...container.querySelectorAll('dialog button')].some((button) => button.textContent === 'Restore this version')).toBe(false);
+  });
 });

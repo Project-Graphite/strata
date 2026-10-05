@@ -104,6 +104,7 @@ model User {
   dashboards          Dashboard[]
   tidyBatches         TidyBatch[]
   tidyRules           TidyRule[]
+  noteVersions        NoteVersion[]
 
   @@map("users")
 }
@@ -250,6 +251,7 @@ model Item {
   note           Note?               @relation("NoteItem")
   childNotes     Note[]              @relation("NoteParent")
   noteDocument   NoteDocument?
+  noteVersions   NoteVersion[]
   tidyChanges    TidyChange[]
 
   @@index([spaceId, updatedAt])
@@ -668,4 +670,17 @@ model NoteDocument {
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@map("note_documents")
+}
+
+model NoteVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  state       Bytes
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([itemId, createdAt])
+  @@map("note_versions")
 }

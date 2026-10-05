@@ -1,8 +1,9 @@
-import { Fragment, lazy, Suspense } from 'react';
+import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
+import { NoteHistory } from '../components/NoteHistory';
 import { noteTitle, type Note, type NoteDetails } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -19,6 +20,7 @@ export function NotePage() {
   const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
   const renaming = useAction();
   const adding = useAction();
+  const [history, setHistory] = useState(false);
 
   if (note.status === 404) {
     return (
@@ -45,19 +47,24 @@ export function NotePage() {
 
   return (
     <article className="page-enter grid max-w-3xl gap-6">
-      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-        <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
-          {space?.name ?? 'Space'}
-        </Link>
-        {details.path.map((step) => (
-          <Fragment key={step.id}>
-            <span aria-hidden="true">/</span>
-            <Link className="text-muted no-underline hover:text-ink" to={`/notes/${step.id}`}>
-              {noteTitle(step)}
-            </Link>
-          </Fragment>
-        ))}
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+          <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
+            {space?.name ?? 'Space'}
+          </Link>
+          {details.path.map((step) => (
+            <Fragment key={step.id}>
+              <span aria-hidden="true">/</span>
+              <Link className="text-muted no-underline hover:text-ink" to={`/notes/${step.id}`}>
+                {noteTitle(step)}
+              </Link>
+            </Fragment>
+          ))}
+        </nav>
+        <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
+          History
+        </button>
+      </div>
       <input
         aria-label="Page title"
         className="note-title"
@@ -114,6 +121,7 @@ export function NotePage() {
           )}
         </section>
       )}
+      {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}
     </article>
   );
 }
