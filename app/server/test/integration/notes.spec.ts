@@ -3,6 +3,7 @@ import { SpaceRole } from '@prisma/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
+import { NoteVersionsService } from '../../src/notes/note-versions.service';
 import { RealtimeService } from '../../src/realtime/realtime.service';
 import { integrationApp, type Member } from './harness';
 
@@ -137,7 +138,10 @@ describe('Notes and real-time editing against Postgres', () => {
 
     const refused = await new Promise<number>((resolve) => {
       const socket = new WebSocket(`${strata.base.replace(/^http/, 'ws')}/api/v1/realtime`, { origin: 'https://evil.example' });
-      socket.on('unexpected-response', (_request, response) => resolve(response.statusCode ?? 0));
+      socket.on('unexpected-response', (_request, response) => {
+        resolve(response.statusCode ?? 0);
+        socket.terminate();
+      });
       socket.on('open', () => resolve(101));
     });
     expect(refused).toBe(403);
@@ -149,5 +153,55 @@ describe('Notes and real-time editing against Postgres', () => {
     await strata.prisma.spaceMember.delete({ where: { spaceId_userId: { spaceId: space.id, userId: guest.id } } });
     await realtime.recheckAccess();
     expect(await until(async () => connections(), (count) => count === 0)).toBe(0);
+  });
+
+  it('keeps versions when editing sessions end, previews and restores them, and thins old ones', async () => {
+    const owner = await member('historian');
+    const viewer = await member('reviewer');
+    const space = (await owner.call('POST', '/spaces', { name: 'Drafts' })).body;
+    await strata.join(space.id, viewer, SpaceRole.VIEWER);
+    const note = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Speech' })).body;
+    const realtime = strata.service(RealtimeService);
+
+    const first = await open(owner, note.id);
+    write(first.document, 'First draft');
+    await settle(300);
+    first.provider.destroy();
+    const listed = await until(
+      async () => (await owner.call('GET', `/notes/${note.id}/versions`)).body as { id: string; createdBy: string }[],
+      (versions) => versions.length === 1,
+    );
+    expect(listed).toEqual([expect.objectContaining({ createdBy: 'historian' })]);
+    expect((await owner.call('GET', `/notes/${note.id}/versions/${listed[0]!.id}`)).body.text).toBe('First draft');
+
+    const second = await open(owner, note.id);
+    write(second.document, 'Second paragraph');
+    await until(async () => textOf(realtime.hocuspocus.documents.get(note.id)!), (text) => text.includes('Second paragraph'));
+    realtime.hocuspocus.flushPendingStores();
+    await settle(300);
+    expect((await owner.call('GET', `/notes/${note.id}/versions`)).body).toHaveLength(1);
+
+    expect((await viewer.call('GET', `/notes/${note.id}/versions`)).status).toBe(200);
+    expect((await viewer.call('POST', `/notes/${note.id}/versions/${listed[0]!.id}/restore`)).status).toBe(403);
+    expect((await owner.call('POST', `/notes/${note.id}/versions/${listed[0]!.id}/restore`)).status).toBe(204);
+    await until(async () => textOf(second.document), (text) => !text.includes('Second paragraph'));
+    expect(textOf(second.document)).toContain('First draft');
+    expect(textOf(second.document)).not.toContain('Second paragraph');
+    const afterRestore = (await owner.call('GET', `/notes/${note.id}/versions`)).body as { id: string }[];
+    expect(afterRestore).toHaveLength(2);
+    expect((await owner.call('GET', `/notes/${note.id}/versions/${afterRestore[0]!.id}`)).body.text).toBe('First draft\nSecond paragraph');
+
+    const now = new Date('2026-10-05T12:00:00Z');
+    const at = (daysAgo: number, hour: number) => new Date(Date.UTC(2026, 9, 5 - daysAgo, hour));
+    const state = Buffer.from(Y.encodeStateAsUpdate(new Y.Doc()));
+    await strata.prisma.noteVersion.deleteMany({ where: { itemId: note.id } });
+    await strata.prisma.noteVersion.createMany({
+      data: [at(1, 9), at(1, 10), at(10, 9), at(10, 15), at(120, 9), at(118, 9), at(115, 9)].map((createdAt) => ({ itemId: note.id, state, createdAt })),
+    });
+    await strata.service(NoteVersionsService).thin(now);
+    const kept = await strata.prisma.noteVersion.findMany({ where: { itemId: note.id }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } });
+    expect(kept.map(({ createdAt }) => createdAt.toISOString())).toEqual(
+      [at(120, 9), at(115, 9), at(10, 15), at(1, 9), at(1, 10)].map((date) => date.toISOString()),
+    );
   });
 });

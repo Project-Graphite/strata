@@ -18,6 +18,7 @@ const maxUpdateBytes = 2 * 1024 * 1024;
 const maxDocumentBytes = 5 * 1024 * 1024;
 const maxDocumentsPerSocket = 20;
 const recheckMs = 60_000;
+const versionEveryMs = 15 * 60 * 1000;
 
 export interface RealtimeContext {
   userId: string;
@@ -68,7 +69,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (stored) Y.applyUpdate(document, new Uint8Array(stored.state));
         return document;
       },
-      onStoreDocument: async ({ document, documentName, lastContext }) => {
+      onStoreDocument: async ({ clientsCount, document, documentName, lastContext }) => {
         const state = Y.encodeStateAsUpdate(document);
         if (state.byteLength > maxDocumentBytes) {
           this.logger.warn(`Note ${documentName} is over the size limit and was not saved`);
@@ -87,8 +88,10 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
             data: { updatedById: lastContext?.userId ?? undefined, updatedAt: new Date() },
           }),
         ]);
+        await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },
-      onDisconnect: async ({ documentName, socketId }) => {
+      onDisconnect: async ({ clientsCount, context, document, documentName, socketId }) => {
+        if (clientsCount === 0 && context) await this.snapshot(documentName, Y.encodeStateAsUpdate(document), context.userId, true);
         const open = this.documentsPerSocket.get(socketId);
         open?.delete(documentName);
         if (open?.size === 0) this.documentsPerSocket.delete(socketId);
@@ -107,7 +110,45 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     clearInterval(this.recheck);
     this.hocuspocus.closeConnections();
     this.hocuspocus.flushPendingStores();
+    for (const client of this.sockets.clients) client.terminate();
     this.sockets.close();
+  }
+
+  async snapshot(itemId: string, state: Uint8Array, userId: string | null, sessionEnded: boolean) {
+    if (state.byteLength > maxDocumentBytes) return;
+    const latest = await this.prisma.noteVersion.findFirst({
+      where: { itemId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, state: true },
+    });
+    if (latest && Buffer.compare(Buffer.from(latest.state), Buffer.from(state)) === 0) return;
+    if (latest && !sessionEnded && Date.now() - latest.createdAt.getTime() < versionEveryMs) return;
+    const empty = Y.encodeStateAsUpdate(new Y.Doc());
+    if (!latest && Buffer.compare(Buffer.from(empty), Buffer.from(state)) === 0) return;
+    await this.prisma.noteVersion.create({ data: { itemId, state: Buffer.from(state), createdById: userId } });
+  }
+
+  async restore(itemId: string, versionState: Uint8Array, context: RealtimeContext) {
+    const direct = await this.hocuspocus.openDirectConnection(itemId, context);
+    try {
+      await this.snapshot(itemId, Y.encodeStateAsUpdate(direct.document!), context.userId, true);
+      await direct.transact((document) => {
+        const snapshot = new Y.Doc();
+        Y.applyUpdate(snapshot, versionState);
+        const target = document.getXmlFragment('default');
+        target.delete(0, target.length);
+        target.insert(
+          0,
+          snapshot
+            .getXmlFragment('default')
+            .toArray()
+            .filter((node): node is Y.XmlElement | Y.XmlText => !(node instanceof Y.XmlHook))
+            .map((node) => node.clone()),
+        );
+      });
+    } finally {
+      await direct.disconnect();
+    }
   }
 
   async recheckAccess() {

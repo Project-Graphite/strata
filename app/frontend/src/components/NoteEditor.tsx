@@ -7,6 +7,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { IndexeddbPersistence } from 'y-indexeddb';
 import * as Y from 'yjs';
 import { useAuth } from '../auth';
 import { realtimeUrl } from '../notes';
@@ -118,7 +119,17 @@ function CollaborativeEditor({ connection, editable }: { connection: Connection;
 
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   const label =
-    status === 'disconnected' ? 'Offline. Reconnecting…' : status === 'connecting' ? 'Connecting…' : unsynced > 0 ? 'Saving…' : editable ? 'Saved' : 'View only';
+    status === 'disconnected'
+      ? editable
+        ? 'Offline. Changes are kept on this device'
+        : 'Offline'
+      : status === 'connecting'
+        ? 'Connecting…'
+        : unsynced > 0
+          ? 'Saving…'
+          : editable
+            ? 'Saved'
+            : 'View only';
 
   return (
     <div className="note-editor grid gap-3">
@@ -150,6 +161,7 @@ export default function NoteEditor({ editable, noteId }: { editable: boolean; no
 
   useEffect(() => {
     const document = new Y.Doc();
+    const drafts = new IndexeddbPersistence(`strata-note-${noteId}`, document);
     const websocketProvider = new HocuspocusProviderWebsocket({ url: realtimeUrl() });
     const provider = new HocuspocusProvider({ name: noteId, document, websocketProvider, token: () => accessToken.current() });
     provider.attach();
@@ -157,6 +169,7 @@ export default function NoteEditor({ editable, noteId }: { editable: boolean; no
     return () => {
       provider.destroy();
       websocketProvider.destroy();
+      void drafts.destroy();
       document.destroy();
     };
   }, [noteId]);
