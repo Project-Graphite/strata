@@ -118,18 +118,15 @@ export class WeeklyReviewService implements OnModuleInit {
     return { noteId: note.id };
   }
 
-  private async parent(userId: string, spaceId: string) {
-    const oldest = () =>
-      this.prisma.item.findFirst({
+  private parent(userId: string, spaceId: string) {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${parentTitle}:${spaceId}`}::text))`;
+      const existing = await this.prisma.item.findFirst({
         where: { spaceId, kind: ItemKind.NOTE, title: parentTitle, trashedAt: null, note: { parentId: null } },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        orderBy: { createdAt: 'asc' },
         select: { id: true },
       });
-    const existing = await oldest();
-    if (existing) return existing.id;
-    const created = await this.notes.create(userId, spaceId, { title: parentTitle });
-    const kept = (await oldest())!;
-    if (kept.id !== created.id) await this.prisma.item.delete({ where: { id: created.id } });
-    return kept.id;
+      return existing?.id ?? (await this.notes.create(userId, spaceId, { title: parentTitle })).id;
+    });
   }
 }
