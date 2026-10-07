@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, IsTimeZone, IsUrl, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsTimeZone, IsUrl, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
@@ -120,4 +120,33 @@ export class OpenRsvpDto extends RsvpDto {
   @IsString()
   @Length(1, 80, { message: 'Names are 1 to 80 characters long.' })
   name!: string;
+}
+
+class PollOptionDto {
+  @DateText()
+  startsOn!: string;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @TimeText()
+  startTime?: string | null;
+}
+
+export class SetPollDto {
+  @IsArray()
+  @ArrayMinSize(2, { message: 'Offer at least 2 dates.' })
+  @ArrayMaxSize(10, { message: 'Offer at most 10 dates.' })
+  @ValidateNested({ each: true })
+  @Type(() => PollOptionDto)
+  options!: PollOptionDto[];
+}
+
+export class PollVotesDto {
+  @IsObject({ message: 'Answer yes, maybe or no for each date.' })
+  votes!: Record<string, 'yes' | 'maybe' | 'no'>;
+}
+
+export class PickPollOptionDto {
+  @IsUUID('all', { message: 'Choose one of the dates.' })
+  optionId!: string;
 }

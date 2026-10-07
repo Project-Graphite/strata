@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import { EmptyState, Icon, PageHeader, PageSkeleton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, Icon, PageHeader, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
+import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { EventEditor } from '../components/EventEditor';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -28,9 +29,13 @@ export function EventPage() {
   const auth = useAuth();
   const spaces = useSpaces();
   const event = useResource<EventDetails>(`/events/${id}`, true);
+  const poll = useResource<{ options: PollOption[] }>(`/events/${id}/poll`, true);
   const inviting = useAction();
   const sharing = useAction();
   const removing = useAction();
+  const voting = useAction();
+  const [planning, setPlanning] = useState(false);
+  const [picking, setPicking] = useState<PollOption>();
   const form = useFormErrors();
   const [editing, setEditing] = useState(false);
   const [personalLink, setPersonalLink] = useState('');
@@ -48,6 +53,15 @@ export function EventPage() {
   const details = event.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const editable = space ? space.role !== 'viewer' : false;
+  const options = poll.data?.options ?? [];
+
+  function vote(optionId: string, answer: PollAnswer) {
+    void voting.run(async () => {
+      const saved = await auth.request<{ options: PollOption[] }>(`/events/${details.id}/poll/votes`, { method: 'PUT', body: JSON.stringify({ votes: { [optionId]: answer } }) });
+      poll.mutate(() => saved);
+      return '';
+    }, 'Could not save your answer');
+  }
 
   return (
     <section className="page-enter grid max-w-3xl gap-10">
@@ -81,6 +95,56 @@ export function EventPage() {
         )}
       </PageHeader>
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
+
+      {poll.data && (options.length > 0 || (editable && !details.repeatRule)) && (
+        <section className="grid gap-3">
+          <h2 className="m-0 text-xl font-medium">Date poll</h2>
+          {planning ? (
+            <PollEditor
+              onCancel={() => setPlanning(false)}
+              onSave={async (chosen) => {
+                const saved = await auth.request<{ options: PollOption[] }>(`/events/${details.id}/poll`, { method: 'PUT', body: JSON.stringify({ options: chosen }) });
+                poll.mutate(() => saved);
+                setPlanning(false);
+              }}
+              options={options}
+            />
+          ) : options.length > 0 ? (
+            <>
+              <p className="m-0 text-sm text-muted">Members answer here, and guests from their invitation link.</p>
+              <PollOptions busy={voting.busy} onPick={editable ? setPicking : undefined} onVote={vote} options={options} />
+              {editable && (
+                <div className="flex flex-wrap gap-2">
+                  <button className="secondary-button px-3 py-2 text-sm" onClick={() => setPlanning(true)} type="button">
+                    Change dates
+                  </button>
+                  <button
+                    className="text-button text-sm"
+                    disabled={voting.busy}
+                    onClick={() =>
+                      void voting.run(async () => {
+                        await auth.request(`/events/${details.id}/poll`, { method: 'DELETE' });
+                        poll.mutate(() => ({ options: [] }));
+                        return 'The poll is closed.';
+                      }, 'Could not close the poll')
+                    }
+                    type="button"
+                  >
+                    Close the poll
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="m-0 text-sm text-muted">Not sure when yet? Offer a few dates and let members and guests say which work.</p>
+              <button className="secondary-button w-fit px-3 py-2 text-sm" onClick={() => setPlanning(true)} type="button">
+                Offer dates
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="m-0 text-xl font-medium">Guests</h2>
@@ -181,6 +245,22 @@ export function EventPage() {
         </section>
       )}
 
+      {picking && (
+        <ConfirmDialog
+          confirmLabel="Use this date"
+          errorFallback="Could not move the event"
+          onClose={() => setPicking(undefined)}
+          onConfirm={async () => {
+            const saved = await auth.request<EventDetails>(`/events/${details.id}/poll/pick`, { method: 'POST', body: JSON.stringify({ optionId: picking.id }) });
+            event.mutate(() => saved);
+            poll.mutate(() => ({ options: [] }));
+            setPicking(undefined);
+          }}
+          title={`Move the event to ${optionLabel(picking)}?`}
+        >
+          <p className="m-0 text-sm text-muted">The poll closes and the other dates are dropped.</p>
+        </ConfirmDialog>
+      )}
       {editing && <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} />}
     </section>
   );

@@ -126,4 +126,76 @@ describe('Agenda and RSVP', () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/rsvp/${code}`, expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('your answer is saved');
   });
+
+  it('lets a guest say which of the offered dates work', async () => {
+    const option = { id: 'fri', startsOn: '2026-11-06', startTime: '20:00', yes: 1, maybe: 0, no: 0, mine: null };
+    const sent: unknown[] = [];
+    serve(false, (path, init) => {
+      if (path === `/rsvp/${code}/poll` && init?.method === 'PUT') {
+        sent.push(JSON.parse(String(init.body)));
+        return json({ options: [{ ...option, yes: 2, mine: 'yes' }] });
+      }
+      if (path === `/rsvp/${code}/poll`) return json({ options: [option] });
+      if (path === `/rsvp/${code}`) return json({ event: party, guest: { name: 'Sam', response: 'pending', note: null } });
+      return undefined;
+    });
+    await render(`/rsvp/${code}`);
+
+    expect(container.textContent).toContain('Which of these work for you?');
+    expect(container.textContent).toContain('1 yes · 0 maybe · 0 no');
+    const yes = container.querySelector<HTMLButtonElement>('[role="group"] button')!;
+    await act(async () => yes.click());
+    expect(sent).toEqual([{ votes: { fri: 'yes' } }]);
+    expect(yes.getAttribute('aria-pressed')).toBe('true');
+    expect(container.textContent).toContain('2 yes · 0 maybe · 0 no');
+    expect(container.textContent).not.toContain('Pick this date');
+  });
+
+  it('lets an organiser offer dates, see who answered and pick one', async () => {
+    const details = { ...party, id: 'party', spaceId: 'club', reminderMinutes: null, guests: [], headcount: { yes: 0, no: 0, maybe: 0, pending: 0 } };
+    const option = (id: string, startsOn: string) => ({ id, startsOn, startTime: null, yes: 0, maybe: 0, no: 0, mine: null, voters: [] });
+    const sent: { path: string; body: unknown }[] = [];
+    serve(true, (path, init) => {
+      if (init?.method === 'PUT' && path === '/events/party/poll') {
+        sent.push({ path, body: JSON.parse(String(init.body)) });
+        return json({ options: [option('a', '2026-11-06'), { ...option('b', '2026-11-07'), yes: 1, voters: [{ name: 'Sam', answer: 'yes' }] }] });
+      }
+      if (init?.method === 'POST' && path === '/events/party/poll/pick') {
+        sent.push({ path, body: JSON.parse(String(init.body)) });
+        return json({ ...details, startsOn: '2026-11-07', endsOn: '2026-11-07' });
+      }
+      if (path === '/events/party/poll') return json({ options: [] });
+      if (path === '/events/party') return json(details);
+      return undefined;
+    });
+    await render('/events/party');
+
+    const button = (label: string) => [...document.querySelectorAll('button')].find((candidate) => candidate.textContent === label)!;
+    await act(async () => button('Offer dates').click());
+    const set = (label: string, value: string) => {
+      const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    await act(async () => {
+      set('Date 1', '2026-11-06');
+      set('Date 2', '2026-11-07');
+    });
+    await act(async () => button('Save dates').click());
+    expect(sent[0]).toEqual({
+      path: '/events/party/poll',
+      body: {
+        options: [
+          { startsOn: '2026-11-06', startTime: null },
+          { startsOn: '2026-11-07', startTime: null },
+        ],
+      },
+    });
+    expect(container.textContent).toContain('Sam (yes)');
+
+    await act(async () => [...container.querySelectorAll('button')].filter((candidate) => candidate.textContent === 'Pick this date')[1]!.click());
+    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Use this date')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(sent[1]).toEqual({ path: '/events/party/poll/pick', body: { optionId: 'b' } });
+    expect(container.textContent).not.toContain('Pick this date');
+  });
 });
