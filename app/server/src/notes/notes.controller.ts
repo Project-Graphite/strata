@@ -18,6 +18,12 @@ export class NotesController {
     private readonly databases: NoteDatabasesService,
   ) {}
 
+  @Get('me/pages')
+  @Scope('items:read')
+  mine(@CurrentUser() user: AuthenticatedUser) {
+    return this.notes.mine(user.id);
+  }
+
   @Get('spaces/:spaceId/notes')
   @Scope('items:read')
   list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {

@@ -5,6 +5,7 @@ import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
+import type { Note } from '../notes';
 import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { useSpaces } from '../spaces';
@@ -17,7 +18,7 @@ import { Capture } from './capture-widget';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -441,6 +442,42 @@ function Habits() {
   );
 }
 
+function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
+  const spaces = useSpaces();
+  return (
+    <section className="grid gap-1">
+      <h3 className="mono-sm m-0 text-faint">{heading}</h3>
+      <ul className="m-0 grid list-none gap-1.5 p-0">
+        {pages.map((page) => (
+          <li className="text-sm" key={page.id}>
+            <Link className="text-ink no-underline hover:underline" to={`/notes/${page.id}`}>
+              {page.icon ? `${page.icon} ` : ''}
+              {page.title || 'Untitled'}
+            </Link>
+            <span className="mono-sm block text-faint">
+              {spaces.data?.find((space) => space.id === page.spaceId)?.name} · {timeAgo(page.updatedAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Pages() {
+  const pages = useResource<{ pinned: Note[]; recent: Note[] }>('/me/pages', true);
+  if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
+  if (!pages.data) return <ListSkeleton label="Loading your pages" rows={4} />;
+  const { pinned, recent } = pages.data;
+  if (pinned.length === 0 && recent.length === 0) return <Empty>No pages yet. Write one in a space’s Notes tab.</Empty>;
+  return (
+    <div className="grid gap-3">
+      {pinned.length > 0 && <PageLinks heading="Pinned" pages={pinned} />}
+      {recent.length > 0 && <PageLinks heading="Recently edited" pages={recent} />}
+    </div>
+  );
+}
+
 function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true);
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
@@ -499,4 +536,5 @@ export const widgetKinds: Record<
   news: { title: 'News', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
   capture: { title: 'Quick note', size: 'medium', settings: {}, View: Capture },
   habits: { title: 'Habits', size: 'medium', settings: {}, View: Habits },
+  pages: { title: 'Pinned and recent pages', size: 'medium', settings: {}, View: Pages },
 };
