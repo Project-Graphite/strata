@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseFeed } from '../src/widgets/feed';
-import { checkedUrl, fetchPublic, isPublicAddress, UnsafeUrlError } from '../src/widgets/safe-fetch';
+import { checkedUrl, fetchPublic, isPublicAddress, postPublic, UnsafeUrlError } from '../src/widgets/safe-fetch';
 
 describe('parseFeed', () => {
   it('reads RSS items with entities, CDATA and dates, and drops unsafe links', () => {
@@ -52,5 +52,10 @@ describe('the feed address guard', () => {
     for (const url of ['https://localhost/feed', 'https://127.0.0.1/feed', 'https://[::1]/feed', 'https://169.254.169.254/latest/meta-data', 'https://10.0.0.1/']) {
       await expect(fetchPublic(url, { accept: '*/*', maxBytes: 1024, timeoutMs: 2_000 })).rejects.toBeInstanceOf(UnsafeUrlError);
     }
+  });
+
+  it('explains in plain words when an address cannot be found', async () => {
+    await expect(postPublic('https://strata-webhook.invalid/in', '{}', {}, 5_000)).rejects.toThrow(/^That address could not be found$/);
+    await expect(fetchPublic('https://strata-feed.invalid/feed', { accept: '*/*', maxBytes: 1024, timeoutMs: 5_000 })).rejects.toThrow(/^That address could not be found$/);
   });
 });
