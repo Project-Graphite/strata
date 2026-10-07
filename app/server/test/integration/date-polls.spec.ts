@@ -45,6 +45,8 @@ describe('Date polls against Postgres', () => {
       { id: saturday.id, startsOn: '2026-11-07', startTime: '23:00', yes: 1, maybe: 1, no: 0, mine: 'yes' },
     ]);
     expect((await strata.anonymous('PUT', `/rsvp/${guest}/poll`, { votes: { 'not-an-option': 'yes' } })).status).toBe(400);
+    const open = (await host.call('POST', `/items/${dinner.id}/share-links`, { access: 'view' })).body.link.split('/share/')[1];
+    expect((await strata.anonymous('GET', `/share/${open}`)).body.datePoll).toBe(true);
 
     await host.call('PUT', `/events/${dinner.id}/poll`, {
       options: [
@@ -63,6 +65,7 @@ describe('Date polls against Postgres', () => {
     expect(picked).toMatchObject({ startsOn: '2026-11-07', startTime: '23:00', endsOn: '2026-11-08', endTime: '02:30' });
     expect((await host.call('GET', `/events/${dinner.id}/poll`)).body.options).toEqual([]);
     expect((await strata.anonymous('GET', `/rsvp/${guest}/poll`)).body.options).toEqual([]);
+    expect((await strata.anonymous('GET', `/share/${open}`)).body.datePoll).toBe(false);
   });
 
   it('keeps repeating events out of polls', async () => {

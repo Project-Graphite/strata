@@ -8,11 +8,11 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
 
-function EventSummary({ event }: { event: PublicEvent }) {
+function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boolean }) {
   return (
     <>
       <h1 className="page-heading">{event.title}</h1>
-      <p className="mt-4 mb-0 text-muted">{eventWhen(event)}</p>
+      <p className="mt-4 mb-0 text-muted">{undecided ? 'Date to be decided' : eventWhen(event)}</p>
       {event.location && <p className="mt-1 mb-0 text-muted">{event.location}</p>}
       {event.meetingUrl && (
         <p className="mt-1 mb-0">
@@ -62,7 +62,7 @@ export function RsvpPage() {
 
   return (
     <section className="form-panel page-enter">
-      <EventSummary event={event} />
+      <EventSummary event={event} undecided={Boolean(poll.data?.options.length)} />
       <form
         className="mt-8 grid gap-5"
         noValidate
@@ -115,7 +115,7 @@ export function RsvpPage() {
 export function SharePage() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
-  const shared = useResource<{ access: string; item: { kind: string; title: string }; event: PublicEvent | null }>(
+  const shared = useResource<{ access: string; item: { kind: string; title: string }; event: PublicEvent | null; datePoll: boolean }>(
     `/share/${encodeURIComponent(code)}`,
   );
   const answering = useAction();
@@ -140,7 +140,7 @@ export function SharePage() {
 
   return (
     <section className="form-panel page-enter">
-      <EventSummary event={shared.data.event} />
+      <EventSummary event={shared.data.event} undecided={shared.data.datePoll} />
       <form
         className="mt-8 grid gap-5"
         noValidate
@@ -160,6 +160,7 @@ export function SharePage() {
           }, 'Could not save your answer');
         }}
       >
+        {shared.data.datePoll && <p className="m-0 text-sm text-muted">The date isn’t fixed yet. Answer here, then say which of the suggested dates work.</p>}
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
         <ResponseFields />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />

@@ -66,7 +66,7 @@ export class ShareLinksService {
   async open(code: string) {
     const link = await this.prisma.shareLink.findFirst({
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
-      select: { access: true, item: { select: { kind: true, title: true, event: true } } },
+      select: { access: true, item: { select: { kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 } } } },
     });
     if (!link) {
       throw new NotFoundException('This link has expired or was turned off');
@@ -75,6 +75,7 @@ export class ShareLinksService {
       access: link.access.toLowerCase(),
       item: { kind: link.item.kind.toLowerCase(), title: link.item.title },
       event: link.item.event ? publicEvent(link.item.title, link.item.event) : null,
+      datePoll: link.item.pollOptions.length > 0,
     };
   }
 }
