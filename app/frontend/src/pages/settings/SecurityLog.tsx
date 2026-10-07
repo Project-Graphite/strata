@@ -25,6 +25,8 @@ const actions: Record<string, string> = {
   other_sessions_signed_out: 'Every other device was signed out',
   access_token_created: 'Access token created',
   access_token_revoked: 'Access token revoked',
+  calendar_feed_reset: 'Calendar link created or reset',
+  calendar_feed_disabled: 'Calendar link turned off',
 };
 
 const reasons: Record<string, string> = { password: 'wrong password', code: 'wrong code' };

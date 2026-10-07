@@ -74,6 +74,7 @@ model User {
   timeZone            String                 @default("Etc/UTC") @map("time_zone")
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   homeCurrency        String?                @map("home_currency")
+  calendarFeedHash    String?                @unique @map("calendar_feed_hash")
   isActive            Boolean                @default(true) @map("is_active")
   role                UserRole               @default(MEMBER)
   createdAt           DateTime               @default(now()) @map("created_at")

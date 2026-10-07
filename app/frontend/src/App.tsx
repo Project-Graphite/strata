@@ -5,6 +5,7 @@ import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { CalendarsPage } from './pages/CalendarsPage';
 import { EventPage } from './pages/EventPage';
 import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
@@ -111,6 +112,14 @@ export function App() {
             element={
               <Protected>
                 <AgendaPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="agenda/calendars"
+            element={
+              <Protected>
+                <CalendarsPage />
               </Protected>
             }
           />

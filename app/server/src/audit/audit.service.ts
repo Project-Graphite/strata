@@ -17,7 +17,9 @@ export type AuditAction =
   | 'session_signed_out'
   | 'other_sessions_signed_out'
   | 'access_token_created'
-  | 'access_token_revoked';
+  | 'access_token_revoked'
+  | 'calendar_feed_reset'
+  | 'calendar_feed_disabled';
 
 @Injectable()
 export class AuditService {
