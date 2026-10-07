@@ -13,7 +13,8 @@ export type InboxKind =
   | 'task_due'
   | 'subscription_due'
   | 'event_soon'
-  | 'tidy_summary';
+  | 'tidy_summary'
+  | 'comment';
 
 export interface InboxEntry {
   userId: string;

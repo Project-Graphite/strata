@@ -158,6 +158,58 @@ describe('Notes', () => {
     expect(container.textContent).toContain('Page not found');
   });
 
+  it('adds comments and replies, resolves a thread and hides it until asked', async () => {
+    const comment = (id: string, body: string, parentId: string | null = null, authorId = 'me') => ({
+      id,
+      parentId,
+      body,
+      resolvedAt: null,
+      editedAt: null,
+      createdAt: '2026-10-07T09:00:00Z',
+      author: { id: authorId, displayName: authorId === 'me' ? 'Amr' : 'Sam' },
+    });
+    const sent: { path: string; method?: string; body?: unknown }[] = [];
+    serve((path, init) => {
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
+      if (path === '/notes/trips/comments' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        sent.push({ path, method: 'POST', body });
+        return json(comment(body.parentId ? 'reply' : 'new', body.body, body.parentId ?? null), 201);
+      }
+      if (path === '/notes/trips/comments') return json([comment('first', 'Book the ferry?', null, 'sam')]);
+      if (path === '/comments/first/resolved') {
+        sent.push({ path, method: init?.method });
+        return json({ ...comment('first', 'Book the ferry?', null, 'sam'), resolvedAt: '2026-10-07T10:00:00Z' });
+      }
+      return undefined;
+    });
+    await render('/notes/trips');
+    await act(async () => {});
+
+    const comments = container.querySelector('section[aria-label="Comments"]')!;
+    expect(comments.textContent).toContain('Sam ·');
+    expect(comments.textContent).toContain('Book the ferry?');
+    const buttons = () => [...comments.querySelectorAll('button')];
+    expect(buttons().map((button) => button.textContent)).toEqual(['Reply', 'Resolve', 'Comment']);
+
+    await act(async () => buttons().find((button) => button.textContent === 'Reply')!.click());
+    const reply = comments.querySelector<HTMLTextAreaElement>('textarea[aria-label="Reply"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(reply, 'Done, booked for Friday');
+      reply.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => reply.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(sent[0]).toEqual({ path: '/notes/trips/comments', method: 'POST', body: { body: 'Done, booked for Friday', parentId: 'first' } });
+    expect(comments.textContent).toContain('Done, booked for Friday');
+    expect(buttons().filter((button) => button.textContent === 'Edit')).toHaveLength(1);
+
+    await act(async () => buttons().find((button) => button.textContent === 'Resolve')!.click());
+    expect(sent[1]).toEqual({ path: '/comments/first/resolved', method: 'PUT' });
+    expect(comments.textContent).not.toContain('Book the ferry?');
+    await act(async () => buttons().find((button) => button.textContent === 'Show 1 resolved')!.click());
+    expect(comments.textContent).toContain('Book the ferry?');
+  });
+
   it('previews an earlier version and restores it, but only for editors', async () => {
     const versions = [
       { id: 'v2', createdAt: '2026-10-05T11:00:00Z', createdBy: 'Sam' },
