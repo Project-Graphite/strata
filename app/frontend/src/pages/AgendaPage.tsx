@@ -61,10 +61,15 @@ export function AgendaPage() {
     <section className="page-enter grid gap-6">
       <PageHeader
         actions={
-          <button className="primary-button px-3 py-2 text-sm" disabled={!spaces.data?.some((space) => space.role !== 'viewer')} onClick={() => setCreating(true)} type="button">
-            <Icon name="plus" size={16} />
-            New event
-          </button>
+          <>
+            <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/agenda/calendars">
+              Calendars
+            </Link>
+            <button className="primary-button px-3 py-2 text-sm" disabled={!spaces.data?.some((space) => space.role !== 'viewer')} onClick={() => setCreating(true)} type="button">
+              <Icon name="plus" size={16} />
+              New event
+            </button>
+          </>
         }
         title="Agenda"
       />

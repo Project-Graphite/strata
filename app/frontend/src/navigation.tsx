@@ -9,7 +9,7 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
       items: [
         { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
         { active: pathname === '/today', href: '/today', icon: 'check', label: 'Today' },
-        { active: pathname === '/agenda' || pathname.startsWith('/events/'), href: '/agenda', icon: 'calendar', label: 'Agenda' },
+        { active: pathname === '/agenda' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/'), href: '/agenda', icon: 'calendar', label: 'Agenda' },
         { active: pathname === '/journal', href: '/journal', icon: 'pencil', label: 'Journal' },
         { active: pathname === '/recurring', href: '/recurring', icon: 'repeat', label: 'Recurring' },
         { active: pathname === '/tidy', href: '/tidy', icon: 'sparkles', label: 'Tidy' },
