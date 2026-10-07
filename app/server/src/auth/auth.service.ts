@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  OnModuleInit,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { Prisma, SpaceRole, TokenPurpose, UserRole } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { InvitationsService } from '../invitations/invitations.service';
+import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +22,7 @@ import type { Device } from './device';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { PasswordService } from './password.service';
+import { SignInAttemptsService } from './sign-in-attempts.service';
 import { TwoStepService } from './two-step.service';
 
 export const refreshLifetimeMs = 30 * 24 * 60 * 60 * 1000;
@@ -34,6 +37,8 @@ const tokenLifetimesMs: Record<TokenPurpose, number> = {
 };
 
 const accountTokens = [TokenPurpose.CHANGE_EMAIL, TokenPurpose.RESET_PASSWORD];
+const passwordResetKind = 'password-reset-email';
+const verificationKind = 'verification-email';
 
 export interface Proof {
   password: string;
@@ -58,7 +63,7 @@ function emailUnavailable() {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private unknownAccountHash?: Promise<string>;
 
   constructor(
@@ -71,7 +76,14 @@ export class AuthService {
     private readonly site: SiteSettingsService,
     private readonly invitations: InvitationsService,
     private readonly audit: AuditService,
+    private readonly attempts: SignInAttemptsService,
+    private readonly jobs: JobsService,
   ) {}
+
+  onModuleInit() {
+    this.jobs.handle(passwordResetKind, (payload) => this.sendPasswordReset((payload as { email: string }).email));
+    this.jobs.handle(verificationKind, (payload) => this.sendVerificationAgain((payload as { email: string }).email));
+  }
 
   async register(input: RegisterDto) {
     if (!input.invite && (await this.site.get()).inviteOnly) {
@@ -140,6 +152,11 @@ export class AuthService {
   }
 
   async resendVerification(email: string) {
+    await this.jobs.schedule(verificationKind, new Date(), { email });
+    void this.jobs.runDue();
+  }
+
+  async sendVerificationAgain(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (user && !user.verifiedAt && user.isActive) {
       await this.sendVerification(this.prisma, user, TokenPurpose.VERIFY_EMAIL, user.email);
@@ -183,16 +200,19 @@ export class AuthService {
   }
 
   async login(input: LoginDto, device: Device) {
+    await this.attempts.assertAllowed(input.email);
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
     });
     if (!user) {
       this.unknownAccountHash ??= this.passwords.hash(randomBytes(16).toString('hex'));
       await this.passwords.verify(input.password, await this.unknownAccountHash);
+      await this.attempts.failed(input.email);
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!(await this.passwords.verify(input.password, user.passwordHash))) {
       await this.audit.record(user.id, 'sign_in_failed', { reason: 'password', device: device.label });
+      await this.attempts.failed(input.email);
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!user.verifiedAt) {
@@ -212,6 +232,7 @@ export class AuthService {
       });
       return { challenge };
     }
+    await this.attempts.clear(input.email);
     return { session: await this.issueSession(user, device, { alertNewDevice: true }) };
   }
 
@@ -223,6 +244,7 @@ export class AuthService {
     if (!record || record.expiresAt <= new Date()) {
       throw new UnauthorizedException('This sign-in has expired. Sign in again.');
     }
+    await this.attempts.assertAllowed(record.user.email);
     const counted = await this.prisma.signInChallenge.updateMany({
       where: { id: record.id, attempts: { lt: challengeAttempts } },
       data: { attempts: { increment: 1 } },
@@ -233,12 +255,14 @@ export class AuthService {
     }
     if (!(await this.twoStep.verify(record.userId, code))) {
       await this.audit.record(record.userId, 'sign_in_failed', { reason: 'code', device: device.label });
+      await this.attempts.failed(record.user.email);
       throw new UnauthorizedException('That code is not right');
     }
     const consumed = await this.prisma.signInChallenge.deleteMany({ where: { id: record.id } });
     if (consumed.count === 0 || !record.user.isActive) {
       throw new UnauthorizedException('This sign-in has expired. Sign in again.');
     }
+    await this.attempts.clear(record.user.email);
     return this.issueSession(record.user, device, { alertNewDevice: true });
   }
 
@@ -289,6 +313,11 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string) {
+    await this.jobs.schedule(passwordResetKind, new Date(), { email });
+    void this.jobs.runDue();
+  }
+
+  async sendPasswordReset(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user?.isActive) {
       return;
@@ -337,6 +366,7 @@ export class AuthService {
       this.prisma.refreshSession.deleteMany({ where: { userId: record.userId } }),
       this.prisma.accessToken.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: now } }),
     ]);
+    await this.attempts.clear(record.user.email);
     await this.audit.record(record.userId, 'password_reset');
     await this.passwordChangedNotice(record.user);
   }

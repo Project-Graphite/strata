@@ -7,6 +7,7 @@ import { AuthService } from '../src/auth/auth.service';
 import { deviceLabel } from '../src/auth/device';
 import { PasswordService } from '../src/auth/password.service';
 import { SessionsService } from '../src/auth/sessions.service';
+import { SignInAttemptsService } from '../src/auth/sign-in-attempts.service';
 import { totpCode } from '../src/auth/totp';
 import { TwoStepService } from '../src/auth/two-step.service';
 import { SecretBox } from '../src/crypto/secret-box.service';
@@ -141,6 +142,8 @@ describe('AuthService with two-step sign-in', () => {
       { get: vi.fn().mockResolvedValue({ inviteOnly: false }) } as never,
       {} as never,
       { record: vi.fn() } as never,
+      new SignInAttemptsService({ run: vi.fn().mockResolvedValue(undefined) } as never),
+      {} as never,
     );
     return { mail: sent, passwords, prisma, service, twoStep };
   }
@@ -245,6 +248,45 @@ describe('AuthService with two-step sign-in', () => {
       'Email or password is incorrect',
     );
     expect(verify).toHaveBeenCalledWith('whatever it is', expect.stringMatching(/^scrypt\$/));
+  });
+
+  it('locks an account for 15 minutes after 10 failed sign-ins, even for the right password, and counts unknown emails the same', async () => {
+    const { prisma, service } = await setup({ enabled: false });
+    const wrong = { email: user.email, password: 'not the password' };
+    for (let attempt = 0; attempt < 9; attempt += 1) {
+      await expect(service.login(wrong, device)).rejects.toThrow('Email or password is incorrect');
+    }
+    await service.login({ email: user.email, password: 'correct horse battery' }, device);
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(service.login(wrong, device)).rejects.toThrow('Email or password is incorrect');
+    }
+    await expect(service.login({ email: user.email, password: 'correct horse battery' }, device)).rejects.toThrow(
+      'Too many failed sign-ins for this account',
+    );
+
+    prisma.user.findUnique.mockResolvedValue(null);
+    const unknown = { email: 'nobody@example.com', password: 'whatever it is' };
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(service.login(unknown, device)).rejects.toThrow('Email or password is incorrect');
+    }
+    await expect(service.login(unknown, device)).rejects.toThrow('Too many failed sign-ins for this account');
+  });
+
+  it('counts wrong two-step codes against the account', async () => {
+    const { prisma, service } = await setup({ enabled: true, verifies: false });
+    prisma.signInChallenge.findUnique.mockResolvedValue({
+      id: 'challenge-id',
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { ...user, isActive: true },
+    });
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await expect(service.completeTwoStep('c'.repeat(64), '000000', device)).rejects.toThrow('That code is not right');
+    }
+    await expect(service.completeTwoStep('c'.repeat(64), '000000', device)).rejects.toThrow('Too many failed sign-ins for this account');
+    await expect(service.login({ email: user.email, password: 'correct horse battery' }, device)).rejects.toThrow(
+      'Too many failed sign-ins for this account',
+    );
   });
 });
 

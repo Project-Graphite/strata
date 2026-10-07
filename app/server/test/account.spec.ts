@@ -86,6 +86,8 @@ function setup(overrides: Record<string, object> = {}) {
   const site = { get: vi.fn().mockResolvedValue({ inviteOnly: false }) };
   const invitations = { redeemOnSignUp: vi.fn() };
   const audit = { record: vi.fn() };
+  const attempts = { assertAllowed: vi.fn(), failed: vi.fn(), clear: vi.fn() };
+  const jobs = { schedule: vi.fn(), runDue: vi.fn() };
   const service = new AuthService(
     prisma as never,
     new JwtService(),
@@ -96,8 +98,10 @@ function setup(overrides: Record<string, object> = {}) {
     site as never,
     invitations as never,
     audit as never,
+    attempts as never,
+    jobs as never,
   );
-  return { audit, breachCheck, invitations, mail, prisma, service, site, twoStep };
+  return { attempts, audit, breachCheck, invitations, jobs, mail, prisma, service, site, twoStep };
 }
 
 function sentToken(mail: { send: ReturnType<typeof vi.fn> }, to?: string) {
@@ -268,21 +272,51 @@ describe('Account email flows', () => {
     prisma.user.findUnique.mockResolvedValueOnce(user);
     mail.send.mockRejectedValueOnce(refusedRecipient());
 
-    await expect(service.requestPasswordReset(user.email)).resolves.toBeUndefined();
+    await expect(service.sendPasswordReset(user.email)).resolves.toBeUndefined();
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('SMTP 550'));
     expect(JSON.stringify(warn.mock.calls)).not.toContain(user.email);
     warn.mockRestore();
   });
 
+  it('answers reset and verification requests before looking the email up, and sends from the job queue', async () => {
+    const { jobs, mail, prisma, service } = setup();
+
+    await service.requestPasswordReset(user.email);
+    await service.resendVerification('nobody@example.com');
+
+    expect(jobs.schedule.mock.calls).toEqual([
+      ['password-reset-email', expect.any(Date), { email: user.email }],
+      ['verification-email', expect.any(Date), { email: 'nobody@example.com' }],
+    ]);
+    expect(jobs.runDue).toHaveBeenCalledTimes(2);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('lets a reset unlock an account that was locked by failed sign-ins', async () => {
+    const { attempts, prisma, service } = setup();
+    prisma.verificationToken.findUnique.mockResolvedValueOnce({
+      userId: user.id,
+      purpose: TokenPurpose.RESET_PASSWORD,
+      email: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { verifiedAt: user.verifiedAt, email: user.email, displayName: user.displayName },
+    });
+
+    await service.resetPassword('e'.repeat(64), 'a brand new password');
+
+    expect(attempts.clear).toHaveBeenCalledWith(user.email);
+  });
+
   it('sends reset links only to existing active accounts and says nothing either way', async () => {
     const { mail, prisma, service } = setup();
 
-    await expect(service.requestPasswordReset('nobody@example.com')).resolves.toBeUndefined();
+    await expect(service.sendPasswordReset('nobody@example.com')).resolves.toBeUndefined();
     expect(mail.send).not.toHaveBeenCalled();
 
     prisma.user.findUnique.mockResolvedValueOnce(user);
-    await expect(service.requestPasswordReset(user.email)).resolves.toBeUndefined();
+    await expect(service.sendPasswordReset(user.email)).resolves.toBeUndefined();
     expect(mail.send).toHaveBeenCalledWith(
       expect.objectContaining({ to: user.email, text: expect.stringContaining('/reset-password?token=') }),
     );
