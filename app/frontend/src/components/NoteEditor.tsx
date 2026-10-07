@@ -137,7 +137,8 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
 
   useEffect(() => {
     const { provider } = connection;
-    const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) => setStatus(next);
+    const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
+      setStatus((current) => (next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
     const onUnsynced = ({ number }: { number: number }) => setUnsynced(number);
     const onAwareness = () =>
       setPeople(
