@@ -54,6 +54,37 @@ describe('Calendars', () => {
     await act(async () => {});
   }
 
+  it('follows a calendar in an editable space, shows when it was checked and stops following it', async () => {
+    const followed = { id: 'fixtures', spaceId: 'mine', name: 'Club fixtures', host: 'fixtures.example', lastFetchedAt: new Date().toISOString(), lastError: null, events: 12 };
+    const sent: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/me/calendar-feed') return json({ enabled: false });
+      if (path === '/me/calendars') return json([]);
+      if (path === '/spaces/mine/calendars' && init?.method === 'POST') {
+        sent.push(JSON.parse(String(init.body)));
+        return json(followed, 201);
+      }
+      if (path === '/calendars/fixtures' && init?.method === 'DELETE') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/agenda/calendars');
+
+    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('Follow a calendar'))!;
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toContain('Enter the calendar’s address.');
+    form.querySelector<HTMLInputElement>('input[name="url"]')!.value = 'webcal://fixtures.example/cal.ics';
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(sent).toEqual([{ url: 'webcal://fixtures.example/cal.ics' }]);
+    expect(container.textContent).toContain('Personal · fixtures.example · 12 events · checked');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop following')!.click());
+    expect(container.textContent).not.toContain('fixtures.example ·');
+  });
+
   it('creates a private calendar link, shows it once, and can turn it off', async () => {
     let enabled = false;
     serve((path, init) => {
@@ -66,6 +97,7 @@ describe('Calendars', () => {
         return json({ enabled });
       }
       if (path === '/me/calendar-feed') return json({ enabled });
+      if (path === '/me/calendars') return json([]);
       return undefined;
     });
     await render('/agenda/calendars');
