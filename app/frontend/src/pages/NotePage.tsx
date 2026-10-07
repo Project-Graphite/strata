@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
+import { NoteComments } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, useSpaces, type Member } from '../spaces';
@@ -222,6 +223,7 @@ export function NotePage() {
           </ul>
         </section>
       )}
+      <NoteComments editable={details.editable} key={`comments-${details.id}`} noteId={details.id} owner={space?.role === 'owner'} />
       {unconverting && (
         <ConfirmDialog
           confirmLabel="Turn back into a page"

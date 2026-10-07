@@ -122,3 +122,21 @@ export class SetPropertiesDto {
   @IsObject()
   values!: Record<string, unknown>;
 }
+
+export class CreateCommentDto {
+  @Trimmed()
+  @IsString()
+  @Length(1, 2_000, { message: 'Comments are between 1 and 2,000 characters long.' })
+  body!: string;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Reply to a comment on this page.' })
+  parentId?: string;
+}
+
+export class UpdateCommentDto {
+  @Trimmed()
+  @IsString()
+  @Length(1, 2_000, { message: 'Comments are between 1 and 2,000 characters long.' })
+  body!: string;
+}
