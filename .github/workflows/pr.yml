@@ -56,6 +56,19 @@ jobs:
         working-directory: app/server
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - run: npm run test:integration --workspace server
+      - name: A backup restores into an empty database
+        env:
+          POSTGRES: ${{ job.services.postgres.id }}
+        run: |
+          docker exec "$POSTGRES" pg_dump -U strata -Fc -f /tmp/strata.dump strata
+          docker exec "$POSTGRES" pg_restore --list /tmp/strata.dump > /dev/null
+          docker exec "$POSTGRES" createdb -U strata strata_restored
+          docker exec "$POSTGRES" pg_restore -U strata --exit-on-error --no-owner -d strata_restored /tmp/strata.dump
+          rows() {
+            docker exec "$POSTGRES" psql -U strata -d "$1" -Atc "select table_name || '=' || (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema = 'public' order by table_name"
+          }
+          diff <(rows strata) <(rows strata_restored)
+          test "$(rows strata_restored | wc -l)" -gt 40
 
   images:
     name: Images
