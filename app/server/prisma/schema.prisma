@@ -113,6 +113,7 @@ model User {
   journalEntries      JournalEntry[]
   noteComments        NoteComment[]          @relation("CommentAuthor")
   resolvedComments    NoteComment[]          @relation("CommentResolver")
+  pollVotes           EventPollVote[]
 
   @@map("users")
 }
@@ -268,6 +269,7 @@ model Item {
   costSplit      CostSplit?
   journalEntries JournalEntry[]
   comments       NoteComment[]
+  pollOptions    EventPollOption[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -596,16 +598,17 @@ model Event {
 }
 
 model EventGuest {
-  id          String        @id @default(uuid()) @db.Uuid
-  itemId      String        @map("item_id") @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
+  itemId      String          @map("item_id") @db.Uuid
   name        String
   email       String?
-  tokenHash   String        @unique @map("token_hash")
-  response    GuestResponse @default(PENDING)
+  tokenHash   String          @unique @map("token_hash")
+  response    GuestResponse   @default(PENDING)
   note        String?
-  invitedAt   DateTime      @default(now()) @map("invited_at")
-  respondedAt DateTime?     @map("responded_at")
-  item        Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  invitedAt   DateTime        @default(now()) @map("invited_at")
+  respondedAt DateTime?       @map("responded_at")
+  item        Item            @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  pollVotes   EventPollVote[]
 
   @@index([itemId])
   @@map("event_guests")
@@ -827,4 +830,34 @@ model NoteComment {
   @@index([itemId, createdAt])
   @@index([parentId])
   @@map("note_comments")
+}
+
+model EventPollOption {
+  id        String          @id @default(uuid()) @db.Uuid
+  itemId    String          @map("item_id") @db.Uuid
+  startsOn  DateTime        @map("starts_on") @db.Date
+  startTime String?         @map("start_time")
+  createdAt DateTime        @default(now()) @map("created_at")
+  item      Item            @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  votes     EventPollVote[]
+
+  @@index([itemId])
+  @@map("event_poll_options")
+}
+
+model EventPollVote {
+  id       String          @id @default(uuid()) @db.Uuid
+  optionId String          @map("option_id") @db.Uuid
+  userId   String?         @map("user_id") @db.Uuid
+  guestId  String?         @map("guest_id") @db.Uuid
+  answer   GuestResponse
+  option   EventPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user     User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest    EventGuest?     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@unique([optionId, guestId])
+  @@index([guestId])
+  @@index([userId])
+  @@map("event_poll_votes")
 }

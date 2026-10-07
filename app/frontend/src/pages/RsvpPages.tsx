@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router';
 import { EmptyState, FormPanelSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
+import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { noteChecks } from '../invitations';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -44,7 +45,9 @@ export function RsvpPage() {
   const invitation = useResource<{ event: PublicEvent; guest: { name: string; response: Guest['response']; note: string | null } }>(
     `/rsvp/${encodeURIComponent(code)}`,
   );
+  const poll = useResource<{ options: PollOption[] }>(`/rsvp/${encodeURIComponent(code)}/poll`);
   const answering = useAction();
+  const voting = useAction();
   const form = useFormErrors();
 
   if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
@@ -80,6 +83,25 @@ export function RsvpPage() {
         }}
       >
         <p className="m-0 text-ink">Hi {guest.name}.</p>
+        {poll.data && poll.data.options.length > 0 && (
+          <div className="grid gap-2">
+            <p className="field-label m-0">The date isn’t fixed yet. Which of these work for you?</p>
+            <PollOptions
+              busy={voting.busy}
+              onVote={(optionId: string, answer: PollAnswer) =>
+                void voting.run(async () => {
+                  const saved = await apiRequest<{ options: PollOption[] }>(`/rsvp/${encodeURIComponent(code)}/poll`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ votes: { [optionId]: answer } }),
+                  });
+                  poll.mutate(() => saved!);
+                  return '';
+                }, 'Could not save your answer')
+              }
+              options={poll.data.options}
+            />
+          </div>
+        )}
         <ResponseFields current={guest.response} />
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
         <button className="primary-button" disabled={answering.busy} type="submit">
