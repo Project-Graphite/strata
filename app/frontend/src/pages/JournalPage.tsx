@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ListSkeleton, PageHeader, useSnackbar, errorMessage } from '@project-graphite/ui';
+import { ListSkeleton, PageHeader } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
+import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -61,7 +61,14 @@ export function JournalPage() {
 
   return (
     <section className="page-enter grid max-w-4xl gap-6">
-      <PageHeader title="Journal" />
+      <PageHeader
+        actions={
+          <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
+            Write a weekly review
+          </Link>
+        }
+        title="Journal"
+      />
       <div className="panel grid gap-4 p-5">
         <h2 className="m-0 text-base font-medium">How was today?</h2>
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
@@ -123,25 +130,6 @@ export function JournalPage() {
 }
 
 export function JournalDayPage() {
-  const { day } = useParams();
-  const { request } = useAuth();
-  const navigate = useNavigate();
-  const show = useSnackbar();
-
-  useEffect(() => {
-    let cancelled = false;
-    request<{ noteId: string }>(`/me/journal/${day}/page`, { method: 'POST' }).then(
-      ({ noteId }) => !cancelled && navigate(`/notes/${noteId}`, { replace: true }),
-      (reason: unknown) => {
-        if (cancelled) return;
-        show({ message: errorMessage(reason, 'The journal page could not be opened.'), tone: 'error' });
-        navigate('/journal', { replace: true });
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [day, navigate, request, show]);
-
-  return <ListSkeleton label="Opening the journal page" rows={4} />;
+  const { day = '' } = useParams();
+  return <OpenCreatedPage back="/journal" fallback="The journal page could not be opened." label="Opening the journal page" path={`/me/journal/${day}/page`} />;
 }

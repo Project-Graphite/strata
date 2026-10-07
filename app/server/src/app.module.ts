@@ -23,6 +23,7 @@ import { MailModule } from './mail/mail.module';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { ReviewModule } from './review/review.module';
 import { RedisModule } from './redis/redis.module';
 import { SearchModule } from './search/search.module';
 import { ShareLinksModule } from './share-links/share-links.module';
@@ -69,6 +70,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     JournalModule,
     NotesModule,
     RealtimeModule,
+    ReviewModule,
     WidgetsModule,
     HealthModule,
   ],

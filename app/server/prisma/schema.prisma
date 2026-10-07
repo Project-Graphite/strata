@@ -73,6 +73,7 @@ model User {
   verifiedAt          DateTime?              @map("verified_at")
   timeZone            String                 @default("Etc/UTC") @map("time_zone")
   tidySummary         Boolean                @default(false) @map("tidy_summary")
+  weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
   calendarFeedHash    String?                @unique @map("calendar_feed_hash")
   isActive            Boolean                @default(true) @map("is_active")

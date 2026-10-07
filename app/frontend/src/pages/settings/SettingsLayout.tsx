@@ -9,6 +9,7 @@ export interface Me {
   displayName: string;
   timeZone: string;
   tidySummary: boolean;
+  weeklyReview: boolean;
   homeCurrency: string | null;
   role: string;
 }

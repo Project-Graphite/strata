@@ -14,7 +14,8 @@ export type InboxKind =
   | 'subscription_due'
   | 'event_soon'
   | 'tidy_summary'
-  | 'comment';
+  | 'comment'
+  | 'weekly_review';
 
 export interface InboxEntry {
   userId: string;

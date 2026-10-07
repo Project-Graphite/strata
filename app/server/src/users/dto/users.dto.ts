@@ -19,6 +19,10 @@ export class UpdateProfileDto {
   @IsBoolean()
   tidySummary?: boolean;
 
+  @IsOptionalNotNull()
+  @IsBoolean()
+  weeklyReview?: boolean;
+
   @ValidateIf((_input, value) => value !== undefined && value !== null)
   @Matches(/^[A-Z]{3}$/, { message: 'Choose a currency from the list.' })
   homeCurrency?: string | null;

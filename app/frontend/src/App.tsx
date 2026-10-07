@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { useAuth } from './auth';
+import { OpenCreatedPage } from './components/OpenCreatedPage';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
 import { AgendaPage } from './pages/AgendaPage';
@@ -136,6 +137,14 @@ export function App() {
             element={
               <Protected>
                 <JournalDayPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="review"
+            element={
+              <Protected>
+                <OpenCreatedPage back="/journal" fallback="The weekly review could not be written." label="Writing your weekly review" path="/me/weekly-review" />
               </Protected>
             }
           />
