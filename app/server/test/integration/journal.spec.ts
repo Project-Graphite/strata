@@ -42,7 +42,7 @@ describe('Journal against Postgres', () => {
     expect((await other.call('GET', '/me/journal')).body.days).toEqual([]);
     expect((await other.call('GET', `/notes/${first.body.noteId}`)).status).toBe(404);
 
-    await writer.call('DELETE', `/items/${first.body.noteId}`);
+    await writer.call('POST', `/items/${first.body.noteId}/trash`);
     const replaced = (await writer.call('POST', `/me/journal/${today}/page`)).body.noteId;
     expect(replaced).not.toBe(first.body.noteId);
     expect((await writer.call('GET', `/notes/${replaced}`)).body.parentId).toBe(page.parentId);
