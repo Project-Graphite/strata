@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -103,6 +103,28 @@ describe('Journal', () => {
     await render('/review');
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/weekly-review', expect.objectContaining({ method: 'POST' }));
+    expect(container.textContent).toContain('Note page');
+  });
+
+  it('writes one weekly review when the page mounts twice', async () => {
+    const fetchMock = serve((path, init) => (path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined));
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <MemoryRouter initialEntries={['/review']}>
+            <AuthProvider>
+              <Routes>
+                <Route path="/notes/:id" element={<p>Note page</p>} />
+                <Route path="*" element={<App />} />
+              </Routes>
+            </AuthProvider>
+          </MemoryRouter>
+        </StrictMode>,
+      ),
+    );
+    await act(async () => {});
+
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/v1/me/weekly-review')).toHaveLength(1);
     expect(container.textContent).toContain('Note page');
   });
 });
