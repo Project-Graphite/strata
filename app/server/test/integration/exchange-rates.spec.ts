@@ -15,6 +15,7 @@ describe('Home currency totals against Postgres', () => {
 
   it('refreshes the ECB rates at most twice a day and converts totals into the home currency', async () => {
     const owner = await member('converter');
+    await strata.prisma.exchangeRate.deleteMany();
     const ecb = vi.fn(() => Promise.resolve(new Response(xml, { status: 200 })));
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => (String(input) === ratesUrl ? ecb() : realFetch(input, init)));
     const rates = strata.service(ExchangeRatesService);

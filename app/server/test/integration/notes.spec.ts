@@ -157,7 +157,7 @@ describe('Notes and real-time editing against Postgres', () => {
   });
 
   it('disconnects a device once its sign-in has ended, and closes a page that grew past the size limit', async () => {
-    const owner = await member('writer');
+    const owner = await member('novelist');
     const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Long read' })).body;
     const realtime = strata.service(RealtimeService);
     const connections = () => [...(realtime.hocuspocus.documents.get(note.id)?.connections.keys() ?? [])].length;
