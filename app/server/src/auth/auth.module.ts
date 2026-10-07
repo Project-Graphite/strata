@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
 import { PasswordService } from './password.service';
 import { SessionsService } from './sessions.service';
+import { SignInAttemptsService } from './sign-in-attempts.service';
 import { TwoStepService } from './two-step.service';
 
 @Module({
@@ -17,7 +18,7 @@ import { TwoStepService } from './two-step.service';
     InvitationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PasswordService, SessionsService, TwoStepService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, PasswordService, SessionsService, SignInAttemptsService, TwoStepService],
   exports: [PassportModule, JwtModule, JwtStrategy, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
 })
 export class AuthModule {}
