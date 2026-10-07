@@ -24,6 +24,7 @@ const tabs = [
   ['/settings/security', 'Security'],
   ['/settings/sessions', 'Sessions'],
   ['/settings/tokens', 'Access tokens'],
+  ['/settings/api', 'API and webhooks'],
   ['/settings/data', 'Your data'],
 ] as const;
 

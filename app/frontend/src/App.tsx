@@ -23,6 +23,7 @@ import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
 import { RegisterPage } from './pages/RegisterPage';
 import { RsvpPage, SharePage } from './pages/RsvpPages';
 import { SavePage } from './pages/SavePage';
+import { ApiSettings } from './pages/settings/ApiSettings';
 import { DataSettings } from './pages/settings/DataSettings';
 import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
@@ -248,6 +249,7 @@ export function App() {
             <Route path="security" element={<SecuritySettings />} />
             <Route path="sessions" element={<SessionsSettings />} />
             <Route path="tokens" element={<TokensSettings />} />
+            <Route path="api" element={<ApiSettings />} />
             <Route path="data" element={<DataSettings />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

@@ -117,6 +117,7 @@ model User {
   resolvedComments    NoteComment[]          @relation("CommentResolver")
   pollVotes           EventPollVote[]
   calendars           CalendarSubscription[]
+  webhooks            Webhook[]
 
   @@map("users")
 }
@@ -218,6 +219,7 @@ model Space {
   habits          Habit[]
   settlements     Settlement[]
   calendars       CalendarSubscription[]
+  webhooks        Webhook[]
 
   @@map("spaces")
 }
@@ -901,4 +903,43 @@ model SubscribedEvent {
 
   @@index([subscriptionId, startsOn])
   @@map("subscribed_events")
+}
+
+model Webhook {
+  id           String            @id @default(uuid()) @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  spaceId      String?           @map("space_id") @db.Uuid
+  urlSealed    String            @map("url_sealed")
+  host         String
+  secretSealed String            @map("secret_sealed")
+  events       String[]
+  active       Boolean           @default(true)
+  cursor       DateTime          @default(now())
+  createdAt    DateTime          @default(now()) @map("created_at")
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space        Space?            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([userId])
+  @@index([active])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id          String    @id @default(uuid()) @db.Uuid
+  webhookId   String    @map("webhook_id") @db.Uuid
+  activityId  String?   @map("activity_id") @db.Uuid
+  event       String
+  payload     Json
+  status      Int?
+  error       String?
+  attempts    Int       @default(0)
+  deliveredAt DateTime? @map("delivered_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookId, activityId])
+  @@index([webhookId, createdAt])
+  @@index([createdAt])
+  @@map("webhook_deliveries")
 }

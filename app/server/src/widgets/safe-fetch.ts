@@ -135,3 +135,32 @@ export async function fetchPublic(text: string, options: SafeFetchOptions): Prom
     outgoing.end();
   });
 }
+
+export function postPublic(text: string, body: string, headers: Record<string, string>, timeoutMs: number) {
+  const url = checkedUrl(text);
+  return new Promise<number>((resolve, reject) => {
+    const outgoing = request(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': String(Buffer.byteLength(body)),
+          'User-Agent': 'Strata webhooks (+https://strata.project-graphite.com)',
+          ...headers,
+        },
+        lookup: guardedLookup,
+        timeout: timeoutMs,
+      },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode ?? 0);
+      },
+    );
+    const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), timeoutMs);
+    outgoing.on('close', () => clearTimeout(deadline));
+    outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
+    outgoing.on('error', reject);
+    outgoing.end(body);
+  });
+}
