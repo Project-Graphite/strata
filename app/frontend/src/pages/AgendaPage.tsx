@@ -26,7 +26,7 @@ function EntryLine({ entry, compact = false }: { entry: AgendaEntry; compact?: b
       title={entry.title}
       to={entryLink(entry)}
     >
-      <span className="mono-sm text-faint">{compact ? (entry.allDay ? '' : `${entryTime(entry)} `) : `${entryTime(entry)} · ${kindLabels[entry.kind]} · `}</span>
+      <span className="mono-sm text-faint">{compact ? (entry.allDay ? '' : `${entryTime(entry)} `) : `${entryTime(entry)} · ${entry.calendar ?? kindLabels[entry.kind]} · `}</span>
       {entry.title}
     </Link>
   );

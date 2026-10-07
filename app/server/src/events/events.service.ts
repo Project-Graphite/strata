@@ -16,6 +16,7 @@ const reminderKind = 'event.reminder';
 const maxAgendaDays = 100;
 
 type EventRow = NonNullable<Prisma.ItemGetPayload<{ select: { event: true } }>['event']>;
+type EventTimes = Pick<EventRow, 'startsOn' | 'startTime' | 'endsOn' | 'endTime' | 'timeZone' | 'repeatRule'>;
 
 interface Slot {
   start: Date;
@@ -44,7 +45,7 @@ function overlaps(slot: Slot, from: Date) {
   return slot.end > from || slot.start >= from;
 }
 
-function slots(event: EventRow, from: Date, to: Date, limit = 200): Slot[] {
+function slots(event: EventTimes, from: Date, to: Date, limit = 200): Slot[] {
   const first = firstSlot(event);
   const length = first.end.getTime() - first.start.getTime();
   if (!event.repeatRule) {
@@ -227,12 +228,13 @@ export class EventsService implements OnModuleInit {
     const start = zonedInstant(fromDay.getTime() / dayMs, 0, 0, user.timeZone);
     const end = zonedInstant(toDay.getTime() / dayMs, 0, 0, user.timeZone);
     const readable = { ...this.access.itemsOf(userId), trashedAt: null };
-    const [events, tasks, subscriptions] = await Promise.all([
+    const window = { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] };
+    const [events, tasks, subscriptions, followed] = await Promise.all([
       this.prisma.item.findMany({
         where: {
           ...readable,
           kind: ItemKind.EVENT,
-          event: { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] },
+          event: window,
         },
         select: { id: true, spaceId: true, title: true, event: true },
         take: 1_000,
@@ -247,7 +249,17 @@ export class EventsService implements OnModuleInit {
         select: { id: true, spaceId: true, title: true, subscription: { select: { repeatRule: true, startDate: true, timeZone: true, nextRenewal: true, amountMinor: true, currency: true } } },
         take: 1_000,
       }),
+      this.prisma.subscribedEvent.findMany({
+        where: { ...window, subscription: { space: this.access.spacesOf(userId) } },
+        include: { subscription: { select: { spaceId: true, name: true } } },
+        take: 2_000,
+      }),
     ]);
+    const times = (event: EventTimes, slot: Slot) => ({
+      allDay: !event.startTime,
+      start: event.startTime ? slot.start.toISOString() : localDate(event.timeZone, slot.start),
+      end: event.startTime ? slot.end.toISOString() : localDate(event.timeZone, new Date(slot.end.getTime() - 1)),
+    });
     const entries = [
       ...events.flatMap((item) =>
         slots(item.event!, start, end).map((slot) => ({
@@ -255,10 +267,19 @@ export class EventsService implements OnModuleInit {
           itemId: item.id,
           spaceId: item.spaceId,
           title: item.title,
-          allDay: !item.event!.startTime,
-          start: item.event!.startTime ? slot.start.toISOString() : localDate(item.event!.timeZone, slot.start),
-          end: item.event!.startTime ? slot.end.toISOString() : localDate(item.event!.timeZone, new Date(slot.end.getTime() - 1)),
+          ...times(item.event!, slot),
           location: item.event!.location,
+        })),
+      ),
+      ...followed.flatMap((event) =>
+        slots(event, start, end).map((slot) => ({
+          kind: 'external' as const,
+          itemId: event.id,
+          spaceId: event.subscription.spaceId,
+          title: event.title,
+          ...times(event, slot),
+          location: event.location,
+          calendar: event.subscription.name,
         })),
       ),
       ...tasks.flatMap((item) => {

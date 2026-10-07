@@ -115,6 +115,7 @@ model User {
   noteComments        NoteComment[]          @relation("CommentAuthor")
   resolvedComments    NoteComment[]          @relation("CommentResolver")
   pollVotes           EventPollVote[]
+  calendars           CalendarSubscription[]
 
   @@map("users")
 }
@@ -197,15 +198,15 @@ model SignInChallenge {
 }
 
 model Space {
-  id              String           @id @default(uuid()) @db.Uuid
+  id              String                 @id @default(uuid()) @db.Uuid
   name            String
-  color           String           @default("gray")
-  personalOwnerId String?          @unique @map("personal_owner_id") @db.Uuid
-  createdById     String?          @map("created_by") @db.Uuid
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  personalOwner   User?            @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
-  createdBy       User?            @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
+  color           String                 @default("gray")
+  personalOwnerId String?                @unique @map("personal_owner_id") @db.Uuid
+  createdById     String?                @map("created_by") @db.Uuid
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+  personalOwner   User?                  @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
+  createdBy       User?                  @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
   members         SpaceMember[]
   items           Item[]
   tags            Tag[]
@@ -215,6 +216,7 @@ model Space {
   tidyRules       TidyRule[]
   habits          Habit[]
   settlements     Settlement[]
+  calendars       CalendarSubscription[]
 
   @@map("spaces")
 }
@@ -861,4 +863,41 @@ model EventPollVote {
   @@index([guestId])
   @@index([userId])
   @@map("event_poll_votes")
+}
+
+model CalendarSubscription {
+  id            String            @id @default(uuid()) @db.Uuid
+  spaceId       String            @map("space_id") @db.Uuid
+  name          String
+  urlSealed     String            @map("url_sealed")
+  host          String
+  lastFetchedAt DateTime?         @map("last_fetched_at")
+  lastError     String?           @map("last_error")
+  createdById   String?           @map("created_by") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at")
+  space         Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy     User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  events        SubscribedEvent[]
+
+  @@index([spaceId])
+  @@index([lastFetchedAt])
+  @@map("calendar_subscriptions")
+}
+
+model SubscribedEvent {
+  id             String               @id @default(uuid()) @db.Uuid
+  subscriptionId String               @map("subscription_id") @db.Uuid
+  uid            String
+  title          String
+  startsOn       DateTime             @map("starts_on") @db.Date
+  startTime      String?              @map("start_time")
+  endsOn         DateTime             @map("ends_on") @db.Date
+  endTime        String?              @map("end_time")
+  timeZone       String               @map("time_zone")
+  repeatRule     String?              @map("repeat_rule")
+  location       String?
+  subscription   CalendarSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, startsOn])
+  @@map("subscribed_events")
 }

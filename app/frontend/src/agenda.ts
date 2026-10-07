@@ -1,5 +1,5 @@
 export interface AgendaEntry {
-  kind: 'event' | 'task' | 'renewal';
+  kind: 'event' | 'task' | 'renewal' | 'external';
   itemId: string;
   spaceId: string;
   title: string;
@@ -7,6 +7,7 @@ export interface AgendaEntry {
   start: string;
   end: string | null;
   location: string | null;
+  calendar?: string;
 }
 
 export interface PublicEvent {
@@ -75,10 +76,11 @@ export function eventWhen(event: PublicEvent) {
   return `${start}${end}${event.startTime ? ` (${event.timeZone.replaceAll('_', ' ')})` : ''}`;
 }
 
-export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews' };
+export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews', external: 'calendar' };
 
 export function entryLink(entry: AgendaEntry) {
   if (entry.kind === 'event') return `/events/${entry.itemId}`;
   if (entry.kind === 'task') return `/spaces/${entry.spaceId}/tasks`;
+  if (entry.kind === 'external') return '/agenda/calendars';
   return `/spaces/${entry.spaceId}/recurring`;
 }
