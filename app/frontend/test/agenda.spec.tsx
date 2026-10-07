@@ -116,6 +116,7 @@ describe('Agenda and RSVP', () => {
 
     expect(container.querySelector('h1')?.textContent).toBe('Party');
     expect(container.textContent).toContain('Hi Sam.');
+    expect(container.textContent).not.toContain('Date to be decided');
     const form = container.querySelector('form')!;
     form.querySelector<HTMLInputElement>('input[value="yes"]')!.checked = true;
     form.querySelector<HTMLTextAreaElement>('textarea[name="note"]')!.value = 'Bringing cake';
@@ -141,6 +142,7 @@ describe('Agenda and RSVP', () => {
     });
     await render(`/rsvp/${code}`);
 
+    expect(container.textContent).toContain('Date to be decided');
     expect(container.textContent).toContain('Which of these work for you?');
     expect(container.textContent).toContain('1 yes · 0 maybe · 0 no');
     const yes = container.querySelector<HTMLButtonElement>('[role="group"] button')!;
@@ -149,6 +151,15 @@ describe('Agenda and RSVP', () => {
     expect(yes.getAttribute('aria-pressed')).toBe('true');
     expect(container.textContent).toContain('2 yes · 0 maybe · 0 no');
     expect(container.textContent).not.toContain('Pick this date');
+  });
+
+  it('tells a guest on an open invitation link that the date is still being decided', async () => {
+    serve(false, (path) => (path === `/share/${code}` ? json({ access: 'view', item: { kind: 'event', title: 'Party' }, event: party, datePoll: true }) : undefined));
+    await render(`/share/${code}`);
+
+    expect(container.querySelector('h1')?.textContent).toBe('Party');
+    expect(container.textContent).toContain('Date to be decided');
+    expect(container.textContent).toContain('The date isn’t fixed yet.');
   });
 
   it('lets an organiser offer dates, see who answered and pick one', async () => {

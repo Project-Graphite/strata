@@ -52,4 +52,13 @@ describe('Weekly review against Postgres', () => {
     expect(notice).toMatchObject({ title: 'Time for your weekly review', link: '/review' });
     expect((await quiet.call('GET', '/me/inbox?page=1')).body.results).toEqual([]);
   });
+
+  it('keeps one Weekly reviews page when reviews are written at once', async () => {
+    const owner = await member('reviewer-hasty');
+    const written = await Promise.all(Array.from({ length: 4 }, () => owner.call('POST', '/me/weekly-review')));
+    const parents = await Promise.all(written.map(async ({ body }) => (await owner.call('GET', `/notes/${body.noteId}`)).body.parentId));
+
+    expect(new Set(parents).size).toBe(1);
+    expect(await strata.prisma.item.count({ where: { spaceId: owner.personalSpaceId, title: 'Weekly reviews' } })).toBe(1);
+  });
 });

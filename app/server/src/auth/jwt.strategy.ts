@@ -28,10 +28,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const session = payload.sid
       ? await this.prisma.refreshSession.findUnique({
           where: { id: payload.sid },
-          select: { userId: true, revokedAt: true, user: { select: { isActive: true, role: true } } },
+          select: { userId: true, signedInAt: true, revokedAt: true, user: { select: { isActive: true, role: true } } },
         })
       : null;
-    if (!session || session.userId !== payload.sub || session.revokedAt || !session.user.isActive) {
+    if (!session || session.userId !== payload.sub || !session.user.isActive) {
+      throw new UnauthorizedException();
+    }
+    if (
+      session.revokedAt &&
+      !(await this.prisma.refreshSession.count({
+        where: { userId: session.userId, signedInAt: session.signedInAt, revokedAt: null, expiresAt: { gt: new Date() } },
+      }))
+    ) {
       throw new UnauthorizedException();
     }
     return {

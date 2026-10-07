@@ -64,11 +64,15 @@ describe('JwtAuthGuard', () => {
           useValue: {
             refreshSession: {
               findUnique: vi.fn(({ where }: { where: { id: string } }) =>
-                Promise.resolve(
-                  where.id === 'live-session'
-                    ? { userId: 'admin-id', revokedAt: null, user: { isActive: true, role: 'ADMIN' } }
-                    : { userId: 'admin-id', revokedAt: new Date(), user: { isActive: true, role: 'ADMIN' } },
-                ),
+                Promise.resolve({
+                  userId: 'admin-id',
+                  signedInAt: new Date(where.id === 'rotated-session' ? '2026-10-07T09:00:00Z' : '2026-10-01T09:00:00Z'),
+                  revokedAt: where.id === 'live-session' ? null : new Date(),
+                  user: { isActive: true, role: 'ADMIN' },
+                }),
+              ),
+              count: vi.fn(({ where }: { where: { signedInAt: Date; revokedAt: null } }) =>
+                Promise.resolve(where.revokedAt === null && where.signedInAt.toISOString() === '2026-10-07T09:00:00.000Z' ? 1 : 0),
               ),
             },
           },
@@ -96,6 +100,9 @@ describe('JwtAuthGuard', () => {
     });
 
     expect((await call(`Bearer ${signedOut}`)).status).toBe(401);
+
+    const rotated = await new JwtService().signAsync({ sub: 'admin-id', sid: 'rotated-session' }, { secret, expiresIn: 60 });
+    expect((await call(`Bearer ${rotated}`)).status).toBe(200);
 
     expect((await call('Bearer not-a-token')).status).toBe(401);
 

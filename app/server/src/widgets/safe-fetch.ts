@@ -4,6 +4,22 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 
 export class UnsafeUrlError extends Error {}
 
+const networkErrors: Record<string, string> = {
+  ENOTFOUND: 'That address could not be found',
+  EAI_AGAIN: 'That address could not be found',
+  ECONNREFUSED: 'That address refused the connection',
+  ECONNRESET: 'That address closed the connection',
+  ETIMEDOUT: 'That address took too long to answer',
+  EHOSTUNREACH: 'That address could not be reached',
+  ENETUNREACH: 'That address could not be reached',
+};
+
+function plainError(error: NodeJS.ErrnoException) {
+  if (!error.code) return error;
+  if (networkErrors[error.code]) return new Error(networkErrors[error.code]);
+  return new Error(/CERT|TLS|SSL/.test(error.code) ? 'That address has an invalid security certificate' : 'Could not connect to that address');
+}
+
 const blocked = new BlockList();
 for (const [network, prefix] of [
   ['0.0.0.0', 8],
@@ -125,13 +141,13 @@ export async function fetchPublic(text: string, options: SafeFetchOptions): Prom
           chunks.push(chunk);
         });
         response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-        response.on('error', reject);
+        response.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
       },
     );
     const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), options.timeoutMs);
     outgoing.on('close', () => clearTimeout(deadline));
     outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
-    outgoing.on('error', reject);
+    outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
     outgoing.end();
   });
 }
@@ -160,7 +176,7 @@ export function postPublic(text: string, body: string, headers: Record<string, s
     const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), timeoutMs);
     outgoing.on('close', () => clearTimeout(deadline));
     outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
-    outgoing.on('error', reject);
+    outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
     outgoing.end(body);
   });
 }

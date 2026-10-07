@@ -47,4 +47,13 @@ describe('Journal against Postgres', () => {
     expect(replaced).not.toBe(first.body.noteId);
     expect((await writer.call('GET', `/notes/${replaced}`)).body.parentId).toBe(page.parentId);
   });
+
+  it('opens one page under one Journal page when the same day is opened twice at once', async () => {
+    const writer = await member('hasty-diarist');
+    const today = localDate('Etc/UTC');
+    const [first, second] = await Promise.all([writer.call('POST', `/me/journal/${today}/page`), writer.call('POST', `/me/journal/${today}/page`)]);
+
+    expect(second.body.noteId).toBe(first.body.noteId);
+    expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE', trashedAt: null } })).toBe(2);
+  });
 });

@@ -34,15 +34,16 @@ export class JournalService {
     const existing = await this.livePage(entry);
     if (existing) return { noteId: existing };
     const space = await this.prisma.space.findFirstOrThrow({ where: { personalOwnerId: userId }, select: { id: true } });
-    const parentId = await this.journalPage(userId, space.id);
-    const note = await this.notes.create(userId, space.id, { title: longDate.format(entry.day), parentId });
-    await this.prisma.journalEntry.upsert({ where: { userId_day: entry }, create: entry, update: {} });
+    const parent = await this.journalPage(userId, space.id);
+    const note = await this.notes.create(userId, space.id, { title: longDate.format(entry.day), parentId: parent.id });
+    await this.prisma.journalEntry.createMany({ data: [entry], skipDuplicates: true });
     const claimed = await this.prisma.journalEntry.updateMany({
       where: { ...entry, OR: [{ noteId: null }, { note: { trashedAt: { not: null } } }] },
       data: { noteId: note.id },
     });
     if (claimed.count === 1) return { noteId: note.id };
     await this.prisma.item.delete({ where: { id: note.id } });
+    if (parent.created) await this.prisma.item.delete({ where: { id: parent.id } });
     const winner = await this.livePage(entry);
     if (!winner) throw new ConflictException('The journal page changed while it was opening. Try again.');
     return { noteId: winner };
@@ -68,8 +69,8 @@ export class JournalService {
       select: { note: { select: { note: { select: { parentId: true } } } } },
     });
     const parentId = latest?.note?.note?.parentId;
-    if (parentId) return parentId;
-    return (await this.notes.create(userId, spaceId, { title: 'Journal' })).id;
+    if (parentId) return { id: parentId, created: false };
+    return { id: (await this.notes.create(userId, spaceId, { title: 'Journal' })).id, created: true };
   }
 
   private async assertDay(userId: string, day: string) {
