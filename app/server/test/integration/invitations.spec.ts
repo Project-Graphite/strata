@@ -80,6 +80,10 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     const space = (await owner.call('POST', '/spaces', { name: 'Choir' })).body;
 
     await owner.call('POST', `/spaces/${space.id}/invitations`, { email: strata.email('singer'), role: 'viewer' });
+    expect(mail.at(-1)).toMatchObject({
+      subject: 'You are invited to a space on Strata',
+      text: expect.stringContaining('organiser invited you to join the space "Choir"'),
+    });
     const forNewcomer = inviteCode(mail.at(-1)!.text);
     expect((await strata.anonymous('GET', `/invitations/lookup/${forNewcomer}`)).body).toEqual({
       kind: 'space',

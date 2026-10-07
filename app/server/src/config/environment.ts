@@ -53,5 +53,11 @@ export function validateEnvironment(config: Record<string, unknown>) {
   if (errors.length > 0) {
     throw new Error(`Missing or invalid settings: ${errors.map((error) => error.property).join(', ')}`);
   }
+  if (
+    config.NODE_ENV === 'production' &&
+    [String(config.AUTH_ACCESS_TOKEN_SECRET), Buffer.from(String(config.DATA_ENCRYPTION_KEY), 'base64').toString()].some((secret) => /change-me/i.test(secret))
+  ) {
+    throw new Error('AUTH_ACCESS_TOKEN_SECRET and DATA_ENCRYPTION_KEY still hold the development defaults. Set real secrets for production.');
+  }
   return config;
 }

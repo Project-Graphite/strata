@@ -294,7 +294,7 @@ export class EventsService implements OnModuleInit {
       input.email !== undefined &&
       (await this.mail.trySend({
         to: input.email,
-        subject: `You are invited: ${current.title}`,
+        subject: 'You are invited to an event',
         text: [
           `Hi ${input.name},`,
           '',

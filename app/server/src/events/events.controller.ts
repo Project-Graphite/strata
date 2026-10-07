@@ -42,7 +42,7 @@ export class EventsController {
   }
 
   @Post('events/:id/guests')
-  @RateLimit('invite-guest', 200, 86_400)
+  @RateLimit('invite-guest', 50, 86_400)
   @UseGuards(JwtAuthGuard)
   invite(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: InviteGuestDto) {
     return this.events.invite(user.id, id, input);

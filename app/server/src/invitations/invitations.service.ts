@@ -117,7 +117,7 @@ export class InvitationsService {
       input.email !== undefined &&
       (await this.mail.trySend({
         to: input.email,
-        subject: `${inviter.displayName} invited you to Strata`,
+        subject: 'You are invited to Strata',
         text: [
           'Hi,',
           '',
@@ -207,7 +207,7 @@ export class InvitationsService {
     const link = this.mail.link(invitee ? '/invitations' : `/invite/${token}`);
     const emailed = await this.mail.trySend({
       to: invitee?.email ?? input.email!,
-      subject: `${inviter.displayName} invited you to ${space.name} on Strata`,
+      subject: 'You are invited to a space on Strata',
       text: [
         invitee ? `Hi ${invitee.displayName},` : 'Hi,',
         '',
