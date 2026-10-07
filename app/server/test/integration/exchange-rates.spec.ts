@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExchangeRatesService, ratesUrl } from '../../src/exchange-rates/exchange-rates.service';
+import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp } from './harness';
 
 const xml = `<gesmes:Envelope><Cube><Cube time='2026-10-05'>
@@ -15,6 +16,8 @@ describe('Home currency totals against Postgres', () => {
 
   it('refreshes the ECB rates at most twice a day and converts totals into the home currency', async () => {
     const owner = await member('converter');
+    const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
+    await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
     await strata.prisma.exchangeRate.deleteMany();
     const ecb = vi.fn(() => Promise.resolve(new Response(xml, { status: 200 })));
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => (String(input) === ratesUrl ? ecb() : realFetch(input, init)));
