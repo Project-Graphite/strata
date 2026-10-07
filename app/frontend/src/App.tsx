@@ -10,6 +10,7 @@ import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
+import { JournalDayPage, JournalPage } from './pages/JournalPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
@@ -110,6 +111,22 @@ export function App() {
             element={
               <Protected>
                 <AgendaPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="journal"
+            element={
+              <Protected>
+                <JournalPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="journal/:day"
+            element={
+              <Protected>
+                <JournalDayPage />
               </Protected>
             }
           />

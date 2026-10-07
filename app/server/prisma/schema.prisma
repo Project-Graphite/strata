@@ -110,6 +110,7 @@ model User {
   costShares          CostShare[]
   settlementsPaid     Settlement[]           @relation("SettlementFrom")
   settlementsReceived Settlement[]           @relation("SettlementTo")
+  journalEntries      JournalEntry[]
 
   @@map("users")
 }
@@ -263,6 +264,7 @@ model Item {
   properties     NoteProperty[]
   tidyChanges    TidyChange[]
   costSplit      CostSplit?
+  journalEntries JournalEntry[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -787,4 +789,18 @@ model Settlement {
 
   @@index([spaceId, month])
   @@map("settlements")
+}
+
+model JournalEntry {
+  userId    String   @map("user_id") @db.Uuid
+  day       DateTime @db.Date
+  noteId    String?  @map("note_id") @db.Uuid
+  mood      Int?
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Item?    @relation(fields: [noteId], references: [id], onDelete: SetNull)
+
+  @@id([userId, day])
+  @@index([noteId])
+  @@map("journal_entries")
 }

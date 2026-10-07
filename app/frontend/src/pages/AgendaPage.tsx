@@ -109,6 +109,11 @@ export function AgendaPage() {
                   <h2 className="m-0 text-sm font-medium text-muted">
                     {day === today ? 'Today · ' : ''}
                     {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {day <= today && (
+                      <Link className="mono-sm ml-3 font-normal text-faint" to={`/journal/${day}`}>
+                        Journal
+                      </Link>
+                    )}
                   </h2>
                   <div className="mt-2 grid gap-1 border-l border-line pl-3">
                     {byDay.get(day)!.map((entry) => (

@@ -315,3 +315,51 @@ button.habit-day {
 .habit-day.is-done {
   background: var(--color-ink);
 }
+
+.journal-year {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 0.8rem);
+  grid-auto-columns: 0.8rem;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.journal-day {
+  display: block;
+  border-radius: 3px;
+  background: var(--color-line);
+}
+
+.journal-day.is-blank {
+  background: transparent;
+}
+
+.journal-day.is-future {
+  opacity: 0.35;
+}
+
+.journal-day.has-page {
+  box-shadow: inset 0 0 0 1.5px var(--color-muted);
+}
+
+.journal-day.mood-1 {
+  background: color-mix(in srgb, var(--color-ink) 20%, var(--color-line));
+}
+
+.journal-day.mood-2 {
+  background: color-mix(in srgb, var(--color-ink) 40%, var(--color-line));
+}
+
+.journal-day.mood-3 {
+  background: color-mix(in srgb, var(--color-ink) 60%, var(--color-line));
+}
+
+.journal-day.mood-4 {
+  background: color-mix(in srgb, var(--color-ink) 80%, var(--color-line));
+}
+
+.journal-day.mood-5 {
+  background: var(--color-ink);
+}
