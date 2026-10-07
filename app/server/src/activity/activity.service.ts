@@ -5,25 +5,28 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const pageSize = 50;
 
-export type ActivityVerb =
-  | 'space.updated'
-  | 'member.joined'
-  | 'member.left'
-  | 'member.removed'
-  | 'member.role_changed'
-  | 'item.created'
-  | 'item.updated'
-  | 'item.trashed'
-  | 'item.restored'
-  | 'item.deleted'
-  | 'task.completed'
-  | 'task.reopened'
-  | 'subscription.renewed'
-  | 'subscription.cancelled'
-  | 'subscription.resumed'
-  | 'tag.created'
-  | 'tag.updated'
-  | 'tag.deleted';
+export const activityVerbs = [
+  'space.updated',
+  'member.joined',
+  'member.left',
+  'member.removed',
+  'member.role_changed',
+  'item.created',
+  'item.updated',
+  'item.trashed',
+  'item.restored',
+  'item.deleted',
+  'task.completed',
+  'task.reopened',
+  'subscription.renewed',
+  'subscription.cancelled',
+  'subscription.resumed',
+  'tag.created',
+  'tag.updated',
+  'tag.deleted',
+] as const;
+
+export type ActivityVerb = (typeof activityVerbs)[number];
 
 export interface ActivityEntry {
   spaceId: string;

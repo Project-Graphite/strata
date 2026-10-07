@@ -34,6 +34,7 @@ import { TagsModule } from './tags/tags.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TidyModule } from './tidy/tidy.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { WidgetsModule } from './widgets/widgets.module';
 
 @Module({
@@ -71,6 +72,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     NotesModule,
     RealtimeModule,
     ReviewModule,
+    WebhooksModule,
     WidgetsModule,
     HealthModule,
   ],

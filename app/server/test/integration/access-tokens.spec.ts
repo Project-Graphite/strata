@@ -53,6 +53,21 @@ describe('Access tokens against Postgres', () => {
     ]);
   });
 
+  it('lists the endpoints each scope reaches, for people signed in', async () => {
+    const owner = await member('api-reader');
+    const reference = (await owner.call('GET', '/me/api-reference')).body;
+    expect(reference.basePath).toBe('/api/v1');
+    expect(reference.scopes.map((entry: { scope: string }) => entry.scope)).toEqual(['spaces:read', 'items:read', 'items:write']);
+    const routes = (scope: string) => reference.scopes.find((entry: { scope: string }) => entry.scope === scope).routes;
+    expect(routes('spaces:read')).toContainEqual({ method: 'GET', path: '/spaces' });
+    expect(routes('items:read')).toContainEqual({ method: 'GET', path: '/agenda' });
+    expect(routes('items:write')).toContainEqual({ method: 'POST', path: '/spaces/:spaceId/tasks' });
+    expect(JSON.stringify(reference)).not.toContain('/me/tokens');
+
+    const token = (await owner.call('POST', '/me/tokens', { name: 'Docs', scopes: ['items:read'], password })).body.token;
+    expect((await withToken(token, 'GET', '/me/api-reference')).status).toBe(403);
+  });
+
   it('stops every token when the other devices are signed out', async () => {
     const owner = await member('rotator');
     const created = await owner.call('POST', '/me/tokens', { name: 'Sync', scopes: ['spaces:read'], password });
