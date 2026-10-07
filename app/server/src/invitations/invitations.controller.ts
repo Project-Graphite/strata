@@ -13,7 +13,7 @@ export class InvitationsController {
   constructor(private readonly invitations: InvitationsService) {}
 
   @Post('invitations')
-  @RateLimit('invite', 50, 86_400)
+  @RateLimit('invite', 20, 86_400)
   @UseGuards(JwtAuthGuard)
   inviteToStrata(@CurrentUser() user: AuthenticatedUser, @Body() input: InviteToStrataDto) {
     return this.invitations.inviteToStrata(user.id, input);
@@ -65,7 +65,7 @@ export class InvitationsController {
   }
 
   @Post('spaces/:spaceId/invitations')
-  @RateLimit('invite', 50, 86_400)
+  @RateLimit('invite', 20, 86_400)
   @UseGuards(JwtAuthGuard)
   inviteToSpace(
     @CurrentUser() user: AuthenticatedUser,
