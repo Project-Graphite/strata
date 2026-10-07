@@ -86,7 +86,7 @@ export function ResetPasswordPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Sign in with your new password.</h1>
-        <p className="mt-5 text-muted">Every device that was signed in has been signed out.</p>
+        <p className="mt-5 text-muted">Every device that was signed in has been signed out, and your access tokens were revoked.</p>
         <Link className="primary-button mt-7 inline-flex" to="/login">Sign in</Link>
       </section>
     );

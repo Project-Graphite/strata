@@ -98,6 +98,9 @@ describe('JwtAuthGuard', () => {
     expect((await call(`Bearer ${signedOut}`)).status).toBe(401);
 
     expect((await call('Bearer not-a-token')).status).toBe(401);
+
+    const otherAlgorithm = await new JwtService().signAsync({ sub: 'admin-id', sid: 'live-session' }, { secret, expiresIn: 60, algorithm: 'HS512' });
+    expect((await call(`Bearer ${otherAlgorithm}`)).status).toBe(401);
   });
 
   it('lets an access token reach only endpoints marked with a scope it holds', async () => {

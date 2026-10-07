@@ -156,6 +156,31 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(await until(async () => connections(), (count) => count === 0)).toBe(0);
   });
 
+  it('disconnects a device once its sign-in has ended, and closes a page that grew past the size limit', async () => {
+    const owner = await member('novelist');
+    const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Long read' })).body;
+    const realtime = strata.service(RealtimeService);
+    const connections = () => [...(realtime.hocuspocus.documents.get(note.id)?.connections.keys() ?? [])].length;
+
+    const opened = await open(owner, note.id);
+    await realtime.recheckAccess();
+    expect(connections()).toBe(1);
+    for (let part = 0; part < 4; part += 1) {
+      write(opened.document, `${part}${'x'.repeat(1_500_000)}`);
+      await settle(200);
+    }
+    await until(async () => textOf(realtime.hocuspocus.documents.get(note.id)!).length, (length) => length > 6_000_000);
+    realtime.hocuspocus.flushPendingStores();
+    expect(await until(async () => connections(), (count) => count === 0)).toBe(0);
+    expect(await strata.prisma.noteDocument.count({ where: { itemId: note.id } })).toBe(0);
+
+    await open(owner, note.id);
+    expect(connections()).toBe(1);
+    await strata.prisma.refreshSession.deleteMany({ where: { userId: owner.id } });
+    await realtime.recheckAccess();
+    expect(await until(async () => connections(), (count) => count === 0)).toBe(0);
+  });
+
   it('keeps versions when editing sessions end, previews and restores them, and thins old ones', async () => {
     const owner = await member('historian');
     const viewer = await member('reviewer');

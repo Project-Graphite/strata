@@ -29,9 +29,12 @@ export class SessionsService {
   }
 
   async revokeOthers(userId: string, currentSessionId: string | null) {
-    await this.prisma.refreshSession.deleteMany({
-      where: { userId, ...(currentSessionId ? { id: { not: currentSessionId } } : {}) },
-    });
+    await this.prisma.$transaction([
+      this.prisma.refreshSession.deleteMany({
+        where: { userId, ...(currentSessionId ? { id: { not: currentSessionId } } : {}) },
+      }),
+      this.prisma.accessToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
     await this.audit.record(userId, 'other_sessions_signed_out');
   }
 }
