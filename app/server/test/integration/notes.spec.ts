@@ -278,7 +278,7 @@ describe('Notes and real-time editing against Postgres', () => {
     await create(stranger, stranger.personalSpaceId, 'Not yours');
     await reader.call('PATCH', `/notes/${pinned.id}`, { pinned: true });
     await reader.call('PATCH', `/notes/${template.id}`, { template: true });
-    await reader.call('DELETE', `/items/${trashed.id}`);
+    await reader.call('POST', `/items/${trashed.id}/trash`);
 
     const listed = (await reader.call('GET', '/me/pages')).body;
     expect(listed.pinned.map((page: { title: string }) => page.title)).toEqual(['Reading list']);
