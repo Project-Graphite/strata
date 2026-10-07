@@ -79,4 +79,19 @@ describe('Access tokens against Postgres', () => {
     expect((await owner.call('GET', '/me/tokens')).body).toEqual([]);
     expect((await owner.call('GET', '/spaces')).status).toBe(200);
   });
+
+  it('keeps an open tab signed in when another tab refreshes, until signing out', async () => {
+    const owner = await member('two-tabs');
+    const headers = { 'Content-Type': 'application/json', Origin: 'http://localhost:4104' };
+    const refreshCookie = (response: Response) => response.headers.getSetCookie().find((cookie) => cookie.startsWith('strata_refresh='))!.split(';')[0]!;
+    const login = await fetch(`${strata.base}/auth/login`, { method: 'POST', headers, body: JSON.stringify({ email: owner.email, password }) });
+    const firstTab = (await login.json()).accessToken;
+
+    const refreshed = await fetch(`${strata.base}/auth/refresh`, { method: 'POST', headers: { ...headers, Cookie: refreshCookie(login) } });
+    expect(refreshed.status).toBe(201);
+    expect((await withToken(firstTab, 'GET', '/spaces')).status).toBe(200);
+
+    await fetch(`${strata.base}/auth/logout`, { method: 'POST', headers: { ...headers, Cookie: refreshCookie(refreshed) } });
+    expect((await withToken(firstTab, 'GET', '/spaces')).status).toBe(401);
+  });
 });
