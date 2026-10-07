@@ -277,6 +277,53 @@ describe('Home dashboard', () => {
     expect(news.textContent).toContain('1 of 3 feeds didn’t load.');
   });
 
+  it('lists pinned pages first, then recently edited ones, with their space', async () => {
+    const reading = { ...home, layout: { widgets: [{ id: 'pages', type: 'pages', size: 'medium', settings: {} }] } };
+    const page = (id: string, title: string, pinnedAt: string | null) => ({
+      id,
+      spaceId: 'mine',
+      title,
+      parentId: null,
+      position: 1,
+      icon: null,
+      pinnedAt,
+      template: false,
+      database: false,
+      createdAt: '2026-10-01T00:00:00Z',
+      updatedAt: new Date().toISOString(),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([{ id: 'mine', name: 'Mine', color: 'teal', kind: 'personal', role: 'owner', createdAt: '2026-10-01T00:00:00Z' }]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([reading]));
+        if (path === '/me/pages') return Promise.resolve(json({ pinned: [page('trip', 'Trip plan', '2026-10-06T10:00:00Z')], recent: [page('memo', '', null)] }));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+
+    const widget = container.querySelector('article[aria-label="Pinned and recent pages"]')!;
+    expect([...widget.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual(['Pinned', 'Recently edited']);
+    expect([...widget.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Trip plan', '/notes/trip'],
+      ['Untitled', '/notes/memo'],
+    ]);
+    expect(widget.textContent).toContain('Mine ·');
+  });
+
   it('saves a quick note as a page or as a task in the chosen space', async () => {
     const quick = { ...home, layout: { widgets: [{ id: 'jot', type: 'capture', size: 'medium', settings: {} }] } };
     const spaces = [

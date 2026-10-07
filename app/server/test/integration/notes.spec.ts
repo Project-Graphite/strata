@@ -266,6 +266,25 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(await until(links, (rows) => rows.length === 1)).toEqual([{ kind: 'ATTACHMENT', targetItemId: picture.id }]);
   });
 
+  it('lists my pinned and recently edited pages across spaces, without templates, trash or other people’s spaces', async () => {
+    const reader = await member('bookworm');
+    const stranger = await member('outsider-pages');
+    const club = (await reader.call('POST', '/spaces', { name: 'Book club' })).body;
+    const create = async (as: Member, spaceId: string, title: string) => (await as.call('POST', `/spaces/${spaceId}/notes`, { title })).body as { id: string };
+    const pinned = await create(reader, club.id, 'Reading list');
+    await create(reader, reader.personalSpaceId, 'Diary');
+    const template = await create(reader, reader.personalSpaceId, 'Meeting template');
+    const trashed = await create(reader, reader.personalSpaceId, 'Old draft');
+    await create(stranger, stranger.personalSpaceId, 'Not yours');
+    await reader.call('PATCH', `/notes/${pinned.id}`, { pinned: true });
+    await reader.call('PATCH', `/notes/${template.id}`, { template: true });
+    await reader.call('POST', `/items/${trashed.id}/trash`);
+
+    const listed = (await reader.call('GET', '/me/pages')).body;
+    expect(listed.pinned.map((page: { title: string }) => page.title)).toEqual(['Reading list']);
+    expect(listed.recent.map((page: { title: string }) => page.title)).toEqual(['Diary']);
+  });
+
   it('starts pages from built-in templates, space templates or captured text', async () => {
     const owner = await member('templater');
     const space = owner.personalSpaceId;

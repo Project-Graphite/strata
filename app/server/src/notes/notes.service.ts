@@ -55,6 +55,25 @@ export class NotesService {
     return rows.map(present);
   }
 
+  async mine(userId: string) {
+    const where = { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
+    const [pinned, recent] = await Promise.all([
+      this.prisma.item.findMany({
+        where: { ...where, note: { template: false, pinnedAt: { not: null } } },
+        orderBy: [{ note: { pinnedAt: 'desc' } }, { id: 'asc' }],
+        take: 8,
+        select: noteFields,
+      }),
+      this.prisma.item.findMany({
+        where: { ...where, note: { template: false, pinnedAt: null } },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+        take: 5,
+        select: noteFields,
+      }),
+    ]);
+    return { pinned: pinned.map(present), recent: recent.map(present) };
+  }
+
   async create(userId: string, spaceId: string, input: CreateNoteDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if (input.parentId) await this.parentIn(spaceId, input.parentId);
