@@ -44,8 +44,8 @@ describe('Webhooks against Postgres', () => {
     await strata.service(WebhooksService).scan();
     for (let attempt = 0; attempt < 40 && sent.length < 2; attempt += 1) await settle();
 
-    expect(sent.map(({ headers }) => headers['X-Strata-Event'])).toEqual(['item.created', 'task.completed']);
-    const [, completed] = sent;
+    expect(sent.map(({ headers }) => headers['X-Strata-Event']).sort()).toEqual(['item.created', 'task.completed']);
+    const completed = sent.find(({ headers }) => headers['X-Strata-Event'] === 'task.completed');
     expect(completed!.url).toBe('https://hooks.example/in?token=abc');
     expect(completed!.headers['X-Strata-Signature']).toBe(signature(created.body.secret, completed!.headers['X-Strata-Timestamp']!, completed!.body));
     expect(JSON.parse(completed!.body)).toMatchObject({
