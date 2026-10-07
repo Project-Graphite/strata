@@ -15,7 +15,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import { realtimeUrl } from '../notes';
 import type { Item } from '../spaces';
-import { mentionExtension, StoredImageExtension } from './note-extensions';
+import { internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
 
 interface Connection {
   document: Y.Doc;
@@ -98,8 +98,9 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
       editorProps: {
         attributes: { 'aria-label': 'Page content', class: 'note-content' },
         handleClickOn: (_view, _position, node) => {
-          if (node.type.name !== 'mention' || !node.attrs.href) return false;
-          navigate(String(node.attrs.href));
+          const path = internalPath(node.attrs.href);
+          if (node.type.name !== 'mention' || !path) return false;
+          navigate(path);
           return true;
         },
         handlePaste: (view, event) => insertImages(view, [...(event.clipboardData?.files ?? [])]),

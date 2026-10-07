@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { internalPath, storedFileId } from '../src/components/note-extensions';
 import { flattenTree, type Note } from '../src/notes';
 
 vi.mock('../src/components/NoteEditor', () => ({
@@ -83,6 +84,13 @@ describe('Notes', () => {
       '0:',
       '0:Orphan',
     ]);
+  });
+
+  it('follows mentions only inside Strata and loads images only by file id', () => {
+    expect(internalPath('/notes/plan')).toBe('/notes/plan');
+    expect(['//evil.example', '/\\evil.example', 'https://evil.example', 'javascript:alert(1)', null].map(internalPath)).toEqual([null, null, null, null, null]);
+    expect(storedFileId('0b7c2a4e-5f1d-4c3b-9a8e-1d2c3b4a5f6e')).toBe('0b7c2a4e-5f1d-4c3b-9a8e-1d2c3b4a5f6e');
+    expect(['../me/tokens', '0b7c2a4e-5f1d-4c3b-9a8e-1d2c3b4a5f6e/../x', 42].map(storedFileId)).toEqual([null, null, null]);
   });
 
   it('lists the pages of a space and opens a new one', async () => {

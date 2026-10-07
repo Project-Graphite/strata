@@ -61,6 +61,11 @@ const MentionList = forwardRef<ListHandle, SuggestionProps<MentionCandidate>>(fu
   );
 });
 
+export const internalPath = (href: unknown) => (typeof href === 'string' && /^\/(?![/\\])/.test(href) ? href : null);
+
+export const storedFileId = (fileId: unknown) =>
+  typeof fileId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileId) ? fileId : null;
+
 export function mentionExtension(request: Request, noteId: string) {
   return Mention.extend({
     addAttributes() {
@@ -131,7 +136,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
   const { request } = useAuth();
   const [source, setSource] = useState<string>();
   const [failed, setFailed] = useState(false);
-  const fileId = node.attrs.fileId as string | null;
+  const fileId = storedFileId(node.attrs.fileId);
 
   useEffect(() => {
     if (!fileId) return;
@@ -153,7 +158,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
 
   return (
     <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`} data-drag-handle="">
-      {failed ? (
+      {failed || !fileId ? (
         <span className="text-sm text-muted">This image is no longer available.</span>
       ) : source ? (
         <img alt={(node.attrs.alt as string) ?? ''} src={source} />
