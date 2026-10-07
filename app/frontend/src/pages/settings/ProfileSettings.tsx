@@ -125,6 +125,19 @@ export function ProfileSettings() {
             }, 'Could not change the setting')
           }
         />
+        <Toggle
+          checked={current.weeklyReview}
+          description="Sundays at 18:00, with a link that writes the review page for you."
+          disabled={notifications.busy}
+          label="Weekly review reminder"
+          onChange={(weeklyReview) =>
+            void notifications.run(async () => {
+              const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ weeklyReview }) });
+              me.mutate(() => next);
+              return weeklyReview ? 'You will be reminded on Sundays.' : 'Weekly review reminders are off.';
+            }, 'Could not change the setting')
+          }
+        />
       </SettingsSection>
 
       {changingEmail && (

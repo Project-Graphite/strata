@@ -74,10 +74,10 @@ export class NotesService {
     return { pinned: pinned.map(present), recent: recent.map(present) };
   }
 
-  async create(userId: string, spaceId: string, input: CreateNoteDto) {
+  async create(userId: string, spaceId: string, input: CreateNoteDto, document?: Y.Doc) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if (input.parentId) await this.parentIn(spaceId, input.parentId);
-    const initial = await this.initialState(spaceId, input);
+    const initial = document ?? (await this.initialState(spaceId, input));
     const last = await this.prisma.note.aggregate({
       where: { parentId: input.parentId ?? null, item: { spaceId, trashedAt: null } },
       _max: { position: true },

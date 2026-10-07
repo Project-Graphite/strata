@@ -97,4 +97,12 @@ describe('Journal', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/journal/2026-10-06/page', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Note page');
   });
+
+  it('writes a weekly review page and goes to it', async () => {
+    const fetchMock = serve((path, init) => (path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined));
+    await render('/review');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/weekly-review', expect.objectContaining({ method: 'POST' }));
+    expect(container.textContent).toContain('Note page');
+  });
 });

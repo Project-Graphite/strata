@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 
-type Block = ['heading', string] | ['paragraph', string] | ['bullets', string[]] | ['numbers', string[]] | ['tasks', string[]];
+export type Block = ['heading', string] | ['paragraph', string] | ['bullets', string[]] | ['numbers', string[]] | ['tasks', string[]];
 
 export const builtInTemplates = {
   meeting: [
@@ -59,7 +59,7 @@ function list(name: string, itemName: string, lines: string[], attributes: Recor
   );
 }
 
-function build(blocks: Block[]) {
+export function blocksDocument(blocks: Block[]) {
   const document = new Y.Doc();
   document.getXmlFragment('default').push(
     blocks.map(([kind, content]) => {
@@ -74,11 +74,11 @@ function build(blocks: Block[]) {
 }
 
 export function templateDocument(template: BuiltInTemplate) {
-  return build(builtInTemplates[template]);
+  return blocksDocument(builtInTemplates[template]);
 }
 
 export function textDocument(text: string) {
-  return build(
+  return blocksDocument(
     text
       .split(/\r?\n/)
       .map((line) => line.trimEnd())
