@@ -9,14 +9,15 @@ import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
-import { JwtStrategy } from '../auth/jwt.strategy';
+import { refreshReuseGraceMs } from '../auth/auth.service';
+import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
 import { documentLinks, documentText } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const realtimePath = '/api/v1/realtime';
 const maxUpdateBytes = 2 * 1024 * 1024;
 const maxDocumentBytes = 5 * 1024 * 1024;
-const maxDocumentsPerSocket = 20;
+const maxDocumentsPerUser = 40;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
@@ -24,6 +25,7 @@ const maxLinksPerNote = 200;
 export interface RealtimeContext {
   userId: string;
   role: SpaceRole;
+  signedInAt?: Date;
 }
 
 function rejectUpgrade(socket: Duplex, status: number, reason: string) {
@@ -34,7 +36,7 @@ function rejectUpgrade(socket: Duplex, status: number, reason: string) {
 export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeService.name);
   private readonly sockets = new WebSocketServer({ noServer: true, maxPayload: maxUpdateBytes });
-  private readonly documentsPerSocket = new Map<string, Set<string>>();
+  private readonly documentsPerUser = new Map<string, Set<string>>();
   private readonly trustedOrigins: string[];
   private recheck?: NodeJS.Timeout;
   readonly hocuspocus: Hocuspocus<RealtimeContext>;
@@ -54,16 +56,19 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       debounce: 2_000,
       maxDebounce: 10_000,
       onAuthenticate: async ({ connectionConfig, documentName, socketId, token }) => {
-        const user = await this.sessions.validate(await this.jwt.verifyAsync(token, { secret }));
+        const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret, algorithms: ['HS256'] });
+        const user = await this.sessions.validate(payload);
         const found = await this.access.assertItem(user.id, documentName, 'read');
         const item = await this.prisma.item.findUniqueOrThrow({ where: { id: documentName }, select: { kind: true } });
         if (item.kind !== ItemKind.NOTE || found.trashedAt) throw new Error('Only notes can be opened here');
-        const open = this.documentsPerSocket.get(socketId) ?? new Set<string>();
-        if (!open.has(documentName) && open.size >= maxDocumentsPerSocket) throw new Error('Too many open documents');
-        open.add(documentName);
-        this.documentsPerSocket.set(socketId, open);
+        const { signedInAt } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true } });
+        const open = this.documentsPerUser.get(user.id) ?? new Set<string>();
+        const key = `${socketId}/${documentName}`;
+        if (!open.has(key) && open.size >= maxDocumentsPerUser) throw new Error('Too many open documents');
+        open.add(key);
+        this.documentsPerUser.set(user.id, open);
         connectionConfig.readOnly = found.role === SpaceRole.VIEWER;
-        return { userId: user.id, role: found.role };
+        return { userId: user.id, role: found.role, signedInAt };
       },
       onLoadDocument: async ({ document, documentName }) => {
         const stored = await this.prisma.noteDocument.findUnique({ where: { itemId: documentName }, select: { state: true } });
@@ -75,6 +80,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (state.byteLength > maxDocumentBytes) {
           this.logger.warn(`Note ${documentName} is over the size limit and was not saved`);
           document.broadcastStateless(JSON.stringify({ type: 'too-large' }));
+          for (const connection of document.getConnections()) connection.close({ code: 4413, reason: 'This page is too large' });
           return;
         }
         await this.prisma.$transaction([
@@ -93,10 +99,11 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },
       onDisconnect: async ({ clientsCount, context, document, documentName, socketId }) => {
-        if (clientsCount === 0 && context) await this.snapshot(documentName, Y.encodeStateAsUpdate(document), context.userId, true);
-        const open = this.documentsPerSocket.get(socketId);
-        open?.delete(documentName);
-        if (open?.size === 0) this.documentsPerSocket.delete(socketId);
+        if (!context) return;
+        if (clientsCount === 0) await this.snapshot(documentName, Y.encodeStateAsUpdate(document), context.userId, true);
+        const open = this.documentsPerUser.get(context.userId);
+        open?.delete(`${socketId}/${documentName}`);
+        if (open?.size === 0) this.documentsPerUser.delete(context.userId);
       },
     });
   }
@@ -177,10 +184,17 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   }
 
   async recheckAccess() {
+    const signedIn = new Map<string, Promise<boolean>>();
     for (const [name, document] of this.hocuspocus.documents) {
       for (const connection of document.connections.keys()) {
         const context = connection.context as RealtimeContext | undefined;
         if (!context) continue;
+        const sessionKey = `${context.userId}/${context.signedInAt?.toISOString()}`;
+        if (!signedIn.has(sessionKey)) signedIn.set(sessionKey, this.stillSignedIn(context));
+        if (!(await signedIn.get(sessionKey))) {
+          connection.close({ code: 4401, reason: 'Signed out' });
+          continue;
+        }
         const role = await this.access
           .assertItem(context.userId, name, 'read')
           .then((found) => (found.trashedAt ? null : found.role))
@@ -188,6 +202,20 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (role !== context.role) connection.close({ code: 4403, reason: 'Access changed' });
       }
     }
+  }
+
+  private async stillSignedIn({ userId, signedInAt }: RealtimeContext) {
+    const now = Date.now();
+    const live = await this.prisma.refreshSession.count({
+      where: {
+        userId,
+        signedInAt,
+        expiresAt: { gt: new Date(now) },
+        OR: [{ revokedAt: null }, { revokedAt: { gt: new Date(now - refreshReuseGraceMs) } }],
+        user: { isActive: true },
+      },
+    });
+    return live > 0;
   }
 
   private upgrade(request: IncomingMessage, socket: Duplex, head: Buffer) {

@@ -59,6 +59,9 @@ function setup(overrides: Record<string, object> = {}) {
       updateMany: vi.fn().mockReturnValue('session-revoke'),
       deleteMany: vi.fn().mockReturnValue('session-delete'),
     },
+    accessToken: {
+      updateMany: vi.fn().mockReturnValue('access-token-revoke'),
+    },
     space: {
       create: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
@@ -288,7 +291,7 @@ describe('Account email flows', () => {
     });
   });
 
-  it('resets the password, confirms the address, cancels pending email changes and signs every device out', async () => {
+  it('resets the password, confirms the address, cancels pending email changes, signs every device out and revokes access tokens', async () => {
     const { prisma, service } = setup();
     prisma.verificationToken.findUnique.mockResolvedValueOnce({
       userId: user.id,
@@ -314,6 +317,8 @@ describe('Account email flows', () => {
       },
     });
     expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
+    expect(prisma.accessToken.updateMany).toHaveBeenCalledWith({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
+    expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('access-token-revoke');
 
     prisma.verificationToken.findUnique.mockResolvedValueOnce({
       userId: user.id,
@@ -354,6 +359,8 @@ describe('Account email flows', () => {
       },
     });
     expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
+    expect(prisma.accessToken.updateMany).toHaveBeenCalledWith({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
+    expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('access-token-revoke');
     expect(prisma.refreshSession.create).toHaveBeenCalledTimes(1);
 
     await service.deleteAccount(user.id, { password: 'correct horse battery' });

@@ -52,4 +52,16 @@ describe('Access tokens against Postgres', () => {
       'access_token_created',
     ]);
   });
+
+  it('stops every token when the other devices are signed out', async () => {
+    const owner = await member('rotator');
+    const created = await owner.call('POST', '/me/tokens', { name: 'Sync', scopes: ['spaces:read'], password });
+    expect((await withToken(created.body.token, 'GET', '/spaces')).status).toBe(200);
+
+    expect((await owner.call('DELETE', '/me/sessions')).status).toBe(204);
+
+    expect((await withToken(created.body.token, 'GET', '/spaces')).status).toBe(401);
+    expect((await owner.call('GET', '/me/tokens')).body).toEqual([]);
+    expect((await owner.call('GET', '/spaces')).status).toBe(200);
+  });
 });

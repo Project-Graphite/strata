@@ -54,6 +54,25 @@ describe('AuthService refresh', () => {
     expect(refreshSession.create).toHaveBeenCalledTimes(1);
   });
 
+  it('never lets a refreshed session outlive 30 days from signing in', async () => {
+    const signedInAt = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+    const { refreshSession, service } = serviceWith({
+      id: 'session-id',
+      userId: 'user-id',
+      signedInAt,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await service.refresh('raw-token');
+
+    expect(refreshSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ signedInAt, expiresAt: new Date(signedInAt.getTime() + 30 * 24 * 60 * 60 * 1000) }),
+      }),
+    );
+  });
+
   it('revokes every session when a rotated token is replayed', async () => {
     const { refreshSession, service } = serviceWith({
       id: 'session-id',

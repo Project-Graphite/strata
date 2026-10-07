@@ -23,7 +23,8 @@ import { PasswordService } from './password.service';
 import { TwoStepService } from './two-step.service';
 
 export const refreshLifetimeMs = 30 * 24 * 60 * 60 * 1000;
-const refreshReuseGraceMs = 30 * 1000;
+export const signInLifetimeMs = 30 * 24 * 60 * 60 * 1000;
+export const refreshReuseGraceMs = 30 * 1000;
 const challengeLifetimeMs = 5 * 60 * 1000;
 const challengeAttempts = 5;
 const tokenLifetimesMs: Record<TokenPurpose, number> = {
@@ -334,6 +335,7 @@ export class AuthService {
         where: { userId: record.userId, purpose: { in: accountTokens } },
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId: record.userId } }),
+      this.prisma.accessToken.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: now } }),
     ]);
     await this.audit.record(record.userId, 'password_reset');
     await this.passwordChangedNotice(record.user);
@@ -351,6 +353,7 @@ export class AuthService {
         where: { userId, purpose: { in: accountTokens } },
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId } }),
+      this.prisma.accessToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
     ]);
     await this.audit.record(userId, 'password_changed');
     await this.passwordChangedNotice(user);
@@ -438,7 +441,7 @@ export class AuthService {
         deviceHash: device.hash,
         deviceLabel: device.label,
         signedInAt: options.signedInAt,
-        expiresAt: new Date(Date.now() + refreshLifetimeMs),
+        expiresAt: new Date(Math.min(Date.now() + refreshLifetimeMs, (options.signedInAt?.getTime() ?? Date.now()) + signInLifetimeMs)),
       },
       select: { id: true },
     });
@@ -498,7 +501,7 @@ export class AuthService {
       text: [
         `Hi ${user.displayName},`,
         '',
-        'The password of your Strata account was just changed, and every device was signed out.',
+        'The password of your Strata account was just changed. Every device was signed out and your access tokens were revoked.',
         '',
         'If this was not you, reset it again now:',
         '',

@@ -6,7 +6,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from './auth.types';
 
-interface AccessTokenPayload {
+export interface AccessTokenPayload {
   sub: string;
   sid: string;
 }
@@ -20,6 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: config.getOrThrow<string>('AUTH_ACCESS_TOKEN_SECRET'),
+      algorithms: ['HS256'],
     });
   }
 
