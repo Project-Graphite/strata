@@ -22,6 +22,7 @@ const maxDocumentsPerUser = 40;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
+export const editorFormat = 2;
 
 interface BoardVersion {
   version?: number;
@@ -61,7 +62,8 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       quiet: true,
       debounce: 2_000,
       maxDebounce: 10_000,
-      onAuthenticate: async ({ connectionConfig, documentName, socketId, token }) => {
+      onAuthenticate: async ({ connectionConfig, documentName, requestParameters, socketId, token }) => {
+        if (Number(requestParameters.get('format')) < editorFormat) throw new Error('outdated');
         const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret, algorithms: ['HS256'] });
         const user = await this.sessions.validate(payload);
         const found = await this.access.assertItem(user.id, documentName, 'read');

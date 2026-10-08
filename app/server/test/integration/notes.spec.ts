@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
 import { NoteVersionsService } from '../../src/notes/note-versions.service';
-import { RealtimeService } from '../../src/realtime/realtime.service';
+import { editorFormat, RealtimeService } from '../../src/realtime/realtime.service';
 import { integrationApp, type Member } from './harness';
 
 class TrustedSocket extends WebSocket {
@@ -41,10 +41,10 @@ describe('Notes and real-time editing against Postgres', () => {
     for (const provider of providers.splice(0)) provider.destroy();
   });
 
-  function open(as: Member, name: string) {
+  function open(as: Member, name: string, format = editorFormat) {
     const document = new Y.Doc();
     const websocketProvider = new HocuspocusProviderWebsocket({
-      url: `${strata.base.replace(/^http/, 'ws')}/api/v1/realtime`,
+      url: `${strata.base.replace(/^http/, 'ws')}/api/v1/realtime?format=${format}`,
       WebSocketPolyfill: TrustedSocket,
     });
     return new Promise<{ provider: HocuspocusProvider; document: Y.Doc }>((resolve, reject) => {
@@ -127,6 +127,7 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(found.items.map((result: { id: string }) => result.id)).toContain(note.id);
 
     await expect(open(outsider, note.id)).rejects.toThrow();
+    await expect(open(friend, note.id, editorFormat - 1)).rejects.toThrow('outdated');
   });
 
   it('refuses other origins and disconnects someone who lost access', async () => {
