@@ -156,6 +156,16 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
   );
 }
 
+function HoldHandle({ editor }: { editor: Editor }) {
+  useEffect(() => {
+    editor.commands.setMeta('lockDragHandle', true);
+    return () => {
+      editor.commands.setMeta('lockDragHandle', false);
+    };
+  }, [editor]);
+  return null;
+}
+
 function BlockHandle({ editor, onImages }: { editor: Editor; onImages: (view: EditorView, files: File[]) => boolean }) {
   const [block, setBlock] = useState<{ node: BlockNode; pos: number }>();
   const at = (pos: number, bias: 1 | -1 = 1) =>
@@ -174,12 +184,19 @@ function BlockHandle({ editor, onImages }: { editor: Editor; onImages: (view: Ed
             ]
           : blockChoices(onImages)
               .filter((choice) => turnInto.has(choice.id))
-              .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1), editor), separated: index === 0 }))),
+              .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
       ]
     : [];
   return (
     <DragHandle editor={editor} onNodeChange={({ node, pos }) => setBlock(node ? { node, pos } : undefined)}>
-      <Menu items={items} label="Block actions" trigger="⠿" triggerClassName="note-block-handle" triggerLabel="Move or change this block" />
+      <Menu
+        header={<HoldHandle editor={editor} />}
+        items={items}
+        label="Block actions"
+        trigger="⠿"
+        triggerClassName="note-block-handle"
+        triggerLabel="Move or change this block"
+      />
     </DragHandle>
   );
 }

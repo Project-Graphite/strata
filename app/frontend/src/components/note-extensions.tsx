@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Extension, type ChainedCommands, type Editor } from '@tiptap/core';
+import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
@@ -18,7 +18,7 @@ export interface MentionCandidate extends Candidate {
   href: string;
 }
 
-interface BlockChoice extends Candidate {
+export interface BlockChoice extends Candidate {
   words: string;
   run: (chain: ChainedCommands, editor: Editor) => void;
 }
@@ -194,7 +194,18 @@ export const StoredImageExtension = Image.extend({
   },
 });
 
-export function blockMenuExtension(onImages: (view: Editor['view'], files: File[]) => void) {
+export const Callout = Node.create({
+  name: 'callout',
+  group: 'block',
+  content: 'paragraph+',
+  defining: true,
+  parseHTML: () => [{ tag: 'div[data-callout]' }],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-callout': '', class: 'note-callout' }), 0],
+});
+
+type ImageHandler = (view: Editor['view'], files: File[]) => void;
+
+export function blockChoices(onImages: ImageHandler): BlockChoice[] {
   const chooseImages = (editor: Editor) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -203,7 +214,7 @@ export function blockMenuExtension(onImages: (view: Editor['view'], files: File[
     input.onchange = () => onImages(editor.view, [...(input.files ?? [])]);
     input.click();
   };
-  const choices: BlockChoice[] = [
+  return [
     { id: 'text', label: 'Text', hint: 'paragraph', words: 'text paragraph plain', run: (chain) => chain.setParagraph().run() },
     { id: 'heading', label: 'Heading', hint: '#', words: 'heading title h1', run: (chain) => chain.setHeading({ level: 1 }).run() },
     { id: 'subheading', label: 'Subheading', hint: '##', words: 'subheading heading h2', run: (chain) => chain.setHeading({ level: 2 }).run() },
@@ -212,6 +223,9 @@ export function blockMenuExtension(onImages: (view: Editor['view'], files: File[
     { id: 'checklist', label: 'Checklist', hint: '[]', words: 'checklist todo tasks checkbox', run: (chain) => chain.toggleTaskList().run() },
     { id: 'quote', label: 'Quote', hint: '>', words: 'quote blockquote', run: (chain) => chain.toggleBlockquote().run() },
     { id: 'code', label: 'Code block', hint: '```', words: 'code block snippet', run: (chain) => chain.toggleCodeBlock().run() },
+    { id: 'callout', label: 'Callout', hint: 'note', words: 'callout note tip warning box', run: (chain) => chain.toggleWrap('callout').run() },
+    { id: 'toggle', label: 'Toggle', hint: 'fold', words: 'toggle collapse fold details', run: (chain) => chain.setDetails().run() },
+    { id: 'table', label: 'Table', hint: '3 × 3', words: 'table grid rows columns', run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { id: 'divider', label: 'Divider', hint: '---', words: 'divider line separator rule', run: (chain) => chain.setHorizontalRule().run() },
     {
       id: 'image',
@@ -225,6 +239,10 @@ export function blockMenuExtension(onImages: (view: Editor['view'], files: File[
     },
     { id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain) => chain.insertContent('@').run() },
   ];
+}
+
+export function blockMenuExtension(onImages: ImageHandler) {
+  const choices = blockChoices(onImages);
   return Extension.create({
     name: 'blockMenu',
     addProseMirrorPlugins() {

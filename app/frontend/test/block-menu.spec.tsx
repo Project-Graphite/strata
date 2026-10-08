@@ -1,11 +1,13 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Editor } from '@tiptap/core';
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableKit } from '@tiptap/extension-table';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blockMenuExtension } from '../src/components/note-extensions';
+import { blockMenuExtension, Callout } from '../src/components/note-extensions';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -28,7 +30,7 @@ describe('The / block menu', () => {
 
   async function open(onImages = vi.fn()) {
     function Page() {
-      const created = useEditor({ extensions: [StarterKit, TaskList, TaskItem, blockMenuExtension(onImages)], content: '<p></p>', immediatelyRender: true });
+      const created = useEditor({ extensions: [StarterKit, TaskList, TaskItem, Callout, Details, DetailsSummary, DetailsContent, TableKit, blockMenuExtension(onImages)], content: '<p></p>', immediatelyRender: true });
       editor = created ?? undefined;
       return <EditorContent editor={created} />;
     }
@@ -72,5 +74,32 @@ describe('The / block menu', () => {
     picker.onchange?.(new Event('change'));
     expect(onImages).toHaveBeenCalledWith(editor!.view, []);
     click.mockRestore();
+  });
+
+  it('adds callouts, toggles and tables', async () => {
+    await open();
+    const pick = async (query: string) => {
+      await typeIn(`/${query}`);
+      await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    };
+    await pick('callout');
+    await typeIn('Bring a coat');
+    expect(editor!.getJSON().content?.[0]).toMatchObject({ type: 'callout', content: [{ type: 'paragraph', content: [{ text: 'Bring a coat' }] }] });
+
+    await act(async () => {
+      editor!.commands.setContent('<p></p>');
+      editor!.commands.focus('end');
+    });
+    await pick('toggle');
+    expect(editor!.getJSON().content?.[0]?.type).toBe('details');
+
+    await act(async () => {
+      editor!.commands.setContent('<p></p>');
+      editor!.commands.focus('end');
+    });
+    await pick('table');
+    const table = editor!.getJSON().content?.find((block) => block.type === 'table');
+    expect(table?.content).toHaveLength(3);
+    expect(table?.content?.[0]?.content?.map((cell) => cell.type)).toEqual(['tableHeader', 'tableHeader', 'tableHeader']);
   });
 });
