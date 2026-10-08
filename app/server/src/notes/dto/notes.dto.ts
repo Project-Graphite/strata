@@ -29,6 +29,9 @@ export class CreateNoteDto {
   @IsString()
   @MaxLength(10_000, { message: 'Quick notes are at most 10,000 characters long.' })
   text?: string;
+  @IsOptionalNotNull()
+  @IsBoolean()
+  board?: boolean;
 }
 
 export class UpdateNoteDto {

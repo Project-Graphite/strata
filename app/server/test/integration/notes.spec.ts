@@ -181,6 +181,49 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(await until(async () => connections(), (count) => count === 0)).toBe(0);
   });
 
+  it('keeps boards in the page tree, syncs their elements, indexes their text and restores them', async () => {
+    const owner = await member('sketcher');
+    const friend = await member('doodler');
+    const space = (await owner.call('POST', '/spaces', { name: 'Wedding' })).body;
+    await strata.join(space.id, friend, SpaceRole.EDITOR);
+    const board = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Seating', board: true })).body;
+    expect(board).toMatchObject({ kind: 'board', title: 'Seating' });
+    expect((await owner.call('GET', `/spaces/${space.id}/notes`)).body).toEqual([expect.objectContaining({ id: board.id, kind: 'board' })]);
+    expect((await owner.call('POST', `/spaces/${space.id}/notes`, { board: true, template: 'meeting' })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${board.id}`, { template: true })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${space.id}/notes`, { parentId: board.id })).status).toBe(400);
+    expect((await owner.call('PUT', `/notes/${board.id}/database`, { properties: [], view: 'table' })).status).toBe(404);
+    const realtime = strata.service(RealtimeService);
+    const elementsOf = (document: Y.Doc) => document.getMap<{ id: string; text?: string; version: number; isDeleted?: boolean }>('board');
+
+    const mine = await open(owner, board.id);
+    const theirs = await open(friend, board.id);
+    elementsOf(mine.document).set('table-1', { id: 'table-1', type: 'text', text: 'Top table', version: 3 });
+    await until(async () => elementsOf(theirs.document).get('table-1'), (element) => Boolean(element));
+    expect(elementsOf(theirs.document).get('table-1')).toMatchObject({ text: 'Top table' });
+    realtime.hocuspocus.flushPendingStores();
+    const stored = await until(
+      () => strata.prisma.searchDocument.findUnique({ where: { itemId: board.id } }),
+      (row) => Boolean(row?.bodyText.includes('Top table')),
+    );
+    expect(stored?.bodyText).toBe('Top table');
+
+    theirs.provider.destroy();
+    mine.provider.destroy();
+    const [version] = await until(
+      async () => (await owner.call('GET', `/notes/${board.id}/versions`)).body as { id: string }[],
+      (versions) => versions.length === 1,
+    );
+    const again = await open(owner, board.id);
+    elementsOf(again.document).set('table-1', { id: 'table-1', type: 'text', text: 'Top table moved', version: 9 });
+    elementsOf(again.document).set('table-2', { id: 'table-2', type: 'text', text: 'Kids table', version: 1 });
+    await until(async () => elementsOf(realtime.hocuspocus.documents.get(board.id)!).size, (size) => size === 2);
+    expect((await owner.call('POST', `/notes/${board.id}/versions/${version!.id}/restore`)).status).toBe(204);
+    await until(async () => elementsOf(again.document).get('table-1')?.text, (text) => text === 'Top table');
+    expect(elementsOf(again.document).get('table-1')).toMatchObject({ text: 'Top table', version: 10, isDeleted: false });
+    expect(elementsOf(again.document).get('table-2')).toMatchObject({ text: 'Kids table', version: 2, isDeleted: true });
+  });
+
   it('keeps versions when editing sessions end, previews and restores them, and thins old ones', async () => {
     const owner = await member('historian');
     const viewer = await member('reviewer');

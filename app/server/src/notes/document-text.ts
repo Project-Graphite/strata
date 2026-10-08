@@ -16,8 +16,27 @@ function textOf(node: Y.XmlElement | Y.XmlText | Y.XmlFragment): string {
     .join(blockSeparator);
 }
 
+export const boardElementsKey = 'board';
+
+interface BoardElement {
+  type?: string;
+  text?: string;
+  fileId?: string;
+  isDeleted?: boolean;
+}
+
+function boardElements(document: Y.Doc) {
+  return [...document.getMap<BoardElement>(boardElementsKey).values()].filter((element) => !element.isDeleted);
+}
+
 export function documentText(document: Y.Doc, maxLength = 100_000) {
-  return textOf(document.getXmlFragment('default')).replace(/\n{3,}/g, '\n\n').trim().slice(0, maxLength);
+  const boardText = boardElements(document).flatMap((element) => (element.type === 'text' && element.text ? [element.text] : []));
+  return [textOf(document.getXmlFragment('default')), ...boardText]
+    .filter(Boolean)
+    .join(blockSeparator)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, maxLength);
 }
 
 function collect(node: Y.XmlElement | Y.XmlFragment, found: { mentions: Set<string>; files: Set<string> }) {
@@ -31,5 +50,7 @@ function collect(node: Y.XmlElement | Y.XmlFragment, found: { mentions: Set<stri
 }
 
 export function documentLinks(document: Y.Doc) {
-  return collect(document.getXmlFragment('default'), { mentions: new Set<string>(), files: new Set<string>() });
+  const found = collect(document.getXmlFragment('default'), { mentions: new Set<string>(), files: new Set<string>() });
+  for (const element of boardElements(document)) if (element.type === 'image' && element.fileId) found.files.add(element.fileId);
+  return found;
 }

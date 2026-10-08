@@ -9,8 +9,11 @@ import { documentText } from './document-text';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
 import { templateDocument, textDocument, type BuiltInTemplate } from './templates';
 
+export const pageKinds: ItemKind[] = [ItemKind.NOTE, ItemKind.BOARD];
+
 export const noteFields = {
   id: true,
+  kind: true,
   spaceId: true,
   title: true,
   createdAt: true,
@@ -26,6 +29,7 @@ export function present(row: NoteRow) {
     id: row.id,
     spaceId: row.spaceId,
     title: row.title,
+    kind: row.kind === ItemKind.BOARD ? ('board' as const) : ('note' as const),
     parentId: row.note?.parentId ?? null,
     position: row.note?.position ?? 0,
     icon: row.note?.icon ?? null,
@@ -48,7 +52,7 @@ export class NotesService {
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: ItemKind.NOTE, trashedAt: null, archivedAt: null },
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       select: noteFields,
     });
@@ -56,7 +60,7 @@ export class NotesService {
   }
 
   async mine(userId: string) {
-    const where = { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
+    const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
     const [pinned, recent] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...where, note: { template: false, pinnedAt: { not: null } } },
@@ -86,7 +90,7 @@ export class NotesService {
       const item = await transaction.item.create({
         data: {
           spaceId,
-          kind: ItemKind.NOTE,
+          kind: input.board ? ItemKind.BOARD : ItemKind.NOTE,
           title: input.title ?? '',
           createdById: userId,
           updatedById: userId,
@@ -122,6 +126,7 @@ export class NotesService {
   async update(userId: string, noteId: string, input: UpdateNoteDto) {
     const found = await this.note(userId, noteId, 'edit');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
+    if (input.template && found.kind === ItemKind.BOARD) throw new BadRequestException('A board cannot be a template');
     if (input.parentId) {
       await this.parentIn(found.spaceId, input.parentId);
       if (input.parentId === noteId || (await this.ancestors(input.parentId)).some((ancestor) => ancestor.id === noteId)) {
@@ -174,14 +179,18 @@ export class NotesService {
     return present(updated);
   }
 
-  async note(userId: string, noteId: string, access: 'read' | 'edit') {
+  async note(userId: string, noteId: string, access: 'read' | 'edit', kinds: ItemKind[] = pageKinds) {
     const found = await this.access.assertItem(userId, noteId, access);
-    const item = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true } });
-    if (item.kind !== ItemKind.NOTE) throw new NotFoundException('Note not found');
-    return found;
+    const { kind } = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true } });
+    if (!kinds.includes(kind)) throw new NotFoundException('Note not found');
+    return { ...found, kind };
   }
 
   private async initialState(spaceId: string, input: CreateNoteDto) {
+    if (input.board) {
+      if (input.template || input.fromNoteId || input.text) throw new BadRequestException('A board starts empty');
+      return null;
+    }
     if (input.template) return templateDocument(input.template as BuiltInTemplate);
     if (input.text?.trim()) return textDocument(input.text.trim());
     if (!input.fromNoteId) return null;

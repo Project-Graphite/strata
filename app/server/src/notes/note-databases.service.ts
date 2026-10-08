@@ -15,7 +15,7 @@ export class NoteDatabasesService {
   ) {}
 
   async get(userId: string, noteId: string) {
-    await this.notes.note(userId, noteId, 'read');
+    await this.notes.note(userId, noteId, 'read', [ItemKind.NOTE]);
     const schema = await this.prisma.databaseSchema.findUnique({ where: { itemId: noteId } });
     if (!schema) throw new NotFoundException('This page is not a database');
     const rows = await this.prisma.item.findMany({
@@ -33,7 +33,7 @@ export class NoteDatabasesService {
   }
 
   async save(userId: string, noteId: string, input: SaveDatabaseDto) {
-    const found = await this.notes.note(userId, noteId, 'edit');
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     const properties: Property[] = input.properties.map(({ id, name, type, options }) =>
       type === 'select' || type === 'multiSelect' ? { id, name, type, options: options ?? [] } : { id, name, type },
@@ -80,7 +80,7 @@ export class NoteDatabasesService {
   }
 
   async remove(userId: string, noteId: string) {
-    await this.notes.note(userId, noteId, 'edit');
+    await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     await this.prisma.$transaction([
       this.prisma.noteProperty.deleteMany({ where: { item: { note: { parentId: noteId } } } }),
       this.prisma.databaseSchema.deleteMany({ where: { itemId: noteId } }),
@@ -88,7 +88,7 @@ export class NoteDatabasesService {
   }
 
   async setValues(userId: string, noteId: string, input: SetPropertiesDto) {
-    const found = await this.notes.note(userId, noteId, 'edit');
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     const note = await this.prisma.note.findUnique({
       where: { itemId: noteId },
