@@ -13,6 +13,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
+const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
 
 export function NotePage() {
   const { id = '' } = useParams();
@@ -86,7 +87,7 @@ export function NotePage() {
   }
 
   return (
-    <article className={`page-enter grid gap-6 ${details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+    <article className={`page-enter grid gap-6 ${details.kind === 'board' ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
           <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
@@ -102,7 +103,7 @@ export function NotePage() {
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-4">
-          {details.editable && (
+          {details.editable && details.kind !== 'board' && (
             <button
               className="text-button text-sm"
               disabled={converting.busy}
@@ -112,7 +113,7 @@ export function NotePage() {
               {details.database ? 'Turn back into a page' : 'Turn into a database'}
             </button>
           )}
-          {details.editable && (
+          {details.editable && details.kind !== 'board' && (
             <button
               className="text-button text-sm"
               disabled={marking.busy}
@@ -168,10 +169,14 @@ export function NotePage() {
         </dl>
       )}
       <Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
-        <NoteEditor editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
+        {details.kind === 'board' ? (
+          <BoardCanvas editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
+        ) : (
+          <NoteEditor editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
+        )}
       </Suspense>
       {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {!details.database && (children.length > 0 || details.editable) && (
+      {details.kind !== 'board' && !details.database && (children.length > 0 || details.editable) && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
           <h2 className="m-0 text-sm font-medium text-muted">Pages inside</h2>
           {children.length > 0 && (

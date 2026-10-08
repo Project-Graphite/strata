@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
@@ -8,33 +6,12 @@ import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { IndexeddbPersistence } from 'y-indexeddb';
-import * as Y from 'yjs';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
-import { realtimeUrl } from '../notes';
 import type { Item } from '../spaces';
+import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import { internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
-
-interface Connection {
-  document: Y.Doc;
-  provider: HocuspocusProvider;
-}
-
-interface Person {
-  clientId: number;
-  name: string;
-  color: string;
-}
-
-const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb3c4', '#6b8fe5', '#a07be5', '#e57bb5'];
-
-function colorFor(id: string) {
-  let hash = 0;
-  for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  return colors[hash % colors.length]!;
-}
 
 function Toolbar({ editor }: { editor: Editor }) {
   const state = useEditorState({
@@ -77,9 +54,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
-  const [people, setPeople] = useState<Person[]>([]);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [unsynced, setUnsynced] = useState(0);
+  const { label, people } = useLiveStatus(connection, editable);
   const user = auth.user!;
 
   const editor = useEditor(
@@ -135,46 +110,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
     return true;
   }
 
-  useEffect(() => {
-    const { provider } = connection;
-    const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
-      setStatus((current) => (next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
-    const onUnsynced = ({ number }: { number: number }) => setUnsynced(number);
-    const onAwareness = () =>
-      setPeople(
-        [...(provider.awareness?.getStates().entries() ?? [])]
-          .filter(([clientId, state]) => clientId !== provider.awareness?.clientID && state.user)
-          .map(([clientId, state]) => ({ clientId, ...(state.user as { name: string; color: string }) })),
-      );
-    const onStateless = ({ payload }: { payload: string }) => {
-      if (payload.includes('too-large')) show({ message: 'This page is too large to save. Split it into smaller pages.', tone: 'error' });
-    };
-    provider.on('status', onStatus);
-    provider.on('unsyncedChanges', onUnsynced);
-    provider.on('awarenessChange', onAwareness);
-    provider.on('stateless', onStateless);
-    return () => {
-      provider.off('status', onStatus);
-      provider.off('unsyncedChanges', onUnsynced);
-      provider.off('awarenessChange', onAwareness);
-      provider.off('stateless', onStateless);
-    };
-  }, [connection, show]);
-
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
-  const label =
-    status === 'disconnected'
-      ? editable
-        ? 'Offline. Changes are kept on this device'
-        : 'Offline'
-      : status === 'connecting'
-        ? 'Connecting…'
-        : unsynced > 0
-          ? 'Saving…'
-          : editable
-            ? 'Saved'
-            : 'View only';
-
   return (
     <div className="note-editor grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -198,26 +134,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
 }
 
 export default function NoteEditor({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
-  const auth = useAuth();
-  const [connection, setConnection] = useState<Connection>();
-  const accessToken = useRef(auth.accessToken);
-  accessToken.current = auth.accessToken;
-
-  useEffect(() => {
-    const document = new Y.Doc();
-    const drafts = new IndexeddbPersistence(`strata-note-${noteId}`, document);
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: realtimeUrl() });
-    const provider = new HocuspocusProvider({ name: noteId, document, websocketProvider, token: () => accessToken.current() });
-    provider.attach();
-    setConnection({ document, provider });
-    return () => {
-      provider.destroy();
-      websocketProvider.destroy();
-      void drafts.destroy();
-      document.destroy();
-    };
-  }, [noteId]);
-
+  const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} spaceId={spaceId} />;
 }

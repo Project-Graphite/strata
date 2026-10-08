@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { documentText } from '../src/notes/document-text';
+import { boardElementsKey, documentLinks, documentText } from '../src/notes/document-text';
 
 function block(name: string, ...children: (Y.XmlElement | Y.XmlText)[]) {
   const element = new Y.XmlElement(name);
@@ -23,5 +23,18 @@ describe('documentText', () => {
     expect(documentText(document)).toBe('Trip\nPack light\nPassport\nCharger');
     expect(documentText(document, 6)).toBe('Trip\nP');
     expect(documentText(new Y.Doc())).toBe('');
+  });
+
+  it('reads the text boxes and images of a board, leaving out deleted elements', () => {
+    const document = new Y.Doc();
+    const board = document.getMap(boardElementsKey);
+    board.set('a', { id: 'a', type: 'text', text: 'Seating plan' });
+    board.set('b', { id: 'b', type: 'rectangle' });
+    board.set('c', { id: 'c', type: 'text', text: 'Old idea', isDeleted: true });
+    board.set('d', { id: 'd', type: 'image', fileId: 'photo-file' });
+    board.set('e', { id: 'e', type: 'image', fileId: 'removed-file', isDeleted: true });
+
+    expect(documentText(document)).toBe('Seating plan');
+    expect([...documentLinks(document).files]).toEqual(['photo-file']);
   });
 });

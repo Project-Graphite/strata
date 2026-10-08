@@ -19,6 +19,7 @@ function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
           {note.icon ?? '·'}
         </span>
         <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
+        {note.kind === 'board' && <span className="text-xs text-faint">Board</span>}
         {note.pinnedAt && <span className="text-xs text-faint">Pinned</span>}
       </Link>
     </li>
@@ -39,7 +40,7 @@ export function SpaceNotes() {
   const templates = notes.data.filter((note) => note.template);
   const branches = flattenTree(pages);
 
-  function create(body: Record<string, string>) {
+  function create(body: Record<string, string | boolean>) {
     void creating.run(async () => {
       const created = await auth.request<Note>(`/spaces/${space.id}/notes`, { method: 'POST', body: JSON.stringify(body) });
       navigate(`/notes/${created.id}`);
@@ -54,6 +55,9 @@ export function SpaceNotes() {
           <button className="primary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create({})} type="button">
             <Icon name="plus" size={16} />
             New page
+          </button>
+          <button className="secondary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create({ board: true })} type="button">
+            New board
           </button>
           <Menu
             items={[

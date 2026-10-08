@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ItemKind, LinkKind, SpaceRole } from '@prisma/client';
+import { LinkKind, SpaceRole } from '@prisma/client';
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -11,7 +11,8 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
-import { documentLinks, documentText } from '../notes/document-text';
+import { boardElementsKey, documentLinks, documentText } from '../notes/document-text';
+import { pageKinds } from '../notes/notes.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const realtimePath = '/api/v1/realtime';
@@ -21,6 +22,11 @@ const maxDocumentsPerUser = 40;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
+
+interface BoardVersion {
+  version?: number;
+  isDeleted?: boolean;
+}
 
 export interface RealtimeContext {
   userId: string;
@@ -60,7 +66,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         const user = await this.sessions.validate(payload);
         const found = await this.access.assertItem(user.id, documentName, 'read');
         const item = await this.prisma.item.findUniqueOrThrow({ where: { id: documentName }, select: { kind: true } });
-        if (item.kind !== ItemKind.NOTE || found.trashedAt) throw new Error('Only notes can be opened here');
+        if (!pageKinds.includes(item.kind) || found.trashedAt) throw new Error('Only pages and boards can be opened here');
         const { signedInAt } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true } });
         const open = this.documentsPerUser.get(user.id) ?? new Set<string>();
         const key = `${socketId}/${documentName}`;
@@ -177,6 +183,17 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
             .filter((node): node is Y.XmlElement | Y.XmlText => !(node instanceof Y.XmlHook))
             .map((node) => node.clone()),
         );
+        const board = document.getMap<BoardVersion>(boardElementsKey);
+        const restored = snapshot.getMap<BoardVersion>(boardElementsKey);
+        const bumped = (id: string, element: BoardVersion, isDeleted: boolean) => ({
+          ...element,
+          isDeleted,
+          version: Math.max(board.get(id)?.version ?? 0, element.version ?? 0) + 1,
+          versionNonce: Math.floor(Math.random() * 2 ** 31),
+          updated: Date.now(),
+        });
+        for (const [id, element] of board) if (!restored.has(id)) board.set(id, bumped(id, element, true));
+        for (const [id, element] of restored) board.set(id, bumped(id, element, Boolean(element.isDeleted)));
       });
     } finally {
       await direct.disconnect();

@@ -11,6 +11,10 @@ vi.mock('../src/components/NoteEditor', () => ({
   default: ({ editable, noteId }: { editable: boolean; noteId: string }) => <div data-editable={editable} data-note={noteId} data-testid="editor" />,
 }));
 
+vi.mock('../src/components/BoardCanvas', () => ({
+  default: ({ editable, noteId }: { editable: boolean; noteId: string }) => <div data-editable={editable} data-note={noteId} data-testid="board" />,
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const json = (body: unknown, status = 200) =>
@@ -22,6 +26,7 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   id,
   spaceId: 'home',
   title,
+  kind: 'note',
   parentId,
   position,
   icon: null,
@@ -108,6 +113,30 @@ describe('Notes', () => {
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New page')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('new');
+  });
+
+  it('creates a board and opens it on a canvas, without the page-only actions', async () => {
+    const board = { ...note('seating', 'Seating'), kind: 'board' as const };
+    listed = [...pages, board];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/notes' && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body))).toEqual({ board: true });
+        return json(board, 201);
+      }
+      if (path === '/notes/seating') return json({ ...board, editable: true, path: [] });
+      return undefined;
+    });
+    await render('/spaces/home/notes');
+
+    expect([...container.querySelectorAll('main a[href^="/notes/"]')].at(-1)?.textContent).toBe('·SeatingBoard');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New board')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-note')).toBe('seating');
+    expect(container.querySelector('[data-testid="editor"]')).toBeNull();
+    const buttons = [...container.querySelectorAll('button')].map((button) => button.textContent);
+    expect(buttons).not.toContain('Turn into a database');
+    expect(buttons).not.toContain('Use as a template');
+    expect(container.textContent).not.toContain('Pages inside');
   });
 
   it('shows the path, renames on blur and adds a page inside', async () => {
