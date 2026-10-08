@@ -11,7 +11,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-import { internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
+import { blockMenuExtension, internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
 
 function Toolbar({ editor }: { editor: Editor }) {
   const state = useEditorState({
@@ -68,6 +68,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
         mentionExtension(auth.request, noteId),
+        blockMenuExtension(insertImages),
         StoredImageExtension,
       ],
       editorProps: {
