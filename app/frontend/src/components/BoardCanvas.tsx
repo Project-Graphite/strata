@@ -34,7 +34,7 @@ function dataUrl(blob: Blob) {
 function LiveBoard({ connection, editable, spaceId }: { connection: Connection; editable: boolean; spaceId: string }) {
   const auth = useAuth();
   const show = useSnackbar();
-  const { label, people } = useLiveStatus(connection, editable);
+  const { label, people, outdated } = useLiveStatus(connection, editable);
   const [api, setApi] = useState<ExcalidrawImperativeAPI>();
   const synced = useRef(new Map<string, number>());
   const loading = useRef(new Set<string>());
@@ -151,12 +151,12 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
           generateIdForFile={upload}
           isCollaborating
           onChange={() => {
-            if (editable && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
+            if (editable && !outdated && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
           }}
           onPointerUpdate={({ pointer, button }) => connection.provider.setAwarenessField('pointer', { ...pointer, button })}
           theme="light"
           UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } }}
-          viewModeEnabled={!editable}
+          viewModeEnabled={!editable || outdated}
         />
       </div>
     </div>

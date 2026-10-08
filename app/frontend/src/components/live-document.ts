@@ -17,6 +17,8 @@ export interface Person {
   color: string;
 }
 
+export const editorFormat = 2;
+
 const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb3c4', '#6b8fe5', '#a07be5', '#e57bb5'];
 
 export function colorFor(id: string) {
@@ -34,7 +36,7 @@ export function useLiveDocument(noteId: string) {
   useEffect(() => {
     const document = new Y.Doc();
     const drafts = new IndexeddbPersistence(`strata-note-${noteId}`, document);
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: realtimeUrl() });
+    const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
     const provider = new HocuspocusProvider({ name: noteId, document, websocketProvider, token: () => accessToken.current() });
     provider.attach();
     setConnection({ document, provider });
@@ -52,13 +54,18 @@ export function useLiveDocument(noteId: string) {
 export function useLiveStatus(connection: Connection, editable: boolean) {
   const show = useSnackbar();
   const [people, setPeople] = useState<Person[]>([]);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'outdated'>('connecting');
   const [unsynced, setUnsynced] = useState(0);
 
   useEffect(() => {
     const { provider } = connection;
     const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
-      setStatus((current) => (next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
+      setStatus((current) => (current === 'outdated' ? current : next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
+    const onRefused = ({ reason }: { reason: string }) => {
+      if (reason !== 'outdated') return;
+      setStatus('outdated');
+      provider.disconnect();
+    };
     const onUnsynced = ({ number }: { number: number }) => setUnsynced(number);
     const onAwareness = () =>
       setPeople(
@@ -73,16 +80,20 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
     provider.on('unsyncedChanges', onUnsynced);
     provider.on('awarenessChange', onAwareness);
     provider.on('stateless', onStateless);
+    provider.on('authenticationFailed', onRefused);
     return () => {
       provider.off('status', onStatus);
       provider.off('unsyncedChanges', onUnsynced);
       provider.off('awarenessChange', onAwareness);
       provider.off('stateless', onStateless);
+      provider.off('authenticationFailed', onRefused);
     };
   }, [connection, show]);
 
   const label =
-    status === 'disconnected'
+    status === 'outdated'
+      ? 'Strata was updated. Reload the page to keep editing'
+      : status === 'disconnected'
       ? editable
         ? 'Offline. Changes are kept on this device'
         : 'Offline'
@@ -93,5 +104,5 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
           : editable
             ? 'Saved'
             : 'View only';
-  return { label, people };
+  return { label, people, outdated: status === 'outdated' };
 }

@@ -140,6 +140,102 @@
   border-top: 1px solid var(--color-line);
 }
 
+.note-content mark {
+  border-radius: 0.2em;
+  background: color-mix(in srgb, #d7b24a 35%, transparent);
+  color: inherit;
+  padding: 0 0.1em;
+}
+
+.note-callout {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-field);
+  background: var(--color-surface);
+  padding: 0.75rem 1rem 0.75rem 2.6rem;
+  position: relative;
+}
+
+.note-callout::before {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.9rem;
+  content: '💡';
+}
+
+.note-toggle {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.note-toggle > button {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.7em;
+  color: var(--color-muted);
+}
+
+.note-toggle > button::before {
+  display: inline-block;
+  content: '▸';
+  transition: transform 120ms ease;
+}
+
+.note-toggle.is-open > button::before {
+  transform: rotate(90deg);
+}
+
+.note-toggle > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-toggle summary {
+  font-weight: 560;
+  list-style: none;
+}
+
+.note-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.note-content table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.note-content th,
+.note-content td {
+  border: 1px solid var(--color-line);
+  padding: 0.35rem 0.6rem;
+  vertical-align: top;
+}
+
+.note-content th {
+  background: var(--color-surface);
+  font-weight: 600;
+  text-align: left;
+}
+
+.note-content .selectedCell {
+  background: var(--color-line-soft);
+}
+
+.note-block-handle {
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.6rem;
+  border-radius: var(--radius-field);
+  color: var(--color-faint);
+  cursor: grab;
+}
+
+.note-block-handle:hover {
+  background: var(--color-line-soft);
+  color: var(--color-ink);
+}
+
 .note-content p.is-editor-empty:first-child::before {
   float: left;
   height: 0;

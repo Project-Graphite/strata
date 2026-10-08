@@ -1,7 +1,14 @@
-import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
+import { useEffect, useState } from 'react';
+import { Avatar, LinesSkeleton, Menu, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
+import { DragHandle } from '@tiptap/extension-drag-handle-react';
+import Highlight from '@tiptap/extension-highlight';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableKit } from '@tiptap/extension-table';
+import type { Node as BlockNode } from '@tiptap/pm/model';
+import { TextSelection } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
@@ -11,7 +18,9 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-import { blockMenuExtension, internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
+import { blockChoices, blockMenuExtension, Callout, internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
+
+const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 
 function Toolbar({ editor }: { editor: Editor }) {
   const state = useEditorState({
@@ -19,6 +28,7 @@ function Toolbar({ editor }: { editor: Editor }) {
     selector: ({ editor: current }) => ({
       bold: current.isActive('bold'),
       italic: current.isActive('italic'),
+      highlight: current.isActive('highlight'),
       heading1: current.isActive('heading', { level: 1 }),
       heading2: current.isActive('heading', { level: 2 }),
       bullets: current.isActive('bulletList'),
@@ -31,6 +41,7 @@ function Toolbar({ editor }: { editor: Editor }) {
   const tools: [string, string, boolean, () => void][] = [
     ['B', 'Bold', state.bold, () => editor.chain().focus().toggleBold().run()],
     ['I', 'Italic', state.italic, () => editor.chain().focus().toggleItalic().run()],
+    ['▮', 'Highlight', state.highlight, () => editor.chain().focus().toggleHighlight().run()],
     ['H1', 'Heading', state.heading1, () => editor.chain().focus().toggleHeading({ level: 1 }).run()],
     ['H2', 'Subheading', state.heading2, () => editor.chain().focus().toggleHeading({ level: 2 }).run()],
     ['•', 'Bulleted list', state.bullets, () => editor.chain().focus().toggleBulletList().run()],
@@ -54,7 +65,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
-  const { label, people } = useLiveStatus(connection, editable);
+  const { label, people, outdated } = useLiveStatus(connection, editable);
   const user = auth.user!;
 
   const editor = useEditor(
@@ -67,6 +78,12 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
+        Highlight,
+        Callout,
+        Details.configure({ persist: true, HTMLAttributes: { class: 'note-toggle' } }),
+        DetailsSummary,
+        DetailsContent,
+        TableKit.configure({ table: { resizable: false } }),
         mentionExtension(auth.request, noteId),
         blockMenuExtension(insertImages),
         StoredImageExtension,
@@ -111,11 +128,15 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
     return true;
   }
 
+  useEffect(() => {
+    if (outdated) editor?.setEditable(false);
+  }, [editor, outdated]);
+
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return (
     <div className="note-editor grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {editable ? <Toolbar editor={editor} /> : <span />}
+        {editable && !outdated ? <Toolbar editor={editor} /> : <span />}
         <div className="flex items-center gap-3">
           {people.length > 0 && (
             <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
@@ -129,8 +150,54 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
           </span>
         </div>
       </div>
+      {editable && !outdated && <BlockHandle editor={editor} onImages={insertImages} />}
       <EditorContent editor={editor} />
     </div>
+  );
+}
+
+function HoldHandle({ editor }: { editor: Editor }) {
+  useEffect(() => {
+    editor.commands.setMeta('lockDragHandle', true);
+    return () => {
+      editor.commands.setMeta('lockDragHandle', false);
+    };
+  }, [editor]);
+  return null;
+}
+
+function BlockHandle({ editor, onImages }: { editor: Editor; onImages: (view: EditorView, files: File[]) => boolean }) {
+  const [block, setBlock] = useState<{ node: BlockNode; pos: number }>();
+  const at = (pos: number, bias: 1 | -1 = 1) =>
+    editor.chain().focus().command(({ tr }) => {
+      tr.setSelection(TextSelection.near(tr.doc.resolve(pos), bias));
+      return true;
+    });
+  const items: MenuItem[] = block
+    ? [
+        { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(block.pos + block.node.nodeSize, block.node.toJSON()).run() },
+        { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: block.pos + block.node.nodeSize }).run() },
+        ...(block.node.type.name === 'table'
+          ? [
+              { label: 'Add a row', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addRowAfter().run(), separated: true },
+              { label: 'Add a column', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addColumnAfter().run() },
+            ]
+          : blockChoices(onImages)
+              .filter((choice) => turnInto.has(choice.id))
+              .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
+      ]
+    : [];
+  return (
+    <DragHandle editor={editor} onNodeChange={({ node, pos }) => setBlock(node ? { node, pos } : undefined)}>
+      <Menu
+        header={<HoldHandle editor={editor} />}
+        items={items}
+        label="Block actions"
+        trigger="⠿"
+        triggerClassName="note-block-handle"
+        triggerLabel="Move or change this block"
+      />
+    </DragHandle>
   );
 }
 
