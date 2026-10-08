@@ -63,7 +63,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       debounce: 2_000,
       maxDebounce: 10_000,
       onAuthenticate: async ({ connectionConfig, documentName, requestParameters, socketId, token }) => {
-        if (Number(requestParameters.get('format')) < editorFormat) throw new Error('outdated');
+        if (Number(requestParameters.get('format')) < editorFormat) throw Object.assign(new Error('outdated'), { reason: 'outdated' });
         const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret, algorithms: ['HS256'] });
         const user = await this.sessions.validate(payload);
         const found = await this.access.assertItem(user.id, documentName, 'read');
