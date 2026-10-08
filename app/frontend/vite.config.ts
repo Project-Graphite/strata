@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import { cp, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
@@ -14,11 +14,9 @@ function excalidrawFonts(): Plugin {
     configureServer(server) {
       server.middlewares.use('/excalidraw/fonts', (request, response, next) => {
         const file = join(fonts, decodeURIComponent((request.url ?? '').split('?')[0]!));
-        if (!file.startsWith(fonts + sep)) return next();
+        if (!file.startsWith(fonts + sep) || !existsSync(file)) return next();
         response.setHeader('Content-Type', 'font/woff2');
-        createReadStream(file)
-          .on('error', () => next())
-          .pipe(response);
+        createReadStream(file).pipe(response);
       });
     },
     async writeBundle({ dir }) {

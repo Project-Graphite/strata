@@ -1,6 +1,6 @@
 import '@excalidraw/excalidraw/index.css';
 import { useEffect, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, reconcileElements } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, Excalidraw, isInvisiblySmallElement, reconcileElements } from '@excalidraw/excalidraw';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFileData, Collaborator, DataURL, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
@@ -106,7 +106,9 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
   function sendChanges() {
     pending.current = undefined;
     if (!api) return;
-    const changed = api.getSceneElementsIncludingDeleted().filter((element) => synced.current.get(element.id) !== element.version);
+    const changed = api
+      .getSceneElementsIncludingDeleted()
+      .filter((element) => synced.current.get(element.id) !== element.version && !isInvisiblySmallElement(element));
     if (changed.length === 0) return;
     connection.document.transact(() => {
       for (const element of changed) {
