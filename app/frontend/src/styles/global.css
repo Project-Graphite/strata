@@ -181,7 +181,7 @@
   white-space: nowrap;
 }
 
-.mention-menu {
+.suggestion-menu {
   display: grid;
   width: min(22rem, calc(100vw - 2rem));
   max-height: 18rem;
@@ -193,7 +193,7 @@
   box-shadow: var(--shadow-popover);
 }
 
-.mention-option {
+.suggestion-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -205,7 +205,7 @@
   text-align: left;
 }
 
-.mention-option[aria-selected='true'] {
+.suggestion-option[aria-selected='true'] {
   background: var(--color-line-soft);
 }
 
