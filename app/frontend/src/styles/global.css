@@ -56,6 +56,13 @@
   min-height: 3rem;
 }
 
+.board-canvas {
+  height: max(28rem, calc(100dvh - 16rem));
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+
 .note-content > * + * {
   margin-top: 0.75em;
 }

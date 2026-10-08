@@ -4,6 +4,7 @@ export interface Note {
   id: string;
   spaceId: string;
   title: string;
+  kind: 'note' | 'board';
   parentId: string | null;
   position: number;
   icon: string | null;
