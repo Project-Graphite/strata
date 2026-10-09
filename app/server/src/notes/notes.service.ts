@@ -59,6 +59,22 @@ export class NotesService {
     return rows.map(present);
   }
 
+  async everywhere(userId: string, kind: 'note' | 'board') {
+    const rows = await this.prisma.item.findMany({
+      where: {
+        kind: kind === 'board' ? ItemKind.BOARD : ItemKind.NOTE,
+        trashedAt: null,
+        archivedAt: null,
+        space: this.access.spacesOf(userId),
+        note: { template: false },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      take: 200,
+      select: noteFields,
+    });
+    return rows.map(present);
+  }
+
   async mine(userId: string) {
     const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
     const [pinned, recent] = await Promise.all([

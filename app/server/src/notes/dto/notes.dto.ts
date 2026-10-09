@@ -143,3 +143,8 @@ export class UpdateCommentDto {
   @Length(1, 2_000, { message: 'Comments are between 1 and 2,000 characters long.' })
   body!: string;
 }
+
+export class PageKindQueryDto {
+  @IsIn(['note', 'board'], { message: 'Choose note or board.' })
+  kind!: 'note' | 'board';
+}

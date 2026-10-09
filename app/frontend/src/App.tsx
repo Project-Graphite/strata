@@ -13,6 +13,7 @@ import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
 import { JournalDayPage, JournalPage } from './pages/JournalPage';
+import { PagesIndex } from './pages/PagesIndex';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
@@ -122,6 +123,22 @@ export function App() {
             element={
               <Protected>
                 <CalendarsPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="pages"
+            element={
+              <Protected>
+                <PagesIndex kind="note" key="note" />
+              </Protected>
+            }
+          />
+          <Route
+            path="boards"
+            element={
+              <Protected>
+                <PagesIndex kind="board" key="board" />
               </Protected>
             }
           />

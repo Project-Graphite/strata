@@ -139,6 +139,27 @@ describe('Notes', () => {
     expect(container.textContent).not.toContain('Pages inside');
   });
 
+  it('lists boards from every space under Boards and starts a new one', async () => {
+    const board = { ...note('seating', 'Seating'), kind: 'board' as const };
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/notes?kind=board') return json([board]);
+      if (path === '/spaces/home/notes' && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body))).toEqual({ board: true });
+        return json({ ...board, id: 'fresh', title: '' }, 201);
+      }
+      if (path === '/notes/fresh') return json({ ...board, id: 'fresh', title: '', editable: true, path: [] });
+      return undefined;
+    });
+    await render('/boards');
+
+    expect(container.querySelector('h1')?.textContent).toBe('Boards');
+    expect(container.querySelector('a[href="/boards"]')).not.toBeNull();
+    expect([...container.querySelectorAll('main a[href^="/notes/"]')].map((link) => link.textContent)).toEqual([expect.stringContaining('Seating')]);
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New board')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-note')).toBe('fresh');
+  });
+
   it('shows the path, renames on blur and adds a page inside', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/food' && init?.method === 'PATCH') {
