@@ -82,6 +82,14 @@
   font-size: 0.85rem;
 }
 
+.board-make-tasks {
+  border-radius: 0.5rem;
+  background: #1e1e1e;
+  padding: 0.4rem 0.75rem;
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
 .board-canvas {
   height: max(28rem, calc(100dvh - 16rem));
   overflow: hidden;

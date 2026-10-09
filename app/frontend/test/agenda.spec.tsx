@@ -162,6 +162,36 @@ describe('Agenda and RSVP', () => {
     expect(container.textContent).toContain('The date isn’t fixed yet.');
   });
 
+  it('adds a board to an event and shows the boards it has', async () => {
+    const details = { ...party, id: 'party', spaceId: 'club', reminderMinutes: null, guests: [], headcount: { yes: 0, no: 0, maybe: 0, pending: 0 } };
+    const boardLink = { id: 'link', kind: 'reference', item: { id: 'plan', spaceId: 'club', kind: 'board', title: 'Seating' } };
+    let outgoing: (typeof boardLink)[] = [];
+    const sent: { path: string; body: unknown }[] = [];
+    serve(true, (path, init) => {
+      if (init?.method === 'POST' && (path === '/spaces/club/notes' || path === '/items/party/links')) {
+        sent.push({ path, body: JSON.parse(String(init.body)) });
+        if (path === '/items/party/links') outgoing = [boardLink];
+        return json(path === '/spaces/club/notes' ? { id: 'plan' } : boardLink, 201);
+      }
+      if (path === '/items/party/links') return json({ outgoing, backlinks: [] });
+      if (path === '/notes/plan/board') return json({ elements: [] });
+      if (path === '/events/party/poll') return json({ options: [] });
+      if (path === '/events/party') return json(details);
+      return undefined;
+    });
+    await render('/events/party');
+
+    const add = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Add a board'))!;
+    await act(async () => add.click());
+    await act(async () => {});
+    expect(sent).toEqual([
+      { path: '/spaces/club/notes', body: { board: true, title: 'Party board' } },
+      { path: '/items/party/links', body: { targetId: 'plan', kind: 'reference' } },
+    ]);
+    expect(container.querySelector('a[href="/notes/plan"]')?.textContent).toBe('Open Seating');
+    expect(container.textContent).toContain('Nothing drawn yet');
+  });
+
   it('lets an organiser offer dates, see who answered and pick one', async () => {
     const details = { ...party, id: 'party', spaceId: 'club', reminderMinutes: null, guests: [], headcount: { yes: 0, no: 0, maybe: 0, pending: 0 } };
     const option = (id: string, startsOn: string) => ({ id, startsOn, startTime: null, yes: 0, maybe: 0, no: 0, mine: null, voters: [] });
