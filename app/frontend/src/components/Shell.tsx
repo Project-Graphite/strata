@@ -19,6 +19,7 @@ import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AccountMenu } from './AccountMenu';
 import { CrashBoundary } from './CrashBoundary';
+import { PageTree } from './PageTree';
 import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
@@ -144,6 +145,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         sidebar={
           showSidebar && (
             <Sidebar
+              footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
               sections={areaSections(pathname, spaces.data, unread)}
