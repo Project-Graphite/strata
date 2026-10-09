@@ -4,9 +4,11 @@ import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
+import { Link } from 'react-router';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { itemHref } from '../spaces';
+import { BoardPreview } from './BoardPreview';
 
 interface Candidate {
   id: string;
@@ -72,8 +74,10 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
 
 export const internalPath = (href: unknown) => (typeof href === 'string' && /^\/(?![/\\])/.test(href) ? href : null);
 
-export const storedFileId = (fileId: unknown) =>
-  typeof fileId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileId) ? fileId : null;
+const uuidOrNull = (value: unknown) =>
+  typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+
+export const storedFileId = uuidOrNull;
 
 function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<SuggestionOptions<Item>['render']>> {
   let renderer: ReactRenderer<ListHandle, SuggestionProps<Candidate>> | undefined;
@@ -203,9 +207,12 @@ export const Callout = Node.create({
   renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-callout': '', class: 'note-callout' }), 0],
 });
 
-type ImageHandler = (view: Editor['view'], files: File[]) => void;
+export interface BlockActions {
+  onImages: (view: Editor['view'], files: File[]) => void;
+  onBoard: (editor: Editor) => void;
+}
 
-export function blockChoices(onImages: ImageHandler): BlockChoice[] {
+export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[] {
   const chooseImages = (editor: Editor) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -237,12 +244,22 @@ export function blockChoices(onImages: ImageHandler): BlockChoice[] {
         chooseImages(editor);
       },
     },
+    {
+      id: 'board',
+      label: 'Board',
+      hint: 'whiteboard',
+      words: 'board whiteboard drawing sketch canvas diagram',
+      run: (chain, editor) => {
+        chain.run();
+        onBoard(editor);
+      },
+    },
     { id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain) => chain.insertContent('@').run() },
   ];
 }
 
-export function blockMenuExtension(onImages: ImageHandler) {
-  const choices = blockChoices(onImages);
+export function blockMenuExtension(actions: BlockActions) {
+  const choices = blockChoices(actions);
   return Extension.create({
     name: 'blockMenu',
     addProseMirrorPlugins() {
@@ -261,3 +278,38 @@ export function blockMenuExtension(onImages: ImageHandler) {
     },
   });
 }
+
+function BoardEmbed({ node }: NodeViewProps) {
+  const boardId = uuidOrNull(node.attrs.boardId);
+  return (
+    <NodeViewWrapper className="note-board" data-drag-handle="">
+      {boardId ? (
+        <>
+          <BoardPreview boardId={boardId} label="Board preview" />
+          <Link className="note-board-open" contentEditable={false} to={`/notes/${boardId}`}>
+            Open board
+          </Link>
+        </>
+      ) : (
+        <p className="m-0 text-sm text-muted">This board is missing</p>
+      )}
+    </NodeViewWrapper>
+  );
+}
+
+export const BoardEmbedExtension = Node.create({
+  name: 'boardEmbed',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes: () => ({
+    boardId: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute('data-board'),
+      renderHTML: (attributes: { boardId?: string | null }) => ({ 'data-board': attributes.boardId }),
+    },
+  }),
+  parseHTML: () => [{ tag: 'div[data-board]' }],
+  renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
+  addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
+});

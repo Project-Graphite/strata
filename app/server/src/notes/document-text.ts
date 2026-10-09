@@ -43,6 +43,7 @@ function collect(node: Y.XmlElement | Y.XmlFragment, found: { mentions: Set<stri
   for (const child of node.toArray()) {
     if (!(child instanceof Y.XmlElement)) continue;
     if (child.nodeName === 'mention' && child.getAttribute('id')) found.mentions.add(String(child.getAttribute('id')));
+    if (child.nodeName === 'boardEmbed' && child.getAttribute('boardId')) found.mentions.add(String(child.getAttribute('boardId')));
     if (child.nodeName === 'image' && child.getAttribute('fileId')) found.files.add(String(child.getAttribute('fileId')));
     collect(child, found);
   }

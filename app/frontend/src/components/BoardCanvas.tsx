@@ -1,17 +1,15 @@
 import '@excalidraw/excalidraw/index.css';
 import { useEffect, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, isInvisiblySmallElement, reconcileElements } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, Excalidraw, isInvisiblySmallElement, MainMenu, reconcileElements } from '@excalidraw/excalidraw';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/types';
-import type { BinaryFileData, Collaborator, DataURL, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
+import type { Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
 import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
-import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
+import { boardImage } from './board-files';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-
-(window as { EXCALIDRAW_ASSET_PATH?: string }).EXCALIDRAW_ASSET_PATH = '/excalidraw/';
 
 const boardElementsKey = 'board';
 const syncEveryMs = 80;
@@ -20,15 +18,6 @@ interface Pointer {
   x: number;
   y: number;
   tool: 'pointer' | 'laser';
-}
-
-function dataUrl(blob: Blob) {
-  return new Promise<DataURL>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as DataURL);
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read the image'));
-    reader.readAsDataURL(blob);
-  });
 }
 
 function LiveBoard({ connection, editable, spaceId }: { connection: Connection; editable: boolean; spaceId: string }) {
@@ -54,12 +43,8 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
         if (element.type !== 'image' || !element.fileId || element.isDeleted || known[element.fileId] || loading.current.has(element.fileId)) continue;
         const fileId = element.fileId;
         loading.current.add(fileId);
-        auth
-          .request<Blob>(`/files/${fileId}`, {}, readBlob)
-          .then(async (blob) => {
-            const file: BinaryFileData = { id: fileId, dataURL: await dataUrl(blob), mimeType: blob.type as BinaryFileData['mimeType'], created: Date.now() };
-            api.addFiles([file]);
-          })
+        boardImage(auth.request, fileId)
+          .then((file) => api.addFiles([file]))
           .catch(() => loading.current.delete(fileId));
       }
     };
@@ -157,7 +142,15 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
           theme="light"
           UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } }}
           viewModeEnabled={!editable || outdated}
-        />
+        >
+          <MainMenu>
+            <MainMenu.DefaultItems.SaveAsImage />
+            <MainMenu.DefaultItems.Export />
+            <MainMenu.DefaultItems.SearchMenu />
+            <MainMenu.DefaultItems.ChangeCanvasBackground />
+            <MainMenu.DefaultItems.Help />
+          </MainMenu>
+        </Excalidraw>
       </div>
     </div>
   );

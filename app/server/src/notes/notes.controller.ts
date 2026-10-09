@@ -48,6 +48,12 @@ export class NotesController {
     return this.notes.get(user.id, id);
   }
 
+  @Get('notes/:id/board')
+  @Scope('items:read')
+  board(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.notes.board(user.id, id);
+  }
+
   @Get('notes/:id/versions')
   @Scope('items:read')
   listVersions(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
