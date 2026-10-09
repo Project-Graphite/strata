@@ -1,6 +1,6 @@
 import '@excalidraw/excalidraw/index.css';
 import { useEffect, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, isInvisiblySmallElement, MainMenu, reconcileElements } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw, exportToBlob, isInvisiblySmallElement, MainMenu, reconcileElements } from '@excalidraw/excalidraw';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/types';
 import type { Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
@@ -9,6 +9,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { boardImage } from './board-files';
+import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 
 const boardElementsKey = 'board';
@@ -35,6 +36,8 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
   const [api, setApi] = useState<ExcalidrawImperativeAPI>();
   const [picked, setPicked] = useState<string[]>([]);
   const [making, setMaking] = useState(false);
+  const [empty, setEmpty] = useState(false);
+  const [loaded, setLoaded] = useState(connection.provider.isSynced);
   const synced = useRef(new Map<string, number>());
   const loading = useRef(new Set<string>());
   const pending = useRef<number | undefined>(undefined);
@@ -98,6 +101,56 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
 
   useEffect(() => () => window.clearTimeout(pending.current), []);
 
+  useEffect(() => {
+    const onSynced = () => setLoaded(true);
+    connection.provider.on('synced', onSynced);
+    return () => {
+      connection.provider.off('synced', onSynced);
+    };
+  }, [connection]);
+
+  function addElements(skeletons: Parameters<typeof convertToExcalidrawElements>[0], fit: boolean) {
+    if (!api) return;
+    const added = convertToExcalidrawElements(skeletons, { regenerateIds: true });
+    api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...added], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+    if (fit) api.scrollToContent(added, { fitToContent: true });
+  }
+
+  function addVote() {
+    if (!api) return;
+    const { scrollX, scrollY, width, height, zoom } = api.getAppState();
+    const color = colorFor(user.id);
+    const x = -scrollX + width / 2 / zoom.value + (Math.random() - 0.5) * 40;
+    const y = -scrollY + height / 2 / zoom.value + (Math.random() - 0.5) * 40;
+    addElements([{ type: 'ellipse', x, y, width: 22, height: 22, backgroundColor: color, strokeColor: color, fillStyle: 'solid' }], false);
+  }
+
+  async function printBoard() {
+    if (!api) return;
+    const blob = await exportToBlob({
+      elements: api.getSceneElements(),
+      files: api.getFiles(),
+      mimeType: 'image/png',
+      appState: { exportBackground: true, viewBackgroundColor: '#ffffff' },
+    });
+    const url = URL.createObjectURL(blob);
+    const frame = document.createElement('iframe');
+    frame.className = 'board-print-frame';
+    document.body.append(frame);
+    const page = frame.contentWindow!;
+    const image = page.document.createElement('img');
+    image.style.width = '100%';
+    image.onload = () => {
+      page.addEventListener('afterprint', () => {
+        frame.remove();
+        URL.revokeObjectURL(url);
+      });
+      page.print();
+    };
+    image.src = url;
+    page.document.body.append(image);
+  }
+
   function sendChanges() {
     pending.current = undefined;
     if (!api) return;
@@ -156,6 +209,16 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
         </span>
       </div>
       <div aria-label="Board" className="board-canvas" role="region">
+        {editable && !outdated && loaded && empty && (
+          <div aria-label="Templates" className="board-templates" role="group">
+            <span className="text-sm text-muted">Start from a template</span>
+            {boardTemplates.map((template) => (
+              <button className="board-action" key={template.id} onClick={() => addElements(template.build(), true)} type="button">
+                {template.label}
+              </button>
+            ))}
+          </div>
+        )}
         <Excalidraw
           excalidrawAPI={setApi}
           generateIdForFile={upload}
@@ -163,13 +226,22 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
           onChange={(scene, appState) => {
             if (editable && !outdated && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
             const texts = selectedTexts(scene, appState.selectedElementIds);
+            const nothing = !scene.some((element) => !element.isDeleted);
+            setEmpty((current) => (current === nothing ? current : nothing));
             setPicked((current) => (current.join('\n') === texts.join('\n') ? current : texts));
           }}
           renderTopRightUI={() =>
-            editable && !outdated && picked.length > 0 ? (
-              <button className="board-make-tasks" disabled={making} onClick={() => void makeTasks()} type="button">
-                Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
-              </button>
+            editable && !outdated ? (
+              <div className="flex gap-2">
+                {picked.length > 0 && (
+                  <button className="board-action" disabled={making} onClick={() => void makeTasks()} type="button">
+                    Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
+                  </button>
+                )}
+                <button className="board-action" onClick={addVote} type="button">
+                  Add a vote
+                </button>
+              </div>
             ) : null
           }
           onPointerUpdate={({ pointer, button }) => connection.provider.setAwarenessField('pointer', { ...pointer, button })}
@@ -180,6 +252,7 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
           <MainMenu>
             <MainMenu.DefaultItems.SaveAsImage />
             <MainMenu.DefaultItems.Export />
+            <MainMenu.Item onSelect={() => void printBoard()}>Print or save as PDF</MainMenu.Item>
             <MainMenu.DefaultItems.SearchMenu />
             <MainMenu.DefaultItems.ChangeCanvasBackground />
             <MainMenu.DefaultItems.Help />
