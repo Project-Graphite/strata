@@ -1,10 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
+import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import Highlight from '@tiptap/extension-highlight';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
+import UniqueID from '@tiptap/extension-unique-id';
 import StarterKit from '@tiptap/starter-kit';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
@@ -319,6 +323,34 @@ export const BoardEmbedExtension = Node.create({
   addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
 });
 
+export const commentedBlocksKey = new PluginKey<Set<string>>('commentedBlocks');
+
+export const CommentedBlocks = Extension.create({
+  name: 'commentedBlocks',
+  addProseMirrorPlugins: () => [
+    new Plugin<Set<string>>({
+      key: commentedBlocksKey,
+      state: {
+        init: () => new Set(),
+        apply: (transaction, current) => (transaction.getMeta(commentedBlocksKey) as Set<string> | undefined) ?? current,
+      },
+      props: {
+        decorations(state) {
+          const commented = commentedBlocksKey.getState(state);
+          if (!commented?.size) return null;
+          const marks: Decoration[] = [];
+          state.doc.descendants((node, pos) => {
+            if (typeof node.attrs.id === 'string' && commented.has(node.attrs.id)) marks.push(Decoration.node(pos, pos + node.nodeSize, { class: 'has-comments' }));
+          });
+          return DecorationSet.create(state.doc, marks);
+        },
+      },
+    }),
+  ],
+});
+
+const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule'];
+
 export function pageContent(request: Request, noteId: string) {
   return [
     StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
@@ -333,5 +365,7 @@ export function pageContent(request: Request, noteId: string) {
     mentionExtension(request, noteId),
     BoardEmbedExtension,
     StoredImageExtension,
+    UniqueID.configure({ types: blockTypes, filterTransaction: (transaction) => !isChangeOrigin(transaction) }),
   ];
 }
+

@@ -6,7 +6,7 @@ import { DatabaseView } from '../components/database/DatabaseView';
 import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
-import { NoteComments } from '../components/NoteComments';
+import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { ShareLinks } from '../components/ShareLinks';
 import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
@@ -35,6 +35,8 @@ export function NotePage() {
   const note = useResource<NoteDetails>(`/notes/${id}`, true);
   const [wide, setWide] = useState(() => widePages.has(id));
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
+  const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
+  const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -217,7 +219,17 @@ export function NotePage() {
         {details.kind === 'board' ? (
           <BoardCanvas editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
         ) : (
-          <NoteEditor editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
+          <NoteEditor
+            commentedBlocks={commentedBlocks}
+            editable={details.editable}
+            key={details.id}
+            noteId={details.id}
+            onComment={(block) => {
+              setQuoting({ ...block, noteId: details.id });
+              window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+            }}
+            spaceId={details.spaceId}
+          />
         )}
       </Suspense>
       {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
@@ -273,7 +285,15 @@ export function NotePage() {
           </ul>
         </section>
       )}
-      <NoteComments editable={details.editable} key={`comments-${details.id}`} noteId={details.id} owner={space?.role === 'owner'} />
+      <NoteComments
+        editable={details.editable}
+        key={`comments-${details.id}`}
+        noteId={details.id}
+        onBlocks={setCommentedBlocks}
+        onQuoteDone={() => setQuoting(undefined)}
+        owner={space?.role === 'owner'}
+        quoting={quoting?.noteId === details.id ? quoting : undefined}
+      />
       {unconverting && (
         <ConfirmDialog
           confirmLabel="Turn back into a page"
