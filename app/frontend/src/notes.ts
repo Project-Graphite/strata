@@ -91,6 +91,17 @@ export function flattenTree(notes: Note[]) {
   return branches;
 }
 
+const pagesChanged = 'strata:pages-changed';
+
+export function announcePagesChanged() {
+  window.dispatchEvent(new Event(pagesChanged));
+}
+
+export function onPagesChanged(listener: () => void) {
+  window.addEventListener(pagesChanged, listener);
+  return () => window.removeEventListener(pagesChanged, listener);
+}
+
 export function realtimeUrl() {
   return `${window.location.origin.replace(/^http/, 'ws')}/api/v1/realtime`;
 }

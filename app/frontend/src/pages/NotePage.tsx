@@ -3,11 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { DatabaseView } from '../components/database/DatabaseView';
+import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
 import { NoteComments } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
-import { noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -15,12 +16,24 @@ import { useResource } from '../useResource';
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
 
+const wideKey = 'strata-wide-pages';
+
+const widePages = (() => {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem(wideKey) ?? '[]') as string[]);
+  } catch {
+    return new Set<string>();
+  }
+})();
+
 export function NotePage() {
   const { id = '' } = useParams();
   const auth = useAuth();
   const spaces = useSpaces();
   const navigate = useNavigate();
   const note = useResource<NoteDetails>(`/notes/${id}`, true);
+  const [wide, setWide] = useState(() => widePages.has(id));
+  if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -52,11 +65,32 @@ export function NotePage() {
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = (pages.data ?? []).filter((page) => page.parentId === details.id);
 
+  function setIcon(icon: string | null) {
+    void renaming.run(async () => {
+      const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ icon }) });
+      note.mutate((current) => ({ ...current, ...saved }));
+      announcePagesChanged();
+      pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
+      return '';
+    }, 'Could not change the icon');
+  }
+
+  function toggleWide() {
+    if (!widePages.delete(details.id)) widePages.add(details.id);
+    setWide(widePages.has(details.id));
+    try {
+      localStorage.setItem(wideKey, JSON.stringify([...widePages]));
+    } catch (error) {
+      if (!(error instanceof DOMException)) throw error;
+    }
+  }
+
   function rename(next: string) {
     if (next === details.title) return;
     void renaming.run(async () => {
       const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ title: next }) });
       note.mutate((current) => ({ ...current, ...saved }));
+      announcePagesChanged();
       pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
       return '';
     }, 'Could not rename the page');
@@ -87,7 +121,7 @@ export function NotePage() {
   }
 
   return (
-    <article className={`page-enter grid gap-6 ${details.kind === 'board' ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+    <article className={`page-enter grid gap-6 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
           <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
@@ -129,11 +163,19 @@ export function NotePage() {
               {details.template ? 'Stop using as a template' : 'Use as a template'}
             </button>
           )}
+          {details.kind !== 'board' && !details.database && (
+            <button className="text-button text-sm" onClick={toggleWide} type="button">
+              {wide ? 'Standard width' : 'Full width'}
+            </button>
+          )}
           <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
             History
           </button>
         </div>
       </div>
+      <div className="flex items-center gap-3">
+      {(details.editable || details.icon) &&
+        (details.editable ? <IconPicker icon={details.icon} onPick={setIcon} /> : <span className="page-icon">{details.icon}</span>)}
       <input
         aria-label="Page title"
         className="note-title"
@@ -150,6 +192,7 @@ export function NotePage() {
         placeholder="Untitled"
         readOnly={!details.editable}
       />
+      </div>
       {details.row && details.row.properties.length > 0 && (
         <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
           {details.row.properties.map((property) => (

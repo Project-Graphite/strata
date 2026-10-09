@@ -200,6 +200,30 @@ describe('Notes', () => {
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('fresh');
   });
 
+  it('picks a page icon and widens a page on this device', async () => {
+    localStorage.removeItem('strata-wide-pages');
+    const sent: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/notes/trips' && init?.method === 'PATCH') {
+        sent.push(JSON.parse(String(init.body)));
+        return json({ ...note('trips', 'Trips'), icon: '✈️' });
+      }
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Add a page icon"]')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Use ✈️"]')!.click());
+    expect(sent).toEqual([{ icon: '✈️' }]);
+    expect(container.querySelector('[aria-label="Change the page icon"]')?.textContent).toBe('✈️');
+
+    expect(container.querySelector('article')?.className).toContain('max-w-3xl');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Full width')!.click());
+    expect(container.querySelector('article')?.className).toContain('max-w-none');
+    expect(JSON.parse(localStorage.getItem('strata-wide-pages')!)).toEqual(['trips']);
+  });
+
   it('shows the path, renames on blur and adds a page inside', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/food' && init?.method === 'PATCH') {
