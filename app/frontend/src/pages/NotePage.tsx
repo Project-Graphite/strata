@@ -8,6 +8,7 @@ import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
 import { NoteComments } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
+import { ShareLinks } from '../components/ShareLinks';
 import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
@@ -168,6 +169,7 @@ export function NotePage() {
               {wide ? 'Standard width' : 'Full width'}
             </button>
           )}
+          {details.editable && <ShareLinks itemId={details.id} key={`share-${details.id}`} noun={details.kind === 'board' ? 'board' : 'page'} />}
           <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
             History
           </button>

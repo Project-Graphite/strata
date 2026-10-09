@@ -1,12 +1,20 @@
+import { lazy, Suspense, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { EmptyState, FormPanelSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
+import { EmptyState, FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
+import { BoardDrawing } from '../components/BoardPreview';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
+import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
+
+const SharedDocument = lazy(() => import('../components/SharedDocument'));
+
+type SharedContent = { kind: 'note'; state: string | null } | { kind: 'board'; elements: ExcalidrawElement[] } | null;
 
 function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boolean }) {
   return (
@@ -114,8 +122,9 @@ export function RsvpPage() {
 
 export function SharePage() {
   const { code = '' } = useParams();
+  const files = useMemo(() => sharedFiles(code), [code]);
   const navigate = useNavigate();
-  const shared = useResource<{ access: string; item: { kind: string; title: string }; event: PublicEvent | null; datePoll: boolean }>(
+  const shared = useResource<{ access: string; item: { kind: string; title: string }; event: PublicEvent | null; datePoll: boolean; content: SharedContent }>(
     `/share/${encodeURIComponent(code)}`,
   );
   const answering = useAction();
@@ -130,10 +139,23 @@ export function SharePage() {
     );
   }
   if (!shared.data.event) {
+    const { content, item } = shared.data;
     return (
-      <section className="form-panel page-enter">
-        <p className="m-0 text-sm text-faint">Shared {shared.data.item.kind}</p>
-        <h1 className="page-heading">{shared.data.item.title || 'Untitled'}</h1>
+      <section className={`page-enter mx-auto grid w-full gap-6 ${content?.kind === 'board' ? 'max-w-6xl' : 'max-w-3xl'}`}>
+        <div>
+          <p className="m-0 text-sm text-faint">Shared {item.kind === 'note' ? 'page' : item.kind}</p>
+          <h1 className="page-heading">{item.title || 'Untitled'}</h1>
+        </div>
+        {content?.kind === 'note' && (
+          <Suspense fallback={<LinesSkeleton label="Loading the page" lines={6} />}>
+            <SharedDocument code={code} state={content.state} />
+          </Suspense>
+        )}
+        {content?.kind === 'board' && (
+          <FileSourceContext.Provider value={files}>
+            <BoardDrawing elements={content.elements} label={`Drawing of ${item.title || 'the board'}`} />
+          </FileSourceContext.Provider>
+        )}
       </section>
     );
   }

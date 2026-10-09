@@ -9,6 +9,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { boardImage } from './board-files';
+import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 
@@ -43,6 +44,7 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
   const pending = useRef<number | undefined>(undefined);
   const elements = connection.document.getMap<ExcalidrawElement>(boardElementsKey);
   const user = auth.user!;
+  const load = useFileSource();
 
   useEffect(() => {
     connection.provider.setAwarenessField('user', { name: user.displayName, color: colorFor(user.id) });
@@ -56,7 +58,7 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
         if (element.type !== 'image' || !element.fileId || element.isDeleted || known[element.fileId] || loading.current.has(element.fileId)) continue;
         const fileId = element.fileId;
         loading.current.add(fileId);
-        boardImage(auth.request, fileId)
+        boardImage(load, fileId)
           .then((file) => api.addFiles([file]))
           .catch(() => loading.current.delete(fileId));
       }
@@ -74,7 +76,7 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
     };
     elements.observe(observer);
     return () => elements.unobserve(observer);
-  }, [api, auth, elements]);
+  }, [api, load, elements]);
 
   useEffect(() => {
     if (!api) return;

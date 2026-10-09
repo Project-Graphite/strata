@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ShareAccess } from '@prisma/client';
+import { ItemKind, LinkKind, Prisma, ShareAccess } from '@prisma/client';
+import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { publicEvent } from '../events/events.service';
+import { FilesService } from '../files/files.service';
 import { MailService } from '../mail/mail.service';
+import { boardElementsKey } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShareLinkDto } from './dto/share-links.dto';
 
@@ -15,12 +18,19 @@ function presentLink(link: Prisma.ShareLinkGetPayload<{ select: typeof linkField
   return { id: link.id, access: link.access.toLowerCase(), expiresAt: link.expiresAt, createdAt: link.createdAt };
 }
 
+function boardElements(state: Uint8Array) {
+  const document = new Y.Doc();
+  Y.applyUpdate(document, state);
+  return [...document.getMap<{ isDeleted?: boolean }>(boardElementsKey).values()].filter((element) => !element.isDeleted);
+}
+
 @Injectable()
 export class ShareLinksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly mail: MailService,
+    private readonly files: FilesService,
   ) {}
 
   async create(userId: string, itemId: string, input: CreateShareLinkDto) {
@@ -66,16 +76,42 @@ export class ShareLinksService {
   async open(code: string) {
     const link = await this.prisma.shareLink.findFirst({
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
-      select: { access: true, item: { select: { kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 } } } },
+      select: {
+        access: true,
+        item: { select: { kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } } } },
+      },
     });
     if (!link) {
       throw new NotFoundException('This link has expired or was turned off');
     }
+    const { item } = link;
+    const state = item.noteDocument ? new Uint8Array(item.noteDocument.state) : null;
     return {
       access: link.access.toLowerCase(),
-      item: { kind: link.item.kind.toLowerCase(), title: link.item.title },
-      event: link.item.event ? publicEvent(link.item.title, link.item.event) : null,
-      datePoll: link.item.pollOptions.length > 0,
+      item: { kind: item.kind.toLowerCase(), title: item.title },
+      event: item.event ? publicEvent(item.title, item.event) : null,
+      datePoll: item.pollOptions.length > 0,
+      content:
+        item.kind === ItemKind.NOTE
+          ? { kind: 'note', state: state ? Buffer.from(state).toString('base64') : null }
+          : item.kind === ItemKind.BOARD
+            ? { kind: 'board', elements: state ? boardElements(state) : [] }
+            : null,
     };
+  }
+
+  async file(code: string, fileId: string) {
+    const link = await this.prisma.shareLink.findFirst({
+      where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
+      select: { itemId: true },
+    });
+    const attached =
+      link &&
+      (await this.prisma.itemLink.findFirst({
+        where: { sourceItemId: link.itemId, targetItemId: fileId, kind: LinkKind.ATTACHMENT, target: { trashedAt: null } },
+        select: { id: true },
+      }));
+    if (!attached) throw new NotFoundException('That file is not part of this link');
+    return this.files.read(fileId);
   }
 }

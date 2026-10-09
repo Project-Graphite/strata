@@ -4,6 +4,7 @@ import { ConfirmDialog, EmptyState, Icon, PageHeader, PageSkeleton, TextField } 
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
+import { CopyLink } from '../components/CopyLink';
 import { EventEditor } from '../components/EventEditor';
 import { ItemBoards } from '../components/ItemBoards';
 import { useSpaces } from '../spaces';
@@ -13,17 +14,6 @@ import { emailAddress, required, useFormErrors } from '../validation';
 import { LoadError } from '../components/LoadError';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
-
-function CopyLink({ link }: { link: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <code className="mono-sm break-all text-ink">{link}</code>
-      <button className="secondary-button px-3 py-2 text-sm" onClick={() => void navigator.clipboard.writeText(link)} type="button">
-        Copy link
-      </button>
-    </div>
-  );
-}
 
 export function EventPage() {
   const { id = '' } = useParams();

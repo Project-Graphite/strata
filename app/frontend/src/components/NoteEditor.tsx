@@ -2,23 +2,18 @@ import { useEffect, useState } from 'react';
 import { Avatar, LinesSkeleton, Menu, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
-import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
-import Highlight from '@tiptap/extension-highlight';
-import { TaskItem, TaskList } from '@tiptap/extension-list';
-import { TableKit } from '@tiptap/extension-table';
 import type { Node as BlockNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-import { blockChoices, blockMenuExtension, BoardEmbedExtension, Callout, internalPath, mentionExtension, StoredImageExtension, type BlockActions } from './note-extensions';
+import { blockChoices, blockMenuExtension, internalPath, pageContent, type BlockActions } from './note-extensions';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 
@@ -74,22 +69,11 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
     {
       editable,
       extensions: [
-        StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
-        TaskList,
-        TaskItem.configure({ nested: true }),
+        ...pageContent(auth.request, noteId),
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
-        Highlight,
-        Callout,
-        Details.configure({ persist: true, HTMLAttributes: { class: 'note-toggle' } }),
-        DetailsSummary,
-        DetailsContent,
-        TableKit.configure({ table: { resizable: false } }),
-        mentionExtension(auth.request, noteId),
         blockMenuExtension(actions),
-        BoardEmbedExtension,
-        StoredImageExtension,
       ],
       editorProps: {
         attributes: { 'aria-label': 'Page content', class: 'note-content' },

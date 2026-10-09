@@ -1,11 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { fileHeaders } from '../files/files.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { LinkCodeDto } from '../validation/link-code.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateShareLinkDto } from './dto/share-links.dto';
+import { CreateShareLinkDto, SharedFileParamsDto } from './dto/share-links.dto';
 import { ShareLinksService } from './share-links.service';
 
 @Controller()
@@ -40,5 +42,13 @@ export class ShareLinksController {
   @RateLimit('share-open', 120, 3_600)
   open(@Param() input: LinkCodeDto) {
     return this.shareLinks.open(input.code);
+  }
+
+  @Get('share/:code/files/:fileId')
+  @RateLimit('share-file', 600, 3_600)
+  async file(@Param() input: SharedFileParamsDto, @Res({ passthrough: true }) response: Response) {
+    const file = await this.shareLinks.file(input.code, input.fileId);
+    response.set(fileHeaders(file));
+    return new StreamableFile(file.stream);
   }
 }

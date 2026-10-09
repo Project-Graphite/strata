@@ -282,6 +282,43 @@ describe('Notes and real-time editing against Postgres', () => {
     );
   });
 
+  it('shows a shared page or board to guests, with only the images they contain', async () => {
+    const owner = await member('sharer');
+    const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Recipe' })).body;
+    const board = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Plan', board: true })).body;
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const shown = (await (await strata.upload(owner, owner.personalSpaceId, 'cake.png', png)).json()).id;
+    const unrelated = (await (await strata.upload(owner, owner.personalSpaceId, 'secret.png', png)).json()).id;
+    const realtime = strata.service(RealtimeService);
+
+    const page = await open(owner, note.id);
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', shown);
+    write(page.document, 'Two eggs');
+    page.document.getXmlFragment('default').push([image]);
+    const drawing = await open(owner, board.id);
+    drawing.document.getMap('board').set('box', { id: 'box', type: 'rectangle', version: 1 });
+    await until(async () => realtime.hocuspocus.documents.get(note.id)!.getXmlFragment('default').length, (length) => length === 2);
+    realtime.hocuspocus.flushPendingStores();
+    await until(() => strata.prisma.itemLink.count({ where: { sourceItemId: note.id, targetItemId: shown } }), (count) => count === 1);
+    await until(() => strata.prisma.noteDocument.count({ where: { itemId: board.id } }), (count) => count === 1);
+
+    const code = async (itemId: string) => (await owner.call('POST', `/items/${itemId}/share-links`, { access: 'view' })).body.link.split('/share/')[1];
+    const pageCode = await code(note.id);
+    const shared = (await strata.anonymous('GET', `/share/${pageCode}`)).body;
+    expect(shared.content.kind).toBe('note');
+    const copy = new Y.Doc();
+    Y.applyUpdate(copy, Buffer.from(shared.content.state, 'base64'));
+    expect(textOf(copy)).toContain('Two eggs');
+    expect((await strata.anonymous('GET', `/share/${await code(board.id)}`)).body.content).toEqual({ kind: 'board', elements: [{ id: 'box', type: 'rectangle', version: 1 }] });
+
+    const guestFile = await fetch(`${strata.base}/share/${pageCode}/files/${shown}`);
+    expect(guestFile.status).toBe(200);
+    expect(guestFile.headers.get('content-type')).toBe('image/png');
+    expect((await fetch(`${strata.base}/share/${pageCode}/files/${unrelated}`)).status).toBe(404);
+    expect((await fetch(`${strata.base}/share/${pageCode}/files/not-a-file`)).status).toBe(400);
+  });
+
   it('turns mentions and images into links, and never links what the writer cannot read', async () => {
     const owner = await member('linker');
     const stranger = await member('private');

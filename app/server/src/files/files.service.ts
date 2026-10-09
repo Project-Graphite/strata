@@ -91,6 +91,10 @@ export class FilesService {
 
   async download(userId: string, itemId: string) {
     await this.access.assertItem(userId, itemId, 'read');
+    return this.read(itemId);
+  }
+
+  async read(itemId: string) {
     const file = await this.prisma.file.findUnique({
       where: { itemId },
       select: { sha256: true, originalName: true, mimeType: true, sizeBytes: true },
@@ -117,4 +121,14 @@ export class FilesService {
       });
     }
   }
+}
+
+export function fileHeaders(file: { mimeType: string; sizeBytes: number; originalName: string; inline: boolean }) {
+  return {
+    'Content-Type': file.mimeType,
+    'Content-Length': String(file.sizeBytes),
+    'Content-Disposition': `${file.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+    'Content-Security-Policy': 'sandbox',
+    'Cache-Control': 'private, no-store',
+  };
 }

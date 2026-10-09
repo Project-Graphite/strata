@@ -18,7 +18,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { FilesService, maxFileBytes } from './files.service';
+import { fileHeaders, FilesService, maxFileBytes } from './files.service';
 
 function tooLarge() {
   return new PayloadTooLargeException('Files can be at most 25 MB');
@@ -93,13 +93,7 @@ export class FilesController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const file = await this.files.download(user.id, id);
-    response.set({
-      'Content-Type': file.mimeType,
-      'Content-Length': String(file.sizeBytes),
-      'Content-Disposition': `${file.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
-      'Content-Security-Policy': 'sandbox',
-      'Cache-Control': 'private, no-store',
-    });
+    response.set(fileHeaders(file));
     return new StreamableFile(file.stream);
   }
 }

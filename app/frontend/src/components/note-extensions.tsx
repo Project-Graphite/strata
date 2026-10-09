@@ -1,14 +1,19 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
+import Highlight from '@tiptap/extension-highlight';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableKit } from '@tiptap/extension-table';
+import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
-import { readBlob } from '../api';
-import { useAuth } from '../auth';
+import type { useAuth } from '../auth';
 import { itemHref } from '../spaces';
 import { BoardPreview } from './BoardPreview';
+import { useFileSource } from './file-source';
 
 interface Candidate {
   id: string;
@@ -146,7 +151,7 @@ export function mentionExtension(request: Request, noteId: string) {
 }
 
 function StoredImage({ node, selected }: NodeViewProps) {
-  const { request } = useAuth();
+  const load = useFileSource();
   const [source, setSource] = useState<string>();
   const [failed, setFailed] = useState(false);
   const fileId = storedFileId(node.attrs.fileId);
@@ -155,7 +160,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
     if (!fileId) return;
     let url = '';
     let cancelled = false;
-    request<Blob>(`/files/${fileId}`, {}, readBlob).then(
+    load(fileId).then(
       (blob) => {
         if (cancelled) return;
         url = URL.createObjectURL(blob);
@@ -167,7 +172,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [fileId, request]);
+  }, [fileId, load]);
 
   return (
     <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`} data-drag-handle="">
@@ -313,3 +318,20 @@ export const BoardEmbedExtension = Node.create({
   renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
   addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
 });
+
+export function pageContent(request: Request, noteId: string) {
+  return [
+    StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Highlight,
+    Callout,
+    Details.configure({ persist: true, HTMLAttributes: { class: 'note-toggle' } }),
+    DetailsSummary,
+    DetailsContent,
+    TableKit.configure({ table: { resizable: false } }),
+    mentionExtension(request, noteId),
+    BoardEmbedExtension,
+    StoredImageExtension,
+  ];
+}
