@@ -13,7 +13,8 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-import { blockChoices, blockMenuExtension, internalPath, pageContent, type BlockActions } from './note-extensions';
+import type { QuotedBlock } from './NoteComments';
+import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 
@@ -56,7 +57,19 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connection: Connection; editable: boolean; noteId: string; spaceId: string }) {
+interface CommentHooks {
+  onComment?: (block: QuotedBlock) => void;
+  commentedBlocks?: string[];
+}
+
+function CollaborativeEditor({
+  connection,
+  editable,
+  noteId,
+  spaceId,
+  onComment,
+  commentedBlocks,
+}: { connection: Connection; editable: boolean; noteId: string; spaceId: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
@@ -74,6 +87,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
         blockMenuExtension(actions),
+        CommentedBlocks,
       ],
       editorProps: {
         attributes: { 'aria-label': 'Page content', class: 'note-content' },
@@ -128,6 +142,11 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
     if (outdated) editor?.setEditable(false);
   }, [editor, outdated]);
 
+  const commented = (commentedBlocks ?? []).join(' ');
+  useEffect(() => {
+    if (editor) editor.view.dispatch(editor.state.tr.setMeta(commentedBlocksKey, new Set(commented ? commented.split(' ') : [])).setMeta('addToHistory', false));
+  }, [editor, commented]);
+
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return (
     <div className="note-editor grid gap-3">
@@ -146,7 +165,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
           </span>
         </div>
       </div>
-      {editable && !outdated && <BlockHandle actions={actions} editor={editor} />}
+      {editable && !outdated && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <EditorContent editor={editor} />
     </div>
   );
@@ -162,7 +181,7 @@ function HoldHandle({ editor }: { editor: Editor }) {
   return null;
 }
 
-function BlockHandle({ actions, editor }: { actions: BlockActions; editor: Editor }) {
+function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
   const [block, setBlock] = useState<{ node: BlockNode; pos: number }>();
   const at = (pos: number, bias: 1 | -1 = 1) =>
     editor.chain().focus().command(({ tr }) => {
@@ -173,6 +192,9 @@ function BlockHandle({ actions, editor }: { actions: BlockActions; editor: Edito
     ? [
         { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(block.pos + block.node.nodeSize, block.node.toJSON()).run() },
         { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: block.pos + block.node.nodeSize }).run() },
+        ...(onComment && typeof block.node.attrs.id === 'string'
+          ? [{ label: 'Comment', onSelect: () => onComment({ id: block.node.attrs.id as string, excerpt: block.node.textContent.trim().slice(0, 80) }) }]
+          : []),
         ...(block.node.type.name === 'table'
           ? [
               { label: 'Add a row', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addRowAfter().run(), separated: true },
@@ -197,8 +219,8 @@ function BlockHandle({ actions, editor }: { actions: BlockActions; editor: Edito
   );
 }
 
-export default function NoteEditor({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
+export default function NoteEditor({ editable, noteId, spaceId, ...hooks }: { editable: boolean; noteId: string; spaceId: string } & CommentHooks) {
   const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
-  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} spaceId={spaceId} />;
+  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} spaceId={spaceId} {...hooks} />;
 }

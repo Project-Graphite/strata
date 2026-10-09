@@ -49,4 +49,16 @@ describe('Page comments against Postgres', () => {
     expect((await owner.call('DELETE', `/comments/${question.body.id}`)).status).toBe(204);
     expect((await owner.call('GET', `/notes/${note.id}/comments`)).body).toEqual([]);
   });
+
+  it('ties a comment to a block, keeping replies in the thread', async () => {
+    const owner = await member('block-owner');
+    const space = (await owner.call('POST', '/spaces', { name: 'Allotment' })).body;
+    const note = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Beds' })).body;
+
+    const onBlock = (await owner.call('POST', `/notes/${note.id}/comments`, { body: 'Which variety?', blockId: 'block-1' })).body;
+    expect(onBlock.blockId).toBe('block-1');
+    expect((await owner.call('POST', `/notes/${note.id}/comments`, { body: 'Cherry ones.', parentId: onBlock.id, blockId: 'block-2' })).body.blockId).toBeNull();
+    expect((await owner.call('POST', `/notes/${note.id}/comments`, { body: 'Whole page' })).body.blockId).toBeNull();
+    expect((await owner.call('POST', `/notes/${note.id}/comments`, { body: 'Bad block', blockId: 'no spaces allowed' })).status).toBe(400);
+  });
 });

@@ -629,3 +629,26 @@ button.habit-day {
   background: var(--color-line-soft);
 }
 
+.note-content .has-comments {
+  box-shadow: inset 3px 0 0 #d7b24a;
+  padding-left: 0.6rem;
+}
+
+.note-content .is-flashing {
+  background: var(--color-line-soft);
+  transition: background 400ms ease;
+}
+
+.comment-block-quote {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border-left: 3px solid #d7b24a;
+  padding-left: 0.6rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

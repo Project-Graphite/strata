@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
@@ -8,6 +8,7 @@ import { LoadError } from './LoadError';
 interface NoteComment {
   id: string;
   parentId: string | null;
+  blockId: string | null;
   body: string;
   resolvedAt: string | null;
   editedAt: string | null;
@@ -15,7 +16,26 @@ interface NoteComment {
   author: { id: string; displayName: string } | null;
 }
 
-function CommentForm({ label, onSave, initial = '', onCancel }: { label: string; onSave: (body: string) => Promise<boolean>; initial?: string; onCancel?: () => void }) {
+export interface QuotedBlock {
+  id: string;
+  excerpt: string;
+}
+
+const blockElement = (blockId: string) => document.querySelector<HTMLElement>(`.note-content [data-id="${CSS.escape(blockId)}"]`);
+
+function CommentForm({
+  label,
+  onSave,
+  initial = '',
+  onCancel,
+  autoFocus,
+}: {
+  label: string;
+  onSave: (body: string) => Promise<boolean>;
+  initial?: string;
+  onCancel?: () => void;
+  autoFocus?: boolean;
+}) {
   const [body, setBody] = useState(initial);
   const [busy, setBusy] = useState(false);
   return (
@@ -30,7 +50,7 @@ function CommentForm({ label, onSave, initial = '', onCancel }: { label: string;
         });
       }}
     >
-      <textarea aria-label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
+      <textarea aria-label={label} autoFocus={autoFocus} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
       <div className="flex gap-2">
         <button className="secondary-button px-3 py-1.5 text-sm" disabled={!body.trim() || busy} type="submit">
           {label}
@@ -45,13 +65,33 @@ function CommentForm({ label, onSave, initial = '', onCancel }: { label: string;
   );
 }
 
-export function NoteComments({ noteId, editable, owner }: { noteId: string; editable: boolean; owner: boolean }) {
+export function NoteComments({
+  noteId,
+  editable,
+  owner,
+  quoting,
+  onQuoteDone,
+  onBlocks,
+}: {
+  noteId: string;
+  editable: boolean;
+  owner: boolean;
+  quoting?: QuotedBlock;
+  onQuoteDone: () => void;
+  onBlocks: (blockIds: string[]) => void;
+}) {
   const auth = useAuth();
   const comments = useResource<NoteComment[]>(`/notes/${noteId}/comments`, true);
   const action = useAction();
   const [replying, setReplying] = useState<string>();
   const [editing, setEditing] = useState<string>();
   const [showResolved, setShowResolved] = useState(false);
+  const commented = (comments.data ?? [])
+    .filter((comment) => comment.blockId && !comment.parentId && !comment.resolvedAt)
+    .map((comment) => comment.blockId!)
+    .join(' ');
+
+  useEffect(() => onBlocks(commented ? commented.split(' ') : []), [commented, onBlocks]);
 
   if (comments.error) return <LoadError compact error={comments.error} onRetry={comments.reload} />;
   if (!comments.data) return null;
@@ -61,11 +101,12 @@ export function NoteComments({ noteId, editable, owner }: { noteId: string; edit
   const shown = threads.filter((thread) => showResolved || !thread.resolvedAt);
 
   const replace = (saved: NoteComment) => comments.mutate((current) => current.map((comment) => (comment.id === saved.id ? saved : comment)));
-  const add = (body: string, parentId?: string) =>
+  const add = (body: string, parentId?: string, blockId?: string) =>
     action.run(async () => {
-      const saved = await auth.request<NoteComment>(`/notes/${noteId}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId }) });
+      const saved = await auth.request<NoteComment>(`/notes/${noteId}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId, blockId }) });
       comments.mutate((current) => [...current, saved]);
       setReplying(undefined);
+      if (blockId) onQuoteDone();
       return '';
     }, 'The comment could not be saved.');
   const edit = (id: string, body: string) =>
@@ -97,6 +138,20 @@ export function NoteComments({ noteId, editable, owner }: { noteId: string; edit
           {comment.author?.displayName ?? 'Former member'} · {timeAgo(comment.createdAt)}
           {comment.editedAt ? ' · edited' : ''}
         </p>
+        {comment.blockId && (
+          <button
+            className="comment-block-quote"
+            onClick={() => {
+              const block = blockElement(comment.blockId!);
+              block?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              block?.classList.add('is-flashing');
+              window.setTimeout(() => block?.classList.remove('is-flashing'), 1600);
+            }}
+            type="button"
+          >
+            {blockElement(comment.blockId)?.textContent?.trim().slice(0, 80) || 'A block that was removed'}
+          </button>
+        )}
         <p className="m-0 whitespace-pre-wrap text-sm text-ink">{comment.body}</p>
         <div className="flex flex-wrap gap-3 text-sm">
           {!comment.parentId && !comment.resolvedAt && (
@@ -143,7 +198,14 @@ export function NoteComments({ noteId, editable, owner }: { noteId: string; edit
           </div>
         </article>
       ))}
-      <CommentForm label="Comment" onSave={(body) => add(body)} />
+      {quoting ? (
+        <div className="grid gap-2">
+          <p className="comment-block-quote m-0">{quoting.excerpt || 'An empty block'}</p>
+          <CommentForm autoFocus key={quoting.id} label="Comment on this block" onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
+        </div>
+      ) : (
+        <CommentForm label="Comment" onSave={(body) => add(body)} />
+      )}
     </section>
   );
 }

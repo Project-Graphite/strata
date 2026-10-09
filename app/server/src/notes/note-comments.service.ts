@@ -11,6 +11,7 @@ const commentFields = {
   id: true,
   parentId: true,
   body: true,
+  blockId: true,
   resolvedAt: true,
   editedAt: true,
   createdAt: true,
@@ -41,7 +42,7 @@ export class NoteCommentsService {
     }
     return this.prisma.$transaction(async (transaction) => {
       const created = await transaction.noteComment.create({
-        data: { itemId: noteId, parentId: input.parentId ?? null, authorId: userId, body: input.body },
+        data: { itemId: noteId, parentId: input.parentId ?? null, authorId: userId, body: input.body, blockId: input.parentId ? null : (input.blockId ?? null) },
         select: commentFields,
       });
       const recipients = await this.recipients(transaction, noteId, found.spaceId, userId);

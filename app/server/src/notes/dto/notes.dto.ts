@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
 import { IsColor } from '../../validation/color.decorator';
@@ -135,6 +135,10 @@ export class CreateCommentDto {
   @IsOptional()
   @IsUUID('all', { message: 'Reply to a comment on this page.' })
   parentId?: string;
+
+  @IsOptional()
+  @Matches(/^[\w-]{1,64}$/, { message: 'Choose a block on this page.' })
+  blockId?: string;
 }
 
 export class UpdateCommentDto {

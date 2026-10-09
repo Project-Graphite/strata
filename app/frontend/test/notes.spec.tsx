@@ -8,7 +8,13 @@ import { internalPath, storedFileId } from '../src/components/note-extensions';
 import { flattenTree, type Note } from '../src/notes';
 
 vi.mock('../src/components/NoteEditor', () => ({
-  default: ({ editable, noteId }: { editable: boolean; noteId: string }) => <div data-editable={editable} data-note={noteId} data-testid="editor" />,
+  default: ({ editable, noteId, onComment, commentedBlocks }: { editable: boolean; noteId: string; onComment?: (block: { id: string; excerpt: string }) => void; commentedBlocks?: string[] }) => (
+    <div data-commented={(commentedBlocks ?? []).join(' ')} data-editable={editable} data-note={noteId} data-testid="editor">
+      <button onClick={() => onComment?.({ id: 'block-1', excerpt: 'Buy milk' })} type="button">
+        Comment on a block
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../src/components/BoardCanvas', () => ({
@@ -222,6 +228,38 @@ describe('Notes', () => {
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Full width')!.click());
     expect(container.querySelector('article')?.className).toContain('max-w-none');
     expect(JSON.parse(localStorage.getItem('strata-wide-pages')!)).toEqual(['trips']);
+  });
+
+  it('comments on a block and marks the block in the editor', async () => {
+    const sent: unknown[] = [];
+    let listed: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/notes/trips/comments' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        sent.push(body);
+        const saved = { id: 'c1', parentId: null, blockId: body.blockId, body: body.body, resolvedAt: null, editedAt: null, createdAt: '2026-10-09T10:00:00Z', author: { id: 'me', displayName: 'Amr' } };
+        listed = [saved];
+        return json(saved, 201);
+      }
+      if (path === '/notes/trips/comments') return json(listed);
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Comment on a block')!.click());
+    expect(container.querySelector('section[aria-label="Comments"]')?.textContent).toContain('Buy milk');
+    const box = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Comment on this block"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, 'Oat or whole?');
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => box.form!.requestSubmit());
+
+    expect(sent).toEqual([{ body: 'Oat or whole?', blockId: 'block-1' }]);
+    expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-commented')).toBe('block-1');
+    expect(container.querySelector('textarea[aria-label="Comment on this block"]')).toBeNull();
+    expect(container.querySelector('.comment-block-quote')?.textContent).toBe('A block that was removed');
   });
 
   it('creates a view link for a page and turns it off', async () => {

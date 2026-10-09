@@ -822,6 +822,7 @@ model NoteComment {
   itemId       String        @map("item_id") @db.Uuid
   parentId     String?       @map("parent_id") @db.Uuid
   authorId     String?       @map("author_id") @db.Uuid
+  blockId      String?       @map("block_id")
   body         String
   resolvedAt   DateTime?     @map("resolved_at")
   resolvedById String?       @map("resolved_by_id") @db.Uuid

@@ -17,7 +17,7 @@ export interface Person {
   color: string;
 }
 
-export const editorFormat = 3;
+export const editorFormat = 4;
 
 const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb3c4', '#6b8fe5', '#a07be5', '#e57bb5'];
 
