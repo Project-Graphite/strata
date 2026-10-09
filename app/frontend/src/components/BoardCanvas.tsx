@@ -20,11 +20,21 @@ interface Pointer {
   tool: 'pointer' | 'laser';
 }
 
-function LiveBoard({ connection, editable, spaceId }: { connection: Connection; editable: boolean; spaceId: string }) {
+function selectedTexts(elements: readonly ExcalidrawElement[], selected: Readonly<Record<string, true>>) {
+  return elements.flatMap((element) =>
+    element.type === 'text' && !element.isDeleted && (selected[element.id] || (element.containerId && selected[element.containerId])) && element.text.trim()
+      ? [element.text.trim().replace(/\s+/g, ' ').slice(0, 200)]
+      : [],
+  );
+}
+
+function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string; connection: Connection; editable: boolean; spaceId: string }) {
   const auth = useAuth();
   const show = useSnackbar();
   const { label, people, outdated } = useLiveStatus(connection, editable);
   const [api, setApi] = useState<ExcalidrawImperativeAPI>();
+  const [picked, setPicked] = useState<string[]>([]);
+  const [making, setMaking] = useState(false);
   const synced = useRef(new Map<string, number>());
   const loading = useRef(new Set<string>());
   const pending = useRef<number | undefined>(undefined);
@@ -103,6 +113,21 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
     }, api);
   }
 
+  async function makeTasks() {
+    setMaking(true);
+    try {
+      for (const title of picked) {
+        const task = await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
+        await auth.request(`/items/${task.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: boardId, kind: 'reference' }) });
+      }
+      show({ message: picked.length === 1 ? 'Added a task.' : `Added ${picked.length} tasks.` });
+    } catch {
+      show({ message: 'Could not add the tasks.', tone: 'error' });
+    } finally {
+      setMaking(false);
+    }
+  }
+
   async function upload(file: File) {
     if (file.size > maxUploadBytes) {
       show({ message: `${file.name} is over 25 MB.`, tone: 'error' });
@@ -135,9 +160,18 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
           excalidrawAPI={setApi}
           generateIdForFile={upload}
           isCollaborating
-          onChange={() => {
+          onChange={(scene, appState) => {
             if (editable && !outdated && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
+            const texts = selectedTexts(scene, appState.selectedElementIds);
+            setPicked((current) => (current.join('\n') === texts.join('\n') ? current : texts));
           }}
+          renderTopRightUI={() =>
+            editable && !outdated && picked.length > 0 ? (
+              <button className="board-make-tasks" disabled={making} onClick={() => void makeTasks()} type="button">
+                Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
+              </button>
+            ) : null
+          }
           onPointerUpdate={({ pointer, button }) => connection.provider.setAwarenessField('pointer', { ...pointer, button })}
           theme="light"
           UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } }}
@@ -159,5 +193,5 @@ function LiveBoard({ connection, editable, spaceId }: { connection: Connection; 
 export default function BoardCanvas({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
   const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
-  return <LiveBoard connection={connection} editable={editable} spaceId={spaceId} />;
+  return <LiveBoard boardId={noteId} connection={connection} editable={editable} spaceId={spaceId} />;
 }

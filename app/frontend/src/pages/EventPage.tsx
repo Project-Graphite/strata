@@ -5,6 +5,7 @@ import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { EventEditor } from '../components/EventEditor';
+import { ItemBoards } from '../components/ItemBoards';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -145,6 +146,8 @@ export function EventPage() {
           )}
         </section>
       )}
+
+      <ItemBoards editable={editable} itemId={details.id} key={`boards-${details.id}`} spaceId={details.spaceId} title={details.title} />
 
       <section>
         <h2 className="m-0 text-xl font-medium">Guests</h2>

@@ -5,7 +5,7 @@ import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
-import type { Note } from '../notes';
+import { noteTitle, type Note } from '../notes';
 import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { useSpaces } from '../spaces';
@@ -13,12 +13,13 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { Capture } from './capture-widget';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -464,6 +465,33 @@ function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
   );
 }
 
+function Board({ settings }: WidgetProps) {
+  const boardId = typeof settings.boardId === 'string' ? settings.boardId : null;
+  if (!boardId) return <Empty>Choose a board in this widget's settings.</Empty>;
+  return (
+    <Link className="block no-underline" to={`/notes/${boardId}`}>
+      <BoardPreview boardId={boardId} key={boardId} label="Board preview" />
+    </Link>
+  );
+}
+
+function BoardSettings({ onChange, settings }: SettingsProps) {
+  const boards = useResource<Note[]>('/me/notes?kind=board', true);
+  return (
+    <label className="field-label">
+      Board
+      <select onChange={(event) => onChange({ boardId: event.currentTarget.value || undefined })} value={typeof settings.boardId === 'string' ? settings.boardId : ''}>
+        <option value="">Choose a board</option>
+        {(boards.data ?? []).map((board) => (
+          <option key={board.id} value={board.id}>
+            {noteTitle(board)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Pages() {
   const pages = useResource<{ pinned: Note[]; recent: Note[] }>('/me/pages', true);
   if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
@@ -537,4 +565,5 @@ export const widgetKinds: Record<
   capture: { title: 'Quick note', size: 'medium', settings: {}, View: Capture },
   habits: { title: 'Habits', size: 'medium', settings: {}, View: Habits },
   pages: { title: 'Pinned and recent pages', size: 'medium', settings: {}, View: Pages },
+  board: { title: 'Board', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
 };
