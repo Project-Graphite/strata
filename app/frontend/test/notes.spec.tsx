@@ -160,6 +160,46 @@ describe('Notes', () => {
     expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-note')).toBe('fresh');
   });
 
+  it('shows a page tree in the sidebar, adds pages inside and nests by dragging', async () => {
+    localStorage.removeItem('strata-page-tree-open');
+    const sent: { path: string; body: unknown }[] = [];
+    serve((path, init) => {
+      if (path === '/me/notes') return json([note('lisbon', 'Lisbon', 'trips'), note('trips', 'Trips'), note('food', 'Food')]);
+      if (init?.method === 'PATCH' || init?.method === 'POST') {
+        sent.push({ path, body: JSON.parse(String(init.body)) });
+        return json(note('fresh', ''), 201);
+      }
+      if (path === '/notes/fresh') return json({ ...note('fresh', ''), editable: true, path: [] });
+      return undefined;
+    });
+    await render('/');
+    const tree = () => container.querySelector('[aria-label="Page tree"]')!;
+    const press = (label: string) => act(async () => tree().querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click());
+
+    await press('Expand Home');
+    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['·Trips', '·Food']);
+    await press('Expand Trips');
+    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['·Trips', '·Lisbon', '·Food']);
+
+    const rows = [...tree().querySelectorAll<HTMLElement>('.page-tree-row')];
+    const food = rows.find((row) => row.textContent?.includes('Food'))!;
+    const trips = rows.find((row) => row.textContent?.includes('Trips'))!;
+    const dataTransfer = new DataTransfer();
+    const drag = (type: string) => Object.defineProperty(new Event(type, { bubbles: true, cancelable: true }), 'dataTransfer', { value: dataTransfer });
+    await act(async () => {
+      food.dispatchEvent(drag('dragstart'));
+    });
+    await act(async () => {
+      trips.dispatchEvent(drag('dragover'));
+      trips.dispatchEvent(drag('drop'));
+    });
+    expect(sent).toEqual([{ path: '/notes/food', body: { parentId: 'trips' } }]);
+
+    await press('Add a page inside Trips');
+    expect(sent[1]).toEqual({ path: '/spaces/home/notes', body: { parentId: 'trips' } });
+    expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('fresh');
+  });
+
   it('shows the path, renames on blur and adds a page inside', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/food' && init?.method === 'PATCH') {

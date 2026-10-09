@@ -145,6 +145,7 @@ export class UpdateCommentDto {
 }
 
 export class PageKindQueryDto {
+  @IsOptional()
   @IsIn(['note', 'board'], { message: 'Choose note or board.' })
-  kind!: 'note' | 'board';
+  kind?: 'note' | 'board';
 }

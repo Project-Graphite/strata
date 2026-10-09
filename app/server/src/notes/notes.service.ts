@@ -59,17 +59,17 @@ export class NotesService {
     return rows.map(present);
   }
 
-  async everywhere(userId: string, kind: 'note' | 'board') {
+  async everywhere(userId: string, kind: 'note' | 'board' | undefined) {
     const rows = await this.prisma.item.findMany({
       where: {
-        kind: kind === 'board' ? ItemKind.BOARD : ItemKind.NOTE,
+        kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
         space: this.access.spacesOf(userId),
         note: { template: false },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
-      take: 200,
+      take: 500,
       select: noteFields,
     });
     return rows.map(present);
