@@ -190,6 +190,10 @@ describe('Notes and real-time editing against Postgres', () => {
     const board = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Seating', board: true })).body;
     expect(board).toMatchObject({ kind: 'board', title: 'Seating' });
     expect((await owner.call('GET', `/spaces/${space.id}/notes`)).body).toEqual([expect.objectContaining({ id: board.id, kind: 'board' })]);
+    const page = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Menu' })).body;
+    expect((await friend.call('GET', '/me/notes?kind=board')).body.map((found: { id: string }) => found.id)).toEqual([board.id]);
+    expect((await friend.call('GET', '/me/notes?kind=note')).body.map((found: { id: string }) => found.id)).toEqual([page.id]);
+    expect((await owner.call('GET', '/me/notes?kind=task')).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${space.id}/notes`, { board: true, template: 'meeting' })).status).toBe(400);
     expect((await owner.call('PATCH', `/notes/${board.id}`, { template: true })).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${space.id}/notes`, { parentId: board.id })).status).toBe(400);

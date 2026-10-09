@@ -1,7 +1,7 @@
 import type { SidebarSection } from '@project-graphite/ui';
 import type { Space } from './spaces';
 
-export const moreAreas = ['/menu', '/journal', '/recurring', '/tidy', '/inbox', '/invitations', '/trash', '/settings', '/admin'];
+export const moreAreas = ['/menu', '/pages', '/boards', '/journal', '/recurring', '/tidy', '/inbox', '/invitations', '/trash', '/settings', '/admin'];
 
 export function areaSections(pathname: string, spaces: Space[] | undefined, unread: number): SidebarSection[] {
   return [
@@ -10,6 +10,8 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
         { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
         { active: pathname === '/today', href: '/today', icon: 'check', label: 'Today' },
         { active: pathname === '/agenda' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/'), href: '/agenda', icon: 'calendar', label: 'Agenda' },
+        { active: pathname === '/pages', href: '/pages', icon: 'library', label: 'Pages' },
+        { active: pathname === '/boards', href: '/boards', icon: 'panel', label: 'Boards' },
         { active: pathname === '/journal', href: '/journal', icon: 'pencil', label: 'Journal' },
         { active: pathname === '/recurring', href: '/recurring', icon: 'repeat', label: 'Recurring' },
         { active: pathname === '/tidy', href: '/tidy', icon: 'sparkles', label: 'Tidy' },

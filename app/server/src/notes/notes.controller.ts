@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateNoteDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
+import { CreateNoteDto, PageKindQueryDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
 import { NoteDatabasesService } from './note-databases.service';
 import { NoteVersionsService } from './note-versions.service';
 import { NotesService } from './notes.service';
@@ -22,6 +22,12 @@ export class NotesController {
   @Scope('items:read')
   mine(@CurrentUser() user: AuthenticatedUser) {
     return this.notes.mine(user.id);
+  }
+
+  @Get('me/notes')
+  @Scope('items:read')
+  everywhere(@CurrentUser() user: AuthenticatedUser, @Query() query: PageKindQueryDto) {
+    return this.notes.everywhere(user.id, query.kind);
   }
 
   @Get('spaces/:spaceId/notes')
