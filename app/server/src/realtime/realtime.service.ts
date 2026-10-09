@@ -22,7 +22,7 @@ const maxDocumentsPerUser = 40;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
-export const editorFormat = 2;
+export const editorFormat = 3;
 
 interface BoardVersion {
   version?: number;

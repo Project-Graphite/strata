@@ -28,9 +28,9 @@ describe('The / block menu', () => {
 
   const options = () => [...document.querySelectorAll('.suggestion-menu [role="option"]')].map((option) => option.textContent);
 
-  async function open(onImages = vi.fn()) {
+  async function open(onImages = vi.fn(), onBoard = vi.fn()) {
     function Page() {
-      const created = useEditor({ extensions: [StarterKit, TaskList, TaskItem, Callout, Details, DetailsSummary, DetailsContent, TableKit, blockMenuExtension(onImages)], content: '<p></p>', immediatelyRender: true });
+      const created = useEditor({ extensions: [StarterKit, TaskList, TaskItem, Callout, Details, DetailsSummary, DetailsContent, TableKit, blockMenuExtension({ onImages, onBoard })], content: '<p></p>', immediatelyRender: true });
       editor = created ?? undefined;
       return <EditorContent editor={created} />;
     }
@@ -41,7 +41,7 @@ describe('The / block menu', () => {
     await act(async () => {
       editor!.commands.focus('end');
     });
-    return onImages;
+    return { onImages, onBoard };
   }
 
   it('filters blocks as you type and turns the line into the one you pick', async () => {
@@ -60,7 +60,7 @@ describe('The / block menu', () => {
   });
 
   it('starts a page link and asks for images through the editor', async () => {
-    const onImages = await open();
+    const { onImages, onBoard } = await open();
     await typeIn('/link');
     await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
     expect(editor!.getText()).toBe('@');
@@ -74,6 +74,10 @@ describe('The / block menu', () => {
     picker.onchange?.(new Event('change'));
     expect(onImages).toHaveBeenCalledWith(editor!.view, []);
     click.mockRestore();
+
+    await typeIn(' /whiteboard');
+    await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    expect(onBoard).toHaveBeenCalledWith(editor);
   });
 
   it('adds callouts, toggles and tables', async () => {

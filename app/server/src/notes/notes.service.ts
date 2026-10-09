@@ -5,7 +5,7 @@ import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { valueMap } from './database';
-import { documentText } from './document-text';
+import { boardElementsKey, documentText } from './document-text';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
 import { templateDocument, textDocument, type BuiltInTemplate } from './templates';
 
@@ -137,6 +137,15 @@ export class NotesService {
         ? { properties: database.properties, values: valueMap(await this.prisma.noteProperty.findMany({ where: { itemId: noteId } })) }
         : null,
     };
+  }
+
+  async board(userId: string, boardId: string) {
+    await this.note(userId, boardId, 'read', [ItemKind.BOARD]);
+    const stored = await this.prisma.noteDocument.findUnique({ where: { itemId: boardId }, select: { state: true } });
+    const document = new Y.Doc();
+    if (stored) Y.applyUpdate(document, new Uint8Array(stored.state));
+    const elements = [...document.getMap<{ isDeleted?: boolean }>(boardElementsKey).values()].filter((element) => !element.isDeleted);
+    return { elements };
   }
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {

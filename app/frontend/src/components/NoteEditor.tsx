@@ -18,7 +18,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
-import { blockChoices, blockMenuExtension, Callout, internalPath, mentionExtension, StoredImageExtension } from './note-extensions';
+import { blockChoices, blockMenuExtension, BoardEmbedExtension, Callout, internalPath, mentionExtension, StoredImageExtension, type BlockActions } from './note-extensions';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 
@@ -68,6 +68,8 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
   const { label, people, outdated } = useLiveStatus(connection, editable);
   const user = auth.user!;
 
+  const actions: BlockActions = { onImages: insertImages, onBoard: addBoard };
+
   const editor = useEditor(
     {
       editable,
@@ -85,7 +87,8 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
         DetailsContent,
         TableKit.configure({ table: { resizable: false } }),
         mentionExtension(auth.request, noteId),
-        blockMenuExtension(insertImages),
+        blockMenuExtension(actions),
+        BoardEmbedExtension,
         StoredImageExtension,
       ],
       editorProps: {
@@ -102,6 +105,15 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
     },
     [connection],
   );
+
+  function addBoard(target: Editor) {
+    auth
+      .request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, parentId: noteId, title: 'Board' }) })
+      .then(
+        (board) => target.chain().focus().insertContent({ type: 'boardEmbed', attrs: { boardId: board.id } }).run(),
+        () => show({ message: 'Could not add a board.', tone: 'error' }),
+      );
+  }
 
   function insertImages(view: EditorView, files: File[]) {
     const images = files.filter((file) => file.type.startsWith('image/'));
@@ -150,7 +162,7 @@ function CollaborativeEditor({ connection, editable, noteId, spaceId }: { connec
           </span>
         </div>
       </div>
-      {editable && !outdated && <BlockHandle editor={editor} onImages={insertImages} />}
+      {editable && !outdated && <BlockHandle actions={actions} editor={editor} />}
       <EditorContent editor={editor} />
     </div>
   );
@@ -166,7 +178,7 @@ function HoldHandle({ editor }: { editor: Editor }) {
   return null;
 }
 
-function BlockHandle({ editor, onImages }: { editor: Editor; onImages: (view: EditorView, files: File[]) => boolean }) {
+function BlockHandle({ actions, editor }: { actions: BlockActions; editor: Editor }) {
   const [block, setBlock] = useState<{ node: BlockNode; pos: number }>();
   const at = (pos: number, bias: 1 | -1 = 1) =>
     editor.chain().focus().command(({ tr }) => {
@@ -182,7 +194,7 @@ function BlockHandle({ editor, onImages }: { editor: Editor; onImages: (view: Ed
               { label: 'Add a row', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addRowAfter().run(), separated: true },
               { label: 'Add a column', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addColumnAfter().run() },
             ]
-          : blockChoices(onImages)
+          : blockChoices(actions)
               .filter((choice) => turnInto.has(choice.id))
               .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
       ]

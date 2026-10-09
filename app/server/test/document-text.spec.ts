@@ -37,4 +37,13 @@ describe('documentText', () => {
     expect(documentText(document)).toBe('Seating plan');
     expect([...documentLinks(document).files]).toEqual(['photo-file']);
   });
+
+  it('links the boards embedded in a page', () => {
+    const document = new Y.Doc();
+    const embed = new Y.XmlElement('boardEmbed');
+    embed.setAttribute('boardId', 'seating-board');
+    document.getXmlFragment('default').push([embed]);
+
+    expect([...documentLinks(document).mentions]).toEqual(['seating-board']);
+  });
 });

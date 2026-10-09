@@ -212,6 +212,8 @@ describe('Notes and real-time editing against Postgres', () => {
       (row) => Boolean(row?.bodyText.includes('Top table')),
     );
     expect(stored?.bodyText).toBe('Top table');
+    expect((await friend.call('GET', `/notes/${board.id}/board`)).body.elements).toEqual([expect.objectContaining({ id: 'table-1', text: 'Top table' })]);
+    expect((await friend.call('GET', `/notes/${page.id}/board`)).status).toBe(404);
 
     theirs.provider.destroy();
     mine.provider.destroy();
