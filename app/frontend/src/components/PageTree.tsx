@@ -2,7 +2,7 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { noteTitle, type Note } from '../notes';
+import { noteTitle, onPagesChanged, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -44,6 +44,8 @@ export function PageTree() {
     reload();
   }, [pathname, reload]);
 
+  useEffect(() => onPagesChanged(reload), [reload]);
+
   if (collapsed || !listed.data || !spaces.data) return null;
   const pages = listed.data.filter((note) => !note.template);
   const known = new Set(pages.map((note) => note.id));
@@ -58,8 +60,8 @@ export function PageTree() {
       if (!next.delete(id)) next.add(id);
       try {
         localStorage.setItem(openKey, JSON.stringify([...next]));
-      } catch {
-        return next;
+      } catch (error) {
+        if (!(error instanceof DOMException)) throw error;
       }
       return next;
     });

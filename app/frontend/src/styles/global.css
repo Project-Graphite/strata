@@ -598,3 +598,34 @@ button.habit-day {
   visibility: visible;
 }
 
+.page-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-field);
+  font-size: 1.9rem;
+}
+
+.page-icon-empty {
+  border: 1px dashed var(--color-line);
+  color: var(--color-faint);
+  font-size: 1.2rem;
+}
+
+.page-icon:hover {
+  background: var(--color-line-soft);
+}
+
+.icon-picker-choice {
+  border-radius: var(--radius-field);
+  padding: 0.3rem;
+  font-size: 1.3rem;
+}
+
+.icon-picker-choice:hover,
+.icon-picker-choice[aria-pressed='true'] {
+  background: var(--color-line-soft);
+}
+
