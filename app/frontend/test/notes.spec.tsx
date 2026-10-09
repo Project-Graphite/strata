@@ -224,6 +224,34 @@ describe('Notes', () => {
     expect(JSON.parse(localStorage.getItem('strata-wide-pages')!)).toEqual(['trips']);
   });
 
+  it('creates a view link for a page and turns it off', async () => {
+    const sent: { method: string; path: string }[] = [];
+    serve((path, init) => {
+      if (path === '/items/trips/share-links' && init?.method === 'POST') {
+        sent.push({ method: 'POST', path });
+        return json({ id: 'link', access: 'view', expiresAt: '2026-11-08T00:00:00Z', createdAt: '2026-10-09T00:00:00Z', link: 'http://localhost/share/abc' }, 201);
+      }
+      if (path === '/items/trips/share-links/link' && init?.method === 'DELETE') {
+        sent.push({ method: 'DELETE', path });
+        return new Response(null, { status: 204 });
+      }
+      if (path === '/items/trips/share-links') return json([]);
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
+      return undefined;
+    });
+    await render('/notes/trips');
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Share this page"]')!.click());
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Create a view link')!.click());
+    expect(container.querySelector('code')?.textContent).toBe('http://localhost/share/abc');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
+    expect(sent).toEqual([
+      { method: 'POST', path: '/items/trips/share-links' },
+      { method: 'DELETE', path: '/items/trips/share-links/link' },
+    ]);
+    expect(container.querySelector('code')).toBeNull();
+  });
+
   it('shows the path, renames on blur and adds a page inside', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/food' && init?.method === 'PATCH') {

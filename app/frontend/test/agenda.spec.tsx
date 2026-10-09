@@ -1,4 +1,5 @@
 import { act } from 'react';
+import * as Y from 'yjs';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -151,6 +152,36 @@ describe('Agenda and RSVP', () => {
     expect(yes.getAttribute('aria-pressed')).toBe('true');
     expect(container.textContent).toContain('2 yes · 0 maybe · 0 no');
     expect(container.textContent).not.toContain('Pick this date');
+  });
+
+  it('shows a shared page to a guest', async () => {
+    const document = new Y.Doc();
+    const paragraph = new Y.XmlElement('paragraph');
+    paragraph.insert(0, [new Y.XmlText('Two eggs and a pinch of salt')]);
+    document.getXmlFragment('default').push([paragraph]);
+    const state = btoa(String.fromCharCode(...Y.encodeStateAsUpdate(document)));
+    serve(false, (path) => {
+      if (path === `/share/${code}`) return json({ access: 'view', item: { kind: 'note', title: 'Pancakes' }, event: null, datePoll: false, content: { kind: 'note', state } });
+      return undefined;
+    });
+    await render(`/share/${code}`);
+    for (let attempt = 0; attempt < 40 && !container.querySelector('[aria-label="Shared page"]'); attempt += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+    }
+    expect(container.querySelector('h1')?.textContent).toBe('Pancakes');
+    expect(container.textContent).toContain('Shared page');
+    expect(container.querySelector('[aria-label="Shared page"]')?.textContent).toContain('Two eggs and a pinch of salt');
+  });
+
+  it('shows a shared board to a guest', async () => {
+    serve(false, (path) =>
+      path === `/share/${code}` ? json({ access: 'view', item: { kind: 'board', title: 'Seating' }, event: null, datePoll: false, content: { kind: 'board', elements: [] } }) : undefined,
+    );
+    await render(`/share/${code}`);
+    expect(container.textContent).toContain('Shared board');
+    expect(container.querySelector('[aria-label="Drawing of Seating"]')?.textContent).toBe('Nothing drawn yet');
   });
 
   it('tells a guest on an open invitation link that the date is still being decided', async () => {

@@ -1,6 +1,5 @@
 import type { BinaryFileData, DataURL } from '@excalidraw/excalidraw/types';
-import { readBlob } from '../api';
-import type { useAuth } from '../auth';
+import type { FileSource } from './file-source';
 
 (window as { EXCALIDRAW_ASSET_PATH?: string }).EXCALIDRAW_ASSET_PATH = '/excalidraw/';
 
@@ -13,7 +12,7 @@ function dataUrl(blob: Blob) {
   });
 }
 
-export async function boardImage(request: ReturnType<typeof useAuth>['request'], fileId: string): Promise<BinaryFileData> {
-  const blob = await request<Blob>(`/files/${fileId}`, {}, readBlob);
+export async function boardImage(load: FileSource, fileId: string): Promise<BinaryFileData> {
+  const blob = await load(fileId);
   return { id: fileId as BinaryFileData['id'], dataURL: await dataUrl(blob), mimeType: blob.type as BinaryFileData['mimeType'], created: Date.now() };
 }

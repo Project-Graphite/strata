@@ -155,6 +155,7 @@ describe('Invitations, the invite-only switch and share links against Postgres',
       item: { kind: 'note', title: 'Packing list' },
       event: null,
       datePoll: false,
+      content: { kind: 'note', state: null },
     });
     expect((await owner.call('GET', `/items/${note.id}/share-links`)).body).toHaveLength(1);
 
