@@ -82,7 +82,7 @@
   font-size: 0.85rem;
 }
 
-.board-make-tasks {
+.board-action {
   border-radius: 0.5rem;
   background: #1e1e1e;
   padding: 0.4rem 0.75rem;
@@ -90,7 +90,36 @@
   font-size: 0.85rem;
 }
 
+.board-templates {
+  position: absolute;
+  bottom: 4.5rem;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  transform: translateX(-50%);
+  border: 1px solid #dee2e6;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 0.6rem 0.8rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.board-print-frame {
+  position: fixed;
+  width: 0;
+  height: 0;
+  border: 0;
+  visibility: hidden;
+}
+
 .board-canvas {
+  position: relative;
   height: max(28rem, calc(100dvh - 16rem));
   overflow: hidden;
   border: 1px solid var(--color-line);
