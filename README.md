@@ -90,18 +90,18 @@ docker compose exec app npm run system-manager:grant --workspace server -- you@e
 
 ## Production
 
-`compose.production.yaml` runs on Coolify at `strata.project-graphite.com`. These secrets live only
-in Coolify:
+Production runs at `strata.project-graphite.com` from
+[`deploy/strata/values.yaml`](https://github.com/project-graphite/platform/blob/main/deploy/strata/values.yaml) in `platform`. A push to `main` records the
+image tag there, which deploys it. These values live only in the organisation's secrets repository:
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
 - `AUTH_ACCESS_TOKEN_SECRET`, at least 32 characters
 - `DATA_ENCRYPTION_KEY`, 32 random bytes in base64 (`openssl rand -base64 32`). Never change it
   without re-encrypting the stored secrets, or every two-step sign-in breaks.
-- `EMAIL_HOST_PASSWORD`
+- `EMAIL_HOST` and `DEFAULT_FROM_EMAIL`
 
-It also needs `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER` and `DEFAULT_FROM_EMAIL`.
-
-Pushes to `main` deploy when the `COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` secrets are set.
+Optional: `EMAIL_PORT` (default `587`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `BACKUP_KEEP_DAYS` (default `14`).
 
 ## Conventions
 
