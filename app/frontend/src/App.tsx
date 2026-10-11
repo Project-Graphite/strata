@@ -24,6 +24,8 @@ import { MealPlanPage } from './pages/MealPlanPage';
 import { RecipePage } from './pages/RecipePage';
 import { RecipesPage } from './pages/RecipesPage';
 import { SpendingPage } from './pages/SpendingPage';
+import { TripPage } from './pages/TripPage';
+import { TripsPage } from './pages/TripsPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
@@ -200,6 +202,26 @@ export function App() {
               <Protected>
                 <FeatureRoute feature="spending">
                   <SpendingPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="trips"
+            element={
+              <Protected>
+                <FeatureRoute feature="trips">
+                  <TripsPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="trips/:id"
+            element={
+              <Protected>
+                <FeatureRoute feature="trips">
+                  <TripPage />
                 </FeatureRoute>
               </Protected>
             }

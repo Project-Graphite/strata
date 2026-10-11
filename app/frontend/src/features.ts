@@ -37,6 +37,13 @@ export const featureCatalogue: Feature[] = [
     icon: 'wallet',
     href: '/spending',
   },
+  {
+    key: 'trips',
+    label: 'Trips',
+    description: 'A place for each trip: itinerary, packing list, documents, notes and what it costs, shared with whoever comes along.',
+    icon: 'plane',
+    href: '/trips',
+  },
 ];
 
 export const enabledFeatures = (keys: string[] | undefined) => featureCatalogue.filter((feature) => keys?.includes(feature.key));

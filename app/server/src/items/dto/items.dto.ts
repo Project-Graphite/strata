@@ -14,7 +14,7 @@ import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorat
 import { PageDto } from '../../validation/page.dto';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const itemKinds = ['note', 'task', 'event', 'subscription', 'board', 'file', 'list', 'bookmark', 'goal', 'person', 'recipe', 'expense'];
+export const itemKinds = ['note', 'task', 'event', 'subscription', 'board', 'file', 'list', 'bookmark', 'goal', 'person', 'recipe', 'expense', 'trip'];
 
 export class ListItemsDto extends PageDto {
   @IsOptional()

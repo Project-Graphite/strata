@@ -31,6 +31,7 @@ enum ItemKind {
   PERSON       @map("person")
   RECIPE       @map("recipe")
   EXPENSE      @map("expense")
+  TRIP         @map("trip")
 }
 
 enum LinkKind {
@@ -291,6 +292,7 @@ model Item {
   person         Person?
   recipe         Recipe?
   expense        Expense?
+  trip           Trip?
   mealPlanned    MealPlanEntry[]
 
   @@index([spaceId, updatedAt])
@@ -1087,4 +1089,17 @@ model Budget {
 
   @@unique([spaceId, category])
   @@map("budgets")
+}
+
+model Trip {
+  itemId      String   @id @map("item_id") @db.Uuid
+  destination String   @default("")
+  startsOn    DateTime @map("starts_on") @db.Date
+  endsOn      DateTime @map("ends_on") @db.Date
+  budgetMinor Int?     @map("budget_minor")
+  currency    String?
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([startsOn])
+  @@map("trips")
 }
