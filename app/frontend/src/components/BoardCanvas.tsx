@@ -9,6 +9,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
 import type { Item } from '../spaces';
 import { boardImage } from './board-files';
+import { BrainstormBar, countVotes, useBoardSession, votesBy } from './board-session';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
@@ -94,6 +95,8 @@ function LiveBoard({
   const [loaded, setLoaded] = useState(connection.provider.isSynced);
   const [single, setSingle] = useState<string>();
   const [pins, setPins] = useState<Pin[]>([]);
+  const session = useBoardSession(connection.document);
+  const [myVotes, setMyVotes] = useState(0);
   const commented = useRef(comments.commentedBlocks);
   commented.current = comments.commentedBlocks;
   const synced = useRef(new Map<string, number>());
@@ -196,13 +199,46 @@ function LiveBoard({
     if (fit) api.scrollToContent(added, { fitToContent: true });
   }
 
+  const { round } = session;
+  useEffect(() => {
+    if (api) setMyVotes(round ? votesBy(api.getSceneElements(), round, user.id) : 0);
+  }, [api, round, user.id]);
+
   function addVote() {
     if (!api) return;
+    if (round && votesBy(api.getSceneElements(), round, user.id) >= round.perPerson) {
+      show({ message: 'You have used all your dots in this vote.' });
+      return;
+    }
     const { scrollX, scrollY, width, height, zoom } = api.getAppState();
     const color = colorFor(user.id);
     const x = -scrollX + width / 2 / zoom.value + (Math.random() - 0.5) * 40;
     const y = -scrollY + height / 2 / zoom.value + (Math.random() - 0.5) * 40;
-    addElements([{ type: 'ellipse', x, y, width: 22, height: 22, backgroundColor: color, strokeColor: color, fillStyle: 'solid' }], false);
+    addElements(
+      [
+        {
+          type: 'ellipse',
+          x,
+          y,
+          width: 22,
+          height: 22,
+          backgroundColor: color,
+          strokeColor: color,
+          fillStyle: 'solid',
+          customData: round ? { round: round.startedAt, voter: user.id } : undefined,
+        },
+      ],
+      false,
+    );
+  }
+
+  function countRound() {
+    if (!api || !round) return;
+    const scene = api.getSceneElements();
+    connection.document.transact(() => {
+      session.set('results', countVotes(scene, round, (id) => shapeLabel(scene, id)));
+      session.set('round', undefined);
+    });
   }
 
   async function printBoard() {
@@ -276,17 +312,20 @@ function LiveBoard({
 
   return (
     <div className="grid gap-3">
-      <div className="flex items-center justify-end gap-3">
-        {people.length > 0 && (
-          <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
-            {people.slice(0, 5).map((person) => (
-              <Avatar key={person.clientId} name={person.name} present />
-            ))}
-          </div>
-        )}
-        <span className="mono-sm text-faint" role="status">
-          {label}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <BrainstormBar controls={editable && !outdated} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
+        <div className="flex items-center gap-3">
+          {people.length > 0 && (
+            <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
+              {people.slice(0, 5).map((person) => (
+                <Avatar key={person.clientId} name={person.name} present />
+              ))}
+            </div>
+          )}
+          <span className="mono-sm text-faint" role="status">
+            {label}
+          </span>
+        </div>
       </div>
       <div aria-label="Board" className="board-canvas" role="region">
         {editable && !outdated && loaded && empty && (
@@ -323,6 +362,7 @@ function LiveBoard({
             setSingle(selected.length === 1 ? selected[0] : undefined);
             const next = pinsFor(scene, commented.current, appState);
             setPins((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+            setMyVotes(round ? votesBy(scene, round, user.id) : 0);
           }}
           renderTopRightUI={() =>
             editable && !outdated ? (
