@@ -27,7 +27,7 @@ export function colorFor(id: string) {
   return colors[hash % colors.length]!;
 }
 
-export function useLiveDocument(noteId: string) {
+export function useLiveDocument(noteId: string, shareCode?: string) {
   const auth = useAuth();
   const [connection, setConnection] = useState<Connection>();
   const accessToken = useRef(auth.accessToken);
@@ -35,18 +35,23 @@ export function useLiveDocument(noteId: string) {
 
   useEffect(() => {
     const document = new Y.Doc();
-    const drafts = new IndexeddbPersistence(`strata-note-${noteId}`, document);
+    const drafts = shareCode ? null : new IndexeddbPersistence(`strata-note-${noteId}`, document);
     const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
-    const provider = new HocuspocusProvider({ name: noteId, document, websocketProvider, token: () => accessToken.current() });
+    const provider = new HocuspocusProvider({
+      name: noteId,
+      document,
+      websocketProvider,
+      token: () => (shareCode ? `share:${shareCode}` : accessToken.current()),
+    });
     provider.attach();
     setConnection({ document, provider });
     return () => {
       provider.destroy();
       websocketProvider.destroy();
-      void drafts.destroy();
+      void drafts?.destroy();
       document.destroy();
     };
-  }, [noteId]);
+  }, [noteId, shareCode]);
 
   return connection;
 }

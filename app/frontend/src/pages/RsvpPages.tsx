@@ -1,10 +1,9 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState, FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
-import { BoardDrawing } from '../components/BoardPreview';
+import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
@@ -13,8 +12,9 @@ import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
 
 const SharedDocument = lazy(() => import('../components/SharedDocument'));
+const SharedBoard = lazy(() => import('../components/SharedBoard'));
 
-type SharedContent = { kind: 'note'; state: string | null } | { kind: 'board'; elements: ExcalidrawElement[] } | null;
+type SharedContent = { kind: 'note'; state: string | null } | { kind: 'board'; id: string } | null;
 
 function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boolean }) {
   return (
@@ -140,18 +140,17 @@ export function SharePage() {
 
   if (shared.loading) return <FormPanelSkeleton label="Loading" />;
   if (!shared.data) {
-    return (
-      <EmptyState title="This link has expired or was turned off">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Ask the person who shared it for a new link.</p>
-      </EmptyState>
-    );
+    return <ClosedShareLink />;
   }
   if (!shared.data.event) {
-    const { content, item } = shared.data;
+    const { access, content, item } = shared.data;
     return (
       <section className={`page-enter mx-auto grid w-full gap-6 ${content?.kind === 'board' ? 'max-w-6xl' : 'max-w-3xl'}`}>
         <div>
-          <p className="m-0 text-sm text-faint">Shared {item.kind === 'note' ? 'page' : item.kind}</p>
+          <p className="m-0 text-sm text-faint">
+            Shared {item.kind === 'note' ? 'page' : item.kind}
+            {access === 'edit' && ' · Anyone with this link can edit'}
+          </p>
           <h1 className="page-heading">{item.title || 'Untitled'}</h1>
         </div>
         {content?.kind === 'note' && (
@@ -161,7 +160,9 @@ export function SharePage() {
         )}
         {content?.kind === 'board' && (
           <FileSourceContext.Provider value={files}>
-            <BoardDrawing elements={content.elements} label={`Drawing of ${item.title || 'the board'}`} />
+            <Suspense fallback={<LinesSkeleton label="Loading the board" lines={6} />}>
+              <SharedBoard boardId={content.id} code={code} editable={access === 'edit'} />
+            </Suspense>
           </FileSourceContext.Provider>
         )}
       </section>

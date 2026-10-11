@@ -1,28 +1,19 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma, ShareAccess } from '@prisma/client';
-import * as Y from 'yjs';
+import { randomUUID } from 'node:crypto';
 import { AccessService } from '../access/access.service';
-import { linkTokenHash, newLinkToken } from '../crypto/link-token';
+import { linkTokenHash } from '../crypto/link-token';
+import { SecretBox } from '../crypto/secret-box.service';
 import { publicEvent } from '../events/events.service';
 import { FilesService } from '../files/files.service';
 import { MailService } from '../mail/mail.service';
-import { boardElementsKey } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { CreateShareLinkDto } from './dto/share-links.dto';
 
 const dayMs = 24 * 60 * 60 * 1000;
 
-const linkFields = { id: true, access: true, expiresAt: true, createdAt: true } satisfies Prisma.ShareLinkSelect;
-
-function presentLink(link: Prisma.ShareLinkGetPayload<{ select: typeof linkFields }>) {
-  return { id: link.id, access: link.access.toLowerCase(), expiresAt: link.expiresAt, createdAt: link.createdAt };
-}
-
-function boardElements(state: Uint8Array) {
-  const document = new Y.Doc();
-  Y.applyUpdate(document, state);
-  return [...document.getMap<{ isDeleted?: boolean }>(boardElementsKey).values()].filter((element) => !element.isDeleted);
-}
+const linkFields = { id: true, access: true, tokenHash: true, expiresAt: true, createdAt: true } satisfies Prisma.ShareLinkSelect;
 
 @Injectable()
 export class ShareLinksService {
@@ -31,6 +22,8 @@ export class ShareLinksService {
     private readonly access: AccessService,
     private readonly mail: MailService,
     private readonly files: FilesService,
+    private readonly box: SecretBox,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async create(userId: string, itemId: string, input: CreateShareLinkDto) {
@@ -38,18 +31,22 @@ export class ShareLinksService {
     if (item.trashedAt) {
       throw new BadRequestException('Restore this item from the trash before sharing it');
     }
-    const { token, tokenHash } = newLinkToken();
+    if (input.access === 'edit' && (await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } })).kind !== ItemKind.BOARD) {
+      throw new BadRequestException('Only boards can be shared for editing');
+    }
+    const id = randomUUID();
     const link = await this.prisma.shareLink.create({
       data: {
+        id,
         itemId,
         access: input.access.toUpperCase() as ShareAccess,
-        tokenHash,
+        tokenHash: linkTokenHash(this.box.linkToken(id)),
         expiresAt: new Date(Date.now() + (input.expiresInDays ?? 30) * dayMs),
         createdById: userId,
       },
       select: linkFields,
     });
-    return { ...presentLink(link), link: this.mail.link(`/share/${token}`) };
+    return this.present(link);
   }
 
   async list(userId: string, itemId: string) {
@@ -59,7 +56,7 @@ export class ShareLinksService {
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       select: linkFields,
     });
-    return links.map(presentLink);
+    return links.map((link) => this.present(link));
   }
 
   async revoke(userId: string, itemId: string, linkId: string) {
@@ -71,6 +68,7 @@ export class ShareLinksService {
     if (revoked.count === 0) {
       throw new NotFoundException('That link is already turned off');
     }
+    this.realtime.closeShareLink(linkId);
   }
 
   async open(code: string) {
@@ -78,7 +76,7 @@ export class ShareLinksService {
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
       select: {
         access: true,
-        item: { select: { kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } } } },
+        item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } } } },
       },
     });
     if (!link) {
@@ -95,8 +93,19 @@ export class ShareLinksService {
         item.kind === ItemKind.NOTE
           ? { kind: 'note', state: state ? Buffer.from(state).toString('base64') : null }
           : item.kind === ItemKind.BOARD
-            ? { kind: 'board', elements: state ? boardElements(state) : [] }
+            ? { kind: 'board', id: item.id }
             : null,
+    };
+  }
+
+  private present(link: Prisma.ShareLinkGetPayload<{ select: typeof linkFields }>) {
+    const token = this.box.linkToken(link.id);
+    return {
+      id: link.id,
+      access: link.access.toLowerCase(),
+      expiresAt: link.expiresAt,
+      createdAt: link.createdAt,
+      link: linkTokenHash(token) === link.tokenHash ? this.mail.link(`/share/${token}`) : null,
     };
   }
 

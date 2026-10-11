@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
 import { NoteVersionsService } from '../../src/notes/note-versions.service';
-import { editorFormat, RealtimeService } from '../../src/realtime/realtime.service';
+import { editorFormat, guestTokenPrefix, RealtimeService } from '../../src/realtime/realtime.service';
 import { integrationApp, type Member } from './harness';
 
 class TrustedSocket extends WebSocket {
@@ -41,7 +41,7 @@ describe('Notes and real-time editing against Postgres', () => {
     for (const provider of providers.splice(0)) provider.destroy();
   });
 
-  function open(as: Member, name: string, format = editorFormat) {
+  function open(as: Member | string, name: string, format = editorFormat) {
     const document = new Y.Doc();
     const websocketProvider = new HocuspocusProviderWebsocket({
       url: `${strata.base.replace(/^http/, 'ws')}/api/v1/realtime?format=${format}`,
@@ -50,7 +50,7 @@ describe('Notes and real-time editing against Postgres', () => {
     return new Promise<{ provider: HocuspocusProvider; document: Y.Doc }>((resolve, reject) => {
       const provider: HocuspocusProvider = new HocuspocusProvider({
         name,
-        token: as.token,
+        token: typeof as === 'string' ? as : as.token,
         document,
         websocketProvider,
         onSynced: (): void => resolve({ provider, document }),
@@ -310,13 +310,50 @@ describe('Notes and real-time editing against Postgres', () => {
     const copy = new Y.Doc();
     Y.applyUpdate(copy, Buffer.from(shared.content.state, 'base64'));
     expect(textOf(copy)).toContain('Two eggs');
-    expect((await strata.anonymous('GET', `/share/${await code(board.id)}`)).body.content).toEqual({ kind: 'board', elements: [{ id: 'box', type: 'rectangle', version: 1 }] });
+    expect((await strata.anonymous('GET', `/share/${await code(board.id)}`)).body.content).toEqual({ kind: 'board', id: board.id });
 
     const guestFile = await fetch(`${strata.base}/share/${pageCode}/files/${shown}`);
     expect(guestFile.status).toBe(200);
     expect(guestFile.headers.get('content-type')).toBe('image/png');
     expect((await fetch(`${strata.base}/share/${pageCode}/files/${unrelated}`)).status).toBe(404);
     expect((await fetch(`${strata.base}/share/${pageCode}/files/not-a-file`)).status).toBe(400);
+  });
+
+  it('lets guests watch a shared board live, and edit it only through an edit link', async () => {
+    const owner = await member('facilitator');
+    const board = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Retro', board: true })).body;
+    const page = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Minutes' })).body;
+    const realtime = strata.service(RealtimeService);
+    const elementsOf = (document: Y.Doc) => document.getMap<{ id: string; text?: string; version: number }>('board');
+    const share = async (itemId: string, access: 'view' | 'edit') => (await owner.call('POST', `/items/${itemId}/share-links`, { access })).body as { id: string; link: string };
+    const guestToken = (link: { link: string }) => `${guestTokenPrefix}${link.link.split('/share/')[1]}`;
+    const viewLink = await share(board.id, 'view');
+    const editLink = await share(board.id, 'edit');
+    expect((await owner.call('POST', `/items/${page.id}/share-links`, { access: 'edit' })).status).toBe(400);
+
+    const host = await open(owner, board.id);
+    const watcher = await open(guestToken(viewLink), board.id);
+    const editor = await open(guestToken(editLink), board.id);
+    elementsOf(host.document).set('went-well', { id: 'went-well', type: 'text', text: 'Shipped on time', version: 1 });
+    await until(async () => elementsOf(watcher.document).get('went-well'), Boolean);
+    expect(elementsOf(watcher.document).get('went-well')).toMatchObject({ text: 'Shipped on time' });
+
+    elementsOf(editor.document).set('to-change', { id: 'to-change', type: 'text', text: 'Fewer meetings', version: 1 });
+    await until(async () => elementsOf(host.document).get('to-change'), Boolean);
+    expect(elementsOf(host.document).get('to-change')).toMatchObject({ text: 'Fewer meetings' });
+    elementsOf(watcher.document).set('sneaky', { id: 'sneaky', type: 'text', text: 'Read only', version: 1 });
+    await settle();
+    expect(elementsOf(realtime.hocuspocus.documents.get(board.id)!).has('sneaky')).toBe(false);
+
+    await expect(open(guestToken(viewLink), page.id)).rejects.toThrow();
+    await expect(open(`${guestTokenPrefix}${'x'.repeat(43)}`, board.id)).rejects.toThrow();
+    const connections = () => [...(realtime.hocuspocus.documents.get(board.id)?.connections.keys() ?? [])].length;
+    expect(connections()).toBe(3);
+    expect((await owner.call('DELETE', `/items/${board.id}/share-links/${editLink.id}`)).status).toBe(204);
+    expect(await until(async () => connections(), (count) => count === 2)).toBe(2);
+    await strata.prisma.shareLink.update({ where: { id: viewLink.id }, data: { expiresAt: new Date(Date.now() - 1_000) } });
+    await realtime.recheckAccess();
+    expect(await until(async () => connections(), (count) => count === 1)).toBe(1);
   });
 
   it('turns mentions and images into links, and never links what the writer cannot read', async () => {
