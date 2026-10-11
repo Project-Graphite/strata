@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { statusOfPublic } from '../../src/widgets/safe-fetch';
 import { integrationApp } from './harness';
+
+vi.mock('../../src/widgets/safe-fetch', async (original) => ({ ...(await original<typeof import('../../src/widgets/safe-fetch')>()), statusOfPublic: vi.fn() }));
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
@@ -58,6 +61,25 @@ describe('Home widget data against Postgres and Redis', () => {
     const places = await owner.call('GET', '/widgets/places?name=Lisbon');
     expect(places.body).toEqual([{ name: 'Lisbon, Portugal', latitude: 38.72, longitude: -9.13 }]);
     expect((await owner.call('GET', '/widgets/places?name=L')).status).toBe(400);
+  });
+
+  it('tells whether an app answers, is down or could not be reached', async () => {
+    const watcher = await member('watcher');
+    const up = `https://up-${watcher.id}.example/health`;
+    const down = `https://down-${watcher.id}.example/health`;
+    vi.mocked(statusOfPublic).mockImplementation((url) =>
+      url === up ? Promise.resolve(200) : url === down ? Promise.reject(new Error('That address took too long to answer')) : Promise.resolve(503),
+    );
+
+    expect((await watcher.call('GET', `/widgets/status?url=${encodeURIComponent(up)}`)).body).toEqual({ up: true, status: 200, ms: expect.any(Number), error: null });
+    expect((await watcher.call('GET', `/widgets/status?url=${encodeURIComponent(down)}`)).body).toEqual({
+      up: false,
+      status: null,
+      ms: expect.any(Number),
+      error: 'That address took too long to answer',
+    });
+    expect((await watcher.call('GET', `/widgets/status?url=${encodeURIComponent(`https://busy-${watcher.id}.example/`)}`)).body).toMatchObject({ up: false, status: 503 });
+    expect((await strata.anonymous('GET', `/widgets/status?url=${encodeURIComponent(up)}`)).status).toBe(401);
   });
 
   it('refuses feed addresses that are not public https', async () => {

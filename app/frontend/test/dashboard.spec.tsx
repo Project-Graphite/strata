@@ -277,6 +277,41 @@ describe('Home dashboard', () => {
     expect(news.textContent).toContain('1 of 3 feeds didn’t load.');
   });
 
+  it('says which of your apps answer, with the Project Graphite apps as the starting list', async () => {
+    const status = {
+      ...home,
+      layout: { widgets: [{ id: 'up', type: 'status', size: 'medium', settings: { sites: ['https://strata.project-graphite.com/health', 'https://shop.example/', 'https://blog.example/'] } }] },
+    };
+    const fetchMock = vi.fn((input: string) => {
+      const path = input.replace('/api/v1', '');
+      if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+      if (path === '/spaces') return Promise.resolve(json([]));
+      if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/me/dashboards') return Promise.resolve(json([status]));
+      if (path === `/widgets/status?url=${encodeURIComponent('https://strata.project-graphite.com/health')}`) return Promise.resolve(json({ up: true, status: 200, ms: 84, error: null }));
+      if (path === `/widgets/status?url=${encodeURIComponent('https://shop.example/')}`) return Promise.resolve(json({ up: false, status: 503, ms: 120, error: null }));
+      return Promise.resolve(json({ message: 'Too many requests' }, 429));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+
+    const widget = container.querySelector('article[aria-label="Are my apps up?"]')!;
+    expect(widget.textContent).toContain('2 of 3 not answering.');
+    expect([...widget.querySelectorAll('li')].map((row) => row.textContent)).toEqual(['strataup · 84 ms', 'shop.exampledown · 503', 'blog.exampleToo many requests']);
+    expect([...widget.querySelectorAll('.tag-dot')].map((dot) => dot.classList.contains('tag-green'))).toEqual([true, false, false]);
+    const { widgetKinds } = await import('../src/dashboard/widgets');
+    expect(widgetKinds.status.settings.sites).toContain('https://strata.project-graphite.com/health');
+  });
+
   it('lists pinned pages first, then recently edited ones, with their space', async () => {
     const reading = { ...home, layout: { widgets: [{ id: 'pages', type: 'pages', size: 'medium', settings: {} }] } };
     const page = (id: string, title: string, pinnedAt: string | null) => ({

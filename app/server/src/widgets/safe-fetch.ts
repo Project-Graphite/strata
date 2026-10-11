@@ -1,4 +1,5 @@
 import { lookup } from 'node:dns/promises';
+import { type ClientRequest } from 'node:http';
 import { request } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 
@@ -90,6 +91,14 @@ const guardedLookup: LookupFunction = (hostname, options, callback) => {
   );
 };
 
+function guard(outgoing: ClientRequest, timeoutMs: number, reject: (error: Error) => void) {
+  const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), timeoutMs);
+  outgoing.on('close', () => clearTimeout(deadline));
+  outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
+  outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
+  return outgoing;
+}
+
 export interface SafeFetchOptions {
   accept: string;
   maxBytes: number;
@@ -144,11 +153,7 @@ export async function fetchPublic(text: string, options: SafeFetchOptions): Prom
         response.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
       },
     );
-    const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), options.timeoutMs);
-    outgoing.on('close', () => clearTimeout(deadline));
-    outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
-    outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
-    outgoing.end();
+    guard(outgoing, options.timeoutMs, reject).end();
   });
 }
 
@@ -173,10 +178,27 @@ export function postPublic(text: string, body: string, headers: Record<string, s
         resolve(response.statusCode ?? 0);
       },
     );
-    const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), timeoutMs);
-    outgoing.on('close', () => clearTimeout(deadline));
-    outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
-    outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
-    outgoing.end(body);
+    guard(outgoing, timeoutMs, reject).end(body);
+  });
+}
+
+export async function statusOfPublic(text: string, timeoutMs: number, redirects = 3): Promise<number> {
+  const url = checkedUrl(text);
+  return new Promise<number>((resolve, reject) => {
+    const outgoing = request(
+      url,
+      { headers: { 'User-Agent': 'Strata status check (+https://strata.project-graphite.com)' }, lookup: guardedLookup, timeout: timeoutMs },
+      (response) => {
+        response.destroy();
+        const status = response.statusCode ?? 0;
+        if (status >= 300 && status < 400 && response.headers.location) {
+          if (redirects === 0) reject(new UnsafeUrlError('That address redirects too many times'));
+          else statusOfPublic(new URL(response.headers.location, url).toString(), timeoutMs, redirects - 1).then(resolve, reject);
+          return;
+        }
+        resolve(status);
+      },
+    );
+    guard(outgoing, timeoutMs, reject).end();
   });
 }
