@@ -4,12 +4,11 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { valueMap } from './database';
-import { boardElementsKey, documentText } from './document-text';
+import { boardElementsKey, documentText, pageKinds } from './document-text';
 import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
-import { templateDocument, textDocument, type BuiltInTemplate } from './templates';
-
-export const pageKinds: ItemKind[] = [ItemKind.NOTE, ItemKind.BOARD];
+import { importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
 
 export const noteFields = {
   id: true,
@@ -47,6 +46,7 @@ export class NotesService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -121,6 +121,7 @@ export class NotesService {
       }
       return item;
     });
+    if (input.state && initial) await this.realtime.syncLinks(created.id, initial, userId);
     return present(created);
   }
 
@@ -213,9 +214,10 @@ export class NotesService {
 
   private async initialState(spaceId: string, input: CreateNoteDto) {
     if (input.board) {
-      if (input.template || input.fromNoteId || input.text) throw new BadRequestException('A board starts empty');
+      if (input.template || input.fromNoteId || input.text || input.state) throw new BadRequestException('A board starts empty');
       return null;
     }
+    if (input.state) return importedDocument(input.state);
     if (input.template) return templateDocument(input.template as BuiltInTemplate);
     if (input.text?.trim()) return textDocument(input.text.trim());
     if (!input.fromNoteId) return null;

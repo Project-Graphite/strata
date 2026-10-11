@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBase64, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
 import { IsColor } from '../../validation/color.decorator';
@@ -32,6 +32,11 @@ export class CreateNoteDto {
   @IsOptionalNotNull()
   @IsBoolean()
   board?: boolean;
+
+  @IsOptional()
+  @IsBase64(undefined, { message: 'That page could not be read.' })
+  @MaxLength(100_000, { message: 'That page is too long to import.' })
+  state?: string;
 }
 
 export class UpdateNoteDto {
