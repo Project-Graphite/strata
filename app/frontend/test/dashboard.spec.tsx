@@ -312,6 +312,39 @@ describe('Home dashboard', () => {
     expect(widgetKinds.status.settings.sites).toContain('https://strata.project-graphite.com/health');
   });
 
+  it('shows one quote a day, the same all day and a different one tomorrow', async () => {
+    const { quoteFor, quotes } = await import('../src/dashboard/quotes');
+    expect(quoteFor('2026-10-11')).toEqual(quoteFor('2026-10-11'));
+    expect(new Set(Array.from({ length: quotes.length }, (_, day) => quoteFor(new Date(Date.UTC(2026, 0, 1 + day)).toISOString().slice(0, 10))[0])).size).toBe(quotes.length);
+
+    const quoted = { ...home, layout: { widgets: [{ id: 'quote', type: 'quote', size: 'medium', settings: {} }] } };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([quoted]));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    const now = new Date();
+    const [text, author] = quoteFor(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
+    const widget = container.querySelector('article[aria-label="Quote of the day"]')!;
+    expect(widget.querySelector('blockquote')?.textContent).toBe(`“${text}”`);
+    expect(widget.querySelector('figcaption')?.textContent).toBe(author);
+  });
+
   it('lists pinned pages first, then recently edited ones, with their space', async () => {
     const reading = { ...home, layout: { widgets: [{ id: 'pages', type: 'pages', size: 'medium', settings: {} }] } };
     const page = (id: string, title: string, pinnedAt: string | null) => ({

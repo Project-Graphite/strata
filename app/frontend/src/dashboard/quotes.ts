@@ -1,0 +1,36 @@
+export const quotes: [text: string, author: string][] = [
+  ['Well done is better than well said.', 'Benjamin Franklin'],
+  ['Lost time is never found again.', 'Benjamin Franklin'],
+  ['Little strokes fell great oaks.', 'Benjamin Franklin'],
+  ['The early morning has gold in its mouth.', 'Benjamin Franklin'],
+  ['Write it on your heart that every day is the best day in the year.', 'Ralph Waldo Emerson'],
+  ['The only way to have a friend is to be one.', 'Ralph Waldo Emerson'],
+  ['Nothing great was ever achieved without enthusiasm.', 'Ralph Waldo Emerson'],
+  ['Our life is frittered away by detail. Simplify, simplify.', 'Henry David Thoreau'],
+  ['It is not enough to be busy; so are the ants. The question is: What are we busy about?', 'Henry David Thoreau'],
+  ['There is nothing either good or bad, but thinking makes it so.', 'William Shakespeare'],
+  ['Our doubts are traitors, and make us lose the good we oft might win by fearing to attempt.', 'William Shakespeare'],
+  ['Brevity is the soul of wit.', 'William Shakespeare'],
+  ["What's past is prologue.", 'William Shakespeare'],
+  ['The fault, dear Brutus, is not in our stars, but in ourselves.', 'William Shakespeare'],
+  ['Hope is the thing with feathers that perches in the soul.', 'Emily Dickinson'],
+  ['Forever is composed of nows.', 'Emily Dickinson'],
+  ["I am not afraid of storms, for I am learning how to sail my ship.", 'Louisa May Alcott'],
+  ['The best way out is always through.', 'Robert Frost'],
+  ['Do what you can, with what you have, where you are.', 'Theodore Roosevelt'],
+  ['Genius is one percent inspiration and ninety-nine percent perspiration.', 'Thomas Edison'],
+  ['Order is Heaven’s first law.', 'Alexander Pope'],
+  ['A little learning is a dangerous thing.', 'Alexander Pope'],
+  ['Hope springs eternal in the human breast.', 'Alexander Pope'],
+  ['There is no charm equal to tenderness of heart.', 'Jane Austen'],
+  ['Think only of the past as its remembrance gives you pleasure.', 'Jane Austen'],
+  ['A journey of a thousand miles begins with a single step.', 'Lao Tzu'],
+  ['Be not afraid of growing slowly; be afraid only of standing still.', 'Chinese proverb'],
+  ['Fall seven times, stand up eight.', 'Japanese proverb'],
+  ['Rest is not idleness.', 'John Lubbock'],
+  ['Haste makes waste.', 'Proverb'],
+];
+
+export function quoteFor(day: string) {
+  return quotes[Math.floor(Date.parse(`${day}T00:00:00Z`) / 86_400_000) % quotes.length]!;
+}
