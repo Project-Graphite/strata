@@ -18,6 +18,7 @@ import { GoalsModule } from './goals/goals.module';
 import { HabitsModule } from './habits/habits.module';
 import { PeopleModule } from './people/people.module';
 import { RecipesModule } from './recipes/recipes.module';
+import { SpendingModule } from './spending/spending.module';
 import { JournalModule } from './journal/journal.module';
 import { HealthModule } from './health/health.module';
 import { InboxModule } from './inbox/inbox.module';
@@ -76,6 +77,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     GoalsModule,
     PeopleModule,
     RecipesModule,
+    SpendingModule,
     JournalModule,
     NotesModule,
     RealtimeModule,

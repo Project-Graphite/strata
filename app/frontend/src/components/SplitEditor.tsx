@@ -2,24 +2,26 @@ import { useState } from 'react';
 import { Avatar, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Member } from '../spaces';
-import type { CostSplit, Subscription } from '../subscriptions';
+import type { CostSplit } from '../subscriptions';
 import { useAction } from '../useAction';
 import { FormDialog } from './FormDialog';
 
 export function SplitEditor({
+  item,
+  kind,
   members,
   onClose,
   onSaved,
-  subscription,
 }: {
+  item: { id: string; name: string; split: CostSplit | null };
+  kind: 'subscriptions' | 'expenses';
   members: Member[];
   onClose: () => void;
   onSaved: (split: CostSplit | null) => void;
-  subscription: Subscription;
 }) {
   const auth = useAuth();
   const saving = useAction();
-  const current = subscription.split;
+  const current = item.split;
   const [payerId, setPayerId] = useState(current?.payerId ?? auth.user?.id ?? members[0]?.userId ?? '');
   const [weights, setWeights] = useState<Record<string, number>>(() =>
     Object.fromEntries(current ? current.shares.map((share) => [share.userId, share.weight]) : members.map((member) => [member.userId, 1])),
@@ -36,13 +38,13 @@ export function SplitEditor({
         void saving
           .run(async () => {
             if (shares.length < 2) throw new Error('Split between at least two members.');
-            onSaved(await auth.request<CostSplit>(`/subscriptions/${subscription.id}/split`, { method: 'PUT', body: JSON.stringify({ payerId, shares }) }));
-            return `${subscription.name} is split between ${shares.length} members.`;
+            onSaved(await auth.request<CostSplit>(`/${kind}/${item.id}/split`, { method: 'PUT', body: JSON.stringify({ payerId, shares }) }));
+            return `${item.name} is split between ${shares.length} members.`;
           }, 'Could not save the split')
           .then((saved) => saved && onClose())
       }
       submitLabel="Save split"
-      title={`Split ${subscription.name}`}
+      title={`Split ${item.name}`}
     >
       <Select
         label="Paid by"
@@ -92,9 +94,9 @@ export function SplitEditor({
           onClick={() =>
             void saving
               .run(async () => {
-                await auth.request(`/subscriptions/${subscription.id}/split`, { method: 'DELETE' });
+                await auth.request(`/${kind}/${item.id}/split`, { method: 'DELETE' });
                 onSaved(null);
-                return `${subscription.name} is no longer split.`;
+                return `${item.name} is no longer split.`;
               }, 'Could not change the split')
               .then((done) => done && onClose())
           }

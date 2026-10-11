@@ -30,6 +30,7 @@ enum ItemKind {
   GOAL         @map("goal")
   PERSON       @map("person")
   RECIPE       @map("recipe")
+  EXPENSE      @map("expense")
 }
 
 enum LinkKind {
@@ -227,6 +228,7 @@ model Space {
   calendars       CalendarSubscription[]
   webhooks        Webhook[]
   mealPlan        MealPlanEntry[]
+  budgets         Budget[]
 
   @@map("spaces")
 }
@@ -288,6 +290,7 @@ model Item {
   goalHabits     GoalHabit[]
   person         Person?
   recipe         Recipe?
+  expense        Expense?
   mealPlanned    MealPlanEntry[]
 
   @@index([spaceId, updatedAt])
@@ -1056,4 +1059,32 @@ model MealPlanEntry {
 
   @@index([spaceId, day])
   @@map("meal_plan_entries")
+}
+
+model Expense {
+  itemId       String   @id @map("item_id") @db.Uuid
+  amountMinor  Int      @map("amount_minor")
+  currency     String
+  spentOn      DateTime @map("spent_on") @db.Date
+  category     String   @default("other")
+  paymentLabel String?  @map("payment_label")
+  note         String   @default("")
+  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([spentOn])
+  @@map("expenses")
+}
+
+model Budget {
+  id          String   @id @default(uuid()) @db.Uuid
+  spaceId     String   @map("space_id") @db.Uuid
+  category    String
+  amountMinor Int      @map("amount_minor")
+  currency    String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, category])
+  @@map("budgets")
 }

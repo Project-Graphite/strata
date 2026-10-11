@@ -2,14 +2,9 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ItemKind } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText } from '../recurrence/dates';
+import { dateText, nextMonth } from '../recurrence/dates';
 import { BalancesQueryDto, CreateSettlementDto, SaveCostSplitDto } from './dto/cost-splits.dto';
 import { renewalsBetween } from './subscriptions.service';
-
-function nextMonth(month: string) {
-  const [year, number] = month.split('-').map(Number) as [number, number];
-  return number === 12 ? `${year + 1}-01` : `${year}-${String(number + 1).padStart(2, '0')}`;
-}
 
 @Injectable()
 export class CostSplitsService {
@@ -20,7 +15,8 @@ export class CostSplitsService {
 
   async save(userId: string, itemId: string, input: SaveCostSplitDto) {
     const item = await this.access.assertItem(userId, itemId, 'edit');
-    if (!(await this.prisma.subscription.count({ where: { itemId } }))) throw new NotFoundException('That item is not a subscription');
+    const splittable = await this.prisma.item.count({ where: { id: itemId, kind: { in: [ItemKind.SUBSCRIPTION, ItemKind.EXPENSE] } } });
+    if (!splittable) throw new NotFoundException('Only subscriptions and expenses can be split');
     const people = new Set(input.shares.map((share) => share.userId));
     if (people.size !== input.shares.length) throw new BadRequestException('Each member can have one share');
     const members = await this.members(item.spaceId);
@@ -46,9 +42,9 @@ export class CostSplitsService {
     const to = `${nextMonth(month)}-01`;
     const [splits, settlements, members] = await Promise.all([
       this.prisma.costSplit.findMany({
-        where: { item: { spaceId, kind: ItemKind.SUBSCRIPTION, trashedAt: null } },
+        where: { item: { spaceId, kind: { in: [ItemKind.SUBSCRIPTION, ItemKind.EXPENSE] }, trashedAt: null } },
         orderBy: { item: { title: 'asc' } },
-        select: { itemId: true, payerId: true, shares: { select: { userId: true, weight: true } }, item: { select: { title: true, subscription: true } } },
+        select: { itemId: true, payerId: true, shares: { select: { userId: true, weight: true } }, item: { select: { title: true, subscription: true, expense: true } } },
       }),
       this.prisma.settlement.findMany({ where: { spaceId, month }, orderBy: { createdAt: 'asc' } }),
       this.prisma.spaceMember.findMany({ where: { spaceId }, select: { userId: true, user: { select: { displayName: true } } } }),
@@ -61,10 +57,12 @@ export class CostSplitsService {
       owed.set(key, (owed.get(key) ?? 0) + amount);
     };
     const charges = splits.flatMap((split) => {
-      const details = split.item.subscription!;
-      const cancelled = dateText(details.cancelledOn);
-      const renewals = renewalsBetween(details, from, to).filter((day) => !cancelled || day < cancelled);
+      const { expense, subscription } = split.item;
+      const spentOn = expense && dateText(expense.spentOn);
+      const cancelled = subscription && dateText(subscription.cancelledOn);
+      const renewals = subscription ? renewalsBetween(subscription, from, to).filter((day) => !cancelled || day < cancelled) : spentOn! >= from && spentOn! < to ? [spentOn!] : [];
       if (renewals.length === 0) return [];
+      const details = (subscription ?? expense)!;
       const total = renewals.length * details.amountMinor;
       const weights = split.shares.reduce((sum, share) => sum + share.weight, 0);
       for (const share of split.shares) {
