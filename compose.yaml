@@ -4,7 +4,8 @@ services:
   app:
     build:
       context: ./app
-      target: server
+      target: development
+    command: [sh, -c, 'npm run prisma:migrate:deploy && exec npm run dev']
     environment:
       DATABASE_URL: postgresql://strata:strata@postgres:5432/strata
       REDIS_URL: redis://redis:6379
@@ -13,15 +14,41 @@ services:
       DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-bG9jYWwtZGV2ZWxvcG1lbnQta2V5LWNoYW5nZS1tZSE=}
       APP_URL: http://localhost:4104
       DEFAULT_FROM_EMAIL: Strata <strata@localhost>
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: '1025'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     ports:
       - '4102:3000'
     volumes:
       - files-data:/data/files
+      - ./app:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./app
+      target: development
+    command: npm run dev --workspace frontend -- --host 0.0.0.0
+    environment:
+      VITE_API_ORIGIN: http://app:3000
+    ports:
+      - '4104:5173'
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+    depends_on:
+      - app
+
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - '4125:8025'
 
   postgres:
     image: postgres:18-alpine
