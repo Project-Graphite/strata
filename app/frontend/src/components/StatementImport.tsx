@@ -3,65 +3,36 @@ import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { allCurrencies, currencyOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
-import { dateOrder, guessColumns, merchantKey, parseCsv, readCharges, suggestRecurring, type DateOrder, type StatementColumns } from '../statement';
+import { merchantKey, suggestRecurring } from '../statement';
 import { cycleLabel, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-
-const orders: { value: DateOrder; label: string; hint: string }[] = [
-  { value: 'dmy', label: 'Day first', hint: '31/01/2026' },
-  { value: 'mdy', label: 'Month first', hint: '01/31/2026' },
-  { value: 'ymd', label: 'Year first', hint: '2026-01-31' },
-];
+import { useStatementFile } from './StatementFile';
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
   const auth = useAuth();
   const spaces = useSpaces();
   const adding = useAction();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const [rows, setRows] = useState<string[][]>();
-  const [columns, setColumns] = useState<StatementColumns>({ date: 0, description: 0, amount: 0 });
-  const [order, setOrder] = useState<DateOrder>('dmy');
+  const statement = useStatementFile();
   const [spaceId, setSpaceId] = useState('');
   const [currency, setCurrency] = useState(defaultCurrency);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const target = spaceId || (editable.find((space) => space.kind === 'personal') ?? editable[0])?.id;
   const existing = useResource<Subscription[]>(target ? `/spaces/${target}/subscriptions` : null, true);
   const tracked = new Set((existing.data ?? []).map((subscription) => merchantKey(subscription.name)));
-  const charges = rows ? readCharges(rows, columns, order) : [];
+  const charges = statement.charges;
   const suggestions = suggestRecurring(charges);
   const chosen = suggestions.filter((suggestion) => !tracked.has(suggestion.key) && !skipped.has(suggestion.key));
-
-  async function read(file: File) {
-    const parsed = parseCsv(await file.text());
-    const guessed = guessColumns(parsed);
-    setRows(parsed);
-    setColumns(guessed);
-    setOrder(dateOrder(parsed.slice(1, 50).map((row) => row[guessed.date] ?? '')));
-  }
-
-  const columnSelect = (label: string, key: keyof StatementColumns) => (
-    <Select
-      label={label}
-      onChange={(index) => setColumns({ ...columns, [key]: Number(index) })}
-      options={(rows?.[0] ?? []).map((title, index) => ({ value: String(index), label: title || `Column ${index + 1}` }))}
-      value={String(columns[key])}
-    />
-  );
 
   return (
     <Dialog onClose={onClose} title="Import a statement">
       <div className="mt-5 grid gap-4">
         <p className="m-0 text-sm text-muted">Choose a CSV export from your bank or card. It is read on this device and never uploaded.</p>
-        <input accept=".csv,text/csv" aria-label="Statement file" onChange={(event) => event.currentTarget.files?.[0] && void read(event.currentTarget.files[0])} type="file" />
-        {rows && (
+        {statement.picker}
+        {statement.loaded && (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {columnSelect('Date column', 'date')}
-              {columnSelect('Description column', 'description')}
-              {columnSelect('Amount column', 'amount')}
-              <Select label="Dates are written" onChange={setOrder} options={orders} value={order} />
-            </div>
+            {statement.columns}
             <p className="mono-sm m-0 text-faint">
               {charges.length} charges read · {suggestions.length} look recurring
             </p>

@@ -6,11 +6,8 @@ import { catalogue, knownService } from '../catalogue';
 import { spaceOptions, type Space } from '../spaces';
 import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
-import { atMost, required, useFormErrors, type Check } from '../validation';
+import { atMost, type Check, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
 
-const amountCheck: Check = (value) =>
-  /^\d+([.,]\d{1,3})?$/.test(value.trim()) ? undefined : 'Enter an amount such as 9.99.';
-const labelCheck: Check = (value) => (/\d(?:[ -]?\d){4}/.test(value) ? 'Use a label such as "Visa ending 1234", never a card number.' : undefined);
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
 export function SubscriptionEditor({
@@ -52,9 +49,9 @@ export function SubscriptionEditor({
           if (
             !form.check(target, {
               name: [required('Name it.'), atMost(100, 'Use at most 100 characters.')],
-              amount: [required('Enter the price.'), amountCheck],
+              amount: [required('Enter the price.'), moneyAmount],
               currency: [required('Enter a currency.'), (value) => (/^[a-z]{3}$/i.test(value.trim()) ? undefined : 'Use a three-letter code such as EUR.')],
-              paymentLabel: [atMost(40, 'Use at most 40 characters.'), labelCheck],
+              paymentLabel: [atMost(40, 'Use at most 40 characters.'), notCardNumber],
               cancelUrl: [linkCheck],
             })
           ) {

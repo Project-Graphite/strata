@@ -30,6 +30,13 @@ export const featureCatalogue: Feature[] = [
     icon: 'utensils',
     href: '/recipes',
   },
+  {
+    key: 'spending',
+    label: 'Spending',
+    description: 'Day-to-day spending by category, monthly budgets, and bank statement import, with your renewals counted in.',
+    icon: 'wallet',
+    href: '/spending',
+  },
 ];
 
 export const enabledFeatures = (keys: string[] | undefined) => featureCatalogue.filter((feature) => keys?.includes(feature.key));

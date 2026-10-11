@@ -65,6 +65,7 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   if (item.kind === 'goal') return `/goals/${item.id}`;
   if (item.kind === 'person') return `/people/${item.id}`;
   if (item.kind === 'recipe') return `/recipes/${item.id}`;
+  if (item.kind === 'expense') return `/spending?space=${item.spaceId}`;
   if (item.kind === 'task') return `/spaces/${item.spaceId}/tasks`;
   if (item.kind === 'list') return `/spaces/${item.spaceId}/tasks?list=${item.id}`;
   if (item.kind === 'subscription') return `/spaces/${item.spaceId}/recurring`;

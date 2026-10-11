@@ -120,10 +120,11 @@ export function SpaceSubscriptions() {
       )}
       {splitting && members.data && (
         <SplitEditor
+          item={splitting}
+          kind="subscriptions"
           members={members.data}
           onClose={() => setSplitting(undefined)}
           onSaved={(split) => subscriptions.mutate((current) => current.map((shown) => (shown.id === splitting.id ? { ...shown, split } : shown)))}
-          subscription={splitting}
         />
       )}
       {editing && (

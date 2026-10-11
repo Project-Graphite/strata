@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { Dialog, Select } from '@project-graphite/ui';
+import { useAuth } from '../auth';
+import { allCurrencies, currencyOptions } from '../choices';
+import { categoryOptions, type SpendingCategory } from '../spending';
+import { money, toMinor } from '../subscriptions';
+import { useAction } from '../useAction';
+import { useStatementFile } from './StatementFile';
+
+const shownAtMost = 200;
+
+export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currency: string; onAdded: () => void; onClose: () => void; spaceId: string }) {
+  const auth = useAuth();
+  const adding = useAction();
+  const statement = useStatementFile();
+  const [chosenCurrency, setChosenCurrency] = useState(currency);
+  const [category, setCategory] = useState<SpendingCategory>('other');
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const charges = statement.charges.slice(0, shownAtMost);
+  const chosen = charges.filter((_, index) => !skipped.has(index));
+
+  return (
+    <Dialog onClose={onClose} title="Import spending from a statement">
+      <div className="mt-5 grid gap-4">
+        <p className="m-0 text-sm text-muted">Choose a CSV export from your bank or card. It is read on this device, and only the charges you keep are saved.</p>
+        {statement.picker}
+        {statement.loaded && (
+          <>
+            {statement.columns}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+              <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />
+            </div>
+            <p className="m-0 text-sm text-muted">
+              {statement.charges.length} charges read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
+            </p>
+            {charges.length > 0 && (
+              <ul className="panel-rows max-h-72 overflow-y-auto">
+                {charges.map((charge, index) => (
+                  <li className="panel-row" key={index}>
+                    <label className="flex items-center gap-3">
+                      <input
+                        checked={!skipped.has(index)}
+                        onChange={(event) => {
+                          const next = new Set(skipped);
+                          if (event.currentTarget.checked) next.delete(index);
+                          else next.add(index);
+                          setSkipped(next);
+                        }}
+                        type="checkbox"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-ink">{charge.description}</span>
+                      <span className="shrink-0 text-sm text-muted">
+                        {charge.date} · {money(toMinor(charge.amount.toFixed(2), chosenCurrency), chosenCurrency)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+        <div className="mt-1 flex justify-end gap-3">
+          <button className="secondary-button" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button
+            className="primary-button"
+            disabled={chosen.length === 0 || adding.busy}
+            onClick={() =>
+              void adding
+                .run(async () => {
+                  const { added } = await auth.request<{ added: number }>(`/spaces/${spaceId}/expenses/import`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      expenses: chosen.map((charge) => ({
+                        title: charge.description.slice(0, 200) || 'Card payment',
+                        amountMinor: toMinor(charge.amount.toFixed(2), chosenCurrency),
+                        currency: chosenCurrency,
+                        spentOn: charge.date,
+                        category,
+                      })),
+                    }),
+                  });
+                  onAdded();
+                  return `Added ${added} expense${added === 1 ? '' : 's'}.`;
+                }, 'Could not add the expenses')
+                .then((done) => done && onClose())
+            }
+            type="button"
+          >
+            {adding.busy ? 'Adding…' : `Add ${chosen.length} expense${chosen.length === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}

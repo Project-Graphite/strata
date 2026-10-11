@@ -1,5 +1,4 @@
 import { applyDecorators } from '@nestjs/common';
-import { Transform } from 'class-transformer';
 import {
   IsIn,
   IsInt,
@@ -15,6 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
+import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const categories = [
@@ -36,15 +36,6 @@ export const categories = [
 const date = /^\d{4}-\d{2}-\d{2}$/;
 const nullable = (_input: object, value: unknown) => value !== null;
 const httpsUrl = { protocols: ['https'], require_protocol: true };
-
-const Amount = () =>
-  applyDecorators(IsInt(), Min(0), Max(100_000_000, { message: 'That price is too large.' }));
-
-const Currency = () =>
-  applyDecorators(
-    Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toUpperCase() : value)),
-    Matches(/^[A-Z]{3}$/, { message: 'Currencies are three-letter codes such as EUR or USD.' }),
-  );
 
 const Rule = () => applyDecorators(IsString(), MaxLength(300));
 
@@ -80,7 +71,7 @@ class SubscriptionDetailsDto {
   @Trimmed()
   @IsString()
   @MaxLength(40, { message: 'Payment labels are at most 40 characters long.' })
-  @Matches(/^(?!.*\d(?:[ -]?\d){4})/, { message: 'Use a label such as "Visa ending 1234". Never enter a full card number.' })
+  @NotCardNumber()
   paymentLabel?: string | null;
 
   @IsOptional()
@@ -114,10 +105,10 @@ export class CreateSubscriptionDto extends SubscriptionDetailsDto {
   @Name()
   name!: string;
 
-  @Amount()
+  @AmountMinor()
   amountMinor!: number;
 
-  @Currency()
+  @CurrencyCode()
   currency!: string;
 
   @Rule()
@@ -133,11 +124,11 @@ export class UpdateSubscriptionDto extends SubscriptionDetailsDto {
   name?: string;
 
   @IsOptionalNotNull()
-  @Amount()
+  @AmountMinor()
   amountMinor?: number;
 
   @IsOptionalNotNull()
-  @Currency()
+  @CurrencyCode()
   currency?: string;
 
   @IsOptionalNotNull()
