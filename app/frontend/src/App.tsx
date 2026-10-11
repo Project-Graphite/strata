@@ -20,6 +20,9 @@ import { JournalDayPage, JournalPage } from './pages/JournalPage';
 import { PagesIndex } from './pages/PagesIndex';
 import { PeoplePage } from './pages/PeoplePage';
 import { PersonPage } from './pages/PersonPage';
+import { MealPlanPage } from './pages/MealPlanPage';
+import { RecipePage } from './pages/RecipePage';
+import { RecipesPage } from './pages/RecipesPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
@@ -156,6 +159,36 @@ export function App() {
               <Protected>
                 <FeatureRoute feature="people">
                   <PersonPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="recipes"
+            element={
+              <Protected>
+                <FeatureRoute feature="recipes">
+                  <RecipesPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="recipes/plan"
+            element={
+              <Protected>
+                <FeatureRoute feature="recipes">
+                  <MealPlanPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="recipes/:id"
+            element={
+              <Protected>
+                <FeatureRoute feature="recipes">
+                  <RecipePage />
                 </FeatureRoute>
               </Protected>
             }

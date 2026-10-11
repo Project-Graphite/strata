@@ -23,6 +23,13 @@ export const featureCatalogue: Feature[] = [
     icon: 'users',
     href: '/people',
   },
+  {
+    key: 'recipes',
+    label: 'Recipes and meals',
+    description: 'Recipes you can paste from a link, a weekly meal plan, and a shopping list made from it.',
+    icon: 'utensils',
+    href: '/recipes',
+  },
 ];
 
 export const enabledFeatures = (keys: string[] | undefined) => featureCatalogue.filter((feature) => keys?.includes(feature.key));
