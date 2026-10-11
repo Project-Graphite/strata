@@ -19,10 +19,12 @@ export function Capture() {
     const content = text.trim();
     if (!content || !target) return;
     void saving.run(async () => {
+      const [first, ...rest] = content.split(/\r?\n/);
       if (kind === 'note') {
-        await auth.request(`/spaces/${target}/notes`, { method: 'POST', body: JSON.stringify({ text: content }) });
+        const body = rest.join('\n').trim();
+        await auth.request(`/spaces/${target}/notes`, { method: 'POST', body: JSON.stringify({ title: first!.trim().slice(0, 200), ...(body ? { text: body } : {}) }) });
       } else {
-        await auth.request(`/spaces/${target}/tasks`, { method: 'POST', body: JSON.stringify({ title: content.split(/\r?\n/)[0]!.slice(0, 200) }) });
+        await auth.request(`/spaces/${target}/tasks`, { method: 'POST', body: JSON.stringify({ title: first!.slice(0, 200) }) });
       }
       setText('');
       return kind === 'note' ? 'Saved as a page.' : 'Saved as a task.';

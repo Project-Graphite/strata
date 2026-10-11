@@ -55,9 +55,11 @@ describe('Tasks', () => {
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
       if (path === '/spaces') return Promise.resolve(json([home]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      const routed = route(path, init);
+      if (routed) return Promise.resolve(routed);
       if (path === '/spaces/home/lists') return Promise.resolve(json([]));
       if (path === '/spaces/home/members') return Promise.resolve(json([]));
-      return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
+      return Promise.resolve(new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
@@ -74,6 +76,42 @@ describe('Tasks', () => {
       ),
     );
   }
+
+  it('moves a task to the trash from its editor, and renames or trashes a list', async () => {
+    let lists = [{ id: 'chores', spaceId: 'home', title: 'Chores', openTasks: 1, position: 1 }];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/lists') return json(lists);
+      if (path.startsWith('/spaces/home/tasks?page=1')) return json(page([task({ listId: 'chores' })]));
+      if (path === '/items/bins/trash' && init?.method === 'POST') return new Response(null, { status: 204 });
+      if (path === '/items/chores' && init?.method === 'PATCH') {
+        lists = [{ ...lists[0]!, title: JSON.parse(String(init.body)).title }];
+        return json({});
+      }
+      if (path === '/items/chores/trash' && init?.method === 'POST') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/spaces/home/tasks?list=chores');
+    const button = (label: string) => [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === label)!;
+
+    await act(async () => [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.startsWith('Bins out'))!.click());
+    await act(async () => button('Move to trash').click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/bins/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.textContent).toContain('Nothing to do');
+
+    await act(async () => button('Rename list').click());
+    const name = document.querySelector<HTMLInputElement>('dialog input[name="title"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'House');
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => name.form!.requestSubmit());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'House' }) }));
+    expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).toContain('House');
+
+    await act(async () => button('Move list to trash').click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).not.toContain('House');
+  });
 
   it('adds a task and moves a repeating one to its next date when ticked', async () => {
     const fetchMock = serve((path, init) => {

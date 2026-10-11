@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination } from '@project-graphite/ui';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { EmptyState, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useAuth } from '../../auth';
+import { FormDialog } from '../../components/FormDialog';
 import { TaskEditor } from '../../components/TaskEditor';
 import { describeQuickTask, parseQuickTask } from '../../quick-add';
 import type { Tag } from '../../spaces';
@@ -28,6 +29,8 @@ export function SpaceTasks() {
   const adding = useAction();
   const action = useAction();
   const [editing, setEditing] = useState<Task>();
+  const [renaming, setRenaming] = useState(false);
+  const navigate = useNavigate();
   const [quickText, setQuickText] = useState('');
   const preview = parseQuickTask(quickText, (tags.data ?? []).map((tag) => tag.name));
   const understood = describeQuickTask(preview);
@@ -53,6 +56,7 @@ export function SpaceTasks() {
 
   if (tasks.error) return <LoadError error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data || !lists.data) return <ListSkeleton label="Loading the tasks in this space" rows={5} />;
+  const shownList = lists.data.find((list) => list.id === listId);
 
   return (
     <div className="fade-in grid max-w-3xl gap-6">
@@ -68,6 +72,29 @@ export function SpaceTasks() {
           </Link>
         ))}
       </nav>
+
+      {editable && shownList && (
+        <div className="flex flex-wrap gap-4 text-sm">
+          <button className="text-button" onClick={() => setRenaming(true)} type="button">
+            Rename list
+          </button>
+          <button
+            className="text-button"
+            disabled={action.busy}
+            onClick={() =>
+              void action.run(async () => {
+                await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
+                lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
+                navigate(link({ list: null }));
+                return `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`;
+              }, 'Could not move the list to the trash')
+            }
+            type="button"
+          >
+            Move list to trash
+          </button>
+        </div>
+      )}
 
       {editable && !completed && (
         <form
@@ -195,8 +222,35 @@ export function SpaceTasks() {
           members={members.data ?? []}
           onClose={() => setEditing(undefined)}
           onSaved={replace}
+          onTrashed={() => {
+            tasks.mutate((current) => ({ ...current, totalResults: current.totalResults - 1, results: current.results.filter((task) => task.id !== editing.id) }));
+            lists.reload();
+          }}
           task={editing}
         />
+      )}
+
+      {renaming && shownList && (
+        <FormDialog
+          busy={action.busy}
+          busyLabel="Saving…"
+          onClose={() => setRenaming(false)}
+          onSubmit={(target) => {
+            const title = String(new FormData(target).get('title')).trim();
+            if (!title) return;
+            void action
+              .run(async () => {
+                await auth.request(`/items/${shownList.id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
+                lists.mutate((current) => current.map((list) => (list.id === shownList.id ? { ...list, title } : list)));
+                return '';
+              }, 'Could not rename the list')
+              .then((saved) => saved && setRenaming(false));
+          }}
+          submitLabel="Rename"
+          title="Rename list"
+        >
+          <TextField autoFocus defaultValue={shownList.title} label="Name" maxLength={100} name="title" />
+        </FormDialog>
       )}
     </div>
   );
