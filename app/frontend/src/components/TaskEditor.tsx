@@ -15,6 +15,7 @@ export function TaskEditor({
   members,
   onClose,
   onSaved,
+  onTrashed,
   task,
 }: {
   editable: boolean;
@@ -22,6 +23,7 @@ export function TaskEditor({
   members: Member[];
   onClose: () => void;
   onSaved: (task: Task) => void;
+  onTrashed: () => void;
   task: Task;
 }) {
   const auth = useAuth();
@@ -133,7 +135,25 @@ export function TaskEditor({
           </div>
         </fieldset>
         <p className="mono-sm m-0 text-faint">Times are in {task.timeZone.replaceAll('_', ' ')}.</p>
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
+          {editable && (
+            <button
+              className="text-button mr-auto text-sm"
+              disabled={saving.busy}
+              onClick={() =>
+                void saving
+                  .run(async () => {
+                    await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
+                    onTrashed();
+                    return 'Moved the task to the trash.';
+                  }, 'Could not move the task to the trash')
+                  .then((trashed) => trashed && onClose())
+              }
+              type="button"
+            >
+              Move to trash
+            </button>
+          )}
           <button className="secondary-button" onClick={onClose} type="button">
             {editable ? 'Cancel' : 'Close'}
           </button>

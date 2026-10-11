@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, EmptyState, Icon, PageHeader, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
@@ -17,6 +17,7 @@ const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: '
 
 export function EventPage() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const auth = useAuth();
   const spaces = useSpaces();
   const event = useResource<EventDetails>(`/events/${id}`, true);
@@ -254,7 +255,9 @@ export function EventPage() {
           <p className="m-0 text-sm text-muted">The poll closes and the other dates are dropped.</p>
         </ConfirmDialog>
       )}
-      {editing && <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} />}
+      {editing && (
+        <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} onTrashed={() => navigate('/agenda')} />
+      )}
     </section>
   );
 }

@@ -434,7 +434,7 @@ describe('Home dashboard', () => {
     await act(async () => button('Save as page').click());
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/spaces/mine/notes',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Call the landlord\nabout the boiler' }) }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Call the landlord', text: 'about the boiler' }) }),
     );
     expect(note.value).toBe('');
 

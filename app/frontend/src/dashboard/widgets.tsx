@@ -200,7 +200,8 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
   const links = Array.isArray(settings.links) ? (settings.links as Shortcut[]) : [];
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('https://');
-  const valid = label.trim().length > 0 && label.trim().length <= 40 && /^https:\/\/\S+\.\S+$/.test(url.trim());
+  const address = /^[a-z][a-z\d+.-]*:/i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
+  const valid = label.trim().length > 0 && label.trim().length <= 40 && /^https:\/\/\S+\.\S+$/.test(address);
   return (
     <div className="grid gap-3">
       <ul className="m-0 grid list-none gap-1 p-0">
@@ -227,7 +228,7 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
             className="secondary-button px-3 py-2 text-sm"
             disabled={!valid}
             onClick={() => {
-              onChange({ links: [...links, { label: label.trim(), url: url.trim() }] });
+              onChange({ links: [...links, { label: label.trim(), url: address }] });
               setLabel('');
               setUrl('https://');
             }}

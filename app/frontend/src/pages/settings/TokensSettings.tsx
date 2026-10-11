@@ -33,6 +33,7 @@ export function TokensSettings() {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState('');
   const [revoking, setRevoking] = useState<AccessToken>();
+  const [noScope, setNoScope] = useState(false);
 
   if (tokens.error) return <LoadError error={tokens.error} onRetry={tokens.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
@@ -40,6 +41,7 @@ export function TokensSettings() {
   const close = () => {
     setOpen(false);
     setCreated('');
+    setNoScope(false);
   };
 
   return (
@@ -106,7 +108,9 @@ export function TokensSettings() {
           onSubmit={(target) => {
             const values = new FormData(target);
             const chosen = values.getAll('scopes').map(String);
+            setNoScope(chosen.length === 0);
             if (
+              chosen.length === 0 ||
               !form.check(target, {
                 name: [required('Name the token.'), atMost(60, 'Use at most 60 characters.')],
                 password: [required('Enter your password to confirm.')],
@@ -116,7 +120,6 @@ export function TokensSettings() {
               return;
             }
             void creating.run(async () => {
-              if (chosen.length === 0) throw new Error('Choose at least one permission.');
               const token = await auth.request<AccessToken & { token: string }>('/me/tokens', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -146,6 +149,11 @@ export function TokensSettings() {
                 </span>
               </label>
             ))}
+            {noScope && (
+              <p className="error-message m-0" role="alert">
+                Choose at least one permission.
+              </p>
+            )}
           </fieldset>
           <label className="field-label">
             Expires after

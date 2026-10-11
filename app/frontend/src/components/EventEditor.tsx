@@ -12,11 +12,13 @@ export function EventEditor({
   event,
   onClose,
   onSaved,
+  onTrashed,
   startsOn,
 }: {
   event?: EventDetails;
   onClose: () => void;
   onSaved: (event: EventDetails) => void;
+  onTrashed?: () => void;
   startsOn?: string;
 }) {
   const auth = useAuth();
@@ -124,7 +126,23 @@ export function EventEditor({
         <TextField defaultValue={event?.location ?? ''} label="Where" maxLength={200} name="location" />
         <TextField defaultValue={event?.meetingUrl ?? ''} inputMode="url" label="Meeting link" {...form.field('meetingUrl')} />
         <TextAreaField defaultValue={event?.description ?? ''} label="Description" maxLength={5000} name="description" rows={3} />
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
+          {event && onTrashed && (
+            <button
+              className="text-button mr-auto text-sm"
+              disabled={saving.busy}
+              onClick={() =>
+                void saving.run(async () => {
+                  await auth.request(`/items/${event.id}/trash`, { method: 'POST' });
+                  onTrashed();
+                  return `Moved ${event.title} to the trash.`;
+                }, 'Could not move the event to the trash')
+              }
+              type="button"
+            >
+              Move to trash
+            </button>
+          )}
           <button className="secondary-button" onClick={onClose} type="button">
             Cancel
           </button>
