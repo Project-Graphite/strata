@@ -22,6 +22,7 @@ export interface TwoStepStatus {
 
 const tabs = [
   ['/settings', 'Profile'],
+  ['/settings/features', 'Features'],
   ['/settings/security', 'Security'],
   ['/settings/developer', 'Developer'],
   ['/settings/data', 'Your data'],

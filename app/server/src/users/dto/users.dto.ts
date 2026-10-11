@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsString, IsTimeZone, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsString, IsTimeZone, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
+import { featureKeys } from '../features';
 
 export class UpdateProfileDto {
   @IsOptionalNotNull()
@@ -26,4 +27,10 @@ export class UpdateProfileDto {
   @ValidateIf((_input, value) => value !== undefined && value !== null)
   @Matches(/^[A-Z]{3}$/, { message: 'Choose a currency from the list.' })
   homeCurrency?: string | null;
+
+  @IsOptionalNotNull()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(featureKeys, { each: true, message: 'Choose features from the list.' })
+  features?: string[];
 }

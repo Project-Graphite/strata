@@ -1,18 +1,21 @@
 import { Link, useLocation } from 'react-router';
 import { Icon, type IconName } from '@project-graphite/ui';
+import { useAuth } from '../auth';
 import { Page } from '../components/Page';
+import { enabledFeatures } from '../features';
 import { useInbox } from '../inbox';
 import { areaSections } from '../navigation';
 import { useSpaces } from '../spaces';
 
 export function MenuPage() {
+  const auth = useAuth();
   const { pathname } = useLocation();
   const spaces = useSpaces();
   const inbox = useInbox();
 
   return (
     <Page title="Menu">
-      {areaSections(pathname, spaces.data, inbox.data?.unread ?? 0).map((section, index) => (
+      {areaSections(pathname, spaces.data, inbox.data?.unread ?? 0, enabledFeatures(auth.user?.features)).map((section, index) => (
         <nav aria-label={section.label ?? 'Areas'} className="grid gap-2" key={section.label ?? index}>
           {section.label && <h2 className="m-0 text-sm font-medium text-muted">{section.label}</h2>}
           <ul className="panel-rows">

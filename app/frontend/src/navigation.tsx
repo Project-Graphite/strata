@@ -1,9 +1,24 @@
 import type { SidebarSection } from '@project-graphite/ui';
+import { featureCatalogue, type Feature } from './features';
 import { SpaceMark, type Space } from './spaces';
 
-export const moreAreas = ['/menu', '/pages', '/boards', '/bookmarks', '/journal', '/recurring', '/tidy', '/inbox', '/invitations', '/trash', '/settings', '/admin'];
+export const moreAreas = [
+  '/menu',
+  '/pages',
+  '/boards',
+  '/bookmarks',
+  '/journal',
+  '/recurring',
+  '/tidy',
+  ...featureCatalogue.map((feature) => feature.href),
+  '/inbox',
+  '/invitations',
+  '/trash',
+  '/settings',
+  '/admin',
+];
 
-export function areaSections(pathname: string, spaces: Space[] | undefined, unread: number): SidebarSection[] {
+export function areaSections(pathname: string, spaces: Space[] | undefined, unread: number, features: Feature[]): SidebarSection[] {
   return [
     {
       items: [
@@ -18,6 +33,19 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
         { active: pathname === '/tidy', href: '/tidy', icon: 'sparkles', label: 'Tidy' },
       ],
     },
+    ...(features.length
+      ? [
+          {
+            label: 'Features',
+            items: features.map((feature) => ({
+              active: pathname === feature.href || pathname.startsWith(`${feature.href}/`),
+              href: feature.href,
+              icon: feature.icon,
+              label: feature.label,
+            })),
+          },
+        ]
+      : []),
     {
       label: 'Spaces',
       items: [

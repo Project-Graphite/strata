@@ -20,6 +20,7 @@ interface User {
   displayName: string;
   role: UserRole;
   timeZone: string;
+  features: string[];
 }
 
 interface Session {
@@ -49,7 +50,7 @@ interface AuthContextValue {
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
-  updateUser(changes: Partial<Pick<User, 'displayName' | 'timeZone'>>): void;
+  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone'>>): void;
   accessToken(): string;
 }
 

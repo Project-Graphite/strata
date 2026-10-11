@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Avatar } from '@project-graphite/ui';
 
 export interface Task {
@@ -83,12 +84,14 @@ export function repeatLabel(rule: string | null) {
 }
 
 export function TaskRow({
+  actions,
   disabled,
   onEdit,
   onToggle,
   task,
   where,
 }: {
+  actions?: ReactNode;
   disabled: boolean;
   onEdit: () => void;
   onToggle: () => void;
@@ -124,6 +127,7 @@ export function TaskRow({
         )}
       </button>
       {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
+      {actions}
     </li>
   );
 }

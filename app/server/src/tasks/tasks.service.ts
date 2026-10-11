@@ -190,6 +190,15 @@ export class TasksService implements OnModuleInit {
     return rows.map(present);
   }
 
+  async visible(userId: string, itemIds: string[]) {
+    const rows = await this.prisma.item.findMany({
+      where: { ...this.access.itemsOf(userId), id: { in: itemIds }, kind: ItemKind.TASK, trashedAt: null },
+      orderBy: [{ task: { completedAt: { sort: 'asc', nulls: 'first' } } }, { task: { dueDate: { sort: 'asc', nulls: 'last' } } }, { createdAt: 'asc' }],
+      select: taskFields,
+    });
+    return rows.map(present);
+  }
+
   async get(userId: string, itemId: string) {
     await this.access.assertItem(userId, itemId, 'read');
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: taskFields });

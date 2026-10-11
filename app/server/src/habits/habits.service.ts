@@ -66,6 +66,15 @@ export class HabitsService {
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
+  async inSpace(userId: string, spaceId: string, habitIds: string[]) {
+    const habits = await this.prisma.habit.findMany({
+      where: { id: { in: habitIds }, spaceId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      select: habitFields,
+    });
+    return this.withStats(userId, habits);
+  }
+
   private async habit(userId: string, habitId: string, access: 'read' | 'edit') {
     const habit = await this.prisma.habit.findFirst({ where: { id: habitId, space: this.access.spacesOf(userId) }, select: habitFields });
     if (!habit) throw new NotFoundException('Habit not found');
