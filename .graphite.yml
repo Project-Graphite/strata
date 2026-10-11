@@ -13,13 +13,3 @@ projects:
     deploy:
       kind: compose
       host: strata.project-graphite.com
-      source:
-        file: compose.production.yaml
-        service: app
-        port: 3000
-      secrets:
-        - POSTGRES_PASSWORD
-        - REDIS_PASSWORD
-        - AUTH_ACCESS_TOKEN_SECRET
-        - DATA_ENCRYPTION_KEY
-        - EMAIL_HOST_PASSWORD
