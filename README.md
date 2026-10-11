@@ -101,8 +101,7 @@ in Coolify:
 
 It also needs `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER` and `DEFAULT_FROM_EMAIL`.
 
-Pushes to `main` deploy only when the repository variable `GRAPHITE_DEPLOY_ENABLED` is `true` and
-the `COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` secrets are set.
+Pushes to `main` deploy when the `COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` secrets are set.
 
 ## Conventions
 
