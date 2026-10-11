@@ -2,8 +2,8 @@ import '@excalidraw/excalidraw/index.css';
 import { useEffect, useRef, useState } from 'react';
 import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw, exportToBlob, isInvisiblySmallElement, MainMenu, reconcileElements } from '@excalidraw/excalidraw';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
-import type { ExcalidrawElement, FileId } from '@excalidraw/excalidraw/element/types';
-import type { Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawElement, ExcalidrawTextElement, FileId } from '@excalidraw/excalidraw/element/types';
+import type { AppState, Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
 import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { maxUploadBytes, preparedUpload } from '../files';
@@ -12,6 +12,7 @@ import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
+import type { CommentAnchors, QuotedBlock } from './NoteComments';
 
 const boardElementsKey = 'board';
 const syncEveryMs = 80;
@@ -30,7 +31,59 @@ function selectedTexts(elements: readonly ExcalidrawElement[], selected: Readonl
   );
 }
 
-function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string; connection: Connection; editable: boolean; spaceId: string }) {
+const shapeNames: Partial<Record<ExcalidrawElement['type'], string>> = {
+  rectangle: 'A box',
+  ellipse: 'An ellipse',
+  diamond: 'A diamond',
+  arrow: 'An arrow',
+  line: 'A line',
+  freedraw: 'A drawing',
+  image: 'An image',
+  frame: 'A frame',
+};
+
+function shapeLabel(scene: readonly ExcalidrawElement[], id: string) {
+  const element = scene.find((candidate) => candidate.id === id && !candidate.isDeleted);
+  if (!element) return 'A shape that was removed';
+  const text =
+    element.type === 'text'
+      ? element.text
+      : scene.find((candidate): candidate is ExcalidrawTextElement => candidate.type === 'text' && candidate.containerId === id && !candidate.isDeleted)?.text;
+  return text?.trim().replace(/\s+/g, ' ').slice(0, 80) || shapeNames[element.type] || 'A shape';
+}
+
+interface Pin {
+  id: string;
+  left: number;
+  top: number;
+}
+
+function pinsFor(scene: readonly ExcalidrawElement[], ids: string[], { scrollX, scrollY, zoom }: Pick<AppState, 'scrollX' | 'scrollY' | 'zoom'>) {
+  return ids.flatMap((id) => {
+    const element = scene.find((candidate) => candidate.id === id && !candidate.isDeleted);
+    return element ? [{ id, left: (element.x + element.width + scrollX) * zoom.value, top: (element.y + scrollY) * zoom.value }] : [];
+  });
+}
+
+interface BoardComments {
+  commentedBlocks: string[];
+  onComment: (block: QuotedBlock) => void;
+  onAnchors: (anchors: CommentAnchors) => void;
+}
+
+function LiveBoard({
+  boardId,
+  comments,
+  connection,
+  editable,
+  spaceId,
+}: {
+  boardId: string;
+  comments: BoardComments;
+  connection: Connection;
+  editable: boolean;
+  spaceId: string;
+}) {
   const auth = useAuth();
   const show = useSnackbar();
   const { label, people, outdated } = useLiveStatus(connection, editable);
@@ -39,6 +92,10 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
   const [making, setMaking] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [loaded, setLoaded] = useState(connection.provider.isSynced);
+  const [single, setSingle] = useState<string>();
+  const [pins, setPins] = useState<Pin[]>([]);
+  const commented = useRef(comments.commentedBlocks);
+  commented.current = comments.commentedBlocks;
   const synced = useRef(new Map<string, number>());
   const loading = useRef(new Set<string>());
   const pending = useRef<number | undefined>(undefined);
@@ -102,6 +159,27 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
   }, [api, connection]);
 
   useEffect(() => () => window.clearTimeout(pending.current), []);
+
+  const { onAnchors } = comments;
+  useEffect(() => {
+    if (!api) return;
+    onAnchors({
+      noun: 'shape',
+      label: (id) => shapeLabel(api.getSceneElements(), id),
+      show: (id) => {
+        document.querySelector('[aria-label="Board"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const element = api.getSceneElements().find((candidate) => candidate.id === id);
+        if (!element) return;
+        api.updateScene({ appState: { selectedElementIds: { [id]: true } }, captureUpdate: CaptureUpdateAction.NEVER });
+        api.scrollToContent(element, { animate: true });
+      },
+    });
+  }, [api, onAnchors]);
+
+  const placed = comments.commentedBlocks.join(' ');
+  useEffect(() => {
+    if (api) setPins(pinsFor(api.getSceneElements(), placed ? placed.split(' ') : [], api.getAppState()));
+  }, [api, placed]);
 
   useEffect(() => {
     const onSynced = () => setLoaded(true);
@@ -221,6 +299,16 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
             ))}
           </div>
         )}
+        {pins.map((pin) => (
+          <button
+            aria-label={`Comments on ${api ? shapeLabel(api.getSceneElements(), pin.id) : 'a shape'}`}
+            className="board-pin"
+            key={pin.id}
+            onClick={() => document.querySelector(`[data-block-id="${CSS.escape(pin.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            style={{ left: pin.left, top: pin.top }}
+            type="button"
+          />
+        ))}
         <Excalidraw
           excalidrawAPI={setApi}
           generateIdForFile={upload}
@@ -231,10 +319,19 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
             const nothing = !scene.some((element) => !element.isDeleted);
             setEmpty((current) => (current === nothing ? current : nothing));
             setPicked((current) => (current.join('\n') === texts.join('\n') ? current : texts));
+            const selected = Object.keys(appState.selectedElementIds);
+            setSingle(selected.length === 1 ? selected[0] : undefined);
+            const next = pinsFor(scene, commented.current, appState);
+            setPins((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
           }}
           renderTopRightUI={() =>
             editable && !outdated ? (
               <div className="flex gap-2">
+                {single && (
+                  <button className="board-action" onClick={() => api && comments.onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
+                    Comment
+                  </button>
+                )}
                 {picked.length > 0 && (
                   <button className="board-action" disabled={making} onClick={() => void makeTasks()} type="button">
                     Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
@@ -265,8 +362,8 @@ function LiveBoard({ boardId, connection, editable, spaceId }: { boardId: string
   );
 }
 
-export default function BoardCanvas({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
+export default function BoardCanvas({ editable, noteId, spaceId, ...comments }: { editable: boolean; noteId: string; spaceId: string } & BoardComments) {
   const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
-  return <LiveBoard boardId={noteId} connection={connection} editable={editable} spaceId={spaceId} />;
+  return <LiveBoard boardId={noteId} comments={comments} connection={connection} editable={editable} spaceId={spaceId} />;
 }

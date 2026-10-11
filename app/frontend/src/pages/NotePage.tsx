@@ -6,7 +6,7 @@ import { DatabaseView } from '../components/database/DatabaseView';
 import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
-import { NoteComments, type QuotedBlock } from '../components/NoteComments';
+import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { ShareLinks } from '../components/ShareLinks';
 import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
@@ -37,6 +37,7 @@ export function NotePage() {
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
+  const [boardAnchors, setBoardAnchors] = useState<CommentAnchors>();
   const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -67,6 +68,11 @@ export function NotePage() {
   const details = note.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = (pages.data ?? []).filter((page) => page.parentId === details.id);
+
+  function quote(block: QuotedBlock) {
+    setQuoting({ ...block, noteId: details.id });
+    window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }
 
   function setIcon(icon: string | null) {
     void renaming.run(async () => {
@@ -217,17 +223,22 @@ export function NotePage() {
       )}
       <Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
         {details.kind === 'board' ? (
-          <BoardCanvas editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />
+          <BoardCanvas
+            commentedBlocks={commentedBlocks}
+            editable={details.editable}
+            key={details.id}
+            noteId={details.id}
+            onAnchors={setBoardAnchors}
+            onComment={quote}
+            spaceId={details.spaceId}
+          />
         ) : (
           <NoteEditor
             commentedBlocks={commentedBlocks}
             editable={details.editable}
             key={details.id}
             noteId={details.id}
-            onComment={(block) => {
-              setQuoting({ ...block, noteId: details.id });
-              window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-            }}
+            onComment={quote}
             spaceId={details.spaceId}
           />
         )}
@@ -286,6 +297,7 @@ export function NotePage() {
         </section>
       )}
       <NoteComments
+        anchors={details.kind === 'board' ? boardAnchors : undefined}
         editable={details.editable}
         key={`comments-${details.id}`}
         noteId={details.id}
