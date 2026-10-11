@@ -89,8 +89,8 @@ describe('Agenda and RSVP', () => {
     });
     await render('/agenda');
 
-    expect(container.textContent).toContain('all day · due · Book the hall');
-    expect(container.textContent).toContain('all day · renews · Hall hire');
+    expect(container.textContent).toContain('Book the hall · all day · due');
+    expect(container.textContent).toContain('Hall hire · all day · renews');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New event')!.click());
     const form = document.querySelector('dialog form') as HTMLFormElement;
@@ -196,7 +196,7 @@ describe('Agenda and RSVP', () => {
     serve(false, (path) => (path === `/share/${code}` ? json({ access: 'view', item: { kind: 'event', title: 'Party' }, event: party, datePoll: true }) : undefined));
     await render(`/share/${code}`);
 
-    expect(container.querySelector('h1')?.textContent).toBe('Party');
+    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('Party'));
     expect(container.textContent).toContain('Date to be decided');
     expect(container.textContent).toContain('The date isn’t fixed yet.');
   });
