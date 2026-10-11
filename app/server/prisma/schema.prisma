@@ -29,6 +29,7 @@ enum ItemKind {
   BOOKMARK     @map("bookmark")
   GOAL         @map("goal")
   PERSON       @map("person")
+  RECIPE       @map("recipe")
 }
 
 enum LinkKind {
@@ -225,6 +226,7 @@ model Space {
   settlements     Settlement[]
   calendars       CalendarSubscription[]
   webhooks        Webhook[]
+  mealPlan        MealPlanEntry[]
 
   @@map("spaces")
 }
@@ -285,6 +287,8 @@ model Item {
   goal           Goal?
   goalHabits     GoalHabit[]
   person         Person?
+  recipe         Recipe?
+  mealPlanned    MealPlanEntry[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -1023,4 +1027,33 @@ model Person {
 
   @@index([birthdayMonth, birthdayDay], map: "people_birthday_idx")
   @@map("people")
+}
+
+model Recipe {
+  itemId      String  @id @map("item_id") @db.Uuid
+  servings    Int?
+  prepMinutes Int?    @map("prep_minutes")
+  cookMinutes Int?    @map("cook_minutes")
+  ingredients Json    @default("[]")
+  steps       Json    @default("[]")
+  sourceUrl   String? @map("source_url")
+  item        Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("recipes")
+}
+
+model MealPlanEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  spaceId   String   @map("space_id") @db.Uuid
+  day       DateTime @db.Date
+  meal      String
+  recipeId  String?  @map("recipe_id") @db.Uuid
+  note      String   @default("")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  recipe    Item?    @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, day])
+  @@map("meal_plan_entries")
 }
