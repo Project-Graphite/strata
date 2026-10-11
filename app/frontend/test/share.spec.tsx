@@ -86,7 +86,9 @@ describe('Save to Strata', () => {
     await render();
 
     expect(container.querySelector('h1')?.textContent).toBe('Save what you shared');
-    expect([...container.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Club']);
+    await act(async () => container.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
+    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual(['Club']);
+    await act(async () => container.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
     expect(container.querySelector<HTMLInputElement>('input[name="title"]')!.value).toBe('Tickets — Look https://example.com/tickets');
     expect(container.textContent).toContain('ticket one.txt');
 

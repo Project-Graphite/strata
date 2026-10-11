@@ -8,7 +8,9 @@ import { QrCode } from '../../components/QrCode';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { password as newPasswordChecks, required, useFormErrors } from '../../validation';
-import { SettingsRow, SettingsRows, SettingsSection, type TwoStepStatus } from './SettingsLayout';
+import { SessionsSection } from './SessionsSection';
+import { Section } from '../../components/Page';
+import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 
 type Opened = 'password' | 'enable' | 'codes' | 'disable';
 
@@ -180,7 +182,7 @@ export function SecuritySettings() {
 
   return (
     <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection title="Sign-in">
+      <Section title="Sign-in">
         <SettingsRows>
           <SettingsRow action={button('Change', 'password')} label="Password" />
           <SettingsRow
@@ -199,7 +201,7 @@ export function SecuritySettings() {
             {status.enabled ? `On · ${status.recoveryCodesLeft} of 10 recovery codes left` : 'Off'}
           </SettingsRow>
         </SettingsRows>
-      </SettingsSection>
+      </Section>
 
       {opened === 'password' && (
         <FormDialog
@@ -280,6 +282,7 @@ export function SecuritySettings() {
           <ProofFields form={disableForm} twoStep />
         </FormDialog>
       )}
+      <SessionsSection />
     </div>
   );
 }

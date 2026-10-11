@@ -44,6 +44,18 @@ export const reminderPresets = [
   ['1440', '1 day before'],
 ] as const;
 
+export function repeatOptions(current?: string | null) {
+  const options: { value: string; label: string }[] = repeatPresets.map(([value, label]) => ({ value, label }));
+  if (current && !options.some((option) => option.value === current)) options.push({ value: current, label: `Custom (${current})` });
+  return options;
+}
+
+export function reminderOptions(current?: number | null) {
+  const options: { value: string; label: string }[] = reminderPresets.map(([value, label]) => ({ value, label }));
+  if (current != null && !options.some((option) => option.value === String(current))) options.push({ value: String(current), label: `${current} minutes before` });
+  return options;
+}
+
 const priorityLabels = ['', 'low', 'medium', 'high'];
 
 function localToday() {
@@ -91,7 +103,7 @@ export function TaskRow({
     priorityLabels[task.priority] && `${priorityLabels[task.priority]} priority`,
   ].filter(Boolean);
   return (
-    <li className="flex items-center gap-3 border-b border-line-soft py-3">
+    <li className="flex min-w-0 items-center gap-3 border-b border-line-soft py-3">
       <input
         aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
         checked={done}

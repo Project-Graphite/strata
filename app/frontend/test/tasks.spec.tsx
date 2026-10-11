@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -98,7 +99,7 @@ describe('Tasks', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/bins/trash', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Nothing to do');
 
-    await act(async () => button('Rename list').click());
+    await chooseFromMenu(container, 'Actions for Chores', 'Rename list');
     const name = document.querySelector<HTMLInputElement>('dialog input[name="title"]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'House');
@@ -108,7 +109,7 @@ describe('Tasks', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'House' }) }));
     expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).toContain('House');
 
-    await act(async () => button('Move list to trash').click());
+    await chooseFromMenu(container, 'Actions for House', 'Move list to trash');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores/trash', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).not.toContain('House');
   });
@@ -127,8 +128,13 @@ describe('Tasks', () => {
 
     expect(container.textContent).toContain('Bins out');
     expect(container.textContent).toContain('every week');
-    const form = container.querySelector('form')!;
-    form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Water plants';
+    await act(async () => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === 'New task')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    const title = form.querySelector<HTMLInputElement>('input[name="title"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, 'Water plants');
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     form.querySelector<HTMLInputElement>('input[name="dueDate"]')!.value = '2026-10-06';
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -159,9 +165,10 @@ describe('Tasks', () => {
     });
     await render('/spaces/home/tasks');
 
-    const form = container.querySelector('form')!;
+    await act(async () => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === 'New task')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     const input = form.querySelector<HTMLInputElement>('input[name="title"]')!;
-    input.value = 'pay rent 2030-01-04 9am #home !2';
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'pay rent 2030-01-04 9am #home !2');
     await act(async () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -173,7 +180,7 @@ describe('Tasks', () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/rent/tags', expect.objectContaining({ method: 'PUT' }));
-    expect(form.querySelector('[role="status"]')).toBeNull();
+    expect(container.querySelector('dialog [role="status"]')).toBeNull();
   });
 
   it('lists what is due today across spaces and clears a finished task', async () => {

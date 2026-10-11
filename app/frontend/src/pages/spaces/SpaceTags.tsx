@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, EmptyState, ListSkeleton, TagChip } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, Icon, ListSkeleton, Menu, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -7,7 +7,9 @@ import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
+import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
+import { HeaderButton, Toolbar } from '../../components/Page';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 
@@ -17,11 +19,9 @@ export function SpaceTags() {
   const auth = useAuth();
   const space = useSpace();
   const tags = useResource<Tag[]>(`/spaces/${space.id}/tags`, true);
-  const creating = useAction();
   const saving = useAction();
-  const createForm = useFormErrors();
-  const editForm = useFormErrors();
-  const [editing, setEditing] = useState<Tag>();
+  const form = useFormErrors();
+  const [editing, setEditing] = useState<Tag | 'new'>();
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
 
@@ -29,102 +29,68 @@ export function SpaceTags() {
   if (!tags.data) return <ListSkeleton label="Loading the tags in this space" rows={3} />;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
-      {tags.data.length === 0 ? (
-        <EmptyState title="No tags yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Tags group items across every area of this space.
-          </p>
-        </EmptyState>
-      ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
-          {tags.data.map((tag) => (
-            <li className="flex items-center justify-between gap-4 border-b border-line-soft py-3" key={tag.id}>
-              <TagChip color={tag.color} label={tag.name} />
-              {editable && (
-                <div className="flex shrink-0 gap-2">
-                  <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(tag)} type="button">
-                    Edit
-                  </button>
-                  <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDeleting(tag)} type="button">
-                    Delete
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {editable && (
-        <section>
-          <h2 className="m-0 text-xl font-medium">New tag</h2>
-          <form
-            className="mt-5 grid gap-4"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              if (!createForm.check(target, { name: tagNameChecks })) return;
-              void creating
-                .run(async () => {
-                  const created = await auth.request<Tag>(`/spaces/${space.id}/tags`, {
-                    method: 'POST',
-                    body: JSON.stringify(nameAndColorFrom(target)),
-                  });
-                  tags.mutate((current) => [...current, created].sort(byName));
-                  return `Added ${created.name}.`;
-                }, 'Could not add the tag')
-                .then((added) => added && target.reset());
-            }}
-          >
-            <NameAndColorFields field={createForm.field('name')} maxLength={40} />
-            <button className="primary-button inline-flex w-fit" disabled={creating.busy} type="submit">
-              {creating.busy ? 'Adding…' : 'Add tag'}
-            </button>
-          </form>
-        </section>
-      )}
+    <div className="fade-in grid gap-10">
+      <div className="grid gap-4">
+        <Toolbar actions={editable && <HeaderButton icon="plus" label="New tag" onClick={() => setEditing('new')} primary />}>
+          <p className="m-0 text-sm text-muted">Tags group items across every area of this space.</p>
+        </Toolbar>
+        {tags.data.length === 0 ? (
+          <EmptyState title="No tags yet" />
+        ) : (
+          <ul className="panel-rows">
+            {tags.data.map((tag) => (
+              <li className="panel-row flex items-center justify-between gap-4" key={tag.id}>
+                <TagChip color={tag.color} label={tag.name} />
+                {editable && (
+                  <Menu
+                    items={[
+                      { label: 'Edit', onSelect: () => setEditing(tag) },
+                      { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
+                    ]}
+                    label={`${tag.name} actions`}
+                    trigger={<Icon name="more" size={18} />}
+                    triggerClassName="icon-button"
+                    triggerLabel={`Actions for ${tag.name}`}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <TidyRules tags={tags.data} />
 
       {editing && (
-        <Dialog onClose={() => setEditing(undefined)} title={`Edit ${editing.name}`}>
-          <form
-            className="mt-5 grid gap-4"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              if (!editForm.check(target, { name: tagNameChecks })) return;
-              void saving
-                .run(async () => {
-                  const updated = await auth.request<Tag>(`/tags/${editing.id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify(nameAndColorFrom(target)),
-                  });
-                  tags.mutate((current) => current.map((tag) => (tag.id === updated.id ? updated : tag)).sort(byName));
-                  return '';
-                }, 'Could not save the tag')
-                .then((saved) => saved && setEditing(undefined));
-            }}
-          >
-            <NameAndColorFields
-              color={editing.color}
-              field={editForm.field('name')}
-              maxLength={40}
-              name={editing.name}
-            />
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={() => setEditing(undefined)} type="button">
-                Cancel
-              </button>
-              <button className="primary-button" disabled={saving.busy} type="submit">
-                {saving.busy ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </form>
-        </Dialog>
+        <FormDialog
+          busy={saving.busy}
+          busyLabel="Saving…"
+          onClose={() => setEditing(undefined)}
+          onSubmit={(target) => {
+            if (!form.check(target, { name: tagNameChecks })) return;
+            void saving
+              .run(async () => {
+                if (editing === 'new') {
+                  const created = await auth.request<Tag>(`/spaces/${space.id}/tags`, { method: 'POST', body: JSON.stringify(nameAndColorFrom(target)) });
+                  tags.mutate((current) => [...current, created].sort(byName));
+                  return `Added ${created.name}.`;
+                }
+                const updated = await auth.request<Tag>(`/tags/${editing.id}`, { method: 'PATCH', body: JSON.stringify(nameAndColorFrom(target)) });
+                tags.mutate((current) => current.map((tag) => (tag.id === updated.id ? updated : tag)).sort(byName));
+                return '';
+              }, editing === 'new' ? 'Could not add the tag' : 'Could not save the tag')
+              .then((saved) => saved && setEditing(undefined));
+          }}
+          submitLabel={editing === 'new' ? 'Add tag' : 'Save'}
+          title={editing === 'new' ? 'New tag' : `Edit ${editing.name}`}
+        >
+          <NameAndColorFields
+            color={editing === 'new' ? undefined : editing.color}
+            field={form.field('name')}
+            maxLength={40}
+            name={editing === 'new' ? undefined : editing.name}
+          />
+        </FormDialog>
       )}
 
       {deleting && (

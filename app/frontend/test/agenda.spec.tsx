@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dayKey } from '../src/agenda';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { pickDay } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -251,15 +252,8 @@ describe('Agenda and RSVP', () => {
 
     const button = (label: string) => [...document.querySelectorAll('button')].find((candidate) => candidate.textContent === label)!;
     await act(async () => button('Offer dates').click());
-    const set = (label: string, value: string) => {
-      const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    await act(async () => {
-      set('Date 1', '2026-11-06');
-      set('Date 2', '2026-11-07');
-    });
+    await pickDay(container, 'Date 1', '2026-11-06');
+    await pickDay(container, 'Date 2', '2026-11-07');
     await act(async () => button('Save dates').click());
     expect(sent[0]).toEqual({
       path: '/events/party/poll',

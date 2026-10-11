@@ -11,6 +11,7 @@ import { useResource } from '../../useResource';
 import { SpaceBalances } from './SpaceBalances';
 import { useSpace } from './SpaceLayout';
 import { LoadError } from '../../components/LoadError';
+import { HeaderButton, Toolbar } from '../../components/Page';
 
 export function SpaceSubscriptions() {
   const auth = useAuth();
@@ -47,17 +48,17 @@ export function SpaceSubscriptions() {
   if (!subscriptions.data) return <ListSkeleton label="Loading the subscriptions in this space" rows={4} />;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link className="mono-sm text-faint" to={cancelled ? base : `${base}?status=cancelled`}>
-          {cancelled ? 'Show active' : 'Show cancelled'}
-        </Link>
-        {editable && !cancelled && (
-          <button className="primary-button px-3 py-2 text-sm" onClick={() => setEditing('new')} type="button">
-            Add subscription
-          </button>
-        )}
-      </div>
+    <div className="fade-in grid gap-6">
+      <Toolbar actions={editable && <HeaderButton icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />}>
+        <nav aria-label="Subscriptions" className="flex flex-wrap items-center gap-2">
+          <Link aria-current={cancelled ? undefined : 'page'} className="filter-chip" to={base}>
+            Active
+          </Link>
+          <Link aria-current={cancelled ? 'page' : undefined} className="filter-chip" to={`${base}?status=cancelled`}>
+            Cancelled
+          </Link>
+        </nav>
+      </Toolbar>
       {shared && !cancelled && <SpaceBalances key={splitVersion} spaceId={space.id} />}
       {subscriptions.data.length === 0 ? (
         <EmptyState title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />

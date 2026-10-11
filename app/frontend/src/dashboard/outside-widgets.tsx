@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { errorMessage, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
 import { useResource } from '../useResource';
@@ -154,13 +154,17 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
         </ul>
       )}
       {problem && <p className="m-0 text-sm text-danger">{problem}</p>}
-      <label className="field-label max-w-xs">
-        Units
-        <select onChange={(event) => onChange({ ...settings, unit: event.currentTarget.value })} value={settings.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius'}>
-          <option value="celsius">Celsius, km/h</option>
-          <option value="fahrenheit">Fahrenheit, mph</option>
-        </select>
-      </label>
+      <Select
+        className="max-w-xs"
+        label="Units"
+        onChange={(unit) => onChange({ ...settings, unit })}
+        options={[
+          { value: 'celsius', label: 'Celsius, km/h' },
+          { value: 'fahrenheit', label: 'Fahrenheit, mph' },
+        ]}
+        size="small"
+        value={settings.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius'}
+      />
     </div>
   );
 }
@@ -257,16 +261,14 @@ export function NewsSettings({ onChange, settings }: SettingsProps) {
         placeholder="https://example.com/feed.xml"
         values={stringsOf(settings.feeds)}
       />
-      <label className="field-label max-w-xs">
-        Stories to show
-        <select onChange={(event) => onChange({ ...settings, count: Number(event.currentTarget.value) })} value={typeof settings.count === 'number' ? settings.count : 5}>
-          {[3, 5, 10].map((count) => (
-            <option key={count} value={count}>
-              {count}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        className="max-w-xs"
+        label="Stories to show"
+        onChange={(count) => onChange({ ...settings, count: Number(count) })}
+        options={[3, 5, 10].map((count) => ({ value: String(count), label: String(count) }))}
+        size="small"
+        value={String(typeof settings.count === 'number' ? settings.count : 5)}
+      />
     </div>
   );
 }

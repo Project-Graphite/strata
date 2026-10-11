@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, EmptyState, Icon, PageHeader, PageSkeleton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, Icon, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
@@ -12,6 +12,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -56,36 +57,38 @@ export function EventPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-10">
-      <PageHeader
-        actions={
-          editable && (
-            <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(true)} type="button">
-              <Icon name="pencil" size={16} />
-              Edit
-            </button>
-          )
-        }
-        eyebrow={space?.name}
-        title={details.title}
-      >
-        <p className="m-0">{eventWhen(details)}</p>
-        {details.location && (
-          <p className="mt-1 mb-0">
-            {details.location} ·{' '}
-            <a href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(details.location)}`} rel="noopener noreferrer" target="_blank">
-              Map
-            </a>
-          </p>
-        )}
-        {details.meetingUrl && (
-          <p className="mt-1 mb-0">
-            <a href={details.meetingUrl} rel="noopener noreferrer" target="_blank">
-              Join the meeting
-            </a>
-          </p>
-        )}
-      </PageHeader>
+    <Page
+      actions={
+        editable && (
+          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(true)} type="button">
+            <Icon name="pencil" size={16} />
+            Edit
+          </button>
+        )
+      }
+      description={
+        <>
+          <p className="m-0">{eventWhen(details)}</p>
+          {details.location && (
+            <p className="mt-1 mb-0">
+              {details.location} ·{' '}
+              <a href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(details.location)}`} rel="noopener noreferrer" target="_blank">
+                Map
+              </a>
+            </p>
+          )}
+          {details.meetingUrl && (
+            <p className="mt-1 mb-0">
+              <a href={details.meetingUrl} rel="noopener noreferrer" target="_blank">
+                Join the meeting
+              </a>
+            </p>
+          )}
+        </>
+      }
+      eyebrow={space?.name}
+      title={details.title}
+    >
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
 
       {poll.data && (options.length > 0 || (editable && !details.repeatRule)) && (
@@ -258,6 +261,6 @@ export function EventPage() {
       {editing && (
         <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} onTrashed={() => navigate('/agenda')} />
       )}
-    </section>
+    </Page>
   );
 }

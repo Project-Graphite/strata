@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Avatar, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import type { CostSplit, Subscription } from '../subscriptions';
@@ -43,16 +44,12 @@ export function SplitEditor({
       submitLabel="Save split"
       title={`Split ${subscription.name}`}
     >
-      <label className="field-label">
-        Paid by
-        <select onChange={(event) => setPayerId(event.currentTarget.value)} value={payerId}>
-          {members.map((member) => (
-            <option key={member.userId} value={member.userId}>
-              {member.displayName}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="Paid by"
+        onChange={setPayerId}
+        options={members.map((member) => ({ value: member.userId, label: member.displayName, leading: <Avatar name={member.displayName} size="sm" /> }))}
+        value={payerId}
+      />
       <fieldset className="m-0 grid gap-2 border-0 p-0">
         <legend className="field-label mb-1.5 p-0">Shared by</legend>
         {members.map((member) => {

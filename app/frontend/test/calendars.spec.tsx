@@ -69,7 +69,8 @@ describe('Calendars', () => {
     });
     await render('/agenda/calendars');
 
-    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('Follow a calendar'))!;
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Follow a calendar')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });

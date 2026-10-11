@@ -518,7 +518,7 @@ export class AuthService implements OnModuleInit {
           'If this was you, there is nothing to do. If not, reset your password now, then sign out the devices you do not recognise:',
           '',
           this.mail.link('/forgot-password'),
-          this.mail.link('/settings/sessions'),
+          this.mail.link('/settings/security'),
         ].join('\n'),
       });
     }

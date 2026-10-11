@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { choose } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -109,8 +110,8 @@ describe('Recurring', () => {
     const form = document.querySelector('dialog form') as HTMLFormElement;
     fill(form, 'name', 'Music');
     fill(form, 'amount', '9.99');
-    fill(form, 'category', 'music');
-    fill(form, 'reminderDays', '3');
+    await choose(form, 'Category', 'Music');
+    await choose(form, 'Remind me', '3 days before');
     fill(form, 'paymentLabel', '4242 4242 4242 4242');
     await submit(form);
     expect(document.body.textContent).toContain('never a card number');
@@ -152,14 +153,18 @@ describe('Recurring', () => {
     const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Add subscription')!;
     await act(async () => add.click());
     const form = document.querySelector('dialog form') as HTMLFormElement;
-    expect([...form.querySelectorAll('datalist option')].map((option) => option.getAttribute('value'))).toContain('Netflix');
     const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+    name.value = 'netf';
+    await act(async () => {
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect([...form.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toContain('Netflix');
     name.value = 'netflix';
     await act(async () => {
       name.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    expect(form.querySelector<HTMLSelectElement>('select[name="category"]')!.value).toBe('streaming');
+    expect(form.querySelector<HTMLInputElement>('input[name="category"]')!.value).toBe('streaming');
     expect(form.querySelector<HTMLInputElement>('input[name="cancelUrl"]')!.value).toBe('https://www.netflix.com/cancelplan');
   });
 

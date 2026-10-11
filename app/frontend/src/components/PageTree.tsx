@@ -1,9 +1,10 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { useShell } from '@project-graphite/ui';
+import { Icon, useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteTitle, onPagesChanged, type Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { SpaceMark, useSpaces } from '../spaces';
+import { NoteMark } from './NoteMark';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -139,15 +140,15 @@ export function PageTree() {
               onClick={() => toggle(note.id)}
               type="button"
             >
-              {nested.length > 0 ? (expanded ? '▾' : '▸') : ''}
+              {nested.length > 0 && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
             </button>
             <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} to={`/notes/${note.id}`}>
-              <span aria-hidden="true">{note.icon ?? (note.kind === 'board' ? '▦' : '·')}</span>
+              <NoteMark note={note} />
               <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
             </Link>
             {nests && (
               <button aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(spaceId, note.id)} type="button">
-                +
+                <Icon name="plus" size={14} />
               </button>
             )}
           </div>
@@ -180,14 +181,15 @@ export function PageTree() {
               }}
             >
               <button aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} type="button">
-                {expanded ? '▾' : '▸'}
+                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
               </button>
               <button className="page-tree-link" onClick={() => toggle(key)} type="button">
+                <SpaceMark space={space} />
                 <span className="min-w-0 flex-1 truncate text-left">{space.name}</span>
               </button>
               {writable && (
                 <button aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(space.id, null)} type="button">
-                  +
+                  <Icon name="plus" size={14} />
                 </button>
               )}
             </div>

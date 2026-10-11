@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { ConfirmDialog, Dialog, FormSkeleton, Icon, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { useSpaces } from '../../spaces';
+import { spaceOptions, useSpaces } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
-import { SettingsRow, SettingsRows, SettingsSection } from './SettingsLayout';
+import { Section } from '../../components/Page';
+import { SettingsRow, SettingsRows } from './SettingsLayout';
 
 interface ApiReference {
   basePath: string;
@@ -59,12 +59,11 @@ export function ApiSettings() {
 
   return (
     <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection title="Personal API">
+      <Section title="Personal API">
         <div className="grid gap-3 text-sm text-muted">
           <p className="m-0">
             Send requests to <code className="mono-sm text-ink">{`${window.location.origin}${reference.data.basePath}`}</code> with the header{' '}
-            <code className="mono-sm text-ink">Authorization: Bearer strata_pat_…</code>. Create a token under <Link to="/settings/tokens">Access tokens</Link>; each
-            permission opens these endpoints.
+            <code className="mono-sm text-ink">Authorization: Bearer strata_pat_…</code>. Create a token above; each permission opens these endpoints.
           </p>
           {reference.data.scopes.map(({ scope, routes }) => (
             <details className="rounded-lg border border-line p-3" key={scope}>
@@ -82,9 +81,9 @@ export function ApiSettings() {
             </details>
           ))}
         </div>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection
+      <Section
         action={
           <button className="secondary-button px-3 py-2 text-sm" onClick={() => setAdding(true)} type="button">
             <Icon name="plus" size={16} />
@@ -146,7 +145,7 @@ export function ApiSettings() {
             ))}
           </SettingsRows>
         )}
-      </SettingsSection>
+      </Section>
 
       {adding && secret && (
         <Dialog
@@ -215,17 +214,7 @@ export function ApiSettings() {
               </label>
             ))}
           </fieldset>
-          <label className="field-label">
-            In
-            <select defaultValue="" name="spaceId">
-              <option value="">All my spaces</option>
-              {(spaces.data ?? []).map((space) => (
-                <option key={space.id} value={space.id}>
-                  {space.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select defaultValue="" label="In" name="spaceId" options={[{ value: '', label: 'All my spaces' }, ...spaceOptions(spaces.data ?? [])]} />
         </FormDialog>
       )}
 

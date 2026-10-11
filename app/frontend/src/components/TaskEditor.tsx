@@ -1,6 +1,9 @@
-import { Dialog, TextField } from '@project-graphite/ui';
+import { useState } from 'react';
+import { DatePicker, Dialog, Select, TextField, TimePicker } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { reminderPresets, repeatPresets, type Task, type TaskList } from '../tasks';
+import { describeQuickTask, parseQuickTask } from '../quick-add';
+import type { Tag } from '../spaces';
+import { reminderOptions, repeatOptions, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 
@@ -9,134 +12,129 @@ interface Member {
   displayName: string;
 }
 
+const priorities = [
+  { value: '0', label: 'None' },
+  { value: '1', label: 'Low' },
+  { value: '2', label: 'Medium' },
+  { value: '3', label: 'High' },
+];
+
 export function TaskEditor({
+  defaultListId,
   editable,
   lists,
   members,
   onClose,
   onSaved,
   onTrashed,
+  spaceId,
+  tags = [],
   task,
 }: {
+  defaultListId?: string | null;
   editable: boolean;
   lists: TaskList[];
   members: Member[];
   onClose: () => void;
   onSaved: (task: Task) => void;
-  onTrashed: () => void;
-  task: Task;
+  onTrashed?: () => void;
+  spaceId: string;
+  tags?: Tag[];
+  task?: Task;
 }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const custom = task.repeatRule && !repeatPresets.some(([value]) => value === task.repeatRule);
+  const [title, setTitle] = useState(task?.title ?? '');
+  const quick = task ? undefined : parseQuickTask(title, tags.map((tag) => tag.name));
+  const understood = quick && describeQuickTask(quick);
   const text = (values: FormData, name: string) => String(values.get(name) ?? '').trim();
 
   return (
-    <Dialog onClose={onClose} title={editable ? 'Edit task' : task.title}>
+    <Dialog onClose={onClose} title={task ? (editable ? 'Edit task' : task.title) : 'New task'}>
       <form
         className="mt-5 grid gap-4"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
           const target = event.currentTarget;
-          if (!form.check(target, { title: [required('Give the task a title.'), atMost(200, 'Use at most 200 characters.')] })) {
-            return;
-          }
+          if (!form.check(target, { title: [required('Give the task a title.'), atMost(200, 'Use at most 200 characters.')] })) return;
           const values = new FormData(target);
           const reminder = text(values, 'reminderMinutes');
+          const dueDate = text(values, 'dueDate') || quick?.dueDate || '';
+          const fields = {
+            title: quick?.title || text(values, 'title'),
+            listId: text(values, 'listId') || null,
+            dueDate: dueDate || null,
+            dueTime: dueDate ? text(values, 'dueTime') || quick?.dueTime || null : null,
+            repeatRule: text(values, 'repeatRule') || null,
+            reminderMinutes: reminder ? Number(reminder) : null,
+            assigneeId: text(values, 'assigneeId') || null,
+            priority: Number(text(values, 'priority')) || quick?.priority || 0,
+          };
           void saving
             .run(async () => {
-              const saved = await auth.request<Task>(`/tasks/${task.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  title: text(values, 'title'),
-                  listId: text(values, 'listId') || null,
-                  dueDate: text(values, 'dueDate') || null,
-                  dueTime: text(values, 'dueTime') || null,
-                  repeatRule: text(values, 'repeatRule') || null,
-                  reminderMinutes: reminder ? Number(reminder) : null,
-                  assigneeId: text(values, 'assigneeId') || null,
-                  priority: Number(text(values, 'priority')),
-                }),
+              const saved = await auth.request<Task>(task ? `/tasks/${task.id}` : `/spaces/${spaceId}/tasks`, {
+                method: task ? 'PATCH' : 'POST',
+                body: JSON.stringify(task ? fields : Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null && value !== 0))),
               });
+              const tagIds = tags.filter((tag) => quick?.tagNames.includes(tag.name)).map((tag) => tag.id);
+              if (tagIds.length) await auth.request(`/items/${saved.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
               onSaved(saved);
-              return '';
+              return task ? '' : 'Added the task.';
             }, 'Could not save the task')
             .then((saved) => saved && onClose());
         }}
       >
         <fieldset className="m-0 grid gap-4 border-0 p-0" disabled={!editable}>
-          <TextField defaultValue={task.title} label="Title" maxLength={200} {...form.field('title')} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="field-label">
-              Due date
-              <input defaultValue={task.dueDate ?? ''} name="dueDate" type="date" />
-            </label>
-            <label className="field-label">
-              Time
-              <input defaultValue={task.dueTime ?? ''} name="dueTime" type="time" />
-            </label>
-            <label className="field-label">
-              Repeats
-              <select defaultValue={task.repeatRule ?? ''} name="repeatRule">
-                {repeatPresets.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-                {custom && <option value={task.repeatRule!}>Custom ({task.repeatRule})</option>}
-              </select>
-            </label>
-            <label className="field-label">
-              Reminder
-              <select defaultValue={task.reminderMinutes === null ? '' : String(task.reminderMinutes)} name="reminderMinutes">
-                {reminderPresets.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-                {task.reminderMinutes !== null && !reminderPresets.some(([value]) => value === String(task.reminderMinutes)) && (
-                  <option value={task.reminderMinutes}>{task.reminderMinutes} minutes before</option>
-                )}
-              </select>
-            </label>
-            <label className="field-label">
-              List
-              <select defaultValue={task.listId ?? ''} name="listId">
-                <option value="">No list</option>
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-label">
-              Assigned to
-              <select defaultValue={task.assignee?.id ?? ''} name="assigneeId">
-                <option value="">Nobody</option>
-                {members.map((member) => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-label">
-              Priority
-              <select defaultValue={String(task.priority)} name="priority">
-                <option value="0">None</option>
-                <option value="1">Low</option>
-                <option value="2">Medium</option>
-                <option value="3">High</option>
-              </select>
-            </label>
+          <TextField
+            autoFocus={!task}
+            hint={
+              understood ? (
+                <>
+                  Understood: <span role="status">{understood}</span>
+                </>
+              ) : task ? undefined : (
+                'Try “pay rent friday 9am #home !2”.'
+              )
+            }
+            label="Title"
+            maxLength={200}
+            onChange={(event) => setTitle(event.currentTarget.value)}
+            value={title}
+            {...form.field('title')}
+          />
+          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <DatePicker defaultValue={task?.dueDate ?? ''} disabled={!editable} label="Due date" name="dueDate" />
+            <TimePicker defaultValue={task?.dueTime ?? ''} disabled={!editable} label="Time" name="dueTime" />
+            <Select defaultValue={task?.repeatRule ?? ''} disabled={!editable} label="Repeats" name="repeatRule" options={repeatOptions(task?.repeatRule)} />
+            <Select
+              defaultValue={task?.reminderMinutes == null ? '' : String(task.reminderMinutes)}
+              disabled={!editable}
+              label="Reminder"
+              name="reminderMinutes"
+              options={reminderOptions(task?.reminderMinutes)}
+            />
+            <Select
+              defaultValue={task ? (task.listId ?? '') : (defaultListId ?? '')}
+              disabled={!editable}
+              label="List"
+              name="listId"
+              options={[{ value: '', label: 'No list' }, ...lists.map((list) => ({ value: list.id, label: list.title }))]}
+            />
+            <Select
+              defaultValue={task?.assignee?.id ?? ''}
+              disabled={!editable}
+              label="Assigned to"
+              name="assigneeId"
+              options={[{ value: '', label: 'Nobody' }, ...members.map((member) => ({ value: member.userId, label: member.displayName }))]}
+            />
+            <Select defaultValue={String(task?.priority ?? 0)} disabled={!editable} label="Priority" name="priority" options={priorities} />
           </div>
         </fieldset>
-        <p className="mono-sm m-0 text-faint">Times are in {task.timeZone.replaceAll('_', ' ')}.</p>
+        <p className="mono-sm m-0 text-faint">Times are in {(task?.timeZone ?? auth.user?.timeZone ?? 'UTC').replaceAll('_', ' ')}.</p>
         <div className="flex flex-wrap justify-end gap-3">
-          {editable && (
+          {task && editable && onTrashed && (
             <button
               className="text-button mr-auto text-sm"
               disabled={saving.busy}
@@ -159,7 +157,7 @@ export function TaskEditor({
           </button>
           {editable && (
             <button className="primary-button" disabled={saving.busy} type="submit">
-              {saving.busy ? 'Saving…' : 'Save'}
+              {saving.busy ? 'Saving…' : task ? 'Save' : 'Add task'}
             </button>
           )}
         </div>

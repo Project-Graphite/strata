@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { errorMessage, isAbortError } from '@project-graphite/ui';
+import { errorMessage, isAbortError, useSettled } from '@project-graphite/ui';
 import { ApiError } from './api';
 import { useAuth } from './auth';
 
@@ -48,8 +48,9 @@ export function useResource<T>(path: string | null, authenticated = false) {
 
   const current = key && state.key === key ? state : undefined;
   const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|`)) : true;
+  const data = useSettled(current ? current.data : key && sameViewer ? state.data : undefined);
   return {
-    data: current ? current.data : key && sameViewer ? state.data : undefined,
+    data,
     error: current?.error ?? '',
     status: current?.status,
     loading: Boolean(key) && !current?.error && current?.data === undefined,

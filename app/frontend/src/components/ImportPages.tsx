@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Dialog } from '@project-graphite/ui';
+import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import type { Space } from '../spaces';
+import { spaceOptions, type Space } from '../spaces';
 import { useAction } from '../useAction';
 
 export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
@@ -33,16 +33,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           Markdown files become pages. For a Notion export, unzip it and choose the folder: pages keep their nesting and their images come along.
         </p>
         {spaces.length > 1 && (
-          <label className="field-label">
-            Space
-            <select onChange={(event) => setSpaceId(event.currentTarget.value)} value={spaceId}>
-              {spaces.map((space) => (
-                <option key={space.id} value={space.id}>
-                  {space.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
         )}
         <div className="flex flex-wrap gap-3">
           <label className={`secondary-button ${importing.busy ? 'pointer-events-none opacity-60' : ''}`}>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Menu, PageHeader, timeAgo } from '@project-graphite/ui';
+import { EmptyState, Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
+import { NoteMark } from '../components/NoteMark';
+import { HeaderButton, Page } from '../components/Page';
 import { announcePagesChanged, noteTitle, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -33,35 +35,32 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-8">
-      <PageHeader
-        actions={
-          <>
-            {kind === 'note' && writable.length > 0 && (
-              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setImporting(true)} type="button">
-                Import
-              </button>
-            )}
-            {writable.length === 1 ? (
-              <button className="primary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create(writable[0]!.id)} type="button">
-                <Icon name="plus" size={16} />
-                {words.create}
-              </button>
-            ) : (
-              writable.length > 1 && (
-                <Menu
-                  items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
-                  label="Spaces"
-                  trigger={words.create}
-                  triggerClassName="primary-button px-3 py-2 text-sm"
-                  triggerLabel={`${words.create}: choose a space`}
-                />
-              )
-            )}
-          </>
-        }
-        title={words.title}
-      />
+    <Page
+      actions={
+        <>
+          {kind === 'note' && writable.length > 0 && <HeaderButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
+          {writable.length === 1 ? (
+            <HeaderButton disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
+          ) : (
+            writable.length > 1 && (
+              <Menu
+                items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
+                label="Spaces"
+                trigger={
+                  <>
+                    <Icon name="plus" size={16} />
+                    {words.create}
+                  </>
+                }
+                triggerClassName="primary-button px-3 py-2 text-sm"
+                triggerLabel={`${words.create}: choose a space`}
+              />
+            )
+          )}
+        </>
+      }
+      title={words.title}
+    >
       {importing && (
         <ImportPages
           onClose={() => setImporting(false)}
@@ -81,13 +80,11 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
           <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">{words.hint}</p>
         </EmptyState>
       ) : (
-        <ul className="panel-rows m-0 grid list-none p-0">
+        <ul className="panel-rows">
           {listed.data.map((note) => (
             <li key={note.id}>
-              <Link className="flex items-center gap-3 px-4 py-3 text-ink no-underline hover:bg-line-soft" to={`/notes/${note.id}`}>
-                <span aria-hidden="true" className="w-5 shrink-0 text-center">
-                  {note.icon ?? (kind === 'board' ? '▦' : '·')}
-                </span>
+              <Link className="flex items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft" to={`/notes/${note.id}`}>
+                <NoteMark note={note} />
                 <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
                 <span className="mono-sm shrink-0 text-faint">
                   {spaces.data?.find((space) => space.id === note.spaceId)?.name} · {timeAgo(note.updatedAt)}
@@ -97,6 +94,6 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
           ))}
         </ul>
       )}
-    </section>
+    </Page>
   );
 }

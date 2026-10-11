@@ -1,39 +1,37 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
-import type { Page } from '../../api';
+import { EmptyState, Icon, ListSkeleton, Menu, Pagination, TextField } from '@project-graphite/ui';
+import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
+import { LoadError } from '../../components/LoadError';
+import { HeaderButton, Toolbar } from '../../components/Page';
 import { TaskEditor } from '../../components/TaskEditor';
-import { describeQuickTask, parseQuickTask } from '../../quick-add';
 import type { Tag } from '../../spaces';
 import { TaskRow, type Task, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
+import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
-import { LoadError } from '../../components/LoadError';
 
 export function SpaceTasks() {
   const auth = useAuth();
   const space = useSpace();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const listId = params.get('list');
   const completed = params.get('completed') === 'true';
   const page = Number(params.get('page')) || 1;
   const base = `/spaces/${space.id}/tasks`;
   const filters = `${listId ? `&listId=${encodeURIComponent(listId)}` : ''}${completed ? '&completed=true' : ''}`;
-  const tasks = useResource<Page<Task>>(`/spaces/${space.id}/tasks?page=${page}${filters}`, true);
+  const tasks = useResource<ResultPage<Task>>(`/spaces/${space.id}/tasks?page=${page}${filters}`, true);
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);
   const members = useResource<{ userId: string; displayName: string }[]>(`/spaces/${space.id}/members`, true);
   const tags = useResource<Tag[]>(`/spaces/${space.id}/tags`, true);
-  const adding = useAction();
   const action = useAction();
-  const [editing, setEditing] = useState<Task>();
-  const [renaming, setRenaming] = useState(false);
-  const navigate = useNavigate();
-  const [quickText, setQuickText] = useState('');
-  const preview = parseQuickTask(quickText, (tags.data ?? []).map((tag) => tag.name));
-  const understood = describeQuickTask(preview);
+  const listForm = useFormErrors();
+  const [editing, setEditing] = useState<Task | 'new'>();
+  const [listDialog, setListDialog] = useState<'new' | 'rename'>();
   const editable = space.role !== 'viewer';
   const link = (next: { list?: string | null; completed?: boolean; page?: number }) => {
     const query = new URLSearchParams();
@@ -45,12 +43,19 @@ export function SpaceTasks() {
   };
 
   function replace(task: Task) {
-    tasks.mutate((current) => ({
-      ...current,
-      results: current.results.flatMap((shown) =>
-        shown.id !== task.id ? [shown] : Boolean(task.completedAt) === completed ? [task] : [],
-      ),
-    }));
+    tasks.mutate((current) => {
+      const shown = current.results.some((entry) => entry.id === task.id);
+      const belongs = Boolean(task.completedAt) === completed && (!listId || task.listId === listId);
+      return {
+        ...current,
+        totalResults: current.totalResults + (shown ? (belongs ? 0 : -1) : belongs ? 1 : 0),
+        results: shown
+          ? current.results.flatMap((entry) => (entry.id !== task.id ? [entry] : belongs ? [task] : []))
+          : belongs
+            ? [...current.results, task]
+            : current.results,
+      };
+    });
     lists.reload();
   }
 
@@ -59,105 +64,55 @@ export function SpaceTasks() {
   const shownList = lists.data.find((list) => list.id === listId);
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
-      <nav aria-label="Lists" className="flex flex-wrap gap-2">
-        <Link className={`tag-chip tag-gray ${!listId ? 'font-medium' : ''}`} to={link({ list: null })}>
-          <span className="tag-chip-label">All tasks</span>
-        </Link>
-        {lists.data.map((list) => (
-          <Link className={`tag-chip tag-blue ${listId === list.id ? 'font-medium' : ''}`} key={list.id} to={link({ list: list.id })}>
-            <span className="tag-chip-label">
-              {list.title} <span className="text-faint">{list.openTasks}</span>
-            </span>
+    <div className="fade-in grid gap-6">
+      <Toolbar actions={editable && <HeaderButton icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
+        <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
+          <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null })}>
+            All tasks
           </Link>
-        ))}
-      </nav>
-
-      {editable && shownList && (
-        <div className="flex flex-wrap gap-4 text-sm">
-          <button className="text-button" onClick={() => setRenaming(true)} type="button">
-            Rename list
-          </button>
-          <button
-            className="text-button"
-            disabled={action.busy}
-            onClick={() =>
-              void action.run(async () => {
-                await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
-                lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
-                navigate(link({ list: null }));
-                return `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`;
-              }, 'Could not move the list to the trash')
-            }
-            type="button"
-          >
-            Move list to trash
-          </button>
-        </div>
-      )}
-
-      {editable && !completed && (
-        <form
-          className="flex flex-wrap gap-3"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const target = event.currentTarget;
-            const values = new FormData(target);
-            const quick = parseQuickTask(String(values.get('title')), (tags.data ?? []).map((tag) => tag.name));
-            const dueDate = String(values.get('dueDate')) || quick.dueDate;
-            const tagIds = (tags.data ?? []).filter((tag) => quick.tagNames.includes(tag.name)).map((tag) => tag.id);
-            if (!quick.title) return;
-            void adding
-              .run(async () => {
-                const created = await auth.request<Task>(`/spaces/${space.id}/tasks`, {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    title: quick.title,
-                    ...(listId ? { listId } : {}),
-                    ...(dueDate ? { dueDate } : {}),
-                    ...(dueDate && quick.dueTime ? { dueTime: quick.dueTime } : {}),
-                    ...(quick.priority ? { priority: quick.priority } : {}),
-                  }),
-                });
-                if (tagIds.length) {
-                  await auth.request(`/items/${created.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
-                  tasks.reload();
-                } else {
-                  tasks.mutate((current) => ({ ...current, totalResults: current.totalResults + 1, results: [...current.results, created] }));
-                }
-                lists.reload();
-                return '';
-              }, 'Could not add the task')
-              .then((added) => {
-                if (!added) return;
-                target.reset();
-                setQuickText('');
-              });
-          }}
-        >
-          <input
-            aria-label="New task"
-            className="min-w-0 flex-1"
-            maxLength={200}
-            name="title"
-            onInput={(event) => setQuickText(event.currentTarget.value)}
-            placeholder="Add a task, e.g. pay rent friday 9am #home !2"
-          />
-          <input aria-label="Due date" name="dueDate" type="date" />
-          <button className="primary-button px-4" disabled={adding.busy} type="submit">
-            Add
-          </button>
-          {quickText.trim() && (understood || !preview.title) && (
-            <p className="mono-sm m-0 w-full text-faint" role="status">
-              {[understood, !preview.title && 'add a title for the task'].filter(Boolean).join(' · ')}
-            </p>
+          {lists.data.map((list) => (
+            <Link aria-current={listId === list.id ? 'page' : undefined} className="filter-chip" key={list.id} to={link({ list: list.id })}>
+              {list.title}
+              <span className="text-faint">{list.openTasks}</span>
+            </Link>
+          ))}
+          {editable && (
+            <button className="filter-chip" onClick={() => setListDialog('new')} type="button">
+              <Icon name="plus" size={14} />
+              New list
+            </button>
           )}
-        </form>
-      )}
+        </nav>
+        {editable && shownList && (
+          <Menu
+            items={[
+              { label: 'Rename list', onSelect: () => setListDialog('rename') },
+              {
+                label: 'Move list to trash',
+                separated: true,
+                onSelect: () =>
+                  void action.run(async () => {
+                    await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
+                    lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
+                    navigate(link({ list: null }));
+                    return `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`;
+                  }, 'Could not move the list to the trash'),
+              },
+            ]}
+            label={`${shownList.title} actions`}
+            trigger={<Icon name="more" size={18} />}
+            triggerClassName="icon-button"
+            triggerLabel={`Actions for ${shownList.title}`}
+          />
+        )}
+      </Toolbar>
 
       {tasks.data.results.length === 0 ? (
-        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
+        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'}>
+          {!completed && editable && (
+            <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Add one with New task. Give it a due date and it shows up on Today.</p>
+          )}
+        </EmptyState>
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.results.map((task) => (
@@ -167,9 +122,7 @@ export function SpaceTasks() {
               onEdit={() => setEditing(task)}
               onToggle={() =>
                 void action.run(async () => {
-                  replace(
-                    await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' }),
-                  );
+                  replace(await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' }));
                   return '';
                 }, 'Could not update the task')
               }
@@ -180,76 +133,65 @@ export function SpaceTasks() {
         </ul>
       )}
 
-      <div className="flex flex-wrap justify-between gap-4">
-        <Link className="mono-sm text-faint" to={link({ completed: !completed })}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Link className="text-button text-sm" to={link({ completed: !completed })}>
           {completed ? 'Show open' : 'Show finished'}
         </Link>
-        {editable && (
-          <form
-            className="flex gap-2"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              const title = String(new FormData(target).get('title')).trim();
-              if (!title) return;
-              void adding
-                .run(async () => {
-                  const created = await auth.request<TaskList>(`/spaces/${space.id}/lists`, {
-                    method: 'POST',
-                    body: JSON.stringify({ title }),
-                  });
-                  lists.mutate((current) => [...current, created]);
-                  return `Added the list ${created.title}.`;
-                }, 'Could not add the list')
-                .then((added) => added && target.reset());
-            }}
-          >
-            <input aria-label="New list" maxLength={100} name="title" placeholder="New list" />
-            <button className="secondary-button px-3 py-2 text-sm" disabled={adding.busy} type="submit">
-              Add list
-            </button>
-          </form>
-        )}
+        <Pagination page={tasks.data.page} pageHref={(next) => link({ page: next })} totalPages={tasks.data.totalPages} />
       </div>
-
-      <Pagination page={tasks.data.page} pageHref={(next) => link({ page: next })} totalPages={tasks.data.totalPages} />
 
       {editing && (
         <TaskEditor
+          defaultListId={listId}
           editable={editable}
           lists={lists.data}
           members={members.data ?? []}
           onClose={() => setEditing(undefined)}
           onSaved={replace}
           onTrashed={() => {
-            tasks.mutate((current) => ({ ...current, totalResults: current.totalResults - 1, results: current.results.filter((task) => task.id !== editing.id) }));
+            if (editing === 'new') return;
+            tasks.mutate((current) => ({
+              ...current,
+              totalResults: current.totalResults - 1,
+              results: current.results.filter((task) => task.id !== editing.id),
+            }));
             lists.reload();
           }}
-          task={editing}
+          spaceId={space.id}
+          tags={tags.data ?? []}
+          task={editing === 'new' ? undefined : editing}
         />
       )}
 
-      {renaming && shownList && (
+      {listDialog && (
         <FormDialog
           busy={action.busy}
           busyLabel="Saving…"
-          onClose={() => setRenaming(false)}
+          onClose={() => setListDialog(undefined)}
           onSubmit={(target) => {
+            if (!listForm.check(target, { title: [required('Name the list.'), atMost(100, 'Use at most 100 characters.')] })) return;
             const title = String(new FormData(target).get('title')).trim();
-            if (!title) return;
             void action
-              .run(async () => {
-                await auth.request(`/items/${shownList.id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
-                lists.mutate((current) => current.map((list) => (list.id === shownList.id ? { ...list, title } : list)));
-                return '';
-              }, 'Could not rename the list')
-              .then((saved) => saved && setRenaming(false));
+              .run(
+                async () => {
+                  if (listDialog === 'rename' && shownList) {
+                    await auth.request(`/items/${shownList.id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
+                    lists.mutate((current) => current.map((list) => (list.id === shownList.id ? { ...list, title } : list)));
+                    return '';
+                  }
+                  const created = await auth.request<TaskList>(`/spaces/${space.id}/lists`, { method: 'POST', body: JSON.stringify({ title }) });
+                  lists.mutate((current) => [...current, created]);
+                  navigate(link({ list: created.id }));
+                  return `Added the list ${created.title}.`;
+                },
+                listDialog === 'rename' ? 'Could not rename the list' : 'Could not add the list',
+              )
+              .then((saved) => saved && setListDialog(undefined));
           }}
-          submitLabel="Rename"
-          title="Rename list"
+          submitLabel={listDialog === 'rename' ? 'Rename' : 'Add list'}
+          title={listDialog === 'rename' ? 'Rename list' : 'New list'}
         >
-          <TextField autoFocus defaultValue={shownList.title} label="Name" maxLength={100} name="title" />
+          <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />
         </FormDialog>
       )}
     </div>

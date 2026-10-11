@@ -1,18 +1,19 @@
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, PageHeader, Pagination, timeAgo } from '@project-graphite/ui';
-import type { Page } from '../api';
+import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 export function InboxPage() {
   const auth = useAuth();
   const inbox = useInbox();
   const [params] = useSearchParams();
   const page = Number(params.get('page')) || 1;
-  const notifications = useResource<Page<InboxNotification>>(`/me/inbox?page=${page}`, true);
+  const notifications = useResource<ResultPage<InboxNotification>>(`/me/inbox?page=${page}`, true);
   const action = useAction();
 
   function setRead(notification: InboxNotification, read: boolean) {
@@ -28,32 +29,31 @@ export function InboxPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-6">
-      <PageHeader
-        actions={
-          (inbox.data?.unread ?? 0) > 0 && (
-            <button
-              className="secondary-button px-3 py-2 text-sm"
-              disabled={action.busy}
-              onClick={() =>
-                void action.run(async () => {
-                  await auth.request('/me/inbox/read', { method: 'POST' });
-                  notifications.mutate((current) => ({
-                    ...current,
-                    results: current.results.map((shown) => ({ ...shown, read: true })),
-                  }));
-                  inbox.reload();
-                  return 'Everything is marked read.';
-                }, 'Could not mark everything read')
-              }
-              type="button"
-            >
-              Mark all read
-            </button>
-          )
-        }
-        title="Inbox"
-      />
+    <Page
+      actions={
+        (inbox.data?.unread ?? 0) > 0 && (
+          <button
+            className="secondary-button px-3 py-2 text-sm"
+            disabled={action.busy}
+            onClick={() =>
+              void action.run(async () => {
+                await auth.request('/me/inbox/read', { method: 'POST' });
+                notifications.mutate((current) => ({
+                  ...current,
+                  results: current.results.map((shown) => ({ ...shown, read: true })),
+                }));
+                inbox.reload();
+                return 'Everything is marked read.';
+              }, 'Could not mark everything read')
+            }
+            type="button"
+          >
+            Mark all read
+          </button>
+        )
+      }
+      title="Inbox"
+    >
       {notifications.error ? (
         <LoadError error={notifications.error} onRetry={notifications.reload} />
       ) : !notifications.data ? (
@@ -100,6 +100,6 @@ export function InboxPage() {
           />
         </>
       )}
-    </section>
+    </Page>
   );
 }

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { choose } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -135,7 +136,8 @@ describe('Tidy', () => {
     });
     await render('/spaces/club/tags');
 
-    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('New rule'))!;
+    await act(async () => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === 'New rule')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="titleContains"]')!.value = 'receipt';
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -164,15 +166,16 @@ describe('Tidy', () => {
     });
     await render('/spaces/club/tags');
 
-    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('New rule'))!;
+    await act(async () => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === 'New rule')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     expect(container.textContent).toContain('Enter words to look for, or choose a file type.');
     expect(sent).toEqual([]);
 
-    form.querySelector<HTMLSelectElement>('select[name="fileType"]')!.value = 'pdf';
-    form.querySelector<HTMLSelectElement>('select[name="kind"]')!.value = 'note';
+    await choose(form, 'File type', 'PDFs');
+    await choose(form, 'Kind of item', 'Notes');
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });

@@ -137,9 +137,11 @@ describe('Invitations', () => {
     });
     await render('/spaces/choir/members');
 
-    const form = [...container.querySelectorAll('form')].at(-1)!;
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Invite people')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     fill(form, 'who', '@sam');
-    form.querySelector<HTMLSelectElement>('select[name="role"]')!.value = 'viewer';
+    await act(async () => form.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
+    await act(async () => [...form.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent?.startsWith('Viewer'))!.click());
     fill(form, 'note', 'Join us');
     await submit(form);
 

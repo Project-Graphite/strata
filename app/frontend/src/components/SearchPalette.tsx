@@ -20,9 +20,8 @@ const pages = [
   ['/invitations', 'Invitations'],
   ['/trash', 'Trash'],
   ['/settings', 'Profile settings'],
-  ['/settings/security', 'Password and two-step sign-in'],
-  ['/settings/sessions', 'Signed-in devices and security log'],
-  ['/settings/tokens', 'Access tokens'],
+  ['/settings/security', 'Password, two-step sign-in and signed-in devices'],
+  ['/settings/developer', 'Access tokens, API and webhooks'],
   ['/settings/data', 'Export or delete your data'],
 ] as const;
 

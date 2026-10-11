@@ -1,7 +1,10 @@
-import { Dialog, TextField } from '@project-graphite/ui';
+import { useState } from 'react';
+import { DatePicker, Dialog, Select, SuggestField, TextField } from '@project-graphite/ui';
+import { allCurrencies, currencyOptions } from '../choices';
 import { useAuth } from '../auth';
 import { catalogue, knownService } from '../catalogue';
-import { billingCycles, categories, fromMinor, toMinor, type Subscription } from '../subscriptions';
+import { spaceOptions, type Space } from '../spaces';
+import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
 
@@ -14,18 +17,29 @@ export function SubscriptionEditor({
   onClose,
   onSaved,
   spaceId,
+  spaces = [],
   subscription,
 }: {
   onClose: () => void;
   onSaved: (subscription: Subscription) => void;
   spaceId: string;
+  spaces?: Space[];
   subscription?: Subscription;
 }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
+  const [category, setCategory] = useState(subscription?.category ?? 'other');
+  const [cancelUrl, setCancelUrl] = useState(subscription?.cancelUrl ?? '');
   const customCycle = subscription && !billingCycles.some(([value]) => value === subscription.repeatRule);
   const today = new Date().toISOString().slice(0, 10);
+
+  function fillKnown(name: string) {
+    const known = knownService(name);
+    if (!known || subscription) return;
+    if (category === 'other') setCategory(known.category);
+    if (!cancelUrl) setCancelUrl(known.cancelUrl);
+  }
 
   return (
     <Dialog onClose={onClose} title={subscription ? `Edit ${subscription.name}` : 'New subscription'}>
@@ -53,7 +67,7 @@ export function SubscriptionEditor({
           void saving
             .run(async () => {
               const saved = await auth.request<Subscription>(
-                subscription ? `/subscriptions/${subscription.id}` : `/spaces/${spaceId}/subscriptions`,
+                subscription ? `/subscriptions/${subscription.id}` : `/spaces/${text('spaceId') || spaceId}/subscriptions`,
                 {
                   method: subscription ? 'PATCH' : 'POST',
                   body: JSON.stringify({
@@ -77,29 +91,19 @@ export function SubscriptionEditor({
             .then((saved) => saved && onClose());
         }}
       >
-        <TextField
-          autoComplete="off"
+        {spaces.length > 1 && <Select defaultValue={spaceId} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
+        <SuggestField
           defaultValue={subscription?.name}
           label="Name"
-          list="known-services"
           maxLength={100}
+          suggestions={catalogue.map((service) => service.name)}
           {...form.field('name')}
           onInput={(event) => {
             form.field('name').onInput();
-            const known = knownService(event.currentTarget.value);
-            const fields = event.currentTarget.form?.elements;
-            if (!known || subscription || !fields) return;
-            const category = fields.namedItem('category');
-            const cancelUrl = fields.namedItem('cancelUrl');
-            if (category instanceof HTMLSelectElement && category.value === 'other') category.value = known.category;
-            if (cancelUrl instanceof HTMLInputElement && !cancelUrl.value) cancelUrl.value = known.cancelUrl;
+            fillKnown(event.currentTarget.value);
           }}
+          onPick={fillKnown}
         />
-        <datalist id="known-services">
-          {catalogue.map((service) => (
-            <option key={service.name} value={service.name} />
-          ))}
-        </datalist>
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField
             defaultValue={subscription ? fromMinor(subscription.amountMinor, subscription.currency) : ''}
@@ -107,53 +111,44 @@ export function SubscriptionEditor({
             label="Price"
             {...form.field('amount')}
           />
-          <TextField
-            autoCapitalize="characters"
+          <Select
             defaultValue={subscription?.currency ?? 'EUR'}
             label="Currency"
-            maxLength={3}
-            {...form.field('currency')}
+            name="currency"
+            options={currencyOptions(allCurrencies)}
+            searchable
           />
-          <label className="field-label">
-            Billed
-            <select defaultValue={subscription?.repeatRule ?? 'FREQ=MONTHLY'} name="repeatRule">
-              {billingCycles.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-              {customCycle && <option value={subscription.repeatRule}>Custom ({subscription.repeatRule})</option>}
-            </select>
-          </label>
-          <label className="field-label">
-            First payment
-            <input defaultValue={subscription?.startDate ?? today} name="startDate" type="date" />
-          </label>
-          <label className="field-label">
-            Free trial ends
-            <input defaultValue={subscription?.trialEndsOn ?? ''} name="trialEndsOn" type="date" />
-          </label>
-          <label className="field-label">
-            Remind me
-            <select defaultValue={subscription?.reminderDays === null || !subscription ? '' : String(subscription.reminderDays)} name="reminderDays">
-              <option value="">Never</option>
-              <option value="0">On the day</option>
-              <option value="1">1 day before</option>
-              <option value="3">3 days before</option>
-              <option value="7">A week before</option>
-            </select>
-          </label>
+          <Select
+            defaultValue={subscription?.repeatRule ?? 'FREQ=MONTHLY'}
+            label="Billed"
+            name="repeatRule"
+            options={[
+              ...billingCycles.map(([value, label]) => ({ value: value as string, label: label as string })),
+              ...(customCycle ? [{ value: subscription.repeatRule, label: `Custom (${subscription.repeatRule})` }] : []),
+            ]}
+          />
+          <DatePicker defaultValue={subscription?.startDate ?? today} label="First payment" name="startDate" optional={false} />
+          <DatePicker defaultValue={subscription?.trialEndsOn ?? ''} label="Free trial ends" name="trialEndsOn" placeholder="No trial" />
+          <Select
+            defaultValue={subscription?.reminderDays == null ? '' : String(subscription.reminderDays)}
+            label="Remind me"
+            name="reminderDays"
+            options={[
+              { value: '', label: 'Never' },
+              { value: '0', label: 'On the day' },
+              { value: '1', label: '1 day before' },
+              { value: '3', label: '3 days before' },
+              { value: '7', label: 'A week before' },
+            ]}
+          />
         </div>
-        <label className="field-label">
-          Category
-          <select defaultValue={subscription?.category ?? 'other'} name="category">
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Category"
+          name="category"
+          onChange={setCategory}
+          options={categories.map((value) => ({ value, label: categoryLabel(value) }))}
+          value={category}
+        />
         <TextField
           defaultValue={subscription?.paymentLabel ?? ''}
           hint="A label only, for example “Visa ending 1234”. Card details are never stored."
@@ -161,7 +156,13 @@ export function SubscriptionEditor({
           maxLength={40}
           {...form.field('paymentLabel')}
         />
-        <TextField defaultValue={subscription?.cancelUrl ?? ''} inputMode="url" label="Cancel link" {...form.field('cancelUrl')} />
+        <TextField
+          inputMode="url"
+          label="Cancel link"
+          {...form.field('cancelUrl')}
+          onChange={(event) => setCancelUrl(event.currentTarget.value)}
+          value={cancelUrl}
+        />
         <TextField defaultValue={subscription?.usedBy ?? ''} label="Who uses it" maxLength={200} name="usedBy" />
         <div className="flex justify-end gap-3">
           <button className="secondary-button" onClick={onClose} type="button">

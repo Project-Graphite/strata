@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { automaticDashboard } from '../src/dashboard/Dashboard';
 import { AuthProvider } from '../src/auth';
+import { choose, chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,15 +71,14 @@ describe('Home dashboard', () => {
     expect(titles()).toEqual(['Clock', 'Shortcuts', 'Inbox']);
     expect(container.querySelector('a[href="https://mail.example.com"]')?.textContent).toContain('Mail');
     expect(container.textContent).toContain('The inbox is unavailable');
-    expect(container.querySelector('button[aria-label="Move Clock later"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Actions for Clock"]')).toBeNull();
 
     await act(async () => button('Edit').click());
-    await act(async () => button('Move Clock later').click());
+    await chooseFromMenu(container, 'Actions for Clock', 'Move later');
     expect(titles()).toEqual(['Shortcuts', 'Clock', 'Inbox']);
     await act(async () => button('Undo').click());
     expect(titles()).toEqual(['Clock', 'Shortcuts', 'Inbox']);
-    const removeInbox = [...container.querySelectorAll('article')].find((article) => article.getAttribute('aria-label') === 'Inbox')!;
-    await act(async () => [...removeInbox.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
+    await chooseFromMenu(container, 'Actions for Inbox', 'Remove');
     expect(saved).toBeUndefined();
 
     await act(async () => button('Done').click());
@@ -111,7 +111,7 @@ describe('Home dashboard', () => {
       ),
     );
 
-    const wall = [...container.querySelectorAll('a')].find((link) => link.getAttribute('aria-label') === 'Wall display')!;
+    const wall = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Wall display')!;
     expect(wall.getAttribute('href')).toBe('/?d=home&display=wall');
     await act(async () => wall.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
 
@@ -422,8 +422,9 @@ describe('Home dashboard', () => {
 
     const widget = container.querySelector('article[aria-label="Quick note"]')!;
     const note = widget.querySelector<HTMLTextAreaElement>('textarea')!;
-    const space = widget.querySelector<HTMLSelectElement>('select')!;
-    expect([...space.options].map((option) => option.textContent)).toEqual(['Mine', 'Flat']);
+    await act(async () => widget.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
+    expect([...widget.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual(['Mine', 'Flat']);
+    await act(async () => widget.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
     const type = async (text: string) =>
       act(async () => {
         Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(note, text);
@@ -438,10 +439,7 @@ describe('Home dashboard', () => {
     );
     expect(note.value).toBe('');
 
-    await act(async () => {
-      space.value = 'flat';
-      space.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await choose(widget, 'Save in', 'Flat');
     await type('Buy bin bags\nthe big ones');
     await act(async () => button('Save as task').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/flat/tasks', expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Buy bin bags' }) }));
@@ -490,15 +488,13 @@ describe('Home dashboard', () => {
       expect(container.querySelector('h1')?.textContent).toBe('Late');
 
       await act(async () => button('Edit').click());
-      const time = (label: string) => [...container.querySelectorAll('label')].find((candidate) => candidate.textContent?.startsWith(label))!.querySelector('input')!;
-      expect(time('From').value).toBe('22:00');
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(time('From'), '21:00');
-        time('From').dispatchEvent(new Event('input', { bubbles: true }));
-        const device = [...container.querySelectorAll('label')].find((candidate) => candidate.textContent?.startsWith('On'))!.querySelector('select')!;
-        device.value = 'desktop';
-        device.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      await act(async () => button('Dashboard settings').click());
+      const settings = container.querySelector('dialog')!;
+      const from = [...settings.querySelectorAll('[role="combobox"]')].find((trigger) => document.getElementById(trigger.getAttribute('aria-labelledby')!)?.textContent === 'From')!;
+      expect(from.textContent).toBe('22:00');
+      await choose(settings, 'From', '21:00');
+      await choose(settings, 'On', 'Computers');
+      await act(async () => [...settings.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Done')!.click());
       await act(async () => button('Done').click());
       expect(saved).toEqual({ layout: { widgets: [] }, name: 'Late', showFrom: 1260, showUntil: 360, showOn: 'desktop' });
 

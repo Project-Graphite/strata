@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useOutletContext, useParams } from 'react-router';
 import { EmptyState, PageHeader, PageSkeleton, Tabs } from '@project-graphite/ui';
-import { SpaceDot, useSpaces, type Space } from '../../spaces';
+import { SpaceMark, useSpaces, type Space } from '../../spaces';
 import { LoadError } from '../../components/LoadError';
 
 export function useSpace() {
@@ -37,22 +37,19 @@ export function SpaceLayout() {
   ] as const;
 
   return (
-    <div className="page-enter">
+    <div className="page-enter grid max-w-3xl content-start gap-8">
       <PageHeader
-        eyebrow={space.kind === 'personal' ? 'Personal space' : `Shared space · ${space.role}`}
         title={
           <span className="inline-flex items-center gap-3">
-            <SpaceDot color={space.color} />
+            <SpaceMark large space={space} />
             {space.name}
           </span>
         }
-      />
-      <div className="mt-8">
-        <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Space" />
-      </div>
-      <div className="mt-8">
-        <Outlet context={space} />
-      </div>
+      >
+        {space.kind === 'personal' ? 'Your own space. Only you can see what is in it.' : `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
+      </PageHeader>
+      <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Space" />
+      <Outlet context={space} />
     </div>
   );
 }

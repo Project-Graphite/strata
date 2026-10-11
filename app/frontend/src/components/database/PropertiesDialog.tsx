@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Icon, tagColors, type TagColor } from '@project-graphite/ui';
+import { Icon, Select, tagColors } from '@project-graphite/ui';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
+import { colorOptions } from '../../spaces';
 
 const hasOptions = (type: PropertyType) => type === 'select' || type === 'multiSelect';
 
@@ -48,17 +49,13 @@ export function PropertiesDialog({
                 onChange={(event) => change(property.id, { name: event.currentTarget.value })}
                 value={property.name}
               />
-              <select
+              <Select
                 aria-label={`Kind of ${property.name || 'property'}`}
-                onChange={(event) => change(property.id, { type: event.currentTarget.value as PropertyType })}
+                className="w-40"
+                onChange={(type: PropertyType) => change(property.id, { type })}
+                options={propertyTypes.map(([value, label]) => ({ value, label }))}
                 value={property.type}
-              >
-                {propertyTypes.map(([type, label]) => (
-                  <option key={type} value={type}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              />
               <button
                 aria-label={`Remove ${property.name || 'property'}`}
                 className="text-button"
@@ -83,24 +80,18 @@ export function PropertiesDialog({
                       }
                       value={option.name}
                     />
-                    <select
+                    <Select
                       aria-label={`Colour of ${option.name || 'option'}`}
-                      className="text-sm"
-                      onChange={(event) =>
+                      className="w-32"
+                      onChange={(color) =>
                         change(property.id, {
-                          options: property.options?.map((candidate) =>
-                            candidate.id === option.id ? { ...candidate, color: event.currentTarget.value as TagColor } : candidate,
-                          ),
+                          options: property.options?.map((candidate) => (candidate.id === option.id ? { ...candidate, color } : candidate)),
                         })
                       }
+                      options={colorOptions}
+                      size="small"
                       value={option.color}
-                    >
-                      {tagColors.map((color) => (
-                        <option key={color} value={color}>
-                          {color}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <button
                       aria-label={`Remove ${option.name || 'option'}`}
                       className="text-button"

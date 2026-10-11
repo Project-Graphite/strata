@@ -1,9 +1,12 @@
 import { useSearchParams, Link } from 'react-router';
-import { EmptyState, ListSkeleton, PageHeader, Tabs, TextField, timeAgo } from '@project-graphite/ui';
+import { useState } from 'react';
+import { EmptyState, ListSkeleton, Select, Tabs, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
+import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { useSpaces } from '../spaces';
+import { HeaderButton, Page } from '../components/Page';
+import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors, webAddress } from '../validation';
@@ -23,6 +26,7 @@ export function BookmarksPage() {
   const saving = useAction();
   const marking = useAction();
   const form = useFormErrors();
+  const [adding, setAdding] = useState(false);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const editable = (bookmark: Bookmark) => writable.some((space) => space.id === bookmark.spaceId);
 
@@ -35,44 +39,33 @@ export function BookmarksPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-6">
-      <PageHeader title="Bookmarks" />
-      {writable.length > 0 && (
-        <form
-          className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const target = event.currentTarget;
+    <Page actions={writable.length > 0 && <HeaderButton icon="plus" label="Save a link" onClick={() => setAdding(true)} primary />} title="Bookmarks">
+      {adding && (
+        <FormDialog
+          busy={saving.busy}
+          busyLabel="Saving…"
+          onClose={() => setAdding(false)}
+          onSubmit={(target) => {
             if (!form.check(target, { url: [required('Enter a web address.'), webAddress] })) return;
             const values = new FormData(target);
-            void saving.run(async () => {
-              const { fetchError } = await saveBookmark(auth.request, String(values.get('spaceId')), String(values.get('url')).trim());
-              target.reset();
-              listed.reload();
-              return fetchError ? `Saved, but the page could not be read: ${fetchError}` : 'Saved to read later.';
-            }, 'Could not save the link');
+            void saving
+              .run(async () => {
+                const { fetchError } = await saveBookmark(auth.request, String(values.get('spaceId')), String(values.get('url')).trim());
+                listed.reload();
+                return fetchError ? `Saved, but the page could not be read: ${fetchError}` : 'Saved to read later.';
+              }, 'Could not save the link')
+              .then((saved) => saved && setAdding(false));
           }}
+          submitLabel="Save"
+          title="Save a link"
         >
-          <TextField inputMode="url" label="Save a link" placeholder="https://" type="url" {...form.field('url')} />
+          <TextField autoFocus inputMode="url" label="Link" placeholder="https://" type="url" {...form.field('url')} />
           {writable.length > 1 ? (
-            <label className="field-label">
-              Space
-              <select defaultValue={writable[0]!.id} name="spaceId">
-                {writable.map((space) => (
-                  <option key={space.id} value={space.id}>
-                    {space.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select defaultValue={writable[0]!.id} label="Space" name="spaceId" options={spaceOptions(writable)} />
           ) : (
             <input name="spaceId" type="hidden" value={writable[0]!.id} />
           )}
-          <button className="primary-button" disabled={saving.busy} type="submit">
-            {saving.busy ? 'Saving…' : 'Save'}
-          </button>
-        </form>
+        </FormDialog>
       )}
       <Tabs items={filters.map(([value, label]) => ({ active: status === value, href: `/bookmarks?status=${value}`, label }))} label="Bookmarks" />
       {listed.error ? (
@@ -82,13 +75,13 @@ export function BookmarksPage() {
       ) : listed.data.length === 0 ? (
         <EmptyState title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'}>
           <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Paste a link above, or share one to Strata from another app, and it waits here with a clean reader view.
+            Save a link, or share one to Strata from another app, and it waits here with a clean reader view.
           </p>
         </EmptyState>
       ) : (
-        <ul className="panel-rows m-0 grid list-none p-0">
+        <ul className="panel-rows">
           {listed.data.map((bookmark) => (
-            <li className="flex items-start gap-3 px-4 py-3" key={bookmark.id}>
+            <li className="panel-row flex items-start gap-3" key={bookmark.id}>
               <div className="grid min-w-0 flex-1 gap-1">
                 <Link className="truncate text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
                   {bookmark.title}
@@ -111,6 +104,6 @@ export function BookmarksPage() {
           ))}
         </ul>
       )}
-    </section>
+    </Page>
   );
 }

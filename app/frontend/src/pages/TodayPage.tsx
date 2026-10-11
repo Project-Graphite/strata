@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router';
-import { EmptyState, ListSkeleton, PageHeader } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useSpaces } from '../spaces';
 import { TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 export function TodayPage() {
   const auth = useAuth();
@@ -16,8 +17,7 @@ export function TodayPage() {
   const spaceOf = (task: Task) => spaces.data?.find((space) => space.id === task.spaceId);
 
   return (
-    <section className="page-enter grid max-w-3xl gap-6">
-      <PageHeader title="Today" />
+    <Page title="Today">
       {tasks.error ? (
         <LoadError error={tasks.error} onRetry={tasks.reload} />
       ) : !tasks.data ? (
@@ -48,6 +48,6 @@ export function TodayPage() {
           ))}
         </ul>
       )}
-    </section>
+    </Page>
   );
 }

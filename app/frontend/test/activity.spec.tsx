@@ -140,6 +140,7 @@ describe('Activity, inbox and security log', () => {
       if (path === '/me/sessions') {
         return json([{ id: 's', deviceLabel: 'Firefox on Windows', signedInAt: at, lastUsedAt: at, current: true }]);
       }
+      if (path === '/me/two-step') return json({ enabled: false, recoveryCodesLeft: 0 });
       if (path === '/me/audit?page=1') {
         return json(
           page([
@@ -150,7 +151,7 @@ describe('Activity, inbox and security log', () => {
       }
       return undefined;
     });
-    await render('/settings/sessions');
+    await render('/settings/security');
 
     expect(container.textContent).toContain('Failed sign-in · wrong password · Safari on iOS');
     expect(container.textContent).toContain('Two-step sign-in turned on');
