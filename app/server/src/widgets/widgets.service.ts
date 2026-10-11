@@ -1,9 +1,10 @@
 import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { parseFeed, type Feed } from './feed';
-import { fetchPublic, UnsafeUrlError } from './safe-fetch';
+import { fetchPublic, statusOfPublic, UnsafeUrlError } from './safe-fetch';
 
 const cacheSeconds = 30 * 60;
+const statusCacheSeconds = 60;
 
 interface Forecast {
   current: { temperature_2m: number; weather_code: number; wind_speed_10m: number };
@@ -85,17 +86,34 @@ export class WidgetsService {
     });
   }
 
+  async status(url: string) {
+    return this.cached(
+      `widget:status:${url}`,
+      async () => {
+        const started = Date.now();
+        try {
+          const status = await statusOfPublic(url, 5_000);
+          return { up: status >= 200 && status < 400, status, ms: Date.now() - started, error: null };
+        } catch (error) {
+          if (error instanceof UnsafeUrlError) throw new BadRequestException(error.message);
+          return { up: false, status: null, ms: Date.now() - started, error: (error as Error).message };
+        }
+      },
+      statusCacheSeconds,
+    );
+  }
+
   private async openMeteo<T>(url: string) {
     const response = await fetch(url, { signal: AbortSignal.timeout(5_000) }).catch(() => null);
     if (!response?.ok) throw new BadGatewayException('The weather service is not answering right now');
     return (await response.json()) as T;
   }
 
-  private async cached<T>(key: string, load: () => Promise<T>) {
+  private async cached<T>(key: string, load: () => Promise<T>, seconds = cacheSeconds) {
     const hit = await this.redis.run((client) => client.get(key));
     if (hit) return JSON.parse(hit) as T;
     const value = await load();
-    await this.redis.run((client) => client.set(key, JSON.stringify(value), { EX: cacheSeconds }));
+    await this.redis.run((client) => client.set(key, JSON.stringify(value), { EX: seconds }));
     return value;
   }
 }

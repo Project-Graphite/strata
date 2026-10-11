@@ -165,13 +165,37 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
   );
 }
 
-function feedsOf(settings: Record<string, unknown>) {
-  return Array.isArray(settings.feeds) ? (settings.feeds as unknown[]).filter((feed): feed is string => typeof feed === 'string') : [];
+function stringsOf(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function AddressLines({ label, max, onChange, placeholder, values }: { label: string; max: number; onChange: (values: string[]) => void; placeholder: string; values: string[] }) {
+  const [text, setText] = useState(values.join('\n'));
+  return (
+    <label className="field-label">
+      {label}
+      <textarea
+        onChange={(event) => {
+          setText(event.currentTarget.value);
+          onChange(
+            event.currentTarget.value
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .slice(0, max),
+          );
+        }}
+        placeholder={placeholder}
+        rows={4}
+        value={text}
+      />
+    </label>
+  );
 }
 
 export function News({ settings }: WidgetProps) {
   const { request } = useAuth();
-  const feeds = feedsOf(settings);
+  const feeds = stringsOf(settings.feeds);
   const count = typeof settings.count === 'number' ? settings.count : 5;
   const key = feeds.join('\n');
   const [loaded, setLoaded] = useState<{ key: string; stories: Story[]; failed: number }>();
@@ -224,26 +248,15 @@ export function News({ settings }: WidgetProps) {
 }
 
 export function NewsSettings({ onChange, settings }: SettingsProps) {
-  const [text, setText] = useState(feedsOf(settings).join('\n'));
   return (
     <div className="grid gap-3">
-      <label className="field-label">
-        Feed addresses, one per line (up to 5)
-        <textarea
-          onChange={(event) => {
-            setText(event.currentTarget.value);
-            const feeds = event.currentTarget.value
-              .split('\n')
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .slice(0, 5);
-            onChange({ ...settings, feeds });
-          }}
-          placeholder="https://example.com/feed.xml"
-          rows={4}
-          value={text}
-        />
-      </label>
+      <AddressLines
+        label="Feed addresses, one per line (up to 5)"
+        max={5}
+        onChange={(feeds) => onChange({ ...settings, feeds })}
+        placeholder="https://example.com/feed.xml"
+        values={stringsOf(settings.feeds)}
+      />
       <label className="field-label max-w-xs">
         Stories to show
         <select onChange={(event) => onChange({ ...settings, count: Number(event.currentTarget.value) })} value={typeof settings.count === 'number' ? settings.count : 5}>
@@ -255,5 +268,92 @@ export function NewsSettings({ onChange, settings }: SettingsProps) {
         </select>
       </label>
     </div>
+  );
+}
+
+interface SiteCheck {
+  up: boolean;
+  status: number | null;
+  ms: number;
+  error: string | null;
+}
+
+export const projectGraphiteSites = [
+  'https://project-graphite.com/',
+  'https://strata.project-graphite.com/health',
+  'https://graphite-tracker.project-graphite.com/health',
+  'https://message-lab.project-graphite.com/',
+  'https://pixelpocket.project-graphite.com/health',
+  'https://digital-to-physical.project-graphite.com/health',
+];
+
+function siteName(url: string) {
+  const host = new URL(url).hostname.replace(/^www\./, '');
+  return host.endsWith('.project-graphite.com') ? host.slice(0, -'.project-graphite.com'.length) : host;
+}
+
+function checkText(check: SiteCheck | string) {
+  if (typeof check === 'string') return check;
+  if (check.up) return `up · ${check.ms} ms`;
+  return `down · ${check.status ?? check.error}`;
+}
+
+export function SiteStatus({ settings }: WidgetProps) {
+  const { request } = useAuth();
+  const key = stringsOf(settings.sites).join('\n');
+  const [checked, setChecked] = useState<{ key: string; checks: (SiteCheck | string)[] }>();
+
+  useEffect(() => {
+    if (!key) return;
+    const controller = new AbortController();
+    const check = () =>
+      void Promise.allSettled(
+        key.split('\n').map((url) => request<SiteCheck>(`/widgets/status?url=${encodeURIComponent(url)}`, { signal: controller.signal })),
+      ).then((results) => {
+        if (controller.signal.aborted) return;
+        setChecked({ key, checks: results.map((result) => (result.status === 'fulfilled' ? result.value : errorMessage(result.reason, 'Could not check'))) });
+      });
+    check();
+    const timer = window.setInterval(check, 60_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [key, request]);
+
+  if (!key) return <Empty>Add the addresses to check in this widget's settings.</Empty>;
+  if (checked?.key !== key) return <ListSkeleton label="Checking your apps" rows={3} />;
+  const sites = key.split('\n');
+  const down = checked.checks.filter((check) => typeof check === 'string' || !check.up).length;
+  return (
+    <div className="grid gap-2">
+      <p className="m-0 text-sm text-ink">{down === 0 ? 'Everything is up.' : `${down} of ${sites.length} not answering.`}</p>
+      <ul className="m-0 grid list-none gap-1.5 p-0">
+        {sites.map((url, index) => {
+          const check = checked.checks[index]!;
+          return (
+            <li className="flex items-center gap-2 text-sm" key={url}>
+              <span aria-hidden="true" className={`tag-dot tag-${typeof check !== 'string' && check.up ? 'green' : 'red'}`} />
+              <a className="min-w-0 flex-1 truncate text-ink no-underline hover:underline" href={url} rel="noopener noreferrer" target="_blank">
+                {siteName(url)}
+              </a>
+              <span className="mono-sm shrink-0 text-faint">{checkText(check)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function SiteStatusSettings({ onChange, settings }: SettingsProps) {
+  return (
+    <AddressLines
+      label="Addresses to check, one per line (up to 10)"
+      max={10}
+      onChange={(sites) => onChange({ ...settings, sites })}
+      placeholder="https://example.com/health"
+      values={stringsOf(settings.sites)}
+    />
   );
 }

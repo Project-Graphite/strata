@@ -17,10 +17,10 @@ import { useResource } from '../useResource';
 import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { Capture } from './capture-widget';
-import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
+import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -589,4 +589,5 @@ export const widgetKinds: Record<
   pages: { title: 'Pinned and recent pages', size: 'medium', settings: {}, View: Pages },
   board: { title: 'Board', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
   bookmarks: { title: 'Read later', size: 'medium', settings: {}, View: ReadLater },
+  status: { title: 'Are my apps up?', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
 };
