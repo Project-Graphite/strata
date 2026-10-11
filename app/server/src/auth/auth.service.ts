@@ -52,6 +52,7 @@ interface SessionUser {
   displayName: string;
   role: UserRole;
   timeZone: string;
+  features: string[];
 }
 
 function handleTaken() {
@@ -496,6 +497,7 @@ export class AuthService implements OnModuleInit {
         displayName: user.displayName,
         role: user.role.toLowerCase(),
         timeZone: user.timeZone,
+        features: user.features,
       },
     };
   }

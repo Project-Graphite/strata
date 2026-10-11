@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CommandPalette, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { enabledFeatures } from '../features';
 import { itemHref, useSpaces, type Tag } from '../spaces';
 
 interface SearchResults {
@@ -21,6 +22,7 @@ const pages = [
   ['/trash', 'Trash'],
   ['/settings', 'Profile settings'],
   ['/settings/security', 'Password, two-step sign-in and signed-in devices'],
+  ['/settings/features', 'Turn features on or off'],
   ['/settings/developer', 'Access tokens, API and webhooks'],
   ['/settings/data', 'Export or delete your data'],
 ] as const;
@@ -89,7 +91,11 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(spaces.data ?? [])
       .filter((space) => matches(space.name))
       .map((space) => ({ group: 'Spaces', href: `/spaces/${space.id}`, id: `space-${space.id}`, label: space.name })),
-    ...[...pages, ...(user?.role === 'system_manager' ? ([['/admin', 'Site settings']] as const) : [])]
+    ...[
+      ...pages,
+      ...enabledFeatures(user?.features).map((feature) => [feature.href, feature.label] as const),
+      ...(user?.role === 'system_manager' ? ([['/admin', 'Site settings']] as const) : []),
+    ]
       .filter(([, label]) => matches(label))
       .map(([href, label]) => ({ group: 'Go to', href, id: `page-${href}`, label })),
   ];

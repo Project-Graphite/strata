@@ -10,6 +10,8 @@ import { BookmarkPage } from './pages/BookmarkPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CalendarsPage } from './pages/CalendarsPage';
 import { EventPage } from './pages/EventPage';
+import { GoalPage } from './pages/GoalPage';
+import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
@@ -28,6 +30,7 @@ import { RsvpPage, SharePage } from './pages/RsvpPages';
 import { SavePage } from './pages/SavePage';
 import { DataSettings } from './pages/settings/DataSettings';
 import { DeveloperSettings } from './pages/settings/DeveloperSettings';
+import { FeaturesSettings } from './pages/settings/FeaturesSettings';
 import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
 import { SettingsLayout } from './pages/settings/SettingsLayout';
@@ -53,6 +56,11 @@ function Protected({ children }: { children: ReactNode }) {
     return <PageSkeleton label="Loading your session" />;
   }
   return auth.user ? children : <Navigate replace state={{ from: location }} to="/login" />;
+}
+
+function FeatureRoute({ children, feature }: { children: ReactNode; feature: string }) {
+  const auth = useAuth();
+  return auth.user?.features.includes(feature) ? children : <Navigate replace state={{ feature }} to="/settings/features" />;
 }
 
 function SignedOutLogin() {
@@ -110,6 +118,26 @@ export function App() {
           <Route path="invite/:code" element={<InvitePage />} />
           <Route path="rsvp/:code" element={<RsvpPage />} />
           <Route path="share/:code" element={<SharePage />} />
+          <Route
+            path="goals"
+            element={
+              <Protected>
+                <FeatureRoute feature="goals">
+                  <GoalsPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="goals/:id"
+            element={
+              <Protected>
+                <FeatureRoute feature="goals">
+                  <GoalPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
           <Route
             path="agenda"
             element={
@@ -279,6 +307,7 @@ export function App() {
             }
           >
             <Route index element={<ProfileSettings />} />
+            <Route path="features" element={<FeaturesSettings />} />
             <Route path="security" element={<SecuritySettings />} />
             <Route path="developer" element={<DeveloperSettings />} />
             <Route path="sessions" element={<Navigate replace to="/settings/security" />} />

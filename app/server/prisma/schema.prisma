@@ -27,6 +27,7 @@ enum ItemKind {
   FILE         @map("file")
   LIST         @map("list")
   BOOKMARK     @map("bookmark")
+  GOAL         @map("goal")
 }
 
 enum LinkKind {
@@ -76,6 +77,7 @@ model User {
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
+  features            String[]               @default([])
   calendarFeedHash    String?                @unique @map("calendar_feed_hash")
   isActive            Boolean                @default(true) @map("is_active")
   role                UserRole               @default(MEMBER)
@@ -279,6 +281,8 @@ model Item {
   comments       NoteComment[]
   pollOptions    EventPollOption[]
   bookmark       Bookmark?
+  goal           Goal?
+  goalHabits     GoalHabit[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -775,6 +779,7 @@ model Habit {
   createdAt DateTime       @default(now()) @map("created_at")
   space     Space          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   checkIns  HabitCheckIn[]
+  goals     GoalHabit[]
 
   @@index([spaceId, position])
   @@map("habits")
@@ -973,4 +978,31 @@ model WebhookDelivery {
   @@index([webhookId, createdAt])
   @@index([createdAt])
   @@map("webhook_deliveries")
+}
+
+model Goal {
+  itemId   String   @id @map("item_id") @db.Uuid
+  period   String
+  startsOn DateTime @map("starts_on") @db.Date
+  endsOn   DateTime @map("ends_on") @db.Date
+  status   String   @default("active")
+  why      String   @default("")
+  target   Float?
+  current  Float?
+  unit     String?
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([endsOn])
+  @@map("goals")
+}
+
+model GoalHabit {
+  goalId  String @map("goal_id") @db.Uuid
+  habitId String @map("habit_id") @db.Uuid
+  goal    Item   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, habitId])
+  @@index([habitId])
+  @@map("goal_habits")
 }

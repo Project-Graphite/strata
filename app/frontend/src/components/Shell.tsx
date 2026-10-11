@@ -13,6 +13,7 @@ import {
 import { onOutage } from '../api';
 import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
+import { enabledFeatures } from '../features';
 import { areaSections, moreAreas } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
 import { useAction } from '../useAction';
@@ -148,7 +149,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={areaSections(pathname, spaces.data, unread)}
+              sections={areaSections(pathname, spaces.data, unread, enabledFeatures(auth.user?.features))}
             />
           )
         }

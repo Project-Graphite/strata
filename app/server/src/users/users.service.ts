@@ -17,6 +17,7 @@ export class UsersService {
       tidySummary: user.tidySummary,
       weeklyReview: user.weeklyReview,
       homeCurrency: user.homeCurrency,
+      features: user.features,
       role: user.role.toLowerCase(),
     };
   }
@@ -24,7 +25,14 @@ export class UsersService {
   async updateProfile(userId: string, input: UpdateProfileDto) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { displayName: input.displayName, timeZone: input.timeZone, tidySummary: input.tidySummary, weeklyReview: input.weeklyReview, homeCurrency: input.homeCurrency },
+      data: {
+        displayName: input.displayName,
+        timeZone: input.timeZone,
+        tidySummary: input.tidySummary,
+        weeklyReview: input.weeklyReview,
+        homeCurrency: input.homeCurrency,
+        features: input.features,
+      },
     });
     return this.me(userId);
   }

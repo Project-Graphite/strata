@@ -14,6 +14,7 @@ import { EventsModule } from './events/events.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { FilesModule } from './files/files.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { GoalsModule } from './goals/goals.module';
 import { HabitsModule } from './habits/habits.module';
 import { JournalModule } from './journal/journal.module';
 import { HealthModule } from './health/health.module';
@@ -70,6 +71,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     TidyModule,
     CalendarModule,
     HabitsModule,
+    GoalsModule,
     JournalModule,
     NotesModule,
     RealtimeModule,
