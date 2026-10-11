@@ -61,7 +61,8 @@ class Environment {
 }
 
 export function validateEnvironment(config: Record<string, unknown>) {
-  const errors = validateSync(plainToInstance(Environment, config, { enableImplicitConversion: true }));
+  const present = Object.fromEntries(Object.entries(config).filter(([, value]) => value !== ''));
+  const errors = validateSync(plainToInstance(Environment, present, { enableImplicitConversion: true }));
   if (errors.length > 0) {
     throw new Error(`Missing or invalid settings: ${errors.map((error) => error.property).join(', ')}`);
   }
