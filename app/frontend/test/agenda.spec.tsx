@@ -119,7 +119,14 @@ describe('Agenda and RSVP', () => {
     expect(container.textContent).toContain('Hi Sam.');
     expect(container.textContent).not.toContain('Date to be decided');
     const form = container.querySelector('form')!;
-    form.querySelector<HTMLInputElement>('input[value="yes"]')!.checked = true;
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(form.querySelector('[role="alert"]')?.textContent).toBe('Choose yes, maybe or no.');
+    expect(fetchMock.mock.calls.some(([path, init]) => path === `/api/v1/rsvp/${code}` && init?.method === 'POST')).toBe(false);
+
+    await act(async () => form.querySelector<HTMLInputElement>('input[value="yes"]')!.click());
+    expect(form.querySelector('[role="alert"]')).toBeNull();
     form.querySelector<HTMLTextAreaElement>('textarea[name="note"]')!.value = 'Bringing cake';
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

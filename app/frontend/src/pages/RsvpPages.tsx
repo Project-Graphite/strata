@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState, FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
@@ -34,16 +34,21 @@ function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boo
   );
 }
 
-function ResponseFields({ current }: { current?: Guest['response'] }) {
+function ResponseFields({ current, missing, onChoose }: { current?: Guest['response']; missing: boolean; onChoose: () => void }) {
   return (
-    <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0">
+    <fieldset aria-invalid={missing || undefined} className="m-0 flex flex-wrap gap-4 border-0 p-0">
       <legend className="field-label mb-2">Can you come?</legend>
       {(['yes', 'maybe', 'no'] as const).map((response) => (
         <label className="flex items-center gap-2 text-ink" key={response}>
-          <input defaultChecked={current === response} name="response" required type="radio" value={response} />
+          <input defaultChecked={current === response} name="response" onChange={onChoose} required type="radio" value={response} />
           {response === 'yes' ? 'Yes' : response === 'no' ? 'No' : 'Maybe'}
         </label>
       ))}
+      {missing && (
+        <p className="error-message m-0 w-full" role="alert">
+          Choose yes, maybe or no.
+        </p>
+      )}
     </fieldset>
   );
 }
@@ -57,6 +62,7 @@ export function RsvpPage() {
   const answering = useAction();
   const voting = useAction();
   const form = useFormErrors();
+  const [unanswered, setUnanswered] = useState(false);
 
   if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
   if (!invitation.data) {
@@ -78,6 +84,7 @@ export function RsvpPage() {
           submitted.preventDefault();
           const target = submitted.currentTarget;
           const values = new FormData(target);
+          setUnanswered(!values.get('response'));
           if (!values.get('response') || !form.check(target, { note: noteChecks })) return;
           const note = String(values.get('note')).trim();
           void answering.run(async () => {
@@ -110,7 +117,7 @@ export function RsvpPage() {
             />
           </div>
         )}
-        <ResponseFields current={guest.response} />
+        <ResponseFields current={guest.response} missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
         <button className="primary-button" disabled={answering.busy} type="submit">
           {answering.busy ? 'Saving…' : 'Send answer'}
@@ -129,6 +136,7 @@ export function SharePage() {
   );
   const answering = useAction();
   const form = useFormErrors();
+  const [unanswered, setUnanswered] = useState(false);
 
   if (shared.loading) return <FormPanelSkeleton label="Loading" />;
   if (!shared.data) {
@@ -170,7 +178,8 @@ export function SharePage() {
           submitted.preventDefault();
           const target = submitted.currentTarget;
           const values = new FormData(target);
-          if (!values.get('response') || !form.check(target, { name: [required('Enter your name.')], note: noteChecks })) return;
+          setUnanswered(!values.get('response'));
+          if (!form.check(target, { name: [required('Enter your name.')], note: noteChecks }) || !values.get('response')) return;
           const note = String(values.get('note')).trim();
           void answering.run(async () => {
             const { link } = await apiRequest<{ link: string }>(`/share/${encodeURIComponent(code)}/rsvp`, {
@@ -184,7 +193,7 @@ export function SharePage() {
       >
         {shared.data.datePoll && <p className="m-0 text-sm text-muted">The date isn’t fixed yet. Answer here, then say which of the suggested dates work.</p>}
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
-        <ResponseFields />
+        <ResponseFields missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
         <button className="primary-button" disabled={answering.busy} type="submit">
           {answering.busy ? 'Saving…' : 'Send answer'}

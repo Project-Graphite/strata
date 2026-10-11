@@ -28,7 +28,8 @@ describe('Weekly review against Postgres', () => {
     expect(text).toContain('File the taxes');
     expect(text).toContain('Call the plumber');
     expect(text).toMatch(/Book club/);
-    expect(text).toContain('Stretch: 0 of 7 this week, 0-day streak');
+    expect(text).toMatch(/Stretch: 0 of 7 this week$/m);
+    expect(text).not.toContain('0-day streak');
 
     const second = (await owner.call('POST', '/me/weekly-review')).body;
     expect((await owner.call('GET', `/notes/${second.noteId}`)).body.parentId).toBe(page.parentId);

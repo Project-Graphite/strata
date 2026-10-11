@@ -98,7 +98,10 @@ export class WeeklyReviewService implements OnModuleInit {
       ...(habits.length
         ? section(
             'Habits',
-            habits.map((habit) => `${habit.name}: ${habit.thisWeek} of ${habit.perWeek} this week, ${habit.streak}-${habit.perWeek >= 7 ? 'day' : 'week'} streak`),
+            habits.map(
+              (habit) =>
+                `${habit.name}: ${habit.thisWeek} of ${habit.perWeek} this week${habit.streak ? `, ${habit.streak}-${habit.perWeek >= 7 ? 'day' : 'week'} streak` : ''}`,
+            ),
             '',
           )
         : []),
