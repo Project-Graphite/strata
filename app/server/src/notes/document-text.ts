@@ -1,4 +1,7 @@
+import { ItemKind } from '@prisma/client';
 import * as Y from 'yjs';
+
+export const pageKinds: ItemKind[] = [ItemKind.NOTE, ItemKind.BOARD];
 
 const blockSeparator = '\n';
 

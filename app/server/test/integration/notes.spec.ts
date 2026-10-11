@@ -401,4 +401,37 @@ describe('Notes and real-time editing against Postgres', () => {
     const elsewhere = await member('borrower');
     expect((await elsewhere.call('POST', `/spaces/${elsewhere.personalSpaceId}/notes`, { fromNoteId: captured.id })).status).toBe(400);
   });
+
+  it('creates an imported page from its document, indexes it and links its images', async () => {
+    const owner = await member('importer');
+    const stranger = await member('outsider');
+    const space = owner.personalSpaceId;
+    const picture = await strata.item(space, 'map.png', ItemKind.FILE);
+    const hidden = await strata.item(stranger.personalSpaceId, 'secret.png', ItemKind.FILE);
+    const document = new Y.Doc();
+    const heading = new Y.XmlElement('heading');
+    heading.setAttribute('level', 2 as never);
+    heading.insert(0, [new Y.XmlText('Packing')]);
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', picture.id);
+    const other = new Y.XmlElement('image');
+    other.setAttribute('fileId', hidden.id);
+    document.getXmlFragment('default').push([heading, image, other]);
+    const state = Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64');
+
+    const imported = await owner.call('POST', `/spaces/${space}/notes`, { title: 'Trip', state });
+    expect(imported.status).toBe(201);
+    const stored = await strata.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: imported.body.id } });
+    const copy = new Y.Doc();
+    Y.applyUpdate(copy, new Uint8Array(stored.state));
+    expect(textOf(copy)).toContain('<heading level="2">Packing</heading>');
+    expect((await owner.call('GET', '/search?q=packing')).body.items).toEqual([expect.objectContaining({ id: imported.body.id })]);
+    expect(await strata.prisma.itemLink.findMany({ where: { sourceItemId: imported.body.id }, select: { kind: true, targetItemId: true } })).toEqual([
+      { kind: 'ATTACHMENT', targetItemId: picture.id },
+    ]);
+
+    expect((await owner.call('POST', `/spaces/${space}/notes`, { state: 'not base64!' })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${space}/notes`, { state: Buffer.from('nonsense').toString('base64') })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${space}/notes`, { board: true, state })).status).toBe(400);
+  });
 });

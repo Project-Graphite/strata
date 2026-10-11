@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { EmptyState, Icon, ListSkeleton, Menu, PageHeader, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
-import { noteTitle, type Note } from '../notes';
+import { announcePagesChanged, noteTitle, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -18,6 +20,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const spaces = useSpaces();
   const listed = useResource<Note[]>(`/me/notes?kind=${kind}`, true);
   const creating = useAction();
+  const [importing, setImporting] = useState(false);
   const words = wording[kind];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
@@ -33,25 +36,42 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
     <section className="page-enter grid max-w-3xl gap-8">
       <PageHeader
         actions={
-          writable.length === 1 ? (
-            <button className="primary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create(writable[0]!.id)} type="button">
-              <Icon name="plus" size={16} />
-              {words.create}
-            </button>
-          ) : (
-            writable.length > 1 && (
-              <Menu
-                items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
-                label="Spaces"
-                trigger={words.create}
-                triggerClassName="primary-button px-3 py-2 text-sm"
-                triggerLabel={`${words.create}: choose a space`}
-              />
-            )
-          )
+          <>
+            {kind === 'note' && writable.length > 0 && (
+              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setImporting(true)} type="button">
+                Import
+              </button>
+            )}
+            {writable.length === 1 ? (
+              <button className="primary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create(writable[0]!.id)} type="button">
+                <Icon name="plus" size={16} />
+                {words.create}
+              </button>
+            ) : (
+              writable.length > 1 && (
+                <Menu
+                  items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
+                  label="Spaces"
+                  trigger={words.create}
+                  triggerClassName="primary-button px-3 py-2 text-sm"
+                  triggerLabel={`${words.create}: choose a space`}
+                />
+              )
+            )}
+          </>
         }
         title={words.title}
       />
+      {importing && (
+        <ImportPages
+          onClose={() => setImporting(false)}
+          onDone={() => {
+            listed.reload();
+            announcePagesChanged();
+          }}
+          spaces={writable}
+        />
+      )}
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (

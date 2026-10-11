@@ -11,8 +11,7 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
-import { boardElementsKey, documentLinks, documentText } from '../notes/document-text';
-import { pageKinds } from '../notes/notes.service';
+import { boardElementsKey, documentLinks, documentText, pageKinds } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const realtimePath = '/api/v1/realtime';

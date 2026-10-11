@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import * as Y from 'yjs';
 
 export type Block = ['heading', string] | ['paragraph', string] | ['bullets', string[]] | ['numbers', string[]] | ['tasks', string[]];
@@ -75,6 +76,16 @@ export function blocksDocument(blocks: Block[]) {
 
 export function templateDocument(template: BuiltInTemplate) {
   return blocksDocument(builtInTemplates[template]);
+}
+
+export function importedDocument(state: string) {
+  const document = new Y.Doc();
+  try {
+    Y.applyUpdate(document, Buffer.from(state, 'base64'));
+  } catch {
+    throw new BadRequestException('That page could not be read');
+  }
+  return document;
 }
 
 export function textDocument(text: string) {

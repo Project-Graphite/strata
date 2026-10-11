@@ -6,8 +6,7 @@ import type { ExcalidrawElement, ExcalidrawTextElement, FileId } from '@excalidr
 import type { AppState, Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
 import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { maxUploadBytes, preparedUpload } from '../files';
-import type { Item } from '../spaces';
+import { maxUploadBytes, uploadFile } from '../files';
 import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
@@ -266,11 +265,7 @@ function LiveBoard({
       show({ message: `${file.name} is over 25 MB.`, tone: 'error' });
       throw new Error('Too large');
     }
-    const uploaded = await auth.request<Item>(`/spaces/${spaceId}/files`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
-      body: await preparedUpload(file),
-    });
+    const uploaded = await uploadFile(auth.request, spaceId, file);
     return uploaded.id as FileId;
   }
 

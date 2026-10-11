@@ -10,8 +10,7 @@ import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
-import { maxUploadBytes, preparedUpload } from '../files';
-import type { Item } from '../spaces';
+import { maxUploadBytes, uploadFile } from '../files';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
@@ -123,11 +122,7 @@ function CollaborativeEditor({
           continue;
         }
         try {
-          const uploaded = await auth.request<Item>(`/spaces/${spaceId}/files`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
-            body: await preparedUpload(file),
-          });
+          const uploaded = await uploadFile(auth.request, spaceId, file);
           const image = view.state.schema.nodes.image!.create({ fileId: uploaded.id, alt: file.name });
           view.dispatch(view.state.tr.replaceSelectionWith(image));
         } catch {
