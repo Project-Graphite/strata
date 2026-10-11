@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { ListSkeleton, PageHeader, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { Dialog, ListSkeleton, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
-import { addJoinedSpace, SpaceDot, useSpaces } from '../spaces';
+import { addJoinedSpace, SpaceMark, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { emailAddress, useFormErrors } from '../validation';
+import { emailAddress, required, useFormErrors } from '../validation';
+import { CopyLink } from '../components/CopyLink';
+import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
+import { HeaderButton, Page, Section } from '../components/Page';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
   pending: 'waiting',
@@ -21,8 +24,7 @@ export function InvitationsPage() {
   const received = useResource<ReceivedInvitation[]>('/me/invitations', true);
   const sent = useResource<SentInvitation[]>('/invitations', true);
   const answering = useAction();
-  const inviting = useAction();
-  const inviteForm = useFormErrors();
+  const [creating, setCreating] = useState<'email' | 'link' | null>(null);
   const [link, setLink] = useState('');
 
   function answer(invitation: ReceivedInvitation, accept: boolean) {
@@ -35,117 +37,64 @@ export function InvitationsPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-12">
-      <PageHeader title="Invitations" />
-
-      <section>
-        <h2 className="m-0 text-xl font-medium">For you</h2>
+    <Page
+      actions={
+        <>
+          <HeaderButton icon="link" label="Create invite link" onClick={() => setCreating('link')} />
+          <HeaderButton icon="mail" label="Invite by email" onClick={() => setCreating('email')} primary />
+        </>
+      }
+      description="Invite someone to Strata. Each invite works once, for 14 days."
+      title="Invitations"
+    >
+      <Section title="For you">
         {received.error ? (
           <LoadError error={received.error} onRetry={received.reload} />
         ) : !received.data ? (
           <ListSkeleton label="Loading your invitations" rows={2} />
         ) : received.data.length === 0 ? (
-          <p className="mt-2 mb-0 text-sm text-muted">No one has invited you to a space right now.</p>
+          <p className="m-0 text-sm text-muted">No one has invited you to a space right now.</p>
         ) : (
-          <ul className="mt-3 grid list-none gap-0 p-0">
+          <ul className="panel-rows">
             {received.data.map((invitation) => (
-              <li className="flex flex-wrap items-center justify-between gap-4 border-b border-line-soft py-4" key={invitation.id}>
-                <div className="min-w-0">
-                  <p className="m-0 inline-flex items-center gap-2 text-ink">
-                    <SpaceDot color={invitation.space.color} />
-                    {invitation.space.name}
-                  </p>
-                  <p className="mono-sm m-0 mt-1 text-faint">
-                    {invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}
-                  </p>
-                  {invitation.note && <p className="mt-2 mb-0 text-sm text-muted">“{invitation.note}”</p>}
+              <li className="panel-row flex flex-wrap items-center justify-between gap-4" key={invitation.id}>
+                <div className="flex min-w-0 items-start gap-3">
+                  <SpaceMark space={invitation.space} />
+                  <div className="min-w-0">
+                    <p className="m-0 text-ink">{invitation.space.name}</p>
+                    <p className="m-0 mt-0.5 text-sm text-muted">
+                      {invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}
+                    </p>
+                    {invitation.note && <p className="mt-2 mb-0 text-sm text-muted">“{invitation.note}”</p>}
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <button
-                    className="primary-button px-3 py-2 text-sm"
-                    disabled={answering.busy}
-                    onClick={() => answer(invitation, true)}
-                    type="button"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    className="secondary-button px-3 py-2 text-sm"
-                    disabled={answering.busy}
-                    onClick={() => answer(invitation, false)}
-                    type="button"
-                  >
+                  <button className="secondary-button px-3 py-2 text-sm" disabled={answering.busy} onClick={() => answer(invitation, false)} type="button">
                     Decline
+                  </button>
+                  <button className="primary-button px-3 py-2 text-sm" disabled={answering.busy} onClick={() => answer(invitation, true)} type="button">
+                    Accept
                   </button>
                 </div>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="m-0 text-xl font-medium">Invite someone to Strata</h2>
-        <p className="mt-2 mb-0 text-sm text-muted">
-          Each invite works once, for 14 days. Leave the email empty to get a link to send yourself.
-        </p>
-        <form
-          className="mt-5 grid gap-4"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const target = event.currentTarget;
-            if (!inviteForm.check(target, { email: [emailAddress], note: noteChecks })) return;
-            const values = new FormData(target);
-            const email = String(values.get('email')).trim();
-            const note = String(values.get('note')).trim();
-            void inviting
-              .run(async () => {
-                const created = await auth.request<{ invitation: SentInvitation; link: string; emailed: boolean }>(
-                  '/invitations',
-                  { method: 'POST', body: JSON.stringify({ ...(email ? { email } : {}), ...(note ? { note } : {}) }) },
-                );
-                setLink(created.link);
-                sent.mutate((current) => [created.invitation, ...current]);
-                return created.emailed ? `Sent to ${email}.` : 'Copy the link below and send it to them.';
-              }, 'Could not create the invite')
-              .then((created) => created && target.reset());
-          }}
-        >
-          <TextField autoComplete="off" inputMode="email" label="Email (optional)" type="email" {...inviteForm.field('email')} />
-          <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...inviteForm.field('note')} />
-          {link && (
-            <div className="flex flex-wrap items-center gap-3">
-              <code className="mono-sm break-all text-ink">{link}</code>
-              <button
-                className="secondary-button px-3 py-2 text-sm"
-                onClick={() => void navigator.clipboard.writeText(link)}
-                type="button"
-              >
-                Copy link
-              </button>
-            </div>
-          )}
-          <button className="primary-button inline-flex w-fit" disabled={inviting.busy} type="submit">
-            {inviting.busy ? 'Creating…' : 'Create invite'}
-          </button>
-        </form>
-      </section>
-
-      <section>
-        <h2 className="m-0 text-xl font-medium">Sent</h2>
+      <Section title="Sent">
         {sent.error ? (
           <LoadError error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
           <ListSkeleton label="Loading the invites you sent" rows={2} />
         ) : sent.data.length === 0 ? (
-          <p className="mt-2 mb-0 text-sm text-muted">You have not invited anyone yet.</p>
+          <p className="m-0 text-sm text-muted">You have not invited anyone yet.</p>
         ) : (
-          <ul className="mt-3 grid list-none gap-0 p-0">
+          <ul className="panel-rows">
             {sent.data.map((invitation) => (
-              <li className="border-b border-line-soft py-3" key={invitation.id}>
+              <li className="panel-row" key={invitation.id}>
                 <p className="m-0 text-ink">{invitation.email ?? 'Invite link'}</p>
-                <p className="mono-sm m-0 mt-1 text-faint">
+                <p className="m-0 mt-0.5 text-sm text-muted">
                   {statusLabels[invitation.status]}
                   {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created{' '}
                   {timeAgo(invitation.createdAt)}
@@ -154,7 +103,74 @@ export function InvitationsPage() {
             ))}
           </ul>
         )}
-      </section>
-    </section>
+      </Section>
+
+      {creating && (
+        <InviteDialog
+          mode={creating}
+          onClose={() => setCreating(null)}
+          onCreated={(invitation, created) => {
+            sent.mutate((current) => [invitation, ...current]);
+            setCreating(null);
+            if (created) setLink(created);
+          }}
+        />
+      )}
+
+      {link && (
+        <Dialog onClose={() => setLink('')} title="Invite link ready">
+          <div className="mt-4 grid gap-4">
+            <p className="m-0 text-sm text-muted">Send this link to the person you are inviting. It works once, for 14 days.</p>
+            <CopyLink link={link} />
+            <div className="flex justify-end">
+              <button className="primary-button" onClick={() => setLink('')} type="button">
+                Done
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+    </Page>
+  );
+}
+
+function InviteDialog({
+  mode,
+  onClose,
+  onCreated,
+}: {
+  mode: 'email' | 'link';
+  onClose: () => void;
+  onCreated: (invitation: SentInvitation, link: string | null) => void;
+}) {
+  const auth = useAuth();
+  const inviting = useAction();
+  const form = useFormErrors();
+
+  return (
+    <FormDialog
+      busy={inviting.busy}
+      busyLabel="Creating…"
+      onClose={onClose}
+      onSubmit={(target) => {
+        if (!form.check(target, { ...(mode === 'email' ? { email: [required('Enter their email address.'), emailAddress] } : {}), note: noteChecks })) return;
+        const values = new FormData(target);
+        const email = mode === 'email' ? String(values.get('email')).trim() : '';
+        const note = String(values.get('note')).trim();
+        void inviting.run(async () => {
+          const created = await auth.request<{ invitation: SentInvitation; link: string; emailed: boolean }>('/invitations', {
+            method: 'POST',
+            body: JSON.stringify({ ...(email ? { email } : {}), ...(note ? { note } : {}) }),
+          });
+          onCreated(created.invitation, created.emailed ? null : created.link);
+          return created.emailed ? `Invite sent to ${email}.` : email ? 'Email is not set up here, so send them the link yourself.' : '';
+        }, 'Could not create the invite');
+      }}
+      submitLabel={mode === 'email' ? 'Send invite' : 'Create link'}
+      title={mode === 'email' ? 'Invite by email' : 'Create an invite link'}
+    >
+      {mode === 'email' && <TextField autoComplete="off" autoFocus inputMode="email" label="Email" type="email" {...form.field('email')} />}
+      <TextAreaField hint="They see it when they open the invite." label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
+    </FormDialog>
   );
 }

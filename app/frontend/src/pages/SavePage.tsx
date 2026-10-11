@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { EmptyState, FormPanelSkeleton, TextField } from '@project-graphite/ui';
+import { EmptyState, FormPanelSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
-import { useSpaces } from '../spaces';
+import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 
@@ -115,16 +115,7 @@ export function SavePage() {
         {editable.length === 0 ? (
           <p className="error-message m-0">You can only view your spaces, so there is nowhere to save this.</p>
         ) : (
-          <label className="field-label">
-            Space
-            <select defaultValue={editable[0]!.id} name="spaceId">
-              {editable.map((space) => (
-                <option key={space.id} value={space.id}>
-                  {space.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select defaultValue={editable[0]!.id} label="Space" name="spaceId" options={spaceOptions(editable)} />
         )}
         {link && (
           <fieldset className="grid gap-2">

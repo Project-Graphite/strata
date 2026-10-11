@@ -106,6 +106,7 @@ describe('Bookmarks', () => {
     await render('/bookmarks');
     expect(container.textContent).toContain('Nothing to read later');
 
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Save a link')!.click());
     const input = container.querySelector<HTMLInputElement>('input[name="url"]')!;
     await act(async () => {
       input.value = 'https://bread.example/slow';

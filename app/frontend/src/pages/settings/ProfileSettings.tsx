@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
+import { FormSkeleton, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { currencyOptions, timeZoneOptions } from '../../choices';
 import { DevicePush } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
@@ -8,7 +9,8 @@ import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
-import { SettingsRow, SettingsRows, SettingsSection, type Me, type TwoStepStatus } from './SettingsLayout';
+import { Section } from '../../components/Page';
+import { SettingsRow, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
 
 export function ProfileSettings() {
   const auth = useAuth();
@@ -26,11 +28,10 @@ export function ProfileSettings() {
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
   if (!me.data || !twoStep.data) return <FormSkeleton fields={3} />;
   const current = me.data;
-  const zones = [...new Set([current.timeZone, ...Intl.supportedValuesOf('timeZone')])];
 
   return (
     <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection title="Profile">
+      <Section title="Profile">
         <form
           className="grid gap-4"
           noValidate
@@ -60,7 +61,7 @@ export function ProfileSettings() {
             }, 'Could not save your profile');
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
             <TextField
               autoComplete="name"
               defaultValue={current.displayName}
@@ -68,35 +69,34 @@ export function ProfileSettings() {
               maxLength={80}
               {...profileForm.field('displayName')}
             />
-            <label className="field-label">
-              Time zone
-              <select defaultValue={current.timeZone} name="timeZone">
-                {zones.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-label">
-              Home currency
-              <select defaultValue={current.homeCurrency ?? ''} key={currencies.data ? 'loaded' : 'loading'} name="homeCurrency">
-                <option value="">None, keep each currency separate</option>
-                {[...new Set([...(current.homeCurrency ? [current.homeCurrency] : []), ...(currencies.data?.currencies ?? [])])].map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              defaultValue={current.timeZone}
+              label="Time zone"
+              name="timeZone"
+              options={timeZoneOptions(current.timeZone)}
+              placeholder="Choose a time zone"
+              searchable
+            />
+            <Select
+              defaultValue={current.homeCurrency ?? ''}
+              hint="Totals in Recurring are converted to it."
+              key={currencies.data ? 'loaded' : 'loading'}
+              label="Home currency"
+              name="homeCurrency"
+              options={[
+                { value: '', label: 'None, keep each currency separate' },
+                ...currencyOptions([...(current.homeCurrency ? [current.homeCurrency] : []), ...(currencies.data?.currencies ?? [])]),
+              ]}
+              searchable
+            />
           </div>
           <button className="primary-button inline-flex w-fit" disabled={profile.busy} type="submit">
             {profile.busy ? 'Saving…' : 'Save'}
           </button>
         </form>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Account">
+      <Section title="Account">
         <SettingsRows>
           <SettingsRow
             action={
@@ -110,37 +110,41 @@ export function ProfileSettings() {
           </SettingsRow>
           <SettingsRow label="Handle">@{current.handle}</SettingsRow>
         </SettingsRows>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Notifications">
-        <Toggle
-          checked={current.tidySummary}
-          description="Mondays at 09:00, only when Tidy finds something."
-          disabled={notifications.busy}
-          label="Weekly Tidy summary"
-          onChange={(tidySummary) =>
-            void notifications.run(async () => {
-              const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
-              me.mutate(() => next);
-              return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
-            }, 'Could not change the setting')
-          }
-        />
-        <Toggle
-          checked={current.weeklyReview}
-          description="Sundays at 18:00, with a link that writes the review page for you."
-          disabled={notifications.busy}
-          label="Weekly review reminder"
-          onChange={(weeklyReview) =>
-            void notifications.run(async () => {
-              const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ weeklyReview }) });
-              me.mutate(() => next);
-              return weeklyReview ? 'You will be reminded on Sundays.' : 'Weekly review reminders are off.';
-            }, 'Could not change the setting')
-          }
-        />
-        <DevicePush />
-      </SettingsSection>
+      <Section title="Notifications">
+        <div className="grid gap-6">
+          <SettingsRows>
+            <Toggle
+              checked={current.tidySummary}
+              description="Mondays at 09:00, only when Tidy finds something."
+              disabled={notifications.busy}
+              label="Weekly Tidy summary"
+              onChange={(tidySummary) =>
+                void notifications.run(async () => {
+                  const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
+                  me.mutate(() => next);
+                  return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
+                }, 'Could not change the setting')
+              }
+            />
+            <Toggle
+              checked={current.weeklyReview}
+              description="Sundays at 18:00, with a link that writes the review page for you."
+              disabled={notifications.busy}
+              label="Weekly review reminder"
+              onChange={(weeklyReview) =>
+                void notifications.run(async () => {
+                  const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ weeklyReview }) });
+                  me.mutate(() => next);
+                  return weeklyReview ? 'You will be reminded on Sundays.' : 'Weekly review reminders are off.';
+                }, 'Could not change the setting')
+              }
+            />
+          </SettingsRows>
+          <DevicePush />
+        </div>
+      </Section>
 
       {changingEmail && (
         <FormDialog

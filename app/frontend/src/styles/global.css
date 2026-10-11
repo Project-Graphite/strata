@@ -577,10 +577,25 @@ button.habit-day {
 }
 
 .page-tree-toggle {
-  width: 1rem;
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
   flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius-field);
   color: var(--color-faint);
-  font-size: 0.7rem;
+}
+
+.page-tree-toggle:not(:disabled):hover {
+  color: var(--color-ink);
+}
+
+.note-mark {
+  display: inline-grid;
+  width: 1.25rem;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--color-faint);
 }
 
 .page-tree-link {
@@ -600,11 +615,21 @@ button.habit-day {
 }
 
 .page-tree-add {
+  display: grid;
   visibility: hidden;
   width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
   border-radius: var(--radius-field);
   color: var(--color-faint);
 }
+
+.page-tree-add:hover {
+  background: var(--color-line);
+  color: var(--color-ink);
+}
+
+.page-tree-row:focus-within .page-tree-add,
 
 .page-tree-row:hover .page-tree-add {
   visibility: visible;
@@ -664,3 +689,48 @@ button.habit-day {
   white-space: nowrap;
 }
 
+
+.tag-mark[data-initial]::before {
+  content: attr(data-initial);
+}
+
+.space-mark-large {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  border-radius: 0.65rem;
+  font-size: 1.05rem;
+}
+
+.filter-chip {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.25rem 0.8rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.filter-chip:hover {
+  border-color: var(--color-muted);
+  color: var(--color-ink);
+}
+
+.filter-chip[aria-current='page'] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.filter-chip[aria-current='page'] .text-faint {
+  color: inherit;
+  opacity: 0.6;
+}

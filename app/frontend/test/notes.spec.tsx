@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { choose } from './controls';
 import { internalPath, storedFileId } from '../src/components/note-extensions';
 import { flattenTree, type Note } from '../src/notes';
 
@@ -139,7 +140,7 @@ describe('Notes', () => {
     await render('/spaces/home/notes');
 
     const links = [...container.querySelectorAll('main a[href^="/notes/"]')];
-    expect(links.map((link) => link.textContent)).toEqual(['·Trips', '·Lisbon', '·Food', '·Untitled']);
+    expect(links.map((link) => link.textContent)).toEqual(['Trips', 'Lisbon', 'Food', 'Untitled']);
     expect((links[2] as HTMLElement).style.paddingLeft).toBe('3.5rem');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New page')!.click());
@@ -160,7 +161,7 @@ describe('Notes', () => {
     });
     await render('/spaces/home/notes');
 
-    expect([...container.querySelectorAll('main a[href^="/notes/"]')].at(-1)?.textContent).toBe('·SeatingBoard');
+    expect([...container.querySelectorAll('main a[href^="/notes/"]')].at(-1)?.textContent).toBe('SeatingBoard');
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New board')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-note')).toBe('seating');
@@ -209,9 +210,9 @@ describe('Notes', () => {
     const press = (label: string) => act(async () => tree().querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click());
 
     await press('Expand Home');
-    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['·Trips', '·Food']);
+    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['Trips', 'Food']);
     await press('Expand Trips');
-    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['·Trips', '·Lisbon', '·Food']);
+    expect([...tree().querySelectorAll('a')].map((link) => link.textContent)).toEqual(['Trips', 'Lisbon', 'Food']);
 
     const rows = [...tree().querySelectorAll<HTMLElement>('.page-tree-row')];
     const food = rows.find((row) => row.textContent?.includes('Food'))!;
@@ -670,12 +671,8 @@ describe('Notes', () => {
 
     const panel = container.querySelector('dl[aria-label="Properties"]')!;
     expect([...panel.querySelectorAll('dt')].map((term) => term.textContent)).toEqual(['Status', 'Due']);
-    const select = panel.querySelector<HTMLSelectElement>('select[aria-label="Status"]')!;
-    await act(async () => {
-      select.value = 'done';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await choose(panel, 'Status', 'Done');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/boiler/properties', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ values: { status: 'done' } }) }));
-    expect(panel.querySelector<HTMLSelectElement>('select[aria-label="Status"]')!.value).toBe('done');
+    expect(panel.querySelector('[role="combobox"][aria-label="Status"]')!.textContent).toBe('Done');
   });
 });

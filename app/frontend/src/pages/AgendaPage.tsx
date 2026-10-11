@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, PageHeader, Tabs } from '@project-graphite/ui';
+import { Icon, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, monthDays, type AgendaEntry } from '../agenda';
 import { EventEditor } from '../components/EventEditor';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { HeaderButton, Page } from '../components/Page';
 
 type View = 'list' | 'week' | 'month';
 
@@ -58,21 +59,19 @@ export function AgendaPage() {
   const month = new Date(`${anchor}T00:00:00`).getMonth();
 
   return (
-    <section className="page-enter grid gap-6">
-      <PageHeader
-        actions={
-          <>
-            <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/agenda/calendars">
-              Calendars
-            </Link>
-            <button className="primary-button px-3 py-2 text-sm" disabled={!spaces.data?.some((space) => space.role !== 'viewer')} onClick={() => setCreating(true)} type="button">
-              <Icon name="plus" size={16} />
-              New event
-            </button>
-          </>
-        }
-        title="Agenda"
-      />
+    <Page
+      actions={
+        <>
+          <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/agenda/calendars">
+            <Icon name="calendar" size={16} />
+            Calendars
+          </Link>
+          <HeaderButton disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" onClick={() => setCreating(true)} primary />
+        </>
+      }
+      title="Agenda"
+      wide
+    >
       <Tabs
         items={(['list', 'week', 'month'] as const).map((option) => ({
           active: view === option,
@@ -81,21 +80,24 @@ export function AgendaPage() {
         }))}
         label="Agenda view"
       />
-      <div className="flex flex-wrap items-center gap-3">
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to={link({ date: shift(-1) })}>
-          ← Earlier
+      <div className="flex flex-wrap items-center gap-2">
+        <Link aria-label="Earlier" className="icon-button" title="Earlier" to={link({ date: shift(-1) })}>
+          <Icon name="chevron-left" size={18} />
+        </Link>
+        <Link aria-label="Later" className="icon-button" title="Later" to={link({ date: shift(1) })}>
+          <Icon name="chevron-right" size={18} />
         </Link>
         <Link className="secondary-button px-3 py-2 text-sm no-underline" to={link({ date: today })}>
           Today
         </Link>
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to={link({ date: shift(1) })}>
-          Later →
-        </Link>
-        <span className="mono-sm text-faint">
+        <h2 className="m-0 ml-2 text-lg font-medium">
           {view === 'month'
             ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-            : `${new Date(`${from}T00:00:00`).toLocaleDateString()} – ${new Date(`${addDays(to, -1)}T00:00:00`).toLocaleDateString()}`}
-        </span>
+            : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(
+                new Date(`${from}T00:00:00`),
+                new Date(`${addDays(to, -1)}T00:00:00`),
+              )}
+        </h2>
       </div>
 
       {agenda.error ? (
@@ -176,6 +178,6 @@ export function AgendaPage() {
           startsOn={anchor}
         />
       )}
-    </section>
+    </Page>
   );
 }

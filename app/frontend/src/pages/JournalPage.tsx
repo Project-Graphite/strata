@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ListSkeleton, PageHeader } from '@project-graphite/ui';
+import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -60,15 +61,15 @@ export function JournalPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-4xl gap-6">
-      <PageHeader
-        actions={
-          <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
-            Write a weekly review
-          </Link>
-        }
-        title="Journal"
-      />
+    <Page
+      actions={
+        <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
+          Write a weekly review
+        </Link>
+      }
+      title="Journal"
+      wide
+    >
       <div className="panel grid gap-4 p-5">
         <h2 className="m-0 text-base font-medium">How was today?</h2>
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
@@ -125,7 +126,7 @@ export function JournalPage() {
         </div>
         <p className="mono-sm m-0 text-faint">Darker days felt better. A ring means the day has a page.</p>
       </div>
-    </section>
+    </Page>
   );
 }
 

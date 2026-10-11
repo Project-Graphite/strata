@@ -1,9 +1,10 @@
-import { FormSkeleton, PageHeader, TextField, Toggle } from '@project-graphite/ui';
+import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundPage } from './NotFoundPage';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -21,8 +22,7 @@ export function AdminPage() {
   if (!site.data) return <FormSkeleton fields={1} />;
 
   return (
-    <section className="page-enter grid max-w-3xl gap-8">
-      <PageHeader title="Site settings" />
+    <Page title="Site settings">
       <Toggle
         checked={site.data.inviteOnly}
         description="New accounts need an invite while this is on. People who already have an account are not affected."
@@ -69,6 +69,6 @@ export function AdminPage() {
           {quota.busy ? 'Saving…' : 'Save limit'}
         </button>
       </form>
-    </section>
+    </Page>
   );
 }

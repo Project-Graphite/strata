@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, EmptyState, FormSkeleton, Icon, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, EmptyState, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
@@ -7,7 +7,8 @@ import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
-import { SettingsRow, SettingsRows, SettingsSection, type TwoStepStatus } from './SettingsLayout';
+import { Section } from '../../components/Page';
+import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 
 interface AccessToken {
   id: string;
@@ -46,7 +47,7 @@ export function TokensSettings() {
 
   return (
     <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection
+      <Section
         action={
           <button className="secondary-button px-3 py-2 text-sm" onClick={() => setOpen(true)} type="button">
             <Icon name="plus" size={16} />
@@ -81,7 +82,7 @@ export function TokensSettings() {
             ))}
           </SettingsRows>
         )}
-      </SettingsSection>
+      </Section>
 
       {open && created && (
         <Dialog onClose={close} title="Copy your token">
@@ -155,15 +156,17 @@ export function TokensSettings() {
               </p>
             )}
           </fieldset>
-          <label className="field-label">
-            Expires after
-            <select defaultValue="90" name="expiresInDays">
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-            </select>
-          </label>
+          <Select
+            defaultValue="90"
+            label="Expires after"
+            name="expiresInDays"
+            options={[
+              { value: '7', label: '7 days' },
+              { value: '30', label: '30 days' },
+              { value: '90', label: '90 days' },
+              { value: '365', label: '1 year' },
+            ]}
+          />
           <ProofFields form={form} twoStep={twoStep.data.enabled} />
         </FormDialog>
       )}

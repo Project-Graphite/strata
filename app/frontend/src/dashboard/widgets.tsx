@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Avatar, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { Avatar, DatePicker, ListSkeleton, Select, TagChip, TextField, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -9,7 +9,8 @@ import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
 import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
 import type { InboxNotification } from '../inbox';
-import { useSpaces } from '../spaces';
+import { timeZoneOptions } from '../choices';
+import { spaceOptions, useSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
 import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
@@ -63,23 +64,32 @@ function Clock({ settings }: WidgetProps) {
 
 function ClockSettings({ onChange, settings }: SettingsProps) {
   const zones = Array.isArray(settings.zones) ? (settings.zones as string[]) : [];
-  const all = Intl.supportedValuesOf('timeZone');
+  const options = timeZoneOptions();
   return (
-    <label className="field-label">
-      World clocks
-      <select
-        multiple
-        onChange={(event) => onChange({ zones: [...event.currentTarget.selectedOptions].map((option) => option.value).slice(0, 8) })}
-        size={6}
-        value={zones}
-      >
-        {all.map((zone) => (
-          <option key={zone} value={zone}>
-            {zone.replaceAll('_', ' ')}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="grid gap-2">
+      <Select
+        disabled={zones.length >= 8}
+        hint={zones.length >= 8 ? 'Up to 8 clocks.' : undefined}
+        label="World clocks"
+        onChange={(zone) => onChange({ zones: [...zones, zone] })}
+        options={options.filter((option) => !zones.includes(option.value))}
+        placeholder="Add a city"
+        searchable
+        size="small"
+        value=""
+      />
+      {zones.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {zones.map((zone) => (
+            <TagChip
+              key={zone}
+              label={options.find((option) => option.value === zone)?.label ?? zone}
+              onRemove={() => onChange({ zones: zones.filter((shown) => shown !== zone) })}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -138,32 +148,15 @@ function TasksSettings({ onChange, settings }: SettingsProps) {
   const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
   return (
     <div className="grid gap-3">
-      <label className="field-label">
-        Space
-        <select onChange={(event) => onChange({ spaceId: event.currentTarget.value || undefined })} value={spaceId}>
-          <option value="">Choose a space</option>
-          {(spaces.data ?? []).map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select label="Space" onChange={(chosen) => onChange({ spaceId: chosen })} options={spaceOptions(spaces.data ?? [])} placeholder="Choose a space" size="small" value={spaceId} />
       {spaceId && (
-        <label className="field-label">
-          List
-          <select
-            onChange={(event) => onChange({ ...settings, listId: event.currentTarget.value || undefined })}
-            value={typeof settings.listId === 'string' ? settings.listId : ''}
-          >
-            <option value="">All open tasks</option>
-            {(lists.data ?? []).map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="List"
+          onChange={(listId) => onChange({ ...settings, listId: listId || undefined })}
+          options={[{ value: '', label: 'All open tasks' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
+          size="small"
+          value={typeof settings.listId === 'string' ? settings.listId : ''}
+        />
       )}
     </div>
   );
@@ -344,18 +337,8 @@ function Countdown({ settings }: WidgetProps) {
 function CountdownSettings({ onChange, settings }: SettingsProps) {
   return (
     <div className="grid gap-3">
-      <label className="field-label">
-        Label
-        <input maxLength={60} onChange={(event) => onChange({ ...settings, label: event.currentTarget.value })} value={typeof settings.label === 'string' ? settings.label : ''} />
-      </label>
-      <label className="field-label">
-        Date
-        <input
-          onChange={(event) => onChange({ ...settings, date: event.currentTarget.value || undefined })}
-          type="date"
-          value={typeof settings.date === 'string' ? settings.date : ''}
-        />
-      </label>
+      <TextField label="Label" maxLength={60} onChange={(event) => onChange({ ...settings, label: event.currentTarget.value })} value={typeof settings.label === 'string' ? settings.label : ''} />
+      <DatePicker label="Date" onChange={(date) => onChange({ ...settings, date: date || undefined })} size="small" value={typeof settings.date === 'string' ? settings.date : ''} />
     </div>
   );
 }
@@ -416,16 +399,13 @@ function Focus({ settings }: WidgetProps) {
 
 function FocusSettings({ onChange, settings }: SettingsProps) {
   const choice = (key: 'minutes' | 'breakMinutes', label: string, options: number[], fallback: number) => (
-    <label className="field-label">
-      {label}
-      <select onChange={(event) => onChange({ ...settings, [key]: Number(event.currentTarget.value) })} value={typeof settings[key] === 'number' ? settings[key] : fallback}>
-        {options.map((minutes) => (
-          <option key={minutes} value={minutes}>
-            {minutes} minutes
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label={label}
+      onChange={(minutes) => onChange({ ...settings, [key]: Number(minutes) })}
+      options={options.map((minutes) => ({ value: String(minutes), label: `${minutes} minutes` }))}
+      size="small"
+      value={String(typeof settings[key] === 'number' ? settings[key] : fallback)}
+    />
   );
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -491,17 +471,14 @@ function Board({ settings }: WidgetProps) {
 function BoardSettings({ onChange, settings }: SettingsProps) {
   const boards = useResource<Note[]>('/me/notes?kind=board', true);
   return (
-    <label className="field-label">
-      Board
-      <select onChange={(event) => onChange({ boardId: event.currentTarget.value || undefined })} value={typeof settings.boardId === 'string' ? settings.boardId : ''}>
-        <option value="">Choose a board</option>
-        {(boards.data ?? []).map((board) => (
-          <option key={board.id} value={board.id}>
-            {noteTitle(board)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label="Board"
+      onChange={(boardId) => onChange({ boardId })}
+      options={(boards.data ?? []).map((board) => ({ value: board.id, label: noteTitle(board) }))}
+      placeholder="Choose a board"
+      size="small"
+      value={typeof settings.boardId === 'string' ? settings.boardId : ''}
+    />
   );
 }
 

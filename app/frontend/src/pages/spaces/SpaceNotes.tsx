@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router';
 import { EmptyState, Icon, ListSkeleton, Menu } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { LoadError } from '../../components/LoadError';
+import { NoteMark } from '../../components/NoteMark';
+import { HeaderButton, Toolbar } from '../../components/Page';
 import { builtInTemplates, flattenTree, noteTitle, type Note } from '../../notes';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -11,13 +13,11 @@ function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
   return (
     <li>
       <Link
-        className="flex items-center gap-2 py-3 pr-4 text-ink no-underline hover:bg-line-soft"
+        className="flex items-center gap-2 py-3.5 pr-4 text-ink no-underline hover:bg-line-soft"
         style={{ paddingLeft: `${1 + depth * 1.25}rem` }}
         to={`/notes/${note.id}`}
       >
-        <span aria-hidden="true" className="w-5 shrink-0 text-center">
-          {note.icon ?? '·'}
-        </span>
+        <NoteMark note={note} />
         <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
         {note.kind === 'board' && <span className="text-xs text-faint">Board</span>}
         {note.pinnedAt && <span className="text-xs text-faint">Pinned</span>}
@@ -49,32 +49,38 @@ export function SpaceNotes() {
   }
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
-      {editable && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button className="primary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create({})} type="button">
-            <Icon name="plus" size={16} />
-            New page
-          </button>
-          <button className="secondary-button px-3 py-2 text-sm" disabled={creating.busy} onClick={() => create({ board: true })} type="button">
-            New board
-          </button>
-          <Menu
-            items={[
-              ...builtInTemplates.map(([template, label]) => ({ label, onSelect: () => create({ template, title: label }) })),
-              ...templates.map((note, index) => ({ label: noteTitle(note), onSelect: () => create({ fromNoteId: note.id, title: note.title }), separated: index === 0 })),
-            ]}
-            label="Templates"
-            trigger="From a template"
-            triggerClassName="secondary-button px-3 py-2 text-sm"
-            triggerLabel="Start a page from a template"
-          />
-        </div>
-      )}
+    <div className="fade-in grid gap-6">
+      <Toolbar
+        actions={
+          editable && (
+            <>
+              <Menu
+                items={[
+                  ...builtInTemplates.map(([template, label]) => ({ label, onSelect: () => create({ template, title: label }) })),
+                  ...templates.map((note, index) => ({ label: noteTitle(note), onSelect: () => create({ fromNoteId: note.id, title: note.title }), separated: index === 0 })),
+                ]}
+                label="Templates"
+                trigger={
+                  <>
+                    From a template
+                    <Icon name="chevron-down" size={16} />
+                  </>
+                }
+                triggerClassName="secondary-button px-3 py-2 text-sm"
+                triggerLabel="Start a page from a template"
+              />
+              <HeaderButton disabled={creating.busy} icon="board" label="New board" onClick={() => create({ board: true })} />
+              <HeaderButton disabled={creating.busy} icon="plus" label="New page" onClick={() => create({})} primary />
+            </>
+          )
+        }
+      >
+        <p className="m-0 text-sm text-muted">{pages.length === 1 ? '1 page' : `${pages.length} pages`}</p>
+      </Toolbar>
       {branches.length === 0 ? (
         <EmptyState title="No pages yet" />
       ) : (
-        <ul className="panel-rows m-0 grid list-none p-0">
+        <ul className="panel-rows">
           {branches.map(({ note, depth }) => (
             <PageRow depth={depth} key={note.id} note={note} />
           ))}
@@ -83,7 +89,7 @@ export function SpaceNotes() {
       {templates.length > 0 && (
         <section className="grid gap-2">
           <h2 className="m-0 text-sm font-medium text-muted">Templates in this space</h2>
-          <ul className="panel-rows m-0 grid list-none p-0">
+          <ul className="panel-rows">
             {templates.map((note) => (
               <PageRow key={note.id} note={note} />
             ))}

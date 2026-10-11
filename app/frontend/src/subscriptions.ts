@@ -42,6 +42,8 @@ export const categories = [
   'other',
 ];
 
+export const categoryLabel = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);
+
 export const billingCycles = [
   ['FREQ=MONTHLY', 'Monthly'],
   ['FREQ=YEARLY', 'Yearly'],

@@ -74,9 +74,10 @@ describe('Spaces', () => {
     expect(sidebar.textContent).toContain('Personal');
     expect(sidebar.textContent).toContain('Family');
 
-    const form = [...container.querySelectorAll('form')].at(-1)!;
+    await act(async () => button('New space')!.click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = ' Book club ';
-    form.querySelector<HTMLSelectElement>('select[name="color"]')!.value = 'purple';
+    await act(async () => form.querySelector<HTMLInputElement>('input[name="color"][value="purple"]')!.click());
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });

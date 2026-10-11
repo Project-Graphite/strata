@@ -36,10 +36,16 @@ export function DevicePush() {
     })();
   }, [request]);
 
-  if (key.data?.publicKey === null) return <p className="m-0 text-sm text-muted">Notifications on your devices are not set up on this server yet.</p>;
-  if (device === null) {
-    return <p className="m-0 text-sm text-muted">This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.</p>;
-  }
+  const note = (text: string) => (
+    <div className="panel-rows">
+      <div className="panel-row">
+        <p className="m-0 font-medium text-ink">Notifications on this device</p>
+        <p className="m-0 mt-0.5 text-sm text-muted">{text}</p>
+      </div>
+    </div>
+  );
+  if (key.data?.publicKey === null) return note('Not set up on this server yet.');
+  if (device === null) return note('This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.');
   if (!device || !key.data) return null;
   const { registration, subscription, kinds } = device;
   const publicKey = key.data.publicKey;
@@ -53,7 +59,7 @@ export function DevicePush() {
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="panel-rows">
       <Toggle
         checked={kinds !== null}
         description="Shows inbox notices on this device, even when Strata is closed."

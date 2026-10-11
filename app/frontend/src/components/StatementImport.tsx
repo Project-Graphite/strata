@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Dialog } from '@project-graphite/ui';
+import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
+import { allCurrencies, currencyOptions } from '../choices';
+import { spaceOptions, useSpaces } from '../spaces';
 import { dateOrder, guessColumns, merchantKey, parseCsv, readCharges, suggestRecurring, type DateOrder, type StatementColumns } from '../statement';
 import { cycleLabel, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-const orders: [DateOrder, string][] = [
-  ['dmy', 'Day first (31/01/2026)'],
-  ['mdy', 'Month first (01/31/2026)'],
-  ['ymd', 'Year first (2026-01-31)'],
+const orders: { value: DateOrder; label: string; hint: string }[] = [
+  { value: 'dmy', label: 'Day first', hint: '31/01/2026' },
+  { value: 'mdy', label: 'Month first', hint: '01/31/2026' },
+  { value: 'ymd', label: 'Year first', hint: '2026-01-31' },
 ];
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
@@ -40,16 +41,12 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
   }
 
   const columnSelect = (label: string, key: keyof StatementColumns) => (
-    <label className="field-label">
-      {label}
-      <select onChange={(event) => setColumns({ ...columns, [key]: Number(event.currentTarget.value) })} value={columns[key]}>
-        {(rows?.[0] ?? []).map((title, index) => (
-          <option key={index} value={index}>
-            {title || `Column ${index + 1}`}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label={label}
+      onChange={(index) => setColumns({ ...columns, [key]: Number(index) })}
+      options={(rows?.[0] ?? []).map((title, index) => ({ value: String(index), label: title || `Column ${index + 1}` }))}
+      value={String(columns[key])}
+    />
   );
 
   return (
@@ -63,16 +60,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
               {columnSelect('Date column', 'date')}
               {columnSelect('Description column', 'description')}
               {columnSelect('Amount column', 'amount')}
-              <label className="field-label">
-                Dates are written
-                <select onChange={(event) => setOrder(event.currentTarget.value as DateOrder)} value={order}>
-                  {orders.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Select label="Dates are written" onChange={setOrder} options={orders} value={order} />
             </div>
             <p className="mono-sm m-0 text-faint">
               {charges.length} charges read · {suggestions.length} look recurring
@@ -114,20 +102,8 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
               </ul>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="field-label">
-                Add to
-                <select onChange={(event) => setSpaceId(event.currentTarget.value)} value={target}>
-                  {editable.map((space) => (
-                    <option key={space.id} value={space.id}>
-                      {space.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-label">
-                Currency
-                <input maxLength={3} onChange={(event) => setCurrency(event.currentTarget.value.toUpperCase())} value={currency} />
-              </label>
+              <Select label="Add to" onChange={setSpaceId} options={spaceOptions(editable)} value={target ?? ''} />
+              <Select label="Currency" onChange={setCurrency} options={currencyOptions(allCurrencies)} searchable value={currency} />
             </div>
           </>
         )}

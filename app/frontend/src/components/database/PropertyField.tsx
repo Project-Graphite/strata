@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Popover, TagChip } from '@project-graphite/ui';
+import { DatePicker, formatDay, Popover, Select, TagChip } from '@project-graphite/ui';
 import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
 
@@ -17,7 +17,7 @@ export function propertyDisplay(property: Property, value: unknown, members: Mem
     case 'checkbox':
       return value ? property.name : null;
     case 'date':
-      return new Date(`${String(value)}T00:00:00`).toLocaleDateString();
+      return formatDay(String(value), { day: 'numeric', month: 'short', year: 'numeric' });
     case 'person':
       return members.find((member) => member.userId === value)?.displayName ?? 'Former member';
     case 'link':
@@ -68,26 +68,25 @@ export function PropertyField({
         />
       );
     case 'date':
-      return <input aria-label={label} className="property-input" onChange={(event) => onChange(event.currentTarget.value || null)} type="date" value={asText(value)} />;
+      return <DatePicker aria-label={label} onChange={(day) => onChange(day || null)} placeholder="—" quiet size="small" value={asText(value)} />;
     case 'checkbox':
       return <input aria-label={label} checked={value === true} onChange={(event) => onChange(event.currentTarget.checked)} type="checkbox" />;
     case 'select':
     case 'person':
       return (
-        <select aria-label={label} className="property-input" onChange={(event) => onChange(event.currentTarget.value || null)} value={asText(value)}>
-          <option value="">—</option>
-          {property.type === 'select'
-            ? property.options?.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))
-            : members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.displayName}
-                </option>
-              ))}
-        </select>
+        <Select
+          aria-label={label}
+          onChange={(chosen) => onChange(chosen || null)}
+          options={[
+            { value: '', label: '—' },
+            ...(property.type === 'select'
+              ? (property.options ?? []).map((option) => ({ value: option.id, label: option.name, leading: <span aria-hidden="true" className={`swatch-dot tag-${option.color}`} /> }))
+              : members.map((member) => ({ value: member.userId, label: member.displayName }))),
+          ]}
+          quiet
+          size="small"
+          value={asText(value)}
+        />
       );
     case 'multiSelect': {
       const chosen = Array.isArray(value) ? (value as string[]) : [];

@@ -8,7 +8,8 @@ import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
-import { SettingsRow, SettingsRows, SettingsSection, type TwoStepStatus } from './SettingsLayout';
+import { Section } from '../../components/Page';
+import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 
 export function DataSettings() {
   const auth = useAuth();
@@ -25,7 +26,7 @@ export function DataSettings() {
 
   return (
     <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection title="Your data">
+      <Section title="Your data">
         <SettingsRows>
           <SettingsRow
             action={
@@ -63,7 +64,7 @@ export function DataSettings() {
             Your account and everything in it, permanently.
           </SettingsRow>
         </SettingsRows>
-      </SettingsSection>
+      </Section>
 
       {removing && (
         <FormDialog

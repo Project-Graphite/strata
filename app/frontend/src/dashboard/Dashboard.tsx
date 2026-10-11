@@ -1,8 +1,9 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Icon, PageHeader, PageSkeleton, Tabs, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, Tabs, TextField, TimePicker } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { FormDialog } from '../components/FormDialog';
+import { HeaderButton, Page, Toolbar } from '../components/Page';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -59,6 +60,13 @@ const templates = [
   ['travel', 'Travel', 'World clocks, Today, Shortcuts'],
   ['', 'Empty', 'Add widgets yourself'],
 ] as const;
+
+const sizes: [WidgetSize, string][] = [
+  ['small', 'small'],
+  ['medium', 'medium'],
+  ['wide', 'wide'],
+  ['full', 'full width'],
+];
 
 const spans: Record<WidgetSize, string> = {
   small: 'lg:col-span-1',
@@ -144,7 +152,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
         {dashboard.layout.widgets.map((widget) => {
           const kind = widgetKinds[widget.type];
           return (
-            <article aria-label={kind.title} className={`grid content-start gap-3 rounded-xl border border-line bg-surface p-6 ${spans[widget.size]}`} key={widget.id}>
+            <article aria-label={kind.title} className={`grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border border-line bg-surface p-6 ${spans[widget.size]}`} key={widget.id}>
               <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
               <WidgetBoundary>
                 <kind.View settings={widget.settings} />
@@ -170,6 +178,7 @@ export function DashboardHome() {
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [configuring, setConfiguring] = useState(false);
   const [schedule, setSchedule] = useState({ from: '', until: '', on: 'any' as Device });
   const addForm = useFormErrors();
   const chosen = params.get('d');
@@ -221,178 +230,176 @@ export function DashboardHome() {
   }
 
   return (
-    <section className="page-enter">
-      <PageHeader
-        actions={
-          editing ? (
-            <>
-              <button
-                className="secondary-button px-3 py-2 text-sm"
-                disabled={history.length === 0}
-                onClick={() => {
-                  setDraft(history.at(-1));
-                  setHistory((past) => past.slice(0, -1));
-                }}
-                type="button"
-              >
-                Undo
-              </button>
-              <button className="secondary-button px-3 py-2 text-sm" onClick={() => finish(false)} type="button">
-                Cancel
-              </button>
-              <button className="primary-button px-3 py-2 text-sm" disabled={saving.busy} onClick={() => finish(true)} type="button">
-                {saving.busy ? 'Saving…' : 'Done'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button aria-label="New dashboard" className="icon-button" onClick={() => setAdding(true)} title="New dashboard" type="button">
-                <Icon name="plus" />
-              </button>
-              <Link aria-label="Wall display" className="icon-button" title="Wall display" to={`/?d=${current.id}&display=wall`}>
-                <Icon name="monitor" />
-              </Link>
-              <button
-                className="secondary-button px-3 py-2 text-sm"
-                onClick={() => {
-                  setName(current.name);
-                  setSchedule({ from: clockTime(current.showFrom), until: clockTime(current.showUntil), on: current.showOn });
-                  setDraft(current.layout.widgets);
-                }}
-                type="button"
-              >
-                <Icon name="pencil" size={16} />
-                Edit
-              </button>
-            </>
-          )
-        }
-        title={current.name}
-      />
-      {dashboards.data.length > 1 && (
-        <div className="mt-6">
-          <Tabs
-            items={dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name }))}
-            label="Dashboards"
-          />
-        </div>
-      )}
-      {editing && (
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <label className="field-label">
-            Name
-            <input maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
-          </label>
-          <fieldset className="m-0 flex flex-wrap items-end gap-3 border-0 p-0">
-            <legend className="field-label mb-1.5 p-0">Opens by itself</legend>
-            <label className="field-label">
-              From
-              <input onChange={(event) => setSchedule({ ...schedule, from: event.currentTarget.value })} type="time" value={schedule.from} />
-            </label>
-            <label className="field-label">
-              Until
-              <input onChange={(event) => setSchedule({ ...schedule, until: event.currentTarget.value })} type="time" value={schedule.until} />
-            </label>
-            <label className="field-label">
-              On
-              <select onChange={(event) => setSchedule({ ...schedule, on: event.currentTarget.value as Device })} value={schedule.on}>
-                <option value="any">Any device</option>
-                <option value="phone">Phones</option>
-                <option value="desktop">Computers</option>
-              </select>
-            </label>
-          </fieldset>
-          {dashboards.data.length > 1 && (
-            <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDeleting(true)} type="button">
-              Delete this dashboard
-            </button>
-          )}
-        </div>
-      )}
-      {editing && (
-        <label className="field-label mt-4 max-w-xs">
-          Add a widget
-          <select
-            onChange={(event) => {
-              const type = event.currentTarget.value as WidgetType;
-              event.currentTarget.value = '';
-              if (type) change([...widgets, { id: crypto.randomUUID(), type, size: widgetKinds[type].size, settings: widgetKinds[type].settings }]);
-            }}
-            value=""
-          >
-            <option value="">Choose…</option>
-            {(Object.keys(widgetKinds) as WidgetType[]).map((type) => (
-              <option key={type} value={type}>
-                {widgetKinds[type].title}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        {widgets.length === 0 && (
-          <p className="m-0 text-muted lg:col-span-4">This dashboard is empty. Choose Edit dashboard to add widgets.</p>
-        )}
-        {widgets.map((widget, index) => {
-          const kind = widgetKinds[widget.type];
-          return (
-            <article
-              aria-label={kind.title}
-              className={`grid content-start gap-3 rounded-xl border bg-surface p-4 ${spans[widget.size]} ${editing ? 'border-dashed border-line' : 'border-line'} ${dragging === index ? 'opacity-50' : ''}`}
-              draggable={editing}
-              key={widget.id}
-              onDragOver={(event) => editing && event.preventDefault()}
-              onDragStart={() => setDragging(index)}
-              onDragEnd={() => setDragging(undefined)}
-              onDrop={() => {
-                if (dragging !== undefined && dragging !== index) change(move(widgets, dragging, index));
-                setDragging(undefined);
+    <Page
+      actions={
+        editing ? (
+          <>
+            <HeaderButton
+              disabled={history.length === 0}
+              label="Undo"
+              onClick={() => {
+                setDraft(history.at(-1));
+                setHistory((past) => past.slice(0, -1));
               }}
-            >
-              <header className="flex items-center justify-between gap-2">
-                <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
-                {editing && (
-                  <div className="flex flex-wrap items-center gap-1">
-                    <button aria-label={`Move ${kind.title} earlier`} className="text-button mono-sm" disabled={index === 0} onClick={() => change(move(widgets, index, index - 1))} type="button">
-                      ↑
-                    </button>
-                    <button aria-label={`Move ${kind.title} later`} className="text-button mono-sm" disabled={index === widgets.length - 1} onClick={() => change(move(widgets, index, index + 1))} type="button">
-                      ↓
-                    </button>
-                    <select
-                      aria-label={`Size of ${kind.title}`}
-                      onChange={(event) => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, size: event.currentTarget.value as WidgetSize } : shown)))}
-                      value={widget.size}
-                    >
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                      <option value="wide">Wide</option>
-                      <option value="full">Full</option>
-                    </select>
-                    {kind.Settings && (
-                      <button className="text-button mono-sm" onClick={() => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id)} type="button">
-                        Settings
-                      </button>
-                    )}
-                    <button className="text-button mono-sm" onClick={() => change(widgets.filter((shown) => shown.id !== widget.id))} type="button">
-                      Remove
-                    </button>
+            />
+            <HeaderButton label="Cancel" onClick={() => finish(false)} />
+            <HeaderButton disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
+          </>
+        ) : (
+          <>
+            <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${current.id}&display=wall`}>
+              <Icon name="monitor" size={16} />
+              Wall display
+            </Link>
+            <HeaderButton
+              icon="pencil"
+              label="Edit"
+              onClick={() => {
+                setName(current.name);
+                setSchedule({ from: clockTime(current.showFrom), until: clockTime(current.showUntil), on: current.showOn });
+                setDraft(current.layout.widgets);
+              }}
+            />
+            <HeaderButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} primary />
+          </>
+        )
+      }
+      title={editing ? name.trim() || current.name : current.name}
+      wide
+    >
+      {dashboards.data.length > 1 && (
+        <Tabs
+          items={dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name }))}
+          label="Dashboards"
+        />
+      )}
+      {editing && (
+        <Toolbar
+          actions={
+            <>
+              <HeaderButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
+              <Menu
+                items={(Object.keys(widgetKinds) as WidgetType[]).map((type) => ({
+                  label: widgetKinds[type].title,
+                  onSelect: () => change([...widgets, { id: crypto.randomUUID(), type, size: widgetKinds[type].size, settings: widgetKinds[type].settings }]),
+                }))}
+                label="Widgets"
+                trigger={
+                  <>
+                    <Icon name="plus" size={16} />
+                    Add widget
+                  </>
+                }
+                triggerClassName="primary-button px-3 py-2 text-sm"
+                triggerLabel="Add widget"
+              />
+            </>
+          }
+        >
+          <p className="m-0 text-sm text-muted">Drag widgets to reorder them, or use each widget’s menu.</p>
+        </Toolbar>
+      )}
+      {widgets.length === 0 ? (
+        <EmptyState title="This dashboard is empty">
+          <p className="mt-2 mb-0 text-sm text-muted">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</p>
+        </EmptyState>
+      ) : (
+        <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-4 lg:grid-cols-4">
+          {widgets.map((widget, index) => {
+            const kind = widgetKinds[widget.type];
+            return (
+              <article
+                aria-label={kind.title}
+                className={`grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border bg-surface p-4 ${spans[widget.size]} ${editing ? 'cursor-grab border-dashed border-line' : 'border-line'} ${dragging === index ? 'opacity-50' : ''}`}
+                draggable={editing}
+                key={widget.id}
+                onDragOver={(event) => editing && event.preventDefault()}
+                onDragStart={() => setDragging(index)}
+                onDragEnd={() => setDragging(undefined)}
+                onDrop={() => {
+                  if (dragging !== undefined && dragging !== index) change(move(widgets, dragging, index));
+                  setDragging(undefined);
+                }}
+              >
+                <header className="flex min-h-8 items-center justify-between gap-2">
+                  <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
+                  {editing && (
+                    <Menu
+                      items={[
+                        ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
+                        ...(index > 0 ? [{ label: 'Move earlier', onSelect: () => change(move(widgets, index, index - 1)) }] : []),
+                        ...(index < widgets.length - 1 ? [{ label: 'Move later', onSelect: () => change(move(widgets, index, index + 1)) }] : []),
+                        ...sizes
+                          .filter(([size]) => size !== widget.size)
+                          .map(([size, label], at) => ({
+                            label: `Make it ${label}`,
+                            separated: at === 0,
+                            onSelect: () => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, size } : shown))),
+                          })),
+                        { label: 'Remove', separated: true, onSelect: () => change(widgets.filter((shown) => shown.id !== widget.id)) },
+                      ]}
+                      label={`${kind.title} actions`}
+                      trigger={<Icon name="more" size={18} />}
+                      triggerClassName="icon-button"
+                      triggerLabel={`Actions for ${kind.title}`}
+                    />
+                  )}
+                </header>
+                {editing && settingsOpen === widget.id && kind.Settings && (
+                  <div className="rounded-lg border border-line-soft p-3">
+                    <kind.Settings
+                      onChange={(settings) => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, settings } : shown)))}
+                      settings={widget.settings}
+                    />
                   </div>
                 )}
-              </header>
-              {editing && settingsOpen === widget.id && kind.Settings && (
-                <kind.Settings
-                  onChange={(settings) => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, settings } : shown)))}
-                  settings={widget.settings}
-                />
+                <WidgetBoundary>
+                  <kind.View settings={widget.settings} />
+                </WidgetBoundary>
+              </article>
+            );
+          })}
+        </div>
+      )}
+      {configuring && (
+        <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
+          <div className="mt-5 grid gap-4">
+            <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
+            <fieldset className="m-0 grid gap-x-4 border-0 p-0 sm:grid-cols-3">
+              <legend className="field-label mb-1.5 p-0">Opens by itself</legend>
+              <TimePicker emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
+              <TimePicker emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
+              <Select
+                label="On"
+                onChange={(on: Device) => setSchedule({ ...schedule, on })}
+                options={[
+                  { value: 'any', label: 'Any device' },
+                  { value: 'phone', label: 'Phones' },
+                  { value: 'desktop', label: 'Computers' },
+                ]}
+                value={schedule.on}
+              />
+            </fieldset>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {dashboards.data.length > 1 && (
+                <button
+                  className="text-button mr-auto text-sm text-danger"
+                  onClick={() => {
+                    setConfiguring(false);
+                    setDeleting(true);
+                  }}
+                  type="button"
+                >
+                  Delete this dashboard
+                </button>
               )}
-              <WidgetBoundary>
-                <kind.View settings={widget.settings} />
-              </WidgetBoundary>
-            </article>
-          );
-        })}
-      </div>
+              <button className="primary-button" onClick={() => setConfiguring(false)} type="button">
+                Done
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
       {adding && (
         <FormDialog
           busy={saving.busy}
@@ -458,6 +465,6 @@ export function DashboardHome() {
           Its layout is removed. Nothing in your spaces is touched.
         </ConfirmDialog>
       )}
-    </section>
+    </Page>
   );
 }

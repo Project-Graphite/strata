@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, ListSkeleton } from '@project-graphite/ui';
+import { Icon, ListSkeleton, Select } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -83,16 +83,16 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
 
   const chooser = (label: string, options: Property[], chosen: Property | undefined, key: 'groupBy' | 'dateBy') =>
     options.length > 1 && (
-      <label className="flex items-center gap-2 text-sm text-muted">
+      <div className="flex items-center gap-2 text-sm text-muted">
         {label}
-        <select className="text-sm" onChange={(event) => void saveSchema(key === 'groupBy' ? { groupBy: event.currentTarget.value } : { dateBy: event.currentTarget.value })} value={chosen?.id}>
-          {options.map((property) => (
-            <option key={property.id} value={property.id}>
-              {property.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        <Select
+          aria-label={label}
+          onChange={(id) => void saveSchema(key === 'groupBy' ? { groupBy: id } : { dateBy: id })}
+          options={options.map((property) => ({ value: property.id, label: property.name }))}
+          size="small"
+          value={chosen?.id ?? ''}
+        />
+      </div>
     );
 
   const empty = <p className="m-0 text-sm text-muted">No pages in this database yet.</p>;

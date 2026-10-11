@@ -3,7 +3,7 @@ import { useAuth } from '../../auth';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SecurityLog } from './SecurityLog';
-import { SettingsSection } from './SettingsLayout';
+import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 
 interface Session {
@@ -14,7 +14,7 @@ interface Session {
   current: boolean;
 }
 
-export function SessionsSettings() {
+export function SessionsSection() {
   const auth = useAuth();
   const sessions = useResource<Session[]>('/me/sessions', true);
   const action = useAction();
@@ -32,8 +32,8 @@ export function SessionsSettings() {
   }
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
-      <SettingsSection
+    <>
+      <Section
         action={
           others.length > 0 && (
             <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => signOut()} type="button">
@@ -43,9 +43,9 @@ export function SessionsSettings() {
         }
         title="Signed-in devices"
       >
-        <ul className="panel-rows m-0 grid list-none p-0">
+        <ul className="panel-rows">
           {sessions.data.map((session) => (
-            <li className="flex items-center justify-between gap-4 px-4 py-3.5" key={session.id}>
+            <li className="flex items-center justify-between gap-4 panel-row" key={session.id}>
               <div className="min-w-0">
                 <p className="m-0 truncate text-ink">
                   {session.deviceLabel}
@@ -68,8 +68,8 @@ export function SessionsSettings() {
             </li>
           ))}
         </ul>
-      </SettingsSection>
+      </Section>
       <SecurityLog />
-    </div>
+    </>
   );
 }

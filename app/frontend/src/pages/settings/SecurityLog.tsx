@@ -1,7 +1,7 @@
 import { ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
-import { SettingsSection } from './SettingsLayout';
+import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 
 interface AuditEvent {
@@ -35,15 +35,15 @@ export function SecurityLog() {
   const log = useResource<Page<AuditEvent>>('/me/audit?page=1', true);
 
   return (
-    <SettingsSection title="Security log">
+    <Section title="Security log">
       {log.error ? (
         <LoadError error={log.error} onRetry={log.reload} />
       ) : !log.data ? (
         <ListSkeleton label="Loading your security log" rows={4} />
       ) : (
-        <ul className="panel-rows m-0 grid list-none p-0">
+        <ul className="panel-rows">
           {log.data.results.map((event) => (
-            <li className="flex items-baseline justify-between gap-4 px-4 py-3" key={event.id}>
+            <li className="flex items-baseline justify-between gap-4 panel-row" key={event.id}>
               <span className={`min-w-0 text-ink ${event.action === 'sign_in_failed' ? 'font-medium' : ''}`}>
                 {actions[event.action] ?? event.action}
                 {(event.data.device || event.data.reason || event.data.name) && (
@@ -60,6 +60,6 @@ export function SecurityLog() {
           ))}
         </ul>
       )}
-    </SettingsSection>
+    </Section>
   );
 }

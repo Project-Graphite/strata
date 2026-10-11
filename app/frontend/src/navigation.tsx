@@ -1,5 +1,5 @@
 import type { SidebarSection } from '@project-graphite/ui';
-import type { Space } from './spaces';
+import { SpaceMark, type Space } from './spaces';
 
 export const moreAreas = ['/menu', '/pages', '/boards', '/bookmarks', '/journal', '/recurring', '/tidy', '/inbox', '/invitations', '/trash', '/settings', '/admin'];
 
@@ -24,11 +24,7 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
         ...(spaces ?? []).map((space) => ({
           active: pathname === `/spaces/${space.id}` || pathname.startsWith(`/spaces/${space.id}/`),
           href: `/spaces/${space.id}`,
-          icon: (
-            <span aria-hidden="true" className={`tag-mark tag-${space.color}`}>
-              {space.name.charAt(0).toUpperCase()}
-            </span>
-          ),
+          icon: <SpaceMark space={space} />,
           label: space.name,
         })),
         { active: pathname === '/spaces', href: '/spaces', icon: 'folder', label: 'All spaces' },

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ConfirmDialog, Dialog, ListSkeleton, Menu, type MenuItem, PageHeader } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, ListSkeleton, Menu, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { NameAndColorFields, nameAndColorFrom, SpaceDot, spaceNameChecks, useSpaces, type Space } from '../../spaces';
+import { FormDialog } from '../../components/FormDialog';
+import { LoadError } from '../../components/LoadError';
+import { HeaderButton, Page } from '../../components/Page';
+import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
-import { LoadError } from '../../components/LoadError';
 
 export function SpacesPage() {
   const auth = useAuth();
@@ -15,6 +17,7 @@ export function SpacesPage() {
   const renaming = useAction();
   const createForm = useFormErrors();
   const renameForm = useFormErrors();
+  const [creatingSpace, setCreatingSpace] = useState(false);
   const [editing, setEditing] = useState<Space>();
   const [deleting, setDeleting] = useState<Space>();
   const [leaving, setLeaving] = useState<Space>();
@@ -33,31 +36,25 @@ export function SpacesPage() {
   }
 
   return (
-    <section className="page-enter grid max-w-3xl gap-10">
-      <PageHeader title="Spaces" />
-
+    <Page actions={<HeaderButton icon="plus" label="New space" onClick={() => setCreatingSpace(true)} primary />} title="Spaces">
       {spaces.error ? (
         <LoadError error={spaces.error} onRetry={spaces.reload} />
       ) : !spaces.data ? (
         <ListSkeleton label="Loading your spaces" rows={3} />
       ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
+        <ul className="panel-rows">
           {spaces.data.map((space) => (
-            <li className="flex items-center justify-between gap-4 border-b border-line-soft py-4" key={space.id}>
-              <div className="min-w-0">
-                <Link className="inline-flex items-center gap-2 text-ink no-underline hover:underline" to={`/spaces/${space.id}`}>
-                  <SpaceDot color={space.color} />
-                  <span className="truncate">{space.name}</span>
-                </Link>
-                <p className="mono-sm m-0 mt-1 text-faint">
-                  {space.kind === 'personal' ? 'Personal' : `Shared · ${space.role}`}
-                </p>
-              </div>
+            <li className="flex items-center gap-3 panel-row" key={space.id}>
+              <SpaceMark space={space} />
+              <Link className="min-w-0 flex-1 truncate text-ink no-underline hover:underline" to={`/spaces/${space.id}`}>
+                {space.name}
+              </Link>
+              <span className="mono-sm shrink-0 text-faint">{space.kind === 'personal' ? 'Only you' : `Shared · ${space.role}`}</span>
               <Menu
                 items={actionsFor(space)}
                 label={`${space.name} actions`}
-                trigger="•••"
-                triggerClassName="secondary-button px-3 py-2 text-sm"
+                trigger={<Icon name="more" size={18} />}
+                triggerClassName="icon-button"
                 triggerLabel={`Actions for ${space.name}`}
               />
             </li>
@@ -65,70 +62,48 @@ export function SpacesPage() {
         </ul>
       )}
 
-      <section>
-        <h2 className="m-0 text-xl font-medium">New shared space</h2>
-        <form
-          className="mt-5 grid gap-4"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const target = event.currentTarget;
+      {creatingSpace && (
+        <FormDialog
+          busy={creating.busy}
+          busyLabel="Creating…"
+          onClose={() => setCreatingSpace(false)}
+          onSubmit={(target) => {
             if (!createForm.check(target, { name: spaceNameChecks })) return;
             void creating.run(async () => {
-              const created = await auth.request<Space>('/spaces', {
-                method: 'POST',
-                body: JSON.stringify(nameAndColorFrom(target)),
-              });
+              const created = await auth.request<Space>('/spaces', { method: 'POST', body: JSON.stringify(nameAndColorFrom(target)) });
               spaces.mutate((current) => [...current, created]);
               navigate(`/spaces/${created.id}`);
               return '';
             }, 'Could not create the space');
           }}
+          submitLabel="Create space"
+          title="New shared space"
         >
+          <p className="m-0 text-sm text-muted">Invite people once it exists. Everything in it is shared with them.</p>
           <NameAndColorFields field={createForm.field('name')} maxLength={60} />
-          <button className="primary-button inline-flex w-fit" disabled={creating.busy} type="submit">
-            {creating.busy ? 'Creating…' : 'Create space'}
-          </button>
-        </form>
-      </section>
+        </FormDialog>
+      )}
 
       {editing && (
-        <Dialog onClose={() => setEditing(undefined)} title={`Rename ${editing.name}`}>
-          <form
-            className="mt-5 grid gap-4"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              if (!renameForm.check(target, { name: spaceNameChecks })) return;
-              void renaming
-                .run(async () => {
-                  const updated = await auth.request<Space>(`/spaces/${editing.id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify(nameAndColorFrom(target)),
-                  });
-                  spaces.mutate((current) => current.map((space) => (space.id === updated.id ? updated : space)));
-                  return '';
-                }, 'Could not rename the space')
-                .then((saved) => saved && setEditing(undefined));
-            }}
-          >
-            <NameAndColorFields
-              color={editing.color}
-              field={renameForm.field('name')}
-              maxLength={60}
-              name={editing.name}
-            />
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={() => setEditing(undefined)} type="button">
-                Cancel
-              </button>
-              <button className="primary-button" disabled={renaming.busy} type="submit">
-                {renaming.busy ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </form>
-        </Dialog>
+        <FormDialog
+          busy={renaming.busy}
+          busyLabel="Saving…"
+          onClose={() => setEditing(undefined)}
+          onSubmit={(target) => {
+            if (!renameForm.check(target, { name: spaceNameChecks })) return;
+            void renaming
+              .run(async () => {
+                const updated = await auth.request<Space>(`/spaces/${editing.id}`, { method: 'PATCH', body: JSON.stringify(nameAndColorFrom(target)) });
+                spaces.mutate((current) => current.map((space) => (space.id === updated.id ? updated : space)));
+                return '';
+              }, 'Could not rename the space')
+              .then((saved) => saved && setEditing(undefined));
+          }}
+          submitLabel="Save"
+          title={`Rename ${editing.name}`}
+        >
+          <NameAndColorFields color={editing.color} field={renameForm.field('name')} maxLength={60} name={editing.name} />
+        </FormDialog>
       )}
 
       {deleting && (
@@ -162,6 +137,6 @@ export function SpacesPage() {
           You lose access to everything in it until someone invites you back.
         </ConfirmDialog>
       )}
-    </section>
+    </Page>
   );
 }

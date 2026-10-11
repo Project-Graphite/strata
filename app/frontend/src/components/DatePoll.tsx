@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DatePicker, TimePicker } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 
 export type PollAnswer = 'yes' | 'maybe' | 'no';
@@ -96,12 +97,12 @@ export function PollEditor({
       }}
     >
       {rows.map((row, index) => (
-        <div className="flex flex-wrap items-center gap-2" key={index}>
-          <input aria-label={`Date ${index + 1}`} onChange={(event) => update(index, { startsOn: event.currentTarget.value })} type="date" value={row.startsOn} />
-          <input
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto] items-center gap-2" key={index}>
+          <DatePicker aria-label={`Date ${index + 1}`} onChange={(startsOn) => update(index, { startsOn })} value={row.startsOn} />
+          <TimePicker
             aria-label={`Time ${index + 1} (optional)`}
-            onChange={(event) => update(index, { startTime: event.currentTarget.value || null })}
-            type="time"
+            emptyLabel="Any time"
+            onChange={(startTime) => update(index, { startTime: startTime || null })}
             value={row.startTime ?? ''}
           />
           {rows.length > 2 && (

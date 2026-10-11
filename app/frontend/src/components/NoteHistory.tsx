@@ -29,7 +29,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
           <EmptyState title="No earlier versions yet" />
         ) : (
           <>
-            <ul className="panel-rows m-0 grid max-h-56 list-none overflow-y-auto p-0">
+            <ul className="panel-rows max-h-56 overflow-y-auto">
               {versions.data.map((version) => (
                 <li key={version.id}>
                   <button

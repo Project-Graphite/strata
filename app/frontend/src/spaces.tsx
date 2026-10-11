@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { tagColors, TextField, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, Icon, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
 import type { Resource } from './useResource';
 import { atMost, required, type Check } from './validation';
 
@@ -68,9 +68,29 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   return null;
 }
 
-export function SpaceDot({ color }: { color: TagColor }) {
-  return <span aria-hidden="true" className={`tag-dot tag-${color}`} />;
+export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
+  return (
+    <span aria-hidden="true" className={`tag-mark tag-${space.color} ${large ? 'space-mark-large' : ''}`} data-initial={space.kind === 'personal' ? undefined : space.name.charAt(0).toUpperCase()}>
+      {space.kind === 'personal' && <Icon name="user" size={large ? 18 : 12} />}
+    </span>
+  );
 }
+
+export function spaceOptions(spaces: Space[]): SelectOption[] {
+  return spaces.map((space) => ({ value: space.id, label: space.name, leading: <SpaceMark space={space} /> }));
+}
+
+export const colorOptions: SelectOption<TagColor>[] = tagColors.map((color) => ({
+  value: color,
+  label: color.charAt(0).toUpperCase() + color.slice(1),
+  leading: <span aria-hidden="true" className={`swatch-dot tag-${color}`} />,
+}));
+
+export const roleOptions: SelectOption<SpaceRole>[] = [
+  { value: 'owner', label: 'Owner', hint: 'Can manage members' },
+  { value: 'editor', label: 'Editor', hint: 'Can add and change things' },
+  { value: 'viewer', label: 'Viewer', hint: 'Can only look' },
+];
 
 export const spaceNameChecks: Check[] = [required('Enter a name.'), atMost(60, 'Use at most 60 characters.')];
 
@@ -91,18 +111,9 @@ export function NameAndColorFields({
   name?: string;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-      <TextField defaultValue={name} label="Name" maxLength={maxLength} {...field} />
-      <label className="field-label">
-        Colour
-        <select defaultValue={color} name="color">
-          {tagColors.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="grid gap-2">
+      <TextField autoFocus defaultValue={name} label="Name" maxLength={maxLength} {...field} />
+      <ColorSwatches defaultValue={color} label="Colour" name="color" />
     </div>
   );
 }

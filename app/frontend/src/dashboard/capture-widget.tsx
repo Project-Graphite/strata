@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
+import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { Empty } from './widget-parts';
 
@@ -43,13 +44,7 @@ export function Capture() {
       />
       <div className="flex flex-wrap items-center gap-2">
         {editable.length > 1 && (
-          <select aria-label="Save in" className="text-sm" onChange={(event) => setSpaceId(event.currentTarget.value)} value={target}>
-            {editable.map((space) => (
-              <option key={space.id} value={space.id}>
-                {space.name}
-              </option>
-            ))}
-          </select>
+          <Select aria-label="Save in" onChange={setSpaceId} options={spaceOptions(editable)} size="small" value={target ?? ''} />
         )}
         <button className="secondary-button px-3 py-1.5 text-sm" disabled={!text.trim() || saving.busy} onClick={() => save('note')} type="button">
           Save as page

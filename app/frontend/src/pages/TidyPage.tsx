@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, PageHeader, Tabs, timeAgo } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
@@ -11,6 +11,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 interface FileEntry {
   id: string;
@@ -292,8 +293,7 @@ export function TidyPage() {
   const view = params.get('view');
 
   return (
-    <section className="page-enter grid max-w-3xl gap-8">
-      <PageHeader title="Tidy" />
+    <Page title="Tidy">
       <Tabs
         items={[
           { active: view !== 'history' && view !== 'folder', href: '/tidy', label: 'Suggestions' },
@@ -303,6 +303,6 @@ export function TidyPage() {
         label="Tidy view"
       />
       {view === 'history' ? <TidyHistory /> : view === 'folder' ? <FolderScan /> : <TidySuggestions />}
-    </section>
+    </Page>
   );
 }

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { choose } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -92,9 +93,10 @@ describe('Habits', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/habits/gym/check-ins/2026-10-04', expect.objectContaining({ method: 'PUT' }));
     expect(button('Gym yesterday').getAttribute('aria-pressed')).toBe('true');
 
-    const form = [...container.querySelectorAll('form')].find((candidate) => candidate.textContent?.includes('New habit'))!;
+    await act(async () => button('New habit').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Read';
-    form.querySelector<HTMLSelectElement>('select[name="perWeek"]')!.value = '3';
+    await choose(form, 'Goal', '3 days a week');
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });

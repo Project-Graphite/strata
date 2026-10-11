@@ -1,27 +1,27 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, EmptyState, ListSkeleton, PageHeader, Pagination, timeAgo } from '@project-graphite/ui';
-import type { Page } from '../api';
+import { ConfirmDialog, EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ItemList } from './spaces/ItemList';
 import { LoadError } from '../components/LoadError';
+import { Page } from '../components/Page';
 
 export function TrashPage() {
   const auth = useAuth();
   const spaces = useSpaces();
   const [params] = useSearchParams();
   const page = Number(params.get('page')) || 1;
-  const trash = useResource<Page<Item>>(`/trash?page=${page}`, true);
+  const trash = useResource<ResultPage<Item>>(`/trash?page=${page}`, true);
   const action = useAction();
   const [deleting, setDeleting] = useState<Item>();
   const spaceName = (item: Item) => spaces.data?.find((space) => space.id === item.spaceId)?.name ?? 'a space';
 
   return (
-    <section className="page-enter grid max-w-3xl gap-6">
-      <PageHeader title="Trash">Items here are deleted for good after 30 days.</PageHeader>
+    <Page description="Items here are deleted for good after 30 days." title="Trash">
       {trash.error ? (
         <LoadError error={trash.error} onRetry={trash.reload} />
       ) : !trash.data ? (
@@ -74,6 +74,6 @@ export function TrashPage() {
           It is removed for everyone in {spaceName(deleting)}. This cannot be undone.
         </ConfirmDialog>
       )}
-    </section>
+    </Page>
   );
 }

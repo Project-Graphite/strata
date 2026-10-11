@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, ListSkeleton, PageHeader } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useSpaces } from '../spaces';
-import { money, shortDate, type Subscription } from '../subscriptions';
+import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
+import { HeaderButton, Page } from '../components/Page';
 import { StatementImport } from '../components/StatementImport';
+import { SubscriptionEditor } from '../components/SubscriptionEditor';
 
 interface Total {
   currency: string;
@@ -42,19 +44,29 @@ export function RecurringPage() {
   const summary = useResource<Summary>('/subscriptions/summary', true);
   const action = useAction();
   const [importing, setImporting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
   return (
-    <section className="page-enter grid max-w-3xl gap-10">
-      <PageHeader
-        actions={
-          spaces.data?.some((space) => space.role !== 'viewer') && (
-            <button className="secondary-button px-3 py-2 text-sm" onClick={() => setImporting(true)} type="button">
-              Import a statement
-            </button>
-          )
-        }
-        title="Recurring"
-      />
+    <Page
+      actions={
+        editable.length > 0 && (
+          <>
+            <HeaderButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
+            <HeaderButton icon="plus" label="Add subscription" onClick={() => setAdding(true)} primary />
+          </>
+        )
+      }
+      title="Recurring"
+    >
+      {adding && (
+        <SubscriptionEditor
+          onClose={() => setAdding(false)}
+          onSaved={summary.reload}
+          spaceId={(editable.find((space) => space.kind === 'personal') ?? editable[0])!.id}
+          spaces={editable}
+        />
+      )}
       {importing && (
         <StatementImport
           defaultCurrency={summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR'}
@@ -128,7 +140,7 @@ export function RecurringPage() {
             <div className="mt-3">
               {summary.data.categories.map((category) => (
                 <p className="m-0 flex justify-between gap-4 border-b border-line-soft py-3" key={`${category.category}-${category.currency}`}>
-                  <span className="text-ink">{category.category}</span>
+                  <span className="text-ink">{categoryLabel(category.category)}</span>
                   <span className="mono-sm text-faint">{money(category.monthlyMinor, category.currency)} a month</span>
                 </p>
               ))}
@@ -168,6 +180,6 @@ export function RecurringPage() {
           )}
         </>
       )}
-    </section>
+    </Page>
   );
 }

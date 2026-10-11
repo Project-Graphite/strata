@@ -1,8 +1,8 @@
-import { Dialog, TextAreaField, TextField } from '@project-graphite/ui';
+import { DatePicker, Dialog, Select, TextAreaField, TextField, TimePicker } from '@project-graphite/ui';
 import type { EventDetails } from '../agenda';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
-import { repeatPresets, reminderPresets } from '../tasks';
+import { spaceOptions, useSpaces } from '../spaces';
+import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
 
@@ -26,7 +26,6 @@ export function EventEditor({
   const saving = useAction();
   const form = useFormErrors();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const custom = event?.repeatRule && !repeatPresets.some(([value]) => value === event.repeatRule);
 
   return (
     <Dialog onClose={onClose} title={event ? `Edit ${event.title}` : 'New event'}>
@@ -73,55 +72,27 @@ export function EventEditor({
       >
         <TextField defaultValue={event?.title} label="Title" maxLength={200} {...form.field('title')} />
         {!event && (
-          <label className="field-label">
-            Space
-            <select defaultValue={editable[0]?.id} name="spaceId">
-              {editable.map((space) => (
-                <option key={space.id} value={space.id}>
-                  {space.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            defaultValue={editable[0]?.id}
+            label="Space"
+            name="spaceId"
+            options={spaceOptions(editable)}
+          />
         )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="field-label">
-            Starts
-            <input defaultValue={event?.startsOn ?? startsOn} name="startsOn" type="date" />
-          </label>
-          <label className="field-label">
-            Start time (empty for all day)
-            <input defaultValue={event?.startTime ?? ''} name="startTime" type="time" />
-          </label>
-          <label className="field-label">
-            Ends
-            <input defaultValue={event?.endsOn ?? ''} name="endsOn" type="date" />
-          </label>
-          <label className="field-label">
-            End time
-            <input defaultValue={event?.endTime ?? ''} name="endTime" type="time" />
-          </label>
-          <label className="field-label">
-            Repeats
-            <select defaultValue={event?.repeatRule ?? ''} name="repeatRule">
-              {repeatPresets.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-              {custom && <option value={event.repeatRule!}>Custom ({event.repeatRule})</option>}
-            </select>
-          </label>
-          <label className="field-label">
-            Remind me
-            <select defaultValue={event?.reminderMinutes === null || !event ? '' : String(event.reminderMinutes)} name="reminderMinutes">
-              {reminderPresets.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+          <DatePicker
+            defaultValue={event?.startsOn ?? startsOn ?? ''}
+            error={form.errors.startsOn}
+            label="Starts"
+            name="startsOn"
+            onChange={form.field('startsOn').onInput}
+            optional={false}
+          />
+          <TimePicker defaultValue={event?.startTime ?? ''} emptyLabel="All day" label="Start time" name="startTime" />
+          <DatePicker defaultValue={event?.endsOn ?? ''} label="Ends" name="endsOn" placeholder="Same day" />
+          <TimePicker defaultValue={event?.endTime ?? ''} emptyLabel="No end time" label="End time" name="endTime" />
+          <Select defaultValue={event?.repeatRule ?? ''} label="Repeats" name="repeatRule" options={repeatOptions(event?.repeatRule)} />
+          <Select defaultValue={event?.reminderMinutes == null ? '' : String(event.reminderMinutes)} label="Remind me" name="reminderMinutes" options={reminderOptions(event?.reminderMinutes)} />
         </div>
         <TextField defaultValue={event?.location ?? ''} label="Where" maxLength={200} name="location" />
         <TextField defaultValue={event?.meetingUrl ?? ''} inputMode="url" label="Meeting link" {...form.field('meetingUrl')} />
