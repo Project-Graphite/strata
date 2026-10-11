@@ -13,12 +13,14 @@ export function EventEditor({
   onClose,
   onSaved,
   onTrashed,
+  spaceId,
   startsOn,
 }: {
   event?: EventDetails;
   onClose: () => void;
   onSaved: (event: EventDetails) => void;
   onTrashed?: () => void;
+  spaceId?: string;
   startsOn?: string;
 }) {
   const auth = useAuth();
@@ -71,7 +73,8 @@ export function EventEditor({
         }}
       >
         <TextField defaultValue={event?.title} label="Title" maxLength={200} {...form.field('title')} />
-        {!event && (
+        {!event && spaceId && <input name="spaceId" type="hidden" value={spaceId} />}
+        {!event && !spaceId && (
           <Select
             defaultValue={editable[0]?.id}
             label="Space"

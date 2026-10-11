@@ -3,7 +3,7 @@ import { act } from 'react';
 const named = (element: Element, name: string) =>
   element.getAttribute('aria-label') === name ||
   element.textContent === name ||
-  document.getElementById(element.getAttribute('aria-labelledby') ?? '')?.textContent === name;
+  (element.getAttribute('aria-labelledby') ?? '').split(' ').some((id) => document.getElementById(id)?.textContent === name);
 
 export async function choose(root: ParentNode, name: string, option: string) {
   const trigger = [...root.querySelectorAll<HTMLElement>('[role="combobox"]')].find((element) => named(element, name))!;
