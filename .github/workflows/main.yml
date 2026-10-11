@@ -71,18 +71,14 @@ jobs:
     with:
       services: ${{ needs.services.outputs.services }}
   deploy:
-    name: Deploy to Coolify
-    needs: images
-    if: ${{ vars.GRAPHITE_DEPLOY_ENABLED == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger deployment
-        env:
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
-        run: |
-          curl --fail --show-error --silent --request POST "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN"
+    name: Deploy
+    needs: [services, images]
+    uses: project-graphite/actions/.github/workflows/reusable-deploy.yml@main
+    with:
+      services: ${{ needs.services.outputs.services }}
+      tag: ${{ needs.images.outputs.tag }}
+    secrets: inherit
+
   secrets:
     name: Secrets
     uses: project-graphite/actions/.github/workflows/reusable-gitleaks.yml@main
