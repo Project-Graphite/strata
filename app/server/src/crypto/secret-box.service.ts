@@ -1,15 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from 'node:crypto';
 
 const version = 'v1';
 
 @Injectable()
 export class SecretBox {
   private readonly key: Buffer;
+  private readonly linkKey: Buffer;
 
   constructor(config: ConfigService) {
     this.key = Buffer.from(config.getOrThrow<string>('DATA_ENCRYPTION_KEY'), 'base64');
+    this.linkKey = Buffer.from(hkdfSync('sha256', this.key, Buffer.alloc(0), 'link-token', 32));
+  }
+
+  linkToken(id: string) {
+    return createHmac('sha256', this.linkKey).update(id).digest('base64url');
   }
 
   seal(plain: string) {

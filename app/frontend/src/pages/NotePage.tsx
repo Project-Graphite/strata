@@ -177,7 +177,7 @@ export function NotePage() {
               {wide ? 'Standard width' : 'Full width'}
             </button>
           )}
-          {details.editable && <ShareLinks itemId={details.id} key={`share-${details.id}`} noun={details.kind === 'board' ? 'board' : 'page'} />}
+          {details.editable && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} key={`share-${details.id}`} noun={details.kind === 'board' ? 'board' : 'page'} />}
           <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
             History
           </button>

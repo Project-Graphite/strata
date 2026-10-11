@@ -157,7 +157,10 @@ describe('Invitations, the invite-only switch and share links against Postgres',
       datePoll: false,
       content: { kind: 'note', state: null },
     });
-    expect((await owner.call('GET', `/items/${note.id}/share-links`)).body).toHaveLength(1);
+    expect((await owner.call('GET', `/items/${note.id}/share-links`)).body).toEqual([expect.objectContaining({ id: shared.body.id, access: 'view', link: shared.body.link })]);
+    expect((await owner.call('POST', `/items/${note.id}/share-links`, { access: 'edit' })).status).toBe(400);
+    await strata.prisma.shareLink.create({ data: { itemId: note.id, access: 'VIEW', tokenHash: 'f'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) } });
+    expect((await owner.call('GET', `/items/${note.id}/share-links`)).body.map((link: { link: string | null }) => link.link)).toEqual([null, shared.body.link]);
 
     await strata.prisma.item.update({ where: { id: note.id }, data: { trashedAt: new Date() } });
     expect((await strata.anonymous('GET', `/share/${code}`)).status).toBe(404);

@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { LinkKind, SpaceRole } from '@prisma/client';
+import { ItemKind, LinkKind, ShareAccess, SpaceRole } from '@prisma/client';
 import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -11,6 +11,7 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
+import { linkTokenHash } from '../crypto/link-token';
 import { boardElementsKey, documentLinks, documentText, pageKinds } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -18,6 +19,7 @@ export const realtimePath = '/api/v1/realtime';
 const maxUpdateBytes = 2 * 1024 * 1024;
 const maxDocumentBytes = 5 * 1024 * 1024;
 const maxDocumentsPerUser = 40;
+const maxGuestsPerLink = 100;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
@@ -28,10 +30,12 @@ interface BoardVersion {
   isDeleted?: boolean;
 }
 
-export interface RealtimeContext {
-  userId: string;
-  role: SpaceRole;
-  signedInAt?: Date;
+export const guestTokenPrefix = 'share:';
+
+export type RealtimeContext = { userId: string; role: SpaceRole; signedInAt?: Date } | { userId: null; shareLinkId: string };
+
+function openerOf(context: RealtimeContext) {
+  return context.userId === null ? `link/${context.shareLinkId}` : context.userId;
 }
 
 function rejectUpgrade(socket: Duplex, status: number, reason: string) {
@@ -42,8 +46,9 @@ function rejectUpgrade(socket: Duplex, status: number, reason: string) {
 export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeService.name);
   private readonly sockets = new WebSocketServer({ noServer: true, maxPayload: maxUpdateBytes });
-  private readonly documentsPerUser = new Map<string, Set<string>>();
+  private readonly openDocuments = new Map<string, Set<string>>();
   private readonly trustedOrigins: string[];
+  private readonly accessTokenSecret: string;
   private recheck?: NodeJS.Timeout;
   readonly hocuspocus: Hocuspocus<RealtimeContext>;
 
@@ -56,26 +61,24 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     config: ConfigService,
   ) {
     this.trustedOrigins = config.get<string>('AUTH_TRUSTED_ORIGINS')?.split(',') ?? [];
-    const secret = config.getOrThrow<string>('AUTH_ACCESS_TOKEN_SECRET');
+    this.accessTokenSecret = config.getOrThrow<string>('AUTH_ACCESS_TOKEN_SECRET');
     this.hocuspocus = new Hocuspocus<RealtimeContext>({
       quiet: true,
       debounce: 2_000,
       maxDebounce: 10_000,
       onAuthenticate: async ({ connectionConfig, documentName, requestParameters, socketId, token }) => {
         if (Number(requestParameters.get('format')) < editorFormat) throw Object.assign(new Error('outdated'), { reason: 'outdated' });
-        const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret, algorithms: ['HS256'] });
-        const user = await this.sessions.validate(payload);
-        const found = await this.access.assertItem(user.id, documentName, 'read');
-        const item = await this.prisma.item.findUniqueOrThrow({ where: { id: documentName }, select: { kind: true } });
-        if (!pageKinds.includes(item.kind) || found.trashedAt) throw new Error('Only pages and boards can be opened here');
-        const { signedInAt } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true } });
-        const open = this.documentsPerUser.get(user.id) ?? new Set<string>();
+        const { context, readOnly } = token.startsWith(guestTokenPrefix)
+          ? await this.guest(token.slice(guestTokenPrefix.length), documentName)
+          : await this.member(token, documentName);
+        const opener = openerOf(context);
+        const open = this.openDocuments.get(opener) ?? new Set<string>();
         const key = `${socketId}/${documentName}`;
-        if (!open.has(key) && open.size >= maxDocumentsPerUser) throw new Error('Too many open documents');
+        if (!open.has(key) && open.size >= (context.userId ? maxDocumentsPerUser : maxGuestsPerLink)) throw new Error('Too many open documents');
         open.add(key);
-        this.documentsPerUser.set(user.id, open);
-        connectionConfig.readOnly = found.role === SpaceRole.VIEWER;
-        return { userId: user.id, role: found.role, signedInAt };
+        this.openDocuments.set(opener, open);
+        connectionConfig.readOnly = readOnly;
+        return context;
       },
       onLoadDocument: async ({ document, documentName }) => {
         const stored = await this.prisma.noteDocument.findUnique({ where: { itemId: documentName }, select: { state: true } });
@@ -108,9 +111,10 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       onDisconnect: async ({ clientsCount, context, document, documentName, socketId }) => {
         if (!context) return;
         if (clientsCount === 0) await this.snapshot(documentName, Y.encodeStateAsUpdate(document), context.userId, true);
-        const open = this.documentsPerUser.get(context.userId);
+        const opener = openerOf(context);
+        const open = this.openDocuments.get(opener);
         open?.delete(`${socketId}/${documentName}`);
-        if (open?.size === 0) this.documentsPerUser.delete(context.userId);
+        if (open?.size === 0) this.openDocuments.delete(opener);
       },
     });
   }
@@ -207,6 +211,10 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       for (const connection of document.connections.keys()) {
         const context = connection.context as RealtimeContext | undefined;
         if (!context) continue;
+        if (context.userId === null) {
+          if (!(await this.liveShareLink(context.shareLinkId))) connection.close({ code: 4403, reason: 'Access changed' });
+          continue;
+        }
         const sessionKey = `${context.userId}/${context.signedInAt?.toISOString()}`;
         if (!signedIn.has(sessionKey)) signedIn.set(sessionKey, this.stillSignedIn(context));
         if (!(await signedIn.get(sessionKey))) {
@@ -222,7 +230,39 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     }
   }
 
-  private async stillSignedIn({ userId, signedInAt }: RealtimeContext) {
+  closeShareLink(shareLinkId: string) {
+    for (const document of this.hocuspocus.documents.values()) {
+      for (const connection of document.connections.keys()) {
+        const context = connection.context as RealtimeContext | undefined;
+        if (context?.userId === null && context.shareLinkId === shareLinkId) connection.close({ code: 4403, reason: 'Access changed' });
+      }
+    }
+  }
+
+  private async member(token: string, documentName: string) {
+    const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret: this.accessTokenSecret, algorithms: ['HS256'] });
+    const user = await this.sessions.validate(payload);
+    const found = await this.access.assertItem(user.id, documentName, 'read');
+    const item = await this.prisma.item.findUniqueOrThrow({ where: { id: documentName }, select: { kind: true } });
+    if (!pageKinds.includes(item.kind) || found.trashedAt) throw new Error('Only pages and boards can be opened here');
+    const { signedInAt } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true } });
+    return { context: { userId: user.id, role: found.role, signedInAt }, readOnly: found.role === SpaceRole.VIEWER };
+  }
+
+  private async guest(code: string, documentName: string) {
+    const link = await this.prisma.shareLink.findFirst({
+      where: { tokenHash: linkTokenHash(code), itemId: documentName, revokedAt: null, expiresAt: { gt: new Date() }, item: { kind: ItemKind.BOARD, trashedAt: null } },
+      select: { id: true, access: true },
+    });
+    if (!link) throw new Error('This link has expired or was turned off');
+    return { context: { userId: null, shareLinkId: link.id }, readOnly: link.access !== ShareAccess.EDIT };
+  }
+
+  private async liveShareLink(id: string) {
+    return (await this.prisma.shareLink.count({ where: { id, revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } } })) > 0;
+  }
+
+  private async stillSignedIn({ userId, signedInAt }: { userId: string; signedInAt?: Date }) {
     const now = Date.now();
     const live = await this.prisma.refreshSession.count({
       where: {

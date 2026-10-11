@@ -71,19 +71,12 @@ interface BoardComments {
   onAnchors: (anchors: CommentAnchors) => void;
 }
 
-function LiveBoard({
-  boardId,
-  comments,
-  connection,
-  editable,
-  spaceId,
-}: {
-  boardId: string;
+interface BoardMember {
   comments: BoardComments;
-  connection: Connection;
-  editable: boolean;
   spaceId: string;
-}) {
+}
+
+export function LiveBoard({ boardId, connection, editable, member }: { boardId: string; connection: Connection; editable: boolean; member?: BoardMember }) {
   const auth = useAuth();
   const show = useSnackbar();
   const { label, people, outdated } = useLiveStatus(connection, editable);
@@ -96,18 +89,19 @@ function LiveBoard({
   const [pins, setPins] = useState<Pin[]>([]);
   const session = useBoardSession(connection.document);
   const [myVotes, setMyVotes] = useState(0);
-  const commented = useRef(comments.commentedBlocks);
-  commented.current = comments.commentedBlocks;
+  const commentedBlocks = member?.comments.commentedBlocks ?? [];
+  const commented = useRef(commentedBlocks);
+  commented.current = commentedBlocks;
   const synced = useRef(new Map<string, number>());
   const loading = useRef(new Set<string>());
   const pending = useRef<number | undefined>(undefined);
   const elements = connection.document.getMap<ExcalidrawElement>(boardElementsKey);
-  const user = auth.user!;
+  const user = auth.user ? { id: auth.user.id, name: auth.user.displayName } : { id: `guest-${connection.document.clientID}`, name: 'Guest' };
   const load = useFileSource();
 
   useEffect(() => {
-    connection.provider.setAwarenessField('user', { name: user.displayName, color: colorFor(user.id) });
-  }, [connection, user.displayName, user.id]);
+    connection.provider.setAwarenessField('user', { name: user.name, color: colorFor(user.id) });
+  }, [connection, user.name, user.id]);
 
   useEffect(() => {
     if (!api) return;
@@ -162,9 +156,9 @@ function LiveBoard({
 
   useEffect(() => () => window.clearTimeout(pending.current), []);
 
-  const { onAnchors } = comments;
+  const onAnchors = member?.comments.onAnchors;
   useEffect(() => {
-    if (!api) return;
+    if (!api || !onAnchors) return;
     onAnchors({
       noun: 'shape',
       label: (id) => shapeLabel(api.getSceneElements(), id),
@@ -178,7 +172,7 @@ function LiveBoard({
     });
   }, [api, onAnchors]);
 
-  const placed = comments.commentedBlocks.join(' ');
+  const placed = commentedBlocks.join(' ');
   useEffect(() => {
     if (api) setPins(pinsFor(api.getSceneElements(), placed ? placed.split(' ') : [], api.getAppState()));
   }, [api, placed]);
@@ -281,7 +275,7 @@ function LiveBoard({
     }, api);
   }
 
-  async function makeTasks() {
+  async function makeTasks(spaceId: string) {
     setMaking(true);
     try {
       for (const title of picked) {
@@ -296,7 +290,7 @@ function LiveBoard({
     }
   }
 
-  async function upload(file: File) {
+  async function upload(spaceId: string, file: File) {
     if (file.size > maxUploadBytes) {
       show({ message: `${file.name} is over 25 MB.`, tone: 'error' });
       throw new Error('Too large');
@@ -308,7 +302,7 @@ function LiveBoard({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <BrainstormBar controls={editable && !outdated} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
+        <BrainstormBar controls={Boolean(member) && editable && !outdated} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
         <div className="flex items-center gap-3">
           {people.length > 0 && (
             <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
@@ -345,7 +339,7 @@ function LiveBoard({
         ))}
         <Excalidraw
           excalidrawAPI={setApi}
-          generateIdForFile={upload}
+          generateIdForFile={member && ((file) => upload(member.spaceId, file))}
           isCollaborating
           onChange={(scene, appState) => {
             if (editable && !outdated && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
@@ -360,15 +354,15 @@ function LiveBoard({
             setMyVotes(round ? votesBy(scene, round, user.id) : 0);
           }}
           renderTopRightUI={() =>
-            editable && !outdated ? (
+            member && editable && !outdated ? (
               <div className="flex gap-2">
                 {single && (
-                  <button className="board-action" onClick={() => api && comments.onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
+                  <button className="board-action" onClick={() => api && member.comments.onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
                     Comment
                   </button>
                 )}
                 {picked.length > 0 && (
-                  <button className="board-action" disabled={making} onClick={() => void makeTasks()} type="button">
+                  <button className="board-action" disabled={making} onClick={() => void makeTasks(member.spaceId)} type="button">
                     Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
                   </button>
                 )}
@@ -380,7 +374,7 @@ function LiveBoard({
           }
           onPointerUpdate={({ pointer, button }) => connection.provider.setAwarenessField('pointer', { ...pointer, button })}
           theme="light"
-          UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } }}
+          UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false }, tools: { image: Boolean(member) } }}
           viewModeEnabled={!editable || outdated}
         >
           <MainMenu>
@@ -400,5 +394,5 @@ function LiveBoard({
 export default function BoardCanvas({ editable, noteId, spaceId, ...comments }: { editable: boolean; noteId: string; spaceId: string } & BoardComments) {
   const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
-  return <LiveBoard boardId={noteId} comments={comments} connection={connection} editable={editable} spaceId={spaceId} />;
+  return <LiveBoard boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;
 }

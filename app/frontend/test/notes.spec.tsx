@@ -323,32 +323,60 @@ describe('Notes', () => {
     expect(shownShapes).toEqual(['shape-1']);
   });
 
-  it('creates a view link for a page and turns it off', async () => {
-    const sent: { method: string; path: string }[] = [];
+  it('creates a page link for a chosen time, keeps links copyable and turns them off', async () => {
+    const sent: { method: string; path: string; body?: unknown }[] = [];
     serve((path, init) => {
       if (path === '/items/trips/share-links' && init?.method === 'POST') {
-        sent.push({ method: 'POST', path });
-        return json({ id: 'link', access: 'view', expiresAt: '2026-11-08T00:00:00Z', createdAt: '2026-10-09T00:00:00Z', link: 'http://localhost/share/abc' }, 201);
+        sent.push({ method: 'POST', path, body: JSON.parse(String(init.body)) });
+        return json({ id: 'link', access: 'view', expiresAt: '2026-10-18T00:00:00Z', createdAt: '2026-10-11T00:00:00Z', link: 'http://localhost/share/abc' }, 201);
       }
       if (path === '/items/trips/share-links/link' && init?.method === 'DELETE') {
         sent.push({ method: 'DELETE', path });
         return new Response(null, { status: 204 });
       }
-      if (path === '/items/trips/share-links') return json([]);
+      if (path === '/items/trips/share-links') return json([{ id: 'older', access: 'view', expiresAt: '2026-11-01T00:00:00Z', createdAt: '2026-10-01T00:00:00Z', link: null }]);
       if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
       return undefined;
     });
     await render('/notes/trips');
 
-    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Share this page"]')!.click());
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Create a view link')!.click());
-    expect(container.querySelector('code')?.textContent).toBe('http://localhost/share/abc');
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Share')!.click());
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('This older link can’t be shown again');
+    expect(dialog.textContent).not.toContain('People with the link');
+    await choose(dialog, 'Link works for', '7 days');
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Create link')!.click());
+    expect(dialog.querySelector('code')?.textContent).toBe('http://localhost/share/abc');
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
     expect(sent).toEqual([
-      { method: 'POST', path: '/items/trips/share-links' },
+      { method: 'POST', path: '/items/trips/share-links', body: { access: 'view', expiresInDays: 7 } },
       { method: 'DELETE', path: '/items/trips/share-links/link' },
     ]);
-    expect(container.querySelector('code')).toBeNull();
+    expect(dialog.querySelector('code')).toBeNull();
+  });
+
+  it('offers edit links for a board', async () => {
+    const created: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/items/seating/share-links' && init?.method === 'POST') {
+        created.push(JSON.parse(String(init.body)));
+        return json({ id: 'link', access: 'edit', expiresAt: '2026-11-10T00:00:00Z', createdAt: '2026-10-11T00:00:00Z', link: 'http://localhost/share/xyz' }, 201);
+      }
+      if (path === '/items/seating/share-links') return json([]);
+      if (path === '/notes/seating/comments') return json([]);
+      if (path === '/notes/seating') return json({ ...note('seating', 'Seating'), kind: 'board', editable: true, path: [] });
+      return undefined;
+    });
+    await render('/notes/seating');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Share')!.click());
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('No links yet');
+    await choose(dialog, 'People with the link', 'Can edit');
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Create link')!.click());
+    expect(created).toEqual([{ access: 'edit', expiresInDays: 30 }]);
+    expect(dialog.textContent).toContain('Can edit');
+    expect(dialog.querySelector('code')?.textContent).toBe('http://localhost/share/xyz');
   });
 
   it('shows the path, renames on blur and adds a page inside', async () => {

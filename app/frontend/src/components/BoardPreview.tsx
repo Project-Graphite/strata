@@ -6,7 +6,7 @@ import { useAuth } from '../auth';
 import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 
-export function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; label: string }) {
+function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; label: string }) {
   const load = useFileSource();
   const frame = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<'loading' | 'shown' | 'failed'>('loading');

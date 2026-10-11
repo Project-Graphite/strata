@@ -8,6 +8,12 @@ import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { pickDay } from './controls';
 
+vi.mock('../src/components/SharedBoard', () => ({
+  default: ({ boardId, code, editable }: { boardId: string; code: string; editable: boolean }) => (
+    <div aria-label="Live board" data-board={boardId} data-code={code} data-editable={String(editable)} role="region" />
+  ),
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const json = (body: unknown, status = 200) =>
@@ -183,13 +189,14 @@ describe('Agenda and RSVP', () => {
     expect(container.querySelector('[aria-label="Shared page"]')?.textContent).toContain('Two eggs and a pinch of salt');
   });
 
-  it('shows a shared board to a guest', async () => {
+  it('opens a shared board live for a guest, editable through an edit link', async () => {
     serve(false, (path) =>
-      path === `/share/${code}` ? json({ access: 'view', item: { kind: 'board', title: 'Seating' }, event: null, datePoll: false, content: { kind: 'board', elements: [] } }) : undefined,
+      path === `/share/${code}` ? json({ access: 'edit', item: { kind: 'board', title: 'Seating' }, event: null, datePoll: false, content: { kind: 'board', id: 'seating' } }) : undefined,
     );
     await render(`/share/${code}`);
-    expect(container.textContent).toContain('Shared board');
-    expect(container.querySelector('[aria-label="Drawing of Seating"]')?.textContent).toBe('Nothing drawn yet');
+    expect(container.textContent).toContain('Shared board · Anyone with this link can edit');
+    const board = await vi.waitFor(() => container.querySelector<HTMLElement>('[aria-label="Live board"]')!);
+    expect({ ...board.dataset }).toEqual({ board: 'seating', code, editable: 'true' });
   });
 
   it('tells a guest on an open invitation link that the date is still being decided', async () => {
