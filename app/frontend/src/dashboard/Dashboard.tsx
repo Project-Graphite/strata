@@ -365,7 +365,7 @@ export function DashboardHome() {
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
           <div className="mt-5 grid gap-4">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
-            <fieldset className="m-0 grid gap-x-4 border-0 p-0 sm:grid-cols-3">
+            <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
               <legend className="field-label mb-1.5 p-0">Opens by itself</legend>
               <TimePicker emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
               <TimePicker emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />

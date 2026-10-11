@@ -56,7 +56,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
         <input accept=".csv,text/csv" aria-label="Statement file" onChange={(event) => event.currentTarget.files?.[0] && void read(event.currentTarget.files[0])} type="file" />
         {rows && (
           <>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               {columnSelect('Date column', 'date')}
               {columnSelect('Description column', 'description')}
               {columnSelect('Amount column', 'amount')}
@@ -101,7 +101,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                 })}
               </ul>
             )}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Select label="Add to" onChange={setSpaceId} options={spaceOptions(editable)} value={target ?? ''} />
               <Select label="Currency" onChange={setCurrency} options={currencyOptions(allCurrencies)} searchable value={currency} />
             </div>

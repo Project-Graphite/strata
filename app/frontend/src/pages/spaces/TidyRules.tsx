@@ -84,7 +84,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (
-            <li className="panel-row flex items-center justify-between gap-4" key={rule.id}>
+            <li className="panel-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3" key={rule.id}>
               <div className="min-w-0">
                 <p className="m-0 flex flex-wrap items-center gap-2 text-ink">
                   {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
@@ -145,7 +145,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
           title="New rule"
         >
           <TextField autoFocus label="Title contains" maxLength={100} {...form.field('titleContains')} />
-          <div className="grid gap-x-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Select defaultValue="" label="File type" name="fileType" options={[{ value: '', label: 'Any' }, ...Object.entries(fileTypeNames).map(([value, label]) => ({ value, label }))]} />
             <Select
               defaultValue=""
