@@ -59,3 +59,26 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
   }
 });
+
+self.addEventListener('push', (event) => {
+  const message = event.data ? event.data.json() : {};
+  event.waitUntil(
+    self.registration.showNotification(message.title || 'Strata', {
+      icon: '/icons/icon-192.png',
+      data: { link: message.link || '/inbox' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.link || '/inbox', self.location.origin);
+  if (target.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (!open) return self.clients.openWindow(target.href);
+      return open.focus().then(() => open.navigate(target.href));
+    }),
+  );
+});

@@ -1,29 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { InboxEntry } from './inbox-kinds';
+import { PushService } from './push.service';
 
 const pageSize = 20;
-
-export type InboxKind =
-  | 'invitation'
-  | 'member_joined'
-  | 'role_changed'
-  | 'removed_from_space'
-  | 'task_assigned'
-  | 'task_due'
-  | 'subscription_due'
-  | 'event_soon'
-  | 'tidy_summary'
-  | 'comment'
-  | 'weekly_review';
-
-export interface InboxEntry {
-  userId: string;
-  kind: InboxKind;
-  title: string;
-  body?: string;
-  link?: string;
-}
 
 const notificationFields = {
   id: true,
@@ -49,10 +30,14 @@ function present(notification: Prisma.InboxNotificationGetPayload<{ select: type
 
 @Injectable()
 export class InboxService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
-  notify(client: Prisma.TransactionClient, entries: InboxEntry[]) {
-    return client.inboxNotification.createMany({ data: entries });
+  async notify(client: Prisma.TransactionClient, entries: InboxEntry[]) {
+    await client.inboxNotification.createMany({ data: entries });
+    await this.push.queue(client, entries);
   }
 
   async list(userId: string, page: number) {

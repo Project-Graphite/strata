@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FormSkeleton, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { DevicePush } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
@@ -138,6 +139,7 @@ export function ProfileSettings() {
             }, 'Could not change the setting')
           }
         />
+        <DevicePush />
       </SettingsSection>
 
       {changingEmail && (
