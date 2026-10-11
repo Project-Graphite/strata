@@ -18,9 +18,10 @@ import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { Capture } from './capture-widget';
 import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
+import { quoteFor } from './quotes';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -315,6 +316,16 @@ function Agenda() {
   );
 }
 
+function Quote() {
+  const [text, author] = quoteFor(dayKey(new Date()));
+  return (
+    <figure className="m-0 grid gap-2">
+      <blockquote className="m-0 text-lg text-ink">“{text}”</blockquote>
+      <figcaption className="mono-sm text-faint">{author}</figcaption>
+    </figure>
+  );
+}
+
 function Countdown({ settings }: WidgetProps) {
   const label = typeof settings.label === 'string' && settings.label ? settings.label : 'the day';
   if (typeof settings.date !== 'string') return <Empty>Choose a date in this widget's settings.</Empty>;
@@ -590,4 +601,5 @@ export const widgetKinds: Record<
   board: { title: 'Board', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
   bookmarks: { title: 'Read later', size: 'medium', settings: {}, View: ReadLater },
   status: { title: 'Are my apps up?', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
+  quote: { title: 'Quote of the day', size: 'medium', settings: {}, View: Quote },
 };
