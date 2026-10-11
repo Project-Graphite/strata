@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Avatar, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
+import { siteLabel, type Bookmark } from '../bookmarks';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
@@ -19,7 +20,7 @@ import { Capture } from './capture-widget';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export interface Widget {
@@ -506,6 +507,27 @@ function Pages() {
   );
 }
 
+function ReadLater() {
+  const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true);
+  if (bookmarks.error) return <LoadError compact error={bookmarks.error} onRetry={bookmarks.reload} />;
+  if (!bookmarks.data) return <ListSkeleton label="Loading your reading list" rows={3} />;
+  if (bookmarks.data.length === 0) return <Empty>Nothing to read later. Save links on the Bookmarks page.</Empty>;
+  return (
+    <ul className="m-0 grid list-none gap-1.5 p-0">
+      {bookmarks.data.slice(0, 5).map((bookmark) => (
+        <li className="text-sm" key={bookmark.id}>
+          <Link className="text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
+            {bookmark.title}
+          </Link>
+          <span className="mono-sm block text-faint">
+            {siteLabel(bookmark)} · saved {timeAgo(bookmark.createdAt)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true);
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
@@ -566,4 +588,5 @@ export const widgetKinds: Record<
   habits: { title: 'Habits', size: 'medium', settings: {}, View: Habits },
   pages: { title: 'Pinned and recent pages', size: 'medium', settings: {}, View: Pages },
   board: { title: 'Board', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
+  bookmarks: { title: 'Read later', size: 'medium', settings: {}, View: ReadLater },
 };

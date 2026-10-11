@@ -29,6 +29,7 @@ const kindNames: Record<string, string> = {
   subscription: 'subscriptions',
   board: 'boards',
   file: 'files',
+  bookmark: 'bookmarks',
 };
 
 function ruleText(rule: Rule) {

@@ -22,6 +22,9 @@ export const emailAddress: Check = (value) =>
     ? undefined
     : 'Enter an email address like name@example.com.';
 
+export const webAddress: Check = (value) =>
+  !value.trim() || /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(value.trim()) ? undefined : 'Enter a web address that starts with https://.';
+
 export const password = [
   required('Enter a password.'),
   atLeast(12, 'Use at least 12 characters.'),

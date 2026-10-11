@@ -61,6 +61,7 @@ export async function addJoinedSpace(
 export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   if (item.kind === 'note' || item.kind === 'board') return `/notes/${item.id}`;
   if (item.kind === 'event') return `/events/${item.id}`;
+  if (item.kind === 'bookmark') return `/bookmarks/${item.id}`;
   if (item.kind === 'task') return `/spaces/${item.spaceId}/tasks`;
   if (item.kind === 'list') return `/spaces/${item.spaceId}/tasks?list=${item.id}`;
   if (item.kind === 'subscription') return `/spaces/${item.spaceId}/recurring`;

@@ -6,6 +6,7 @@ import { TokenAuthModule } from './access-tokens/token-auth.module';
 import { ActivityModule } from './activity/activity.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { validateEnvironment } from './config/environment';
 import { CryptoModule } from './crypto/crypto.module';
 import { DashboardsModule } from './dashboards/dashboards.module';
@@ -62,6 +63,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     SearchModule,
     TasksModule,
     SubscriptionsModule,
+    BookmarksModule,
     DashboardsModule,
     EventsModule,
     ExchangeRatesModule,

@@ -27,6 +27,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
     "@hocuspocus/provider": "4.7.0",
+    "@mozilla/readability": "0.6.0",
     "@project-graphite/ui": "https://github.com/project-graphite/graphite-ui/releases/download/v0.3.0/project-graphite-ui-0.3.0.tgz",
     "@tiptap/core": "3.31.4",
     "@tiptap/extension-collaboration": "3.31.4",

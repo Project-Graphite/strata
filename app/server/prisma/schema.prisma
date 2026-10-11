@@ -26,6 +26,7 @@ enum ItemKind {
   BOARD        @map("board")
   FILE         @map("file")
   LIST         @map("list")
+  BOOKMARK     @map("bookmark")
 }
 
 enum LinkKind {
@@ -276,6 +277,7 @@ model Item {
   journalEntries JournalEntry[]
   comments       NoteComment[]
   pollOptions    EventPollOption[]
+  bookmark       Bookmark?
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -553,6 +555,18 @@ model Subscription {
 
   @@index([nextRenewal])
   @@map("subscriptions")
+}
+
+model Bookmark {
+  itemId      String    @id @map("item_id") @db.Uuid
+  url         String
+  siteName    String?   @map("site_name")
+  description String?
+  readAt      DateTime? @map("read_at")
+  article     Json?
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("bookmarks")
 }
 
 model SubscriptionPrice {

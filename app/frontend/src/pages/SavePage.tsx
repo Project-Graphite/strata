@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { EmptyState, FormPanelSkeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -51,6 +52,7 @@ export function SavePage() {
   const saving = useAction();
   const form = useFormErrors();
   const [shared, setShared] = useState<Shared | null>();
+  const [asTask, setAsTask] = useState(false);
 
   useEffect(() => {
     void readShare().then(setShared);
@@ -68,6 +70,8 @@ export function SavePage() {
   }
   const editable = spaces.data.filter((space) => space.role !== 'viewer');
   const title = suggestedTitle(shared);
+  const link = shared.files.length ? '' : firstLink(shared.url, shared.text, shared.title);
+  const asBookmark = Boolean(link) && !asTask;
 
   async function discard() {
     await caches.delete(shareCache);
@@ -86,8 +90,17 @@ export function SavePage() {
           const values = new FormData(target);
           const taskTitle = String(values.get('title') ?? '').trim();
           const length = atMost(200, 'Use at most 200 characters.');
-          if (!form.check(target, { title: shared.files.length ? [length] : [required('Enter a title for the task.'), length] })) return;
           const spaceId = String(values.get('spaceId'));
+          if (asBookmark) {
+            void saving.run(async () => {
+              const { fetchError } = await saveBookmark(auth.request, spaceId, link);
+              await caches.delete(shareCache);
+              navigate('/bookmarks');
+              return fetchError ? `Saved, but the page could not be read: ${fetchError}` : 'Saved to read later.';
+            }, 'Could not save the link');
+            return;
+          }
+          if (!form.check(target, { title: shared.files.length ? [length] : [required('Enter a title for the task.'), length] })) return;
           void saving.run(async () => {
             if (taskTitle) {
               await auth.request(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title: taskTitle }) });
@@ -113,7 +126,21 @@ export function SavePage() {
             </select>
           </label>
         )}
-        {(title || shared.files.length === 0) && (
+        {link && (
+          <fieldset className="grid gap-2">
+            <legend className="field-label">Save as</legend>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input checked={!asTask} name="saveAs" onChange={() => setAsTask(false)} type="radio" />
+              Bookmark to read later
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input checked={asTask} name="saveAs" onChange={() => setAsTask(true)} type="radio" />
+              Task
+            </label>
+          </fieldset>
+        )}
+        {link && !asTask && <p className="m-0 truncate text-sm text-muted">{link}</p>}
+        {!asBookmark && (title || shared.files.length === 0) && (
           <TextField defaultValue={title} label={shared.files.length ? 'Also add a task (optional)' : 'Task'} maxLength={200} {...form.field('title')} />
         )}
         {shared.files.length > 0 && (
