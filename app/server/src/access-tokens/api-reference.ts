@@ -25,7 +25,8 @@ export class ApiReference {
         const handler = prototype[name]!;
         const scope = this.reflector.get<TokenScope | undefined>(scopeKey, handler);
         if (!scope) return [];
-        return [{ scope, method: RequestMethod[this.reflector.get<RequestMethod>(METHOD_METADATA, handler)], path: joined(prefix, this.reflector.get<string>(PATH_METADATA, handler)) }];
+        const method = RequestMethod[this.reflector.get<RequestMethod>(METHOD_METADATA, handler)];
+        return [this.reflector.get<string | string[]>(PATH_METADATA, handler)].flat().map((path) => ({ scope, method, path: joined(prefix, path) }));
       });
     }));
     return tokenScopes.map((scope) => ({
