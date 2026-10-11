@@ -6,6 +6,8 @@ import { OpenCreatedPage } from './components/OpenCreatedPage';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
 import { AgendaPage } from './pages/AgendaPage';
+import { BookmarkPage } from './pages/BookmarkPage';
+import { BookmarksPage } from './pages/BookmarksPage';
 import { CalendarsPage } from './pages/CalendarsPage';
 import { EventPage } from './pages/EventPage';
 import { HomePage } from './pages/HomePage';
@@ -139,6 +141,22 @@ export function App() {
             element={
               <Protected>
                 <PagesIndex kind="board" key="board" />
+              </Protected>
+            }
+          />
+          <Route
+            path="bookmarks"
+            element={
+              <Protected>
+                <BookmarksPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="bookmarks/:id"
+            element={
+              <Protected>
+                <BookmarkPage />
               </Protected>
             }
           />

@@ -14,6 +14,7 @@ const pages = [
   ['/today', 'Today'],
   ['/agenda', 'Agenda and calendar'],
   ['/recurring', 'Recurring subscriptions and bills'],
+  ['/bookmarks', 'Bookmarks and read later'],
   ['/spaces', 'Spaces'],
   ['/inbox', 'Inbox'],
   ['/invitations', 'Invitations'],
