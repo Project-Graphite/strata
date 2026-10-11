@@ -51,7 +51,7 @@ export function Toolbar({ actions, children }: { actions?: ReactNode; children?:
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

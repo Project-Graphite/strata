@@ -55,7 +55,7 @@ export function SpaceMembers() {
       </Toolbar>
       <ul className="panel-rows">
         {members.data.map((member) => (
-          <li className="panel-row flex items-center justify-between gap-4" key={member.userId}>
+          <li className="panel-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3" key={member.userId}>
             <div className="flex min-w-0 items-center gap-3">
               <Avatar name={member.displayName} />
               <div className="min-w-0">

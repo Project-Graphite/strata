@@ -104,7 +104,7 @@ export function TaskEditor({
             value={title}
             {...form.field('title')}
           />
-          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <DatePicker defaultValue={task?.dueDate ?? ''} disabled={!editable} label="Due date" name="dueDate" />
             <TimePicker defaultValue={task?.dueTime ?? ''} disabled={!editable} label="Time" name="dueTime" />
             <Select defaultValue={task?.repeatRule ?? ''} disabled={!editable} label="Repeats" name="repeatRule" options={repeatOptions(task?.repeatRule)} />

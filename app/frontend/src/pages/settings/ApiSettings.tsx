@@ -67,8 +67,10 @@ export function ApiSettings() {
           </p>
           {reference.data.scopes.map(({ scope, routes }) => (
             <details className="rounded-lg border border-line p-3" key={scope}>
-              <summary className="cursor-pointer text-ink">
-                <span className="mono-sm">{scope}</span> · {routes.length} endpoints
+              <summary className="text-ink">
+                <span>
+                  <span className="mono-sm">{scope}</span> · {routes.length} endpoints
+                </span>
               </summary>
               <ul className="m-0 mt-2 grid list-none gap-0.5 p-0">
                 {routes.map((route) => (

@@ -61,7 +61,7 @@ export function ProfileSettings() {
             }, 'Could not save your profile');
           }}
         >
-          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               autoComplete="name"
               defaultValue={current.displayName}

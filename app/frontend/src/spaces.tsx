@@ -111,7 +111,7 @@ export function NameAndColorFields({
   name?: string;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-4">
       <TextField autoFocus defaultValue={name} label="Name" maxLength={maxLength} {...field} />
       <ColorSwatches defaultValue={color} label="Colour" name="color" />
     </div>
