@@ -21,7 +21,24 @@ export interface QuotedBlock {
   excerpt: string;
 }
 
+export interface CommentAnchors {
+  noun: string;
+  label: (blockId: string) => string;
+  show: (blockId: string) => void;
+}
+
 const blockElement = (blockId: string) => document.querySelector<HTMLElement>(`.note-content [data-id="${CSS.escape(blockId)}"]`);
+
+const pageAnchors: CommentAnchors = {
+  noun: 'block',
+  label: (blockId) => blockElement(blockId)?.textContent?.trim().slice(0, 80) || 'A block that was removed',
+  show: (blockId) => {
+    const block = blockElement(blockId);
+    block?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    block?.classList.add('is-flashing');
+    window.setTimeout(() => block?.classList.remove('is-flashing'), 1600);
+  },
+};
 
 function CommentForm({
   label,
@@ -72,6 +89,7 @@ export function NoteComments({
   quoting,
   onQuoteDone,
   onBlocks,
+  anchors = pageAnchors,
 }: {
   noteId: string;
   editable: boolean;
@@ -79,6 +97,7 @@ export function NoteComments({
   quoting?: QuotedBlock;
   onQuoteDone: () => void;
   onBlocks: (blockIds: string[]) => void;
+  anchors?: CommentAnchors;
 }) {
   const auth = useAuth();
   const comments = useResource<NoteComment[]>(`/notes/${noteId}/comments`, true);
@@ -139,17 +158,8 @@ export function NoteComments({
           {comment.editedAt ? ' · edited' : ''}
         </p>
         {comment.blockId && (
-          <button
-            className="comment-block-quote"
-            onClick={() => {
-              const block = blockElement(comment.blockId!);
-              block?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              block?.classList.add('is-flashing');
-              window.setTimeout(() => block?.classList.remove('is-flashing'), 1600);
-            }}
-            type="button"
-          >
-            {blockElement(comment.blockId)?.textContent?.trim().slice(0, 80) || 'A block that was removed'}
+          <button className="comment-block-quote" onClick={() => anchors.show(comment.blockId!)} type="button">
+            {anchors.label(comment.blockId)}
           </button>
         )}
         <p className="m-0 whitespace-pre-wrap text-sm text-ink">{comment.body}</p>
@@ -190,7 +200,7 @@ export function NoteComments({
         )}
       </div>
       {shown.map((thread) => (
-        <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} key={thread.id}>
+        <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} data-block-id={thread.blockId ?? undefined} key={thread.id}>
           {renderComment(thread)}
           <div className="grid gap-3 border-l border-line pl-4">
             {all.filter((comment) => comment.parentId === thread.id).map(renderComment)}
@@ -200,8 +210,8 @@ export function NoteComments({
       ))}
       {quoting ? (
         <div className="grid gap-2">
-          <p className="comment-block-quote m-0">{quoting.excerpt || 'An empty block'}</p>
-          <CommentForm autoFocus key={quoting.id} label="Comment on this block" onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
+          <p className="comment-block-quote m-0">{quoting.excerpt || `An empty ${anchors.noun}`}</p>
+          <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
         </div>
       ) : (
         <CommentForm label="Comment" onSave={(body) => add(body)} />

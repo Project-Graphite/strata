@@ -17,9 +17,35 @@ vi.mock('../src/components/NoteEditor', () => ({
   ),
 }));
 
-vi.mock('../src/components/BoardCanvas', () => ({
-  default: ({ editable, noteId }: { editable: boolean; noteId: string }) => <div data-editable={editable} data-note={noteId} data-testid="board" />,
-}));
+const shownShapes: string[] = [];
+
+vi.mock('../src/components/BoardCanvas', async () => {
+  const { useEffect } = await import('react');
+  return {
+    default: function Board({
+      editable,
+      noteId,
+      onComment,
+      onAnchors,
+      commentedBlocks,
+    }: {
+      editable: boolean;
+      noteId: string;
+      onComment: (block: { id: string; excerpt: string }) => void;
+      onAnchors: (anchors: { noun: string; label: (id: string) => string; show: (id: string) => void }) => void;
+      commentedBlocks: string[];
+    }) {
+      useEffect(() => onAnchors({ noun: 'shape', label: (id) => (id === 'shape-1' ? 'Table plan' : 'A shape that was removed'), show: (id) => shownShapes.push(id) }), [onAnchors]);
+      return (
+        <div data-commented={commentedBlocks.join(' ')} data-editable={editable} data-note={noteId} data-testid="board">
+          <button onClick={() => onComment({ id: 'shape-1', excerpt: 'Table plan' })} type="button">
+            Comment on a shape
+          </button>
+        </div>
+      );
+    },
+  };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -260,6 +286,40 @@ describe('Notes', () => {
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-commented')).toBe('block-1');
     expect(container.querySelector('textarea[aria-label="Comment on this block"]')).toBeNull();
     expect(container.querySelector('.comment-block-quote')?.textContent).toBe('A block that was removed');
+  });
+
+  it('comments on a shape on a board, pins it and jumps back to the shape from the comment', async () => {
+    const sent: unknown[] = [];
+    let listed: unknown[] = [];
+    serve((path, init) => {
+      if (path === '/notes/seating/comments' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        sent.push(body);
+        const saved = { id: 'c2', parentId: null, blockId: body.blockId, body: body.body, resolvedAt: null, editedAt: null, createdAt: '2026-10-11T10:00:00Z', author: { id: 'me', displayName: 'Amr' } };
+        listed = [saved];
+        return json(saved, 201);
+      }
+      if (path === '/notes/seating/comments') return json(listed);
+      if (path === '/notes/seating') return json({ ...note('seating', 'Seating'), kind: 'board', editable: true, path: [] });
+      return undefined;
+    });
+    await render('/notes/seating');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Comment on a shape')!.click());
+    const box = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Comment on this shape"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, 'Move this nearer the door');
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => box.form!.requestSubmit());
+
+    expect(sent).toEqual([{ body: 'Move this nearer the door', blockId: 'shape-1' }]);
+    expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-commented')).toBe('shape-1');
+    expect(container.querySelector('article[data-block-id="shape-1"]')).not.toBeNull();
+    const quoted = container.querySelector<HTMLButtonElement>('.comment-block-quote')!;
+    expect(quoted.textContent).toBe('Table plan');
+    await act(async () => quoted.click());
+    expect(shownShapes).toEqual(['shape-1']);
   });
 
   it('creates a view link for a page and turns it off', async () => {
