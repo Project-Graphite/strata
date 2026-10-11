@@ -18,6 +18,8 @@ import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
 import { JournalDayPage, JournalPage } from './pages/JournalPage';
 import { PagesIndex } from './pages/PagesIndex';
+import { PeoplePage } from './pages/PeoplePage';
+import { PersonPage } from './pages/PersonPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
@@ -134,6 +136,26 @@ export function App() {
               <Protected>
                 <FeatureRoute feature="goals">
                   <GoalPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="people"
+            element={
+              <Protected>
+                <FeatureRoute feature="people">
+                  <PeoplePage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="people/:id"
+            element={
+              <Protected>
+                <FeatureRoute feature="people">
+                  <PersonPage />
                 </FeatureRoute>
               </Protected>
             }

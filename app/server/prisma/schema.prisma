@@ -28,6 +28,7 @@ enum ItemKind {
   LIST         @map("list")
   BOOKMARK     @map("bookmark")
   GOAL         @map("goal")
+  PERSON       @map("person")
 }
 
 enum LinkKind {
@@ -283,6 +284,7 @@ model Item {
   bookmark       Bookmark?
   goal           Goal?
   goalHabits     GoalHabit[]
+  person         Person?
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -1005,4 +1007,20 @@ model GoalHabit {
   @@id([goalId, habitId])
   @@index([habitId])
   @@map("goal_habits")
+}
+
+model Person {
+  itemId        String  @id @map("item_id") @db.Uuid
+  relationship  String?
+  birthdayMonth Int?    @map("birthday_month") @db.SmallInt
+  birthdayDay   Int?    @map("birthday_day") @db.SmallInt
+  birthYear     Int?    @map("birth_year") @db.SmallInt
+  email         String?
+  phone         String?
+  notes         String  @default("")
+  giftIdeas     Json    @default("[]") @map("gift_ideas")
+  item          Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([birthdayMonth, birthdayDay], map: "people_birthday_idx")
+  @@map("people")
 }

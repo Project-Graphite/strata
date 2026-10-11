@@ -16,6 +16,13 @@ export const featureCatalogue: Feature[] = [
     icon: 'target',
     href: '/goals',
   },
+  {
+    key: 'people',
+    label: 'People',
+    description: 'Birthdays on your agenda with a reminder the day before, gift ideas, and the events you shared.',
+    icon: 'users',
+    href: '/people',
+  },
 ];
 
 export const enabledFeatures = (keys: string[] | undefined) => featureCatalogue.filter((feature) => keys?.includes(feature.key));

@@ -83,7 +83,7 @@ export class WeeklyReviewService implements OnModuleInit {
     ]);
     const day = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const dayAndTime = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone });
-    const labels = { event: '', external: '', task: 'due: ', renewal: 'renews: ' };
+    const labels = { event: '', external: '', task: 'due: ', renewal: 'renews: ', birthday: '' };
     const blocks: Block[] = [
       ...section('Done this week', done.map((task) => task.title || 'Untitled task'), 'Nothing was marked done.'),
       ...section('Still open', open.map((task) => task.title || 'Untitled task'), 'Nothing is overdue.'),
