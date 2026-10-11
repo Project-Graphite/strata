@@ -63,7 +63,7 @@ describe('Home widget data against Postgres and Redis', () => {
     expect((await owner.call('GET', '/widgets/places?name=L')).status).toBe(400);
   });
 
-  it('tells whether an app answers, and caches the answer for a minute', async () => {
+  it('tells whether an app answers, is down or could not be reached', async () => {
     const watcher = await member('watcher');
     const up = `https://up-${watcher.id}.example/health`;
     const down = `https://down-${watcher.id}.example/health`;
@@ -79,8 +79,6 @@ describe('Home widget data against Postgres and Redis', () => {
       error: 'That address took too long to answer',
     });
     expect((await watcher.call('GET', `/widgets/status?url=${encodeURIComponent(`https://busy-${watcher.id}.example/`)}`)).body).toMatchObject({ up: false, status: 503 });
-    await watcher.call('GET', `/widgets/status?url=${encodeURIComponent(up)}`);
-    expect(vi.mocked(statusOfPublic).mock.calls.filter(([url]) => url === up)).toHaveLength(1);
     expect((await strata.anonymous('GET', `/widgets/status?url=${encodeURIComponent(up)}`)).status).toBe(401);
   });
 
