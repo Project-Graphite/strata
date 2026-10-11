@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
+import { birthdaysBetween } from '../people/birthdays';
 import { CreateEventDto, InviteGuestDto, OpenRsvpDto, RsvpDto, UpdateEventDto } from './dto/events.dto';
 
 const reminderKind = 'event.reminder';
@@ -219,7 +220,7 @@ export class EventsService implements OnModuleInit {
   }
 
   async agenda(userId: string, from: string, to: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true, features: true } });
     const fromDay = dateValue(from);
     const toDay = dateValue(to);
     if (toDay <= fromDay || toDay.getTime() - fromDay.getTime() > maxAgendaDays * dayMs) {
@@ -229,7 +230,7 @@ export class EventsService implements OnModuleInit {
     const end = zonedInstant(toDay.getTime() / dayMs, 0, 0, user.timeZone);
     const readable = { ...this.access.itemsOf(userId), trashedAt: null };
     const window = { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] };
-    const [events, tasks, subscriptions, followed] = await Promise.all([
+    const [events, tasks, subscriptions, followed, people] = await Promise.all([
       this.prisma.item.findMany({
         where: {
           ...readable,
@@ -254,6 +255,13 @@ export class EventsService implements OnModuleInit {
         include: { subscription: { select: { spaceId: true, name: true } } },
         take: 2_000,
       }),
+      user.features.includes('people')
+        ? this.prisma.item.findMany({
+            where: { ...readable, kind: ItemKind.PERSON, person: { birthdayMonth: { not: null }, birthdayDay: { not: null } } },
+            select: { id: true, spaceId: true, title: true, person: { select: { birthdayMonth: true, birthdayDay: true, birthYear: true } } },
+            take: 2_000,
+          })
+        : [],
     ]);
     const times = (event: EventTimes, slot: Slot) => ({
       allDay: !event.startTime,
@@ -301,6 +309,19 @@ export class EventsService implements OnModuleInit {
           .map((at) => localDate(details.timeZone, at))
           .filter((day) => day >= from && day < to)
           .map((day) => ({ kind: 'renewal' as const, itemId: item.id, spaceId: item.spaceId, title: item.title, allDay: true, start: day, end: null, location: null }));
+      }),
+      ...people.flatMap((item) => {
+        const person = item.person!;
+        return birthdaysBetween(person.birthdayMonth!, person.birthdayDay!, from, to).map((day) => ({
+          kind: 'birthday' as const,
+          itemId: item.id,
+          spaceId: item.spaceId,
+          title: person.birthYear ? `${item.title} turns ${Number(day.slice(0, 4)) - person.birthYear}` : `${item.title}’s birthday`,
+          allDay: true,
+          start: day,
+          end: null,
+          location: null,
+        }));
       }),
     ];
     return entries.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : Number(b.allDay) - Number(a.allDay)));

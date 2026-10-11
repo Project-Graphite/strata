@@ -10,6 +10,7 @@ export const inboxKinds = [
   'tidy_summary',
   'comment',
   'weekly_review',
+  'birthday',
 ] as const;
 
 export type InboxKind = (typeof inboxKinds)[number];

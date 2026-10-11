@@ -16,6 +16,7 @@ import { FilesModule } from './files/files.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { GoalsModule } from './goals/goals.module';
 import { HabitsModule } from './habits/habits.module';
+import { PeopleModule } from './people/people.module';
 import { JournalModule } from './journal/journal.module';
 import { HealthModule } from './health/health.module';
 import { InboxModule } from './inbox/inbox.module';
@@ -72,6 +73,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     CalendarModule,
     HabitsModule,
     GoalsModule,
+    PeopleModule,
     JournalModule,
     NotesModule,
     RealtimeModule,

@@ -1,1 +1,1 @@
-export const featureKeys = ['goals'] as const;
+export const featureKeys = ['goals', 'people'] as const;
