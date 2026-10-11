@@ -46,6 +46,18 @@ class Environment {
   @Min(1)
   @Max(65_535)
   EMAIL_PORT?: number;
+
+  @IsOptional()
+  @Matches(/^[A-Za-z0-9_-]{87}$/, { message: 'VAPID_PUBLIC_KEY must be a URL-safe base64 public key' })
+  VAPID_PUBLIC_KEY?: string;
+
+  @IsOptional()
+  @Matches(/^[A-Za-z0-9_-]{43}$/, { message: 'VAPID_PRIVATE_KEY must be a URL-safe base64 private key' })
+  VAPID_PRIVATE_KEY?: string;
+
+  @IsOptional()
+  @Matches(/^(mailto:|https:\/\/)\S+$/, { message: 'VAPID_SUBJECT must be a mailto: or https:// address' })
+  VAPID_SUBJECT?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>) {

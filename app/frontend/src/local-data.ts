@@ -6,6 +6,10 @@ function deleteDatabase(name: string) {
 }
 
 export async function wipeLocalData() {
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    await (await registration?.pushManager?.getSubscription())?.unsubscribe();
+  }
   if (typeof caches !== 'undefined') {
     await Promise.all((await caches.keys()).map((name) => caches.delete(name)));
   }
