@@ -17,6 +17,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
+import { QuickAddTask } from '../components/QuickAddTask';
 import { Capture } from './capture-widget';
 import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
@@ -93,19 +94,19 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
   );
 }
 
-function TaskWidget({ path, empty }: { path: string | null; empty: ReactNode }) {
+function TaskWidget({ add, path }: { add?: { spaceId: string; listId?: string }; path: string }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true);
   const action = useAction();
-  if (!path) return <Empty>{empty}</Empty>;
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data) return <ListSkeleton label="Loading tasks" rows={3} />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
-  if (list.length === 0) return <Empty>Nothing due. Enjoy it.</Empty>;
   return (
-    <>
+    <div className="grid gap-2">
+      {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
+      {list.length === 0 && <Empty>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Empty>}
       <ul className="m-0 grid list-none gap-0 p-0">
         {list.slice(0, 8).map((task) => (
           <TaskRow
@@ -123,28 +124,37 @@ function TaskWidget({ path, empty }: { path: string | null; empty: ReactNode }) 
           />
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 
 function Today() {
-  return <TaskWidget empty={null} path="/tasks/today" />;
+  return <TaskWidget path="/tasks/today" />;
+}
+
+function useTodoSpaceId(settings: Record<string, unknown>) {
+  const spaces = useSpaces();
+  return typeof settings.spaceId === 'string' ? settings.spaceId : spaces.data?.find((space) => space.kind === 'personal')?.id;
 }
 
 function Tasks({ settings }: WidgetProps) {
-  const spaceId = typeof settings.spaceId === 'string' ? settings.spaceId : null;
-  const listId = typeof settings.listId === 'string' ? settings.listId : null;
+  const spaces = useSpaces();
+  const spaceId = useTodoSpaceId(settings);
+  const listId = typeof settings.listId === 'string' ? settings.listId : undefined;
+  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
+  if (!spaceId) return <ListSkeleton label="Loading tasks" rows={3} />;
   return (
     <TaskWidget
-      empty="Choose a space and list in this widget's settings."
-      path={spaceId ? `/spaces/${spaceId}/tasks?page=1${listId ? `&listId=${listId}` : ''}` : null}
+      add={space && space.role !== 'viewer' ? { spaceId, listId } : undefined}
+      key={`${spaceId}/${listId ?? ''}`}
+      path={`/spaces/${spaceId}/tasks?page=1${listId ? `&listId=${listId}` : ''}`}
     />
   );
 }
 
 function TasksSettings({ onChange, settings }: SettingsProps) {
   const spaces = useSpaces();
-  const spaceId = typeof settings.spaceId === 'string' ? settings.spaceId : '';
+  const spaceId = useTodoSpaceId(settings) ?? '';
   const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
   return (
     <div className="grid gap-3">
@@ -563,7 +573,7 @@ export const widgetKinds: Record<
 > = {
   clock: { title: 'Clock', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
   today: { title: 'Today', size: 'medium', settings: {}, View: Today },
-  tasks: { title: 'Task list', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
+  tasks: { title: 'To-do list', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
   shortcuts: { title: 'Shortcuts', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
   recurring: { title: 'Renewals and spend', size: 'small', settings: {}, View: Recurring },
   inbox: { title: 'Inbox', size: 'medium', settings: {}, View: Inbox },

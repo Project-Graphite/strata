@@ -107,8 +107,16 @@ export class TasksService implements OnModuleInit {
 
   async lists(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
+    return this.listsIn({ spaceId });
+  }
+
+  myLists(userId: string) {
+    return this.listsIn(this.access.itemsOf(userId));
+  }
+
+  private async listsIn(scope: Prisma.ItemWhereInput) {
     const lists = await this.prisma.item.findMany({
-      where: { spaceId, kind: ItemKind.LIST, trashedAt: null },
+      where: { ...scope, kind: ItemKind.LIST, trashedAt: null },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
@@ -146,11 +154,20 @@ export class TasksService implements OnModuleInit {
 
   async list(userId: string, spaceId: string, query: ListTasksDto) {
     await this.access.assertSpace(userId, spaceId, 'read');
+    return this.pageOf({ spaceId }, {}, query);
+  }
+
+  mine(userId: string, query: ListTasksDto) {
+    return this.pageOf(this.access.itemsOf(userId), query.listId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
+  }
+
+  private async pageOf(scope: Prisma.ItemWhereInput, tasks: Prisma.TaskWhereInput, query: ListTasksDto) {
     const where: Prisma.ItemWhereInput = {
-      spaceId,
+      ...scope,
       kind: ItemKind.TASK,
       trashedAt: null,
       task: {
+        ...tasks,
         ...(query.listId ? { listId: query.listId } : {}),
         completedAt: query.completed ? { not: null } : null,
       },

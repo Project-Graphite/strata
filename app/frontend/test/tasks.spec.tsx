@@ -13,6 +13,7 @@ const json = (body: unknown, status = 200) =>
 
 const user = { id: 'me', email: 'amr@example.com', handle: 'amr', displayName: 'Amr', role: 'member', timeZone: 'Etc/UTC' };
 const home = { id: 'home', name: 'Home', color: 'green', kind: 'shared', role: 'editor', createdAt: '2026-10-01T00:00:00Z' };
+const personal = { id: 'mine', name: 'Personal', color: 'gray', kind: 'personal', role: 'owner', createdAt: '2026-10-01T00:00:00Z' };
 const task = (overrides: object) => ({
   id: 'bins',
   spaceId: 'home',
@@ -53,11 +54,11 @@ describe('Tasks', () => {
   function serve(route: (path: string, init?: RequestInit) => Response | undefined) {
     const fetchMock = vi.fn((input: string, init?: RequestInit) => {
       const path = input.replace('/api/v1', '');
+      const routed = route(path, init);
+      if (routed) return Promise.resolve(routed);
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
       if (path === '/spaces') return Promise.resolve(json([home]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
-      const routed = route(path, init);
-      if (routed) return Promise.resolve(routed);
       if (path === '/spaces/home/lists') return Promise.resolve(json([]));
       if (path === '/spaces/home/members') return Promise.resolve(json([]));
       return Promise.resolve(new Response(null, { status: 404 }));
@@ -181,6 +182,73 @@ describe('Tasks', () => {
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/rent/tags', expect.objectContaining({ method: 'PUT' }));
     expect(container.querySelector('dialog [role="status"]')).toBeNull();
+  });
+
+  async function typeTodo(text: string) {
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Add a to-do"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, text);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    return input.form!;
+  }
+
+  function serveTodos(route: (path: string, init?: RequestInit) => Response | undefined) {
+    const added: { path: string; body: { title: string; listId?: string; priority?: number } }[] = [];
+    let open = [task({ id: 'milk', title: 'Milk', listId: 'groceries', dueDate: null, dueTime: null, repeatRule: null })];
+    serve((path, init) => {
+      if (path === '/spaces') return json([personal, home]);
+      if (/^\/spaces\/(mine|home)\/tasks$/.test(path) && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        added.push({ path, body });
+        const created = task({ id: `added-${added.length}`, spaceId: path.split('/')[2], title: body.title, listId: body.listId ?? null, dueDate: null, dueTime: null, repeatRule: null });
+        open = [...open, created];
+        return json(created, 201);
+      }
+      if (path === '/tasks/milk/complete') {
+        open = open.filter((shown) => shown.id !== 'milk');
+        return json(task({ id: 'milk', title: 'Milk', repeatRule: null, completedAt: '2026-10-12T09:00:00Z' }));
+      }
+      return route(path, init) ?? (path.startsWith('/me/tasks?page=1') || path === '/spaces/mine/tasks?page=1' ? json(page(open)) : undefined);
+    });
+    return added;
+  }
+
+  it('gathers one to-do list across spaces, adds to the chosen list and ticks things off', async () => {
+    const added = serveTodos((path) => (path === '/me/lists' ? json([{ id: 'groceries', spaceId: 'home', title: 'Groceries', openTasks: 1 }]) : undefined));
+    await render('/todo');
+
+    expect(container.querySelector('h1')?.textContent).toBe('To-do');
+    expect(container.textContent).toContain('Adds to Personal.');
+    expect(container.textContent).toContain('Home · Groceries');
+    const form = await typeTodo('Call the bank !3');
+    expect(form.querySelector('[role="status"]')?.textContent).toBe('Understood: high priority');
+    await act(async () => form.requestSubmit());
+    expect(added[0]).toEqual({ path: '/spaces/mine/tasks', body: { title: 'Call the bank', priority: 3 } });
+    expect(container.textContent).toContain('Call the bank');
+
+    await act(async () => [...container.querySelectorAll('a')].find((anchor) => anchor.textContent?.startsWith('Groceries'))!.click());
+    expect(container.textContent).toContain('Adds to Groceries in Home.');
+    await act(async () => (await typeTodo('Eggs')).requestSubmit());
+    expect(added[1]).toEqual({ path: '/spaces/home/tasks', body: { title: 'Eggs', listId: 'groceries' } });
+
+    await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Mark Milk as done"]')!.click());
+    expect(container.textContent).toContain('Done: Milk.');
+    expect(container.querySelector('input[aria-label="Mark Milk as done"]')).toBeNull();
+  });
+
+  it('adds to the to-do list widget on Home, which starts with the personal space', async () => {
+    const todo = { id: 'todo', type: 'tasks', size: 'medium', settings: {} };
+    const added = serveTodos((path) =>
+      path === '/me/dashboards' ? json([{ id: 'main', name: 'Home', position: 0, layout: { widgets: [todo] }, showFrom: null, showUntil: null, showOn: 'any' }]) : undefined,
+    );
+    await render('/');
+
+    const widget = await vi.waitFor(() => container.querySelector('article[aria-label="To-do list"]')!);
+    await vi.waitFor(() => expect(widget.textContent).toContain('Milk'));
+    await act(async () => (await typeTodo('Book the dentist')).requestSubmit());
+    expect(added).toEqual([{ path: '/spaces/mine/tasks', body: { title: 'Book the dentist' } }]);
+    await vi.waitFor(() => expect(widget.textContent).toContain('Book the dentist'));
   });
 
   it('lists what is due today across spaces and clears a finished task', async () => {
