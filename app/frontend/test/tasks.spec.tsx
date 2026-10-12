@@ -49,6 +49,7 @@ describe('Tasks', () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   function serve(route: (path: string, init?: RequestInit) => Response | undefined) {
@@ -116,6 +117,8 @@ describe('Tasks', () => {
   });
 
   it('adds a task and moves a repeating one to its next date when ticked', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T10:00:00'));
     const fetchMock = serve((path, init) => {
       if (path === '/spaces/home/tasks?page=1') return json(page([task({})]));
       if (path === '/spaces/home/tasks' && init?.method === 'POST') {
