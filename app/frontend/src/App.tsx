@@ -54,6 +54,7 @@ import { SpaceTags } from './pages/spaces/SpaceTags';
 import { SpaceTasks } from './pages/spaces/SpaceTasks';
 import { TidyPage } from './pages/TidyPage';
 import { TodayPage } from './pages/TodayPage';
+import { TodoPage } from './pages/TodoPage';
 import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
 
@@ -351,6 +352,14 @@ export function App() {
             element={
               <Protected>
                 <TodayPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="todo"
+            element={
+              <Protected>
+                <TodoPage />
               </Protected>
             }
           />

@@ -95,6 +95,37 @@ describe('Tasks against Postgres', () => {
     expect((await other.call('GET', '/tasks/today')).body.map((task: { title: string }) => task.title)).toEqual(['Theirs', 'Today']);
   });
 
+  it('gathers one to-do list across spaces, with every list and its whole shared contents', async () => {
+    const owner = await member('organiser');
+    const partner = await member('partner');
+    const outsider = await member('nosy');
+    const home = (await owner.call('POST', '/spaces', { name: 'Home' })).body;
+    await strata.join(home.id, partner, SpaceRole.EDITOR);
+    const groceries = (await owner.call('POST', `/spaces/${home.id}/lists`, { title: 'Groceries' })).body;
+    const errands = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/lists`, { title: 'Errands' })).body;
+    const make = (spaceId: string, title: string, extra: object = {}) =>
+      owner.call('POST', `/spaces/${spaceId}/tasks`, { title, ...extra }).then((reply) => reply.body);
+    await make(owner.personalSpaceId, 'Call the bank', { dueDate: utcDate(1) });
+    await make(owner.personalSpaceId, 'Post the parcel', { listId: errands.id });
+    await make(home.id, 'Milk', { listId: groceries.id });
+    await make(home.id, 'Fix the shelf', { assigneeId: partner.id });
+    const done = await make(home.id, 'Bread', { listId: groceries.id });
+    await owner.call('POST', `/tasks/${done.id}/complete`);
+    await make(outsider.personalSpaceId, 'Not yours');
+
+    const titles = (reply: { body: { results: { title: string }[] } }) => reply.body.results.map((task) => task.title);
+    expect(titles(await owner.call('GET', '/me/tasks'))).toEqual(['Call the bank', 'Post the parcel', 'Milk']);
+    expect(titles(await partner.call('GET', '/me/tasks'))).toEqual(['Milk', 'Fix the shelf']);
+    expect(titles(await partner.call('GET', `/me/tasks?listId=${groceries.id}`))).toEqual(['Milk']);
+    expect(titles(await owner.call('GET', `/me/tasks?listId=${groceries.id}&completed=true`))).toEqual(['Bread']);
+    expect(titles(await outsider.call('GET', `/me/tasks?listId=${groceries.id}`))).toEqual([]);
+    expect((await owner.call('GET', '/me/lists')).body).toEqual([
+      expect.objectContaining({ id: groceries.id, spaceId: home.id, title: 'Groceries', openTasks: 1 }),
+      expect.objectContaining({ id: errands.id, spaceId: owner.personalSpaceId, title: 'Errands', openTasks: 1 }),
+    ]);
+    expect((await partner.call('GET', '/me/lists')).body.map((list: { title: string }) => list.title)).toEqual(['Groceries']);
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

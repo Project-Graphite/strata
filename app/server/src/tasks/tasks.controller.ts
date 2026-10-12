@@ -40,6 +40,18 @@ export class TasksController {
     return this.tasks.create(user.id, spaceId, input);
   }
 
+  @Get('me/lists')
+  @Scope('items:read')
+  myLists(@CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.myLists(user.id);
+  }
+
+  @Get('me/tasks')
+  @Scope('items:read')
+  mine(@CurrentUser() user: AuthenticatedUser, @Query() query: ListTasksDto) {
+    return this.tasks.mine(user.id, query);
+  }
+
   @Get('tasks/today')
   @Scope('items:read')
   today(@CurrentUser() user: AuthenticatedUser) {
