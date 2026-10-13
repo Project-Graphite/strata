@@ -1,11 +1,30 @@
 # Strata
 
 Strata is a free personal workspace for your dashboard, agenda, notes, whiteboards, subscriptions
-and files, built by Project Graphite. It is being built in phases. This first release covers
-accounts and the app shell.
+and files, built by Project Graphite.
 
 ## Features
 
+- **Home**: dashboards of widgets (agenda, tasks, pages, weather, news feeds, countdown, focus timer,
+  app status and more), picked by time of day and device, and a wall display.
+- **Tasks**: task lists with repeating tasks, assignment and reminders, a quick-add box that reads
+  dates, tags and priority, and the Today and To-do pages.
+- **Agenda**: events with guest RSVPs and date polls, followed outside calendars and a private
+  calendar link.
+- **Pages**: notes with live co-editing, offline drafts, version history, templates, mentions,
+  comments and database views.
+- **Boards**: whiteboards drawn with Excalidraw, with templates and dot votes, embeddable in pages
+  and events and editable by guests through a share link.
+- **Bookmarks**: saved links with a read-later list and a reader view.
+- **Journal**: a daily journal with a mood, and a one-click weekly review page.
+- **Recurring**: subscriptions with renewals, price history, reminders, home-currency totals at ECB
+  rates, bank statement suggestions and shared splits; habits with check-ins and streaks.
+- **Files**: uploads, previews and downloads, with metadata stripped.
+- **Tidy**: suggestions for stale items, bulk actions with undo and tagging rules.
+- **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
+- **Optional features**, turned on in Settings: Goals, People, Recipes and meals, Spending and Trips.
+- **Inbox**: notices in the app and as push notifications to chosen devices.
+- **Search** and a command palette, an installable app, personal access tokens and webhooks.
 - **Accounts**:
   - registration with email verification and resendable links;
   - sign-in with rotating refresh sessions and reuse detection;
@@ -45,7 +64,7 @@ accounts and the app shell.
 
 - React 19, Vite, Tailwind CSS 4 and `@project-graphite/ui`.
 - NestJS 12, Prisma 7 and PostgreSQL 18.
-- Redis 8 for rate limits.
+- Redis 8 for rate limits, widget caching and the health check.
 - One container serves the built frontend and the `/api/v1` API, and runs migrations when it
   starts.
 
@@ -80,6 +99,13 @@ hand the role over:
 docker compose exec app npm run system-manager:grant --workspace server -- you@example.com
 ```
 
+In production, open the `app` container's Terminal in the
+[Graphite Console](https://console.project-graphite.com), or `docker exec` into it on the VPS, and run:
+
+```sh
+npm run system-manager:grant --workspace server -- you@example.com
+```
+
 ## Layout
 
 | Folder | What it is |
@@ -92,7 +118,11 @@ docker compose exec app npm run system-manager:grant --workspace server -- you@e
 
 Production runs at `strata.project-graphite.com` from
 [`deploy/strata/values.yaml`](https://github.com/project-graphite/platform/blob/main/deploy/strata/values.yaml) in `platform`. A push to `main` records the
-image tag there, which deploys it. These values live only in the organisation's secrets repository:
+image tag there, which deploys it. Uploaded files live in the `files-data` volume at `/data/files`
+(`FILES_ROOT`, default `/data/files`). The `backup` service writes a `pg_dump` and a tar of the files
+into the `backups` volume once a day and keeps `BACKUP_KEEP_DAYS` days of them.
+
+These values live only in the organisation's secrets repository:
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
 - `AUTH_ACCESS_TOKEN_SECRET`, at least 32 characters
