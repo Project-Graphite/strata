@@ -191,21 +191,21 @@ describe('Spending and budgets against Postgres', () => {
 
     const add = (title: string, amountMinor: number, spentOn: string, category = 'groceries') =>
       owner.call('POST', `/spaces/${home.id}/expenses`, { title, amountMinor, currency: 'EGP', spentOn, category });
-    await add('August market', 4000, '2026-09-24');
-    await add('September market', 7000, '2026-09-25');
-    await add('Late September market', 1000, '2026-10-24');
-    const september = (await owner.call('GET', `/spaces/${home.id}/spending?month=2026-09`)).body;
-    expect(september).toMatchObject({
-      month: '2026-09',
-      from: '2026-09-25',
-      until: '2026-10-24',
+    await add('July market', 4000, '2026-08-24');
+    await add('August market', 7000, '2026-08-25');
+    await add('Late August market', 1000, '2026-09-24');
+    const august = (await owner.call('GET', `/spaces/${home.id}/spending?month=2026-08`)).body;
+    expect(august).toMatchObject({
+      month: '2026-08',
+      from: '2026-08-25',
+      until: '2026-09-24',
       spentMinor: 8000,
       budgetMinor: 100_000 + 96_000,
       carriedMinor: 96_000,
       safeDailyMinor: null,
       plan: { budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true },
     });
-    expect(september.categories).toEqual([{ category: 'groceries', spentMinor: 8000, budgetMinor: 16_000, carriedMinor: 6000 }]);
+    expect(august.categories).toEqual([{ category: 'groceries', spentMinor: 8000, budgetMinor: 16_000, carriedMinor: 6000 }]);
 
     const today = new Date().toISOString().slice(0, 10);
     const current = (await owner.call('GET', `/spaces/${home.id}/spending`)).body;
