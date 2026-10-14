@@ -184,7 +184,7 @@ export function CalendarsPage() {
         )}
       </Section>
       <Section
-        description="Follow a public calendar, such as holidays, fixtures or a shared Google calendar’s secret address. Its events appear in the Agenda for everyone in the space, read-only, and are checked every 6 hours."
+        description="Follow a public calendar, such as holidays, fixtures or a shared Google calendar’s secret address. Its events appear in the Agenda for everyone in the space, read-only. They are checked again whenever you open the Agenda, and every 15 minutes otherwise."
         title="Calendars from elsewhere"
       >
         <FollowedCalendars following={following} onClose={() => setFollowing(false)} />

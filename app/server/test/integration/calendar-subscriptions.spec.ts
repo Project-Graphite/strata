@@ -48,10 +48,18 @@ describe('Followed calendars against Postgres', () => {
     expect(failed).toMatchObject({ lastError: 'The address answered with status 500', events: 2 });
 
     vi.mocked(fetchPublic).mockResolvedValue(ics('UID:m3\nSUMMARY:Cup final\nDTSTART;VALUE=DATE:20261108'));
-    await strata.prisma.calendarSubscription.update({ where: { id: added.body.id }, data: { lastFetchedAt: new Date(Date.now() - 7 * 60 * 60 * 1000) } });
+    await strata.prisma.calendarSubscription.update({ where: { id: added.body.id }, data: { lastFetchedAt: new Date(Date.now() - 20 * 60 * 1000) } });
     await strata.service(CalendarSubscriptionsService).refreshDue(new Date());
     const titles = (await owner.call('GET', '/agenda?from=2026-11-01&to=2026-11-10')).body.map((entry: { title: string }) => entry.title);
     expect(titles).toEqual(['Cup final']);
+
+    vi.mocked(fetchPublic).mockResolvedValue(ics('UID:m4\nSUMMARY:Replay\nDTSTART;VALUE=DATE:20261109'));
+    expect((await owner.call('POST', '/me/calendars/refresh')).body).toEqual({ refreshed: 0 });
+    await strata.prisma.calendarSubscription.update({ where: { id: added.body.id }, data: { lastFetchedAt: new Date(Date.now() - 2 * 60 * 1000) } });
+    expect((await outsider.call('POST', '/me/calendars/refresh')).body).toEqual({ refreshed: 0 });
+    expect((await viewer.call('POST', '/me/calendars/refresh')).body).toEqual({ refreshed: 1 });
+    expect((await viewer.call('POST', '/me/calendars/refresh')).body).toEqual({ refreshed: 0 });
+    expect((await owner.call('GET', '/agenda?from=2026-11-01&to=2026-11-10')).body.map((entry: { title: string }) => entry.title)).toEqual(['Replay']);
 
     expect((await viewer.call('DELETE', `/calendars/${added.body.id}`)).status).toBe(403);
     expect((await owner.call('DELETE', `/calendars/${added.body.id}`)).status).toBe(204);
