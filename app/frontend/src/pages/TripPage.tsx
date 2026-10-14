@@ -10,7 +10,7 @@ import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
-import { categoryName } from '../spending';
+import { categoryName, type MoneyAccount } from '../spending';
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { TaskRow, type Task } from '../tasks';
@@ -27,6 +27,7 @@ export function TripPage() {
   const trip = useResource<TripDetail>(`/trips/${id}`, true);
   const action = useAction();
   const [dialog, setDialog] = useState<'edit' | 'plan' | 'pack' | 'expense'>();
+  const accounts = useResource<MoneyAccount[]>(trip.data ? `/spaces/${trip.data.spaceId}/accounts` : null, true);
 
   if (trip.error) return <LoadError error={trip.error} onRetry={trip.reload} />;
   if (!trip.data) return <PageSkeleton label="Loading the trip" />;
@@ -275,7 +276,7 @@ export function TripPage() {
 
       {dialog === 'edit' && space && <TripEditor onClose={() => setDialog(undefined)} onSaved={() => trip.reload()} spaces={[space]} trip={shown} />}
       {dialog === 'plan' && <EventEditor onClose={() => setDialog(undefined)} onSaved={(event) => void link(event.id)} spaceId={shown.spaceId} startsOn={shown.startsOn} />}
-      {dialog === 'expense' && <ExpenseEditor currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => void link(expense.id)} spaceId={shown.spaceId} />}
+      {dialog === 'expense' && <ExpenseEditor accounts={accounts.data ?? []} currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => void link(expense.id)} spaceId={shown.spaceId} />}
       {dialog === 'pack' && shown.packing && (
         <PackDialog
           onClose={() => setDialog(undefined)}

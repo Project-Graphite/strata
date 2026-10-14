@@ -33,19 +33,34 @@ function present(row: ExpenseRow) {
     category: expense.category,
     paymentLabel: expense.paymentLabel,
     note: expense.note,
+    direction: expense.direction,
+    merchant: expense.merchant,
+    source: expense.source,
+    accountId: expense.accountId,
+    toAccountId: expense.toAccountId,
     split: row.costSplit,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-const expenseData = (input: CreateExpenseDto) => ({
+type Movement = { direction: string; accountId: string | null; toAccountId: string | null };
+
+const movementOf = (input: Pick<CreateExpenseDto, 'direction' | 'accountId' | 'toAccountId'>): Movement => {
+  const direction = input.direction ?? 'spent';
+  return { direction, accountId: input.accountId ?? null, toAccountId: direction === 'transfer' ? (input.toAccountId ?? null) : null };
+};
+
+const expenseData = (input: CreateExpenseDto, source: string) => ({
   amountMinor: input.amountMinor,
   currency: input.currency,
   spentOn: dateValue(input.spentOn),
   category: input.category ?? 'other',
   paymentLabel: input.paymentLabel || null,
   note: input.note ?? '',
+  merchant: input.merchant || null,
+  source,
+  ...movementOf(input),
 });
 
 @Injectable()
@@ -82,7 +97,13 @@ export class SpendingService {
       return converted ?? 0;
     };
     const spent = new Map<string, number>();
-    for (const expense of expenses) spent.set(expense.category, (spent.get(expense.category) ?? 0) + shown(expense.amountMinor, expense.currency));
+    let receivedMinor = 0;
+    for (const expense of expenses) {
+      if (expense.direction === 'received') receivedMinor += shown(expense.amountMinor, expense.currency);
+      if (expense.direction !== 'spent' && expense.direction !== 'refund') continue;
+      const amount = shown(expense.amountMinor, expense.currency) * (expense.direction === 'refund' ? -1 : 1);
+      spent.set(expense.category, (spent.get(expense.category) ?? 0) + amount);
+    }
     const budgeted = new Map(budgets.map((budget) => [budget.category, shown(budget.amountMinor, budget.currency)]));
     const committedMinor = subscriptions.reduce(
       (sum, subscription) => sum + renewalsBetween(subscription, from, to).filter((day) => day >= from).length * shown(subscription.amountMinor, subscription.currency),
@@ -98,6 +119,7 @@ export class SpendingService {
       ratesOn: rates.publishedOn,
       missing: [...missing].sort(),
       spentMinor: [...spent.values()].reduce((sum, amount) => sum + amount, 0),
+      receivedMinor,
       budgetMinor: budgets.length ? [...budgeted.values()].reduce((sum, amount) => sum + amount, 0) : null,
       committedMinor,
       categories,
@@ -108,13 +130,13 @@ export class SpendingService {
 
   async create(userId: string, spaceId: string, input: CreateExpenseDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
-    const [id] = await this.insert(userId, spaceId, [input]);
+    const [id] = await this.insert(userId, spaceId, [input], 'manual');
     return this.get(userId, id!);
   }
 
   async import(userId: string, spaceId: string, inputs: CreateExpenseDto[]) {
     await this.access.assertSpace(userId, spaceId, 'edit');
-    return { added: (await this.insert(userId, spaceId, inputs)).length };
+    return { added: (await this.insert(userId, spaceId, inputs, 'import')).length };
   }
 
   async get(userId: string, itemId: string) {
@@ -124,6 +146,12 @@ export class SpendingService {
   async update(userId: string, itemId: string, input: UpdateExpenseDto) {
     const row = await this.row(userId, itemId, 'edit');
     if (row.trashedAt) throw new BadRequestException('Restore this expense from the trash before changing it');
+    const movement = movementOf({
+      direction: input.direction ?? (row.expense!.direction as CreateExpenseDto['direction']),
+      accountId: input.accountId === undefined ? row.expense!.accountId : input.accountId,
+      toAccountId: input.toAccountId === undefined ? row.expense!.toAccountId : input.toAccountId,
+    });
+    await this.checkAccounts(row.spaceId, [movement]);
     await this.prisma.$transaction(async (transaction) => {
       await transaction.item.update({
         where: { id: itemId },
@@ -138,6 +166,8 @@ export class SpendingService {
               category: input.category,
               paymentLabel: input.paymentLabel === undefined ? undefined : input.paymentLabel || null,
               note: input.note,
+              merchant: input.merchant === undefined ? undefined : input.merchant || null,
+              ...movement,
             },
           },
         },
@@ -164,12 +194,23 @@ export class SpendingService {
     if (removed.count === 0) throw new NotFoundException('There is no budget for that category');
   }
 
-  private insert(userId: string, spaceId: string, inputs: CreateExpenseDto[]) {
+  private async checkAccounts(spaceId: string, movements: Movement[]) {
+    if (movements.some(({ direction, accountId, toAccountId }) => direction === 'transfer' && (!accountId || !toAccountId || accountId === toAccountId))) {
+      throw new BadRequestException('A transfer moves money between two different accounts');
+    }
+    const ids = [...new Set(movements.flatMap(({ accountId, toAccountId }) => [accountId, toAccountId]).filter((id): id is string => id !== null))];
+    if (ids.length && (await this.prisma.moneyAccount.count({ where: { spaceId, id: { in: ids } } })) !== ids.length) {
+      throw new BadRequestException('Choose an account from this space');
+    }
+  }
+
+  private async insert(userId: string, spaceId: string, inputs: CreateExpenseDto[], source: string) {
+    await this.checkAccounts(spaceId, inputs.map(movementOf));
     return this.prisma.$transaction(async (transaction) => {
       const ids: string[] = [];
       for (const input of inputs) {
         const item = await transaction.item.create({
-          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: expenseData(input) } },
+          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: expenseData(input, source) } },
           select: { id: true },
         });
         ids.push(item.id);

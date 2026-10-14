@@ -23,6 +23,11 @@ const expense = (id: string, title: string, amountMinor: number, category: strin
   category,
   paymentLabel: null,
   note: '',
+  direction: 'spent',
+  merchant: null,
+  source: 'manual',
+  accountId: null,
+  toAccountId: null,
   split: null,
   createdAt: '2026-10-01T00:00:00Z',
   updatedAt: '2026-10-01T00:00:00Z',
@@ -33,6 +38,7 @@ const october = {
   ratesOn: '2026-10-09',
   missing: [],
   spentMinor: 7500,
+  receivedMinor: 0,
   budgetMinor: 30000,
   committedMinor: 3000,
   categories: [
@@ -42,6 +48,20 @@ const october = {
   budgets: [{ category: 'groceries', amountMinor: 30000, currency: 'EUR' }],
   expenses: [expense('shop', 'Corner shop', 1500, 'groceries', '2026-10-20'), expense('diner', 'Diner', 2000, 'eating out', '2026-10-07'), expense('market', 'Market', 4000, 'groceries', '2026-10-05')],
 };
+
+const account = (id: string, name: string, kind: string, balanceMinor: number) => ({
+  id,
+  spaceId: 'home',
+  name,
+  kind,
+  currency: 'EUR',
+  cardDigits: kind === 'credit' ? ['4321'] : [],
+  senders: [],
+  creditLimitMinor: null,
+  balanceMinor,
+  missing: [],
+});
+let accounts: ReturnType<typeof account>[] = [];
 
 describe('Spending', () => {
   let container: HTMLDivElement;
@@ -54,6 +74,7 @@ describe('Spending', () => {
   });
 
   afterEach(() => {
+    accounts = [];
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
@@ -65,6 +86,7 @@ describe('Spending', () => {
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
       if (path === '/spaces') return Promise.resolve(json([home]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/spaces/home/accounts' && !init?.method) return Promise.resolve(json(accounts));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -95,7 +117,7 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10');
 
-    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€225.00 left of €300.00', '€30.00']);
+    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€0.00', '€225.00 left of €300.00', '€30.00']);
     expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['25', '18']);
     expect(container.textContent).toContain('€55.00 of €300.00');
     expect(container.textContent).toContain('Corner shop');
@@ -132,5 +154,50 @@ describe('Spending', () => {
 
     await chooseFromMenu(container, 'Actions for Groceries', 'Remove the budget');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/groceries', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('lists accounts with balances and records a transfer between them', async () => {
+    accounts = [account('bank', 'CIB', 'bank', 120000), account('card', 'Visa', 'credit', -4500)];
+    const transfer = { ...expense('move', 'Top up', 5000, 'other', '2026-10-12'), direction: 'transfer', accountId: 'bank', toAccountId: 'card' };
+    const salary = { ...expense('pay', 'Salary', 300000, 'other', '2026-10-01'), direction: 'received', accountId: 'bank' };
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json({ ...october, receivedMinor: 300000, expenses: [transfer, salary] });
+      if (path === '/spaces/home/expenses' && init?.method === 'POST') return json(transfer, 201);
+      if (path === '/accounts/card' && init?.method === 'PATCH') return json(accounts[1]);
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+
+    expect(container.textContent).toContain('€1,200.00');
+    expect(container.textContent).toContain('€45.00 owed');
+    expect(container.textContent).toContain('Credit card · •••• 4321');
+    expect(container.textContent).toContain('CIB → Visa');
+    expect(container.textContent).toContain('+€3,000.00');
+
+    await act(async () => button('Add expense').click());
+    let form = container.querySelector('dialog form') as HTMLFormElement;
+    await choose(form, 'Type', 'Transfer between accounts');
+    form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Top up';
+    form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '50';
+    expect(form.querySelector('input[name="paymentLabel"]')).toBeNull();
+    await submit(form);
+    expect(container.textContent).toContain('Choose two different accounts.');
+    await choose(form, 'From', 'CIB');
+    await choose(form, 'To', 'Visa');
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/expenses' && init?.method === 'POST')![1]!.body));
+    expect(body).toMatchObject({ title: 'Top up', amountMinor: 5000, direction: 'transfer', accountId: 'bank', toAccountId: 'card' });
+
+    await chooseFromMenu(container, 'Actions for Visa', 'Edit');
+    form = container.querySelector('dialog form') as HTMLFormElement;
+    expect(form.querySelector<HTMLInputElement>('input[name="balance"]')!.value).toBe('45.00');
+    form.querySelector<HTMLInputElement>('input[name="cardDigits"]')!.value = '4321, 99';
+    await submit(form);
+    expect(container.textContent).toContain('Enter the last 4 digits of each card');
+    form.querySelector<HTMLInputElement>('input[name="cardDigits"]')!.value = '4321, 9999';
+    form.querySelector<HTMLInputElement>('input[name="balance"]')!.value = '60';
+    await submit(form);
+    const patch = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/accounts/card' && init?.method === 'PATCH')![1]!.body));
+    expect(patch).toMatchObject({ name: 'Visa', kind: 'credit', cardDigits: ['4321', '9999'], balanceMinor: -6000 });
   });
 });
