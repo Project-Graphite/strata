@@ -77,4 +77,58 @@ describe('Spending and budgets against Postgres', () => {
     expect((await owner.call('POST', `/items/${market.id}/trash`)).status).toBe(204);
     expect((await owner.call('GET', `/spaces/${flat.id}/spending?month=2026-10`)).body.spentMinor).toBe(2000 + 1500);
   });
+
+  it('keeps account balances from spending, income, refunds and transfers, and leaves transfers out of the month', async () => {
+    await strata.prisma.exchangeRate.upsert({ where: { currency: 'EGP' }, create: { currency: 'EGP', perEuro: 50, publishedOn: new Date('2026-10-09') }, update: { perEuro: 50 } });
+    const owner = await member('account-keeper');
+    const viewer = await member('account-peeker');
+    const outsider = await member('account-stranger');
+    const home = (await owner.call('POST', '/spaces', { name: 'Home money' })).body;
+    await strata.join(home.id, viewer, SpaceRole.VIEWER);
+    const other = (await owner.call('POST', '/spaces', { name: 'Elsewhere' })).body;
+
+    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP', cardDigits: ['12345'] })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP', kind: 'vault' })).status).toBe(400);
+    expect((await viewer.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP' })).status).toBe(403);
+    const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'egp', cardDigits: ['1234', '1234', '5678'], senders: ['CIB'], balanceMinor: 1_000_000 })).body;
+    expect(bank).toMatchObject({ name: 'CIB', kind: 'bank', currency: 'EGP', cardDigits: ['1234', '5678'], senders: ['CIB'], balanceMinor: 1_000_000, missing: [] });
+    const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP' })).body;
+    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Travel card', kind: 'credit', currency: 'EUR', creditLimitMinor: 100_000 })).body;
+    const elsewhere = (await owner.call('POST', `/spaces/${other.id}/accounts`, { name: 'Other bank', currency: 'EGP' })).body;
+
+    const base = { currency: 'EGP', spentOn: '2026-10-10' };
+    const add = (body: object) => owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, ...body });
+    expect((await add({ title: 'Lunch', amountMinor: 100, accountId: elsewhere.id })).status).toBe(400);
+    expect((await add({ title: 'Move', amountMinor: 100, direction: 'transfer', accountId: bank.id })).status).toBe(400);
+    expect((await add({ title: 'Move', amountMinor: 100, direction: 'transfer', accountId: bank.id, toAccountId: bank.id })).status).toBe(400);
+    const groceries = (await add({ title: 'Carrefour', amountMinor: 250_000, category: 'groceries', accountId: bank.id, merchant: 'Carrefour Maadi' })).body;
+    expect(groceries).toMatchObject({ direction: 'spent', merchant: 'Carrefour Maadi', source: 'manual', accountId: bank.id, toAccountId: null });
+    await add({ title: 'Carrefour refund', amountMinor: 50_000, category: 'groceries', direction: 'refund', accountId: bank.id });
+    await add({ title: 'Salary', amountMinor: 3_000_000, direction: 'received', accountId: bank.id });
+    await add({ title: 'Top up', amountMinor: 200_000, direction: 'transfer', accountId: bank.id, toAccountId: wallet.id });
+    await add({ title: 'Paris dinner', amountMinor: 4000, currency: 'EUR', category: 'eating out', accountId: card.id });
+    await add({ title: 'Taxi', amountMinor: 30_000, category: 'transport', accountId: wallet.id, toAccountId: bank.id });
+
+    const balances = Object.fromEntries((await viewer.call('GET', `/spaces/${home.id}/accounts`)).body.map((account: { name: string; balanceMinor: number }) => [account.name, account.balanceMinor]));
+    expect(balances).toEqual({ CIB: 1_000_000 - 250_000 + 50_000 + 3_000_000 - 200_000, 'Vodafone Cash': 200_000 - 30_000, 'Travel card': -4000 });
+    expect((await outsider.call('GET', `/spaces/${home.id}/accounts`)).status).toBe(404);
+
+    const month = (await owner.call('GET', `/spaces/${home.id}/spending?month=2026-10`)).body;
+    expect(month).toMatchObject({ currency: 'EGP', spentMinor: 250_000 - 50_000 + 200_000 + 30_000, receivedMinor: 3_000_000 });
+    expect(month.categories).toEqual([
+      { category: 'groceries', spentMinor: 200_000, budgetMinor: null },
+      { category: 'eating out', spentMinor: 200_000, budgetMinor: null },
+      { category: 'transport', spentMinor: 30_000, budgetMinor: null },
+    ]);
+
+    expect((await owner.call('PATCH', `/expenses/${groceries.id}`, { direction: 'transfer' })).status).toBe(400);
+    expect((await owner.call('PATCH', `/expenses/${groceries.id}`, { direction: 'transfer', toAccountId: wallet.id })).body).toMatchObject({ direction: 'transfer', toAccountId: wallet.id });
+    expect((await owner.call('PATCH', `/expenses/${groceries.id}`, { direction: 'spent' })).body).toMatchObject({ direction: 'spent', toAccountId: null });
+
+    expect((await owner.call('PATCH', `/accounts/${bank.id}`, { balanceMinor: 500_000 })).body.balanceMinor).toBe(500_000);
+    expect((await viewer.call('PATCH', `/accounts/${bank.id}`, { name: 'Mine' })).status).toBe(403);
+    expect((await owner.call('DELETE', `/accounts/${wallet.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/expenses/${groceries.id}`)).body.accountId).toBe(bank.id);
+    expect((await owner.call('GET', `/spaces/${home.id}/accounts`)).body.map((account: { name: string }) => account.name)).toEqual(['CIB', 'Travel card']);
+  });
 });

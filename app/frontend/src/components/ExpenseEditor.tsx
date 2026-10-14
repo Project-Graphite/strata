@@ -3,7 +3,7 @@ import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, type Expense, type SpendingCategory } from '../spending';
+import { categoryOptions, directionOptions, type Expense, type ExpenseDirection, type MoneyAccount, type SpendingCategory } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
@@ -11,6 +11,7 @@ import { FormDialog } from './FormDialog';
 
 
 export function ExpenseEditor({
+  accounts,
   currency,
   expense,
   onClose,
@@ -18,6 +19,7 @@ export function ExpenseEditor({
   onTrashed,
   spaceId,
 }: {
+  accounts: MoneyAccount[];
   currency: string;
   expense?: Expense;
   onClose: () => void;
@@ -30,6 +32,11 @@ export function ExpenseEditor({
   const form = useFormErrors();
   const [category, setCategory] = useState<SpendingCategory>(expense?.category ?? 'groceries');
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(new Date()));
+  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? 'spent');
+  const [accountId, setAccountId] = useState(expense?.accountId ?? '');
+  const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? '');
+  const transfer = direction === 'transfer';
+  const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
 
   return (
     <FormDialog
@@ -42,7 +49,8 @@ export function ExpenseEditor({
             title: [required('Say what it was for.'), atMost(200, 'Use at most 200 characters.')],
             amount: [required('Enter the amount.'), moneyAmount],
             paymentLabel: [atMost(40, 'Use at most 40 characters.'), notCardNumber],
-          })
+          }) ||
+          (transfer && !form.check(target, { from: [() => (accountId && toAccountId && accountId !== toAccountId ? undefined : 'Choose two different accounts.')] }))
         ) {
           return;
         }
@@ -57,6 +65,9 @@ export function ExpenseEditor({
           category,
           paymentLabel: text('paymentLabel') || null,
           note: text('note'),
+          direction,
+          accountId: accountId || null,
+          toAccountId: transfer ? toAccountId : null,
         };
         void saving
           .run(async () => {
@@ -73,14 +84,21 @@ export function ExpenseEditor({
       submitLabel={expense ? 'Save' : 'Add expense'}
       title={expense ? 'Edit expense' : 'New expense'}
     >
+      <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
       <TextField autoComplete="off" autoFocus defaultValue={expense?.title} label="What for" maxLength={200} placeholder="Groceries at the market" {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : ''} inputMode="decimal" label="Amount" {...form.field('amount')} />
         <Select defaultValue={expense?.currency ?? currency} label="Currency" name="currency" options={currencyOptions(allCurrencies)} searchable />
         <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
-        <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />
+        {direction !== 'received' && !transfer && <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />}
+        {accounts.length > 0 && (
+          <Select error={form.errors.from} label={transfer ? 'From' : 'Account'} name="from" onChange={setAccountId} options={accountOptions} value={accountId} />
+        )}
+        {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
       </div>
-      <TextField defaultValue={expense?.paymentLabel ?? ''} hint="Such as “Visa ending 1234”. Never a card number." label="Paid with (optional)" maxLength={40} {...form.field('paymentLabel')} />
+      {(accounts.length === 0 || expense?.paymentLabel) && (
+        <TextField defaultValue={expense?.paymentLabel ?? ''} hint="Such as “Visa ending 1234”. Never a card number." label="Paid with (optional)" maxLength={40} {...form.field('paymentLabel')} />
+      )}
       <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
       {expense && onTrashed && (
         <button

@@ -4,13 +4,14 @@ import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextFie
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
+import { AccountEditor } from '../components/AccountEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { ExpenseImport } from '../components/ExpenseImport';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
 import { SplitEditor } from '../components/SplitEditor';
-import { categoryName, categoryOptions, type Expense, type SpendingCategory, type SpendingMonth } from '../spending';
+import { accountKindOptions, categoryName, categoryOptions, type Expense, type MoneyAccount, type SpendingCategory, type SpendingMonth } from '../spending';
 import { spaceOptions, useSpaces, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -36,10 +37,18 @@ export function SpendingPage() {
   const editable = Boolean(space && space.role !== 'viewer');
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending?month=${month}` : null, true);
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
-  const [dialog, setDialog] = useState<'new' | 'import' | { budget: SpendingCategory | null } | { expense: Expense } | { split: Expense }>();
+  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const [dialog, setDialog] = useState<
+    'new' | 'import' | { budget: SpendingCategory | null } | { expense: Expense } | { split: Expense } | { account: MoneyAccount | null }
+  >();
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
   const shown = summary.data;
   const currency = shown?.currency ?? 'EUR';
+  const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
+  const reload = () => {
+    summary.reload();
+    accounts.reload();
+  };
 
   return (
     <Page
@@ -78,9 +87,10 @@ export function SpendingPage() {
         <ListSkeleton label="Adding up the month" rows={5} />
       ) : (
         <>
-          <dl className="m-0 grid gap-3 sm:grid-cols-3">
+          <dl className="m-0 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ['Spent', money(shown.spentMinor, currency)],
+              ['Received', money(shown.receivedMinor, currency)],
               ['Budget', shown.budgetMinor === null ? 'None set' : `${money(Math.max(0, shown.budgetMinor - shown.spentMinor), currency)} left of ${money(shown.budgetMinor, currency)}`],
               ['Renewals this month', money(shown.committedMinor, currency)],
             ].map(([label, value]) => (
@@ -93,6 +103,51 @@ export function SpendingPage() {
           {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
           {shown.missing.length > 0 && (
             <p className="notice m-0">There is no exchange rate for {shown.missing.join(', ')} yet, so those amounts are left out of the totals.</p>
+          )}
+
+          {(editable || Boolean(accounts.data?.length)) && (
+            <Section action={editable && <HeaderButton label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
+              {!accounts.data?.length ? (
+                <p className="m-0 text-sm text-muted">No accounts yet.</p>
+              ) : (
+                <ul className="panel-rows">
+                  {accounts.data.map((account) => (
+                    <li className="panel-row flex items-center gap-3" key={account.id}>
+                      <span className="grid min-w-0 flex-1">
+                        <span className="truncate text-ink">{account.name}</span>
+                        <span className="truncate text-sm text-muted">
+                          {[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-ink">
+                        {account.kind === 'credit' ? `${money(Math.max(0, -account.balanceMinor), account.currency)} owed` : money(account.balanceMinor, account.currency)}
+                      </span>
+                      {editable && (
+                        <Menu
+                          items={[
+                            { label: 'Edit', onSelect: () => setDialog({ account }) },
+                            {
+                              label: 'Remove',
+                              separated: true,
+                              onSelect: () =>
+                                void action.run(async () => {
+                                  await auth.request(`/accounts/${account.id}`, { method: 'DELETE' });
+                                  reload();
+                                  return `Removed ${account.name}.`;
+                                }, 'Could not remove the account'),
+                            },
+                          ]}
+                          label={`${account.name} actions`}
+                          trigger={<Icon name="more" size={18} />}
+                          triggerClassName="icon-button"
+                          triggerLabel={`Actions for ${account.name}`}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
           )}
 
           <Section action={editable && <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />} title="By category">
@@ -142,9 +197,9 @@ export function SpendingPage() {
             )}
           </Section>
 
-          <Section title="Expenses">
+          <Section title="Transactions">
             {shown.expenses.length === 0 ? (
-              <EmptyState title="No expenses this month">
+              <EmptyState title="Nothing this month">
               </EmptyState>
             ) : (
               <ul className="panel-rows">
@@ -158,12 +213,25 @@ export function SpendingPage() {
                     >
                       <span className="truncate text-ink">{expense.title}</span>
                       <span className="truncate text-sm text-muted">
-                        {[formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }), categoryName(expense.category), expense.split && 'split', expense.paymentLabel]
+                        {[
+                          formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
+                          expense.direction === 'transfer'
+                            ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
+                            : expense.direction === 'received'
+                              ? 'Received'
+                              : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
+                          expense.direction !== 'transfer' && accountName(expense.accountId),
+                          expense.split && 'split',
+                          expense.paymentLabel,
+                        ]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
                     </button>
-                    <span className="shrink-0 text-ink">{money(expense.amountMinor, expense.currency)}</span>
+                    <span className={expense.direction === 'transfer' ? 'shrink-0 text-muted' : 'shrink-0 text-ink'}>
+                      {expense.direction === 'received' || expense.direction === 'refund' ? '+' : ''}
+                      {money(expense.amountMinor, expense.currency)}
+                    </span>
                     {editable && space?.kind === 'shared' && members.data && (
                       <Menu
                         items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]}
@@ -181,15 +249,16 @@ export function SpendingPage() {
         </>
       )}
 
-      {spaceId && dialog === 'new' && <ExpenseEditor currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} spaceId={spaceId} />}
+      {spaceId && dialog === 'new' && <ExpenseEditor accounts={accounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />}
       {spaceId && dialog === 'import' && <ExpenseImport currency={currency} onAdded={() => summary.reload()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
       {spaceId && typeof dialog === 'object' && 'expense' in dialog && (
         <ExpenseEditor
+          accounts={accounts.data ?? []}
           currency={currency}
           expense={dialog.expense}
           onClose={() => setDialog(undefined)}
-          onSaved={() => summary.reload()}
-          onTrashed={() => summary.reload()}
+          onSaved={reload}
+          onTrashed={reload}
           spaceId={spaceId}
         />
       )}
@@ -201,6 +270,9 @@ export function SpendingPage() {
           onClose={() => setDialog(undefined)}
           onSaved={() => summary.reload()}
         />
+      )}
+      {spaceId && typeof dialog === 'object' && 'account' in dialog && (
+        <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}
       {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
         <BudgetDialog category={dialog.budget} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} spaceId={spaceId} summary={shown} />

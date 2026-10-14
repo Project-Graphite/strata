@@ -230,6 +230,7 @@ model Space {
   webhooks        Webhook[]
   mealPlan        MealPlanEntry[]
   budgets         Budget[]
+  moneyAccounts   MoneyAccount[]
 
   @@map("spaces")
 }
@@ -1067,17 +1068,48 @@ model MealPlanEntry {
 }
 
 model Expense {
-  itemId       String   @id @map("item_id") @db.Uuid
-  amountMinor  Int      @map("amount_minor")
+  itemId       String        @id @map("item_id") @db.Uuid
+  amountMinor  Int           @map("amount_minor")
   currency     String
-  spentOn      DateTime @map("spent_on") @db.Date
-  category     String   @default("other")
-  paymentLabel String?  @map("payment_label")
-  note         String   @default("")
-  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  spentOn      DateTime      @map("spent_on") @db.Date
+  category     String        @default("other")
+  paymentLabel String?       @map("payment_label")
+  note         String        @default("")
+  direction    String        @default("spent")
+  merchant     String?
+  source       String        @default("manual")
+  accountId    String?       @map("account_id") @db.Uuid
+  toAccountId  String?       @map("to_account_id") @db.Uuid
+  item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  account      MoneyAccount? @relation("AccountExpenses", fields: [accountId], references: [id], onDelete: SetNull)
+  toAccount    MoneyAccount? @relation("AccountTransfersIn", fields: [toAccountId], references: [id], onDelete: SetNull)
 
   @@index([spentOn])
+  @@index([accountId])
+  @@index([toAccountId])
   @@map("expenses")
+}
+
+model MoneyAccount {
+  id               String    @id @default(uuid()) @db.Uuid
+  spaceId          String    @map("space_id") @db.Uuid
+  name             String
+  kind             String    @default("bank")
+  currency         String
+  cardDigits       String[]  @default([]) @map("card_digits")
+  senders          String[]  @default([])
+  balanceMinor     Int       @default(0) @map("balance_minor")
+  balanceAt        DateTime  @default(now()) @map("balance_at")
+  creditLimitMinor Int?      @map("credit_limit_minor")
+  position         Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  space            Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  expenses         Expense[] @relation("AccountExpenses")
+  transfersIn      Expense[] @relation("AccountTransfersIn")
+
+  @@index([spaceId])
+  @@map("money_accounts")
 }
 
 model Budget {

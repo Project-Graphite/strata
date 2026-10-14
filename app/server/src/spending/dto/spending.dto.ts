@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
@@ -20,6 +20,8 @@ export const spendingCategories = [
   'other',
 ] as const;
 
+export const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as const;
+
 const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Describe the expense in 1 to 200 characters.' }));
 const DayText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
@@ -31,6 +33,9 @@ const PaymentLabel = () =>
     MaxLength(40, { message: 'Use at most 40 characters.' }),
     NotCardNumber(),
   );
+const Direction = () => IsIn(expenseDirections, { message: 'Choose spent, received, refund or transfer.' });
+const AccountId = () => IsUUID('all', { message: 'Choose an account from the list.' });
+const Merchant = () => applyDecorators(Trimmed(), IsString(), MaxLength(120, { message: 'Use at most 120 characters for the merchant.' }));
 
 export class CreateExpenseDto {
   @Title()
@@ -59,6 +64,25 @@ export class CreateExpenseDto {
   @IsString()
   @MaxLength(1_000, { message: 'Keep the note under 1,000 characters.' })
   note?: string;
+
+  @IsOptional()
+  @Direction()
+  direction?: (typeof expenseDirections)[number];
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @AccountId()
+  accountId?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @AccountId()
+  toAccountId?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Merchant()
+  merchant?: string | null;
 }
 
 export class UpdateExpenseDto {
@@ -92,6 +116,25 @@ export class UpdateExpenseDto {
   @IsString()
   @MaxLength(1_000, { message: 'Keep the note under 1,000 characters.' })
   note?: string;
+
+  @IsOptionalNotNull()
+  @Direction()
+  direction?: (typeof expenseDirections)[number];
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @AccountId()
+  accountId?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @AccountId()
+  toAccountId?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Merchant()
+  merchant?: string | null;
 }
 
 export class ImportExpensesDto {
