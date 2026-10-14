@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon, Select } from '@project-graphite/ui';
-import { dateOrder, guessColumns, parseCsv, readCharges, type DateOrder, type StatementColumns } from '../statement';
+import { dateOrder, guessColumns, parseCsv, readCharges, statementCurrency, withoutPreamble, type DateOrder, type StatementColumns } from '../statement';
 
 const orders: { value: DateOrder; label: string; hint: string }[] = [
   { value: 'dmy', label: 'Day first', hint: '31/01/2026' },
@@ -8,15 +8,17 @@ const orders: { value: DateOrder; label: string; hint: string }[] = [
   { value: 'ymd', label: 'Year first', hint: '2026-01-31' },
 ];
 
-export function useStatementFile() {
+export function useStatementFile(onCurrency: (code: string) => void) {
   const [rows, setRows] = useState<string[][]>();
   const [fileName, setFileName] = useState('');
   const [columns, setColumns] = useState<StatementColumns>({ date: 0, description: 0, amount: 0 });
   const [order, setOrder] = useState<DateOrder>('dmy');
 
   async function read(file: File) {
-    const parsed = parseCsv(await file.text());
+    const parsed = withoutPreamble(parseCsv(await file.text()));
     const guessed = guessColumns(parsed);
+    const currency = statementCurrency(parsed, guessed.amount);
+    if (currency) onCurrency(currency);
     setFileName(file.name);
     setRows(parsed);
     setColumns(guessed);
