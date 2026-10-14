@@ -175,6 +175,34 @@ export interface SpendingMonth {
   expenses: Expense[];
 }
 
+export type SpendingTab = 'overview' | 'transactions' | 'accounts' | 'budgets' | 'recurring' | 'insights' | 'net-worth';
+
+const spendingTabList: [SpendingTab, string, string][] = [
+  ['overview', 'Overview', '/spending'],
+  ['transactions', 'Transactions', '/spending?tab=transactions'],
+  ['accounts', 'Accounts', '/spending?tab=accounts'],
+  ['budgets', 'Budgets', '/spending?tab=budgets'],
+  ['recurring', 'Recurring', '/recurring'],
+  ['insights', 'Insights', '/spending/insights'],
+  ['net-worth', 'Net worth', '/spending/net-worth'],
+];
+
+export type SpendingPageTab = 'overview' | 'transactions' | 'accounts' | 'budgets';
+
+const pageTabs: SpendingTab[] = ['overview', 'transactions', 'accounts', 'budgets'];
+
+export const spendingTabs = (active: SpendingTab, space?: string | null, pageLink?: (tab: SpendingPageTab) => string) =>
+  spendingTabList.map(([key, label, href]) => ({
+    active: key === active,
+    href:
+      pageLink && pageTabs.includes(key)
+        ? pageLink(key as SpendingPageTab)
+        : space && key !== 'recurring'
+          ? `${href}${href.includes('?') ? '&' : '?'}space=${space}`
+          : href,
+    label,
+  }));
+
 export function useCategories(spaceId: string | null | undefined) {
   return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true);
 }

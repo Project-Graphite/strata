@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton, Select } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Select, Tabs } from '@project-graphite/ui';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Toolbar } from '../components/Page';
-import { categoryName, type SpendingInsights } from '../spending';
+import { categoryName, spendingTabs, type SpendingInsights } from '../spending';
 import { spaceOptions, useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
@@ -18,7 +18,8 @@ export function SpendingInsightsPage() {
   const shown = insights.data;
 
   return (
-    <Page title="Spending insights">
+    <Page title="Spending">
+      <Tabs items={spendingTabs('insights', params.get('space'))} label="Spending" />
       <Toolbar
         actions={
           (spaces.data?.length ?? 0) > 1 &&
