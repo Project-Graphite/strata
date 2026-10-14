@@ -7,17 +7,15 @@ export function Page({
   description,
   eyebrow,
   title,
-  wide = false,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
   eyebrow?: ReactNode;
   title: ReactNode;
-  wide?: boolean;
 }) {
   return (
-    <section className={`page-enter grid content-start gap-8 ${wide ? '' : 'max-w-3xl'}`}>
+    <section className="page-enter grid content-start gap-8">
       <PageHeader actions={actions} eyebrow={eyebrow} title={title}>
         {description}
       </PageHeader>

@@ -95,8 +95,8 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
     { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
     ...(auth.user
       ? [
-          { href: '/today', label: 'Today', icon: 'check' as const, active: pathname === '/today' },
-          { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname.startsWith('/events/') },
+          { href: '/todo', label: 'To-do', icon: 'check-mark' as const, active: pathname === '/todo' },
+          { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/events/') },
           { href: '/spaces', label: 'Spaces', icon: 'folder' as const, active: pathname.startsWith('/spaces') },
           { href: '/menu', label: 'More', icon: 'filter' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
         ]

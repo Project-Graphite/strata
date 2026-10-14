@@ -4,13 +4,12 @@ import { SpaceMark, type Space } from './spaces';
 
 export const moreAreas = [
   '/menu',
-  '/todo',
   '/pages',
   '/boards',
   '/bookmarks',
   '/journal',
+  '/spending',
   '/recurring',
-  '/tidy',
   ...featureCatalogue.map((feature) => feature.href),
   '/inbox',
   '/invitations',
@@ -24,21 +23,24 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
     {
       items: [
         { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
-        { active: pathname === '/today', href: '/today', icon: 'check', label: 'Today' },
         { active: pathname === '/todo', href: '/todo', icon: 'check-mark', label: 'To-do' },
-        { active: pathname === '/agenda' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/'), href: '/agenda', icon: 'calendar', label: 'Agenda' },
+        {
+          active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/'),
+          href: '/agenda',
+          icon: 'calendar',
+          label: 'Agenda',
+        },
         { active: pathname === '/pages', href: '/pages', icon: 'library', label: 'Pages' },
         { active: pathname === '/boards', href: '/boards', icon: 'panel', label: 'Boards' },
         { active: pathname === '/bookmarks' || pathname.startsWith('/bookmarks/'), href: '/bookmarks', icon: 'compass', label: 'Bookmarks' },
         { active: pathname === '/journal', href: '/journal', icon: 'pencil', label: 'Journal' },
-        { active: pathname === '/recurring', href: '/recurring', icon: 'repeat', label: 'Recurring' },
-        { active: pathname === '/tidy', href: '/tidy', icon: 'sparkles', label: 'Tidy' },
+        { active: pathname.startsWith('/spending') || pathname === '/recurring', href: '/spending', icon: 'wallet', label: 'Spending' },
       ],
     },
     ...(features.length
       ? [
           {
-            label: 'Features',
+            label: 'Extra features',
             items: features.map((feature) => ({
               active: pathname === feature.href || pathname.startsWith(`${feature.href}/`),
               href: feature.href,

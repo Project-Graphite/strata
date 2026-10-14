@@ -203,9 +203,7 @@ export function App() {
             path="spending"
             element={
               <Protected>
-                <FeatureRoute feature="spending">
-                  <SpendingPage />
-                </FeatureRoute>
+                <SpendingPage />
               </Protected>
             }
           />
@@ -213,9 +211,7 @@ export function App() {
             path="spending/insights"
             element={
               <Protected>
-                <FeatureRoute feature="spending">
-                  <SpendingInsightsPage />
-                </FeatureRoute>
+                <SpendingInsightsPage />
               </Protected>
             }
           />
@@ -223,9 +219,7 @@ export function App() {
             path="spending/net-worth"
             element={
               <Protected>
-                <FeatureRoute feature="spending">
-                  <NetWorthPage />
-                </FeatureRoute>
+                <NetWorthPage />
               </Protected>
             }
           />
@@ -365,7 +359,9 @@ export function App() {
             path="tidy"
             element={
               <Protected>
-                <TidyPage />
+                <FeatureRoute feature="tidy">
+                  <TidyPage />
+                </FeatureRoute>
               </Protected>
             }
           />

@@ -231,7 +231,6 @@ export class EventsService implements OnModuleInit {
     const end = zonedInstant(toDay.getTime() / dayMs, 0, 0, user.timeZone);
     const readable = { ...this.access.itemsOf(userId), trashedAt: null };
     const window = { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] };
-    const spending = user.features.includes('spending');
     const [events, tasks, subscriptions, followed, people, installments, cards] = await Promise.all([
       this.prisma.item.findMany({
         where: {
@@ -264,8 +263,8 @@ export class EventsService implements OnModuleInit {
             take: 2_000,
           })
         : [],
-      spending ? this.prisma.installmentPlan.findMany({ where: { space: this.access.spacesOf(userId) }, take: 1_000 }) : [],
-      spending ? this.prisma.moneyAccount.findMany({ where: { space: this.access.spacesOf(userId), kind: 'credit', dueDay: { not: null } }, take: 1_000 }) : [],
+      this.prisma.installmentPlan.findMany({ where: { space: this.access.spacesOf(userId) }, take: 1_000 }),
+      this.prisma.moneyAccount.findMany({ where: { space: this.access.spacesOf(userId), kind: 'credit', dueDay: { not: null } }, take: 1_000 }),
     ]);
     const times = (event: EventTimes, slot: Slot) => ({
       allDay: !event.startTime,

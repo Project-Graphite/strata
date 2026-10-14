@@ -11,7 +11,7 @@ export function FeaturesSettings() {
   const saving = useAction();
   const location = useLocation();
   const asked = featureCatalogue.find((feature) => feature.key === (location.state as { feature?: string } | null)?.feature);
-  const chosen = auth.user?.features ?? [];
+  const chosen = (auth.user?.features ?? []).filter((key) => featureCatalogue.some((feature) => feature.key === key));
 
   function change(key: string, on: boolean) {
     const features = on ? [...chosen, key] : chosen.filter((shown) => shown !== key);
