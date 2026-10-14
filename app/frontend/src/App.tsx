@@ -23,6 +23,7 @@ import { PersonPage } from './pages/PersonPage';
 import { MealPlanPage } from './pages/MealPlanPage';
 import { RecipePage } from './pages/RecipePage';
 import { RecipesPage } from './pages/RecipesPage';
+import { SpendingInsightsPage } from './pages/SpendingInsightsPage';
 import { SpendingPage } from './pages/SpendingPage';
 import { TripPage } from './pages/TripPage';
 import { TripsPage } from './pages/TripsPage';
@@ -203,6 +204,16 @@ export function App() {
               <Protected>
                 <FeatureRoute feature="spending">
                   <SpendingPage />
+                </FeatureRoute>
+              </Protected>
+            }
+          />
+          <Route
+            path="spending/insights"
+            element={
+              <Protected>
+                <FeatureRoute feature="spending">
+                  <SpendingInsightsPage />
                 </FeatureRoute>
               </Protected>
             }

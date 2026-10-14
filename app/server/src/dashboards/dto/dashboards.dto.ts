@@ -4,7 +4,7 @@ import { IsColor } from '../../validation/color.decorator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const widgetTypes = ['clock', 'today', 'tasks', 'shortcuts', 'recurring', 'inbox', 'agenda', 'countdown', 'focus', 'tidy', 'weather', 'news', 'capture', 'habits', 'pages', 'board', 'bookmarks', 'status', 'quote'] as const;
+export const widgetTypes = ['clock', 'today', 'tasks', 'shortcuts', 'recurring', 'inbox', 'agenda', 'countdown', 'focus', 'tidy', 'weather', 'news', 'capture', 'habits', 'pages', 'board', 'bookmarks', 'status', 'quote', 'spending', 'payments'] as const;
 export const widgetSizes = ['small', 'medium', 'wide', 'full'] as const;
 export const paddings = ['compact', 'normal', 'roomy'] as const;
 export const templates = ['morning', 'work', 'student', 'travel'] as const;

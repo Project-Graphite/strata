@@ -84,6 +84,14 @@ export interface InstallmentPlan {
   status: 'due' | 'missed' | 'done';
 }
 
+export interface SpendingInsights {
+  currency: string;
+  missing: string[];
+  periods: { month: string; from: string; until: string; spentMinor: number; receivedMinor: number; categories: { category: string; spentMinor: number }[] }[];
+  merchants: { merchant: string; count: number; totalMinor: number; averageMinor: number; lastOn: string }[];
+  days: { day: string; spentMinor: number }[];
+}
+
 export interface CapturedMessage {
   id: string;
   sender: string;

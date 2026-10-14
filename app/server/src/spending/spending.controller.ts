@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateExpenseDto, ImportExpensesDto, MonthDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
+import { CreateExpenseDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
 import { SpendingService } from './spending.service';
 
 @Controller()
@@ -16,6 +16,20 @@ export class SpendingController {
   @Scope('items:read')
   month(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: MonthDto) {
     return this.spending.month(user.id, spaceId, query.month);
+  }
+
+  @Get('spaces/:spaceId/spending/insights')
+  @Scope('items:read')
+  insights(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: InsightsDto) {
+    return this.spending.insights(user.id, spaceId, query.months ?? 6);
+  }
+
+  @Get('spaces/:spaceId/expenses/export')
+  @Scope('items:read')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="transactions.csv"')
+  export(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
+    return this.spending.export(user.id, spaceId);
   }
 
   @Put('spaces/:spaceId/spending-plan')

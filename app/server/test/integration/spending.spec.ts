@@ -229,4 +229,43 @@ describe('Spending and budgets against Postgres', () => {
     expect((await alerts(owner)).map((alert) => alert.title)).toEqual(['80% of the monthly budget used', 'Over the monthly budget']);
     expect(await alerts(viewer)).toHaveLength(2);
   });
+
+  it('adds up recent months, top merchants and days, and exports every transaction as CSV', async () => {
+    const owner = await member('analyst');
+    const outsider = await member('analyst-outsider');
+    const home = (await owner.call('POST', '/spaces', { name: 'Insights' })).body;
+    const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP' })).body;
+    const today = new Date().toISOString().slice(0, 10);
+    const add = (body: object) => owner.call('POST', `/spaces/${home.id}/expenses`, { currency: 'EGP', spentOn: today, category: 'eating out', ...body });
+    await add({ title: 'Talabat', amountMinor: 30_000, merchant: 'Talabat' });
+    await add({ title: 'Talabat again', amountMinor: 20_000, merchant: 'TALABAT' });
+    await add({ title: 'Lunch, with "friends"', amountMinor: 5000, accountId: bank.id });
+    await add({ title: '=cmd()', amountMinor: 1000, category: 'other' });
+    await add({ title: 'Salary', amountMinor: 900_000, direction: 'received', accountId: bank.id });
+
+    expect((await owner.call('GET', `/spaces/${home.id}/spending/insights?months=30`)).status).toBe(400);
+    expect((await outsider.call('GET', `/spaces/${home.id}/spending/insights`)).status).toBe(404);
+    const insights = (await owner.call('GET', `/spaces/${home.id}/spending/insights?months=3`)).body;
+    expect(insights.periods).toHaveLength(3);
+    expect(insights.periods.at(-1)).toMatchObject({
+      spentMinor: 56_000,
+      receivedMinor: 900_000,
+      categories: [
+        { category: 'eating out', spentMinor: 55_000 },
+        { category: 'other', spentMinor: 1000 },
+      ],
+    });
+    expect(insights.periods[0]).toMatchObject({ spentMinor: 0, categories: [] });
+    expect(insights.merchants[0]).toEqual({ merchant: 'Talabat', count: 2, totalMinor: 50_000, averageMinor: 25_000, lastOn: today });
+    expect(insights.days.find((day: { day: string }) => day.day === today).spentMinor).toBe(56_000);
+    expect(insights.days[0].day).toBe(insights.periods.at(-1).from);
+
+    const response = await fetch(`${strata.base}/spaces/${home.id}/expenses/export`, { headers: { Authorization: `Bearer ${owner.token}` } });
+    expect(response.headers.get('content-type')).toContain('text/csv');
+    const lines = (await response.text()).trim().split('\r\n');
+    expect(lines[0]).toBe('date,title,merchant,type,amount,currency,category,account,to account,note');
+    expect(lines).toContain(`${today},"Lunch, with ""friends""",,spent,50.00,EGP,eating out,NBE,,`);
+    expect(lines).toContain(`${today},'=cmd(),,spent,10.00,EGP,other,,,`);
+    expect(lines).toContain(`${today},Salary,,received,9000.00,EGP,,NBE,,`);
+  });
 });

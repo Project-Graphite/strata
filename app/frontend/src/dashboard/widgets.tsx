@@ -20,11 +20,12 @@ import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { Capture } from './capture-widget';
+import { PaymentsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export type CardPadding = 'compact' | 'normal' | 'roomy';
@@ -619,4 +620,6 @@ export const widgetKinds: Record<
   bookmarks: { title: 'Read later', size: 'medium', settings: {}, View: ReadLater },
   status: { title: 'Are my apps up?', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
   quote: { title: 'Quote of the day', size: 'medium', settings: {}, View: Quote },
+  spending: { title: 'Spending this month', size: 'medium', settings: {}, View: SpendingWidget },
+  payments: { title: 'Upcoming payments', size: 'small', settings: {}, View: PaymentsWidget },
 };
