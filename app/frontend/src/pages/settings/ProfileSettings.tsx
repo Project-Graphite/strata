@@ -79,7 +79,7 @@ export function ProfileSettings() {
             />
             <Select
               defaultValue={current.homeCurrency ?? ''}
-              hint="Totals in Recurring are converted to it."
+              hint="Spending, Recurring and net worth totals are shown in it."
               key={currencies.data ? 'loaded' : 'loading'}
               label="Home currency"
               name="homeCurrency"

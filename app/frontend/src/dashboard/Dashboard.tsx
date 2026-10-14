@@ -1,7 +1,6 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, EmptyState, Icon, isAbortError, Menu, PageSkeleton, Select, Tabs, TextField, TimePicker, Toggle, type TagColor } from '@project-graphite/ui';
-import { readBlob } from '../api';
+import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, tagColors, Tabs, TextField, TimePicker, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { FormDialog } from '../components/FormDialog';
@@ -10,17 +9,13 @@ import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
+import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
 import { DashboardGrid } from './DashboardGrid';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget, type WidgetType } from './widgets';
 import { LoadError } from '../components/LoadError';
 
 type Device = 'any' | 'phone' | 'desktop';
-
-interface Background {
-  colour?: TagColor;
-  imageId?: string;
-}
 
 interface Layout {
   widgets: PlacedWidget[];
@@ -35,34 +30,6 @@ interface Dashboard {
   showFrom: number | null;
   showUntil: number | null;
   showOn: Device;
-}
-
-const chosenKey = 'strata-dashboard';
-
-function rememberedDashboard() {
-  try {
-    return sessionStorage.getItem(chosenKey);
-  } catch {
-    return null;
-  }
-}
-
-function rememberDashboard(id: string) {
-  try {
-    sessionStorage.setItem(chosenKey, id);
-  } catch {
-    return;
-  }
-}
-
-export function automaticDashboard<T extends Pick<Dashboard, 'showFrom' | 'showUntil' | 'showOn'>>(dashboards: T[], now: Date, phone: boolean) {
-  const minute = now.getHours() * 60 + now.getMinutes();
-  const fits = dashboards.filter(
-    ({ showFrom, showUntil, showOn }) =>
-      (showFrom === null || showUntil === null || (showFrom < showUntil ? minute >= showFrom && minute < showUntil : minute >= showFrom || minute < showUntil)) &&
-      (showOn === 'any' || showOn === (phone ? 'phone' : 'desktop')),
-  );
-  return fits.find((dashboard) => dashboard.showFrom !== null || dashboard.showOn !== 'any') ?? fits[0] ?? dashboards[0];
 }
 
 const clockTime = (minutes: number | null) => (minutes === null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
@@ -92,51 +59,9 @@ const paddingOptions: { value: CardPadding; label: string }[] = [
 const layoutOf = (dashboard: Dashboard): Layout => ({ ...dashboard.layout, widgets: placed(dashboard.layout.widgets) });
 const cardTitle = (widget: Widget) => widget.title ?? widgetKinds[widget.type].title;
 
-function useBackdrop(background?: Background) {
-  const { request } = useAuth();
-  const [image, setImage] = useState('');
-
-  useEffect(() => {
-    if (!background?.imageId) return;
-    const controller = new AbortController();
-    let created = '';
-    void request<Blob>(`/files/${background.imageId}`, { signal: controller.signal }, readBlob).then(
-      (blob) => {
-        created = URL.createObjectURL(blob);
-        setImage(created);
-      },
-      (reason: unknown) => {
-        if (!isAbortError(reason)) throw reason;
-      },
-    );
-    return () => {
-      controller.abort();
-      if (created) URL.revokeObjectURL(created);
-      setImage('');
-    };
-  }, [background?.imageId, request]);
-
-  return {
-    className: background?.colour ? `dashboard-backdrop-colour tag-${background.colour}` : image ? 'dashboard-backdrop-image' : '',
-    image: image && `url(${image})`,
-  };
-}
-
-function PageBackdrop({ background }: { background?: Background }) {
-  const { className, image } = useBackdrop(background);
-
-  useEffect(() => {
-    if (!className) return;
-    const classes = className.split(' ');
-    document.body.classList.add(...classes);
-    if (image) document.body.style.setProperty('--backdrop-image', image);
-    return () => {
-      document.body.classList.remove(...classes);
-      document.body.style.removeProperty('--backdrop-image');
-    };
-  }, [className, image]);
-
-  return null;
+function BackgroundPreview({ background }: { background: Background }) {
+  const { image } = useBackdrop(background);
+  return <span aria-label="Chosen image" className="h-10 w-16 rounded-md border border-line bg-cover bg-center" role="img" style={{ backgroundImage: image || undefined }} />;
 }
 
 class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -433,7 +358,7 @@ export function DashboardHome() {
           widgets={widgets}
         />
       )}
-      <PageBackdrop background={layout.background} />
+      <ShowBackdrop background={layout.background} />
       {customized && (
         <Dialog onClose={() => setCustomizing(undefined)} title="Customize card">
           <div className="mt-5 grid gap-4">
@@ -473,53 +398,74 @@ export function DashboardHome() {
       )}
       {configuring && (
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-5">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
-            <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
-              <legend className="field-label mb-1.5 p-0">Opens by itself</legend>
-              <TimePicker emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
-              <TimePicker emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
-              <Select
-                label="On"
-                onChange={(on: Device) => setSchedule({ ...schedule, on })}
-                options={[
-                  { value: 'any', label: 'Any device' },
-                  { value: 'phone', label: 'Phones' },
-                  { value: 'desktop', label: 'Computers' },
-                ]}
-                value={schedule.on}
-              />
+            <fieldset className="m-0 grid gap-3 border-0 p-0">
+              <legend className="mb-3 p-0 text-sm font-medium text-ink">Opens by itself</legend>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <TimePicker emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
+                <TimePicker emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
+                <Select
+                  label="On"
+                  onChange={(on: Device) => setSchedule({ ...schedule, on })}
+                  options={[
+                    { value: 'any', label: 'Any device' },
+                    { value: 'phone', label: 'Phones' },
+                    { value: 'desktop', label: 'Computers' },
+                  ]}
+                  value={schedule.on}
+                />
+              </div>
             </fieldset>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Select
-                label="Background"
-                onChange={(choice: string) => change({ background: choice === 'image' ? layout.background : choice ? { colour: choice as TagColor } : undefined })}
-                options={[{ value: '', label: 'None' }, ...colorOptions, ...(layout.background?.imageId ? [{ value: 'image', label: 'Image' }] : [])]}
-                value={layout.background?.colour ?? (layout.background?.imageId ? 'image' : '')}
-              />
-              {personal && (
-                <label className="secondary-button self-end px-3 py-2 text-sm">
-                  <Icon name="upload" size={16} />
-                  {saving.busy ? 'Uploading…' : 'Use an image'}
-                  <input
-                    accept="image/*"
-                    aria-label="Background image"
-                    className="sr-only"
-                    disabled={saving.busy}
-                    onChange={(event) => {
-                      const file = event.currentTarget.files?.[0];
-                      if (!file) return;
-                      void saving.run(async () => {
-                        const uploaded = await uploadFile(auth.request, personal.id, file);
-                        change({ background: { imageId: uploaded.id } });
-                        return '';
-                      }, 'Could not upload the image');
-                    }}
-                    type="file"
-                  />
-                </label>
-              )}
-            </div>
+            <fieldset className="m-0 grid gap-3 border-0 p-0">
+              <legend className="mb-3 p-0 text-sm font-medium text-ink">Background</legend>
+              <div className="swatches">
+                {tagColors.map((colour) => (
+                  <label className="swatch" key={colour} title={colour}>
+                    <input
+                      aria-label={colour}
+                      checked={layout.background?.colour === colour}
+                      className="sr-only"
+                      name="background"
+                      onChange={() => change({ background: { colour } })}
+                      type="radio"
+                      value={colour}
+                    />
+                    <span aria-hidden="true" className={`swatch-dot tag-${colour}`} />
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {layout.background?.imageId && <BackgroundPreview background={layout.background} />}
+                {personal && (
+                  <label className="secondary-button px-3 py-2 text-sm">
+                    <Icon name="upload" size={16} />
+                    {saving.busy ? 'Uploading…' : layout.background?.imageId ? 'Change the image' : 'Use an image'}
+                    <input
+                      accept="image/*"
+                      aria-label="Background image"
+                      className="sr-only"
+                      disabled={saving.busy}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        if (!file) return;
+                        void saving.run(async () => {
+                          const uploaded = await uploadFile(auth.request, personal.id, file);
+                          change({ background: { imageId: uploaded.id } });
+                          return '';
+                        }, 'Could not upload the image');
+                      }}
+                      type="file"
+                    />
+                  </label>
+                )}
+                {layout.background && (
+                  <button className="text-button text-sm" onClick={() => change({ background: undefined })} type="button">
+                    No background
+                  </button>
+                )}
+              </div>
+            </fieldset>
             <div className="flex flex-wrap items-center justify-end gap-3">
               {dashboards.data.length > 1 && (
                 <button

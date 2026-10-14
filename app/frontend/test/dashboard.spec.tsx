@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
-import { automaticDashboard } from '../src/dashboard/Dashboard';
+import { automaticDashboard } from '../src/dashboard/backdrop';
 import { AuthProvider } from '../src/auth';
 import { choose, chooseFromMenu } from './controls';
 
@@ -150,7 +150,7 @@ describe('Home dashboard', () => {
     await choose(dialog, 'Height', 'Tall');
     await act(async () => [...dialog.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Done')!.click());
     await act(async () => button('Dashboard settings').click());
-    await choose(document.querySelector('dialog')!, 'Background', 'Purple');
+    await act(async () => document.querySelector<HTMLInputElement>('dialog input[aria-label="purple"]')!.click());
     await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Done')!.click());
     await act(async () => button('Done').click());
 
@@ -605,5 +605,35 @@ describe('Home dashboard', () => {
       vi.useRealTimers();
       sessionStorage.clear();
     }
+  });
+
+  it('keeps the dashboard background on other pages', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([{ ...home, layout: { widgets, background: { colour: 'green' } } }]));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/settings']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+
+    expect(document.body.classList).toContain('dashboard-backdrop-colour');
+    expect(document.body.classList).toContain('tag-green');
+    act(() => root.unmount());
+    expect(document.body.classList).not.toContain('tag-green');
+    root = createRoot(container);
   });
 });

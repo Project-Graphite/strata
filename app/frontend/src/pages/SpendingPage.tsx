@@ -206,8 +206,8 @@ export function SpendingPage() {
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
                 {captures.data!.map((message) => (
-                  <li className="panel-row flex items-center gap-3" key={message.id}>
-                    <span className="grid min-w-0 flex-1">
+                  <li className="panel-row flex flex-wrap items-center gap-x-3 gap-y-2" key={message.id}>
+                    <span className="grid min-w-0 flex-1 basis-56">
                       <span className="truncate text-ink">{message.suggestion.merchant ?? message.sender}</span>
                       <span className="truncate text-sm text-muted">{message.text}</span>
                     </span>
@@ -405,7 +405,7 @@ export function SpendingPage() {
           <Section
             action={
               editable && (
-                <span className="flex gap-2">
+                <span className="flex flex-wrap gap-2">
                   <HeaderButton label="Budget settings" onClick={() => setDialog('plan')} />
                   <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
                   <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
