@@ -84,6 +84,13 @@ export class FilesController {
     return this.files.upload(user.id, spaceId, fileName(name), await readBody(request));
   }
 
+  @Get('me/storage')
+  @Scope('items:read')
+  @UseGuards(JwtAuthGuard)
+  storage(@CurrentUser() user: AuthenticatedUser) {
+    return this.files.storage(user.id);
+  }
+
   @Get('files/:id')
   @Scope('items:read')
   @UseGuards(JwtAuthGuard)

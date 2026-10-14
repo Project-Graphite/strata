@@ -13,6 +13,7 @@ interface SearchResults {
 const pages = [
   ['/', 'Home'],
   ['/today', 'Today'],
+  ['/storage', 'Storage'],
   ['/todo', 'To-do list'],
   ['/agenda', 'Agenda and calendar'],
   ['/recurring', 'Recurring subscriptions and bills'],
