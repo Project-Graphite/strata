@@ -12,8 +12,8 @@ const shownAtMost = 200;
 export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currency: string; onAdded: () => void; onClose: () => void; spaceId: string }) {
   const auth = useAuth();
   const adding = useAction();
-  const statement = useStatementFile();
   const [chosenCurrency, setChosenCurrency] = useState(currency);
+  const statement = useStatementFile(setChosenCurrency);
   const [category, setCategory] = useState<SpendingCategory>('other');
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const charges = statement.charges.slice(0, shownAtMost);
