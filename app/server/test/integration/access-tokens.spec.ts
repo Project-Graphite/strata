@@ -57,12 +57,13 @@ describe('Access tokens against Postgres', () => {
     const owner = await member('api-reader');
     const reference = (await owner.call('GET', '/me/api-reference')).body;
     expect(reference.basePath).toBe('/api/v1');
-    expect(reference.scopes.map((entry: { scope: string }) => entry.scope)).toEqual(['spaces:read', 'items:read', 'items:write']);
+    expect(reference.scopes.map((entry: { scope: string }) => entry.scope)).toEqual(['spaces:read', 'items:read', 'items:write', 'spending:capture']);
     const routes = (scope: string) => reference.scopes.find((entry: { scope: string }) => entry.scope === scope).routes;
     expect(routes('spaces:read')).toContainEqual({ method: 'GET', path: '/spaces' });
     expect(routes('items:read')).toContainEqual({ method: 'GET', path: '/agenda' });
     expect(routes('items:write')).toContainEqual({ method: 'POST', path: '/spaces/:spaceId/tasks' });
     expect(routes('items:write')).toEqual(expect.arrayContaining([{ method: 'PUT', path: '/subscriptions/:id/split' }, { method: 'PUT', path: '/expenses/:id/split' }]));
+    expect(routes('spending:capture')).toEqual([{ method: 'POST', path: '/spaces/:spaceId/captures' }]);
     expect(JSON.stringify(reference)).not.toContain('/me/tokens');
 
     const token = (await owner.call('POST', '/me/tokens', { name: 'Docs', scopes: ['items:read'], password })).body.token;

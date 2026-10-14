@@ -139,6 +139,11 @@ export class SpendingService {
     return { added: (await this.insert(userId, spaceId, inputs, 'import')).length };
   }
 
+  async capture(userId: string, spaceId: string, input: CreateExpenseDto) {
+    const [id] = await this.insert(userId, spaceId, [input], 'sms');
+    return id!;
+  }
+
   async get(userId: string, itemId: string) {
     return present(await this.row(userId, itemId, 'read'));
   }

@@ -116,6 +116,7 @@ model User {
   noteVersions        NoteVersion[]
   habitCheckIns       HabitCheckIn[]
   paidSplits          CostSplit[]
+  capturedMessages    CapturedMessage[]
   costShares          CostShare[]
   settlementsPaid     Settlement[]           @relation("SettlementFrom")
   settlementsReceived Settlement[]           @relation("SettlementTo")
@@ -231,6 +232,7 @@ model Space {
   mealPlan        MealPlanEntry[]
   budgets         Budget[]
   moneyAccounts   MoneyAccount[]
+  captures        CapturedMessage[]
 
   @@map("spaces")
 }
@@ -295,6 +297,7 @@ model Item {
   expense        Expense?
   trip           Trip?
   mealPlanned    MealPlanEntry[]
+  captures       CapturedMessage[]
 
   @@index([spaceId, updatedAt])
   @@map("items")
@@ -1137,4 +1140,26 @@ model Trip {
 
   @@index([startsOn])
   @@map("trips")
+}
+
+model CapturedMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  spaceId    String   @map("space_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  sender     String
+  textSealed String   @map("text_sealed")
+  hash       String
+  status     String   @default("review")
+  suggestion Json     @default("{}")
+  expenseId  String?  @map("expense_id") @db.Uuid
+  receivedAt DateTime @map("received_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  space      Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense    Item?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@unique([spaceId, hash])
+  @@index([spaceId, status])
+  @@index([createdAt])
+  @@map("captured_messages")
 }

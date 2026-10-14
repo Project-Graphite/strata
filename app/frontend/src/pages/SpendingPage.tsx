@@ -10,8 +10,18 @@ import { ExpenseImport } from '../components/ExpenseImport';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
+import { PhoneSetup } from '../components/PhoneSetup';
 import { SplitEditor } from '../components/SplitEditor';
-import { accountKindOptions, categoryName, categoryOptions, type Expense, type MoneyAccount, type SpendingCategory, type SpendingMonth } from '../spending';
+import {
+  accountKindOptions,
+  categoryName,
+  categoryOptions,
+  type CapturedMessage,
+  type Expense,
+  type MoneyAccount,
+  type SpendingCategory,
+  type SpendingMonth,
+} from '../spending';
 import { spaceOptions, useSpaces, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -38,8 +48,16 @@ export function SpendingPage() {
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending?month=${month}` : null, true);
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
   const [dialog, setDialog] = useState<
-    'new' | 'import' | { budget: SpendingCategory | null } | { expense: Expense } | { split: Expense } | { account: MoneyAccount | null }
+    | 'new'
+    | 'import'
+    | 'phone'
+    | { budget: SpendingCategory | null }
+    | { expense: Expense }
+    | { split: Expense }
+    | { account: MoneyAccount | null }
+    | { capture: CapturedMessage }
   >();
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
   const shown = summary.data;
@@ -48,6 +66,7 @@ export function SpendingPage() {
   const reload = () => {
     summary.reload();
     accounts.reload();
+    captures.reload();
   };
 
   return (
@@ -55,6 +74,7 @@ export function SpendingPage() {
       actions={
         editable && (
           <>
+            <HeaderButton label="Connect your phone" onClick={() => setDialog('phone')} />
             <HeaderButton icon="upload" label="Import a statement" onClick={() => setDialog('import')} />
             <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />
           </>
@@ -103,6 +123,45 @@ export function SpendingPage() {
           {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
           {shown.missing.length > 0 && (
             <p className="notice m-0">There is no exchange rate for {shown.missing.join(', ')} yet, so those amounts are left out of the totals.</p>
+          )}
+
+          {Boolean(captures.data?.length) && (
+            <Section title={`To review (${captures.data!.length})`}>
+              <ul className="panel-rows">
+                {captures.data!.map((message) => (
+                  <li className="panel-row flex items-center gap-3" key={message.id}>
+                    <span className="grid min-w-0 flex-1">
+                      <span className="truncate text-ink">{message.suggestion.merchant ?? message.sender}</span>
+                      <span className="truncate text-sm text-muted">{message.text}</span>
+                    </span>
+                    {message.suggestion.amountMinor !== null && message.suggestion.currency && (
+                      <span className="shrink-0 text-ink">{money(message.suggestion.amountMinor, message.suggestion.currency)}</span>
+                    )}
+                    {editable && (
+                      <>
+                        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDialog({ capture: message })} type="button">
+                          Add
+                        </button>
+                        <button
+                          className="text-button text-sm"
+                          disabled={action.busy}
+                          onClick={() =>
+                            void action.run(async () => {
+                              await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                              captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
+                              return '';
+                            }, 'Could not ignore the message')
+                          }
+                          type="button"
+                        >
+                          Ignore
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
           )}
 
           {(editable || Boolean(accounts.data?.length)) && (
@@ -271,6 +330,10 @@ export function SpendingPage() {
           onSaved={() => summary.reload()}
         />
       )}
+      {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
+        <ExpenseEditor accounts={accounts.data ?? []} capture={dialog.capture} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
+      )}
+      {spaceId && space && dialog === 'phone' && <PhoneSetup onClose={() => setDialog(undefined)} spaceId={spaceId} spaceName={space.name} />}
       {spaceId && typeof dialog === 'object' && 'account' in dialog && (
         <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}
