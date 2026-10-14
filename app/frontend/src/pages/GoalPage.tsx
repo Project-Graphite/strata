@@ -114,7 +114,7 @@ export function GoalPage() {
         title="Tasks"
       >
         {shown.taskList.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No tasks linked yet. Linked tasks count towards progress when there is no number to reach.</p>
+          <p className="m-0 text-sm text-muted">No tasks linked yet.</p>
         ) : (
           <ul className="m-0 grid list-none gap-0 p-0">
             {shown.taskList.map((task) => (
@@ -159,7 +159,7 @@ export function GoalPage() {
 
       <Section action={editable && <HeaderButton label="Choose habits" onClick={() => setDialog('habits')} />} title="Habits">
         {shown.habits.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Follow the habits that move this goal forward, and their streaks show here.</p>
+          <p className="m-0 text-sm text-muted">No habits linked yet.</p>
         ) : (
           <ul className="panel-rows">
             {shown.habits.map((habit) => (
@@ -241,7 +241,7 @@ function LinkTaskDialog({ goal, onClose, onLink }: { goal: GoalDetail; onClose: 
     <FormDialog busy={false} busyLabel="Linking…" onClose={onClose} onSubmit={() => chosen && onLink(chosen)} submitLabel="Link task" title="Link a task">
       {open.data && choices.length === 0 ? (
         <EmptyState title="No open tasks to link">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Every open task in {goal.spaceName} is already linked. Use New task to add one.</p>
+          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Every open task in {goal.spaceName} is already linked.</p>
         </EmptyState>
       ) : (
         <Select
@@ -278,7 +278,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
       title="Habits for this goal"
     >
       {habits.data && habits.data.length === 0 ? (
-        <p className="m-0 text-sm text-muted">{goal.spaceName} has no habits yet. Add them in the space’s Habits tab.</p>
+        <p className="m-0 text-sm text-muted">{goal.spaceName} has no habits yet.</p>
       ) : (
         <fieldset className="m-0 grid gap-3 border-0 p-0">
           <legend className="field-label mb-1 p-0">Follow these habits</legend>

@@ -46,7 +46,7 @@ export function SpaceLayout() {
           </span>
         }
       >
-        {space.kind === 'personal' ? 'Your own space. Only you can see what is in it.' : `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
+        {space.kind === 'shared' && `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
       </PageHeader>
       <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Space" />
       <Outlet context={space} />

@@ -222,7 +222,6 @@ describe('Tasks', () => {
     await render('/todo');
 
     expect(container.querySelector('h1')?.textContent).toBe('To-do');
-    expect(container.textContent).toContain('Adds to Personal.');
     expect(container.textContent).toContain('Home · Groceries');
     const form = await typeTodo('Call the bank !3');
     expect(form.querySelector('[role="status"]')?.textContent).toBe('Understood: high priority');
@@ -231,7 +230,6 @@ describe('Tasks', () => {
     expect(container.textContent).toContain('Call the bank');
 
     await act(async () => [...container.querySelectorAll('a')].find((anchor) => anchor.textContent?.startsWith('Groceries'))!.click());
-    expect(container.textContent).toContain('Adds to Groceries in Home.');
     await act(async () => (await typeTodo('Eggs')).requestSubmit());
     expect(added[1]).toEqual({ path: '/spaces/home/tasks', body: { title: 'Eggs', listId: 'groceries' } });
 

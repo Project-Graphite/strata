@@ -46,9 +46,7 @@ export function RecipesPage() {
       ) : !recipes.data ? (
         <ListSkeleton label="Loading your recipes" rows={4} />
       ) : recipes.data.length === 0 ? (
-        <EmptyState title="No recipes yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Paste a link from a recipe site, or write one down. Then plan your week and make a shopping list from it.</p>
-        </EmptyState>
+        <EmptyState title="No recipes yet" />
       ) : (
         <ul className="panel-rows">
           {recipes.data.map((recipe) => (

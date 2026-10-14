@@ -24,7 +24,6 @@ export function GoalsPage() {
   return (
     <Page
       actions={writable.length > 0 && <HeaderButton icon="plus" label="New goal" onClick={() => setAdding(true)} primary />}
-      description="What you are working towards this year, this quarter and this month."
       title="Goals"
     >
       <Toolbar>
@@ -42,9 +41,7 @@ export function GoalsPage() {
       ) : !goals.data ? (
         <ListSkeleton label="Loading your goals" rows={3} />
       ) : goals.data.length === 0 ? (
-        <EmptyState title={finished ? 'Nothing finished yet' : 'No goals yet'}>
-          {!finished && <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Set a goal for the year, a quarter or a month, then link the tasks and habits that get you there.</p>}
-        </EmptyState>
+        <EmptyState title={finished ? 'Nothing finished yet' : 'No goals yet'} />
       ) : (
         [...groups].map(([label, shown]) => (
           <Section key={label} title={label}>

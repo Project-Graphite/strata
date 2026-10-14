@@ -23,15 +23,13 @@ export function TripsPage() {
   ] as const;
 
   return (
-    <Page actions={writable.length > 0 && <HeaderButton icon="plus" label="New trip" onClick={() => setAdding(true)} primary />} description="Everything for each trip in one place." title="Trips">
+    <Page actions={writable.length > 0 && <HeaderButton icon="plus" label="New trip" onClick={() => setAdding(true)} primary />} title="Trips">
       {trips.error ? (
         <LoadError error={trips.error} onRetry={trips.reload} />
       ) : !trips.data ? (
         <ListSkeleton label="Loading your trips" rows={3} />
       ) : trips.data.length === 0 ? (
-        <EmptyState title="No trips yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Plan one to get a packing list, a day-by-day itinerary, a place for tickets and notes, and a running total of what it costs.</p>
-        </EmptyState>
+        <EmptyState title="No trips yet" />
       ) : (
         groups
           .filter(([, shown]) => shown.length > 0)

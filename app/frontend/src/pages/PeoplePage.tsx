@@ -39,7 +39,6 @@ export function PeoplePage() {
   return (
     <Page
       actions={writable.length > 0 && <HeaderButton icon="plus" label="Add person" onClick={() => setAdding(true)} primary />}
-      description="Birthdays, gift ideas and the events you shared."
       title="People"
     >
       {people.error ? (
@@ -47,9 +46,7 @@ export function PeoplePage() {
       ) : !people.data ? (
         <ListSkeleton label="Loading people" rows={4} />
       ) : people.data.length === 0 ? (
-        <EmptyState title="Nobody here yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Add the people you want to remember. Their birthdays appear on your agenda, with a reminder the day before.</p>
-        </EmptyState>
+        <EmptyState title="Nobody here yet" />
       ) : (
         <>
           {soon.length > 0 && (

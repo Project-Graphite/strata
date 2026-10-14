@@ -94,9 +94,7 @@ export function TaskEditor({
                 <>
                   Understood: <span role="status">{understood}</span>
                 </>
-              ) : task ? undefined : (
-                'Try “pay rent friday 9am #home !2”.'
-              )
+              ) : undefined
             }
             label="Title"
             maxLength={200}

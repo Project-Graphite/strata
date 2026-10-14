@@ -63,7 +63,6 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
       {!trip && spaces.length > 1 && (
         <Select
           defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id}
-          hint="Choose a shared space to plan it together."
           label="Space"
           name="spaceId"
           options={spaceOptions(spaces)}

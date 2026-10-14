@@ -184,7 +184,7 @@ export function FolderScan() {
             </Suggestion>
           )}
           {report.largest.length > 0 && (
-            <Suggestion hint="The biggest files in this folder." title="Largest files">
+            <Suggestion title="Largest files">
               <ul className="mt-3 grid list-none gap-0 p-0">{report.largest.map((file) => choice(file, fileSize(file.size)))}</ul>
             </Suggestion>
           )}

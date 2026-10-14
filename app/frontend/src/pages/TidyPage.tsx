@@ -186,7 +186,7 @@ function TidySuggestions() {
       )}
 
       {subscriptions.overlapping.length > 0 && (
-        <Suggestion hint="More than one subscription doing the same job." title="Overlapping subscriptions">
+        <Suggestion title="Overlapping subscriptions">
           {subscriptions.overlapping.map((group) => (
             <div className="mt-4" key={group.category}>
               <p className="mono-sm m-0 text-faint">

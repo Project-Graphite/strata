@@ -31,9 +31,7 @@ export function SpaceTags() {
   return (
     <div className="fade-in grid gap-10">
       <div className="grid gap-4">
-        <Toolbar actions={editable && <HeaderButton icon="plus" label="New tag" onClick={() => setEditing('new')} primary />}>
-          <p className="m-0 text-sm text-muted">Tags group items across every area of this space.</p>
-        </Toolbar>
+        <Toolbar actions={editable && <HeaderButton icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
         {tags.data.length === 0 ? (
           <EmptyState title="No tags yet" />
         ) : (

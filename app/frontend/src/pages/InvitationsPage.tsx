@@ -44,7 +44,6 @@ export function InvitationsPage() {
           <HeaderButton icon="mail" label="Invite by email" onClick={() => setCreating('email')} primary />
         </>
       }
-      description="Invite someone to Strata. Each invite works once, for 14 days."
       title="Invitations"
     >
       <Section title="For you">
@@ -170,7 +169,7 @@ function InviteDialog({
       title={mode === 'email' ? 'Invite by email' : 'Create an invite link'}
     >
       {mode === 'email' && <TextField autoComplete="off" autoFocus inputMode="email" label="Email" type="email" {...form.field('email')} />}
-      <TextAreaField hint="They see it when they open the invite." label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
+      <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
     </FormDialog>
   );
 }
