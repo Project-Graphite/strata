@@ -95,7 +95,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...[
       ...pages,
       ...enabledFeatures(user?.features).map((feature) => [feature.href, feature.label] as const),
-      ...(user?.role === 'system_manager' ? ([['/admin', 'Site settings']] as const) : []),
+      ...(user?.role === 'admin' || user?.role === 'system_manager' ? ([['/admin', 'Site settings']] as const) : []),
     ]
       .filter(([, label]) => matches(label))
       .map(([href, label]) => ({ group: 'Go to', href, id: `page-${href}`, label })),

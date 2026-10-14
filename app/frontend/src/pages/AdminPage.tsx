@@ -17,7 +17,7 @@ export function AdminPage() {
   const saving = useAction();
   const quota = useAction();
 
-  if (auth.user?.role !== 'system_manager') return <NotFoundPage />;
+  if (auth.user?.role !== 'admin' && auth.user?.role !== 'system_manager') return <NotFoundPage />;
   if (site.error) return <LoadError error={site.error} onRetry={site.reload} />;
   if (!site.data) return <FormSkeleton fields={1} />;
 

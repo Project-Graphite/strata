@@ -15,7 +15,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "system-manager:grant": "node dist/admin/grant-system-manager.command.js"
+    "system-manager:grant": "node dist/admin/grant-system-manager.command.js",
+    "admin:grant": "node dist/admin/grant-admin.command.js"
   },
   "dependencies": {
     "@hocuspocus/server": "4.7.0",
