@@ -84,6 +84,49 @@ export interface InstallmentPlan {
   status: 'due' | 'missed' | 'done';
 }
 
+export const assetKindOptions = [
+  { value: 'gold', label: 'Gold or silver' },
+  { value: 'certificate', label: 'Certificate or deposit' },
+  { value: 'property', label: 'Property' },
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'investment', label: 'Investment' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'other', label: 'Other' },
+];
+
+export interface Asset {
+  id: string;
+  spaceId: string;
+  name: string;
+  kind: string;
+  currency: string;
+  valueMinor: number;
+  ratePercent: number | null;
+  maturesOn: string | null;
+  updatedAt: string;
+}
+
+export interface NetWorth {
+  currency: string;
+  missing: string[];
+  accountsMinor: number;
+  assetsMinor: number;
+  installmentsMinor: number;
+  totalMinor: number;
+  assets: Asset[];
+}
+
+export interface SavingsGoal {
+  id: string;
+  spaceId: string;
+  accountId: string | null;
+  name: string;
+  currency: string;
+  targetMinor: number;
+  savedMinor: number | null;
+  dueOn: string | null;
+}
+
 export interface SpendingInsights {
   currency: string;
   missing: string[];

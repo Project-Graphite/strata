@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { formatDay, ListSkeleton, Meter } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { LoadError } from '../components/LoadError';
-import type { InstallmentPlan, MoneyAccount, SpendingMonth } from '../spending';
+import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '../spending';
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
@@ -77,6 +77,36 @@ export function PaymentsWidget() {
             {money(payment.amountMinor, payment.currency)} · {payment.missed ? 'missed ' : ''}
             {formatDay(payment.on, { day: 'numeric', month: 'short' })}
           </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function SavingsWidget() {
+  const spaceId = usePersonalSpace();
+  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
+  if (goals.error) return <LoadError compact error={goals.error} onRetry={goals.reload} />;
+  if (!goals.data) return <ListSkeleton label="Looking at your goals" rows={3} />;
+  if (goals.data.length === 0) {
+    return (
+      <Empty>
+        No savings goals yet. <Link to="/spending/net-worth">Add one</Link>
+      </Empty>
+    );
+  }
+  return (
+    <ul className="m-0 grid list-none gap-3 p-0">
+      {goals.data.slice(0, 4).map((goal) => (
+        <li className="grid gap-1" key={goal.id}>
+          <span className="flex justify-between gap-3 text-sm">
+            <span className="truncate text-ink">{goal.name}</span>
+            <span className="shrink-0 text-muted">
+              {goal.savedMinor === null ? '' : `${money(goal.savedMinor, goal.currency)} of `}
+              {money(goal.targetMinor, goal.currency)}
+            </span>
+          </span>
+          <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
         </li>
       ))}
     </ul>

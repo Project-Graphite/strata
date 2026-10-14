@@ -238,6 +238,8 @@ model Space {
   spendingPlan    SpendingPlan?
   budgetAlerts    BudgetAlert[]
   installments    InstallmentPlan[]
+  savingsGoals    SavingsGoal[]
+  assets          Asset[]
 
   @@map("spaces")
 }
@@ -1118,6 +1120,7 @@ model MoneyAccount {
   expenses         Expense[]         @relation("AccountExpenses")
   transfersIn      Expense[]         @relation("AccountTransfersIn")
   installments     InstallmentPlan[]
+  savingsGoals     SavingsGoal[]
 
   @@index([spaceId])
   @@map("money_accounts")
@@ -1243,4 +1246,39 @@ model InstallmentPlan {
 
   @@index([spaceId])
   @@map("installment_plans")
+}
+
+model SavingsGoal {
+  id          String        @id @default(uuid()) @db.Uuid
+  spaceId     String        @map("space_id") @db.Uuid
+  accountId   String?       @map("account_id") @db.Uuid
+  name        String
+  currency    String
+  targetMinor Int           @map("target_minor")
+  savedMinor  Int           @default(0) @map("saved_minor")
+  dueOn       DateTime?     @map("due_on") @db.Date
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  space       Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  account     MoneyAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId])
+  @@map("savings_goals")
+}
+
+model Asset {
+  id          String    @id @default(uuid()) @db.Uuid
+  spaceId     String    @map("space_id") @db.Uuid
+  name        String
+  kind        String    @default("other")
+  currency    String
+  valueMinor  Int       @map("value_minor")
+  ratePercent Float?    @map("rate_percent")
+  maturesOn   DateTime? @map("matures_on") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  space       Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId])
+  @@map("assets")
 }
