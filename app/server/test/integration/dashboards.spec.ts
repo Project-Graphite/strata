@@ -46,6 +46,24 @@ describe('Dashboards against Postgres', () => {
       });
     }
 
+    const arranged = {
+      widgets: [
+        { id: 'a', type: 'today', x: 0, y: 0, w: 8, h: null, title: 'My day', accent: 'teal', padding: 'roomy', settings: {} },
+        { id: 'b', type: 'clock', x: 8, y: 0, w: 4, h: 12, hideTitle: true, settings: {} },
+      ],
+      background: { colour: 'purple' },
+    };
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: arranged })).body.layout).toEqual(arranged);
+    for (const [layout, reason] of [
+      [{ widgets: [{ id: 'a', type: 'today', x: 6, y: 0, w: 7, settings: {} }] }, 'wider than the grid'],
+      [{ widgets: [{ id: 'a', type: 'today', settings: {} }] }, 'no place on the grid'],
+      [{ widgets: [{ id: 'a', type: 'today', x: 0, y: 0, w: 4, h: 2, settings: {} }] }, 'too short'],
+      [{ widgets: [{ id: 'a', type: 'today', x: 0, y: 0, w: 4, accent: 'gold', settings: {} }] }, 'unknown accent'],
+      [{ widgets: [], background: { colour: 'teal', imageId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' } }, 'colour and image'],
+    ] as const) {
+      expect({ reason, status: (await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout })).status }).toEqual({ reason, status: 400 });
+    }
+
     expect((await other.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Mine' })).status).toBe(404);
     expect((await other.call('DELETE', `/me/dashboards/${home.id}`)).status).toBe(404);
     expect((await owner.call('DELETE', `/me/dashboards/${home.id}`)).status).toBe(400);

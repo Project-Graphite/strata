@@ -9,29 +9,29 @@ const maxSettingsLength = 4_096;
 
 type Template = (typeof templates)[number];
 
-const starters: Record<Template, Pick<WidgetDto, 'type' | 'size' | 'settings'>[]> = {
+const starters: Record<Template, Pick<WidgetDto, 'type' | 'x' | 'y' | 'w' | 'settings'>[]> = {
   morning: [
-    { type: 'clock', size: 'small', settings: {} },
-    { type: 'today', size: 'medium', settings: {} },
-    { type: 'agenda', size: 'small', settings: {} },
-    { type: 'recurring', size: 'small', settings: {} },
-    { type: 'inbox', size: 'medium', settings: {} },
+    { type: 'clock', x: 0, y: 0, w: 3, settings: {} },
+    { type: 'today', x: 3, y: 0, w: 6, settings: {} },
+    { type: 'agenda', x: 9, y: 0, w: 3, settings: {} },
+    { type: 'recurring', x: 0, y: 1, w: 3, settings: {} },
+    { type: 'inbox', x: 3, y: 1, w: 6, settings: {} },
   ],
   work: [
-    { type: 'today', size: 'medium', settings: {} },
-    { type: 'tasks', size: 'medium', settings: {} },
-    { type: 'shortcuts', size: 'wide', settings: { links: [] } },
-    { type: 'clock', size: 'small', settings: {} },
+    { type: 'today', x: 0, y: 0, w: 6, settings: {} },
+    { type: 'tasks', x: 6, y: 0, w: 6, settings: {} },
+    { type: 'shortcuts', x: 0, y: 1, w: 9, settings: { links: [] } },
+    { type: 'clock', x: 9, y: 1, w: 3, settings: {} },
   ],
   student: [
-    { type: 'today', size: 'medium', settings: {} },
-    { type: 'tasks', size: 'medium', settings: {} },
-    { type: 'shortcuts', size: 'full', settings: { links: [] } },
+    { type: 'today', x: 0, y: 0, w: 6, settings: {} },
+    { type: 'tasks', x: 6, y: 0, w: 6, settings: {} },
+    { type: 'shortcuts', x: 0, y: 1, w: 12, settings: { links: [] } },
   ],
   travel: [
-    { type: 'clock', size: 'medium', settings: { zones: ['Europe/London', 'America/New_York', 'Asia/Tokyo'] } },
-    { type: 'today', size: 'medium', settings: {} },
-    { type: 'shortcuts', size: 'full', settings: { links: [] } },
+    { type: 'clock', x: 0, y: 0, w: 6, settings: { zones: ['Europe/London', 'America/New_York', 'Asia/Tokyo'] } },
+    { type: 'today', x: 6, y: 0, w: 6, settings: {} },
+    { type: 'shortcuts', x: 0, y: 1, w: 12, settings: { links: [] } },
   ],
 };
 
@@ -39,10 +39,12 @@ const dashboardFields = { id: true, name: true, position: true, layout: true, sh
 
 function starterLayout(template: Template): Prisma.InputJsonObject {
   return {
-    widgets: starters[template].map(({ type, size, settings }) => ({
+    widgets: starters[template].map(({ type, x, y, w, settings }) => ({
       id: randomUUID(),
       type,
-      size,
+      x,
+      y,
+      w,
       settings: settings as Prisma.InputJsonObject,
     })),
   };
@@ -100,6 +102,9 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
   for (const widget of layout.widgets) {
     if (ids.has(widget.id)) throw new BadRequestException('Each widget needs its own id');
     ids.add(widget.id);
+    const placed = widget.x !== undefined && widget.y !== undefined && widget.w !== undefined;
+    if (!placed && widget.size === undefined) throw new BadRequestException('Each widget needs a place on the grid');
+    if (placed && widget.x! + widget.w! > 12) throw new BadRequestException('Widgets must fit inside the 12 columns');
     if (JSON.stringify(widget.settings).length > maxSettingsLength) {
       throw new BadRequestException('Widget settings can be at most 4 kB');
     }
@@ -120,9 +125,16 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
       throw new BadRequestException('Focus lasts 15, 25 or 50 minutes, with a break of 5, 10 or 15 minutes');
     }
   }
+  if (layout.background && Boolean(layout.background.colour) === Boolean(layout.background.imageId)) {
+    throw new BadRequestException('A background is either a colour or an image');
+  }
+  const defined = <T extends object>(value: T) => Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
   return {
-    widgets: layout.widgets.map(({ id, type, size, settings }) => ({ id, type, size, settings: settings as Prisma.InputJsonObject })),
-  };
+    widgets: layout.widgets.map(({ id, type, size, x, y, w, h, title, hideTitle, accent, padding, settings }) =>
+      defined({ id, type, size, x, y, w, h, title, hideTitle, accent, padding, settings: settings as Prisma.InputJsonObject }),
+    ),
+    ...(layout.background ? { background: defined({ colour: layout.background.colour, imageId: layout.background.imageId }) } : {}),
+  } as Prisma.InputJsonObject;
 }
 
 @Injectable()

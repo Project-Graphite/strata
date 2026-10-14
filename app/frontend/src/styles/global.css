@@ -829,3 +829,62 @@ button.habit-day {
   background: var(--color-danger);
   content: '';
 }
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.dashboard-card {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.dashboard-card.card-accent {
+  border-top: 3px solid var(--tag-color);
+}
+
+.dashboard-card-editing {
+  border-style: dashed;
+  user-select: none;
+}
+
+@media (min-width: 64rem) {
+  .dashboard-card-editing {
+    cursor: grab;
+    touch-action: none;
+  }
+}
+
+.dashboard-card-moving {
+  z-index: 2;
+  border-color: var(--color-muted);
+  box-shadow: var(--shadow-popover);
+  cursor: grabbing;
+}
+
+.dashboard-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--color-muted);
+  border-bottom: 2px solid var(--color-muted);
+  border-bottom-right-radius: 6px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.dashboard-backdrop-colour {
+  background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%) fixed;
+}
+
+.dashboard-backdrop-image {
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)) fixed,
+    var(--backdrop-image) center / cover fixed;
+}

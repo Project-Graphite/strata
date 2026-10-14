@@ -82,8 +82,88 @@ describe('Home dashboard', () => {
     expect(saved).toBeUndefined();
 
     await act(async () => button('Done').click());
-    expect(saved).toEqual({ layout: { widgets: widgets.slice(0, 2) }, name: 'Home' });
+    expect(saved).toEqual({
+      layout: {
+        widgets: [
+          { id: 'clock', type: 'clock', settings: {}, x: 0, y: 0, w: 3 },
+          { id: 'links', type: 'shortcuts', settings: widgets[1]!.settings, x: 3, y: 0, w: 9 },
+        ],
+      },
+      name: 'Home',
+    });
     expect(titles()).toEqual(['Clock', 'Shortcuts']);
+  });
+
+  it('places cards on the grid, and customizes a card and the background', async () => {
+    let saved: { layout: { widgets: unknown[]; background?: unknown } } | undefined;
+    const placedHome = {
+      ...home,
+      layout: {
+        widgets: [
+          { id: 'clock', type: 'clock', x: 0, y: 0, w: 3, settings: {} },
+          { id: 'quote', type: 'quote', x: 3, y: 0, w: 9, h: 10, settings: {} },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, init?: RequestInit) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/me/dashboards') return Promise.resolve(json([placedHome]));
+        if (path === '/me/dashboards/home' && init?.method === 'PATCH') {
+          saved = JSON.parse(String(init.body));
+          return Promise.resolve(json({ ...placedHome, layout: saved!.layout }));
+        }
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+
+    const card = (name: string) => container.querySelector<HTMLElement>(`article[aria-label="${name}"]`)!;
+    expect(card('Clock').style.gridColumn).toBe('1 / span 3');
+    expect(card('Quote of the day').style.gridColumn).toBe('4 / span 9');
+    expect(card('Quote of the day').style.gridRow).toBe('1 / span 10');
+
+    await act(async () => button('Edit').click());
+    await chooseFromMenu(container, 'Actions for Clock', 'Wider');
+    await chooseFromMenu(container, 'Actions for Quote of the day', 'Fit height to content');
+    await chooseFromMenu(container, 'Actions for Clock', 'Customize card');
+    const dialog = document.querySelector('dialog')!;
+    const title = dialog.querySelector<HTMLInputElement>('input')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, 'Time');
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => dialog.querySelector<HTMLElement>('[role="switch"], input[type="checkbox"]')!.click());
+    await choose(dialog, 'Accent', 'Teal');
+    await choose(dialog, 'Height', 'Tall');
+    await act(async () => [...dialog.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Done')!.click());
+    await act(async () => button('Dashboard settings').click());
+    await choose(document.querySelector('dialog')!, 'Background', 'Purple');
+    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Done')!.click());
+    await act(async () => button('Done').click());
+
+    expect(saved?.layout).toEqual({
+      widgets: [
+        { id: 'clock', type: 'clock', x: 0, y: 0, w: 4, h: 24, title: 'Time', hideTitle: true, accent: 'teal', settings: {} },
+        { id: 'quote', type: 'quote', x: 3, y: 0, w: 9, h: null, settings: {} },
+      ],
+      background: { colour: 'purple' },
+    });
+    expect(titles()).toEqual(['Quote of the day']);
+    expect(card('Time').className).toContain('tag-teal');
+    expect(document.body.classList).toContain('tag-purple');
   });
   it('opens the dashboard as a wall display that keeps the screen on, and leaves it with Escape', async () => {
     const release = vi.fn(() => Promise.resolve());
