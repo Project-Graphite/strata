@@ -80,8 +80,20 @@ export interface CapturedMessage {
   };
 }
 
+export interface SpendingPlan {
+  budgetMinor: number | null;
+  currency: string | null;
+  startDay: number;
+  rollover: boolean;
+}
+
 export interface SpendingMonth {
   month: string;
+  from: string;
+  until: string;
+  carriedMinor: number;
+  safeDailyMinor: number | null;
+  plan: SpendingPlan;
   currency: string;
   ratesOn: string | null;
   missing: string[];
@@ -89,7 +101,7 @@ export interface SpendingMonth {
   receivedMinor: number;
   budgetMinor: number | null;
   committedMinor: number;
-  categories: { category: string; spentMinor: number; budgetMinor: number | null }[];
+  categories: { category: string; spentMinor: number; budgetMinor: number | null; carriedMinor: number }[];
   budgets: { category: string; amountMinor: number; currency: string }[];
   expenses: Expense[];
 }

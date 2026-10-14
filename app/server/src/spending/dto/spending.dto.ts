@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
@@ -132,8 +132,9 @@ export class ImportExpensesDto {
 }
 
 export class MonthDto {
+  @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'Months look like 2026-10.' })
-  month!: string;
+  month?: string;
 }
 
 export class SaveBudgetDto {
@@ -142,4 +143,22 @@ export class SaveBudgetDto {
 
   @CurrencyCode()
   currency!: string;
+}
+
+export class SavePlanDto {
+  @ValidateIf(nullable)
+  @AmountMinor()
+  budgetMinor!: number | null;
+
+  @ValidateIf(nullable)
+  @CurrencyCode()
+  currency!: string | null;
+
+  @IsInt()
+  @Min(1)
+  @Max(28, { message: 'Months start on day 1 to 28.' })
+  startDay!: number;
+
+  @IsBoolean()
+  rollover!: boolean;
 }
