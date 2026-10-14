@@ -51,6 +51,14 @@ export class CalendarController {
     return this.subscriptions.mine(user.id);
   }
 
+  @Post('me/calendars/refresh')
+  @Scope('items:read')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit('calendars-refresh', 600, 3_600)
+  refreshMine(@CurrentUser() user: AuthenticatedUser) {
+    return this.subscriptions.refreshMine(user.id, new Date());
+  }
+
   @Post('spaces/:spaceId/calendars')
   @Scope('items:write')
   @UseGuards(JwtAuthGuard)

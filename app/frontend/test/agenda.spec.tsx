@@ -76,12 +76,18 @@ describe('Agenda and RSVP', () => {
     );
   }
 
-  it('lists events, due tasks and renewals by day, and creates an event', async () => {
+  it('lists events, due tasks and renewals by day, rechecks followed calendars, and creates an event', async () => {
+    let calendarsChecked = false;
     const fetchMock = serve(true, (path, init) => {
+      if (path === '/me/calendars/refresh' && init?.method === 'POST') {
+        calendarsChecked = true;
+        return json({ refreshed: 1 });
+      }
       if (path.startsWith('/agenda?')) {
         return json([
           { kind: 'task', itemId: 't', spaceId: 'club', title: 'Book the hall', allDay: true, start: today, end: null, location: null },
           { kind: 'renewal', itemId: 's', spaceId: 'club', title: 'Hall hire', allDay: true, start: today, end: null, location: null },
+          ...(calendarsChecked ? [{ kind: 'external', itemId: 'w', spaceId: 'club', title: 'Offsite', allDay: true, start: today, end: null, location: null, calendar: 'Work' }] : []),
         ]);
       }
       if (path === '/spaces/club/events' && init?.method === 'POST') {
@@ -97,6 +103,7 @@ describe('Agenda and RSVP', () => {
 
     expect(container.textContent).toContain('Book the hall · all day · due');
     expect(container.textContent).toContain('Hall hire · all day · renews');
+    expect(container.textContent).toContain('Offsite · all day · Work');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New event')!.click());
     const form = document.querySelector('dialog form') as HTMLFormElement;

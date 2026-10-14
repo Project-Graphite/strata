@@ -7,7 +7,7 @@ import { siteLabel, type Bookmark } from '../bookmarks';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
-import { addDays, dayKey, entryLink, entryTime, type AgendaEntry } from '../agenda';
+import { addDays, dayKey, entryLink, entryTime, useAgenda } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -300,7 +300,7 @@ function Inbox() {
 
 function Agenda() {
   const today = dayKey(new Date());
-  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${today}&to=${addDays(today, 7)}`, true);
+  const agenda = useAgenda(today, addDays(today, 7));
   if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;
   if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={3} />;
   if (agenda.data.length === 0) return <Empty>Nothing in the next seven days.</Empty>;

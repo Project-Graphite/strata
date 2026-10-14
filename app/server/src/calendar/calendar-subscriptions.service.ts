@@ -9,7 +9,8 @@ import { checkedUrl, fetchPublic, UnsafeUrlError } from '../widgets/safe-fetch';
 import { readCalendar } from './ical-reader';
 
 const maxPerSpace = 10;
-const refreshAfterMs = 6 * 60 * 60 * 1000;
+const refreshAfterMs = 15 * 60 * 1000;
+const freshForMs = 60 * 1000;
 const refreshesPerRun = 10;
 
 const subscriptionFields = {
@@ -88,14 +89,29 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     await this.prisma.calendarSubscription.deleteMany({ where: { id } });
   }
 
+  async refreshMine(userId: string, now: Date) {
+    return { refreshed: await this.refreshStale({ space: this.access.spacesOf(userId) }, freshForMs, now) };
+  }
+
   async refreshDue(now: Date) {
-    const due = await this.prisma.calendarSubscription.findMany({
-      where: { OR: [{ lastFetchedAt: null }, { lastFetchedAt: { lt: new Date(now.getTime() - refreshAfterMs) } }] },
+    await this.refreshStale({}, refreshAfterMs, now, refreshesPerRun);
+  }
+
+  private async refreshStale(where: Prisma.CalendarSubscriptionWhereInput, staleAfterMs: number, now: Date, take?: number) {
+    const stale = await this.prisma.calendarSubscription.findMany({
+      where: { ...where, OR: [{ lastFetchedAt: null }, { lastFetchedAt: { lt: new Date(now.getTime() - staleAfterMs) } }] },
       orderBy: { lastFetchedAt: { sort: 'asc', nulls: 'first' } },
-      take: refreshesPerRun,
-      select: { id: true },
+      take,
+      select: { id: true, lastFetchedAt: true },
     });
-    for (const { id } of due) await this.refresh(id, now);
+    const claimed = await Promise.all(
+      stale.map(async ({ id, lastFetchedAt }) => {
+        const { count } = await this.prisma.calendarSubscription.updateMany({ where: { id, lastFetchedAt }, data: { lastFetchedAt: now } });
+        if (count) await this.refresh(id, now);
+        return count;
+      }),
+    );
+    return claimed.reduce((total, count) => total + count, 0);
   }
 
   private async refresh(id: string, now: Date) {

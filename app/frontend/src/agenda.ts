@@ -1,3 +1,7 @@
+import { useEffect } from 'react';
+import { useAuth } from './auth';
+import { useResource } from './useResource';
+
 export interface AgendaEntry {
   kind: 'event' | 'task' | 'renewal' | 'external' | 'birthday';
   itemId: string;
@@ -8,6 +12,16 @@ export interface AgendaEntry {
   end: string | null;
   location: string | null;
   calendar?: string;
+}
+
+export function useAgenda(from: string, to: string) {
+  const { request } = useAuth();
+  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true);
+  const { reload } = agenda;
+  useEffect(() => {
+    void request<{ refreshed: number }>('/me/calendars/refresh', { method: 'POST' }).then(({ refreshed }) => refreshed > 0 && reload());
+  }, [request, reload]);
+  return agenda;
 }
 
 export interface PublicEvent {

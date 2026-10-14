@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, Tabs } from '@project-graphite/ui';
-import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, monthDays, type AgendaEntry } from '../agenda';
+import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, monthDays, useAgenda, type AgendaEntry } from '../agenda';
 import { EventEditor } from '../components/EventEditor';
 import { useSpaces } from '../spaces';
-import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
 
@@ -43,7 +42,7 @@ export function AgendaPage() {
   const today = dayKey(new Date());
   const anchor = params.get('date') ?? today;
   const { from, to, days } = range(view, anchor);
-  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true);
+  const agenda = useAgenda(from, to);
   const [creating, setCreating] = useState(false);
   const link = (next: { view?: View; date?: string }) => `/agenda?view=${next.view ?? view}&date=${next.date ?? anchor}`;
   const step = view === 'list' ? 30 : view === 'week' ? 7 : 0;
