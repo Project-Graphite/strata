@@ -89,23 +89,32 @@ export function SpendingPage() {
       actions={
         <>
           <HeaderButton label="Insights" onClick={() => navigate(`/spending/insights${spaceId ? `?space=${spaceId}` : ''}`)} />
-          <HeaderButton
-            disabled={!spaceId || action.busy}
-            label="Export CSV"
-            onClick={() =>
-              void action.run(async () => {
-                saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export`, {}, readBlob), 'transactions.csv');
-                return '';
-              }, 'Could not export the transactions')
-            }
-          />
-          {editable && (
-            <>
-              <HeaderButton label="Connect your phone" onClick={() => setDialog('phone')} />
-              <HeaderButton icon="upload" label="Import a statement" onClick={() => setDialog('import')} />
-              <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />
-            </>
+          <HeaderButton label="Net worth" onClick={() => navigate(`/spending/net-worth${spaceId ? `?space=${spaceId}` : ''}`)} />
+          {spaceId && (
+            <Menu
+              items={[
+                ...(editable
+                  ? [
+                      { label: 'Import a statement', onSelect: () => setDialog('import') },
+                      { label: 'Connect your phone', onSelect: () => setDialog('phone') },
+                    ]
+                  : []),
+                {
+                  label: 'Export CSV',
+                  onSelect: () =>
+                    void action.run(async () => {
+                      saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export`, {}, readBlob), 'transactions.csv');
+                      return '';
+                    }, 'Could not export the transactions'),
+                },
+              ]}
+              label="More spending actions"
+              trigger={<Icon name="more" size={18} />}
+              triggerClassName="icon-button"
+              triggerLabel="More"
+            />
           )}
+          {editable && <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
         </>
       }
       title="Spending"

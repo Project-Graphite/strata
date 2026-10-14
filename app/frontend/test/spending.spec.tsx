@@ -263,7 +263,7 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10');
 
-    await act(async () => button('Connect your phone').click());
+    await chooseFromMenu(container, 'More', 'Connect your phone');
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'secret words';
     await submit(form);
@@ -422,7 +422,7 @@ describe('Spending', () => {
       return undefined;
     });
     await render('/spending?month=2026-10');
-    await act(async () => button('Export CSV').click());
+    await chooseFromMenu(container, 'More', 'Export CSV');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/expenses/export', expect.anything());
     expect(created).toHaveBeenCalled();
   });
@@ -452,5 +452,38 @@ describe('Spending', () => {
     expect(container.textContent).toContain('Corner shop');
     expect(container.textContent).toContain('valU phone€100.00 · missed Oct 31');
     expect(container.textContent).toContain('Visa€45.00');
+  });
+
+  it('adds up net worth, adds a certificate and saves towards a goal', async () => {
+    const goal = { id: 'g1', spaceId: 'home', accountId: null, name: 'Car', currency: 'EUR', targetMinor: 1_000_000, savedMinor: 250_000, dueOn: '2027-06-01' };
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/net-worth')
+        return json({ currency: 'EUR', missing: [], accountsMinor: 500_000, assetsMinor: 1_200_000, installmentsMinor: 100_000, totalMinor: 1_600_000, assets: [] });
+      if (path === '/spaces/home/savings-goals' && !init?.method) return json([goal]);
+      if (path === '/spaces/home/assets' && init?.method === 'POST') return json({}, 201);
+      if (path === '/savings-goals/g1/add' && init?.method === 'POST') return json({ ...goal, savedMinor: 300_000 });
+      return undefined;
+    });
+    await render('/spending/net-worth');
+
+    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€16,000.00', '€5,000.00', '€12,000.00', '€1,000.00']);
+    expect(container.textContent).toContain('€2,500.00 of €10,000.00 · by Jun 1, 2027');
+
+    await act(async () => button('Add an asset').click());
+    let form = container.querySelector('dialog form') as HTMLFormElement;
+    await choose(form, 'Kind', 'Certificate or deposit');
+    form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Bank certificate';
+    form.querySelector<HTMLInputElement>('input[name="value"]')!.value = '1000';
+    form.querySelector<HTMLInputElement>('input[name="rate"]')!.value = '27';
+    await submit(form);
+    const asset = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/assets' && init?.method === 'POST')![1]!.body));
+    expect(asset).toEqual({ name: 'Bank certificate', kind: 'certificate', currency: 'EUR', valueMinor: 100_000, ratePercent: 27, maturesOn: null });
+
+    await chooseFromMenu(container, 'Actions for Car', 'Add or take out');
+    form = container.querySelector('dialog form') as HTMLFormElement;
+    await choose(form, 'Action', 'Take out');
+    form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '50';
+    await submit(form);
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/savings-goals/g1/add', expect.objectContaining({ body: JSON.stringify({ amountMinor: -5000 }) }));
   });
 });

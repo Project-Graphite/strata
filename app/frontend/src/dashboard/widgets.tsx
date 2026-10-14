@@ -20,12 +20,12 @@ import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { Capture } from './capture-widget';
-import { PaymentsWidget, SpendingWidget } from './money-widgets';
+import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments' | 'savings';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export type CardPadding = 'compact' | 'normal' | 'roomy';
@@ -622,4 +622,5 @@ export const widgetKinds: Record<
   quote: { title: 'Quote of the day', size: 'medium', settings: {}, View: Quote },
   spending: { title: 'Spending this month', size: 'medium', settings: {}, View: SpendingWidget },
   payments: { title: 'Upcoming payments', size: 'small', settings: {}, View: PaymentsWidget },
+  savings: { title: 'Savings goals', size: 'small', settings: {}, View: SavingsWidget },
 };
