@@ -112,7 +112,6 @@ export function ImportRecipe({ onClose, onRead }: { onClose: () => void; onRead:
     >
       <TextField
         autoFocus
-        hint="Most recipe sites work. You can check and change everything before saving."
         inputMode="url"
         label="Link to the recipe"
         placeholder="https://"

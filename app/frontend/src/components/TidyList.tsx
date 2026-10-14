@@ -12,14 +12,14 @@ export function Choice({ checked, detail, label, onToggle }: { checked: boolean;
   );
 }
 
-export function Suggestion({ action, children, hint, title }: { action?: ReactNode; children: ReactNode; hint: string; title: string }) {
+export function Suggestion({ action, children, hint, title }: { action?: ReactNode; children: ReactNode; hint?: string; title: string }) {
   return (
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="m-0 text-xl font-medium">{title}</h2>
         {action}
       </div>
-      <p className="mt-2 mb-0 text-sm text-muted">{hint}</p>
+      {hint && <p className="mt-2 mb-0 text-sm text-muted">{hint}</p>}
       {children}
     </section>
   );

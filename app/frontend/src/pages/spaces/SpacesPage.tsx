@@ -79,7 +79,6 @@ export function SpacesPage() {
           submitLabel="Create space"
           title="New shared space"
         >
-          <p className="m-0 text-sm text-muted">Invite people once it exists. Everything in it is shared with them.</p>
           <NameAndColorFields field={createForm.field('name')} maxLength={60} />
         </FormDialog>
       )}

@@ -23,9 +23,7 @@ export function TodayPage() {
       ) : !tasks.data ? (
         <ListSkeleton label="Loading today's tasks" rows={4} />
       ) : tasks.data.length === 0 ? (
-        <EmptyState title="Nothing due today">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Give tasks a due date and they show up here on the day.</p>
-        </EmptyState>
+        <EmptyState title="Nothing due today" />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.map((task) => (

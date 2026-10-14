@@ -73,11 +73,7 @@ export function BookmarksPage() {
       ) : !listed.data ? (
         <ListSkeleton label="Loading your bookmarks" rows={4} />
       ) : listed.data.length === 0 ? (
-        <EmptyState title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'}>
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Save a link, or share one to Strata from another app, and it waits here with a clean reader view.
-          </p>
-        </EmptyState>
+        <EmptyState title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'} />
       ) : (
         <ul className="panel-rows">
           {listed.data.map((bookmark) => (

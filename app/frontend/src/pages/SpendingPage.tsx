@@ -51,7 +51,6 @@ export function SpendingPage() {
           </>
         )
       }
-      description="Day-to-day spending against your monthly budgets."
       title="Spending"
     >
       <Toolbar
@@ -98,7 +97,7 @@ export function SpendingPage() {
 
           <Section action={editable && <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />} title="By category">
             {shown.categories.length === 0 ? (
-              <p className="m-0 text-sm text-muted">Nothing spent this month yet. Set a budget for a category to keep an eye on it.</p>
+              <p className="m-0 text-sm text-muted">Nothing spent this month yet.</p>
             ) : (
               <ul className="panel-rows">
                 {shown.categories.map((row) => (
@@ -146,7 +145,6 @@ export function SpendingPage() {
           <Section title="Expenses">
             {shown.expenses.length === 0 ? (
               <EmptyState title="No expenses this month">
-                {editable && <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Add them as you go, or import a statement from your bank.</p>}
               </EmptyState>
             ) : (
               <ul className="panel-rows">

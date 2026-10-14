@@ -22,7 +22,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
   return (
     <section className="grid gap-3">
       <h2 className="m-0 text-xl font-medium">Boards</h2>
-      {boards.length === 0 && <p className="m-0 text-sm text-muted">Sketch a seating plan, a schedule or ideas on a shared whiteboard.</p>}
+      {boards.length === 0 && <p className="m-0 text-sm text-muted">No boards yet.</p>}
       {boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />

@@ -139,7 +139,7 @@ export function PersonPage() {
 
       <Section action={editable && <HeaderButton icon="gift" label="Add idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Note ideas when they come to you, and tick them off once given.</p>
+          <p className="m-0 text-sm text-muted">No gift ideas yet.</p>
         ) : (
           <ul className="panel-rows">
             {shown.giftIdeas.map((idea) => (
@@ -170,7 +170,7 @@ export function PersonPage() {
 
       <Section action={editable && <HeaderButton icon="link" label="Link an event" onClick={() => setDialog('event')} />} title="Events together">
         {shown.events.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Link the events you share, and they collect here.</p>
+          <p className="m-0 text-sm text-muted">No events linked yet.</p>
         ) : (
           <div className="grid gap-4">
             {upcoming.length > 0 && eventList(upcoming)}
@@ -243,7 +243,7 @@ function LinkEventDialog({ onClose, onLinked, person }: { onClose: () => void; o
       title={`Link an event with ${person.name}`}
     >
       {events.data && choices.length === 0 ? (
-        <p className="m-0 text-sm text-muted">There are no other events in {person.spaceName} to link. Add one from the Agenda first.</p>
+        <p className="m-0 text-sm text-muted">There are no other events in {person.spaceName} to link.</p>
       ) : (
         <Select
           label="Event"

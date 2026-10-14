@@ -157,6 +157,6 @@ describe('Trips', () => {
 
     await chooseFromMenu(container, 'Actions for Boarding pass.pdf', 'Remove from this trip');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/lisbon/links/l2', expect.objectContaining({ method: 'DELETE' }));
-    expect(container.textContent).toContain('Keep tickets, bookings and passports here');
+    expect(container.textContent).toContain('No documents yet.');
   });
 });

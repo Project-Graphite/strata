@@ -99,7 +99,7 @@ export function TripPage() {
     >
       <Section action={editable && <HeaderButton icon="plus" label="Add a plan" onClick={() => setDialog('plan')} />} title="Itinerary">
         {days.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Add flights, stays and plans as events, and they line up here day by day.</p>
+          <p className="m-0 text-sm text-muted">No plans yet.</p>
         ) : (
           <div className="grid gap-4">
             {days.map((day) => (
@@ -211,7 +211,7 @@ export function TripPage() {
         title="Documents"
       >
         {shown.documents.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Keep tickets, bookings and passports here, ready when you need them.</p>
+          <p className="m-0 text-sm text-muted">No documents yet.</p>
         ) : (
           <ul className="panel-rows">
             {shown.documents.map((document) => (
@@ -257,7 +257,7 @@ export function TripPage() {
         title="Notes"
       >
         {shown.pages.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Start a page for places to see, addresses and anything else worth writing down.</p>
+          <p className="m-0 text-sm text-muted">No pages yet.</p>
         ) : (
           <ul className="panel-rows">
             {shown.pages.map((page) => (

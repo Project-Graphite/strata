@@ -75,26 +75,19 @@ export function TodoPage() {
       </Toolbar>
 
       {!completed && addTo && addTo.role !== 'viewer' && (
-        <div className="grid gap-1">
-          <QuickAddTask
-            key={`${addTo.id}/${shownList?.id ?? ''}`}
-            listId={shownList?.id}
-            onAdded={() => {
-              tasks.reload();
-              lists.reload();
-            }}
-            spaceId={addTo.id}
-          />
-          <p className="m-0 text-sm text-faint">
-            Adds to {shownList ? `${shownList.title} in ${addTo.name}` : addTo.name}. Try “pay rent friday !2”.
-          </p>
-        </div>
+        <QuickAddTask
+          key={`${addTo.id}/${shownList?.id ?? ''}`}
+          listId={shownList?.id}
+          onAdded={() => {
+            tasks.reload();
+            lists.reload();
+          }}
+          spaceId={addTo.id}
+        />
       )}
 
       {tasks.data.results.length === 0 ? (
-        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'}>
-          {!completed && <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Add a to-do above. Give it a day and it shows up on Today too.</p>}
-        </EmptyState>
+        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.results.map((task) => (

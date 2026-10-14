@@ -39,9 +39,7 @@ export function SpaceHabits() {
 
   return (
     <div className="fade-in grid gap-6">
-      <Toolbar actions={editable && <HeaderButton icon="plus" label="New habit" onClick={() => setEditing('new')} primary />}>
-        <p className="m-0 text-sm text-muted">Each member checks in for themselves, and streaks are counted per person.</p>
-      </Toolbar>
+      <Toolbar actions={editable && <HeaderButton icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
       {habits.data.length === 0 ? (
         <EmptyState title="No habits yet" />
       ) : (

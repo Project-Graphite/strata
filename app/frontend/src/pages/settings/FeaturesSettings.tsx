@@ -24,7 +24,7 @@ export function FeaturesSettings() {
 
   return (
     <Section
-      description="Extra areas for situations that come and go. The ones you turn on appear in the sidebar. Turning one off hides it and keeps everything in it."
+      description="The ones you turn on appear in the sidebar. Turning one off hides it and keeps everything in it."
       title="Features"
     >
       {asked && !chosen.includes(asked.key) && <p className="notice m-0">Turn on {asked.label} to open it.</p>}

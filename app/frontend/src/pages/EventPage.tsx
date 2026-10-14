@@ -106,7 +106,6 @@ export function EventPage() {
             />
           ) : options.length > 0 ? (
             <>
-              <p className="m-0 text-sm text-muted">Members answer here, and guests from their invitation link.</p>
               <PollOptions busy={voting.busy} onPick={editable ? setPicking : undefined} onVote={vote} options={options} />
               {editable && (
                 <div className="flex flex-wrap gap-2">
@@ -132,7 +131,6 @@ export function EventPage() {
             </>
           ) : (
             <>
-              <p className="m-0 text-sm text-muted">Not sure when yet? Offer a few dates and let members and guests say which work.</p>
               <button className="secondary-button w-fit px-3 py-2 text-sm" onClick={() => setPlanning(true)} type="button">
                 Offer dates
               </button>

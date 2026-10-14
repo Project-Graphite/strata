@@ -108,11 +108,7 @@ export function SpaceTasks() {
       </Toolbar>
 
       {tasks.data.results.length === 0 ? (
-        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'}>
-          {!completed && editable && (
-            <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Add one with New task. Give it a due date and it shows up on Today.</p>
-          )}
-        </EmptyState>
+        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.results.map((task) => (

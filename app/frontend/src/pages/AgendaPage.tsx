@@ -100,7 +100,7 @@ export function AgendaPage() {
         <ListSkeleton label="Loading your agenda" rows={6} />
       ) : view === 'list' ? (
         agenda.data.length === 0 ? (
-          <p className="m-0 text-muted">Nothing in the next 30 days. Events, due tasks and renewals appear here.</p>
+          <p className="m-0 text-muted">Nothing in the next 30 days.</p>
         ) : (
           <div className="grid max-w-3xl gap-5">
             {allDays

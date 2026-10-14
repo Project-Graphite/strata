@@ -380,9 +380,7 @@ export function DashboardHome() {
               />
             </>
           }
-        >
-          <p className="m-0 text-sm text-muted">Drag cards to move them and their corner to resize.</p>
-        </Toolbar>
+        />
       )}
       {widgets.length === 0 ? (
         <EmptyState title="This dashboard is empty">
