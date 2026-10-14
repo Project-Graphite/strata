@@ -4,7 +4,7 @@ import { AccessService } from '../access/access.service';
 import { SecretBox } from '../crypto/secret-box.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateValue, dayMs } from '../recurrence/dates';
+import { dateText, dateValue, dayMs } from '../recurrence/dates';
 import { checkedUrl, fetchPublic, UnsafeUrlError } from '../widgets/safe-fetch';
 import { readCalendar } from './ical-reader';
 
@@ -76,6 +76,30 @@ export class CalendarSubscriptionsService implements OnModuleInit {
       select: subscriptionFields,
     });
     return present(created);
+  }
+
+  async event(userId: string, id: string, uid: string) {
+    const event = await this.prisma.subscribedEvent.findFirst({
+      where: { subscriptionId: id, uid, subscription: { space: this.access.spacesOf(userId) } },
+      select: {
+        uid: true,
+        title: true,
+        startsOn: true,
+        startTime: true,
+        endsOn: true,
+        endTime: true,
+        timeZone: true,
+        repeatRule: true,
+        location: true,
+        description: true,
+        meetingUrl: true,
+        organizer: true,
+        subscription: { select: { id: true, spaceId: true, name: true, host: true } },
+      },
+    });
+    if (!event) throw new NotFoundException('That event is no longer in the calendar');
+    const { subscription, startsOn, endsOn, ...details } = event;
+    return { ...details, startsOn: dateText(startsOn), endsOn: dateText(endsOn), calendar: subscription };
   }
 
   async refreshNow(userId: string, id: string) {

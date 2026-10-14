@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -8,7 +8,7 @@ import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CalendarFeedService } from './calendar-feed.service';
 import { CalendarSubscriptionsService } from './calendar-subscriptions.service';
-import { AddCalendarDto } from './dto/calendar.dto';
+import { AddCalendarDto, CalendarEventDto } from './dto/calendar.dto';
 
 @Controller()
 export class CalendarController {
@@ -65,6 +65,13 @@ export class CalendarController {
   @RateLimit('calendar-add', 20, 3_600)
   add(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: AddCalendarDto) {
     return this.subscriptions.add(user.id, spaceId, input);
+  }
+
+  @Get('calendars/:id/event')
+  @Scope('items:read')
+  @UseGuards(JwtAuthGuard)
+  event(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Query() query: CalendarEventDto) {
+    return this.subscriptions.event(user.id, id, query.uid);
   }
 
   @Post('calendars/:id/refresh')

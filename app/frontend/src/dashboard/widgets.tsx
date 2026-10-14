@@ -7,7 +7,7 @@ import { siteLabel, type Bookmark } from '../bookmarks';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
-import { addDays, dayKey, entryLink, entryTime, useAgenda } from '../agenda';
+import { addDays, dayKey, entryDay, entryTime, useAgenda } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -15,6 +15,7 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
@@ -308,12 +309,12 @@ function Agenda() {
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {agenda.data.slice(0, 6).map((entry) => (
         <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
-          <Link className="text-ink no-underline hover:underline" to={entryLink(entry)}>
-            {entry.title}
-          </Link>
-          <span className="mono-sm block text-faint">
-            {new Date(`${entry.allDay ? entry.start : dayKey(new Date(entry.start))}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} {entryTime(entry)}
-          </span>
+          <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
+            <span className="block truncate text-ink">{entry.title}</span>
+            <span className="mono-sm block truncate text-faint">
+              {new Date(`${entryDay(entry)}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} {entryTime(entry)}
+            </span>
+          </AgendaEntryLink>
         </li>
       ))}
     </ul>

@@ -12,3 +12,9 @@ export class AddCalendarDto {
   @MaxLength(2_000, { message: 'That address is too long.' })
   url!: string;
 }
+
+export class CalendarEventDto {
+  @IsString()
+  @Length(1, 500)
+  uid!: string;
+}

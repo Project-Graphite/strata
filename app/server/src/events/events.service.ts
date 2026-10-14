@@ -288,6 +288,8 @@ export class EventsService implements OnModuleInit {
           ...times(event, slot),
           location: event.location,
           calendar: event.subscription.name,
+          calendarId: event.subscriptionId,
+          uid: event.uid,
         })),
       ),
       ...tasks.flatMap((item) => {

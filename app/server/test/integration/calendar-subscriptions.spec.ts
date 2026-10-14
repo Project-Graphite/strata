@@ -21,7 +21,7 @@ describe('Followed calendars against Postgres', () => {
     const outsider = await member('fixtures-outsider');
     const space = (await owner.call('POST', '/spaces', { name: 'Football' })).body;
     await strata.join(space.id, viewer, SpaceRole.VIEWER);
-    vi.mocked(fetchPublic).mockResolvedValue(ics('UID:m1\nSUMMARY:Home match\nDTSTART:20261107T150000Z\nDTEND:20261107T170000Z', 'UID:m2\nSUMMARY:Training\nDTSTART;VALUE=DATE:20261105'));
+    vi.mocked(fetchPublic).mockResolvedValue(ics('UID:m1\nSUMMARY:Home match\nDTSTART:20261107T150000Z\nDTEND:20261107T170000Z\nDESCRIPTION:Gates open at two\nX-GOOGLE-CONFERENCE:https://meet.google.com/abc-defg-hij', 'UID:m2\nSUMMARY:Training\nDTSTART;VALUE=DATE:20261105'));
 
     expect((await owner.call('POST', `/spaces/${space.id}/calendars`, { url: 'http://fixtures.example/cal.ics' })).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${space.id}/calendars`, { url: 'https://10.0.0.1/cal.ics' })).status).toBe(400);
@@ -37,8 +37,18 @@ describe('Followed calendars against Postgres', () => {
     const agenda = (await viewer.call('GET', '/agenda?from=2026-11-01&to=2026-11-10')).body;
     expect(agenda.filter((entry: { kind: string }) => entry.kind === 'external')).toEqual([
       expect.objectContaining({ title: 'Training', allDay: true, start: '2026-11-05', calendar: 'Club fixtures', spaceId: space.id }),
-      expect.objectContaining({ title: 'Home match', allDay: false, start: '2026-11-07T15:00:00.000Z', end: '2026-11-07T17:00:00.000Z' }),
+      expect.objectContaining({ title: 'Home match', allDay: false, start: '2026-11-07T15:00:00.000Z', end: '2026-11-07T17:00:00.000Z', calendarId: added.body.id, uid: 'm1' }),
     ]);
+    expect((await viewer.call('GET', `/calendars/${added.body.id}/event?uid=m1`)).body).toMatchObject({
+      title: 'Home match',
+      startsOn: '2026-11-07',
+      startTime: '15:00',
+      description: 'Gates open at two',
+      meetingUrl: 'https://meet.google.com/abc-defg-hij',
+      calendar: { id: added.body.id, name: 'Club fixtures', host: 'fixtures.example' },
+    });
+    expect((await outsider.call('GET', `/calendars/${added.body.id}/event?uid=m1`)).status).toBe(404);
+    expect((await viewer.call('GET', `/calendars/${added.body.id}/event?uid=missing`)).status).toBe(404);
     expect((await outsider.call('GET', '/agenda?from=2026-11-01&to=2026-11-10')).body).toEqual([]);
     expect((await viewer.call('GET', '/me/calendars')).body).toHaveLength(1);
     expect((await outsider.call('GET', '/me/calendars')).body).toEqual([]);
