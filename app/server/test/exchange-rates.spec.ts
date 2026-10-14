@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convertMinor, parseRates } from '../src/exchange-rates/exchange-rates.service';
+import { convertMinor, parseEgyptRates, parseRates } from '../src/exchange-rates/exchange-rates.service';
 
 const xml = `<gesmes:Envelope><Cube><Cube time='2026-10-05'>
   <Cube currency='USD' rate='1.1204'/><Cube currency='JPY' rate='177.28'/><Cube currency='GBP' rate='0.84720'/>
@@ -26,5 +26,22 @@ describe('ECB reference rates', () => {
     expect(convertMinor(1000, 'GBP', 'JPY', rates)).toBe(2093);
     expect(convertMinor(17_728, 'JPY', 'EUR', rates)).toBe(10_000);
     expect(convertMinor(1000, 'CHF', 'EUR', rates)).toBeNull();
+  });
+});
+
+describe('CBE official rates', () => {
+  it('reads the euro row as the Egyptian pound mid rate', () => {
+    const html = `<p class="table-desc">CBE Official Exchange rates and prices are expressed in pounds. <br />
+      Rates for Date: 14/10/2026</p><table><tbody>
+      <tr><td class="table-cell">US Dollar</td><td class="table-cell">53.0417</td><td class="table-cell">53.1817</td></tr>
+      <tr><td class="table-cell">
+        Euro
+      </td><td class="table-cell">
+        59.3484
+      </td><td class="table-cell">
+        59.5103
+      </td></tr></tbody></table>`;
+    expect(parseEgyptRates(html)).toEqual({ publishedOn: '2026-10-14', rates: [{ currency: 'EGP', perEuro: 59.42935 }] });
+    expect(() => parseEgyptRates('The requested URL was rejected.')).toThrow('no euro rate');
   });
 });

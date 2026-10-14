@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ExchangeRatesService, ratesUrl } from '../../src/exchange-rates/exchange-rates.service';
+import { egyptRatesUrl, ExchangeRatesService, ratesUrl } from '../../src/exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp } from './harness';
 
 const xml = `<gesmes:Envelope><Cube><Cube time='2026-10-05'>
   <Cube currency='USD' rate='1.25'/><Cube currency='GBP' rate='0.85'/>
 </Cube></Cube></gesmes:Envelope>`;
+const html = `Rates for Date: 04/10/2026 <tr><td>Euro</td><td>60.0000</td><td>60.2000</td></tr>`;
 
 describe('Home currency totals against Postgres', () => {
   const strata = integrationApp();
@@ -14,24 +15,29 @@ describe('Home currency totals against Postgres', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('refreshes the ECB rates at most twice a day and converts totals into the home currency', async () => {
+  it('refreshes the ECB and CBE rates at most twice a day and converts totals into the home currency', async () => {
     const owner = await member('converter');
     const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
     await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
     await strata.prisma.exchangeRate.deleteMany();
     const ecb = vi.fn(() => Promise.resolve(new Response(xml, { status: 200 })));
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => (String(input) === ratesUrl ? ecb() : realFetch(input, init)));
+    const cbe = vi.fn(() => Promise.resolve(new Response(html, { status: 200 })));
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) =>
+      String(input) === ratesUrl ? ecb() : String(input) === egyptRatesUrl ? cbe() : realFetch(input, init),
+    );
     const rates = strata.service(ExchangeRatesService);
     const later = () => new Date(Date.now() + 13 * 60 * 60 * 1000);
 
     await rates.refresh(later());
     await rates.refresh(new Date());
     expect(ecb).toHaveBeenCalledTimes(1);
+    expect(cbe).toHaveBeenCalledTimes(1);
     await rates.refresh(later());
     expect(ecb).toHaveBeenCalledTimes(2);
+    expect(cbe).toHaveBeenCalledTimes(2);
     const listed = (await owner.call('GET', '/exchange-rates')).body;
     expect(listed.publishedOn).toBe('2026-10-05');
-    expect(listed.currencies).toEqual(expect.arrayContaining(['EUR', 'GBP', 'USD']));
+    expect(listed.currencies).toEqual(expect.arrayContaining(['EGP', 'EUR', 'GBP', 'USD']));
 
     const space = owner.personalSpaceId;
     for (const [name, amountMinor, currency] of [['Music', 1250, 'USD'], ['Video', 850, 'GBP'], ['Gym', 3000, 'XAU']] as const) {
@@ -48,6 +54,9 @@ describe('Home currency totals against Postgres', () => {
       ratesOn: '2026-10-05',
       missing: ['XAU'],
     });
+
+    expect((await owner.call('PATCH', '/me', { homeCurrency: 'EGP' })).body.homeCurrency).toBe('EGP');
+    expect((await owner.call('GET', '/subscriptions/summary')).body.home).toMatchObject({ currency: 'EGP', yearlyMinor: 120_200, missing: ['XAU'] });
 
     expect((await owner.call('PATCH', '/me', { homeCurrency: null })).body.homeCurrency).toBeNull();
   });
