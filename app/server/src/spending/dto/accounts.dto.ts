@@ -18,6 +18,7 @@ const Senders = () =>
     IsString({ each: true }),
     Length(1, 40, { each: true, message: 'Senders are 1 to 40 characters.' }),
   );
+const DueDay = () => applyDecorators(IsInt(), Min(1), Max(31, { message: 'Payments are due on day 1 to 31.' }));
 const Balance = () => applyDecorators(IsInt(), Min(-100_000_000), Max(100_000_000, { message: 'That balance is too large.' }));
 
 export class CreateAccountDto {
@@ -47,6 +48,11 @@ export class CreateAccountDto {
   @ValidateIf(nullable)
   @AmountMinor()
   creditLimitMinor?: number | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @DueDay()
+  dueDay?: number | null;
 }
 
 export class UpdateAccountDto {
@@ -78,4 +84,9 @@ export class UpdateAccountDto {
   @ValidateIf(nullable)
   @AmountMinor()
   creditLimitMinor?: number | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @DueDay()
+  dueDay?: number | null;
 }

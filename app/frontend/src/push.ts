@@ -6,6 +6,7 @@ export const pushGroups = [
   { label: 'Birthdays tomorrow', kinds: ['birthday'] },
   { label: 'Renewals and trials ending', kinds: ['subscription_due'] },
   { label: 'Budgets nearly or fully used', kinds: ['budget_alert'] },
+  { label: 'Installments and card payments due', kinds: ['payment_due'] },
   { label: 'Comments on your pages', kinds: ['comment'] },
   { label: 'Invitations and changes to your spaces', kinds: ['invitation', 'member_joined', 'role_changed', 'removed_from_space'] },
   { label: 'Weekly review and Tidy summary', kinds: ['weekly_review', 'tidy_summary'] },

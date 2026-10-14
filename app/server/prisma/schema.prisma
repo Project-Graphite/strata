@@ -237,6 +237,7 @@ model Space {
   merchantRules   MerchantRule[]
   spendingPlan    SpendingPlan?
   budgetAlerts    BudgetAlert[]
+  installments    InstallmentPlan[]
 
   @@map("spaces")
 }
@@ -1098,22 +1099,25 @@ model Expense {
 }
 
 model MoneyAccount {
-  id               String    @id @default(uuid()) @db.Uuid
-  spaceId          String    @map("space_id") @db.Uuid
+  id               String            @id @default(uuid()) @db.Uuid
+  spaceId          String            @map("space_id") @db.Uuid
   name             String
-  kind             String    @default("bank")
+  kind             String            @default("bank")
   currency         String
-  cardDigits       String[]  @default([]) @map("card_digits")
-  senders          String[]  @default([])
-  balanceMinor     Int       @default(0) @map("balance_minor")
-  balanceAt        DateTime  @default(now()) @map("balance_at")
-  creditLimitMinor Int?      @map("credit_limit_minor")
-  position         Int       @default(0)
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  space            Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  expenses         Expense[] @relation("AccountExpenses")
-  transfersIn      Expense[] @relation("AccountTransfersIn")
+  cardDigits       String[]          @default([]) @map("card_digits")
+  senders          String[]          @default([])
+  balanceMinor     Int               @default(0) @map("balance_minor")
+  balanceAt        DateTime          @default(now()) @map("balance_at")
+  creditLimitMinor Int?              @map("credit_limit_minor")
+  dueDay           Int?              @map("due_day")
+  dueRemindedOn    DateTime?         @map("due_reminded_on") @db.Date
+  position         Int               @default(0)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  space            Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  expenses         Expense[]         @relation("AccountExpenses")
+  transfersIn      Expense[]         @relation("AccountTransfersIn")
+  installments     InstallmentPlan[]
 
   @@index([spaceId])
   @@map("money_accounts")
@@ -1217,4 +1221,26 @@ model BudgetAlert {
 
   @@unique([spaceId, category, period, level])
   @@map("budget_alerts")
+}
+
+model InstallmentPlan {
+  id           String        @id @default(uuid()) @db.Uuid
+  spaceId      String        @map("space_id") @db.Uuid
+  accountId    String?       @map("account_id") @db.Uuid
+  name         String
+  currency     String
+  monthlyMinor Int           @map("monthly_minor")
+  count        Int
+  firstDueOn   DateTime      @map("first_due_on") @db.Date
+  paidCount    Int           @default(0) @map("paid_count")
+  reminderDays Int           @default(3) @map("reminder_days")
+  remindedOn   DateTime?     @map("reminded_on") @db.Date
+  missedOn     DateTime?     @map("missed_on") @db.Date
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  space        Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  account      MoneyAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId])
+  @@map("installment_plans")
 }

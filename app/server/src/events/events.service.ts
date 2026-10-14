@@ -11,6 +11,7 @@ import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { birthdaysBetween } from '../people/birthdays';
+import { addMonths, dueDates, nextCardDue } from '../spending/installments.service';
 import { CreateEventDto, InviteGuestDto, OpenRsvpDto, RsvpDto, UpdateEventDto } from './dto/events.dto';
 
 const reminderKind = 'event.reminder';
@@ -230,7 +231,8 @@ export class EventsService implements OnModuleInit {
     const end = zonedInstant(toDay.getTime() / dayMs, 0, 0, user.timeZone);
     const readable = { ...this.access.itemsOf(userId), trashedAt: null };
     const window = { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] };
-    const [events, tasks, subscriptions, followed, people] = await Promise.all([
+    const spending = user.features.includes('spending');
+    const [events, tasks, subscriptions, followed, people, installments, cards] = await Promise.all([
       this.prisma.item.findMany({
         where: {
           ...readable,
@@ -262,6 +264,8 @@ export class EventsService implements OnModuleInit {
             take: 2_000,
           })
         : [],
+      spending ? this.prisma.installmentPlan.findMany({ where: { space: this.access.spacesOf(userId) }, take: 1_000 }) : [],
+      spending ? this.prisma.moneyAccount.findMany({ where: { space: this.access.spacesOf(userId), kind: 'credit', dueDay: { not: null } }, take: 1_000 }) : [],
     ]);
     const times = (event: EventTimes, slot: Slot) => ({
       allDay: !event.startTime,
@@ -324,6 +328,17 @@ export class EventsService implements OnModuleInit {
           end: null,
           location: null,
         }));
+      }),
+      ...installments.flatMap((plan) =>
+        dueDates(plan)
+          .slice(plan.paidCount)
+          .filter((day) => day >= from && day < to)
+          .map((day) => ({ kind: 'payment' as const, itemId: plan.id, spaceId: plan.spaceId, title: `${plan.name} installment`, allDay: true, start: day, end: null, location: null })),
+      ),
+      ...cards.flatMap((account) => {
+        const days: string[] = [];
+        for (let day = nextCardDue(from, account.dueDay!); day < to; day = addMonths(`${day.slice(0, 8)}${String(account.dueDay).padStart(2, '0')}`, 1)) days.push(day);
+        return days.map((day) => ({ kind: 'payment' as const, itemId: account.id, spaceId: account.spaceId, title: `${account.name} payment due`, allDay: true, start: day, end: null, location: null }));
       }),
     ];
     return entries.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : Number(b.allDay) - Number(a.allDay)));

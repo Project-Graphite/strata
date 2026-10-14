@@ -5,13 +5,15 @@ import { AccountsService } from './accounts.service';
 import { CaptureController } from './capture/capture.controller';
 import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
+import { InstallmentsController } from './installments.controller';
+import { InstallmentsService } from './installments.service';
 import { CaptureService } from './capture/capture.service';
 import { SpendingController } from './spending.controller';
 import { SpendingService } from './spending.service';
 
 @Module({
   imports: [ExchangeRatesModule],
-  controllers: [SpendingController, AccountsController, CaptureController, CategoriesController],
-  providers: [SpendingService, AccountsService, CaptureService, CategoriesService],
+  controllers: [SpendingController, AccountsController, CaptureController, CategoriesController, InstallmentsController],
+  providers: [SpendingService, AccountsService, CaptureService, CategoriesService, InstallmentsService],
 })
 export class SpendingModule {}

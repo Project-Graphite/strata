@@ -12,6 +12,7 @@ export const inboxKinds = [
   'weekly_review',
   'birthday',
   'budget_alert',
+  'payment_due',
 ] as const;
 
 export type InboxKind = (typeof inboxKinds)[number];

@@ -42,6 +42,7 @@ export interface MoneyAccount {
   cardDigits: string[];
   senders: string[];
   creditLimitMinor: number | null;
+  dueDay: number | null;
   balanceMinor: number;
   missing: string[];
 }
@@ -64,6 +65,23 @@ export interface Expense {
   split: CostSplit | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InstallmentPlan {
+  id: string;
+  spaceId: string;
+  accountId: string | null;
+  name: string;
+  currency: string;
+  monthlyMinor: number;
+  count: number;
+  firstDueOn: string;
+  paidCount: number;
+  reminderDays: number;
+  totalMinor: number;
+  remainingMinor: number;
+  nextDueOn: string | null;
+  status: 'due' | 'missed' | 'done';
 }
 
 export interface CapturedMessage {
