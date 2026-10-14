@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
 import { AccountEditor } from '../components/AccountEditor';
+import { CategoriesEditor } from '../components/CategoriesEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { ExpenseImport } from '../components/ExpenseImport';
 import { FormDialog } from '../components/FormDialog';
@@ -16,8 +17,10 @@ import {
   accountKindOptions,
   categoryName,
   categoryOptions,
+  useCategories,
   type CapturedMessage,
   type Expense,
+  type MerchantRule,
   type MoneyAccount,
   type SpendingCategory,
   type SpendingMonth,
@@ -49,11 +52,15 @@ export function SpendingPage() {
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
+  const categories = useCategories(spaceId);
+  const rules = useResource<MerchantRule[]>(spaceId ? `/spaces/${spaceId}/merchant-rules` : null, true);
+  const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
     | 'new'
     | 'import'
     | 'phone'
-    | { budget: SpendingCategory | null }
+    | 'categories'
+    | { budget: string | null }
     | { expense: Expense }
     | { split: Expense }
     | { account: MoneyAccount | null }
@@ -67,6 +74,7 @@ export function SpendingPage() {
     summary.reload();
     accounts.reload();
     captures.reload();
+    rules.reload();
   };
 
   return (
@@ -156,6 +164,26 @@ export function SpendingPage() {
                         >
                           Ignore
                         </button>
+                        {message.suggestion.merchant && (
+                          <button
+                            className="text-button text-sm"
+                            disabled={action.busy}
+                            onClick={() =>
+                              void action.run(async () => {
+                                await auth.request(`/spaces/${spaceId}/merchant-rules`, {
+                                  method: 'POST',
+                                  body: JSON.stringify({ match: message.suggestion.merchant!.toLowerCase(), ignore: true }),
+                                });
+                                await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                                reload();
+                                return `Messages from ${message.suggestion.merchant} will be ignored.`;
+                              }, 'Could not ignore the merchant')
+                            }
+                            type="button"
+                          >
+                            Always ignore
+                          </button>
+                        )}
                       </>
                     )}
                   </li>
@@ -209,7 +237,50 @@ export function SpendingPage() {
             </Section>
           )}
 
-          <Section action={editable && <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />} title="By category">
+          {Boolean(rules.data?.length) && (
+            <Section title="Merchant rules">
+              <ul className="panel-rows">
+                {rules.data!.map((rule) => (
+                  <li className="panel-row flex items-center gap-3" key={rule.id}>
+                    <span className="grid min-w-0 flex-1">
+                      <span className="truncate text-ink">{rule.match}</span>
+                      <span className="truncate text-sm text-muted">
+                        {rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    {editable && (
+                      <button
+                        className="text-button text-sm"
+                        disabled={action.busy}
+                        onClick={() =>
+                          void action.run(async () => {
+                            await auth.request(`/merchant-rules/${rule.id}`, { method: 'DELETE' });
+                            rules.mutate((current) => current.filter((shown) => shown.id !== rule.id));
+                            return '';
+                          }, 'Could not remove the rule')
+                        }
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          <Section
+            action={
+              editable && (
+                <span className="flex gap-2">
+                  <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
+                  <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
+                </span>
+              )
+            }
+            title="By category"
+          >
             {shown.categories.length === 0 ? (
               <p className="m-0 text-sm text-muted">Nothing spent this month yet.</p>
             ) : (
@@ -217,7 +288,10 @@ export function SpendingPage() {
                 {shown.categories.map((row) => (
                   <li className="panel-row grid gap-2" key={row.category}>
                     <span className="flex items-center justify-between gap-3">
-                      <span className="text-ink">{categoryName(row.category)}</span>
+                      <span className="flex items-center gap-2 text-ink">
+                        <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
+                        {categoryName(row.category)}
+                      </span>
                       <span className="flex items-center gap-2">
                         <span className="text-sm text-muted">
                           {row.budgetMinor === null ? money(row.spentMinor, currency) : `${money(row.spentMinor, currency)} of ${money(row.budgetMinor, currency)}`}
@@ -338,13 +412,25 @@ export function SpendingPage() {
         <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}
       {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
-        <BudgetDialog category={dialog.budget} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} spaceId={spaceId} summary={shown} />
+        <BudgetDialog
+          categories={categories.data ?? []}
+          category={dialog.budget}
+          currency={currency}
+          onClose={() => setDialog(undefined)}
+          onSaved={() => summary.reload()}
+          spaceId={spaceId}
+          summary={shown}
+        />
+      )}
+      {spaceId && categories.data && dialog === 'categories' && (
+        <CategoriesEditor categories={categories.data} onClose={() => setDialog(undefined)} onSaved={() => (categories.reload(), reload())} spaceId={spaceId} />
       )}
     </Page>
   );
 }
 
 function BudgetDialog({
+  categories,
   category,
   currency,
   onClose,
@@ -352,7 +438,8 @@ function BudgetDialog({
   spaceId,
   summary,
 }: {
-  category: SpendingCategory | null;
+  categories: SpendingCategory[];
+  category: string | null;
   currency: string;
   onClose: () => void;
   onSaved: () => void;
@@ -362,7 +449,7 @@ function BudgetDialog({
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const [chosen, setChosen] = useState<SpendingCategory>(category ?? 'groceries');
+  const [chosen, setChosen] = useState(category ?? categories[0]?.name ?? 'other');
   const existing = summary.budgets.find((budget) => budget.category === chosen);
   const [chosenCurrency, setChosenCurrency] = useState(existing?.currency ?? currency);
 
@@ -385,7 +472,7 @@ function BudgetDialog({
       submitLabel="Save budget"
       title={category ? `${categoryName(category)} budget` : 'Set a budget'}
     >
-      {!category && <Select label="Category" onChange={setChosen} options={categoryOptions} value={chosen} />}
+      {!category && <Select label="Category" onChange={setChosen} options={categoryOptions(categories)} value={chosen} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField autoFocus defaultValue={existing ? fromMinor(existing.amountMinor, existing.currency) : ''} inputMode="decimal" key={chosen} label="Each month" {...form.field('amount')} />
         <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />

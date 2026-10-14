@@ -8,6 +8,7 @@ import { MaintenanceScheduler } from '../../jobs/maintenance.scheduler';
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../recurrence/dates';
 import { CaptureMessageDto } from '../dto/capture.dto';
+import { ruleFor } from '../categories.service';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
 import { MessageDirection, normalise, readMessage } from './bank-messages';
@@ -57,10 +58,13 @@ export class CaptureService implements OnModuleInit {
     const seen = await this.prisma.capturedMessage.findUnique({ where: { spaceId_hash: { spaceId, hash } }, select: { status: true, expenseId: true } });
     if (seen) return { status: seen.status, expenseId: seen.expenseId };
 
-    const [user, accounts] = await Promise.all([
+    const [user, accounts, rules] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } }),
       this.prisma.moneyAccount.findMany({ where: { spaceId } }),
+      this.prisma.merchantRule.findMany({ where: { spaceId } }),
     ]);
+    const rule = read.merchant ? ruleFor(rules, read.merchant) : null;
+    if (rule?.ignore) return { status: 'ignored', reason: 'rule' };
     const account = accountFor(accounts, sender, read.cardDigits);
     const currency = read.currency ?? account?.currency ?? null;
     const suggestion: Suggestion = {
@@ -81,10 +85,10 @@ export class CaptureService implements OnModuleInit {
     if (!message) return { status: 'review', expenseId: null };
 
     const { direction, amountMinor, merchant } = suggestion;
-    const category = direction === 'received' ? 'other' : merchant ? await this.knownCategory(spaceId, merchant) : null;
+    const category = direction === 'received' ? 'other' : (rule?.category ?? (merchant ? await this.knownCategory(spaceId, merchant) : null));
     if (!direction || !amountMinor || !currency || !category) return { status: 'review', expenseId: null };
     const expenseId = await this.record(userId, message, {
-      title: merchant ?? sender,
+      title: rule?.rename ?? merchant ?? sender,
       amountMinor,
       currency,
       spentOn: localDate(user.timeZone, receivedAt),

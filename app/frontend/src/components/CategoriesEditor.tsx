@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { Icon, Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
+import { useAuth } from '../auth';
+import { categoryName, type SpendingCategory } from '../spending';
+import { useAction } from '../useAction';
+import { FormDialog } from './FormDialog';
+
+interface Row extends SpendingCategory {
+  key: number;
+  previous?: string;
+}
+
+const colourOptions = tagColors.map((colour) => ({ value: colour, label: categoryName(colour), leading: <span aria-hidden="true" className={`swatch-dot tag-${colour}`} /> }));
+
+export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { categories: SpendingCategory[]; onClose: () => void; onSaved: () => void; spaceId: string }) {
+  const auth = useAuth();
+  const saving = useAction();
+  const [rows, setRows] = useState<Row[]>(categories.map((category, key) => ({ ...category, key, previous: category.name })));
+  const [error, setError] = useState('');
+  const change = (key: number, patch: Partial<Row>) => setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  const move = (index: number, by: number) =>
+    setRows((current) => {
+      const next = [...current];
+      [next[index], next[index + by]] = [next[index + by]!, next[index]!];
+      return next;
+    });
+
+  return (
+    <FormDialog
+      busy={saving.busy}
+      busyLabel="Saving…"
+      onClose={onClose}
+      onSubmit={() => {
+        const names = rows.map((row) => row.name.trim());
+        if (names.some((name) => !name || name.length > 40)) return setError('Name each category in 1 to 40 characters.');
+        if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) return setError('Give each category a different name.');
+        setError('');
+        void saving
+          .run(async () => {
+            await auth.request(`/spaces/${spaceId}/spending-categories`, {
+              method: 'PUT',
+              body: JSON.stringify({ categories: rows.map(({ name, colour, previous }) => ({ name: name.trim(), colour, ...(previous ? { previous } : {}) })) }),
+            });
+            onSaved();
+            return 'Categories saved.';
+          }, 'Could not save the categories')
+          .then((done) => done && onClose());
+      }}
+      submitLabel="Save categories"
+      title="Categories"
+    >
+      <ul className="m-0 grid list-none gap-2 p-0">
+        {rows.map((row, index) => (
+          <li className="flex items-end gap-2" key={row.key}>
+            <TextField
+              aria-label={`Name of category ${index + 1}`}
+              className="min-w-0 flex-1"
+              disabled={row.previous === 'other'}
+              label=""
+              maxLength={40}
+              onChange={(event) => change(row.key, { name: event.target.value })}
+              value={row.previous === 'other' ? 'Other' : row.name}
+            />
+            <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} size="small" value={row.colour} />
+            <button aria-label={`Move ${row.name} up`} className="icon-button" disabled={index === 0} onClick={() => move(index, -1)} type="button">
+              <Icon name="chevron-up" size={16} />
+            </button>
+            <button aria-label={`Move ${row.name} down`} className="icon-button" disabled={index === rows.length - 1} onClick={() => move(index, 1)} type="button">
+              <Icon name="chevron-down" size={16} />
+            </button>
+            <button
+              aria-label={`Remove ${row.name}`}
+              className="icon-button"
+              disabled={row.previous === 'other'}
+              onClick={() => setRows((current) => current.filter((shown) => shown.key !== row.key))}
+              type="button"
+            >
+              <Icon name="x" size={16} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        className="secondary-button w-fit px-3 py-2 text-sm"
+        disabled={rows.length >= 40}
+        onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])}
+        type="button"
+      >
+        Add a category
+      </button>
+      {error && (
+        <p className="error-message m-0" role="alert">
+          {error}
+        </p>
+      )}
+    </FormDialog>
+  );
+}

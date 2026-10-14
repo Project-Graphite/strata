@@ -131,4 +131,47 @@ describe('Spending and budgets against Postgres', () => {
     expect((await owner.call('GET', `/expenses/${groceries.id}`)).body.accountId).toBe(bank.id);
     expect((await owner.call('GET', `/spaces/${home.id}/accounts`)).body.map((account: { name: string }) => account.name)).toEqual(['CIB', 'Travel card']);
   });
+
+  it('lets a space rename, recolour, add and remove spending categories without losing expenses', async () => {
+    const owner = await member('categoriser');
+    const viewer = await member('category-watcher');
+    const home = (await owner.call('POST', '/spaces', { name: 'Categories' })).body;
+    await strata.join(home.id, viewer, SpaceRole.VIEWER);
+    const defaults = (await viewer.call('GET', `/spaces/${home.id}/spending-categories`)).body;
+    expect(defaults).toHaveLength(12);
+    expect(defaults[0]).toEqual({ name: 'groceries', colour: 'green' });
+
+    const base = { currency: 'EGP', spentOn: '2026-10-10' };
+    const market = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Market', amountMinor: 100, category: 'groceries' })).body;
+    const cinema = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Cinema', amountMinor: 200, category: 'entertainment' })).body;
+    await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 5000, currency: 'EGP' });
+    await owner.call('PUT', `/spaces/${home.id}/budgets/entertainment`, { amountMinor: 3000, currency: 'EGP' });
+    expect((await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Gym', amountMinor: 300, category: 'fitness' })).status).toBe(400);
+
+    const save = (who: typeof owner, categories: object[]) => who.call('PUT', `/spaces/${home.id}/spending-categories`, { categories });
+    expect((await save(viewer, [{ name: 'other', colour: 'gray' }])).status).toBe(403);
+    expect((await save(owner, [{ name: 'food', colour: 'green' }])).status).toBe(400);
+    expect((await save(owner, [{ name: 'food', colour: 'green' }, { name: 'Food', colour: 'red' }, { name: 'other', colour: 'gray' }])).status).toBe(400);
+    expect((await save(owner, [{ name: 'food', colour: 'violet' }, { name: 'other', colour: 'gray' }])).status).toBe(400);
+    const saved = await save(owner, [
+      { name: 'food', colour: 'orange', previous: 'groceries' },
+      { name: 'fitness', colour: 'teal' },
+      { name: 'other', colour: 'gray', previous: 'other' },
+    ]);
+    expect(saved.body).toEqual([
+      { name: 'food', colour: 'orange' },
+      { name: 'fitness', colour: 'teal' },
+      { name: 'other', colour: 'gray' },
+    ]);
+    expect((await owner.call('GET', `/expenses/${market.id}`)).body.category).toBe('food');
+    expect((await owner.call('GET', `/expenses/${cinema.id}`)).body.category).toBe('other');
+    const month = (await owner.call('GET', `/spaces/${home.id}/spending?month=2026-10`)).body;
+    expect(month.budgets).toEqual([{ category: 'food', amountMinor: 5000, currency: 'EGP' }]);
+    expect(month.categories.map((row: { category: string }) => row.category)).toEqual(['other', 'food']);
+    expect((await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Gym', amountMinor: 300, category: 'fitness' })).status).toBe(201);
+    expect((await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 5000, currency: 'EGP' })).status).toBe(400);
+
+    expect((await save(owner, [{ name: 'fitness', colour: 'teal', previous: 'food' }, { name: 'food', colour: 'orange', previous: 'fitness' }, { name: 'other', colour: 'gray' }])).status).toBe(200);
+    expect((await owner.call('GET', `/expenses/${market.id}`)).body.category).toBe('fitness');
+  });
 });

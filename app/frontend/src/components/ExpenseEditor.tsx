@@ -3,7 +3,7 @@ import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, directionOptions, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount, type SpendingCategory } from '../spending';
+import { categoryOptions, directionOptions, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
@@ -32,7 +32,9 @@ export function ExpenseEditor({
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const [category, setCategory] = useState<SpendingCategory>(expense?.category ?? 'groceries');
+  const categories = useCategories(spaceId);
+  const [category, setCategory] = useState(expense?.category ?? '');
+  const chosenCategory = category || categories.data?.[0]?.name || 'other';
   const suggested = capture?.suggestion;
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
   const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? suggested?.direction ?? 'spent');
@@ -65,7 +67,7 @@ export function ExpenseEditor({
           amountMinor: toMinor(text('amount'), chosen),
           currency: chosen,
           spentOn,
-          category,
+          category: chosenCategory,
           paymentLabel: text('paymentLabel') || null,
           note: text('note'),
           direction,
@@ -75,12 +77,17 @@ export function ExpenseEditor({
         };
         void saving
           .run(async () => {
-            onSaved(
-              await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
-                method: expense ? 'PATCH' : 'POST',
-                body: JSON.stringify(body),
-              }),
-            );
+            const saved = await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
+              method: expense ? 'PATCH' : 'POST',
+              body: JSON.stringify(body),
+            });
+            if (suggested?.merchant && values.get('remember')) {
+              await auth.request(`/spaces/${spaceId}/merchant-rules`, {
+                method: 'POST',
+                body: JSON.stringify({ match: suggested.merchant.toLowerCase(), rename: body.title, category: direction === 'received' || transfer ? null : chosenCategory }),
+              });
+            }
+            onSaved(saved);
             return expense ? '' : 'Expense added.';
           }, 'Could not save the expense')
           .then((saved) => saved && onClose());
@@ -100,12 +107,18 @@ export function ExpenseEditor({
         />
         <Select defaultValue={expense?.currency ?? suggested?.currency ?? currency} label="Currency" name="currency" options={currencyOptions(allCurrencies)} searchable />
         <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
-        {direction !== 'received' && !transfer && <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />}
+        {direction !== 'received' && !transfer && <Select label="Category" onChange={setCategory} options={categoryOptions(categories.data ?? [])} value={chosenCategory} />}
         {accounts.length > 0 && (
           <Select error={form.errors.from} label={transfer ? 'From' : 'Account'} name="from" onChange={setAccountId} options={accountOptions} value={accountId} />
         )}
         {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
       </div>
+      {suggested?.merchant && (
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input defaultChecked name="remember" type="checkbox" />
+          Always do this for {suggested.merchant}
+        </label>
+      )}
       {(accounts.length === 0 || expense?.paymentLabel) && (
         <TextField defaultValue={expense?.paymentLabel ?? ''} hint="Such as “Visa ending 1234”. Never a card number." label="Paid with (optional)" maxLength={40} {...form.field('paymentLabel')} />
       )}

@@ -63,6 +63,8 @@ const account = (id: string, name: string, kind: string, balanceMinor: number) =
 });
 let accounts: ReturnType<typeof account>[] = [];
 let captures: object[] = [];
+let rules: object[] = [];
+const categories = ['groceries', 'eating out', 'transport', 'other'].map((name) => ({ name, colour: name === 'other' ? 'gray' : 'green' }));
 
 describe('Spending', () => {
   let container: HTMLDivElement;
@@ -77,6 +79,7 @@ describe('Spending', () => {
   afterEach(() => {
     accounts = [];
     captures = [];
+    rules = [];
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
@@ -90,6 +93,8 @@ describe('Spending', () => {
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
       if (path === '/spaces/home/accounts' && !init?.method) return Promise.resolve(json(accounts));
       if (path === '/spaces/home/captures' && !init?.method) return Promise.resolve(json(captures));
+      if (path === '/spaces/home/spending-categories' && !init?.method) return Promise.resolve(json(categories));
+      if (path === '/spaces/home/merchant-rules' && !init?.method) return Promise.resolve(json(rules));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -215,6 +220,7 @@ describe('Spending', () => {
       if (path === '/spaces/home/spending?month=2026-10') return json(october);
       if (path === '/captures/c1/record' && init?.method === 'POST') return json(expense('carrefour', 'CARREFOUR MAADI', 25000, 'groceries', '2026-10-14'));
       if (path === '/captures/c2/ignore' && init?.method === 'POST') return new Response(null, { status: 204 });
+      if (path === '/spaces/home/merchant-rules' && init?.method === 'POST') return json({ id: 'r1', match: 'carrefour maadi', rename: 'CARREFOUR MAADI', category: 'groceries', ignore: false });
       return undefined;
     });
     await render('/spending?month=2026-10');
@@ -230,6 +236,8 @@ describe('Spending', () => {
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path]) => path === '/api/v1/captures/c1/record')![1]!.body));
     expect(body).toMatchObject({ title: 'CARREFOUR MAADI', amountMinor: 25000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: 'bank', merchant: 'CARREFOUR MAADI' });
+    const rule = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/merchant-rules' && init?.method === 'POST')![1]!.body));
+    expect(rule).toEqual({ match: 'carrefour maadi', rename: 'CARREFOUR MAADI', category: 'groceries' });
 
     const odd = [...container.querySelectorAll('li')].find((row) => row.textContent?.includes('Something odd'))!;
     await act(async () => [...odd.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Ignore')!.click());
@@ -253,5 +261,40 @@ describe('Spending', () => {
     expect(body).toEqual({ name: 'Phone texts for Home', scopes: ['spending:capture'], expiresInDays: 365, password: 'secret words' });
     expect(container.textContent).toContain(`${window.location.origin}/api/v1/spaces/home/captures`);
     expect(container.textContent).toContain('{"Authorization":"Bearer strata_pat_phone"}');
+  });
+
+  it('renames a category, keeps Other, and lists merchant rules', async () => {
+    rules = [{ id: 'r1', match: 'uber', rename: 'Uber ride', category: 'transport', ignore: false }];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/spaces/home/spending-categories' && init?.method === 'PUT') return json(categories);
+      if (path === '/merchant-rules/r1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+
+    expect(container.textContent).toContain('Uber ride · Transport');
+    await act(async () => button('Edit categories').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    const names = [...form.querySelectorAll<HTMLInputElement>('input[aria-label^="Name of category"]')];
+    expect(names.map((input) => input.value)).toEqual(['groceries', 'eating out', 'transport', 'Other']);
+    expect(names[3]!.disabled).toBe(true);
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(names[0], 'food');
+      names[0]!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => form.querySelector<HTMLButtonElement>('button[aria-label="Remove eating out"]')!.click());
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/spending-categories' && init?.method === 'PUT')![1]!.body));
+    expect(body.categories).toEqual([
+      { name: 'food', colour: 'green', previous: 'groceries' },
+      { name: 'transport', colour: 'green', previous: 'transport' },
+      { name: 'other', colour: 'gray', previous: 'other' },
+    ]);
+
+    const row = [...container.querySelectorAll('li')].find((item) => item.textContent?.includes('Uber ride'))!;
+    await act(async () => [...row.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/merchant-rules/r1', expect.objectContaining({ method: 'DELETE' }));
   });
 });

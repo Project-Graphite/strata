@@ -233,6 +233,8 @@ model Space {
   budgets         Budget[]
   moneyAccounts   MoneyAccount[]
   captures        CapturedMessage[]
+  categories      SpendingCategory[]
+  merchantRules   MerchantRule[]
 
   @@map("spaces")
 }
@@ -1162,4 +1164,30 @@ model CapturedMessage {
   @@index([spaceId, status])
   @@index([createdAt])
   @@map("captured_messages")
+}
+
+model SpendingCategory {
+  id       String @id @default(uuid()) @db.Uuid
+  spaceId  String @map("space_id") @db.Uuid
+  name     String
+  colour   String @default("gray")
+  position Int    @default(0)
+  space    Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, name])
+  @@map("spending_categories")
+}
+
+model MerchantRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  spaceId   String   @map("space_id") @db.Uuid
+  match     String
+  rename    String?
+  category  String?
+  ignore    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, match])
+  @@map("merchant_rules")
 }

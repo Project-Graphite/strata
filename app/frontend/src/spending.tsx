@@ -1,21 +1,19 @@
+import type { TagColor } from '@project-graphite/ui';
 import type { CostSplit } from './subscriptions';
+import { useResource } from './useResource';
 
-export const spendingCategories = [
-  'groceries',
-  'eating out',
-  'transport',
-  'housing',
-  'utilities',
-  'health',
-  'shopping',
-  'entertainment',
-  'travel',
-  'gifts',
-  'education',
-  'other',
-] as const;
+export interface SpendingCategory {
+  name: string;
+  colour: TagColor;
+}
 
-export type SpendingCategory = (typeof spendingCategories)[number];
+export interface MerchantRule {
+  id: string;
+  match: string;
+  rename: string | null;
+  category: string | null;
+  ignore: boolean;
+}
 
 export type ExpenseDirection = 'spent' | 'received' | 'refund' | 'transfer';
 
@@ -55,7 +53,7 @@ export interface Expense {
   amountMinor: number;
   currency: string;
   spentOn: string;
-  category: SpendingCategory;
+  category: string;
   paymentLabel: string | null;
   note: string;
   direction: ExpenseDirection;
@@ -91,11 +89,16 @@ export interface SpendingMonth {
   receivedMinor: number;
   budgetMinor: number | null;
   committedMinor: number;
-  categories: { category: SpendingCategory; spentMinor: number; budgetMinor: number | null }[];
-  budgets: { category: SpendingCategory; amountMinor: number; currency: string }[];
+  categories: { category: string; spentMinor: number; budgetMinor: number | null }[];
+  budgets: { category: string; amountMinor: number; currency: string }[];
   expenses: Expense[];
 }
 
-export const categoryOptions = spendingCategories.map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
+export function useCategories(spaceId: string | null | undefined) {
+  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true);
+}
 
-export const categoryName = (category: string) => categoryOptions.find((option) => option.value === category)?.label ?? category;
+export const categoryName = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);
+
+export const categoryOptions = (categories: SpendingCategory[]) =>
+  categories.map(({ name, colour }) => ({ value: name, label: categoryName(name), leading: <span aria-hidden="true" className={`swatch-dot tag-${colour}`} /> }));
