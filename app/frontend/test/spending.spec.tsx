@@ -62,6 +62,7 @@ const account = (id: string, name: string, kind: string, balanceMinor: number) =
   missing: [],
 });
 let accounts: ReturnType<typeof account>[] = [];
+let captures: object[] = [];
 
 describe('Spending', () => {
   let container: HTMLDivElement;
@@ -75,6 +76,7 @@ describe('Spending', () => {
 
   afterEach(() => {
     accounts = [];
+    captures = [];
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
@@ -87,6 +89,7 @@ describe('Spending', () => {
       if (path === '/spaces') return Promise.resolve(json([home]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
       if (path === '/spaces/home/accounts' && !init?.method) return Promise.resolve(json(accounts));
+      if (path === '/spaces/home/captures' && !init?.method) return Promise.resolve(json(captures));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -199,5 +202,56 @@ describe('Spending', () => {
     await submit(form);
     const patch = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/accounts/card' && init?.method === 'PATCH')![1]!.body));
     expect(patch).toMatchObject({ name: 'Visa', kind: 'credit', cardDigits: ['4321', '9999'], balanceMinor: -6000 });
+  });
+
+  it('adds a bank message from the review list and ignores another', async () => {
+    accounts = [account('bank', 'NBE', 'bank', 120000)];
+    const text = 'تم خصم 250.00جم من بطاقة الخصم المباشر رقم ****1234 لدى CARREFOUR MAADI';
+    captures = [
+      { id: 'c1', sender: 'BanK-AlAhly', text, receivedAt: '2026-10-14T10:00:00Z', suggestion: { direction: 'spent', amountMinor: 25000, currency: 'EGP', merchant: 'CARREFOUR MAADI', accountId: 'bank' } },
+      { id: 'c2', sender: 'Promo', text: 'Something odd for EGP 10', receivedAt: '2026-10-14T11:00:00Z', suggestion: { direction: null, amountMinor: 1000, currency: 'EGP', merchant: null, accountId: null } },
+    ];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/captures/c1/record' && init?.method === 'POST') return json(expense('carrefour', 'CARREFOUR MAADI', 25000, 'groceries', '2026-10-14'));
+      if (path === '/captures/c2/ignore' && init?.method === 'POST') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+
+    expect(container.textContent).toContain('To review (2)');
+    expect(container.textContent).toContain('EGP\u00a0250.00');
+    await act(async () => button('Add').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    expect(form.textContent).toContain(text);
+    expect(form.querySelector<HTMLInputElement>('input[name="title"]')!.value).toBe('CARREFOUR MAADI');
+    expect(form.querySelector<HTMLInputElement>('input[name="amount"]')!.value).toBe('250.00');
+    await choose(form, 'Category', 'Groceries');
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path]) => path === '/api/v1/captures/c1/record')![1]!.body));
+    expect(body).toMatchObject({ title: 'CARREFOUR MAADI', amountMinor: 25000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: 'bank', merchant: 'CARREFOUR MAADI' });
+
+    const odd = [...container.querySelectorAll('li')].find((row) => row.textContent?.includes('Something odd'))!;
+    await act(async () => [...odd.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Ignore')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/captures/c2/ignore', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('creates a send-only phone token and shows the forwarder settings', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/me/two-step') return json({ enabled: false, recoveryCodesLeft: 0 });
+      if (path === '/me/tokens' && init?.method === 'POST') return json({ id: 't1', name: 'Phone texts for Home', scopes: ['spending:capture'], token: 'strata_pat_phone' }, 201);
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+
+    await act(async () => button('Connect your phone').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    form.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'secret words';
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path]) => path === '/api/v1/me/tokens')![1]!.body));
+    expect(body).toEqual({ name: 'Phone texts for Home', scopes: ['spending:capture'], expiresInDays: 365, password: 'secret words' });
+    expect(container.textContent).toContain(`${window.location.origin}/api/v1/spaces/home/captures`);
+    expect(container.textContent).toContain('{"Authorization":"Bearer strata_pat_phone"}');
   });
 });

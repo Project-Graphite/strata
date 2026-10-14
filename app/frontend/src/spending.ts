@@ -68,6 +68,20 @@ export interface Expense {
   updatedAt: string;
 }
 
+export interface CapturedMessage {
+  id: string;
+  sender: string;
+  text: string;
+  receivedAt: string;
+  suggestion: {
+    direction: Exclude<ExpenseDirection, 'transfer'> | null;
+    amountMinor: number | null;
+    currency: string | null;
+    merchant: string | null;
+    accountId: string | null;
+  };
+}
+
 export interface SpendingMonth {
   month: string;
   currency: string;

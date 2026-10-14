@@ -3,7 +3,7 @@ import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, directionOptions, type Expense, type ExpenseDirection, type MoneyAccount, type SpendingCategory } from '../spending';
+import { categoryOptions, directionOptions, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount, type SpendingCategory } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
@@ -12,6 +12,7 @@ import { FormDialog } from './FormDialog';
 
 export function ExpenseEditor({
   accounts,
+  capture,
   currency,
   expense,
   onClose,
@@ -20,6 +21,7 @@ export function ExpenseEditor({
   spaceId,
 }: {
   accounts: MoneyAccount[];
+  capture?: CapturedMessage;
   currency: string;
   expense?: Expense;
   onClose: () => void;
@@ -31,9 +33,10 @@ export function ExpenseEditor({
   const saving = useAction();
   const form = useFormErrors();
   const [category, setCategory] = useState<SpendingCategory>(expense?.category ?? 'groceries');
-  const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(new Date()));
-  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? 'spent');
-  const [accountId, setAccountId] = useState(expense?.accountId ?? '');
+  const suggested = capture?.suggestion;
+  const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
+  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? suggested?.direction ?? 'spent');
+  const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.accountId ?? '');
   const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? '');
   const transfer = direction === 'transfer';
   const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
@@ -68,11 +71,12 @@ export function ExpenseEditor({
           direction,
           accountId: accountId || null,
           toAccountId: transfer ? toAccountId : null,
+          ...(capture ? { merchant: suggested?.merchant ?? null } : {}),
         };
         void saving
           .run(async () => {
             onSaved(
-              await auth.request<Expense>(expense ? `/expenses/${expense.id}` : `/spaces/${spaceId}/expenses`, {
+              await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
                 method: expense ? 'PATCH' : 'POST',
                 body: JSON.stringify(body),
               }),
@@ -82,13 +86,19 @@ export function ExpenseEditor({
           .then((saved) => saved && onClose());
       }}
       submitLabel={expense ? 'Save' : 'Add expense'}
-      title={expense ? 'Edit expense' : 'New expense'}
+      title={expense ? 'Edit expense' : capture ? 'Add from message' : 'New expense'}
     >
+      {capture && <blockquote className="m-0 rounded-lg border border-line p-3 text-sm text-muted">{capture.text}</blockquote>}
       <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
-      <TextField autoComplete="off" autoFocus defaultValue={expense?.title} label="What for" maxLength={200} placeholder="Groceries at the market" {...form.field('title')} />
+      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label="What for" maxLength={200} placeholder="Groceries at the market" {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : ''} inputMode="decimal" label="Amount" {...form.field('amount')} />
-        <Select defaultValue={expense?.currency ?? currency} label="Currency" name="currency" options={currencyOptions(allCurrencies)} searchable />
+        <TextField
+          defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : suggested?.amountMinor && suggested.currency ? fromMinor(suggested.amountMinor, suggested.currency) : ''}
+          inputMode="decimal"
+          label="Amount"
+          {...form.field('amount')}
+        />
+        <Select defaultValue={expense?.currency ?? suggested?.currency ?? currency} label="Currency" name="currency" options={currencyOptions(allCurrencies)} searchable />
         <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
         {direction !== 'received' && !transfer && <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />}
         {accounts.length > 0 && (

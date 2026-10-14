@@ -37,7 +37,7 @@ const sources: { name: string; url: string; headers: Record<string, string>; rea
   },
 ];
 
-function fractionDigits(currency: string) {
+export function fractionDigits(currency: string) {
   return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
 }
 

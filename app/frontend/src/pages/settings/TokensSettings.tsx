@@ -23,6 +23,7 @@ const scopes = [
   ['spaces:read', 'See your spaces, their members, tags and activity'],
   ['items:read', 'Read items, links and the trash, and download files'],
   ['items:write', 'Change items and tags, upload files and move things to the trash'],
+  ['spending:capture', 'Send bank text messages to Spending'],
 ] as const;
 
 export function TokensSettings() {
@@ -144,7 +145,7 @@ export function TokensSettings() {
             <legend className="field-label mb-2">Permissions</legend>
             {scopes.map(([scope, description]) => (
               <label className="flex items-start gap-2 text-sm text-ink" key={scope}>
-                <input defaultChecked={scope !== 'items:write'} name="scopes" type="checkbox" value={scope} />
+                <input defaultChecked={scope === 'spaces:read' || scope === 'items:read'} name="scopes" type="checkbox" value={scope} />
                 <span>
                   {description} <span className="mono-sm text-faint">{scope}</span>
                 </span>
