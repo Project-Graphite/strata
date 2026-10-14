@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Avatar, DatePicker, ListSkeleton, Select, TagChip, TextField, timeAgo } from '@project-graphite/ui';
+import { Avatar, DatePicker, ListSkeleton, Select, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -27,12 +27,24 @@ import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
+export type CardPadding = 'compact' | 'normal' | 'roomy';
+
 export interface Widget {
   id: string;
   type: WidgetType;
-  size: WidgetSize;
+  size?: WidgetSize;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number | null;
+  title?: string;
+  hideTitle?: boolean;
+  accent?: TagColor;
+  padding?: CardPadding;
   settings: Record<string, unknown>;
 }
+
+export type PlacedWidget = Widget & { x: number; y: number; w: number };
 
 function Clock({ settings }: WidgetProps) {
   const [now, setNow] = useState(() => new Date());

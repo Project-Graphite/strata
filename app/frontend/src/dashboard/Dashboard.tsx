@@ -1,22 +1,37 @@
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, Tabs, TextField, TimePicker } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, EmptyState, Icon, isAbortError, Menu, PageSkeleton, Select, Tabs, TextField, TimePicker, Toggle, type TagColor } from '@project-graphite/ui';
+import { readBlob } from '../api';
 import { useAuth } from '../auth';
+import { uploadFile } from '../files';
 import { FormDialog } from '../components/FormDialog';
 import { HeaderButton, Page, Toolbar } from '../components/Page';
+import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
-import { widgetKinds, type Widget, type WidgetSize, type WidgetType } from './widgets';
+import { DashboardGrid } from './DashboardGrid';
+import { gridColumns, inOrder, placed, sizeWidths } from './grid';
+import { widgetKinds, type CardPadding, type PlacedWidget, type Widget, type WidgetType } from './widgets';
 import { LoadError } from '../components/LoadError';
 
 type Device = 'any' | 'phone' | 'desktop';
+
+interface Background {
+  colour?: TagColor;
+  imageId?: string;
+}
+
+interface Layout {
+  widgets: PlacedWidget[];
+  background?: Background;
+}
 
 interface Dashboard {
   id: string;
   name: string;
   position: number;
-  layout: { widgets: Widget[] };
+  layout: { widgets: Widget[]; background?: Background };
   showFrom: number | null;
   showUntil: number | null;
   showOn: Device;
@@ -61,19 +76,68 @@ const templates = [
   ['', 'Empty', 'Add widgets yourself'],
 ] as const;
 
-const sizes: [WidgetSize, string][] = [
-  ['small', 'small'],
-  ['medium', 'medium'],
-  ['wide', 'wide'],
-  ['full', 'full width'],
+const heights: [string, string][] = [
+  ['', 'Fit content'],
+  ['10', 'Short'],
+  ['16', 'Medium'],
+  ['24', 'Tall'],
 ];
 
-const spans: Record<WidgetSize, string> = {
-  small: 'lg:col-span-1',
-  medium: 'lg:col-span-2',
-  wide: 'lg:col-span-3',
-  full: 'lg:col-span-4',
-};
+const paddingOptions: { value: CardPadding; label: string }[] = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'roomy', label: 'Roomy' },
+];
+
+const layoutOf = (dashboard: Dashboard): Layout => ({ ...dashboard.layout, widgets: placed(dashboard.layout.widgets) });
+const cardTitle = (widget: Widget) => widget.title ?? widgetKinds[widget.type].title;
+
+function useBackdrop(background?: Background) {
+  const { request } = useAuth();
+  const [image, setImage] = useState('');
+
+  useEffect(() => {
+    if (!background?.imageId) return;
+    const controller = new AbortController();
+    let created = '';
+    void request<Blob>(`/files/${background.imageId}`, { signal: controller.signal }, readBlob).then(
+      (blob) => {
+        created = URL.createObjectURL(blob);
+        setImage(created);
+      },
+      (reason: unknown) => {
+        if (!isAbortError(reason)) throw reason;
+      },
+    );
+    return () => {
+      controller.abort();
+      if (created) URL.revokeObjectURL(created);
+      setImage('');
+    };
+  }, [background?.imageId, request]);
+
+  return {
+    className: background?.colour ? `dashboard-backdrop-colour tag-${background.colour}` : image ? 'dashboard-backdrop-image' : '',
+    image: image && `url(${image})`,
+  };
+}
+
+function PageBackdrop({ background }: { background?: Background }) {
+  const { className, image } = useBackdrop(background);
+
+  useEffect(() => {
+    if (!className) return;
+    const classes = className.split(' ');
+    document.body.classList.add(...classes);
+    if (image) document.body.style.setProperty('--backdrop-image', image);
+    return () => {
+      document.body.classList.remove(...classes);
+      document.body.style.removeProperty('--backdrop-image');
+    };
+  }, [className, image]);
+
+  return null;
+}
 
 class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -87,11 +151,18 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
-function move<T>(list: T[], from: number, to: number) {
-  const next = [...list];
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved!);
-  return next;
+function swapWithNeighbour(widgets: PlacedWidget[], id: string, step: -1 | 1) {
+  const ordered = inOrder(widgets);
+  const index = ordered.findIndex((widget) => widget.id === id);
+  const neighbour = ordered[index + step]!;
+  const widget = ordered[index]!;
+  return widgets.map((shown) =>
+    shown.id === id
+      ? { ...shown, x: Math.min(neighbour.x, gridColumns - shown.w), y: neighbour.y }
+      : shown.id === neighbour.id
+        ? { ...shown, x: Math.min(widget.x, gridColumns - shown.w), y: widget.y }
+        : shown,
+  );
 }
 
 const wallRefreshMs = 5 * 60_000;
@@ -101,6 +172,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
   const [round, setRound] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const [mayDim, setMayDim] = useState(false);
+  const backdrop = useBackdrop(dashboard.layout.background);
 
   useEffect(() => {
     let lock: WakeLockSentinel | undefined;
@@ -136,7 +208,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
   }, [dashboard.id, navigate]);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10">
+    <div className={`fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10 ${backdrop.className}`} style={backdrop.image ? ({ '--backdrop-image': backdrop.image } as CSSProperties) : undefined}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="m-0 text-sm text-muted">{dashboard.name}</p>
@@ -148,18 +220,22 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
         </Link>
       </header>
       {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
-      <div className="mt-8 grid grid-cols-1 gap-6 text-lg lg:grid-cols-4" key={round}>
-        {dashboard.layout.widgets.map((widget) => {
-          const kind = widgetKinds[widget.type];
-          return (
-            <article aria-label={kind.title} className={`grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border border-line bg-surface p-6 ${spans[widget.size]}`} key={widget.id}>
-              <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
-              <WidgetBoundary>
-                <kind.View settings={widget.settings} />
-              </WidgetBoundary>
-            </article>
-          );
-        })}
+      <div className="mt-8 text-lg" key={round}>
+        <DashboardGrid
+          card={(widget) => {
+            const kind = widgetKinds[widget.type];
+            return (
+              <>
+                {!widget.hideTitle && <h2 className="m-0 text-sm font-medium text-muted">{cardTitle(widget)}</h2>}
+                <WidgetBoundary>
+                  <kind.View settings={widget.settings} />
+                </WidgetBoundary>
+              </>
+            );
+          }}
+          label={cardTitle}
+          widgets={placed(dashboard.layout.widgets)}
+        />
       </div>
     </div>
   );
@@ -171,10 +247,11 @@ export function DashboardHome() {
   const [params] = useSearchParams();
   const dashboards = useResource<Dashboard[]>('/me/dashboards', true);
   const saving = useAction();
-  const [draft, setDraft] = useState<Widget[]>();
-  const [history, setHistory] = useState<Widget[][]>([]);
+  const spaces = useSpaces();
+  const [draft, setDraft] = useState<Layout>();
+  const [history, setHistory] = useState<Layout[]>([]);
   const [settingsOpen, setSettingsOpen] = useState<string>();
-  const [dragging, setDragging] = useState<number>();
+  const [customizing, setCustomizing] = useState<string>();
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -193,14 +270,19 @@ export function DashboardHome() {
   const current =
     dashboards.data.find((dashboard) => dashboard.id === picked) ??
     automaticDashboard(dashboards.data, new Date(), window.matchMedia('(max-width: 767px)').matches)!;
-  const widgets = draft ?? current.layout.widgets;
+  const layout = draft ?? layoutOf(current);
+  const { widgets } = layout;
   const editing = draft !== undefined;
+  const customized = widgets.find((widget) => widget.id === customizing);
+  const personal = spaces.data?.find((space) => space.kind === 'personal');
   if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
 
-  function change(next: Widget[]) {
-    setHistory((past) => [...past, widgets]);
-    setDraft(next);
+  function change(next: Partial<Layout>) {
+    setHistory((past) => [...past, layout]);
+    setDraft({ ...layout, ...next });
   }
+
+  const update = (id: string, fields: Partial<PlacedWidget>) => change({ widgets: widgets.map((shown) => (shown.id === id ? { ...shown, ...fields } : shown)) });
 
   function finish(save: boolean) {
     if (!save) {
@@ -217,7 +299,7 @@ export function DashboardHome() {
         const saved = await auth.request<Dashboard>(`/me/dashboards/${current.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            layout: { widgets },
+            layout,
             ...(name.trim() ? { name: name.trim() } : {}),
             ...(showFrom !== current.showFrom || showUntil !== current.showUntil ? { showFrom, showUntil } : {}),
             ...(schedule.on !== current.showOn ? { showOn: schedule.on } : {}),
@@ -257,7 +339,7 @@ export function DashboardHome() {
               onClick={() => {
                 setName(current.name);
                 setSchedule({ from: clockTime(current.showFrom), until: clockTime(current.showUntil), on: current.showOn });
-                setDraft(current.layout.widgets);
+                setDraft(layoutOf(current));
               }}
             />
             <HeaderButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} primary />
@@ -281,7 +363,10 @@ export function DashboardHome() {
               <Menu
                 items={(Object.keys(widgetKinds) as WidgetType[]).map((type) => ({
                   label: widgetKinds[type].title,
-                  onSelect: () => change([...widgets, { id: crypto.randomUUID(), type, size: widgetKinds[type].size, settings: widgetKinds[type].settings }]),
+                  onSelect: () =>
+                    change({
+                      widgets: [...widgets, { id: crypto.randomUUID(), type, x: 0, y: Math.max(0, ...widgets.map((widget) => widget.y + 1)), w: sizeWidths[widgetKinds[type].size], settings: widgetKinds[type].settings }],
+                    }),
                 }))}
                 label="Widgets"
                 trigger={
@@ -296,7 +381,7 @@ export function DashboardHome() {
             </>
           }
         >
-          <p className="m-0 text-sm text-muted">Drag widgets to reorder them, or use each widget’s menu.</p>
+          <p className="m-0 text-sm text-muted">Drag cards to move them and their corner to resize.</p>
         </Toolbar>
       )}
       {widgets.length === 0 ? (
@@ -304,62 +389,89 @@ export function DashboardHome() {
           <p className="mt-2 mb-0 text-sm text-muted">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</p>
         </EmptyState>
       ) : (
-        <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-4 lg:grid-cols-4">
-          {widgets.map((widget, index) => {
+        <DashboardGrid
+          card={(widget) => {
             const kind = widgetKinds[widget.type];
+            const index = inOrder(widgets).findIndex((shown) => shown.id === widget.id);
             return (
-              <article
-                aria-label={kind.title}
-                className={`grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border bg-surface p-4 ${spans[widget.size]} ${editing ? 'cursor-grab border-dashed border-line' : 'border-line'} ${dragging === index ? 'opacity-50' : ''}`}
-                draggable={editing}
-                key={widget.id}
-                onDragOver={(event) => editing && event.preventDefault()}
-                onDragStart={() => setDragging(index)}
-                onDragEnd={() => setDragging(undefined)}
-                onDrop={() => {
-                  if (dragging !== undefined && dragging !== index) change(move(widgets, dragging, index));
-                  setDragging(undefined);
-                }}
-              >
-                <header className="flex min-h-8 items-center justify-between gap-2">
-                  <h2 className="m-0 text-sm font-medium text-muted">{kind.title}</h2>
-                  {editing && (
-                    <Menu
-                      items={[
-                        ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
-                        ...(index > 0 ? [{ label: 'Move earlier', onSelect: () => change(move(widgets, index, index - 1)) }] : []),
-                        ...(index < widgets.length - 1 ? [{ label: 'Move later', onSelect: () => change(move(widgets, index, index + 1)) }] : []),
-                        ...sizes
-                          .filter(([size]) => size !== widget.size)
-                          .map(([size, label], at) => ({
-                            label: `Make it ${label}`,
-                            separated: at === 0,
-                            onSelect: () => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, size } : shown))),
-                          })),
-                        { label: 'Remove', separated: true, onSelect: () => change(widgets.filter((shown) => shown.id !== widget.id)) },
-                      ]}
-                      label={`${kind.title} actions`}
-                      trigger={<Icon name="more" size={18} />}
-                      triggerClassName="icon-button"
-                      triggerLabel={`Actions for ${kind.title}`}
-                    />
-                  )}
-                </header>
+              <>
+                {(editing || !widget.hideTitle) && (
+                  <header className="flex min-h-8 items-center justify-between gap-2">
+                    <h2 className={`m-0 text-sm font-medium ${widget.hideTitle ? 'text-faint line-through' : 'text-muted'}`}>{cardTitle(widget)}</h2>
+                    {editing && (
+                      <Menu
+                        items={[
+                          ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
+                          { label: 'Customize card', onSelect: () => setCustomizing(widget.id) },
+                          ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
+                          ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
+                          ...(widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
+                          ...(widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                          ...(widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
+                          { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
+                        ]}
+                        label={`${cardTitle(widget)} actions`}
+                        trigger={<Icon name="more" size={18} />}
+                        triggerClassName="icon-button"
+                        triggerLabel={`Actions for ${cardTitle(widget)}`}
+                      />
+                    )}
+                  </header>
+                )}
                 {editing && settingsOpen === widget.id && kind.Settings && (
                   <div className="rounded-lg border border-line-soft p-3">
-                    <kind.Settings
-                      onChange={(settings) => change(widgets.map((shown) => (shown.id === widget.id ? { ...shown, settings } : shown)))}
-                      settings={widget.settings}
-                    />
+                    <kind.Settings onChange={(settings) => update(widget.id, { settings })} settings={widget.settings} />
                   </div>
                 )}
                 <WidgetBoundary>
                   <kind.View settings={widget.settings} />
                 </WidgetBoundary>
-              </article>
+              </>
             );
-          })}
-        </div>
+          }}
+          editing={editing}
+          label={cardTitle}
+          onChange={(next) => change({ widgets: next })}
+          widgets={widgets}
+        />
+      )}
+      <PageBackdrop background={layout.background} />
+      {customized && (
+        <Dialog onClose={() => setCustomizing(undefined)} title="Customize card">
+          <div className="mt-5 grid gap-4">
+            <TextField
+              label="Title"
+              maxLength={40}
+              onChange={(event) => update(customized.id, { title: event.currentTarget.value.trim() ? event.currentTarget.value : undefined })}
+              placeholder={widgetKinds[customized.type].title}
+              value={customized.title ?? ''}
+            />
+            <Toggle checked={!customized.hideTitle} label="Show the title" onChange={(shown) => update(customized.id, { hideTitle: shown ? undefined : true })} />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Select
+                label="Accent"
+                onChange={(accent: string) => update(customized.id, { accent: (accent || undefined) as TagColor | undefined })}
+                options={[{ value: '', label: 'None' }, ...colorOptions]}
+                value={customized.accent ?? ''}
+              />
+              <Select label="Padding" onChange={(padding: CardPadding) => update(customized.id, { padding })} options={paddingOptions} value={customized.padding ?? 'normal'} />
+              <Select
+                label="Height"
+                onChange={(rows: string) => update(customized.id, { h: rows ? Number(rows) : null })}
+                options={[
+                  ...heights.map(([value, label]) => ({ value, label })),
+                  ...(customized.h && !heights.some(([value]) => value === String(customized.h)) ? [{ value: String(customized.h), label: 'Custom' }] : []),
+                ]}
+                value={customized.h ? String(customized.h) : ''}
+              />
+            </div>
+            <div className="flex justify-end">
+              <button className="primary-button" onClick={() => setCustomizing(undefined)} type="button">
+                Done
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
       {configuring && (
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
@@ -380,6 +492,36 @@ export function DashboardHome() {
                 value={schedule.on}
               />
             </fieldset>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Select
+                label="Background"
+                onChange={(choice: string) => change({ background: choice === 'image' ? layout.background : choice ? { colour: choice as TagColor } : undefined })}
+                options={[{ value: '', label: 'None' }, ...colorOptions, ...(layout.background?.imageId ? [{ value: 'image', label: 'Image' }] : [])]}
+                value={layout.background?.colour ?? (layout.background?.imageId ? 'image' : '')}
+              />
+              {personal && (
+                <label className="secondary-button self-end px-3 py-2 text-sm">
+                  <Icon name="upload" size={16} />
+                  {saving.busy ? 'Uploading…' : 'Use an image'}
+                  <input
+                    accept="image/*"
+                    aria-label="Background image"
+                    className="sr-only"
+                    disabled={saving.busy}
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      if (!file) return;
+                      void saving.run(async () => {
+                        const uploaded = await uploadFile(auth.request, personal.id, file);
+                        change({ background: { imageId: uploaded.id } });
+                        return '';
+                      }, 'Could not upload the image');
+                    }}
+                    type="file"
+                  />
+                </label>
+              )}
+            </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
               {dashboards.data.length > 1 && (
                 <button
