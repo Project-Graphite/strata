@@ -90,4 +90,19 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(204);
     expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(404);
   });
+
+  it('adds a typed one-line expense with the category its merchant had before', async () => {
+    const owner = await member('quick-adder');
+    const home = (await owner.call('POST', '/spaces', { name: 'Quick' })).body;
+    const quick = (body: object) => owner.call('POST', `/spaces/${home.id}/expenses/quick`, body);
+    expect((await quick({ text: 'lunch with Sara' })).status).toBe(400);
+    expect((await quick({ text: '120' })).status).toBe(400);
+    expect((await quick({ text: '120 talabat' })).status).toBe(400);
+    const first = (await quick({ text: '120 talabat', currency: 'EGP' })).body;
+    expect(first).toMatchObject({ title: 'talabat', amountMinor: 12_000, currency: 'EGP', category: 'other', merchant: 'talabat', source: 'manual', spentOn: new Date().toISOString().slice(0, 10) });
+    await owner.call('PATCH', `/expenses/${first.id}`, { category: 'eating out' });
+    expect((await quick({ text: '٨٥ Talabat', currency: 'EGP' })).body).toMatchObject({ amountMinor: 8500, category: 'eating out' });
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', rename: 'Uber ride', category: 'transport' });
+    expect((await quick({ text: 'USD 12.50 uber airport' })).body).toMatchObject({ title: 'Uber ride', amountMinor: 1250, currency: 'USD', category: 'transport' });
+  });
 });

@@ -52,12 +52,25 @@ function Insights({ insights }: { insights: SpendingInsights }) {
     <>
       {insights.missing.length > 0 && <p className="notice m-0">There is no exchange rate for {insights.missing.join(', ')} yet, so those amounts are left out.</p>}
       <Section title="Spent each month">
-        <div aria-hidden="true" className="flex h-40 items-end gap-2">
-          {periods.map((period) => (
-            <div className="flex h-full flex-1 flex-col justify-end gap-1" key={period.month} title={`${monthLabel.format(new Date(`${period.month}-01T00:00:00Z`))}: ${money(period.spentMinor, currency)}`}>
-              <div className="rounded-t bg-ink" style={{ height: `${(period.spentMinor / highest) * 100}%`, minHeight: period.spentMinor ? 2 : 0 }} />
-            </div>
-          ))}
+        <div aria-hidden="true" className="grid max-w-[40rem] gap-1">
+          <div className="flex h-36 items-end gap-2 border-b border-line">
+            {periods.map((period) => (
+              <div
+                className="flex h-full flex-1 items-end justify-center"
+                key={period.month}
+                title={`${monthLabel.format(new Date(`${period.month}-01T00:00:00Z`))}: ${money(period.spentMinor, currency)}`}
+              >
+                <div className="w-full max-w-8 rounded-t bg-ink" style={{ height: `${(period.spentMinor / highest) * 100}%`, minHeight: period.spentMinor ? 2 : 0 }} />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {periods.map((period) => (
+              <span className="flex-1 text-center text-xs text-muted" key={period.month}>
+                {monthLabel.format(new Date(`${period.month}-01T00:00:00Z`))}
+              </span>
+            ))}
+          </div>
         </div>
         <table className="insights-table">
           <thead>
@@ -129,6 +142,11 @@ function Insights({ insights }: { insights: SpendingInsights }) {
       </Section>
 
       <Section title="Day by day">
+        <div aria-hidden="true" className="grid max-w-md grid-cols-7 gap-0.5 text-center text-xs text-muted">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((weekday) => (
+            <span key={weekday}>{weekday}</span>
+          ))}
+        </div>
         <div className="grid max-w-md grid-cols-7 gap-0.5" role="list">
           {Array.from({ length: lead }, (_, index) => (
             <span aria-hidden="true" key={`lead-${index}`} />

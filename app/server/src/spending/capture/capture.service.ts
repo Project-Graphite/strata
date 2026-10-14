@@ -7,11 +7,11 @@ import { fractionDigits } from '../../exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../jobs/maintenance.scheduler';
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../recurrence/dates';
-import { CaptureMessageDto } from '../dto/capture.dto';
+import { CaptureMessageDto, QuickEntryDto } from '../dto/capture.dto';
 import { ruleFor } from '../categories.service';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
-import { MessageDirection, normalise, readMessage } from './bank-messages';
+import { MessageDirection, normalise, readMessage, readQuickEntry } from './bank-messages';
 
 const keepForMs = 30 * 24 * 60 * 60 * 1000;
 const pairWithinMs = 10 * 60 * 1000;
@@ -100,6 +100,30 @@ export class CaptureService implements OnModuleInit {
     return { status: 'recorded', expenseId };
   }
 
+  async quick(userId: string, spaceId: string, input: QuickEntryDto) {
+    await this.access.assertSpace(userId, spaceId, 'edit');
+    const entry = readQuickEntry(input.text);
+    if (!entry || !entry.title || entry.amount <= 0) throw new BadRequestException('Write an amount and what it was for, such as 120 talabat');
+    const [user, plan, rules] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true, homeCurrency: true } }),
+      this.prisma.spendingPlan.findUnique({ where: { spaceId }, select: { currency: true } }),
+      this.prisma.merchantRule.findMany({ where: { spaceId } }),
+    ]);
+    const currency = entry.currency ?? input.currency ?? user.homeCurrency ?? plan?.currency;
+    if (!currency) throw new BadRequestException('Add a currency, such as 120 EGP talabat');
+    const rule = ruleFor(rules, entry.title);
+    const category = rule?.category ?? (await this.knownCategory(spaceId, entry.title)) ?? 'other';
+    const id = await this.spending.capture(userId, spaceId, {
+      title: rule?.rename ?? entry.title,
+      amountMinor: toMinor(entry.amount, currency),
+      currency,
+      spentOn: localDate(user.timeZone),
+      category: category as CreateExpenseDto['category'],
+      merchant: entry.title,
+    }, 'manual');
+    return this.spending.get(userId, id);
+  }
+
   async pending(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const rows = await this.prisma.capturedMessage.findMany({ where: { spaceId, status: 'review' }, orderBy: { receivedAt: 'desc' }, take: 100 });
@@ -124,7 +148,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   private async record(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
-    const expenseId = (await this.pairedTransfer(userId, message.spaceId, input)) ?? (await this.spending.capture(userId, message.spaceId, input));
+    const expenseId = (await this.pairedTransfer(userId, message.spaceId, input)) ?? (await this.spending.capture(userId, message.spaceId, input, 'sms'));
     await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'recorded', expenseId } });
     const { accountId, availableMinor } = message.suggestion as unknown as Suggestion;
     if (availableMinor !== null && accountId && input.accountId === accountId) await this.reportBalance(accountId, availableMinor);

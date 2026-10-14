@@ -5,7 +5,7 @@ import { CurrentUser } from '../../auth/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RateLimit } from '../../redis/rate-limit.guard';
 import { UuidPipe } from '../../validation/uuid.pipe';
-import { CaptureMessageDto } from '../dto/capture.dto';
+import { CaptureMessageDto, QuickEntryDto } from '../dto/capture.dto';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { CaptureService } from './capture.service';
 
@@ -20,6 +20,12 @@ export class CaptureController {
   @HttpCode(200)
   receive(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CaptureMessageDto) {
     return this.captures.receive(user.id, spaceId, input);
+  }
+
+  @Post('spaces/:spaceId/expenses/quick')
+  @Scope('items:write')
+  quick(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: QuickEntryDto) {
+    return this.captures.quick(user.id, spaceId, input);
   }
 
   @Get('spaces/:spaceId/captures')
