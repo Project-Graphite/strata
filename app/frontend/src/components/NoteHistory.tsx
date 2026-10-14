@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
+import { timeOptions } from '../time';
 
 interface Version {
   id: string;
@@ -38,7 +39,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                     onClick={() => setChosen(version.id)}
                     type="button"
                   >
-                    <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...timeOptions() })}</span>
                     <span className="mono-sm text-faint">
                       {version.createdBy ?? 'someone'} · {timeAgo(version.createdAt)}
                     </span>

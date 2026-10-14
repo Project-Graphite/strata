@@ -13,6 +13,7 @@ import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
+import { clockTime } from '../time';
 
 type EventLink = PersonDetail['events'][number];
 
@@ -60,7 +61,7 @@ export function PersonPage() {
             <span className="truncate">{event.title}</span>
             <span className="text-sm text-muted">
               {formatDay(event.startsOn)}
-              {event.startTime ? ` · ${event.startTime}` : ''}
+              {event.startTime ? ` · ${clockTime(event.startTime)}` : ''}
             </span>
           </Link>
           {editable && (

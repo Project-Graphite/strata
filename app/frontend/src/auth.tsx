@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { ApiError, apiRequest } from './api';
 import { wipeLocalData } from './local-data';
+import { applyTimeFormat, type TimeFormat } from './time';
 
 export type UserRole = 'member' | 'admin' | 'system_manager';
 
@@ -20,6 +21,7 @@ interface User {
   displayName: string;
   role: UserRole;
   timeZone: string;
+  timeFormat?: TimeFormat;
   features: string[];
 }
 
@@ -50,7 +52,7 @@ interface AuthContextValue {
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
-  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone'>>): void;
+  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
   accessToken(): string;
 }
 
@@ -187,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession, ready, request, session],
   );
 
+  applyTimeFormat(session?.user.timeFormat);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

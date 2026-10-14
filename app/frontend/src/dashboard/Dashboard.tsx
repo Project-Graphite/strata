@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, tagColors, Tabs, TextField, TimePicker, Toggle, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { FormDialog } from '../components/FormDialog';
@@ -14,6 +14,7 @@ import { DashboardGrid } from './DashboardGrid';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget, type WidgetType } from './widgets';
 import { LoadError } from '../components/LoadError';
+import { TimeField, timeOptions } from '../time';
 
 type Device = 'any' | 'phone' | 'desktop';
 
@@ -137,7 +138,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="m-0 text-sm text-muted">{dashboard.name}</p>
-          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', ...timeOptions() })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${dashboard.id}`}>
@@ -402,8 +403,8 @@ export function DashboardHome() {
             <fieldset className="m-0 grid gap-3 border-0 p-0">
               <legend className="mb-3 p-0 text-sm font-medium text-ink">Opens by itself</legend>
               <div className="grid gap-4 sm:grid-cols-3">
-                <TimePicker emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
-                <TimePicker emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
+                <TimeField emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
+                <TimeField emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
                 <Select
                   label="On"
                   onChange={(on: Device) => setSchedule({ ...schedule, on })}

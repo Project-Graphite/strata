@@ -78,6 +78,7 @@ model User {
   passwordHash        String                 @map("password_hash")
   verifiedAt          DateTime?              @map("verified_at")
   timeZone            String                 @default("Etc/UTC") @map("time_zone")
+  timeFormat          String                 @default("auto") @map("time_format")
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
@@ -354,7 +355,7 @@ model ItemLink {
 model SiteSettings {
   id          Int      @id @default(1)
   inviteOnly  Boolean  @default(false) @map("invite_only")
-  fileQuotaMb Int      @default(100) @map("file_quota_mb")
+  fileQuotaMb Int      @default(150) @map("file_quota_mb")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("site_settings")

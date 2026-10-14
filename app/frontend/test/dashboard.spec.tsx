@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { automaticDashboard } from '../src/dashboard/backdrop';
 import { AuthProvider } from '../src/auth';
+import { clockTime } from '../src/time';
 import { choose, chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -571,8 +572,8 @@ describe('Home dashboard', () => {
       await act(async () => button('Dashboard settings').click());
       const settings = container.querySelector('dialog')!;
       const from = [...settings.querySelectorAll('[role="combobox"]')].find((trigger) => document.getElementById(trigger.getAttribute('aria-labelledby')!)?.textContent === 'From')!;
-      expect(from.textContent).toBe('22:00');
-      await choose(settings, 'From', '21:00');
+      expect(from.textContent).toBe(clockTime('22:00'));
+      await choose(settings, 'From', clockTime('21:00'));
       await choose(settings, 'On', 'Computers');
       await act(async () => [...settings.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Done')!.click());
       await act(async () => button('Done').click());

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from './auth';
+import { clockTime, timeOptions } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -109,7 +110,7 @@ export function entryDay(entry: AgendaEntry) {
   return entry.allDay ? entry.start : dayKey(new Date(entry.start));
 }
 
-export const clock = (at: string) => new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+export const clock = (at: string) => new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', ...timeOptions() });
 
 export function entryTime(entry: AgendaEntry) {
   if (entry.allDay) return 'all day';
@@ -131,9 +132,9 @@ export function entryWhen(entry: AgendaEntry) {
 export function eventWhen(event: PublicEvent) {
   const day = (text: string) =>
     new Date(`${text}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const start = `${day(event.startsOn)}${event.startTime ? `, ${event.startTime}` : ''}`;
+  const start = `${day(event.startsOn)}${event.startTime ? `, ${clockTime(event.startTime)}` : ''}`;
   const end =
-    event.endsOn !== event.startsOn ? ` to ${day(event.endsOn)}${event.endTime ? `, ${event.endTime}` : ''}` : event.endTime ? `–${event.endTime}` : '';
+    event.endsOn !== event.startsOn ? ` to ${day(event.endsOn)}${event.endTime ? `, ${clockTime(event.endTime)}` : ''}` : event.endTime ? `–${clockTime(event.endTime)}` : '';
   return `${start}${end}${event.startTime ? ` (${event.timeZone.replaceAll('_', ' ')})` : ''}`;
 }
 
