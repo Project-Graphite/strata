@@ -69,6 +69,7 @@ const account = (id: string, name: string, kind: string, balanceMinor: number) =
 let accounts: ReturnType<typeof account>[] = [];
 let captures: object[] = [];
 let rules: object[] = [];
+let installments: object[] = [];
 const categories = ['groceries', 'eating out', 'transport', 'other'].map((name) => ({ name, colour: name === 'other' ? 'gray' : 'green' }));
 
 describe('Spending', () => {
@@ -85,6 +86,7 @@ describe('Spending', () => {
     accounts = [];
     captures = [];
     rules = [];
+    installments = [];
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
@@ -100,6 +102,7 @@ describe('Spending', () => {
       if (path === '/spaces/home/captures' && !init?.method) return Promise.resolve(json(captures));
       if (path === '/spaces/home/spending-categories' && !init?.method) return Promise.resolve(json(categories));
       if (path === '/spaces/home/merchant-rules' && !init?.method) return Promise.resolve(json(rules));
+      if (path === '/spaces/home/installments' && !init?.method) return Promise.resolve(json(installments));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -322,5 +325,49 @@ describe('Spending', () => {
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/spending-plan' && init?.method === 'PUT')![1]!.body));
     expect(body).toEqual({ budgetMinor: null, currency: null, startDay: 1, rollover: true });
+  });
+
+  it('shows installment plans, marks a payment and adds a plan', async () => {
+    const plan = {
+      id: 'p1',
+      spaceId: 'home',
+      accountId: null,
+      name: 'valU phone',
+      currency: 'EUR',
+      monthlyMinor: 10000,
+      count: 6,
+      firstDueOn: '2026-09-30',
+      paidCount: 1,
+      reminderDays: 3,
+      totalMinor: 60000,
+      remainingMinor: 50000,
+      nextDueOn: '2026-10-31',
+      status: 'due',
+    };
+    installments = [plan];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/installments/p1/paid' && init?.method === 'POST') return json({ ...plan, paidCount: 2, remainingMinor: 40000, nextDueOn: '2026-11-30' });
+      if (path === '/spaces/home/installments' && init?.method === 'POST') return json({ ...plan, id: 'p2', name: 'Laptop' }, 201);
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+
+    expect(container.textContent).toContain('Next: €100.00 on Oct 31 · €500.00 left');
+    expect(container.textContent).toContain('1 of 6');
+    await chooseFromMenu(container, 'Actions for valU phone', 'Mark next payment paid');
+    expect(container.textContent).toContain('2 of 6');
+
+    await act(async () => button('Add plan').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Laptop';
+    form.querySelector<HTMLInputElement>('input[name="monthly"]')!.value = '250';
+    form.querySelector<HTMLInputElement>('input[name="count"]')!.value = '0';
+    await submit(form);
+    expect(container.textContent).toContain('Enter 1 to 120 months.');
+    form.querySelector<HTMLInputElement>('input[name="count"]')!.value = '10';
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/installments' && init?.method === 'POST')![1]!.body));
+    expect(body).toMatchObject({ name: 'Laptop', currency: 'EUR', monthlyMinor: 25000, count: 10, accountId: null });
   });
 });

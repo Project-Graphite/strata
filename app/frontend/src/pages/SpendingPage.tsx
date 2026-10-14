@@ -7,6 +7,7 @@ import { AccountEditor } from '../components/AccountEditor';
 import { CategoriesEditor } from '../components/CategoriesEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { ExpenseImport } from '../components/ExpenseImport';
+import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
@@ -19,6 +20,7 @@ import {
   useCategories,
   type CapturedMessage,
   type Expense,
+  type InstallmentPlan,
   type MerchantRule,
   type MoneyAccount,
   type SpendingCategory,
@@ -53,6 +55,7 @@ export function SpendingPage() {
   const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
   const categories = useCategories(spaceId);
   const rules = useResource<MerchantRule[]>(spaceId ? `/spaces/${spaceId}/merchant-rules` : null, true);
+  const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true);
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
     | 'new'
@@ -65,6 +68,7 @@ export function SpendingPage() {
     | { split: Expense }
     | { account: MoneyAccount | null }
     | { capture: CapturedMessage }
+    | { installment: InstallmentPlan | null }
   >();
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
   const shown = summary.data;
@@ -247,6 +251,69 @@ export function SpendingPage() {
                           triggerLabel={`Actions for ${account.name}`}
                         />
                       )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
+
+          {(editable || Boolean(installments.data?.length)) && (
+            <Section action={editable && <HeaderButton label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+              {!installments.data?.length ? (
+                <p className="m-0 text-sm text-muted">No installment plans.</p>
+              ) : (
+                <ul className="panel-rows">
+                  {installments.data.map((plan) => (
+                    <li className="panel-row grid gap-2" key={plan.id}>
+                      <span className="flex items-center gap-3">
+                        <span className="grid min-w-0 flex-1">
+                          <span className="truncate text-ink">{plan.name}</span>
+                          <span className={plan.status === 'missed' ? 'truncate text-sm text-danger' : 'truncate text-sm text-muted'}>
+                            {plan.status === 'done'
+                              ? 'Paid off'
+                              : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-sm text-muted">
+                          {plan.paidCount} of {plan.count}
+                        </span>
+                        {editable && (
+                          <Menu
+                            items={[
+                              ...(plan.status === 'done'
+                                ? []
+                                : [
+                                    {
+                                      label: 'Mark next payment paid',
+                                      onSelect: () =>
+                                        void action.run(async () => {
+                                          const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
+                                          installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
+                                          return '';
+                                        }, 'Could not mark the payment'),
+                                    },
+                                  ]),
+                              { label: 'Edit', onSelect: () => setDialog({ installment: plan }) },
+                              {
+                                label: 'Remove',
+                                separated: true,
+                                onSelect: () =>
+                                  void action.run(async () => {
+                                    await auth.request(`/installments/${plan.id}`, { method: 'DELETE' });
+                                    installments.mutate((current) => current.filter((shown) => shown.id !== plan.id));
+                                    return `Removed ${plan.name}.`;
+                                  }, 'Could not remove the plan'),
+                              },
+                            ]}
+                            label={`${plan.name} actions`}
+                            trigger={<Icon name="more" size={18} />}
+                            triggerClassName="icon-button"
+                            triggerLabel={`Actions for ${plan.name}`}
+                          />
+                        )}
+                      </span>
+                      <Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />
                     </li>
                   ))}
                 </ul>
@@ -439,6 +506,16 @@ export function SpendingPage() {
           onSaved={() => summary.reload()}
           spaceId={spaceId}
           summary={shown}
+        />
+      )}
+      {spaceId && typeof dialog === 'object' && 'installment' in dialog && (
+        <InstallmentEditor
+          accounts={accounts.data ?? []}
+          currency={currency}
+          onClose={() => setDialog(undefined)}
+          onSaved={installments.reload}
+          plan={dialog.installment ?? undefined}
+          spaceId={spaceId}
         />
       )}
       {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}

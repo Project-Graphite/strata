@@ -3,7 +3,7 @@ import { useAuth } from './auth';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
-  kind: 'event' | 'task' | 'renewal' | 'external' | 'birthday';
+  kind: 'event' | 'task' | 'renewal' | 'external' | 'birthday' | 'payment';
   itemId: string;
   spaceId: string;
   title: string;
@@ -32,7 +32,7 @@ export interface CalendarEvent {
   calendar: { id: string; spaceId: string; name: string; host: string };
 }
 
-const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, string> = { event: '#82aaff', task: '#d7a54a', renewal: '#46b97a', birthday: '#e88fb8' };
+const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, string> = { event: '#82aaff', task: '#d7a54a', renewal: '#46b97a', birthday: '#e88fb8', payment: '#e0795f' };
 const calendarColours = ['#c792ea', '#5fc4c4', '#f2a09a', '#a6d189', '#ffb86c', '#89b4fa'];
 
 export function useAgenda(from: string, to: string) {
@@ -137,11 +137,12 @@ export function eventWhen(event: PublicEvent) {
   return `${start}${end}${event.startTime ? ` (${event.timeZone.replaceAll('_', ' ')})` : ''}`;
 }
 
-export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews', external: 'calendar', birthday: 'birthday' };
+export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews', external: 'calendar', birthday: 'birthday', payment: 'payment' };
 
 export function entryLink(entry: AgendaEntry) {
   if (entry.kind === 'event') return `/events/${entry.itemId}`;
   if (entry.kind === 'task') return `/spaces/${entry.spaceId}/tasks`;
   if (entry.kind === 'birthday') return `/people/${entry.itemId}`;
+  if (entry.kind === 'payment') return `/spending?space=${entry.spaceId}`;
   return `/spaces/${entry.spaceId}/recurring`;
 }

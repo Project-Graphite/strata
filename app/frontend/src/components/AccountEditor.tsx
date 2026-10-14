@@ -35,6 +35,7 @@ export function AccountEditor({
   const form = useFormErrors();
   const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank');
   const [chosenCurrency, setChosenCurrency] = useState(account?.currency ?? currency);
+  const [dueDay, setDueDay] = useState(account?.dueDay ? String(account.dueDay) : '');
   const owed = kind === 'credit';
   const shownBalance = account ? fromMinor(Math.abs(account.balanceMinor), account.currency) : '';
 
@@ -64,6 +65,7 @@ export function AccountEditor({
           cardDigits: listOf(text('cardDigits')),
           senders: listOf(text('senders')),
           creditLimitMinor: owed && text('creditLimit') ? toMinor(text('creditLimit'), chosenCurrency) : null,
+          dueDay: owed && dueDay ? Number(dueDay) : null,
           ...(balance === shownBalance && account?.currency === chosenCurrency ? {} : { balanceMinor: (owed ? -1 : 1) * toMinor(balance || '0', chosenCurrency) }),
         };
         void saving
@@ -84,6 +86,14 @@ export function AccountEditor({
         <TextField defaultValue={shownBalance} inputMode="decimal" label={owed ? 'Owed today' : 'Balance today'} {...form.field('balance')} />
         {owed && (
           <TextField defaultValue={account?.creditLimitMinor ? fromMinor(account.creditLimitMinor, account.currency) : ''} inputMode="decimal" label="Credit limit (optional)" {...form.field('creditLimit')} />
+        )}
+        {owed && (
+          <Select
+            label="Payment due on"
+            onChange={setDueDay}
+            options={[{ value: '', label: 'Not set' }, ...Array.from({ length: 31 }, (_, index) => ({ value: String(index + 1), label: `Day ${index + 1}` }))]}
+            value={dueDay}
+          />
         )}
       </div>
       {kind !== 'cash' && (

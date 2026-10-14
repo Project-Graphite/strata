@@ -53,6 +53,7 @@ export class AccountsService {
         senders: [...new Set(input.senders ?? [])],
         balanceMinor: input.balanceMinor ?? 0,
         creditLimitMinor: input.creditLimitMinor ?? null,
+        dueDay: input.dueDay ?? null,
         position: await this.prisma.moneyAccount.count({ where: { spaceId } }),
       },
     });
@@ -71,6 +72,7 @@ export class AccountsService {
         senders: input.senders && [...new Set(input.senders)],
         ...(input.balanceMinor === undefined ? {} : { balanceMinor: input.balanceMinor, balanceAt: new Date() }),
         creditLimitMinor: input.creditLimitMinor,
+        dueDay: input.dueDay,
       },
     });
     return (await this.balances([account]))[0]!;
@@ -87,7 +89,7 @@ export class AccountsService {
     return account;
   }
 
-  private async balances(accounts: MoneyAccount[]) {
+  async balances(accounts: MoneyAccount[]) {
     if (accounts.length === 0) return [];
     const ids = accounts.map((account) => account.id);
     const [flows, rates] = await Promise.all([
@@ -106,6 +108,7 @@ export class AccountsService {
       cardDigits: account.cardDigits,
       senders: account.senders,
       creditLimitMinor: account.creditLimitMinor,
+      dueDay: account.dueDay,
       ...balanceOf(account, flows, rates.rates),
     }));
   }
