@@ -24,6 +24,7 @@ import { PageTree } from './PageTree';
 import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
+import { SiteBackdrop } from '../dashboard/backdrop';
 
 const sessionHintKey = 'strata-signed-in';
 
@@ -175,7 +176,9 @@ export function Shell() {
     <SpacesContext.Provider value={spaces}>
       <InboxContext.Provider value={inbox}>
         <SnackbarProvider>
-          <ShellFrame inbox={inbox} spaces={spaces} />
+          <SiteBackdrop>
+            <ShellFrame inbox={inbox} spaces={spaces} />
+          </SiteBackdrop>
         </SnackbarProvider>
       </InboxContext.Provider>
     </SpacesContext.Provider>

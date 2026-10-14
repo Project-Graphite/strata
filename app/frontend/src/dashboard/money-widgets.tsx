@@ -99,12 +99,10 @@ export function SavingsWidget() {
     <ul className="m-0 grid list-none gap-3 p-0">
       {goals.data.slice(0, 4).map((goal) => (
         <li className="grid gap-1" key={goal.id}>
-          <span className="flex justify-between gap-3 text-sm">
-            <span className="truncate text-ink">{goal.name}</span>
-            <span className="shrink-0 text-muted">
-              {goal.savedMinor === null ? '' : `${money(goal.savedMinor, goal.currency)} of `}
-              {money(goal.targetMinor, goal.currency)}
-            </span>
+          <span className="truncate text-sm text-ink">{goal.name}</span>
+          <span className="text-xs text-muted">
+            {goal.savedMinor === null ? '' : `${money(goal.savedMinor, goal.currency)} of `}
+            {money(goal.targetMinor, goal.currency)}
           </span>
           <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
         </li>

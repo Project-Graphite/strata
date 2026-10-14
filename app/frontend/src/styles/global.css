@@ -883,6 +883,14 @@ button.habit-day {
   background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%) fixed;
 }
 
+header.backdrop-blur-md {
+  background-color: color-mix(in srgb, var(--color-paper) 68%, transparent);
+}
+
+.tab-bar {
+  background: color-mix(in srgb, var(--color-paper) 72%, transparent);
+}
+
 .dashboard-backdrop-image {
   background:
     linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)) fixed,

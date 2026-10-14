@@ -72,52 +72,56 @@ function Insights({ insights }: { insights: SpendingInsights }) {
             ))}
           </div>
         </div>
-        <table className="insights-table">
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              <th scope="col">Spent</th>
-              <th scope="col">Received</th>
-            </tr>
-          </thead>
-          <tbody>
-            {periods.map((period) => (
-              <tr key={period.month}>
-                <th scope="row">{`${formatDay(period.from, { day: 'numeric', month: 'short' })} – ${formatDay(period.until, { day: 'numeric', month: 'short' })}`}</th>
-                <td>{money(period.spentMinor, currency)}</td>
-                <td>{money(period.receivedMinor, currency)}</td>
+        <div className="overflow-x-auto">
+          <table className="insights-table">
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Spent</th>
+                <th scope="col">Received</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {periods.map((period) => (
+                <tr key={period.month}>
+                  <th scope="row">{`${formatDay(period.from, { day: 'numeric', month: 'short' })} – ${formatDay(period.until, { day: 'numeric', month: 'short' })}`}</th>
+                  <td>{money(period.spentMinor, currency)}</td>
+                  <td>{money(period.receivedMinor, currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section title="Compared with the month before">
         {categories.length === 0 ? (
           <p className="m-0 text-sm text-muted">Nothing spent in either month.</p>
         ) : (
-          <table className="insights-table">
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">This month</th>
-                <th scope="col">Month before</th>
-                <th scope="col">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories
-                .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-                .map((row) => (
-                  <tr key={row.category}>
-                    <th scope="row">{categoryName(row.category)}</th>
-                    <td>{money(row.now, currency)}</td>
-                    <td>{money(row.before, currency)}</td>
-                    <td>{`${row.change > 0 ? '+' : row.change < 0 ? '−' : ''}${money(Math.abs(row.change), currency)}`}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="insights-table">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">This month</th>
+                  <th scope="col">Month before</th>
+                  <th scope="col">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories
+                  .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+                  .map((row) => (
+                    <tr key={row.category}>
+                      <th scope="row">{categoryName(row.category)}</th>
+                      <td>{money(row.now, currency)}</td>
+                      <td>{money(row.before, currency)}</td>
+                      <td>{`${row.change > 0 ? '+' : row.change < 0 ? '−' : ''}${money(Math.abs(row.change), currency)}`}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
 
