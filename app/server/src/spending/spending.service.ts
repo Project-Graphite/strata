@@ -328,8 +328,8 @@ export class SpendingService {
     return { added: (await this.insert(userId, spaceId, inputs, 'import')).length };
   }
 
-  async capture(userId: string, spaceId: string, input: CreateExpenseDto) {
-    const [id] = await this.insert(userId, spaceId, [input], 'sms');
+  async capture(userId: string, spaceId: string, input: CreateExpenseDto, source: 'sms' | 'manual') {
+    const [id] = await this.insert(userId, spaceId, [input], source);
     return id!;
   }
 

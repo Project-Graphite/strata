@@ -1,4 +1,5 @@
 import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { CurrencyCode } from '../../validation/money.decorators';
 
 export class CaptureMessageDto {
   @IsString()
@@ -21,4 +22,14 @@ export class CaptureMessageDto {
   @IsString()
   @MaxLength(60)
   sim?: string;
+}
+
+export class QuickEntryDto {
+  @IsString()
+  @Length(1, 200, { message: 'Write an amount and what it was for, such as 120 talabat.' })
+  text!: string;
+
+  @IsOptional()
+  @CurrencyCode()
+  currency?: string;
 }
