@@ -13,6 +13,11 @@ type View = 'list' | 'day' | 'week' | 'month';
 
 const views: Record<View, string> = { list: 'List', day: 'Day', week: 'Week', month: 'Month' };
 
+export const agendaTabs = (active: View | 'today', link: (view: View) => string) => [
+  { active: active === 'today', href: '/today', label: 'Today' },
+  ...(Object.keys(views) as View[]).map((option) => ({ active: active === option, href: link(option), label: views[option] })),
+];
+
 function range(view: View, anchor: string) {
   if (view === 'list') return { from: anchor, to: addDays(anchor, 30), days: 30 };
   if (view === 'day') return { from: anchor, to: addDays(anchor, 1), days: 1 };
@@ -62,16 +67,8 @@ export function AgendaPage() {
         </>
       }
       title="Agenda"
-      wide
     >
-      <Tabs
-        items={(Object.keys(views) as View[]).map((option) => ({
-          active: view === option,
-          href: link({ view: option }),
-          label: views[option],
-        }))}
-        label="Agenda view"
-      />
+      <Tabs items={agendaTabs(view, (option) => link({ view: option }))} label="Agenda view" />
       <div className="flex flex-wrap items-center gap-2">
         <Link aria-label="Earlier" className="icon-button" title="Earlier" to={link({ date: shift(-1) })}>
           <Icon name="chevron-left" size={18} />

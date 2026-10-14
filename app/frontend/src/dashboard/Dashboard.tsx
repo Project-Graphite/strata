@@ -272,7 +272,6 @@ export function DashboardHome() {
         )
       }
       title={editing ? name.trim() || current.name : current.name}
-      wide
     >
       {dashboards.data.length > 1 && (
         <Tabs

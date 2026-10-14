@@ -31,11 +31,11 @@ export const featureCatalogue: Feature[] = [
     href: '/recipes',
   },
   {
-    key: 'spending',
-    label: 'Spending',
-    description: 'Day-to-day spending by category, monthly budgets, and bank statement import, with your renewals counted in.',
-    icon: 'wallet',
-    href: '/spending',
+    key: 'tidy',
+    label: 'Tidy',
+    description: 'Suggestions and rules that file, tag and clear out items across your spaces, with an optional weekly summary.',
+    icon: 'sparkles',
+    href: '/tidy',
   },
   {
     key: 'trips',

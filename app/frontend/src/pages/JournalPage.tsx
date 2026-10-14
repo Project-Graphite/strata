@@ -68,7 +68,6 @@ export function JournalPage() {
         </Link>
       }
       title="Journal"
-      wide
     >
       <div className="panel grid gap-4 p-5">
         <h2 className="m-0 text-base font-medium">How was today?</h2>

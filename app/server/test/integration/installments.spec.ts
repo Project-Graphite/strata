@@ -45,7 +45,6 @@ describe('Installments and card due dates against Postgres', () => {
       { title: 'CIB Visa is due on 2027-04-20', body: expect.stringMatching(/^EGP\s2,500\.00 owed$/) },
     ]);
 
-    await owner.call('PATCH', '/me', { features: ['spending'] });
     const agenda = (await owner.call('GET', '/agenda?from=2027-03-01&to=2027-05-01')).body;
     expect(agenda.filter((entry: { kind: string }) => entry.kind === 'payment').map((entry: { start: string; title: string }) => [entry.start, entry.title])).toEqual([
       ['2027-03-20', 'CIB Visa payment due'],

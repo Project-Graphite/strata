@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useTodaySchedule } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard } from '../components/AgendaEntryLink';
@@ -9,6 +9,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
+import { agendaTabs } from './AgendaPage';
 
 export function TodayPage() {
   const auth = useAuth();
@@ -20,7 +21,8 @@ export function TodayPage() {
   const spaceOf = (task: Task) => spaces.data?.find((space) => space.id === task.spaceId);
 
   return (
-    <Page title="Today">
+    <Page title="Agenda">
+      <Tabs items={agendaTabs('today', (view) => `/agenda?view=${view}`)} label="Agenda view" />
       {tasks.error || schedule.error ? (
         <LoadError error={tasks.error || schedule.error} onRetry={tasks.error ? tasks.reload : schedule.reload} />
       ) : !tasks.data || !schedule.data ? (
