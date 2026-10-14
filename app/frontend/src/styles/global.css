@@ -888,3 +888,36 @@ button.habit-day {
     linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)) fixed,
     var(--backdrop-image) center / cover fixed;
 }
+
+.insights-table {
+  width: 100%;
+  max-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.insights-table th,
+.insights-table td {
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--color-line-soft);
+  text-align: right;
+  font-weight: 400;
+}
+
+.insights-table th:first-child {
+  text-align: left;
+}
+
+.insights-table thead th {
+  color: var(--color-muted);
+}
+
+.spend-day {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--color-line-soft);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}

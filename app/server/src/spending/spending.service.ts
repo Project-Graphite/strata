@@ -5,7 +5,7 @@ import { ActivityService } from '../activity/activity.service';
 import { convertMinor, ExchangeRatesService, fractionDigits } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, localDate } from '../recurrence/dates';
+import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { renewalsBetween } from '../subscriptions/subscriptions.service';
 import { CategoriesService } from './categories.service';
 import { CreateExpenseDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
@@ -213,6 +213,108 @@ export class SpendingService {
         }),
       );
     });
+  }
+
+  async insights(userId: string, spaceId: string, count: number) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    const [user, plan] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true } }),
+      this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
+    ]);
+    const startDay = plan?.startDay ?? 1;
+    const current = monthOf(localDate(user.timeZone), startDay);
+    const months = [current];
+    while (months.length < count) months.unshift(previousMonth(months[0]!));
+    const periods = months.map((month) => ({ month, ...periodOf(month, startDay) }));
+    const [expenses, rates] = await Promise.all([
+      this.prisma.expense.findMany({
+        where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(periods[0]!.from), lt: dateValue(periods.at(-1)!.to) } },
+        select: { amountMinor: true, currency: true, direction: true, category: true, merchant: true, spentOn: true, item: { select: { title: true } } },
+        orderBy: { spentOn: 'asc' },
+      }),
+      this.rates.table(),
+    ]);
+    const currency = user.homeCurrency ?? plan?.currency ?? expenses[0]?.currency ?? 'EUR';
+    const missing = new Set<string>();
+    const shown = (amountMinor: number, from: string) => {
+      if (from === currency) return amountMinor;
+      const converted = convertMinor(amountMinor, from, currency, rates.rates);
+      if (converted === null) missing.add(from);
+      return converted ?? 0;
+    };
+    const rows = expenses.map((expense) => ({
+      ...expense,
+      day: dateText(expense.spentOn),
+      amount: shown(expense.amountMinor, expense.currency) * (expense.direction === 'refund' ? -1 : 1),
+      spending: expense.direction === 'spent' || expense.direction === 'refund',
+    }));
+    const merchants = new Map<string, { merchant: string; count: number; totalMinor: number; lastOn: string }>();
+    for (const row of rows.filter((candidate) => candidate.direction === 'spent')) {
+      const merchant = (row.merchant ?? row.item.title).trim();
+      const known = merchants.get(merchant.toLowerCase()) ?? { merchant, count: 0, totalMinor: 0, lastOn: row.day };
+      merchants.set(merchant.toLowerCase(), { ...known, count: known.count + 1, totalMinor: known.totalMinor + row.amount, lastOn: row.day });
+    }
+    const latest = periods.at(-1)!;
+    const days: { day: string; spentMinor: number }[] = [];
+    for (let day = latest.from; day < latest.to; day = dateText(new Date(dateValue(day).getTime() + dayMs))) {
+      days.push({ day, spentMinor: rows.filter((row) => row.spending && row.day === day).reduce((total, row) => total + row.amount, 0) });
+    }
+    return {
+      currency,
+      missing: [...missing].sort(),
+      periods: periods.map(({ month, from, to }) => {
+        const inside = rows.filter((row) => row.day >= from && row.day < to);
+        const categories = new Map<string, number>();
+        for (const row of inside.filter((candidate) => candidate.spending)) categories.set(row.category, (categories.get(row.category) ?? 0) + row.amount);
+        return {
+          month,
+          from,
+          until: dayBefore(to),
+          spentMinor: [...categories.values()].reduce((total, amount) => total + amount, 0),
+          receivedMinor: inside.filter((row) => row.direction === 'received').reduce((total, row) => total + row.amount, 0),
+          categories: [...categories].map(([category, spentMinor]) => ({ category, spentMinor })).sort((a, b) => b.spentMinor - a.spentMinor),
+        };
+      }),
+      merchants: [...merchants.values()]
+        .sort((a, b) => b.totalMinor - a.totalMinor)
+        .slice(0, 10)
+        .map((merchant) => ({ ...merchant, averageMinor: Math.round(merchant.totalMinor / merchant.count) })),
+      days,
+    };
+  }
+
+  async export(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    const [rows, accounts] = await Promise.all([
+      this.prisma.item.findMany({
+        where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null },
+        orderBy: [{ expense: { spentOn: 'asc' } }, { createdAt: 'asc' }],
+        select: expenseFields,
+      }),
+      this.prisma.moneyAccount.findMany({ where: { spaceId }, select: { id: true, name: true } }),
+    ]);
+    const accountName = (id: string | null) => accounts.find((account) => account.id === id)?.name ?? '';
+    const cell = (value: string) => {
+      const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+      return /[",\n\r]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+    };
+    const lines = rows.map(present).map((expense) =>
+      [
+        expense.spentOn,
+        expense.title,
+        expense.merchant ?? '',
+        expense.direction,
+        (expense.amountMinor / 10 ** fractionDigits(expense.currency)).toFixed(fractionDigits(expense.currency)),
+        expense.currency,
+        expense.direction === 'received' || expense.direction === 'transfer' ? '' : expense.category,
+        accountName(expense.accountId),
+        accountName(expense.toAccountId),
+        expense.note,
+      ]
+        .map(cell)
+        .join(','),
+    );
+    return `${['date', 'title', 'merchant', 'type', 'amount', 'currency', 'category', 'account', 'to account', 'note'].join(',')}\r\n${lines.map((line) => `${line}\r\n`).join('')}`;
   }
 
   async create(userId: string, spaceId: string, input: CreateExpenseDto) {

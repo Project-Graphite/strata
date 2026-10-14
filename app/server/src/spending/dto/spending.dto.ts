@@ -162,3 +162,12 @@ export class SavePlanDto {
   @IsBoolean()
   rollover!: boolean;
 }
+
+export class InsightsDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2)
+  @Max(24, { message: 'Look back 2 to 24 months.' })
+  months?: number;
+}

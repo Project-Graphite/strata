@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { PaymentsWidget, SpendingWidget } from '../src/dashboard/money-widgets';
+import { SpacesContext } from '../src/spaces';
 import { choose, chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -369,5 +371,86 @@ describe('Spending', () => {
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/installments' && init?.method === 'POST')![1]!.body));
     expect(body).toMatchObject({ name: 'Laptop', currency: 'EUR', monthlyMinor: 25000, count: 10, accountId: null });
+  });
+
+  it('shows months, category changes, merchants and days on the insights page', async () => {
+    const period = (month: string, spentMinor: number, categories: object[]) => ({ month, from: `${month}-01`, until: `${month}-28`, spentMinor, receivedMinor: 0, categories });
+    serve((path) => {
+      if (path === '/spaces/home/spending/insights?months=6')
+        return json({
+          currency: 'EUR',
+          missing: [],
+          periods: [
+            period('2026-05', 0, []),
+            period('2026-06', 0, []),
+            period('2026-07', 0, []),
+            period('2026-08', 0, []),
+            period('2026-09', 10000, [{ category: 'groceries', spentMinor: 10000 }]),
+            period('2026-10', 15000, [
+              { category: 'groceries', spentMinor: 4000 },
+              { category: 'eating out', spentMinor: 11000 },
+            ]),
+          ],
+          merchants: [{ merchant: 'Talabat', count: 3, totalMinor: 11000, averageMinor: 3667, lastOn: '2026-10-12' }],
+          days: [
+            { day: '2026-10-01', spentMinor: 0 },
+            { day: '2026-10-02', spentMinor: 15000 },
+          ],
+        });
+      return undefined;
+    });
+    await render('/spending/insights');
+
+    const rows = [...container.querySelectorAll('table')[1]!.querySelectorAll('tbody tr')].map((row) => [...row.children].map((cell) => cell.textContent));
+    expect(rows).toEqual([
+      ['Eating out', '€110.00', '€0.00', '+€110.00'],
+      ['Groceries', '€40.00', '€100.00', '−€60.00'],
+    ]);
+    expect(container.textContent).toContain('3 times · €36.67 on average');
+    const days = [...container.querySelectorAll<HTMLElement>('.spend-day')];
+    expect(days.map((day) => day.getAttribute('aria-label'))).toEqual(['Thu, Oct 1: €0.00', 'Fri, Oct 2: €150.00']);
+    expect(days[0]!.getAttribute('style')).toBeNull();
+    expect(days[1]!.getAttribute('style')).toContain('--color-paper');
+  });
+
+  it('exports the transactions as a CSV file', async () => {
+    const created = vi.fn(() => 'blob:transactions');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() }));
+    const fetchMock = serve((path) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/spaces/home/expenses/export') return new Response('date,title\r\n', { headers: { 'Content-Type': 'text/csv' } });
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+    await act(async () => button('Export CSV').click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/expenses/export', expect.anything());
+    expect(created).toHaveBeenCalled();
+  });
+
+  it('shows the month and the next payments on Home widgets', async () => {
+    accounts = [{ ...account('card', 'Visa', 'credit', -4500), dueDay: 20 } as ReturnType<typeof account>];
+    installments = [{ id: 'p1', name: 'valU phone', currency: 'EUR', monthlyMinor: 10000, nextDueOn: '2026-10-31', status: 'missed' }];
+    serve((path) => {
+      if (path === '/spaces/home/spending') return json({ ...october, safeDailyMinor: 1500 });
+      return undefined;
+    });
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <AuthProvider>
+            <SpacesContext.Provider value={{ data: [home], error: undefined, reload: () => {}, mutate: () => {} } as never}>
+              <SpendingWidget />
+              <PaymentsWidget />
+            </SpacesContext.Provider>
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {});
+    expect(container.textContent).toContain('€75.00 of €300.00');
+    expect(container.textContent).toContain('€15.00 a day to stay on budget');
+    expect(container.textContent).toContain('Corner shop');
+    expect(container.textContent).toContain('valU phone€100.00 · missed Oct 31');
+    expect(container.textContent).toContain('Visa€45.00');
   });
 });

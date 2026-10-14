@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
+import { readBlob } from '../api';
 import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { allCurrencies, currencyOptions } from '../choices';
@@ -12,6 +13,7 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
 import { PhoneSetup } from '../components/PhoneSetup';
+import { saveBlob } from '../files';
 import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
@@ -42,6 +44,7 @@ const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'num
 
 export function SpendingPage() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const spaces = useSpaces();
   const action = useAction();
   const [params, setParams] = useSearchParams();
@@ -84,13 +87,26 @@ export function SpendingPage() {
   return (
     <Page
       actions={
-        editable && (
-          <>
-            <HeaderButton label="Connect your phone" onClick={() => setDialog('phone')} />
-            <HeaderButton icon="upload" label="Import a statement" onClick={() => setDialog('import')} />
-            <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />
-          </>
-        )
+        <>
+          <HeaderButton label="Insights" onClick={() => navigate(`/spending/insights${spaceId ? `?space=${spaceId}` : ''}`)} />
+          <HeaderButton
+            disabled={!spaceId || action.busy}
+            label="Export CSV"
+            onClick={() =>
+              void action.run(async () => {
+                saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export`, {}, readBlob), 'transactions.csv');
+                return '';
+              }, 'Could not export the transactions')
+            }
+          />
+          {editable && (
+            <>
+              <HeaderButton label="Connect your phone" onClick={() => setDialog('phone')} />
+              <HeaderButton icon="upload" label="Import a statement" onClick={() => setDialog('import')} />
+              <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />
+            </>
+          )}
+        </>
       }
       title="Spending"
     >
