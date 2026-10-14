@@ -946,6 +946,9 @@ model SubscribedEvent {
   timeZone       String               @map("time_zone")
   repeatRule     String?              @map("repeat_rule")
   location       String?
+  description    String               @default("")
+  meetingUrl     String?              @map("meeting_url")
+  organizer      String?
   subscription   CalendarSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId, startsOn])

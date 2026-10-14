@@ -118,6 +118,58 @@ describe('Agenda and RSVP', () => {
     expect(container.textContent).toContain('0 coming');
   });
 
+  it('lays out a day by the hour and opens a followed calendar event’s details', async () => {
+    const at = (time: string) => new Date(`${today}T${time}:00`).toISOString();
+    const fetchMock = serve(true, (path) => {
+      if (path === '/me/calendars/refresh') return json({ refreshed: 0 });
+      if (path === '/me/calendars') return json([{ id: 'work' }]);
+      if (path.startsWith('/agenda?')) {
+        return json([
+          { kind: 'external', itemId: 'o', spaceId: 'club', title: 'Offsite', allDay: true, start: today, end: today, location: null, calendar: 'Work', calendarId: 'work', uid: 'offsite' },
+          { kind: 'external', itemId: 's', spaceId: 'club', title: 'Standup', allDay: false, start: at('09:00'), end: at('09:30'), location: 'Room 4B', calendar: 'Work', calendarId: 'work', uid: 'standup@example.com' },
+          { kind: 'event', itemId: 'dentist', spaceId: 'club', title: 'Dentist', allDay: false, start: at('09:15'), end: at('10:00'), location: null },
+        ]);
+      }
+      if (path === '/calendars/work/event?uid=standup%40example.com') {
+        return json({
+          uid: 'standup@example.com',
+          title: 'Standup',
+          startsOn: today,
+          startTime: '09:00',
+          endsOn: today,
+          endTime: '09:30',
+          timeZone: 'Etc/UTC',
+          repeatRule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+          location: 'Room 4B',
+          description: 'Daily sync on the release.',
+          meetingUrl: 'https://meet.google.com/abc-defg-hij',
+          organizer: 'Sam Lee (sam@example.com)',
+          calendar: { id: 'work', spaceId: 'club', name: 'Work', host: 'calendar.google.com' },
+        });
+      }
+      return undefined;
+    });
+    await render(`/agenda?view=day&date=${today}`);
+
+    expect(container.querySelector('.agenda-chip')?.textContent).toBe('Offsite');
+    const blocks = [...container.querySelectorAll<HTMLElement>('.agenda-block')];
+    expect(blocks.map((block) => [block.title, block.style.width])).toEqual([
+      ['Standup', 'calc(50% - 4px)'],
+      ['Dentist', 'calc(50% - 4px)'],
+    ]);
+    expect(blocks[1]!.getAttribute('href')).toBe('/events/dentist');
+
+    await act(async () => blocks[0]!.click());
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/calendars/work/event?uid=standup%40example.com', expect.anything());
+    const dialog = document.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('Every weekday');
+    expect(dialog.textContent).toContain('Room 4B');
+    expect(dialog.textContent).toContain('Sam Lee (sam@example.com)');
+    expect(dialog.textContent).toContain('Daily sync on the release.');
+    expect(dialog.querySelector('a[href="https://meet.google.com/abc-defg-hij"]')?.textContent).toBe('Join meeting');
+  });
+
   it('lets a guest answer from their personal link without an account', async () => {
     const fetchMock = serve(false, (path, init) => {
       if (path === `/rsvp/${code}` && init?.method === 'POST') {

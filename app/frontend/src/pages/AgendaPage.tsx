@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, Tabs } from '@project-graphite/ui';
-import { addDays, dayKey, entryDay, entryLink, entryTime, kindLabels, monthDays, useAgenda, type AgendaEntry } from '../agenda';
+import { addDays, clock, dayKey, entryDay, entryTime, kindLabels, monthDays, useAgenda, type AgendaEntry } from '../agenda';
+import { AgendaEntryLink } from '../components/AgendaEntryLink';
 import { EventEditor } from '../components/EventEditor';
+import { TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
 
-type View = 'list' | 'week' | 'month';
+type View = 'list' | 'day' | 'week' | 'month';
+
+const views: Record<View, string> = { list: 'List', day: 'Day', week: 'Week', month: 'Month' };
 
 function range(view: View, anchor: string) {
   if (view === 'list') return { from: anchor, to: addDays(anchor, 30), days: 30 };
+  if (view === 'day') return { from: anchor, to: addDays(anchor, 1), days: 1 };
   const date = new Date(`${anchor}T00:00:00`);
   if (view === 'week') {
     const from = addDays(anchor, -((date.getDay() + 6) % 7));
@@ -19,33 +24,18 @@ function range(view: View, anchor: string) {
   return monthDays(anchor);
 }
 
-function EntryLine({ entry, compact = false }: { entry: AgendaEntry; compact?: boolean }) {
-  return (
-    <Link
-      className={`block truncate text-ink no-underline hover:underline ${compact ? 'text-xs' : 'text-sm'}`}
-      title={entry.title}
-      to={entryLink(entry)}
-    >
-      {entry.title}
-      {!(compact && entry.allDay) && (
-        <span className="mono-sm text-faint">{compact ? ` ${entryTime(entry)}` : ` · ${entryTime(entry)} · ${entry.calendar ?? kindLabels[entry.kind]}`}</span>
-      )}
-    </Link>
-  );
-}
-
 export function AgendaPage() {
   const navigate = useNavigate();
   const spaces = useSpaces();
   const [params] = useSearchParams();
-  const view = (['list', 'week', 'month'].includes(params.get('view') ?? '') ? params.get('view') : 'list') as View;
+  const view = Object.hasOwn(views, params.get('view') ?? '') ? (params.get('view') as View) : 'list';
   const today = dayKey(new Date());
   const anchor = params.get('date') ?? today;
   const { from, to, days } = range(view, anchor);
   const agenda = useAgenda(from, to);
   const [creating, setCreating] = useState(false);
   const link = (next: { view?: View; date?: string }) => `/agenda?view=${next.view ?? view}&date=${next.date ?? anchor}`;
-  const step = view === 'list' ? 30 : view === 'week' ? 7 : 0;
+  const step = view === 'list' ? 30 : view === 'week' ? 7 : 1;
   const shift = (direction: number) => {
     if (view !== 'month') return addDays(anchor, direction * step);
     const date = new Date(`${anchor}T00:00:00`);
@@ -58,6 +48,7 @@ export function AgendaPage() {
   }
   const allDays = Array.from({ length: days }, (_, index) => addDays(from, index));
   const month = new Date(`${anchor}T00:00:00`).getMonth();
+  const entryKey = (entry: AgendaEntry) => `${entry.kind}-${entry.itemId}-${entry.start}`;
 
   return (
     <Page
@@ -74,10 +65,10 @@ export function AgendaPage() {
       wide
     >
       <Tabs
-        items={(['list', 'week', 'month'] as const).map((option) => ({
+        items={(Object.keys(views) as View[]).map((option) => ({
           active: view === option,
           href: link({ view: option }),
-          label: option === 'list' ? 'List' : option === 'week' ? 'Week' : 'Month',
+          label: views[option],
         }))}
         label="Agenda view"
       />
@@ -94,10 +85,12 @@ export function AgendaPage() {
         <h2 className="m-0 ml-2 text-lg font-medium">
           {view === 'month'
             ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-            : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(
-                new Date(`${from}T00:00:00`),
-                new Date(`${addDays(to, -1)}T00:00:00`),
-              )}
+            : view === 'day'
+              ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+              : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(
+                  new Date(`${from}T00:00:00`),
+                  new Date(`${addDays(to, -1)}T00:00:00`),
+                )}
         </h2>
       </div>
 
@@ -115,58 +108,72 @@ export function AgendaPage() {
               .map((day) => (
                 <section key={day}>
                   <h2 className="m-0 text-sm font-medium text-muted">
-                    {day === today ? 'Today · ' : ''}
-                    {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                    <Link className="text-muted no-underline hover:underline" to={link({ view: 'day', date: day })}>
+                      {day === today ? 'Today · ' : ''}
+                      {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </Link>
                     {day <= today && (
                       <Link className="mono-sm ml-3 font-normal text-faint" to={`/journal/${day}`}>
                         Journal
                       </Link>
                     )}
                   </h2>
-                  <div className="mt-2 grid gap-1 border-l border-line pl-3">
+                  <ul className="m-0 mt-2 grid list-none gap-1.5 p-0">
                     {byDay.get(day)!.map((entry) => (
-                      <EntryLine entry={entry} key={`${entry.kind}-${entry.itemId}-${entry.start}`} />
+                      <li key={entryKey(entry)}>
+                        <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
+                          <span className="block truncate text-sm text-ink">{entry.title}</span>
+                          <span className="sr-only"> · </span>
+                          <span className="mono-sm block truncate text-faint">
+                            {[entryTime(entry), entry.calendar ?? kindLabels[entry.kind], entry.location].filter(Boolean).join(' · ')}
+                          </span>
+                        </AgendaEntryLink>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </section>
               ))}
           </div>
         )
-      ) : (
-        <div className={`grid gap-px overflow-hidden rounded-xl border border-line bg-line ${view === 'week' ? 'grid-cols-1 sm:grid-cols-7' : 'grid-cols-7'}`}>
-          {view === 'month' &&
-            allDays.slice(0, 7).map((day) => (
-              <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
-                {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
-              </p>
-            ))}
+      ) : view === 'month' ? (
+        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
+          {allDays.slice(0, 7).map((day) => (
+            <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
+              {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+            </p>
+          ))}
           {allDays.map((day) => {
             const entries = byDay.get(day) ?? [];
-            const outside = view === 'month' && new Date(`${day}T00:00:00`).getMonth() !== month;
+            const outside = new Date(`${day}T00:00:00`).getMonth() !== month;
             return (
-              <div
-                className={`min-h-24 bg-paper p-2 ${outside ? 'opacity-50' : ''} ${view === 'week' ? 'sm:min-h-64' : ''}`}
-                key={day}
-              >
+              <div className={`min-h-24 min-w-0 bg-paper p-1.5 ${outside ? 'opacity-50' : ''}`} key={day}>
                 <button
-                  className={`mono-sm m-0 cursor-pointer border-0 bg-transparent p-0 ${day === today ? 'font-medium text-ink' : 'text-faint'}`}
-                  onClick={() => navigate(link({ view: 'list', date: day }))}
+                  aria-label={new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                  className={`mono-sm m-0 grid size-6 cursor-pointer place-items-center rounded-full border-0 p-0 ${day === today ? 'bg-ink font-medium text-paper' : 'bg-transparent text-faint'}`}
+                  onClick={() => navigate(link({ view: 'day', date: day }))}
                   type="button"
                 >
-                  {view === 'week'
-                    ? new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })
-                    : new Date(`${day}T00:00:00`).getDate()}
+                  {new Date(`${day}T00:00:00`).getDate()}
                 </button>
                 <div className="mt-1 grid gap-0.5">
-                  {entries.slice(0, view === 'month' ? 3 : 12).map((entry) => (
-                    <EntryLine compact entry={entry} key={`${entry.kind}-${entry.itemId}-${entry.start}`} />
+                  {entries.slice(0, 3).map((entry) => (
+                    <AgendaEntryLink className="agenda-chip" colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)}>
+                      {!entry.allDay && <span className="text-muted">{clock(entry.start)} </span>}
+                      {entry.title}
+                    </AgendaEntryLink>
                   ))}
-                  {view === 'month' && entries.length > 3 && <span className="mono-sm text-faint">+{entries.length - 3} more</span>}
+                  {entries.length > 3 && (
+                    <Link className="mono-sm px-1 text-xs text-faint" to={link({ view: 'day', date: day })}>
+                      +{entries.length - 3} more
+                    </Link>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+      ) : (
+        <TimeGrid colourOf={agenda.colourOf} dayHref={(day) => link({ view: 'day', date: day })} days={allDays} entries={agenda.data} today={today} />
       )}
 
       {creating && (

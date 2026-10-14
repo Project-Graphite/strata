@@ -33,10 +33,37 @@ describe('readCalendar', () => {
         timeZone: 'Europe/Berlin',
         repeatRule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
         location: null,
+        description: '',
+        meetingUrl: null,
+        organizer: null,
       },
-      { uid: 'b', title: 'Trip to Porto', startsOn: '2026-11-10', startTime: null, endsOn: '2026-11-12', endTime: null, timeZone: 'Europe/Lisbon', repeatRule: null, location: 'Porto\nPortugal' },
-      { uid: 'c', title: 'Call', startsOn: '2026-11-06', startTime: '23:00', endsOn: '2026-11-07', endTime: '00:00', timeZone: 'Etc/UTC', repeatRule: null, location: null },
-      { uid: 'd', title: 'Busy', startsOn: '2026-11-08', startTime: '10:00', endsOn: '2026-11-08', endTime: '11:30', timeZone: 'Europe/Lisbon', repeatRule: null, location: null },
+      { uid: 'b', title: 'Trip to Porto', startsOn: '2026-11-10', startTime: null, endsOn: '2026-11-12', endTime: null, timeZone: 'Europe/Lisbon', repeatRule: null, location: 'Porto\nPortugal', description: '', meetingUrl: null, organizer: null },
+      { uid: 'c', title: 'Call', startsOn: '2026-11-06', startTime: '23:00', endsOn: '2026-11-07', endTime: '00:00', timeZone: 'Etc/UTC', repeatRule: null, location: null, description: '', meetingUrl: null, organizer: null },
+      { uid: 'd', title: 'Busy', startsOn: '2026-11-08', startTime: '10:00', endsOn: '2026-11-08', endTime: '11:30', timeZone: 'Europe/Lisbon', repeatRule: null, location: null, description: '', meetingUrl: null, organizer: null },
+    ]);
+  });
+
+  it('reads notes as plain text, the meeting link and the organizer', () => {
+    const { events } = readCalendar(
+      calendar(
+        [
+          'BEGIN:VEVENT',
+          'UID:h',
+          'SUMMARY:Planning',
+          'DTSTART:20261106T090000Z',
+          'ORGANIZER;CN=Sam Lee:mailto:sam@example.com',
+          'X-GOOGLE-CONFERENCE:https://meet.google.com/abc-defg-hij',
+          'DESCRIPTION:<b>Agenda</b><br>Budget &amp; hiring<br><br><br>Bring notes',
+          'END:VEVENT',
+        ].join('\r\n'),
+        ['BEGIN:VEVENT', 'UID:i', 'SUMMARY:Review', 'DTSTART:20261107T090000Z', 'ORGANIZER:mailto:kim@example.com', 'DESCRIPTION:Join at https://us02web.zoom.us/j/123?pwd=x\\nThanks', 'END:VEVENT'].join('\r\n'),
+      ),
+      since,
+    );
+
+    expect(events.map(({ description, meetingUrl, organizer }) => ({ description, meetingUrl, organizer }))).toEqual([
+      { description: 'Agenda\nBudget & hiring\n\nBring notes', meetingUrl: 'https://meet.google.com/abc-defg-hij', organizer: 'Sam Lee (sam@example.com)' },
+      { description: 'Join at https://us02web.zoom.us/j/123?pwd=x\nThanks', meetingUrl: 'https://us02web.zoom.us/j/123?pwd=x', organizer: 'kim@example.com' },
     ]);
   });
 

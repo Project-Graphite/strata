@@ -12,6 +12,9 @@ export interface ReadEvent {
   timeZone: string;
   repeatRule: string | null;
   location: string | null;
+  description: string;
+  meetingUrl: string | null;
+  organizer: string | null;
 }
 
 interface Property {
@@ -28,6 +31,8 @@ interface Moment {
 
 const maxEvents = 2_000;
 const maxDays = 31;
+const meetingUrl = /https:\/\/(?:meet\.google\.com|(?:[\w-]+\.)?zoom\.us|teams\.microsoft\.com|teams\.live\.com|(?:meet|meeting)\.zoho\.[a-z.]+)\/[^\s<>"']*/i;
+const entities: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
 
 function validZone(zone: string | undefined) {
   if (!zone) return null;
@@ -40,6 +45,16 @@ function validZone(zone: string | undefined) {
 }
 
 const unescapeText = (value: string) => value.replace(/\\([\\;,nN])/g, (_, character: string) => (character.toLowerCase() === 'n' ? '\n' : character));
+
+function plainText(value: string) {
+  if (!/<\/?[a-z][^>]*>/i.test(value)) return value;
+  return value
+    .replace(/<br\s*\/?>|<\/(?:p|div|li|h\d)>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, name: string) => entities[name]!)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 function properties(text: string): Property[] {
   return text
@@ -128,6 +143,10 @@ function event(block: Property[], index: number, fallbackZone: string): ReadEven
     endTime = start.time ? '23:59' : null;
   }
   const text = (name: string) => unescapeText(get(name)?.value ?? '').trim();
+  const organizer = get('ORGANIZER');
+  const email = organizer?.value.replace(/^mailto:/i, '') || null;
+  const organizerName = organizer?.params.CN && organizer.params.CN !== email ? organizer.params.CN : null;
+  const link = ['X-GOOGLE-CONFERENCE', 'X-MICROSOFT-SKYPETEAMSMEETINGURL', 'URL', 'DESCRIPTION', 'LOCATION'].map((name) => meetingUrl.exec(text(name))?.[0]).find(Boolean);
   return {
     uid: get('UID')?.value.slice(0, 500) || `event-${index}`,
     title: text('SUMMARY').slice(0, 200) || 'Busy',
@@ -138,6 +157,9 @@ function event(block: Property[], index: number, fallbackZone: string): ReadEven
     timeZone: start.zone,
     repeatRule: repeatRule(get('RRULE')?.value),
     location: text('LOCATION').slice(0, 200) || null,
+    description: plainText(text('DESCRIPTION')).slice(0, 5_000),
+    meetingUrl: link?.slice(0, 500) ?? null,
+    organizer: (organizerName && email ? `${organizerName} (${email})` : (organizerName ?? email))?.slice(0, 200) ?? null,
   };
 }
 
