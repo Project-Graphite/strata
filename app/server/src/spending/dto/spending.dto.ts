@@ -5,27 +5,12 @@ import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorat
 import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const spendingCategories = [
-  'groceries',
-  'eating out',
-  'transport',
-  'housing',
-  'utilities',
-  'health',
-  'shopping',
-  'entertainment',
-  'travel',
-  'gifts',
-  'education',
-  'other',
-] as const;
-
 export const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as const;
 
 const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Describe the expense in 1 to 200 characters.' }));
 const DayText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
-const Category = () => IsIn(spendingCategories, { message: 'Choose a category from the list.' });
+const Category = () => applyDecorators(Trimmed(), IsString(), Length(1, 40, { message: 'Choose a category from the list.' }));
 const PaymentLabel = () =>
   applyDecorators(
     Trimmed(),
@@ -52,7 +37,7 @@ export class CreateExpenseDto {
 
   @IsOptional()
   @Category()
-  category?: (typeof spendingCategories)[number];
+  category?: string;
 
   @IsOptional()
   @ValidateIf(nullable)
@@ -104,7 +89,7 @@ export class UpdateExpenseDto {
 
   @IsOptionalNotNull()
   @Category()
-  category?: (typeof spendingCategories)[number];
+  category?: string;
 
   @IsOptional()
   @ValidateIf(nullable)

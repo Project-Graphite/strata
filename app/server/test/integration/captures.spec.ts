@@ -69,4 +69,25 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(400);
     expect((await owner.call('GET', `/spaces/${home.id}/captures`)).body).toEqual([]);
   });
+
+  it('renames, categorises and drops messages by merchant rules', async () => {
+    const owner = await member('rule-maker');
+    const home = (await owner.call('POST', '/spaces', { name: 'Rules' })).body;
+    const send = (text: string) => owner.call('POST', `/spaces/${home.id}/captures`, { from: 'CIB', text });
+
+    expect((await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', category: 'yachts' })).status).toBe(400);
+    const uber = (await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', rename: 'Uber ride', category: 'transport' })).body;
+    expect(uber).toMatchObject({ match: 'uber', rename: 'Uber ride', category: 'transport', ignore: false });
+    expect((await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', rename: 'Uber trip', category: 'transport' })).body.id).toBe(uber.id);
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'cashback store', ignore: true });
+
+    const ride = await send('Your card **1234 was charged for EGP 85.00 at UBER *TRIP CAIRO on 14/10');
+    expect(ride.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${ride.body.expenseId}`)).body).toMatchObject({ title: 'Uber trip', category: 'transport', merchant: 'UBER *TRIP CAIRO' });
+    expect((await send('Your card **1234 was charged for EGP 5.00 at CASHBACK STORE on 14/10')).body).toEqual({ status: 'ignored', reason: 'rule' });
+
+    expect((await owner.call('GET', `/spaces/${home.id}/merchant-rules`)).body.map((rule: { match: string }) => rule.match)).toEqual(['cashback store', 'uber']);
+    expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(204);
+    expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(404);
+  });
 });

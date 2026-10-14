@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, type SpendingCategory } from '../spending';
+import { categoryOptions, useCategories } from '../spending';
 import { money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useStatementFile } from './StatementFile';
@@ -14,7 +14,8 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
   const adding = useAction();
   const [chosenCurrency, setChosenCurrency] = useState(currency);
   const statement = useStatementFile(setChosenCurrency);
-  const [category, setCategory] = useState<SpendingCategory>('other');
+  const categories = useCategories(spaceId);
+  const [category, setCategory] = useState('other');
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const charges = statement.charges.slice(0, shownAtMost);
   const chosen = charges.filter((_, index) => !skipped.has(index));
@@ -29,7 +30,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             {statement.columns}
             <div className="grid gap-4 sm:grid-cols-2">
               <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
-              <Select label="Category" onChange={setCategory} options={categoryOptions} value={category} />
+              <Select label="Category" onChange={setCategory} options={categoryOptions(categories.data ?? [])} value={category} />
             </div>
             <p className="m-0 text-sm text-muted">
               {statement.charges.length} charges read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.

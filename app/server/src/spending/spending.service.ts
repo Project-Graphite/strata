@@ -6,7 +6,8 @@ import { convertMinor, ExchangeRatesService } from '../exchange-rates/exchange-r
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, nextMonth } from '../recurrence/dates';
 import { renewalsBetween } from '../subscriptions/subscriptions.service';
-import { CreateExpenseDto, SaveBudgetDto, spendingCategories, UpdateExpenseDto } from './dto/spending.dto';
+import { CategoriesService } from './categories.service';
+import { CreateExpenseDto, SaveBudgetDto, UpdateExpenseDto } from './dto/spending.dto';
 
 const expenseFields = {
   id: true,
@@ -70,13 +71,14 @@ export class SpendingService {
     private readonly access: AccessService,
     private readonly activity: ActivityService,
     private readonly rates: ExchangeRatesService,
+    private readonly categories: CategoriesService,
   ) {}
 
   async month(userId: string, spaceId: string, month: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const from = `${month}-01`;
     const to = `${nextMonth(month)}-01`;
-    const [user, rows, budgets, subscriptions, rates] = await Promise.all([
+    const [user, rows, budgets, subscriptions, rates, categories] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } }),
       this.prisma.item.findMany({
         where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null, expense: { spentOn: { gte: dateValue(from), lt: dateValue(to) } } },
@@ -86,6 +88,7 @@ export class SpendingService {
       this.prisma.budget.findMany({ where: { spaceId }, orderBy: { category: 'asc' } }),
       this.prisma.subscription.findMany({ where: { cancelledOn: null, item: { spaceId, trashedAt: null } } }),
       this.rates.table(),
+      this.categories.categories(spaceId),
     ]);
     const expenses = rows.map(present);
     const currency = user.homeCurrency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EUR';
@@ -109,7 +112,8 @@ export class SpendingService {
       (sum, subscription) => sum + renewalsBetween(subscription, from, to).filter((day) => day >= from).length * shown(subscription.amountMinor, subscription.currency),
       0,
     );
-    const categories = spendingCategories
+    const totals = categories
+      .map(({ name }) => name)
       .filter((category) => spent.has(category) || budgeted.has(category))
       .map((category) => ({ category, spentMinor: spent.get(category) ?? 0, budgetMinor: budgeted.get(category) ?? null }))
       .sort((a, b) => b.spentMinor - a.spentMinor);
@@ -122,7 +126,7 @@ export class SpendingService {
       receivedMinor,
       budgetMinor: budgets.length ? [...budgeted.values()].reduce((sum, amount) => sum + amount, 0) : null,
       committedMinor,
-      categories,
+      categories: totals,
       budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: budget.amountMinor, currency: budget.currency })),
       expenses,
     };
@@ -157,6 +161,7 @@ export class SpendingService {
       toAccountId: input.toAccountId === undefined ? row.expense!.toAccountId : input.toAccountId,
     });
     await this.checkAccounts(row.spaceId, [movement]);
+    await this.categories.assertCategory(row.spaceId, input.category);
     await this.prisma.$transaction(async (transaction) => {
       await transaction.item.update({
         where: { id: itemId },
@@ -184,7 +189,7 @@ export class SpendingService {
 
   async saveBudget(userId: string, spaceId: string, category: string, input: SaveBudgetDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
-    if (!(spendingCategories as readonly string[]).includes(category)) throw new BadRequestException('Choose a category from the list');
+    await this.categories.assertCategory(spaceId, category);
     const budget = await this.prisma.budget.upsert({
       where: { spaceId_category: { spaceId, category } },
       create: { spaceId, category, amountMinor: input.amountMinor, currency: input.currency },
@@ -211,6 +216,7 @@ export class SpendingService {
 
   private async insert(userId: string, spaceId: string, inputs: CreateExpenseDto[], source: string) {
     await this.checkAccounts(spaceId, inputs.map(movementOf));
+    for (const category of new Set(inputs.map((input) => input.category))) await this.categories.assertCategory(spaceId, category);
     return this.prisma.$transaction(async (transaction) => {
       const ids: string[] = [];
       for (const input of inputs) {
