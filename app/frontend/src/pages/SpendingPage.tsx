@@ -156,7 +156,7 @@ export function SpendingPage() {
 
       {editable && spaceId && (
         <form
-          className="flex max-w-xl items-end gap-2"
+          className="flex max-w-xl items-start gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             const input = event.currentTarget.elements.namedItem('quick') as HTMLInputElement;
@@ -183,7 +183,7 @@ export function SpendingPage() {
         <ListSkeleton label="Adding up the month" rows={5} />
       ) : (
         <>
-          <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+          <dl className="m-0 grid gap-3 sm:grid-cols-3">
             {[
               ['Spent', money(shown.spentMinor, currency)],
               ['Received', money(shown.receivedMinor, currency)],
