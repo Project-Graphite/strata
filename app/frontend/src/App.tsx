@@ -26,6 +26,7 @@ import { RecipesPage } from './pages/RecipesPage';
 import { NetWorthPage } from './pages/NetWorthPage';
 import { SpendingInsightsPage } from './pages/SpendingInsightsPage';
 import { SpendingPage } from './pages/SpendingPage';
+import { StoragePage } from './pages/StoragePage';
 import { TripPage } from './pages/TripPage';
 import { TripsPage } from './pages/TripsPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
@@ -402,6 +403,14 @@ export function App() {
             element={
               <Protected>
                 <AdminPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="storage"
+            element={
+              <Protected>
+                <StoragePage />
               </Protected>
             }
           />

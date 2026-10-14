@@ -89,6 +89,29 @@ export class FilesService {
     return this.items.get(userId, item.id);
   }
 
+  async storage(userId: string) {
+    const [{ fileQuotaMb }, files] = await Promise.all([
+      this.site.get(),
+      this.prisma.file.findMany({
+        where: { uploadedById: userId },
+        orderBy: { createdAt: 'desc' },
+        select: { itemId: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true, item: { select: { spaceId: true, trashedAt: true } } },
+      }),
+    ]);
+    const readable = new Set(
+      (await this.prisma.item.findMany({ where: { ...this.access.itemsOf(userId), id: { in: files.map((file) => file.itemId) } }, select: { id: true } })).map((item) => item.id),
+    );
+    const total = (rows: typeof files) => rows.reduce((sum, file) => sum + file.sizeBytes, 0);
+    return {
+      quotaBytes: fileQuotaMb * megabyte,
+      usedBytes: total(files),
+      trashedBytes: total(files.filter((file) => file.item.trashedAt)),
+      files: files
+        .filter((file) => !file.item.trashedAt && readable.has(file.itemId))
+        .map((file) => ({ id: file.itemId, spaceId: file.item.spaceId, name: file.originalName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, createdAt: file.createdAt })),
+    };
+  }
+
   async download(userId: string, itemId: string) {
     await this.access.assertItem(userId, itemId, 'read');
     return this.read(itemId);
