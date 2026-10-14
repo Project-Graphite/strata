@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextField } from '@project-graphite/ui';
+import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { dayKey } from '../agenda';
 import { allCurrencies, currencyOptions } from '../choices';
 import { AccountEditor } from '../components/AccountEditor';
 import { CategoriesEditor } from '../components/CategoriesEditor';
@@ -24,6 +23,7 @@ import {
   type MoneyAccount,
   type SpendingCategory,
   type SpendingMonth,
+  type SpendingPlan,
 } from '../spending';
 import { spaceOptions, useSpaces, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
@@ -43,12 +43,11 @@ export function SpendingPage() {
   const spaces = useSpaces();
   const action = useAction();
   const [params, setParams] = useSearchParams();
-  const thisMonth = dayKey(new Date()).slice(0, 7);
-  const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : thisMonth;
+  const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
   const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
   const space = spaces.data?.find((candidate) => candidate.id === spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
-  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending?month=${month}` : null, true);
+  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true);
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
@@ -60,6 +59,7 @@ export function SpendingPage() {
     | 'import'
     | 'phone'
     | 'categories'
+    | 'plan'
     | { budget: string | null }
     | { expense: Expense }
     | { split: Expense }
@@ -96,16 +96,32 @@ export function SpendingPage() {
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <button aria-label="Previous month" className="icon-button" onClick={() => go({ month: shiftMonth(month, -1) })} type="button">
+          <button aria-label="Previous month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, -1) })} type="button">
             <Icon name="chevron-left" size={18} />
           </button>
-          <button aria-label="Next month" className="icon-button" onClick={() => go({ month: shiftMonth(month, 1) })} type="button">
+          <button aria-label="Next month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, 1) })} type="button">
             <Icon name="chevron-right" size={18} />
           </button>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => go({ month: thisMonth })} type="button">
+          <button
+            className="secondary-button px-3 py-2 text-sm"
+            onClick={() =>
+              setParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete('month');
+                return next;
+              })
+            }
+            type="button"
+          >
             This month
           </button>
-          <h2 className="m-0 ml-2 text-lg font-medium">{monthName.format(new Date(`${month}-01T00:00:00Z`))}</h2>
+          {shown && (
+            <h2 className="m-0 ml-2 text-lg font-medium">
+              {shown.plan.startDay === 1
+                ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+                : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`}
+            </h2>
+          )}
         </div>
       </Toolbar>
 
@@ -115,11 +131,12 @@ export function SpendingPage() {
         <ListSkeleton label="Adding up the month" rows={5} />
       ) : (
         <>
-          <dl className="m-0 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
             {[
               ['Spent', money(shown.spentMinor, currency)],
               ['Received', money(shown.receivedMinor, currency)],
               ['Budget', shown.budgetMinor === null ? 'None set' : `${money(Math.max(0, shown.budgetMinor - shown.spentMinor), currency)} left of ${money(shown.budgetMinor, currency)}`],
+              ...(shown.safeDailyMinor === null ? [] : [['Safe to spend a day', money(shown.safeDailyMinor, currency)]]),
               ['Renewals this month', money(shown.committedMinor, currency)],
             ].map(([label, value]) => (
               <div className="rounded-xl border border-line p-4" key={label}>
@@ -274,6 +291,7 @@ export function SpendingPage() {
             action={
               editable && (
                 <span className="flex gap-2">
+                  <HeaderButton label="Budget settings" onClick={() => setDialog('plan')} />
                   <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
                   <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
                 </span>
@@ -295,6 +313,7 @@ export function SpendingPage() {
                       <span className="flex items-center gap-2">
                         <span className="text-sm text-muted">
                           {row.budgetMinor === null ? money(row.spentMinor, currency) : `${money(row.spentMinor, currency)} of ${money(row.budgetMinor, currency)}`}
+                          {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
                         </span>
                         {editable && (
                           <Menu
@@ -422,6 +441,7 @@ export function SpendingPage() {
           summary={shown}
         />
       )}
+      {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
       {spaceId && categories.data && dialog === 'categories' && (
         <CategoriesEditor categories={categories.data} onClose={() => setDialog(undefined)} onSaved={() => (categories.reload(), reload())} spaceId={spaceId} />
       )}
@@ -477,6 +497,61 @@ function BudgetDialog({
         <TextField autoFocus defaultValue={existing ? fromMinor(existing.amountMinor, existing.currency) : ''} inputMode="decimal" key={chosen} label="Each month" {...form.field('amount')} />
         <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
       </div>
+    </FormDialog>
+  );
+}
+
+function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: string; onClose: () => void; onSaved: () => void; plan: SpendingPlan; spaceId: string }) {
+  const auth = useAuth();
+  const saving = useAction();
+  const form = useFormErrors();
+  const [chosenCurrency, setChosenCurrency] = useState(plan.currency ?? currency);
+  const [startDay, setStartDay] = useState(String(plan.startDay));
+  const [rollover, setRollover] = useState(plan.rollover);
+
+  return (
+    <FormDialog
+      busy={saving.busy}
+      busyLabel="Saving…"
+      onClose={onClose}
+      onSubmit={(target) => {
+        if (!form.check(target, { budget: [(value) => (value.trim() ? moneyAmount(value) : undefined)] })) return;
+        const budget = String(new FormData(target).get('budget')).trim();
+        const body = {
+          budgetMinor: budget ? toMinor(budget, chosenCurrency) : null,
+          currency: budget ? chosenCurrency : null,
+          startDay: Number(startDay),
+          rollover,
+        };
+        void saving
+          .run(async () => {
+            await auth.request(`/spaces/${spaceId}/spending-plan`, { method: 'PUT', body: JSON.stringify(body) });
+            onSaved();
+            return 'Budget settings saved.';
+          }, 'Could not save the budget settings')
+          .then((done) => done && onClose());
+      }}
+      submitLabel="Save"
+      title="Budget settings"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          autoFocus
+          defaultValue={plan.budgetMinor === null || !plan.currency ? '' : fromMinor(plan.budgetMinor, plan.currency)}
+          hint="Leave empty to add up the category budgets."
+          inputMode="decimal"
+          label="Monthly budget (optional)"
+          {...form.field('budget')}
+        />
+        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+      </div>
+      <Select
+        label="Months start on"
+        onChange={setStartDay}
+        options={Array.from({ length: 28 }, (_, index) => ({ value: String(index + 1), label: index === 0 ? 'The 1st' : `Day ${index + 1}` }))}
+        value={startDay}
+      />
+      <Toggle checked={rollover} label="Carry what is left into next month" onChange={setRollover} />
     </FormDialog>
   );
 }

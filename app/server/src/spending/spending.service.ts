@@ -2,12 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
-import { convertMinor, ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
+import { convertMinor, ExchangeRatesService, fractionDigits } from '../exchange-rates/exchange-rates.service';
+import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, nextMonth } from '../recurrence/dates';
+import { dateText, dateValue, localDate } from '../recurrence/dates';
 import { renewalsBetween } from '../subscriptions/subscriptions.service';
 import { CategoriesService } from './categories.service';
-import { CreateExpenseDto, SaveBudgetDto, UpdateExpenseDto } from './dto/spending.dto';
+import { CreateExpenseDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
+import { dayBefore, daysBetween, monthOf, periodOf, previousMonth } from './periods';
 
 const expenseFields = {
   id: true,
@@ -72,26 +74,50 @@ export class SpendingService {
     private readonly activity: ActivityService,
     private readonly rates: ExchangeRatesService,
     private readonly categories: CategoriesService,
+    private readonly inbox: InboxService,
   ) {}
 
-  async month(userId: string, spaceId: string, month: string) {
+  async month(userId: string, spaceId: string, month?: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    const from = `${month}-01`;
-    const to = `${nextMonth(month)}-01`;
-    const [user, rows, budgets, subscriptions, rates, categories] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } }),
+    return this.summary(userId, spaceId, month);
+  }
+
+  async savePlan(userId: string, spaceId: string, input: SavePlanDto) {
+    await this.access.assertSpace(userId, spaceId, 'edit');
+    if ((input.budgetMinor === null) !== (input.currency === null)) throw new BadRequestException('Give the monthly budget an amount and a currency');
+    const plan = await this.prisma.spendingPlan.upsert({ where: { spaceId }, create: { spaceId, ...input }, update: input });
+    return { budgetMinor: plan.budgetMinor, currency: plan.currency, startDay: plan.startDay, rollover: plan.rollover };
+  }
+
+  private async summary(userId: string, spaceId: string, month?: string) {
+    const [user, plan] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true } }),
+      this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
+    ]);
+    const startDay = plan?.startDay ?? 1;
+    const today = localDate(user.timeZone);
+    const shownMonth = month ?? monthOf(today, startDay);
+    const { from, to } = periodOf(shownMonth, startDay);
+    const previous = periodOf(previousMonth(shownMonth), startDay);
+    const [rows, earlier, budgets, subscriptions, rates, categories] = await Promise.all([
       this.prisma.item.findMany({
         where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null, expense: { spentOn: { gte: dateValue(from), lt: dateValue(to) } } },
         orderBy: [{ expense: { spentOn: 'desc' } }, { createdAt: 'desc' }],
         select: expenseFields,
       }),
+      plan?.rollover
+        ? this.prisma.expense.findMany({
+            where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(previous.from), lt: dateValue(previous.to) } },
+            select: { amountMinor: true, currency: true, direction: true, category: true },
+          })
+        : [],
       this.prisma.budget.findMany({ where: { spaceId }, orderBy: { category: 'asc' } }),
       this.prisma.subscription.findMany({ where: { cancelledOn: null, item: { spaceId, trashedAt: null } } }),
       this.rates.table(),
       this.categories.categories(spaceId),
     ]);
     const expenses = rows.map(present);
-    const currency = user.homeCurrency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EUR';
+    const currency = user.homeCurrency ?? plan?.currency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EUR';
     const missing = new Set<string>();
     const shown = (amountMinor: number, from: string) => {
       if (from === currency) return amountMinor;
@@ -99,37 +125,94 @@ export class SpendingService {
       if (converted === null) missing.add(from);
       return converted ?? 0;
     };
-    const spent = new Map<string, number>();
-    let receivedMinor = 0;
-    for (const expense of expenses) {
-      if (expense.direction === 'received') receivedMinor += shown(expense.amountMinor, expense.currency);
-      if (expense.direction !== 'spent' && expense.direction !== 'refund') continue;
-      const amount = shown(expense.amountMinor, expense.currency) * (expense.direction === 'refund' ? -1 : 1);
-      spent.set(expense.category, (spent.get(expense.category) ?? 0) + amount);
-    }
-    const budgeted = new Map(budgets.map((budget) => [budget.category, shown(budget.amountMinor, budget.currency)]));
+    const spentBy = (list: { amountMinor: number; currency: string; direction: string; category: string }[]) => {
+      const totals = new Map<string, number>();
+      for (const expense of list) {
+        if (expense.direction !== 'spent' && expense.direction !== 'refund') continue;
+        const amount = shown(expense.amountMinor, expense.currency) * (expense.direction === 'refund' ? -1 : 1);
+        totals.set(expense.category, (totals.get(expense.category) ?? 0) + amount);
+      }
+      return totals;
+    };
+    const sum = (values: Iterable<number>) => [...values].reduce((total, amount) => total + amount, 0);
+    const spent = spentBy(expenses);
+    const before = spentBy(earlier);
+    const receivedMinor = sum(expenses.filter((expense) => expense.direction === 'received').map((expense) => shown(expense.amountMinor, expense.currency)));
+    const carried = (amount: number, spentBefore: number) => (plan?.rollover ? amount - spentBefore : 0);
+    const budgeted = new Map(
+      budgets.map((budget) => {
+        const amount = shown(budget.amountMinor, budget.currency);
+        const carriedMinor = carried(amount, before.get(budget.category) ?? 0);
+        return [budget.category, { budgetMinor: amount + carriedMinor, carriedMinor }];
+      }),
+    );
+    const planned = plan?.budgetMinor != null && plan.currency ? shown(plan.budgetMinor, plan.currency) : null;
+    const carriedMinor = planned === null ? sum([...budgeted.values()].map((budget) => budget.carriedMinor)) : carried(planned, sum(before.values()));
+    const budgetMinor = planned !== null ? planned + carriedMinor : budgets.length ? sum([...budgeted.values()].map((budget) => budget.budgetMinor)) : null;
+    const spentMinor = sum(spent.values());
     const committedMinor = subscriptions.reduce(
-      (sum, subscription) => sum + renewalsBetween(subscription, from, to).filter((day) => day >= from).length * shown(subscription.amountMinor, subscription.currency),
+      (total, subscription) => total + renewalsBetween(subscription, from, to).filter((day) => day >= from).length * shown(subscription.amountMinor, subscription.currency),
       0,
     );
     const totals = categories
       .map(({ name }) => name)
       .filter((category) => spent.has(category) || budgeted.has(category))
-      .map((category) => ({ category, spentMinor: spent.get(category) ?? 0, budgetMinor: budgeted.get(category) ?? null }))
+      .map((category) => ({ category, spentMinor: spent.get(category) ?? 0, budgetMinor: budgeted.get(category)?.budgetMinor ?? null, carriedMinor: budgeted.get(category)?.carriedMinor ?? 0 }))
       .sort((a, b) => b.spentMinor - a.spentMinor);
     return {
-      month,
+      month: shownMonth,
+      from,
+      until: dayBefore(to),
       currency,
       ratesOn: rates.publishedOn,
       missing: [...missing].sort(),
-      spentMinor: [...spent.values()].reduce((sum, amount) => sum + amount, 0),
+      spentMinor,
       receivedMinor,
-      budgetMinor: budgets.length ? [...budgeted.values()].reduce((sum, amount) => sum + amount, 0) : null,
+      budgetMinor,
+      carriedMinor,
+      safeDailyMinor: budgetMinor !== null && today >= from && today < to ? Math.floor(Math.max(0, budgetMinor - spentMinor) / daysBetween(today, to)) : null,
       committedMinor,
       categories: totals,
       budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: budget.amountMinor, currency: budget.currency })),
+      plan: { budgetMinor: plan?.budgetMinor ?? null, currency: plan?.currency ?? null, startDay, rollover: plan?.rollover ?? false },
       expenses,
     };
+  }
+
+  private async alert(userId: string, spaceId: string) {
+    const summary = await this.summary(userId, spaceId);
+    const reached = (spent: number, budget: number) => [80, 100].filter((level) => (budget > 0 ? spent * 100 >= budget * level : spent > 0));
+    const targets = [
+      ...(summary.budgetMinor === null ? [] : [{ category: '', spent: summary.spentMinor, budget: summary.budgetMinor }]),
+      ...summary.categories.flatMap((row) => (row.budgetMinor === null ? [] : [{ category: row.category, spent: row.spentMinor, budget: row.budgetMinor }])),
+    ];
+    const sent = await this.prisma.budgetAlert.findMany({ where: { spaceId, period: summary.month }, select: { category: true, level: true } });
+    const fresh = targets
+      .map((target) => ({ ...target, levels: reached(target.spent, target.budget).filter((level) => !sent.some((alert) => alert.category === target.category && alert.level === level)) }))
+      .filter((target) => target.levels.length > 0);
+    if (fresh.length === 0) return;
+    const members = await this.prisma.spaceMember.findMany({ where: { spaceId }, select: { userId: true } });
+    const format = (minor: number) => new Intl.NumberFormat('en', { style: 'currency', currency: summary.currency }).format(minor / 10 ** fractionDigits(summary.currency));
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.budgetAlert.createMany({
+        data: fresh.flatMap((target) => target.levels.map((level) => ({ spaceId, category: target.category, period: summary.month, level }))),
+        skipDuplicates: true,
+      });
+      await this.inbox.notify(
+        transaction,
+        fresh.flatMap((target) => {
+          const budget = target.category ? `${target.category} budget` : 'monthly budget';
+          const title = target.levels.includes(100) ? `Over the ${budget}` : `80% of the ${budget} used`;
+          return members.map(({ userId: memberId }) => ({
+            userId: memberId,
+            kind: 'budget_alert' as const,
+            title,
+            body: `${format(target.spent)} of ${format(target.budget)}`,
+            link: `/spending?space=${spaceId}`,
+          }));
+        }),
+      );
+    });
   }
 
   async create(userId: string, spaceId: string, input: CreateExpenseDto) {
@@ -184,6 +267,7 @@ export class SpendingService {
       });
       await this.activity.record(transaction, { spaceId: row.spaceId, actorId: userId, itemId, verb: 'item.updated', data: { title: input.title ?? row.title } });
     });
+    await this.alert(userId, row.spaceId);
     return this.get(userId, itemId);
   }
 
@@ -217,24 +301,26 @@ export class SpendingService {
   private async insert(userId: string, spaceId: string, inputs: CreateExpenseDto[], source: string) {
     await this.checkAccounts(spaceId, inputs.map(movementOf));
     for (const category of new Set(inputs.map((input) => input.category))) await this.categories.assertCategory(spaceId, category);
-    return this.prisma.$transaction(async (transaction) => {
-      const ids: string[] = [];
+    const ids = await this.prisma.$transaction(async (transaction) => {
+      const created: string[] = [];
       for (const input of inputs) {
         const item = await transaction.item.create({
           data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: expenseData(input, source) } },
           select: { id: true },
         });
-        ids.push(item.id);
+        created.push(item.id);
       }
       await this.activity.record(transaction, {
         spaceId,
         actorId: userId,
-        itemId: ids.length === 1 ? ids[0] : undefined,
+        itemId: created.length === 1 ? created[0] : undefined,
         verb: 'item.created',
         data: { title: inputs.length === 1 ? inputs[0]!.title : `${inputs.length} expenses` },
       });
-      return ids;
+      return created;
     });
+    await this.alert(userId, spaceId);
+    return ids;
   }
 
   private async row(userId: string, itemId: string, access: 'read' | 'edit') {

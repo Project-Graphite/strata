@@ -4,7 +4,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateExpenseDto, ImportExpensesDto, MonthDto, SaveBudgetDto, UpdateExpenseDto } from './dto/spending.dto';
+import { CreateExpenseDto, ImportExpensesDto, MonthDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
 import { SpendingService } from './spending.service';
 
 @Controller()
@@ -16,6 +16,12 @@ export class SpendingController {
   @Scope('items:read')
   month(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: MonthDto) {
     return this.spending.month(user.id, spaceId, query.month);
+  }
+
+  @Put('spaces/:spaceId/spending-plan')
+  @Scope('items:write')
+  savePlan(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: SavePlanDto) {
+    return this.spending.savePlan(user.id, spaceId, input);
   }
 
   @Post('spaces/:spaceId/expenses')

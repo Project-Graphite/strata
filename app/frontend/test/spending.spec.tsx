@@ -34,6 +34,11 @@ const expense = (id: string, title: string, amountMinor: number, category: strin
 });
 const october = {
   month: '2026-10',
+  from: '2026-10-01',
+  until: '2026-10-31',
+  carriedMinor: 0,
+  safeDailyMinor: null,
+  plan: { budgetMinor: null, currency: null, startDay: 1, rollover: false },
   currency: 'EUR',
   ratesOn: '2026-10-09',
   missing: [],
@@ -42,8 +47,8 @@ const october = {
   budgetMinor: 30000,
   committedMinor: 3000,
   categories: [
-    { category: 'groceries', spentMinor: 5500, budgetMinor: 30000 },
-    { category: 'eating out', spentMinor: 2000, budgetMinor: null },
+    { category: 'groceries', spentMinor: 5500, budgetMinor: 30000, carriedMinor: 0 },
+    { category: 'eating out', spentMinor: 2000, budgetMinor: null, carriedMinor: 0 },
   ],
   budgets: [{ category: 'groceries', amountMinor: 30000, currency: 'EUR' }],
   expenses: [expense('shop', 'Corner shop', 1500, 'groceries', '2026-10-20'), expense('diner', 'Diner', 2000, 'eating out', '2026-10-07'), expense('market', 'Market', 4000, 'groceries', '2026-10-05')],
@@ -296,5 +301,26 @@ describe('Spending', () => {
     const row = [...container.querySelectorAll('li')].find((item) => item.textContent?.includes('Uber ride'))!;
     await act(async () => [...row.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/merchant-rules/r1', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('starts the month on payday, shows a daily allowance and saves budget settings', async () => {
+    const payday = { ...october, month: '2026-09', from: '2026-09-25', until: '2026-10-24', safeDailyMinor: 2250, carriedMinor: 1000, plan: { budgetMinor: 30000, currency: 'EUR', startDay: 25, rollover: true } };
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending') return json(payday);
+      if (path === '/spaces/home/spending-plan' && init?.method === 'PUT') return json(payday.plan);
+      return undefined;
+    });
+    await render('/spending');
+
+    expect(container.querySelector('h2')!.textContent).toBe('Sep 25 – Oct 24, 2026');
+    expect(container.textContent).toContain('Safe to spend a day€22.50');
+    await act(async () => button('Budget settings').click());
+    const form = container.querySelector('dialog form') as HTMLFormElement;
+    expect(form.querySelector<HTMLInputElement>('input[name="budget"]')!.value).toBe('300.00');
+    form.querySelector<HTMLInputElement>('input[name="budget"]')!.value = '';
+    await choose(form, 'Months start on', 'The 1st');
+    await submit(form);
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/spending-plan' && init?.method === 'PUT')![1]!.body));
+    expect(body).toEqual({ budgetMinor: null, currency: null, startDay: 1, rollover: true });
   });
 });

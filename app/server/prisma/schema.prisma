@@ -235,6 +235,8 @@ model Space {
   captures        CapturedMessage[]
   categories      SpendingCategory[]
   merchantRules   MerchantRule[]
+  spendingPlan    SpendingPlan?
+  budgetAlerts    BudgetAlert[]
 
   @@map("spaces")
 }
@@ -1190,4 +1192,29 @@ model MerchantRule {
 
   @@unique([spaceId, match])
   @@map("merchant_rules")
+}
+
+model SpendingPlan {
+  spaceId     String   @id @map("space_id") @db.Uuid
+  budgetMinor Int?     @map("budget_minor")
+  currency    String?
+  startDay    Int      @default(1) @map("start_day")
+  rollover    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@map("spending_plans")
+}
+
+model BudgetAlert {
+  id        String   @id @default(uuid()) @db.Uuid
+  spaceId   String   @map("space_id") @db.Uuid
+  category  String
+  period    String
+  level     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, category, period, level])
+  @@map("budget_alerts")
 }
