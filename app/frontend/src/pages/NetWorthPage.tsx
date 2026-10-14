@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { DatePicker, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextField } from '@project-graphite/ui';
+import { DatePicker, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { allCurrencies, currencyOptions } from '../choices';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
-import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
+import { assetKindOptions, spendingTabs, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { spaceOptions, useSpaces } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -37,8 +37,9 @@ export function NetWorthPage() {
           </>
         )
       }
-      title="Net worth"
+      title="Spending"
     >
+      <Tabs items={spendingTabs('net-worth', params.get('space'))} label="Spending" />
       <Toolbar
         actions={
           (spaces.data?.length ?? 0) > 1 &&

@@ -125,6 +125,12 @@ describe('Spending', () => {
   }
 
   const button = (label: string) => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === label)!;
+  const openTab = (label: string) =>
+    act(async () =>
+      void [...container.querySelectorAll('nav[aria-label="Spending"] a')]
+        .find((link) => link.textContent === label)!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
+    );
   const submit = (form: HTMLFormElement) => act(async () => void form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
 
   it('shows the month against its budgets and adds an expense', async () => {
@@ -135,7 +141,7 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10');
 
-    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€0.00', '€225.00 left of €300.00', '€30.00']);
+    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€225.00', '—', '€0.00']);
     expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['25', '18']);
     expect(container.textContent).toContain('€55.00 of €300.00');
     expect(container.textContent).toContain('Corner shop');
@@ -161,7 +167,7 @@ describe('Spending', () => {
       if (path === '/spaces/home/budgets/groceries' && init?.method === 'DELETE') return new Response(null, { status: 204 });
       return undefined;
     });
-    await render('/spending?month=2026-10');
+    await render('/spending?month=2026-10&tab=budgets');
 
     await chooseFromMenu(container, 'Actions for Eating out', 'Set a budget');
     const form = container.querySelector('dialog form') as HTMLFormElement;
@@ -184,11 +190,13 @@ describe('Spending', () => {
       if (path === '/accounts/card' && init?.method === 'PATCH') return json(accounts[1]);
       return undefined;
     });
-    await render('/spending?month=2026-10');
+    await render('/spending?month=2026-10&tab=accounts');
 
     expect(container.textContent).toContain('€1,200.00');
     expect(container.textContent).toContain('€45.00 owed');
     expect(container.textContent).toContain('Credit card · •••• 4321');
+    expect(container.textContent).not.toContain('CIB → Visa');
+    await openTab('Transactions');
     expect(container.textContent).toContain('CIB → Visa');
     expect(container.textContent).toContain('+€3,000.00');
 
@@ -206,6 +214,7 @@ describe('Spending', () => {
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/expenses' && init?.method === 'POST')![1]!.body));
     expect(body).toMatchObject({ title: 'Top up', amountMinor: 5000, direction: 'transfer', accountId: 'bank', toAccountId: 'card' });
 
+    await openTab('Accounts');
     await chooseFromMenu(container, 'Actions for Visa', 'Edit');
     form = container.querySelector('dialog form') as HTMLFormElement;
     expect(form.querySelector<HTMLInputElement>('input[name="balance"]')!.value).toBe('45.00');
@@ -282,7 +291,7 @@ describe('Spending', () => {
       if (path === '/merchant-rules/r1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
       return undefined;
     });
-    await render('/spending?month=2026-10');
+    await render('/spending?month=2026-10&tab=budgets');
 
     expect(container.textContent).toContain('Uber ride · Transport');
     await act(async () => button('Edit categories').click());
@@ -320,6 +329,7 @@ describe('Spending', () => {
 
     expect(container.querySelector('h2')!.textContent).toBe('Sep 25 – Oct 24, 2026');
     expect(container.textContent).toContain('Safe to spend a day€22.50');
+    await openTab('Budgets');
     await act(async () => button('Budget settings').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
     expect(form.querySelector<HTMLInputElement>('input[name="budget"]')!.value).toBe('300.00');
@@ -354,7 +364,7 @@ describe('Spending', () => {
       if (path === '/spaces/home/installments' && init?.method === 'POST') return json({ ...plan, id: 'p2', name: 'Laptop' }, 201);
       return undefined;
     });
-    await render('/spending?month=2026-10');
+    await render('/spending?month=2026-10&tab=accounts');
 
     expect(container.textContent).toContain('Next: €100.00 on Oct 31 · €500.00 left');
     expect(container.textContent).toContain('1 of 6');

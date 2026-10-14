@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { EmptyState, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { spendingTabs } from '../spending';
 import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -57,8 +58,9 @@ export function RecurringPage() {
           </>
         )
       }
-      title="Recurring"
+      title="Spending"
     >
+      <Tabs items={spendingTabs('recurring')} label="Spending" />
       {adding && (
         <SubscriptionEditor
           onClose={() => setAdding(false)}
@@ -79,12 +81,7 @@ export function RecurringPage() {
       ) : !summary.data ? (
         <ListSkeleton label="Adding up your subscriptions" rows={4} />
       ) : summary.data.totals.length === 0 ? (
-        <EmptyState title="No subscriptions yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Open a space, then its Recurring tab, to add the first one.{' '}
-            {spaces.data?.[0] && <Link to={`/spaces/${spaces.data[0].id}/recurring`}>Start in {spaces.data[0].name}</Link>}
-          </p>
-        </EmptyState>
+        <EmptyState title="No subscriptions yet" />
       ) : (
         <>
           {summary.data.home && summary.data.totals.length > 1 && (

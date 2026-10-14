@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, TextField, Toggle } from '@project-graphite/ui';
+import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { allCurrencies, currencyOptions } from '../choices';
 import { AccountEditor } from '../components/AccountEditor';
@@ -19,6 +19,7 @@ import {
   accountKindOptions,
   categoryName,
   categoryOptions,
+  spendingTabs,
   useCategories,
   type CapturedMessage,
   type Expense,
@@ -41,14 +42,16 @@ const shiftMonth = (month: string, by: number) => {
   return date.toISOString().slice(0, 7);
 };
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const recentCount = 5;
 
 export function SpendingPage() {
   const auth = useAuth();
-  const navigate = useNavigate();
   const spaces = useSpaces();
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
+  const tab = (['transactions', 'accounts', 'budgets'] as const).find((option) => option === params.get('tab')) ?? 'overview';
+  const managing = tab === 'budgets';
   const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
   const space = spaces.data?.find((candidate) => candidate.id === spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
@@ -88,8 +91,6 @@ export function SpendingPage() {
     <Page
       actions={
         <>
-          <HeaderButton label="Insights" onClick={() => navigate(`/spending/insights${spaceId ? `?space=${spaceId}` : ''}`)} />
-          <HeaderButton label="Net worth" onClick={() => navigate(`/spending/net-worth${spaceId ? `?space=${spaceId}` : ''}`)} />
           {spaceId && (
             <Menu
               items={[
@@ -119,42 +120,53 @@ export function SpendingPage() {
       }
       title="Spending"
     >
+      <Tabs
+        items={spendingTabs(tab, params.get('space'), (next) => {
+          const query = new URLSearchParams(params);
+          if (next === 'overview') query.delete('tab');
+          else query.set('tab', next);
+          return `/spending${query.size ? `?${query}` : ''}`;
+        })}
+        label="Spending"
+      />
       <Toolbar
         actions={
           (spaces.data?.length ?? 0) > 1 && spaceId && <Select aria-label="Space" onChange={(chosen) => go({ space: chosen })} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} />
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <button aria-label="Previous month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, -1) })} type="button">
-            <Icon name="chevron-left" size={18} />
-          </button>
-          <button aria-label="Next month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, 1) })} type="button">
-            <Icon name="chevron-right" size={18} />
-          </button>
-          <button
-            className="secondary-button px-3 py-2 text-sm"
-            onClick={() =>
-              setParams((current) => {
-                const next = new URLSearchParams(current);
-                next.delete('month');
-                return next;
-              })
-            }
-            type="button"
-          >
-            This month
-          </button>
-          {shown && (
-            <h2 className="m-0 ml-2 text-lg font-medium">
-              {shown.plan.startDay === 1
-                ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-                : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`}
-            </h2>
-          )}
-        </div>
+        {tab !== 'accounts' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button aria-label="Previous month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, -1) })} type="button">
+              <Icon name="chevron-left" size={18} />
+            </button>
+            <button aria-label="Next month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, 1) })} type="button">
+              <Icon name="chevron-right" size={18} />
+            </button>
+            <button
+              className="secondary-button px-3 py-2 text-sm"
+              onClick={() =>
+                setParams((current) => {
+                  const next = new URLSearchParams(current);
+                  next.delete('month');
+                  return next;
+                })
+              }
+              type="button"
+            >
+              This month
+            </button>
+            {shown && (
+              <h2 className="m-0 ml-2 text-lg font-medium">
+                {shown.plan.startDay === 1
+                  ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+                  : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`}
+              </h2>
+            )}
+          </div>
+        )}
       </Toolbar>
 
-      {editable && spaceId && (
+      {tab === 'overview' && editable && spaceId && (
         <form
           className="flex max-w-xl items-start gap-2"
           onSubmit={(event) => {
@@ -183,26 +195,29 @@ export function SpendingPage() {
         <ListSkeleton label="Adding up the month" rows={5} />
       ) : (
         <>
-          <dl className="m-0 grid gap-3 sm:grid-cols-3">
-            {[
-              ['Spent', money(shown.spentMinor, currency)],
-              ['Received', money(shown.receivedMinor, currency)],
-              ['Budget', shown.budgetMinor === null ? 'None set' : `${money(Math.max(0, shown.budgetMinor - shown.spentMinor), currency)} left of ${money(shown.budgetMinor, currency)}`],
-              ...(shown.safeDailyMinor === null ? [] : [['Safe to spend a day', money(shown.safeDailyMinor, currency)]]),
-              ['Renewals this month', money(shown.committedMinor, currency)],
-            ].map(([label, value]) => (
-              <div className="rounded-xl border border-line p-4" key={label}>
-                <dt className="text-sm text-muted">{label}</dt>
-                <dd className="m-0 mt-1 text-lg text-ink">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
+          {tab === 'overview' && (
+            <dl className="m-0 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ['Spent', money(shown.spentMinor, currency)],
+                ['Left to spend', shown.budgetMinor === null ? 'No budget' : money(shown.budgetMinor - shown.spentMinor, currency)],
+                ['Safe to spend a day', shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)],
+                ['Received', money(shown.receivedMinor, currency)],
+              ].map(([label, value]) => (
+                <div className="grid content-start gap-2 rounded-xl border border-line p-4" key={label}>
+                  <dt className="text-sm text-muted">{label}</dt>
+                  <dd className="m-0 text-lg text-ink">{value}</dd>
+                  {label === 'Left to spend' && shown.budgetMinor !== null && (
+                    <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
+                  )}
+                </div>
+              ))}
+            </dl>
+          )}
           {shown.missing.length > 0 && (
             <p className="notice m-0">There is no exchange rate for {shown.missing.join(', ')} yet, so those amounts are left out of the totals.</p>
           )}
 
-          {Boolean(captures.data?.length) && (
+          {tab === 'overview' && Boolean(captures.data?.length) && (
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
                 {captures.data!.map((message) => (
@@ -261,7 +276,7 @@ export function SpendingPage() {
             </Section>
           )}
 
-          {(editable || Boolean(accounts.data?.length)) && (
+          {tab === 'accounts' && (
             <Section action={editable && <HeaderButton label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
               {!accounts.data?.length ? (
                 <p className="m-0 text-sm text-muted">No accounts yet.</p>
@@ -306,7 +321,7 @@ export function SpendingPage() {
             </Section>
           )}
 
-          {(editable || Boolean(installments.data?.length)) && (
+          {tab === 'accounts' && (
             <Section action={editable && <HeaderButton label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
               {!installments.data?.length ? (
                 <p className="m-0 text-sm text-muted">No installment plans.</p>
@@ -369,7 +384,71 @@ export function SpendingPage() {
             </Section>
           )}
 
-          {Boolean(rules.data?.length) && (
+          {(tab === 'overview' || managing) && (
+            <Section
+              action={
+                editable && managing && (
+                  <span className="flex flex-wrap gap-2">
+                    <HeaderButton label="Budget settings" onClick={() => setDialog('plan')} />
+                    <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
+                    <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
+                  </span>
+                )
+              }
+              title={managing ? 'Budgets' : 'By category'}
+            >
+              {shown.categories.length === 0 ? (
+                <p className="m-0 text-sm text-muted">Nothing spent this month yet.</p>
+              ) : (
+                <ul className="panel-rows">
+                  {shown.categories.map((row) => (
+                    <li className="panel-row grid gap-2" key={row.category}>
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-2 text-ink">
+                          <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
+                          {categoryName(row.category)}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-muted">
+                            {row.budgetMinor === null ? money(row.spentMinor, currency) : `${money(row.spentMinor, currency)} of ${money(row.budgetMinor, currency)}`}
+                            {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
+                          </span>
+                          {editable && managing && (
+                            <Menu
+                              items={[
+                                { label: row.budgetMinor === null ? 'Set a budget' : 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
+                                ...(row.budgetMinor === null
+                                  ? []
+                                  : [
+                                      {
+                                        label: 'Remove the budget',
+                                        separated: true,
+                                        onSelect: () =>
+                                          void action.run(async () => {
+                                            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(row.category)}`, { method: 'DELETE' });
+                                            summary.reload();
+                                            return `Removed the ${categoryName(row.category).toLowerCase()} budget.`;
+                                          }, 'Could not remove the budget'),
+                                      },
+                                    ]),
+                              ]}
+                              label={`${categoryName(row.category)} actions`}
+                              trigger={<Icon name="more" size={18} />}
+                              triggerClassName="icon-button"
+                              triggerLabel={`Actions for ${categoryName(row.category)}`}
+                            />
+                          )}
+                        </span>
+                      </span>
+                      {row.budgetMinor !== null && <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
+
+          {managing && Boolean(rules.data?.length) && (
             <Section title="Merchant rules">
               <ul className="panel-rows">
                 {rules.data!.map((rule) => (
@@ -402,117 +481,60 @@ export function SpendingPage() {
             </Section>
           )}
 
-          <Section
-            action={
-              editable && (
-                <span className="flex flex-wrap gap-2">
-                  <HeaderButton label="Budget settings" onClick={() => setDialog('plan')} />
-                  <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
-                  <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
-                </span>
-              )
-            }
-            title="By category"
-          >
-            {shown.categories.length === 0 ? (
-              <p className="m-0 text-sm text-muted">Nothing spent this month yet.</p>
-            ) : (
-              <ul className="panel-rows">
-                {shown.categories.map((row) => (
-                  <li className="panel-row grid gap-2" key={row.category}>
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2 text-ink">
-                        <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
-                        {categoryName(row.category)}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <span className="text-sm text-muted">
-                          {row.budgetMinor === null ? money(row.spentMinor, currency) : `${money(row.spentMinor, currency)} of ${money(row.budgetMinor, currency)}`}
-                          {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
+          {(tab === 'overview' || tab === 'transactions') && (
+            <Section
+              action={tab === 'overview' && shown.expenses.length > recentCount && <HeaderButton label="All transactions" onClick={() => go({ tab: 'transactions' })} />}
+              title={tab === 'overview' ? 'Recent' : 'Transactions'}
+            >
+              {shown.expenses.length === 0 ? (
+                <EmptyState title="Nothing this month">
+                </EmptyState>
+              ) : (
+                <ul className="panel-rows">
+                  {(tab === 'overview' ? shown.expenses.slice(0, recentCount) : shown.expenses).map((expense) => (
+                    <li className="panel-row flex items-center gap-3" key={expense.id}>
+                      <button
+                        className="grid min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
+                        disabled={!editable}
+                        onClick={() => setDialog({ expense })}
+                        type="button"
+                      >
+                        <span className="truncate text-ink">{expense.title}</span>
+                        <span className="truncate text-sm text-muted">
+                          {[
+                            formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
+                            expense.direction === 'transfer'
+                              ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
+                              : expense.direction === 'received'
+                                ? 'Received'
+                                : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
+                            expense.direction !== 'transfer' && accountName(expense.accountId),
+                            expense.split && 'split',
+                            expense.paymentLabel,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </span>
-                        {editable && (
-                          <Menu
-                            items={[
-                              { label: row.budgetMinor === null ? 'Set a budget' : 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
-                              ...(row.budgetMinor === null
-                                ? []
-                                : [
-                                    {
-                                      label: 'Remove the budget',
-                                      separated: true,
-                                      onSelect: () =>
-                                        void action.run(async () => {
-                                          await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(row.category)}`, { method: 'DELETE' });
-                                          summary.reload();
-                                          return `Removed the ${categoryName(row.category).toLowerCase()} budget.`;
-                                        }, 'Could not remove the budget'),
-                                    },
-                                  ]),
-                            ]}
-                            label={`${categoryName(row.category)} actions`}
-                            trigger={<Icon name="more" size={18} />}
-                            triggerClassName="icon-button"
-                            triggerLabel={`Actions for ${categoryName(row.category)}`}
-                          />
-                        )}
+                      </button>
+                      <span className={expense.direction === 'transfer' ? 'shrink-0 text-muted' : 'shrink-0 text-ink'}>
+                        {expense.direction === 'received' || expense.direction === 'refund' ? '+' : ''}
+                        {money(expense.amountMinor, expense.currency)}
                       </span>
-                    </span>
-                    {row.budgetMinor !== null && <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          <Section title="Transactions">
-            {shown.expenses.length === 0 ? (
-              <EmptyState title="Nothing this month">
-              </EmptyState>
-            ) : (
-              <ul className="panel-rows">
-                {shown.expenses.map((expense) => (
-                  <li className="panel-row flex items-center gap-3" key={expense.id}>
-                    <button
-                      className="grid min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-                      disabled={!editable}
-                      onClick={() => setDialog({ expense })}
-                      type="button"
-                    >
-                      <span className="truncate text-ink">{expense.title}</span>
-                      <span className="truncate text-sm text-muted">
-                        {[
-                          formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
-                          expense.direction === 'transfer'
-                            ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
-                            : expense.direction === 'received'
-                              ? 'Received'
-                              : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
-                          expense.direction !== 'transfer' && accountName(expense.accountId),
-                          expense.split && 'split',
-                          expense.paymentLabel,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </button>
-                    <span className={expense.direction === 'transfer' ? 'shrink-0 text-muted' : 'shrink-0 text-ink'}>
-                      {expense.direction === 'received' || expense.direction === 'refund' ? '+' : ''}
-                      {money(expense.amountMinor, expense.currency)}
-                    </span>
-                    {editable && space?.kind === 'shared' && members.data && (
-                      <Menu
-                        items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]}
-                        label={`${expense.title} actions`}
-                        trigger={<Icon name="more" size={18} />}
-                        triggerClassName="icon-button"
-                        triggerLabel={`Actions for ${expense.title}`}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+                      {editable && space?.kind === 'shared' && members.data && (
+                        <Menu
+                          items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]}
+                          label={`${expense.title} actions`}
+                          trigger={<Icon name="more" size={18} />}
+                          triggerClassName="icon-button"
+                          triggerLabel={`Actions for ${expense.title}`}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
         </>
       )}
 
