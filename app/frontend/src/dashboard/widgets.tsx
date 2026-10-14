@@ -7,7 +7,7 @@ import { siteLabel, type Bookmark } from '../bookmarks';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
-import { addDays, dayKey, entryDay, entryTime, useAgenda } from '../agenda';
+import { addDays, dayKey, entryDay, entryTime, useAgenda, useTodaySchedule } from '../agenda';
 import type { InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -15,7 +15,7 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { AgendaEntryLink } from '../components/AgendaEntryLink';
+import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
@@ -107,7 +107,7 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
   );
 }
 
-function TaskWidget({ add, path }: { add?: { spaceId: string; listId?: string }; path: string }) {
+function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; listId?: string }; path: string; quiet?: boolean }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
@@ -119,7 +119,7 @@ function TaskWidget({ add, path }: { add?: { spaceId: string; listId?: string };
   return (
     <div className="grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
-      {list.length === 0 && <Empty>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Empty>}
+      {list.length === 0 && !quiet && <Empty>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Empty>}
       <ul className="m-0 grid list-none gap-0 p-0">
         {list.slice(0, 8).map((task) => (
           <TaskRow
@@ -142,7 +142,23 @@ function TaskWidget({ add, path }: { add?: { spaceId: string; listId?: string };
 }
 
 function Today() {
-  return <TaskWidget path="/tasks/today" />;
+  const schedule = useTodaySchedule();
+  if (schedule.error) return <LoadError compact error={schedule.error} onRetry={schedule.reload} />;
+  if (!schedule.data) return <ListSkeleton label="Loading today" rows={3} />;
+  return (
+    <div className="grid gap-3">
+      {schedule.data.length > 0 && (
+        <ul className="m-0 grid list-none gap-1.5 p-0">
+          {schedule.data.map((entry) => (
+            <li key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
+              <AgendaCard colour={schedule.colourOf(entry)} entry={entry} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <TaskWidget path="/tasks/today" quiet={schedule.data.length > 0} />
+    </div>
+  );
 }
 
 function useTodoSpaceId(settings: Record<string, unknown>) {

@@ -50,6 +50,12 @@ export function useAgenda(from: string, to: string) {
   return { ...agenda, colourOf };
 }
 
+export function useTodaySchedule() {
+  const today = dayKey(new Date());
+  const agenda = useAgenda(today, addDays(today, 1));
+  return { ...agenda, data: agenda.data?.filter((entry) => entry.kind !== 'task') };
+}
+
 export interface PublicEvent {
   title: string;
   startsOn: string;
