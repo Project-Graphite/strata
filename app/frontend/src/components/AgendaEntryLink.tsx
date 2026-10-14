@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Dialog, LinesSkeleton } from '@project-graphite/ui';
-import { entryLink, entryWhen, type AgendaEntry, type CalendarEvent } from '../agenda';
+import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
@@ -96,5 +96,15 @@ export function AgendaEntryLink({
       </button>
       {open && <CalendarEventDialog entry={entry} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+export function AgendaCard({ colour, entry }: { colour: string; entry: AgendaEntry }) {
+  return (
+    <AgendaEntryLink className="agenda-card" colour={colour} entry={entry}>
+      <span className="block truncate text-sm text-ink">{entry.title}</span>
+      <span className="sr-only"> · </span>
+      <span className="mono-sm block truncate text-faint">{[entryTime(entry), entry.calendar ?? kindLabels[entry.kind], entry.location].filter(Boolean).join(' · ')}</span>
+    </AgendaEntryLink>
   );
 }

@@ -252,14 +252,28 @@ describe('Tasks', () => {
     await vi.waitFor(() => expect(widget.textContent).toContain('Book the dentist'));
   });
 
-  it('lists what is due today across spaces and clears a finished task', async () => {
+  it('shows today’s schedule from the agenda and followed calendars, and clears a finished task', async () => {
     serve((path) => {
       if (path === '/tasks/today') return json([task({ repeatRule: null, dueTime: null })]);
       if (path === '/tasks/bins/complete') return json(task({ repeatRule: null, completedAt: '2026-10-05T10:00:00Z' }));
+      if (path === '/me/calendars/refresh') return json({ refreshed: 0 });
+      if (path === '/me/calendars') return json([{ id: 'work' }]);
+      if (path.startsWith('/agenda?')) {
+        return json([
+          { kind: 'external', itemId: 's', spaceId: 'home', title: 'Standup', allDay: false, start: '2026-10-05T09:00:00Z', end: '2026-10-05T09:30:00Z', location: null, calendar: 'Work', calendarId: 'work', uid: 'standup' },
+          { kind: 'event', itemId: 'dentist', spaceId: 'home', title: 'Dentist', allDay: false, start: '2026-10-05T15:00:00Z', end: '2026-10-05T16:00:00Z', location: '12 High St' },
+          { kind: 'task', itemId: 'bins', spaceId: 'home', title: 'Bins out', allDay: true, start: '2026-10-05', end: null, location: null },
+        ]);
+      }
       return undefined;
     });
     await render('/today');
 
+    const sections = [...container.querySelectorAll('section h2')].map((heading) => heading.textContent);
+    expect(sections).toEqual(['Schedule', 'Due']);
+    expect([...container.querySelectorAll('.agenda-card')].map((card) => card.getAttribute('title'))).toEqual(['Standup', 'Dentist']);
+    expect(container.textContent).toContain('Work');
+    expect(container.textContent).toContain('12 High St');
     expect(container.textContent).toContain('Bins out');
     expect(container.textContent).toContain('Home ·');
     await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Mark Bins out as done"]')!.click());

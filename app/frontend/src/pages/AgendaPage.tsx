@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, Tabs } from '@project-graphite/ui';
-import { addDays, clock, dayKey, entryDay, entryTime, kindLabels, monthDays, useAgenda, type AgendaEntry } from '../agenda';
-import { AgendaEntryLink } from '../components/AgendaEntryLink';
+import { addDays, clock, dayKey, entryDay, monthDays, useAgenda, type AgendaEntry } from '../agenda';
+import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { EventEditor } from '../components/EventEditor';
 import { TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
@@ -121,13 +121,7 @@ export function AgendaPage() {
                   <ul className="m-0 mt-2 grid list-none gap-1.5 p-0">
                     {byDay.get(day)!.map((entry) => (
                       <li key={entryKey(entry)}>
-                        <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
-                          <span className="block truncate text-sm text-ink">{entry.title}</span>
-                          <span className="sr-only"> · </span>
-                          <span className="mono-sm block truncate text-faint">
-                            {[entryTime(entry), entry.calendar ?? kindLabels[entry.kind], entry.location].filter(Boolean).join(' · ')}
-                          </span>
-                        </AgendaEntryLink>
+                        <AgendaCard colour={agenda.colourOf(entry)} entry={entry} />
                       </li>
                     ))}
                   </ul>
