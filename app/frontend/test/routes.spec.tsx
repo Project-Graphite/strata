@@ -83,7 +83,8 @@ describe('App routes', () => {
     const main = container.querySelector('main')!;
     expect(main.querySelector('h1')?.textContent).toBe('Menu');
     const links = [...main.querySelectorAll('a')].map((link) => link.getAttribute('href'));
-    expect(links).toEqual(expect.arrayContaining(['/recurring', '/tidy', '/spaces/club', '/inbox', '/invitations', '/trash', '/settings']));
+    expect(links).toEqual(expect.arrayContaining(['/spending', '/spaces/club', '/inbox', '/invitations', '/trash', '/settings']));
+    expect(links).not.toContain('/tidy');
     expect(main.querySelector('a[href="/inbox"]')?.textContent).toContain('3');
   });
 });
