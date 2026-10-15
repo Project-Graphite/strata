@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, TextField } from '@project-graphite/ui';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
 import { Hint } from '../components/Hint';
+import { Subheading } from '../components/Page';
 
 export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) => void; onClose: () => void }) {
   const [query, setQuery] = useState('');
@@ -18,7 +19,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
           return (
             inGroup.length > 0 && (
               <section className="grid gap-2" key={group}>
-                <h3 className="m-0 text-sm font-medium text-muted">{group}</h3>
+                <Subheading>{group}</Subheading>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {inGroup.map((type) => (
                     <button className="widget-choice" key={type} onClick={() => onAdd(type)} type="button">

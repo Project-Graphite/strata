@@ -4,6 +4,7 @@ import { Menu } from '@project-graphite/ui';
 import type * as Y from 'yjs';
 import { Hint } from './Hint';
 import { buttonClass } from './Button';
+import { Subheading } from './Page';
 
 export interface VoteRound {
   startedAt: number;
@@ -122,7 +123,7 @@ export function BrainstormBar({
       </div>
       {session.results && (
         <section aria-label="Vote results" className="grid gap-1 rounded-lg border border-line-soft px-3 py-2">
-          <h3 className="mono-sm m-0 text-faint">Vote results</h3>
+          <Subheading>Vote results</Subheading>
           {session.results.length === 0 ? (
             <Hint>No dots landed on a shape.</Hint>
           ) : (

@@ -7,6 +7,7 @@ import { CopyLink } from './CopyLink';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { Subheading } from './Page';
 
 type Access = 'view' | 'edit';
 
@@ -62,7 +63,9 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
           primary
         />
       </DialogActions>
-      <h3 className="mt-6 mb-3 text-base font-medium">Links</h3>
+      <div className="mt-6 mb-3">
+        <Subheading>Links</Subheading>
+      </div>
       {links.loading ? (
         <LinesSkeleton label="Loading links" lines={2} />
       ) : links.data?.length ? (

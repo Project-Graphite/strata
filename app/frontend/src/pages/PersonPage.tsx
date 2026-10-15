@@ -9,7 +9,7 @@ import { Button, IconButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { Page, Section, Subheading } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
 import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
@@ -165,7 +165,7 @@ export function PersonPage() {
             {upcoming.length > 0 && eventList(upcoming)}
             {earlier.length > 0 && (
               <div className="grid gap-2">
-                <h3 className="m-0 text-sm font-medium text-muted">Earlier</h3>
+                <Subheading>Earlier</Subheading>
                 {eventList(earlier)}
               </div>
             )}

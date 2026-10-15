@@ -90,7 +90,7 @@ export function TodoPage() {
       {tasks.data.results.length === 0 ? (
         <Empty title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
+        <ul className="panel-rows">
           {tasks.data.results.map((task) => (
             <TaskRow
               disabled={spaceOf(task.spaceId)?.role === 'viewer' || action.busy}

@@ -10,7 +10,7 @@ import { useResource } from '../useResource';
 import { Button, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates, Stat, Stats } from '../components/Stats';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
@@ -33,7 +33,7 @@ interface Summary {
 function SubscriptionLine({ subscription, detail }: { subscription: Subscription; detail: string }) {
   return (
     <Link
-      className="flex items-baseline justify-between gap-4 border-b border-line-soft py-3 text-ink no-underline hover:underline"
+      className="flex items-baseline justify-between gap-4 panel-row text-ink no-underline hover:bg-line-soft"
       to={`/spaces/${subscription.spaceId}/recurring`}
     >
       <span className="min-w-0 truncate">{subscription.name}</span>
@@ -106,9 +106,8 @@ export function RecurringPage() {
           </Stats>
           {summary.data.home && summary.data.totals.length > 1 && <MissingRates currencies={summary.data.home.missing} />}
           {summary.data.trials.length > 0 && (
-            <section>
-              <h2 className="m-0 text-xl font-medium">Trials ending soon</h2>
-              <div className="mt-3">
+            <Section title="Trials ending soon">
+              <div className="panel-rows">
                 {summary.data.trials.map((subscription) => (
                   <SubscriptionLine
                     detail={`ends ${shortDate(subscription.trialEndsOn!)}, then ${money(subscription.amountMinor, subscription.currency)}`}
@@ -117,11 +116,10 @@ export function RecurringPage() {
                   />
                 ))}
               </div>
-            </section>
+            </Section>
           )}
-          <section>
-            <h2 className="m-0 text-xl font-medium">Next renewals</h2>
-            <div className="mt-3">
+          <Section title="Next renewals">
+            <div className="panel-rows">
               {summary.data.upcoming.map((subscription) => (
                 <SubscriptionLine
                   detail={`${shortDate(subscription.nextRenewal)} · ${money(subscription.amountMinor, subscription.currency)}`}
@@ -130,25 +128,22 @@ export function RecurringPage() {
                 />
               ))}
             </div>
-          </section>
-          <section>
-            <h2 className="m-0 text-xl font-medium">By category</h2>
-            <div className="mt-3">
+          </Section>
+          <Section title="By category">
+            <div className="panel-rows">
               {summary.data.categories.map((category) => (
-                <p className="m-0 flex justify-between gap-4 border-b border-line-soft py-3" key={`${category.category}-${category.currency}`}>
+                <p className="m-0 flex justify-between gap-4 panel-row" key={`${category.category}-${category.currency}`}>
                   <span className="text-ink">{categoryLabel(category.category)}</span>
                   <span className="mono-sm text-faint">{money(category.monthlyMinor, category.currency)} a month</span>
                 </p>
               ))}
             </div>
-          </section>
+          </Section>
           {summary.data.stillWorthIt.length > 0 && (
-            <section>
-              <h2 className="m-0 text-xl font-medium">Still worth it?</h2>
-              <p className="mt-2 mb-0 text-sm text-muted">Nobody has marked these as used in two months.</p>
-              <ul className="mt-3 grid list-none gap-0 p-0">
+            <Section description="Nobody has marked these as used in two months." title="Still worth it?">
+              <ul className="panel-rows">
                 {summary.data.stillWorthIt.map((subscription) => (
-                  <li className="flex items-center justify-between gap-4 border-b border-line-soft py-3" key={subscription.id}>
+                  <li className="flex items-center justify-between gap-4 panel-row" key={subscription.id}>
                     <Link className="min-w-0 truncate text-ink" to={`/spaces/${subscription.spaceId}/recurring`}>
                       {subscription.name}
                     </Link>
@@ -169,7 +164,7 @@ export function RecurringPage() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </Section>
           )}
         </>
       )}

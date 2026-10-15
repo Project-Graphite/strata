@@ -34,7 +34,7 @@ export function TodayPage() {
         <>
           {schedule.data.length > 0 && (
             <Section title="Schedule">
-              <ul className="m-0 grid max-w-3xl list-none gap-1.5 p-0">
+              <ul className="m-0 grid list-none gap-1.5 p-0">
                 {schedule.data.map((entry) => (
                   <li key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
                     <AgendaCard colour={schedule.colourOf(entry)} entry={entry} />
@@ -45,7 +45,7 @@ export function TodayPage() {
           )}
           {tasks.data.length > 0 && (
             <Section title="Due">
-              <ul className="m-0 grid list-none gap-0 p-0">
+              <ul className="panel-rows">
                 {tasks.data.map((task) => (
                   <TaskRow
                     disabled={spaceOf(task)?.role === 'viewer' || action.busy}

@@ -40,11 +40,11 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
               {charges.length} charges read · {suggestions.length} look recurring
             </p>
             {suggestions.length > 0 && (
-              <ul className="m-0 grid list-none gap-0 p-0">
+              <ul className="panel-rows">
                 {suggestions.map((suggestion) => {
                   const known = tracked.has(suggestion.key);
                   return (
-                    <li className="border-b border-line-soft py-2" key={suggestion.key}>
+                    <li className="panel-row" key={suggestion.key}>
                       <label className="flex items-center gap-3">
                         <input
                           checked={!known && !skipped.has(suggestion.key)}

@@ -39,7 +39,7 @@ export function SpaceItems() {
   if (!items.data) return <ListSkeleton label="Loading the items in this space" rows={4} />;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
+    <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-4">
           <Link className="mono-sm w-fit text-faint" to={archived ? base : `${base}?archived=true`}>
@@ -99,6 +99,6 @@ export function SpaceItems() {
         pageHref={(next) => `${base}?page=${next}${filters}`}
         totalPages={items.data.totalPages}
       />
-    </div>
+    </>
   );
 }

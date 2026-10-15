@@ -67,7 +67,7 @@ export function SpaceTasks() {
   const shownList = lists.data.find((list) => list.id === listId);
 
   return (
-    <div className="fade-in grid gap-6">
+    <>
       <Toolbar actions={editable && <Button icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
         <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
           <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null })}>
@@ -110,7 +110,7 @@ export function SpaceTasks() {
       {tasks.data.results.length === 0 ? (
         <Empty title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
+        <ul className="panel-rows">
           {tasks.data.results.map((task) => (
             <TaskRow
               disabled={!editable || action.busy}
@@ -190,6 +190,6 @@ export function SpaceTasks() {
           <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />
         </FormDialog>
       )}
-    </div>
+    </>
   );
 }

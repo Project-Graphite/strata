@@ -120,7 +120,7 @@ export function GoalPage() {
         {shown.taskList.length === 0 ? (
           <Hint>No tasks linked yet.</Hint>
         ) : (
-          <ul className="m-0 grid list-none gap-0 p-0">
+          <ul className="panel-rows">
             {shown.taskList.map((task) => (
               <TaskRow
                 actions={

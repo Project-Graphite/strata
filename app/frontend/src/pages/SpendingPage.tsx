@@ -19,6 +19,7 @@ import { Page, Section, Toolbar } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { PhoneSetup } from '../components/PhoneSetup';
 import { saveBlob } from '../files';
+import { RowText } from '../components/RowText';
 import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
@@ -259,12 +260,10 @@ export function SpendingPage() {
                 <ul className="panel-rows">
                   {accounts.data.map((account) => (
                     <li className="panel-row flex items-center gap-3" key={account.id}>
-                      <span className="grid min-w-0 flex-1">
-                        <span className="truncate text-ink">{account.name}</span>
-                        <span className="truncate text-sm text-muted">
-                          {[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
-                        </span>
-                      </span>
+                      <RowText
+                        detail={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
+                        title={account.name}
+                      />
                       <span className="shrink-0 text-ink">
                         {account.kind === 'credit' ? `${money(Math.max(0, -account.balanceMinor), account.currency)} owed` : money(account.balanceMinor, account.currency)}
                       </span>
@@ -302,14 +301,13 @@ export function SpendingPage() {
                   {installments.data.map((plan) => (
                     <li className="panel-row grid gap-2" key={plan.id}>
                       <span className="flex items-center gap-3">
-                        <span className="grid min-w-0 flex-1">
-                          <span className="truncate text-ink">{plan.name}</span>
-                          <span className={plan.status === 'missed' ? 'truncate text-sm text-danger' : 'truncate text-sm text-muted'}>
+                        <RowText title={plan.name}>
+                          <span className={plan.status === 'missed' ? 'text-sm text-danger' : 'text-sm text-muted'}>
                             {plan.status === 'done'
                               ? 'Paid off'
                               : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
                           </span>
-                        </span>
+                        </RowText>
                         <span className="shrink-0 text-sm text-muted">
                           {plan.paidCount} of {plan.count}
                         </span>
@@ -419,12 +417,10 @@ export function SpendingPage() {
               <ul className="panel-rows">
                 {rules.data!.map((rule) => (
                   <li className="panel-row flex items-center gap-3" key={rule.id}>
-                    <span className="grid min-w-0 flex-1">
-                      <span className="truncate text-ink">{rule.match}</span>
-                      <span className="truncate text-sm text-muted">
-                        {rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
+                    <RowText
+                      detail={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
+                      title={rule.match}
+                    />
                     {editable && (
                       <button
                         className="text-button text-sm"

@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
+import { RowText } from '../components/RowText';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -97,10 +98,8 @@ export function AdminPage() {
             {accounts.data.map((account) => (
               <li className="panel-row flex items-center gap-3" key={account.id}>
                 <Avatar name={account.displayName} />
-                <span className="grid min-w-0 flex-1">
-                  <span className="truncate text-ink">{[account.displayName, roleNames[account.role]].filter(Boolean).join(' · ')}</span>
-                  <span className="truncate text-sm text-muted">
-                    {[
+                <RowText
+                  detail={[
                       account.email,
                       `@${account.handle}`,
                       `joined ${timeAgo(account.createdAt)}`,
@@ -110,8 +109,8 @@ export function AdminPage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
-                  </span>
-                </span>
+                  title={[account.displayName, roleNames[account.role]].filter(Boolean).join(' · ')}
+                />
               </li>
             ))}
           </ul>

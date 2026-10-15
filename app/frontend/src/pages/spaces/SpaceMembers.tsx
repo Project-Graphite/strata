@@ -11,6 +11,7 @@ import { Button } from '../../components/Button';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
+import { RowText } from '../../components/RowText';
 
 interface Member {
   userId: string;
@@ -51,7 +52,7 @@ export function SpaceMembers() {
   }
 
   return (
-    <div className="fade-in grid gap-6">
+    <>
       <Toolbar actions={invites && <Button icon="plus" label="Invite people" onClick={() => setInviting(true)} primary />}>
         <Hint>{members.data.length === 1 ? '1 member' : `${members.data.length} members`}</Hint>
       </Toolbar>
@@ -60,15 +61,10 @@ export function SpaceMembers() {
           <li className="panel-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3" key={member.userId}>
             <div className="flex min-w-0 items-center gap-3">
               <Avatar name={member.displayName} />
-              <div className="min-w-0">
-                <p className="m-0 truncate text-ink">
-                  {member.displayName}
-                  {member.userId === self && <span className="text-muted"> · you</span>}
-                </p>
-                <p className="m-0 mt-0.5 truncate text-sm text-muted">
-                  @{member.handle} · joined {timeAgo(member.joinedAt)}
-                </p>
-              </div>
+              <RowText
+                detail={<>@{member.handle} · joined {timeAgo(member.joinedAt)}</>}
+                title={<>{member.displayName} {member.userId === self && <span className="text-muted"> · you</span>}</>}
+              />
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {invites ? (
@@ -115,6 +111,6 @@ export function SpaceMembers() {
             : `${removing.displayName} loses access to everything in ${space.name}.`}
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

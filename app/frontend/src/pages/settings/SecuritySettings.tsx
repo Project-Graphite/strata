@@ -178,7 +178,7 @@ export function SecuritySettings() {
   );
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
+    <>
       <Section title="Sign-in">
         <SettingsRows>
           <SettingsRow action={button('Change', 'password')} label="Password" />
@@ -280,6 +280,6 @@ export function SecuritySettings() {
         </FormDialog>
       )}
       <SessionsSection />
-    </div>
+    </>
   );
 }

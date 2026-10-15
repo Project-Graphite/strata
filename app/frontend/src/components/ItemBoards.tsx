@@ -6,6 +6,7 @@ import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
 import { Hint } from './Hint';
 import { Button } from './Button';
+import { Section } from './Page';
 
 interface Linked {
   id: string;
@@ -21,8 +22,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
   if (!links.data || (boards.length === 0 && !editable)) return null;
 
   return (
-    <section className="grid gap-3">
-      <h2 className="m-0 text-xl font-medium">Boards</h2>
+    <Section title="Boards">
       {boards.length === 0 && <Hint>No boards yet.</Hint>}
       {boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
@@ -47,6 +47,6 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
           }
         />
       )}
-    </section>
+    </Section>
   );
 }

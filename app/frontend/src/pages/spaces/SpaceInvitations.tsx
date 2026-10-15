@@ -9,6 +9,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { Button } from '../../components/Button';
+import { RowText } from '../../components/RowText';
 
 export function SpaceInvitations({ inviting, onClose, space }: { inviting: boolean; onClose: () => void; space: Space }) {
   const auth = useAuth();
@@ -23,14 +24,10 @@ export function SpaceInvitations({ inviting, onClose, space }: { inviting: boole
           <ul className="panel-rows">
             {pending.data.map((invitation) => (
               <li className="panel-row flex items-center justify-between gap-4" key={invitation.id}>
-                <div className="min-w-0">
-                  <p className="m-0 truncate text-ink">
-                    {invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : invitation.email}
-                  </p>
-                  <p className="m-0 mt-0.5 text-sm text-muted">
-                    as {invitation.role} · sent {timeAgo(invitation.createdAt)}
-                  </p>
-                </div>
+                <RowText
+                  detail={<>as {invitation.role} · sent {timeAgo(invitation.createdAt)}</>}
+                  title={invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : invitation.email}
+                />
                 <Button
                   disabled={withdrawing.busy}
                   label="Withdraw"

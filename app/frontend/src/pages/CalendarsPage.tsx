@@ -11,6 +11,7 @@ import { spaceOptions, useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { RowText } from '../components/RowText';
 
 interface FollowedCalendar {
   id: string;
@@ -44,14 +45,17 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
             const space = spaces.data?.find((candidate) => candidate.id === calendar.spaceId);
             return (
               <li className="panel-row flex flex-wrap items-center justify-between gap-3" key={calendar.id}>
-                <div className="min-w-0">
-                  <p className="m-0 truncate text-ink">{calendar.name}</p>
-                  <p className="m-0 mt-0.5 text-sm text-muted">
-                    {space?.name} · {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
-                    {calendar.lastFetchedAt ? ` · checked ${timeAgo(calendar.lastFetchedAt)}` : ''}
-                  </p>
+                <RowText
+                  detail={
+                    <>
+                      {space?.name} · {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
+                      {calendar.lastFetchedAt ? ` · checked ${timeAgo(calendar.lastFetchedAt)}` : ''}
+                    </>
+                  }
+                  title={calendar.name}
+                >
                   {calendar.lastError && <p className="m-0 mt-0.5 text-sm text-danger">The last check failed: {calendar.lastError}</p>}
-                </div>
+                </RowText>
                 {space && space.role !== 'viewer' && (
                   <div className="flex gap-2">
                     <Button

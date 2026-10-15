@@ -61,9 +61,9 @@ export function InboxPage() {
         <Empty title="Nothing new" />
       ) : (
         <>
-          <ul className="m-0 grid list-none gap-0 p-0">
+          <ul className="panel-rows">
             {notifications.data.results.map((notification) => (
-              <li className="flex items-start justify-between gap-4 border-b border-line-soft py-4" key={notification.id}>
+              <li className="flex items-start justify-between gap-4 panel-row" key={notification.id}>
                 <div className="min-w-0">
                   <p className={`m-0 ${notification.read ? 'text-muted' : 'font-medium text-ink'}`}>
                     {notification.link ? (

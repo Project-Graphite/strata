@@ -27,7 +27,7 @@ export function DataSettings() {
   const enabled = twoStep.data.enabled;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
+    <>
       <Section title="Your data">
         <SettingsRows>
           <SettingsRow
@@ -93,6 +93,6 @@ export function DataSettings() {
           <ProofFields form={removalForm} twoStep={enabled} />
         </FormDialog>
       )}
-    </div>
+    </>
   );
 }

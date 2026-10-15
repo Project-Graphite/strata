@@ -41,7 +41,7 @@ export function SpaceHabits() {
   if (!habits.data) return <ListSkeleton label="Loading the habits in this space" rows={3} />;
 
   return (
-    <div className="fade-in grid gap-6">
+    <>
       <Toolbar actions={editable && <Button icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
       {habits.data.length === 0 ? (
         <Empty title="No habits yet" />
@@ -111,6 +111,6 @@ export function SpaceHabits() {
           Everyone’s check-ins for it are deleted too.
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

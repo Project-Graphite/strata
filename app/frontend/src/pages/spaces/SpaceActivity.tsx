@@ -80,10 +80,10 @@ export function SpaceActivity() {
   }
 
   return (
-    <div className="fade-in grid max-w-3xl gap-6">
-      <ol className="m-0 grid list-none gap-0 p-0">
+    <>
+      <ol className="panel-rows">
         {activity.data.results.map((event) => (
-          <li className="flex items-baseline justify-between gap-4 border-b border-line-soft py-3" key={event.id}>
+          <li className="flex items-baseline justify-between gap-4 panel-row" key={event.id}>
             <span className="min-w-0 text-ink">{describeActivity(event)}</span>
             <span className="mono-sm shrink-0 text-faint">{timeAgo(event.createdAt)}</span>
           </li>
@@ -94,6 +94,6 @@ export function SpaceActivity() {
         pageHref={(next) => `/spaces/${space.id}/activity?page=${next}`}
         totalPages={activity.data.totalPages}
       />
-    </div>
+    </>
   );
 }

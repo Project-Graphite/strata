@@ -4,6 +4,7 @@ import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Button, ButtonAnchor } from '../../components/Button';
 import { Empty } from '../../components/Empty';
+import { RowText } from '../../components/RowText';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
 import type { Member } from '../../spaces';
@@ -50,7 +51,7 @@ export function SpaceSubscriptions() {
   if (!subscriptions.data) return <ListSkeleton label="Loading the subscriptions in this space" rows={4} />;
 
   return (
-    <div className="fade-in grid gap-6">
+    <>
       <Toolbar actions={editable && <Button icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />}>
         <nav aria-label="Subscriptions" className="flex flex-wrap items-center gap-2">
           <Link aria-current={cancelled ? undefined : 'page'} className="filter-chip" to={base}>
@@ -65,15 +66,11 @@ export function SpaceSubscriptions() {
       {subscriptions.data.length === 0 ? (
         <Empty title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />
       ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
+        <ul className="panel-rows">
           {subscriptions.data.map((subscription) => (
-            <li className="flex flex-wrap items-center justify-between gap-4 border-b border-line-soft py-4" key={subscription.id}>
-              <div className="min-w-0">
-                <p className="m-0 truncate text-ink">
-                  {subscription.name} <span className="text-muted">{money(subscription.amountMinor, subscription.currency)}</span>
-                </p>
-                <p className="mono-sm m-0 mt-1 text-faint">
-                  {[
+            <li className="flex flex-wrap items-center justify-between gap-4 panel-row" key={subscription.id}>
+              <RowText
+                detail={[
                     cycleLabel(subscription.repeatRule),
                     subscription.category,
                     cancelled ? `cancelled ${shortDate(subscription.cancelledOn!)}` : `renews ${shortDate(subscription.nextRenewal)}`,
@@ -83,8 +80,8 @@ export function SpaceSubscriptions() {
                   ]
                     .filter(Boolean)
                     .join(' · ')}
-                </p>
-              </div>
+                title={<>{subscription.name} <span className="text-muted">{money(subscription.amountMinor, subscription.currency)}</span></>}
+              />
               {editable && (
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {cancelled ? (
@@ -131,6 +128,6 @@ export function SpaceSubscriptions() {
           subscription={editing === 'new' ? undefined : editing}
         />
       )}
-    </div>
+    </>
   );
 }
