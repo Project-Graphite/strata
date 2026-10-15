@@ -6,7 +6,7 @@ import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { PaymentsWidget, SpendingWidget } from '../src/dashboard/money-widgets';
 import { SpacesContext } from '../src/spaces';
-import { choose, chooseFromMenu } from './controls';
+import { choose, chooseFromMenu, pickChip, pickFromGrid } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -154,7 +154,7 @@ describe('Spending', () => {
     await submit(form);
     expect(container.textContent).toContain('never a card number');
     form.querySelector<HTMLInputElement>('input[name="paymentLabel"]')!.value = 'Visa ending 1234';
-    await choose(form, 'Category', 'Groceries');
+    await pickChip(form, 'Groceries');
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/expenses' && init?.method === 'POST')![1]!.body));
     expect(body).toMatchObject({ title: 'Bread', amountMinor: 350, currency: 'EUR', category: 'groceries', paymentLabel: 'Visa ending 1234', note: '' });
@@ -252,7 +252,7 @@ describe('Spending', () => {
     expect(form.textContent).toContain(text);
     expect(form.querySelector<HTMLInputElement>('input[name="title"]')!.value).toBe('CARREFOUR MAADI');
     expect(form.querySelector<HTMLInputElement>('input[name="amount"]')!.value).toBe('250.00');
-    await choose(form, 'Category', 'Groceries');
+    await pickChip(form, 'Groceries');
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path]) => path === '/api/v1/captures/c1/record')![1]!.body));
     expect(body).toMatchObject({ title: 'CARREFOUR MAADI', amountMinor: 25000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: 'bank', merchant: 'CARREFOUR MAADI' });
@@ -334,7 +334,7 @@ describe('Spending', () => {
     const form = container.querySelector('dialog form') as HTMLFormElement;
     expect(form.querySelector<HTMLInputElement>('input[name="budget"]')!.value).toBe('300.00');
     form.querySelector<HTMLInputElement>('input[name="budget"]')!.value = '';
-    await choose(form, 'Months start on', 'The 1st');
+    await pickFromGrid(form, 'Months start on', 'The 1st (calendar month)');
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/spending-plan' && init?.method === 'PUT')![1]!.body));
     expect(body).toEqual({ budgetMinor: null, currency: null, startDay: 1, rollover: true });

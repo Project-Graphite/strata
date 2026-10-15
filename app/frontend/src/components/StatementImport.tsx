@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
 import { merchantKey, suggestRecurring } from '../statement';
 import { cycleLabel, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useStatementFile } from './StatementFile';
+import { CurrencyField } from './CurrencyField';
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
   const auth = useAuth();
@@ -74,7 +74,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Select label="Add to" onChange={setSpaceId} options={spaceOptions(editable)} value={target ?? ''} />
-              <Select label="Currency" onChange={setCurrency} options={currencyOptions(allCurrencies)} searchable value={currency} />
+              <CurrencyField onChange={setCurrency} value={currency} />
             </div>
           </>
         )}

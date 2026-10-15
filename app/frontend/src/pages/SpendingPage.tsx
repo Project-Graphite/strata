@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
 import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
 import { AccountEditor } from '../components/AccountEditor';
 import { CategoriesEditor } from '../components/CategoriesEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
@@ -18,7 +17,6 @@ import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
   categoryName,
-  categoryOptions,
   spendingTabs,
   useCategories,
   type CapturedMessage,
@@ -35,6 +33,9 @@ import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
+import { CategoryChips } from '../components/CategoryChips';
+import { CurrencyField } from '../components/CurrencyField';
+import { DayOfMonthField } from '../components/DayOfMonthField';
 
 const shiftMonth = (month: string, by: number) => {
   const [year, number] = month.split('-').map(Number) as [number, number];
@@ -639,10 +640,10 @@ function BudgetDialog({
       submitLabel="Save budget"
       title={category ? `${categoryName(category)} budget` : 'Set a budget'}
     >
-      {!category && <Select label="Category" onChange={setChosen} options={categoryOptions(categories)} value={chosen} />}
+      {!category && <CategoryChips categories={categories} onChange={setChosen} value={chosen} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField autoFocus defaultValue={existing ? fromMinor(existing.amountMinor, existing.currency) : ''} inputMode="decimal" key={chosen} label="Each month" {...form.field('amount')} />
-        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+        <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
     </FormDialog>
   );
@@ -653,7 +654,6 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
   const saving = useAction();
   const form = useFormErrors();
   const [chosenCurrency, setChosenCurrency] = useState(plan.currency ?? currency);
-  const [startDay, setStartDay] = useState(String(plan.startDay));
   const [rollover, setRollover] = useState(plan.rollover);
 
   return (
@@ -667,7 +667,7 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         const body = {
           budgetMinor: budget ? toMinor(budget, chosenCurrency) : null,
           currency: budget ? chosenCurrency : null,
-          startDay: Number(startDay),
+          startDay: Number(new FormData(target).get('startDay')) || 1,
           rollover,
         };
         void saving
@@ -690,14 +690,9 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
           label="Monthly budget (optional)"
           {...form.field('budget')}
         />
-        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+        <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
-      <Select
-        label="Months start on"
-        onChange={setStartDay}
-        options={Array.from({ length: 28 }, (_, index) => ({ value: String(index + 1), label: index === 0 ? 'The 1st' : `Day ${index + 1}` }))}
-        value={startDay}
-      />
+      <DayOfMonthField defaultValue={plan.startDay === 1 ? '' : String(plan.startDay)} emptyLabel="The 1st (calendar month)" label="Months start on" last={28} name="startDay" />
       <Toggle checked={rollover} label="Carry what is left into next month" onChange={setRollover} />
     </FormDialog>
   );

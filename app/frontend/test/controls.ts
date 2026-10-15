@@ -28,3 +28,29 @@ export async function pickDay(root: ParentNode, name: string, day: string) {
   }
   await act(async () => root.querySelector<HTMLButtonElement>(`[data-day="${day}"]`)!.click());
 }
+
+export async function pickChip(root: ParentNode, label: string) {
+  await act(async () => [...root.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')].find((chip) => chip.textContent === label)!.click());
+}
+
+export async function pickFromGrid(root: ParentNode, name: string, day: string) {
+  const trigger = [...root.querySelectorAll<HTMLElement>('button[aria-haspopup="listbox"]')].find((element) => named(element, name))!;
+  await act(async () => trigger.click());
+  await act(async () => [...root.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === day)!.click());
+}
+
+export async function pickTime(root: ParentNode, name: string, time: string) {
+  const field = [...root.querySelectorAll<HTMLElement>('.field-label')].find((element) => element.firstElementChild?.textContent === name)!;
+  await act(async () => field.querySelector('button')!.click());
+  const dialog = [...document.querySelectorAll('dialog')].at(-1)!;
+  const [hours, minutes] = time.split(':').map(Number) as [number, number];
+  const twelve = Boolean(dialog.querySelector('[role="radiogroup"]'));
+  const type = async (label: string, value: number) => {
+    const digits = dialog.querySelector(`[role="spinbutton"][aria-label="${label}"]`)!;
+    for (const key of String(value).padStart(2, '0')) await act(async () => void digits.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })));
+  };
+  await type('Hours', twelve ? hours % 12 || 12 : hours);
+  await type('Minutes', minutes);
+  if (twelve) await act(async () => [...dialog.querySelectorAll<HTMLElement>('[role="radio"]')].find((half) => half.textContent === (hours >= 12 ? 'PM' : 'AM'))!.click());
+  await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Set time')!.click());
+}

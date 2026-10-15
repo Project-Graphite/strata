@@ -11,8 +11,9 @@ import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
 import { DashboardGrid } from './DashboardGrid';
+import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
-import { widgetKinds, type CardPadding, type PlacedWidget, type Widget, type WidgetType } from './widgets';
+import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
 import { TimeField, timeOptions } from '../time';
 
@@ -182,6 +183,7 @@ export function DashboardHome() {
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [configuring, setConfiguring] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [schedule, setSchedule] = useState({ from: '', until: '', on: 'any' as Device });
   const addForm = useFormErrors();
   const chosen = params.get('d');
@@ -285,24 +287,7 @@ export function DashboardHome() {
           actions={
             <>
               <HeaderButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-              <Menu
-                items={(Object.keys(widgetKinds) as WidgetType[]).map((type) => ({
-                  label: widgetKinds[type].title,
-                  onSelect: () =>
-                    change({
-                      widgets: [...widgets, { id: crypto.randomUUID(), type, x: 0, y: Math.max(0, ...widgets.map((widget) => widget.y + 1)), w: sizeWidths[widgetKinds[type].size], settings: widgetKinds[type].settings }],
-                    }),
-                }))}
-                label="Widgets"
-                trigger={
-                  <>
-                    <Icon name="plus" size={16} />
-                    Add widget
-                  </>
-                }
-                triggerClassName="primary-button px-3 py-2 text-sm"
-                triggerLabel="Add widget"
-              />
+              <HeaderButton icon="plus" label="Add widget" onClick={() => setPicking(true)} primary />
             </>
           }
         />
@@ -395,6 +380,17 @@ export function DashboardHome() {
             </div>
           </div>
         </Dialog>
+      )}
+      {picking && (
+        <WidgetGallery
+          onAdd={(type) => {
+            change({
+              widgets: [...widgets, { id: crypto.randomUUID(), type, x: 0, y: Math.max(0, ...widgets.map((widget) => widget.y + 1)), w: sizeWidths[widgetKinds[type].size], settings: widgetKinds[type].settings }],
+            });
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
       )}
       {configuring && (
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">

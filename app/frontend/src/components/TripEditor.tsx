@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { DatePicker, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
 import { spaceOptions, type Space } from '../spaces';
 import { fromMinor, toMinor } from '../subscriptions';
 import type { Trip } from '../trips';
@@ -9,6 +8,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
+import { CurrencyField } from './CurrencyField';
 
 export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => void; onSaved: (trip: Trip) => void; spaces: Space[]; trip?: Trip }) {
   const auth = useAuth();
@@ -76,7 +76,7 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField defaultValue={trip?.budgetMinor != null && trip.currency ? fromMinor(trip.budgetMinor, trip.currency) : ''} inputMode="decimal" label="Budget (optional)" {...form.field('budget')} />
-        <Select label="Currency" onChange={setBudgetCurrency} options={currencyOptions(allCurrencies)} searchable value={budgetCurrency} />
+        <CurrencyField onChange={setBudgetCurrency} value={budgetCurrency} />
       </div>
     </FormDialog>
   );
