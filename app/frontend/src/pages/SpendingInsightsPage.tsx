@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router';
 import { formatDay, ListSkeleton, Select, Tabs } from '@project-graphite/ui';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Toolbar } from '../components/Page';
 import { categoryName, spendingTabs, type SpendingInsights } from '../spending';
@@ -97,7 +98,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
       <Section title="Compared with the month before">
         {categories.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Nothing spent in either month.</p>
+          <Hint>Nothing spent in either month.</Hint>
         ) : (
           <div className="overflow-x-auto">
             <table className="insights-table">
@@ -128,7 +129,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
       <Section title="Where it went">
         {merchants.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No spending in these months.</p>
+          <Hint>No spending in these months.</Hint>
         ) : (
           <ul className="panel-rows">
             {merchants.map((merchant) => (

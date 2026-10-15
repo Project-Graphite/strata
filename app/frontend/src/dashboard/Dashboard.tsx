@@ -1,10 +1,12 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, EmptyState, Icon, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, Icon, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { IconButton, IconLink } from '../components/IconButton';
 import { HeaderButton, HeaderLink, Page, Toolbar } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
@@ -76,7 +78,7 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 
   render() {
-    return this.state.failed ? <p className="m-0 text-sm text-muted">This widget stopped working. Reload the page to try again.</p> : this.props.children;
+    return this.state.failed ? <Hint>This widget stopped working. Reload the page to try again.</Hint> : this.props.children;
   }
 }
 
@@ -140,7 +142,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
     <div className={`fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10 ${backdrop.className}`} style={backdrop.image ? ({ '--backdrop-image': backdrop.image } as CSSProperties) : undefined}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="m-0 text-sm text-muted">{dashboard.name}</p>
+          <Hint>{dashboard.name}</Hint>
           <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', ...timeOptions() })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
@@ -290,9 +292,7 @@ export function DashboardHome() {
         />
       )}
       {widgets.length === 0 ? (
-        <EmptyState title="This dashboard is empty">
-          <p className="mt-2 mb-0 text-sm text-muted">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</p>
-        </EmptyState>
+        <Empty title="This dashboard is empty">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</Empty>
       ) : (
         <DashboardGrid
           card={(widget) => {

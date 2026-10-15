@@ -8,6 +8,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useStatementFile } from './StatementFile';
 import { CurrencyField } from './CurrencyField';
+import { Hint } from './Hint';
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
   const auth = useAuth();
@@ -28,7 +29,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
   return (
     <Dialog onClose={onClose} title="Import a statement">
       <div className="mt-5 grid gap-4">
-        <p className="m-0 text-sm text-muted">Choose a CSV export from your bank or card. It is read on this device and never uploaded.</p>
+        <Hint>Choose a CSV export from your bank or card. It is read on this device and never uploaded.</Hint>
         {statement.picker}
         {statement.loaded && (
           <>

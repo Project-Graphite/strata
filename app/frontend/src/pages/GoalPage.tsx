@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { EmptyState, Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
+import { Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
@@ -97,10 +99,10 @@ export function GoalPage() {
       >
         <div className="grid gap-2">
           {shown.progress !== null && <Meter label={`Progress of ${shown.title}`} value={shown.progress} />}
-          <p className="m-0 text-sm text-muted">
+          <Hint>
             {shown.progress !== null && `${Math.round(shown.progress * 100)}% · `}
             {progressText(shown)}
-          </p>
+          </Hint>
         </div>
       </Section>
 
@@ -116,7 +118,7 @@ export function GoalPage() {
         title="Tasks"
       >
         {shown.taskList.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No tasks linked yet.</p>
+          <Hint>No tasks linked yet.</Hint>
         ) : (
           <ul className="m-0 grid list-none gap-0 p-0">
             {shown.taskList.map((task) => (
@@ -158,7 +160,7 @@ export function GoalPage() {
 
       <Section action={editable && <HeaderButton label="Choose habits" onClick={() => setDialog('habits')} />} title="Habits">
         {shown.habits.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No habits linked yet.</p>
+          <Hint>No habits linked yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.habits.map((habit) => (
@@ -239,9 +241,7 @@ function LinkTaskDialog({ goal, onClose, onLink }: { goal: GoalDetail; onClose: 
   return (
     <FormDialog busy={false} busyLabel="Linking…" onClose={onClose} onSubmit={() => chosen && onLink(chosen)} submitLabel="Link task" title="Link a task">
       {open.data && choices.length === 0 ? (
-        <EmptyState title="No open tasks to link">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Every open task in {goal.spaceName} is already linked.</p>
-        </EmptyState>
+        <Empty title="No open tasks to link">Every open task in {goal.spaceName} is already linked.</Empty>
       ) : (
         <Select
           label="Task"
@@ -277,7 +277,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
       title="Habits for this goal"
     >
       {habits.data && habits.data.length === 0 ? (
-        <p className="m-0 text-sm text-muted">{goal.spaceName} has no habits yet.</p>
+        <Hint>{goal.spaceName} has no habits yet.</Hint>
       ) : (
         <fieldset className="m-0 grid gap-3 border-0 p-0">
           <legend className="field-label mb-1 p-0">Follow these habits</legend>

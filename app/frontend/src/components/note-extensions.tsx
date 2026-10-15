@@ -18,6 +18,7 @@ import type { useAuth } from '../auth';
 import { itemHref } from '../spaces';
 import { BoardPreview } from './BoardPreview';
 import { useFileSource } from './file-source';
+import { Hint } from './Hint';
 
 interface Candidate {
   id: string;
@@ -300,7 +301,7 @@ function BoardEmbed({ node }: NodeViewProps) {
           </Link>
         </>
       ) : (
-        <p className="m-0 text-sm text-muted">This board is missing</p>
+        <Hint>This board is missing</Hint>
       )}
     </NodeViewWrapper>
   );

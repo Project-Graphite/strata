@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Menu } from '@project-graphite/ui';
+import { Icon, ListSkeleton, Menu } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { Empty } from '../../components/Empty';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
 import { HeaderButton, Toolbar } from '../../components/Page';
@@ -75,10 +77,10 @@ export function SpaceNotes() {
           )
         }
       >
-        <p className="m-0 text-sm text-muted">{pages.length === 1 ? '1 page' : `${pages.length} pages`}</p>
+        <Hint>{pages.length === 1 ? '1 page' : `${pages.length} pages`}</Hint>
       </Toolbar>
       {branches.length === 0 ? (
-        <EmptyState title="No pages yet" />
+        <Empty title="No pages yet" />
       ) : (
         <ul className="panel-rows">
           {branches.map(({ note, depth }) => (

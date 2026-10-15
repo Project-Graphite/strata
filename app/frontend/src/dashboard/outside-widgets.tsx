@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { errorMessage, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useResource } from '../useResource';
-import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { type SettingsProps, type WidgetProps } from './widget-parts';
 
 interface Place {
   name: string;
@@ -50,7 +51,7 @@ export function Weather({ settings }: WidgetProps) {
   const unit = settings.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
   const forecast = useResource<Forecast>(place ? `/widgets/weather?latitude=${place.latitude}&longitude=${place.longitude}&unit=${unit}` : null, true);
 
-  if (!place) return <Empty>Choose a place in this widget's settings.</Empty>;
+  if (!place) return <Hint>Choose a place in this widget's settings.</Hint>;
   if (forecast.error) return <LoadError compact error={forecast.error} onRetry={forecast.reload} />;
   if (!forecast.data) return <ListSkeleton label="Loading the weather" rows={2} />;
   const { current, daily } = forecast.data;
@@ -108,7 +109,7 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
 
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-sm text-muted">{place ? `Showing ${place.name}.` : 'No place chosen yet.'}</p>
+      <Hint>{place ? `Showing ${place.name}.` : 'No place chosen yet.'}</Hint>
       <div className="flex flex-wrap gap-2">
         <input
           aria-label="Search for a place"
@@ -224,11 +225,11 @@ export function News({ settings }: WidgetProps) {
     return () => controller.abort();
   }, [key, request]);
 
-  if (feeds.length === 0) return <Empty>Add feed addresses in this widget's settings.</Empty>;
+  if (feeds.length === 0) return <Hint>Add feed addresses in this widget's settings.</Hint>;
   if (loaded?.key !== key) return <ListSkeleton label="Loading the news" rows={3} />;
   return (
     <div className="grid gap-2">
-      {loaded.stories.length === 0 && loaded.failed === 0 && <Empty>No stories yet.</Empty>}
+      {loaded.stories.length === 0 && loaded.failed === 0 && <Hint>No stories yet.</Hint>}
       <ul className="m-0 grid list-none gap-2 p-0">
         {loaded.stories.slice(0, count).map((story) => (
           <li className="text-sm" key={story.link}>

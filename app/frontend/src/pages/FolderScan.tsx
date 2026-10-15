@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, EmptyState, isAbortError } from '@project-graphite/ui';
+import { ConfirmDialog, isAbortError } from '@project-graphite/ui';
+import { Empty } from '../components/Empty';
 import { Choice, Suggestion } from '../components/TidyList';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
@@ -100,9 +101,7 @@ export function FolderScan() {
 
   if (!picker) {
     return (
-      <EmptyState title="Use Chrome or Edge on a computer">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">This browser can’t open a folder for Strata to look through.</p>
-      </EmptyState>
+      <Empty title="Use Chrome or Edge on a computer">This browser can’t open a folder for Strata to look through.</Empty>
     );
   }
 
@@ -196,9 +195,7 @@ export function FolderScan() {
             </Suggestion>
           )}
           {report.duplicates.length + report.largest.length + report.old.length === 0 && (
-            <EmptyState title="Nothing to tidy">
-              <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">This folder has no files to look at.</p>
-            </EmptyState>
+            <Empty title="Nothing to tidy">This folder has no files to look at.</Empty>
           )}
         </>
       )}

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spendingTabs } from '../spending';
 import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Empty } from '../components/Empty';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
@@ -82,12 +84,12 @@ export function RecurringPage() {
       ) : !summary.data ? (
         <ListSkeleton label="Adding up your subscriptions" rows={4} />
       ) : summary.data.totals.length === 0 ? (
-        <EmptyState title="No subscriptions yet" />
+        <Empty title="No subscriptions yet" />
       ) : (
         <>
           {summary.data.home && summary.data.totals.length > 1 && (
             <div className="rounded-xl border border-line bg-surface p-5">
-              <p className="m-0 text-sm text-muted">All together, in {summary.data.home.currency}</p>
+              <Hint>All together, in {summary.data.home.currency}</Hint>
               <p className="m-0 mt-2 text-3xl text-ink">≈ {money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month</p>
               <p className="mono-sm m-0 mt-1 text-faint">
                 {money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year
@@ -101,7 +103,7 @@ export function RecurringPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {summary.data.totals.map((total) => (
               <div className="rounded-xl border border-line bg-surface p-5" key={total.currency}>
-                <p className="m-0 text-sm text-muted">{total.currency}</p>
+                <Hint>{total.currency}</Hint>
                 <p className="m-0 mt-2 text-2xl text-ink">{money(total.monthlyMinor, total.currency)} a month</p>
                 <p className="mono-sm m-0 mt-1 text-faint">{money(total.yearlyMinor, total.currency)} over the next year</p>
               </div>

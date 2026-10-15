@@ -3,6 +3,7 @@ import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spaceOptions, type Space } from '../spaces';
 import { useAction } from '../useAction';
+import { Hint } from './Hint';
 
 export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
   const auth = useAuth();
@@ -29,9 +30,9 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
   return (
     <Dialog onClose={onClose} title="Import pages">
       <div className="grid gap-4">
-        <p className="m-0 text-sm text-muted">
+        <Hint>
           Markdown files become pages. For a Notion export, unzip it and choose the folder: pages keep their nesting and their images come along.
-        </p>
+        </Hint>
         {spaces.length > 1 && (
           <Select label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
         )}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Empty } from '../components/Empty';
 import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
@@ -112,7 +113,7 @@ function TidySuggestions() {
         </div>
       )}
       {empty ? (
-        <EmptyState title="Nothing to tidy" />
+        <Empty title="Nothing to tidy" />
       ) : (
         saving > 0 && (
           <div className="rounded-xl border border-line bg-surface p-5">
@@ -245,11 +246,9 @@ function TidyHistory() {
   return (
     <div className="grid gap-4">
       {history.data.length === 0 ? (
-        <EmptyState title="Nothing tidied yet">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            Changes stay here for 90 days, so you can undo them.
-          </p>
-        </EmptyState>
+        <Empty title="Nothing tidied yet">
+          Changes stay here for 90 days, so you can undo them.
+        </Empty>
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {history.data.map((batch) => (

@@ -7,6 +7,7 @@ import { useAction } from '../useAction';
 import { useStatementFile } from './StatementFile';
 import { CategoryChips } from './CategoryChips';
 import { CurrencyField } from './CurrencyField';
+import { Hint } from './Hint';
 
 const shownAtMost = 200;
 
@@ -24,7 +25,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
   return (
     <Dialog onClose={onClose} title="Import spending from a statement">
       <div className="mt-5 grid gap-4">
-        <p className="m-0 text-sm text-muted">Choose a CSV export from your bank or card. It is read on this device, and only the charges you keep are saved.</p>
+        <Hint>Choose a CSV export from your bank or card. It is read on this device, and only the charges you keep are saved.</Hint>
         {statement.picker}
         {statement.loaded && (
           <>
@@ -33,9 +34,9 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
               <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
             </div>
             <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={category} />
-            <p className="m-0 text-sm text-muted">
+            <Hint>
               {statement.charges.length} charges read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
-            </p>
+            </Hint>
             {charges.length > 0 && (
               <ul className="panel-rows max-h-72 overflow-y-auto">
                 {charges.map((charge, index) => (

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, EmptyState, PageSkeleton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { CopyLink } from '../components/CopyLink';
 import { EventEditor } from '../components/EventEditor';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { ItemBoards } from '../components/ItemBoards';
 import { useSpaces } from '../spaces';
@@ -14,6 +15,7 @@ import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
+import { NotFoundState } from '../components/Empty';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -37,9 +39,7 @@ export function EventPage() {
 
   if (event.status === 404) {
     return (
-      <EmptyState title="Event not found">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">It may have been deleted, or you are not a member of its space.</p>
-      </EmptyState>
+      <NotFoundState thing="Event" />
     );
   }
   if (event.error) return <LoadError error={event.error} onRetry={event.reload} />;
@@ -212,7 +212,7 @@ export function EventPage() {
           </form>
           <div className="grid gap-3">
             <h3 className="m-0 text-base font-medium">Open invitation link</h3>
-            <p className="m-0 text-sm text-muted">Anyone with this link can answer with their name for 60 days. They see only this event.</p>
+            <Hint>Anyone with this link can answer with their name for 60 days. They see only this event.</Hint>
             {openLink ? (
               <CopyLink link={openLink} />
             ) : (
@@ -251,7 +251,7 @@ export function EventPage() {
           }}
           title={`Move the event to ${optionLabel(picking)}?`}
         >
-          <p className="m-0 text-sm text-muted">The poll closes and the other dates are dropped.</p>
+          <Hint>The poll closes and the other dates are dropped.</Hint>
         </ConfirmDialog>
       )}
       {editing && (

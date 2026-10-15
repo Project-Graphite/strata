@@ -5,6 +5,7 @@ import { noteTitle } from '../notes';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
+import { Hint } from './Hint';
 
 interface Linked {
   id: string;
@@ -22,7 +23,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
   return (
     <section className="grid gap-3">
       <h2 className="m-0 text-xl font-medium">Boards</h2>
-      {boards.length === 0 && <p className="m-0 text-sm text-muted">No boards yet.</p>}
+      {boards.length === 0 && <Hint>No boards yet.</Hint>}
       {boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />

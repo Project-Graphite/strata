@@ -4,6 +4,7 @@ import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
 import { DevicePush } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { timeFormatOptions, type TimeFormat } from '../../time';
@@ -175,7 +176,7 @@ export function ProfileSettings() {
           submitLabel="Send link"
           title="Change email"
         >
-          <p className="m-0 text-sm text-muted">The new address takes over once you open the link we send to it.</p>
+          <Hint>The new address takes over once you open the link we send to it.</Hint>
           <TextField autoComplete="email" autoFocus inputMode="email" label="New email" type="email" {...emailForm.field('email')} />
           <ProofFields form={emailForm} twoStep={twoStep.data.enabled} />
         </FormDialog>

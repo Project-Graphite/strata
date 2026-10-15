@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
+import { Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Empty } from '../components/Empty';
 import { IconButton } from '../components/IconButton';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
@@ -99,9 +100,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       ) : !listed.data ? (
         <ListSkeleton label={`Loading your ${words.title.toLowerCase()}`} rows={4} />
       ) : pages.length === 0 ? (
-        <EmptyState title={words.empty}>
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">{words.hint}</p>
-        </EmptyState>
+        <Empty title={words.empty}>{words.hint}</Empty>
       ) : (
         <ul className="panel-rows">{rows(null, 0)}</ul>
       )}

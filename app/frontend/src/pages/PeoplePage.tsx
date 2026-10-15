@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Avatar, EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { Avatar, ListSkeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
@@ -46,7 +47,7 @@ export function PeoplePage() {
       ) : !people.data ? (
         <ListSkeleton label="Loading people" rows={4} />
       ) : people.data.length === 0 ? (
-        <EmptyState title="Nobody here yet" />
+        <Empty title="Nobody here yet" />
       ) : (
         <>
           {soon.length > 0 && (

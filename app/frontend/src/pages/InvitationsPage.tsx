@@ -8,6 +8,7 @@ import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { CopyLink } from '../components/CopyLink';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 
@@ -52,7 +53,7 @@ export function InvitationsPage() {
         ) : !received.data ? (
           <ListSkeleton label="Loading your invitations" rows={2} />
         ) : received.data.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No one has invited you to a space right now.</p>
+          <Hint>No one has invited you to a space right now.</Hint>
         ) : (
           <ul className="panel-rows">
             {received.data.map((invitation) => (
@@ -87,7 +88,7 @@ export function InvitationsPage() {
         ) : !sent.data ? (
           <ListSkeleton label="Loading the invites you sent" rows={2} />
         ) : sent.data.length === 0 ? (
-          <p className="m-0 text-sm text-muted">You have not invited anyone yet.</p>
+          <Hint>You have not invited anyone yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {sent.data.map((invitation) => (
@@ -119,7 +120,7 @@ export function InvitationsPage() {
       {link && (
         <Dialog onClose={() => setLink('')} title="Invite link ready">
           <div className="mt-4 grid gap-4">
-            <p className="m-0 text-sm text-muted">Send this link to the person you are inviting. It works once, for 14 days.</p>
+            <Hint>Send this link to the person you are inviting. It works once, for 14 days.</Hint>
             <CopyLink link={link} />
             <div className="flex justify-end">
               <button className="primary-button" onClick={() => setLink('')} type="button">

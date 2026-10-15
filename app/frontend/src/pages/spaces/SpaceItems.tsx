@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { fileSize, saveBlob, uploadFiles } from '../../files';
@@ -8,6 +8,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { ItemList } from './ItemList';
 import { useSpace } from './SpaceLayout';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 
 export function SpaceItems() {
@@ -66,7 +67,7 @@ export function SpaceItems() {
         )}
       </div>
       {items.data.results.length === 0 ? (
-        <EmptyState title={archived ? 'Nothing archived' : 'Nothing here yet'} />
+        <Empty title={archived ? 'Nothing archived' : 'Nothing here yet'} />
       ) : (
         <ItemList
           actions={(item) => (

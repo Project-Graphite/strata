@@ -7,6 +7,7 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
@@ -97,7 +98,7 @@ export function TripPage() {
     >
       <Section action={editable && <HeaderButton icon="plus" label="Add a plan" onClick={() => setDialog('plan')} />} title="Itinerary">
         {days.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No plans yet.</p>
+          <Hint>No plans yet.</Hint>
         ) : (
           <div className="grid gap-4">
             {days.map((day) => (
@@ -129,7 +130,7 @@ export function TripPage() {
           title="Packing list"
         >
           {shown.packing.tasks.length === 0 ? (
-            <p className="m-0 text-sm text-muted">Nothing on the list yet.</p>
+            <Hint>Nothing on the list yet.</Hint>
           ) : (
             <ul className="m-0 grid list-none gap-0 p-0">
               {shown.packing.tasks.map((task) => (
@@ -209,7 +210,7 @@ export function TripPage() {
         title="Documents"
       >
         {shown.documents.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No documents yet.</p>
+          <Hint>No documents yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.documents.map((document) => (
@@ -255,7 +256,7 @@ export function TripPage() {
         title="Notes"
       >
         {shown.pages.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No pages yet.</p>
+          <Hint>No pages yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.pages.map((page) => (

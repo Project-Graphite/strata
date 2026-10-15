@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { EmptyState, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useTodaySchedule } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard } from '../components/AgendaEntryLink';
@@ -7,6 +7,7 @@ import { useSpaces } from '../spaces';
 import { TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { agendaTabs } from './AgendaPage';
@@ -28,7 +29,7 @@ export function TodayPage() {
       ) : !tasks.data || !schedule.data ? (
         <ListSkeleton label="Loading today" rows={4} />
       ) : tasks.data.length === 0 && schedule.data.length === 0 ? (
-        <EmptyState title="Nothing today" />
+        <Empty title="Nothing today" />
       ) : (
         <>
           {schedule.data.length > 0 && (

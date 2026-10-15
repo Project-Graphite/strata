@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { EmptyState, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
 import { ImportRecipe, RecipeEditor } from '../components/RecipeEditor';
@@ -46,7 +47,7 @@ export function RecipesPage() {
       ) : !recipes.data ? (
         <ListSkeleton label="Loading your recipes" rows={4} />
       ) : recipes.data.length === 0 ? (
-        <EmptyState title="No recipes yet" />
+        <Empty title="No recipes yet" />
       ) : (
         <ul className="panel-rows">
           {recipes.data.map((recipe) => (

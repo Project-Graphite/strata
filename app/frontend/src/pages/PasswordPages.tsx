@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
+import { Hint } from '../components/Hint';
 
 export function ForgotPasswordPage() {
   const form = useFormErrors();
@@ -104,9 +105,9 @@ export function ResetPasswordPage() {
           {...form.field('password')}
         />
         {error && (
-          <p className="m-0 text-sm text-muted">
+          <Hint>
             <Link className="rule-link" to="/forgot-password">Request a new link</Link>
-          </p>
+          </Hint>
         )}
         <button className="primary-button" disabled={busy} type="submit">
           {busy ? 'Saving…' : 'Save password'}

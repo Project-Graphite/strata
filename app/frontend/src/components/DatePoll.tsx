@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DatePicker } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
+import { Hint } from './Hint';
 
 export type PollAnswer = 'yes' | 'maybe' | 'no';
 
@@ -64,7 +65,7 @@ export function PollOptions({
             </div>
           </div>
           {option.voters && option.voters.length > 0 && (
-            <p className="m-0 text-sm text-muted">{option.voters.map((voter) => `${voter.name} (${answerLabels[voter.answer].toLowerCase()})`).join(', ')}</p>
+            <Hint>{option.voters.map((voter) => `${voter.name} (${answerLabels[voter.answer].toLowerCase()})`).join(', ')}</Hint>
           )}
         </li>
       ))}

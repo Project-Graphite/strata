@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, EmptyState, ListSkeleton, TagChip } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -8,6 +8,7 @@ import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Toolbar } from '../../components/Page';
@@ -34,7 +35,7 @@ export function SpaceTags() {
       <div className="grid gap-4">
         <Toolbar actions={editable && <HeaderButton icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
         {tags.data.length === 0 ? (
-          <EmptyState title="No tags yet" />
+          <Empty title="No tags yet" />
         ) : (
           <ul className="panel-rows">
             {tags.data.map((tag) => (

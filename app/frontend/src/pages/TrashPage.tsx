@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ItemList } from './spaces/ItemList';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 
@@ -27,7 +28,7 @@ export function TrashPage() {
       ) : !trash.data ? (
         <ListSkeleton label="Loading the trash" rows={4} />
       ) : trash.data.results.length === 0 ? (
-        <EmptyState title="The trash is empty" />
+        <Empty title="The trash is empty" />
       ) : (
         <>
           <ItemList

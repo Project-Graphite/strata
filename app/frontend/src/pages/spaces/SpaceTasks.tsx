@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
+import { Icon, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Toolbar } from '../../components/Page';
@@ -106,7 +107,7 @@ export function SpaceTasks() {
       </Toolbar>
 
       {tasks.data.results.length === 0 ? (
-        <EmptyState title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
+        <Empty title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {tasks.data.results.map((task) => (

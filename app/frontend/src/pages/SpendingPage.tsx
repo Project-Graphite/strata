@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { EmptyState, formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { CategoriesEditor } from '../components/CategoriesEditor';
+import { Empty } from '../components/Empty';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { ExpenseImport } from '../components/ExpenseImport';
+import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -267,7 +269,7 @@ export function SpendingPage() {
           {tab === 'accounts' && (
             <Section action={editable && <HeaderButton label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
               {!accounts.data?.length ? (
-                <p className="m-0 text-sm text-muted">No accounts yet.</p>
+                <Hint>No accounts yet.</Hint>
               ) : (
                 <ul className="panel-rows">
                   {accounts.data.map((account) => (
@@ -309,7 +311,7 @@ export function SpendingPage() {
           {tab === 'accounts' && (
             <Section action={editable && <HeaderButton label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
               {!installments.data?.length ? (
-                <p className="m-0 text-sm text-muted">No installment plans.</p>
+                <Hint>No installment plans.</Hint>
               ) : (
                 <ul className="panel-rows">
                   {installments.data.map((plan) => (
@@ -380,7 +382,7 @@ export function SpendingPage() {
               title={managing ? 'Budgets' : 'By category'}
             >
               {shown.categories.length === 0 ? (
-                <p className="m-0 text-sm text-muted">Nothing spent this month yet.</p>
+                <Hint>Nothing spent this month yet.</Hint>
               ) : (
                 <ul className="panel-rows">
                   {shown.categories.map((row) => (
@@ -466,8 +468,7 @@ export function SpendingPage() {
               title={tab === 'overview' ? 'Recent' : 'Transactions'}
             >
               {shown.expenses.length === 0 ? (
-                <EmptyState title="Nothing this month">
-                </EmptyState>
+                <Empty title="Nothing this month" />
               ) : (
                 <ul className="panel-rows">
                   {(tab === 'overview' ? shown.expenses.slice(0, recentCount) : shown.expenses).map((expense) => (

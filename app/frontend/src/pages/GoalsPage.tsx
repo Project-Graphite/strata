@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Meter } from '@project-graphite/ui';
+import { ListSkeleton, Meter } from '@project-graphite/ui';
+import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
@@ -41,7 +42,7 @@ export function GoalsPage() {
       ) : !goals.data ? (
         <ListSkeleton label="Loading your goals" rows={3} />
       ) : goals.data.length === 0 ? (
-        <EmptyState title={finished ? 'Nothing finished yet' : 'No goals yet'} />
+        <Empty title={finished ? 'Nothing finished yet' : 'No goals yet'} />
       ) : (
         [...groups].map(([label, shown]) => (
           <Section key={label} title={label}>

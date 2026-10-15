@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { FormSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
@@ -90,9 +91,9 @@ export function DataSettings() {
           submitLabel="Delete account"
           title="Delete your account?"
         >
-          <p className="m-0 text-sm text-muted">
+          <Hint>
             This can’t be undone. Backups that still hold your data expire on their normal schedule.
-          </p>
+          </Hint>
           <ProofFields form={removalForm} twoStep={enabled} />
         </FormDialog>
       )}

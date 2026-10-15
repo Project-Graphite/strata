@@ -3,7 +3,7 @@ import { Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
-import { Empty } from './widget-parts';
+import { Hint } from '../components/Hint';
 
 export function Capture() {
   const auth = useAuth();
@@ -14,7 +14,7 @@ export function Capture() {
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const target = spaceId || editable[0]?.id;
 
-  if (spaces.data && editable.length === 0) return <Empty>You can only view your spaces, so there is nowhere to save.</Empty>;
+  if (spaces.data && editable.length === 0) return <Hint>You can only view your spaces, so there is nowhere to save.</Hint>;
 
   function save(kind: 'note' | 'task') {
     const content = text.trim();

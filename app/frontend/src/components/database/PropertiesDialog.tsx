@@ -3,6 +3,7 @@ import { Icon, Select, tagColors } from '@project-graphite/ui';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
 import { colorOptions } from '../../spaces';
+import { Hint } from '../Hint';
 
 const hasOptions = (type: PropertyType) => type === 'select' || type === 'multiSelect';
 
@@ -37,7 +38,7 @@ export function PropertiesDialog({
       submitLabel="Save properties"
       title="Properties"
     >
-      {draft.length === 0 && <p className="m-0 text-sm text-muted">Pages in this database have no properties yet.</p>}
+      {draft.length === 0 && <Hint>Pages in this database have no properties yet.</Hint>}
       <ul className="m-0 grid list-none gap-4 p-0">
         {draft.map((property) => (
           <li className="grid gap-2" key={property.id}>

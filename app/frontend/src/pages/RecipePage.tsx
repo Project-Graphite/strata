@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
@@ -60,7 +61,7 @@ export function RecipePage() {
     >
       <Section title="Ingredients">
         {shown.ingredients.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No ingredients written down yet.</p>
+          <Hint>No ingredients written down yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.ingredients.map((ingredient, index) => (
@@ -73,7 +74,7 @@ export function RecipePage() {
       </Section>
       <Section title="Steps">
         {shown.steps.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No steps written down yet.</p>
+          <Hint>No steps written down yet.</Hint>
         ) : (
           <ol className="m-0 grid list-none gap-4 p-0">
             {shown.steps.map((step, index) => (
@@ -86,12 +87,12 @@ export function RecipePage() {
         )}
       </Section>
       {shown.sourceUrl && (
-        <p className="m-0 text-sm text-muted">
+        <Hint>
           From{' '}
           <a href={shown.sourceUrl} rel="noopener noreferrer nofollow" target="_blank">
             {new URL(shown.sourceUrl).hostname.replace(/^www\./, '')}
           </a>
-        </p>
+        </Hint>
       )}
       {dialog === 'edit' && space && <RecipeEditor onClose={() => setDialog(undefined)} onSaved={(saved) => recipe.mutate(() => saved)} recipe={shown} spaces={[space]} />}
       {dialog === 'plan' && <PlanMealDialog onClose={() => setDialog(undefined)} recipe={shown} spaceId={shown.spaceId} />}

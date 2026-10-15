@@ -1,7 +1,8 @@
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, EmptyState, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Hint } from '../components/Hint';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
@@ -13,6 +14,7 @@ import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type Prop
 import { itemHref, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { NotFoundState } from '../components/Empty';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
@@ -58,9 +60,7 @@ export function NotePage() {
 
   if (note.status === 404) {
     return (
-      <EmptyState title="Page not found">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">It may have been deleted, or you are not a member of its space.</p>
-      </EmptyState>
+      <NotFoundState thing="Page" />
     );
   }
   if (note.error) return <LoadError error={note.error} onRetry={note.reload} />;
@@ -318,7 +318,7 @@ export function NotePage() {
           }}
           title="Turn back into a page?"
         >
-          <p className="m-0 text-sm text-muted">The pages inside stay, but the values of their properties are deleted.</p>
+          <Hint>The pages inside stay, but the values of their properties are deleted.</Hint>
         </ConfirmDialog>
       )}
       {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}
