@@ -8,21 +8,19 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
 import { assetKindOptions, spendingTabs, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
-import { spaceOptions, useSpaces } from '../spaces';
+import { SpaceChooser, useChosenSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { CurrencyField } from '../components/CurrencyField';
+import { MissingRates, Stat, Stats } from '../components/Stats';
 
 export function NetWorthPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
   const action = useAction();
-  const [params, setParams] = useSearchParams();
-  const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const [params] = useSearchParams();
+  const { spaceId, editable } = useChosenSpace();
   const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
@@ -42,32 +40,20 @@ export function NetWorthPage() {
       title="Spending"
     >
       <Tabs items={spendingTabs('net-worth', params.get('space'))} label="Spending" />
-      <Toolbar
-        actions={
-          (spaces.data?.length ?? 0) > 1 &&
-          spaceId && <Select aria-label="Space" onChange={(chosen) => setParams({ space: chosen })} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} />
-        }
-      />
+      <Toolbar actions={<SpaceChooser />} />
       {failed ? (
         <LoadError error={failed} onRetry={worth.error ? worth.reload : goals.reload} />
       ) : !worth.data || !goals.data ? (
         <ListSkeleton label="Adding up what you own" rows={5} />
       ) : (
         <>
-          <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
-            {[
-              ['Net worth', money(worth.data.totalMinor, worth.data.currency)],
-              ['Accounts', money(worth.data.accountsMinor, worth.data.currency)],
-              ['Assets', money(worth.data.assetsMinor, worth.data.currency)],
-              ['Installments owed', money(worth.data.installmentsMinor, worth.data.currency)],
-            ].map(([label, value]) => (
-              <div className="rounded-xl border border-line p-4" key={label}>
-                <dt className="text-sm text-muted">{label}</dt>
-                <dd className="m-0 mt-1 text-lg text-ink">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          {worth.data.missing.length > 0 && <p className="notice m-0">There is no exchange rate for {worth.data.missing.join(', ')} yet, so those amounts are left out.</p>}
+          <Stats>
+            <Stat label="Net worth" value={money(worth.data.totalMinor, worth.data.currency)} />
+            <Stat label="Accounts" value={money(worth.data.accountsMinor, worth.data.currency)} />
+            <Stat label="Assets" value={money(worth.data.assetsMinor, worth.data.currency)} />
+            <Stat label="Installments owed" value={money(worth.data.installmentsMinor, worth.data.currency)} />
+          </Stats>
+          <MissingRates currencies={worth.data.missing} />
 
           <Section title="Savings goals">
             {goals.data.length === 0 ? (

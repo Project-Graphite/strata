@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
+import { Stat, Stats } from '../components/Stats';
 import { Choice, Suggestion } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
@@ -116,10 +117,9 @@ function TidySuggestions() {
         <Empty title="Nothing to tidy" />
       ) : (
         saving > 0 && (
-          <div className="rounded-xl border border-line bg-surface p-5">
-            <p className="m-0 text-2xl text-ink">{fileSize(saving)}</p>
-            <p className="mono-sm m-0 mt-1 text-faint">of your storage is taken by extra copies of the same file</p>
-          </div>
+          <Stats>
+            <Stat detail="of your storage is taken by extra copies of the same file" label="Extra copies" value={fileSize(saving)} />
+          </Stats>
         )
       )}
 

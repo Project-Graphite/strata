@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Meter, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -33,7 +33,7 @@ import {
   type SpendingMonth,
   type SpendingPlan,
 } from '../spending';
-import { spaceOptions, useSpaces, type Member } from '../spaces';
+import { SpaceChooser, useChosenSpace, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -41,21 +41,19 @@ import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
 import { CurrencyField } from '../components/CurrencyField';
 import { DayOfMonthField } from '../components/DayOfMonthField';
+import { MissingRates, Stat, Stats } from '../components/Stats';
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 
 export function SpendingPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
   const tab = (['transactions', 'accounts', 'budgets'] as const).find((option) => option === params.get('tab')) ?? 'overview';
   const managing = tab === 'budgets';
-  const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const { spaceId, space, editable } = useChosenSpace();
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true);
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
@@ -129,7 +127,7 @@ export function SpendingPage() {
       />
       <Toolbar
         actions={
-          (spaces.data?.length ?? 0) > 1 && spaceId && <Select aria-label="Space" onChange={(chosen) => go({ space: chosen })} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} />
+          <SpaceChooser />
         }
       >
         {tab !== 'accounts' && (
@@ -186,26 +184,16 @@ export function SpendingPage() {
       ) : (
         <>
           {tab === 'overview' && (
-            <dl className="m-0 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ['Spent', money(shown.spentMinor, currency)],
-                ['Left to spend', shown.budgetMinor === null ? 'No budget' : money(shown.budgetMinor - shown.spentMinor, currency)],
-                ['Safe to spend a day', shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)],
-                ['Received', money(shown.receivedMinor, currency)],
-              ].map(([label, value]) => (
-                <div className="grid content-start gap-2 rounded-xl border border-line p-4" key={label}>
-                  <dt className="text-sm text-muted">{label}</dt>
-                  <dd className="m-0 text-lg text-ink">{value}</dd>
-                  {label === 'Left to spend' && shown.budgetMinor !== null && (
-                    <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
-                  )}
-                </div>
-              ))}
-            </dl>
+            <Stats>
+              <Stat label="Spent" value={money(shown.spentMinor, currency)} />
+              <Stat label="Left to spend" value={shown.budgetMinor === null ? 'No budget' : money(shown.budgetMinor - shown.spentMinor, currency)}>
+                {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
+              </Stat>
+              <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)} />
+              <Stat label="Received" value={money(shown.receivedMinor, currency)} />
+            </Stats>
           )}
-          {shown.missing.length > 0 && (
-            <p className="notice m-0">There is no exchange rate for {shown.missing.join(', ')} yet, so those amounts are left out of the totals.</p>
-          )}
+          <MissingRates currencies={shown.missing} />
 
           {tab === 'overview' && Boolean(captures.data?.length) && (
             <Section title={`To review (${captures.data!.length})`}>

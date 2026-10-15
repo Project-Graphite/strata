@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Icon, Select } from '@project-graphite/ui';
+import { Select } from '@project-graphite/ui';
 import { dateOrder, guessColumns, parseCsv, readCharges, statementCurrency, withoutPreamble, type DateOrder, type StatementColumns } from '../statement';
+import { FileButton } from './FileButton';
 
 const orders: { value: DateOrder; label: string; hint: string }[] = [
   { value: 'dmy', label: 'Day first', hint: '31/01/2026' },
@@ -39,11 +40,7 @@ export function useStatementFile(onCurrency: (code: string) => void) {
     loaded: Boolean(rows),
     picker: (
       <div className="flex flex-wrap items-center gap-3">
-        <label className="secondary-button px-3 py-2 text-sm">
-          <Icon name="upload" size={16} />
-          {rows ? 'Choose another file' : 'Choose a CSV file'}
-          <input accept=".csv,text/csv" aria-label="Statement file" className="sr-only" onChange={(event) => event.currentTarget.files?.[0] && void read(event.currentTarget.files[0])} type="file" />
-        </label>
+        <FileButton accept=".csv,text/csv" inputLabel="Statement file" label={rows ? 'Choose another file' : 'Choose a CSV file'} onFiles={(files) => void read(files[0]!)} />
         {fileName && <span className="truncate text-sm text-muted">{fileName}</span>}
       </div>
     ),

@@ -8,11 +8,11 @@ import { categoryLabel, money, shortDate, type Subscription } from '../subscript
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Empty } from '../components/Empty';
-import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
 import { StatementImport } from '../components/StatementImport';
+import { MissingRates, Stat, Stats } from '../components/Stats';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
 
 interface Total {
@@ -87,28 +87,24 @@ export function RecurringPage() {
         <Empty title="No subscriptions yet" />
       ) : (
         <>
-          {summary.data.home && summary.data.totals.length > 1 && (
-            <div className="rounded-xl border border-line bg-surface p-5">
-              <Hint>All together, in {summary.data.home.currency}</Hint>
-              <p className="m-0 mt-2 text-3xl text-ink">≈ {money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month</p>
-              <p className="mono-sm m-0 mt-1 text-faint">
-                {money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year
-                {summary.data.home.ratesOn && ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}`}
-              </p>
-              {summary.data.home.missing.length > 0 && (
-                <p className="m-0 mt-2 text-sm text-muted">Not included, with no rate available: {summary.data.home.missing.join(', ')}.</p>
-              )}
-            </div>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <Stats>
+            {summary.data.home && summary.data.totals.length > 1 && (
+              <Stat
+                detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn ? ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
+                label={`All together, in ${summary.data.home.currency}`}
+                value={`≈ ${money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month`}
+              />
+            )}
             {summary.data.totals.map((total) => (
-              <div className="rounded-xl border border-line bg-surface p-5" key={total.currency}>
-                <Hint>{total.currency}</Hint>
-                <p className="m-0 mt-2 text-2xl text-ink">{money(total.monthlyMinor, total.currency)} a month</p>
-                <p className="mono-sm m-0 mt-1 text-faint">{money(total.yearlyMinor, total.currency)} over the next year</p>
-              </div>
+              <Stat
+                detail={`${money(total.yearlyMinor, total.currency)} over the next year`}
+                key={total.currency}
+                label={total.currency}
+                value={`${money(total.monthlyMinor, total.currency)} a month`}
+              />
             ))}
-          </div>
+          </Stats>
+          {summary.data.home && summary.data.totals.length > 1 && <MissingRates currencies={summary.data.home.missing} />}
           {summary.data.trials.length > 0 && (
             <section>
               <h2 className="m-0 text-xl font-medium">Trials ending soon</h2>
