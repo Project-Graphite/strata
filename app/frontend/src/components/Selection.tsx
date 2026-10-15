@@ -1,0 +1,30 @@
+import type { ReactNode } from 'react';
+import { Button } from './Button';
+import { RowText } from './RowText';
+
+export function Choice({ checked, detail, disabled, label, onToggle }: { checked: boolean; detail: ReactNode; disabled?: boolean; label: string; onToggle: () => void }) {
+  return (
+    <li>
+      <label className="panel-row flex cursor-pointer items-center gap-3">
+        <input checked={checked} disabled={disabled} onChange={onToggle} type="checkbox" />
+        <RowText detail={detail} title={label || 'Untitled'} />
+      </label>
+    </li>
+  );
+}
+
+export function toggled(current: ReadonlySet<string>, id: string) {
+  const next = new Set(current);
+  if (!next.delete(id)) next.add(id);
+  return next;
+}
+
+export function SelectionBar({ children, label, onClear }: { children: ReactNode; label: string; onClear: () => void }) {
+  return (
+    <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4">
+      <span className="mono-sm text-faint">{label}</span>
+      {children}
+      <Button label="Clear" onClick={onClear} />
+    </div>
+  );
+}

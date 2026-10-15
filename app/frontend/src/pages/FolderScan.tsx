@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog, isAbortError } from '@project-graphite/ui';
 import { Empty } from '../components/Empty';
-import { Choice } from '../components/TidyList';
+import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
 import { Button } from '../components/Button';
@@ -109,12 +109,7 @@ export function FolderScan() {
 
   const files = report ? [...report.duplicates.flat(), ...report.largest, ...report.old] : [];
   const chosen = [...new Map(files.filter((file) => selected.has(file.path)).map((file) => [file.path, file])).values()];
-  const toggle = (path: string) =>
-    setSelected((current) => {
-      const next = new Set(current);
-      if (!next.delete(path)) next.add(path);
-      return next;
-    });
+  const toggle = (path: string) => setSelected((current) => toggled(current, path));
   const choice = (file: LocalFile, detail: string) => (
     <Choice checked={selected.has(file.path)} detail={detail} key={file.path} label={file.path} onToggle={() => toggle(file.path)} />
   );
@@ -195,13 +190,9 @@ export function FolderScan() {
       )}
 
       {chosen.length > 0 && (
-        <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4">
-          <span className="mono-sm text-faint">
-            {chosen.length} file{chosen.length === 1 ? '' : 's'} selected
-          </span>
+        <SelectionBar label={`${chosen.length} file${chosen.length === 1 ? '' : 's'} selected`} onClear={() => setSelected(new Set())}>
           <Button label="Delete from this computer" onClick={() => setConfirming(true)} />
-          <Button label="Clear" onClick={() => setSelected(new Set())} />
-        </div>
+        </SelectionBar>
       )}
 
       {confirming && root && report && (

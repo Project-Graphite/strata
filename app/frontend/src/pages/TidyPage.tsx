@@ -4,7 +4,7 @@ import { ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
 import { Stat, Stats } from '../components/Stats';
-import { Choice } from '../components/TidyList';
+import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
 import { useSpaces } from '../spaces';
@@ -62,12 +62,7 @@ function TidySuggestions() {
   if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={5} />;
   const { files, subscriptions } = scan.data;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name ?? 'a space';
-  const toggle = (id: string) =>
-    setSelected((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => setSelected((current) => toggled(current, id));
   const subscriptionIds = new Set(
     [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
       (entry) => entry.id,
@@ -192,15 +187,11 @@ function TidySuggestions() {
       )}
 
       {selected.size > 0 && (
-        <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4">
-          <span className="mono-sm text-faint">{itemsText(selected.size)} selected</span>
+        <SelectionBar label={`${itemsText(selected.size)} selected`} onClear={() => setSelected(new Set())}>
           <Button label="Archive" onClick={() => open('archive')} />
           <Button label="Move to the trash" onClick={() => open('trash')} />
-          {[...selected].some((id) => subscriptionIds.has(id)) && (
-            <Button label="Cancel subscriptions" onClick={() => open('cancel')} />
-          )}
-          <Button label="Clear" onClick={() => setSelected(new Set())} />
-        </div>
+          {[...selected].some((id) => subscriptionIds.has(id)) && <Button label="Cancel subscriptions" onClick={() => open('cancel')} />}
+        </SelectionBar>
       )}
 
       {request && (

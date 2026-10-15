@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
+import { Meter, PageSkeleton, TextField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, IconButton } from '../components/Button';
-import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
+import { LinkItemDialog } from '../components/LinkItemDialog';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { TaskEditor } from '../components/TaskEditor';
@@ -37,6 +37,7 @@ export function GoalPage() {
   const [editing, setEditing] = useState(false);
   const [taskEditing, setTaskEditing] = useState<Task | 'new'>();
   const [dialog, setDialog] = useState<'progress' | 'link' | 'habits'>();
+  const openTasks = useResource<ResultPage<Task>>(dialog === 'link' && spaceId ? `/spaces/${spaceId}/tasks?page=1` : null, true);
 
   if (goal.error) return <LoadError error={goal.error} onRetry={goal.reload} />;
   if (!goal.data) return <PageSkeleton label="Loading the goal" />;
@@ -199,7 +200,16 @@ export function GoalPage() {
         </FormDialog>
       )}
 
-      {dialog === 'link' && <LinkTaskDialog goal={shown} onClose={() => setDialog(undefined)} onLink={(taskId) => void link(taskId).then((done) => done && setDialog(undefined))} />}
+      {dialog === 'link' && (
+        <LinkItemDialog
+          choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: task.dueDate ?? undefined }))}
+          empty={`Every open task in ${shown.spaceName} is already linked.`}
+          noun="task"
+          onClose={() => setDialog(undefined)}
+          onLink={(taskId) => void link(taskId).then((done) => done && setDialog(undefined))}
+          title="Link a task"
+        />
+      )}
 
       {dialog === 'habits' && (
         <HabitsDialog
@@ -229,30 +239,6 @@ export function GoalPage() {
         />
       )}
     </Page>
-  );
-}
-
-function LinkTaskDialog({ goal, onClose, onLink }: { goal: GoalDetail; onClose: () => void; onLink: (taskId: string) => void }) {
-  const open = useResource<ResultPage<Task>>(`/spaces/${goal.spaceId}/tasks?page=1`, true);
-  const [chosen, setChosen] = useState('');
-  const linked = new Set(goal.taskList.map((task) => task.id));
-  const choices = (open.data?.results ?? []).filter((task) => !linked.has(task.id));
-
-  return (
-    <FormDialog busy={false} busyLabel="Linking…" onClose={onClose} onSubmit={() => chosen && onLink(chosen)} submitLabel="Link task" title="Link a task">
-      {open.data && choices.length === 0 ? (
-        <Empty title="No open tasks to link">Every open task in {goal.spaceName} is already linked.</Empty>
-      ) : (
-        <Select
-          label="Task"
-          onChange={setChosen}
-          options={choices.map((task) => ({ value: task.id, label: task.title, hint: task.dueDate ?? undefined }))}
-          placeholder={open.data ? 'Choose a task' : 'Loading tasks…'}
-          searchable
-          value={chosen}
-        />
-      )}
-    </FormDialog>
   );
 }
 

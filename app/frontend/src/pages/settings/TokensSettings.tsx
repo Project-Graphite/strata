@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { DialogActions } from '../../components/DialogActions';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
-import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
@@ -13,6 +11,7 @@ import { atMost, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
+import { SecretDialog } from '../../components/Copyable';
 
 interface AccessToken {
   id: string;
@@ -83,16 +82,7 @@ export function TokensSettings() {
       </Section>
 
       {open && created && (
-        <Dialog onClose={close} title="Copy your token">
-          <div className="mt-5 grid gap-4">
-            <Hint>It won’t be shown again. Store it like a password.</Hint>
-            <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{created}</code>
-            <DialogActions>
-              <Button label="Copy" large onClick={() => void navigator.clipboard.writeText(created)} />
-              <Button label="Done" large onClick={close} primary />
-            </DialogActions>
-          </div>
-        </Dialog>
+        <SecretDialog hint="It won’t be shown again. Store it like a password." onClose={close} title="Copy your token" value={created} />
       )}
 
       {open && !created && (

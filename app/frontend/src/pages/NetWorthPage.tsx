@@ -151,7 +151,7 @@ export function NetWorthPage() {
         <AssetEditor asset={dialog.asset ?? undefined} currency={worth.data.currency} onClose={() => setDialog(undefined)} onSaved={worth.reload} spaceId={spaceId} />
       )}
       {spaceId && worth.data && dialog && 'goal' in dialog && (
-        <GoalEditor
+        <SavingsGoalEditor
           accounts={accounts.data ?? []}
           currency={worth.data.currency}
           goal={dialog.goal ?? undefined}
@@ -215,7 +215,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
   );
 }
 
-function GoalEditor({
+function SavingsGoalEditor({
   accounts,
   currency,
   goal,

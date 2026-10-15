@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, PageSkeleton, Select, TextField } from '@project-graphite/ui';
+import { formatDay, PageSkeleton, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
@@ -8,6 +8,7 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, IconButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
+import { LinkItemDialog } from '../components/LinkItemDialog';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
@@ -30,6 +31,7 @@ export function PersonPage() {
   const ideaForm = useFormErrors();
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<'idea' | 'event'>();
+  const events = useResource<ResultPage<Item>>(dialog === 'event' && person.data ? `/spaces/${person.data.spaceId}/items?kind=event` : null, true);
 
   if (person.error) return <LoadError error={person.error} onRetry={person.reload} />;
   if (!person.data) return <PageSkeleton label="Loading this person" />;
@@ -193,56 +195,24 @@ export function PersonPage() {
       )}
 
       {dialog === 'event' && (
-        <LinkEventDialog
+        <LinkItemDialog
+          busy={action.busy}
+          choices={events.data?.results.filter((event) => !shown.events.some((linked) => linked.id === event.id)).map((event) => ({ value: event.id, label: event.title || 'Untitled' }))}
+          empty={`There are no other events in ${shown.spaceName} to link.`}
+          noun="event"
           onClose={() => setDialog(undefined)}
-          onLinked={() => {
-            person.reload();
-            setDialog(undefined);
-          }}
-          person={shown}
+          onLink={(eventId) =>
+            void action
+              .run(async () => {
+                await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: eventId, kind: 'reference' }) });
+                person.reload();
+                return '';
+              }, 'Could not link the event')
+              .then((done) => done && setDialog(undefined))
+          }
+          title={`Link an event with ${shown.name}`}
         />
       )}
     </Page>
-  );
-}
-
-function LinkEventDialog({ onClose, onLinked, person }: { onClose: () => void; onLinked: () => void; person: PersonDetail }) {
-  const auth = useAuth();
-  const linking = useAction();
-  const events = useResource<ResultPage<Item>>(`/spaces/${person.spaceId}/items?kind=event`, true);
-  const [chosen, setChosen] = useState('');
-  const linked = new Set(person.events.map((event) => event.id));
-  const choices = (events.data?.results ?? []).filter((event) => !linked.has(event.id));
-
-  return (
-    <FormDialog
-      busy={linking.busy}
-      busyLabel="Linking…"
-      onClose={onClose}
-      onSubmit={() => {
-        if (!chosen) return;
-        void linking
-          .run(async () => {
-            await auth.request(`/items/${person.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: chosen, kind: 'reference' }) });
-            return '';
-          }, 'Could not link the event')
-          .then((done) => done && onLinked());
-      }}
-      submitLabel="Link event"
-      title={`Link an event with ${person.name}`}
-    >
-      {events.data && choices.length === 0 ? (
-        <Hint>There are no other events in {person.spaceName} to link.</Hint>
-      ) : (
-        <Select
-          label="Event"
-          onChange={setChosen}
-          options={choices.map((event) => ({ value: event.id, label: event.title || 'Untitled' }))}
-          placeholder={events.data ? 'Choose an event' : 'Loading events…'}
-          searchable
-          value={chosen}
-        />
-      )}
-    </FormDialog>
   );
 }

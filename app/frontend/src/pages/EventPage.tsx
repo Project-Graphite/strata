@@ -5,7 +5,7 @@ import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { Button, IconButton } from '../components/Button';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
-import { CopyLink } from '../components/CopyLink';
+import { Copyable } from '../components/Copyable';
 import { EventEditor } from '../components/EventEditor';
 import { Hint } from '../components/Hint';
 import { ItemBoards } from '../components/ItemBoards';
@@ -143,7 +143,7 @@ export function EventPage() {
                 <RowText
                   title={<>{guest.name} <span className="mono-sm text-faint">· {responseLabels[guest.response]}</span></>}
                 >
-                  {guest.note && <p className="mt-1 mb-0 text-sm text-muted">“{guest.note}”</p>}
+                  {guest.note && <span className="text-sm text-muted">“{guest.note}”</span>}
                 </RowText>
                 {editable && (
                   <Button
@@ -193,14 +193,14 @@ export function EventPage() {
               <TextField label="Name" maxLength={80} {...form.field('name')} />
               <TextField inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
             </div>
-            {personalLink && <CopyLink link={personalLink} />}
+            {personalLink && <Copyable value={personalLink} />}
             <Button disabled={inviting.busy} label="Invite" primary submit />
           </form>
           <div className="grid gap-3">
             <Subheading>Open invitation link</Subheading>
             <Hint>Anyone with this link can answer with their name for 60 days. They see only this event.</Hint>
             {openLink ? (
-              <CopyLink link={openLink} />
+              <Copyable value={openLink} />
             ) : (
               <Button
                 disabled={sharing.busy}

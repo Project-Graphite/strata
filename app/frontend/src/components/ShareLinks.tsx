@@ -3,7 +3,7 @@ import { Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { CopyLink } from './CopyLink';
+import { Copyable } from './Copyable';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
@@ -96,7 +96,7 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
                 </button>
               </div>
               {link.link ? (
-                <CopyLink link={link.link} />
+                <Copyable value={link.link} />
               ) : (
                 <Hint>This older link can’t be shown again. Turn it off and create a new one to copy it.</Hint>
               )}

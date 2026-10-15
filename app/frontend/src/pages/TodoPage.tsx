@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, Pagination, Select, TextField } from '@project-graphite/ui';
+import { useNavigate, useSearchParams } from 'react-router';
+import { ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -9,7 +9,7 @@ import { LoadError } from '../components/LoadError';
 import { Page, Toolbar } from '../components/Page';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { spaceOptions, useSpaces } from '../spaces';
-import { TaskRow, type Task, type TaskList } from '../tasks';
+import { TaskListChips, TaskListFooter, taskLink, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -31,14 +31,7 @@ export function TodoPage() {
   const spaceOf = (id: string) => spaces.data?.find((space) => space.id === id);
   const editableSpaces = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const personal = spaces.data?.find((space) => space.kind === 'personal');
-  const link = (next: { list?: string | null; completed?: boolean; page?: number }) => {
-    const query = new URLSearchParams();
-    const list = next.list === undefined ? listId : next.list;
-    if (list) query.set('list', list);
-    if (next.completed ?? completed) query.set('completed', 'true');
-    if (next.page && next.page > 1) query.set('page', String(next.page));
-    return `/todo${query.size ? `?${query}` : ''}`;
-  };
+  const link = taskLink('/todo', listId, completed);
 
   if (tasks.error) return <LoadError error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data || !lists.data || !spaces.data) {
@@ -56,23 +49,7 @@ export function TodoPage() {
   return (
     <Page title="To-do">
       <Toolbar>
-        <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
-          <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null, page: 1 })}>
-            Everything
-          </Link>
-          {lists.data.map((list) => (
-            <Link aria-current={listId === list.id ? 'page' : undefined} className="filter-chip" key={list.id} to={link({ list: list.id, page: 1 })}>
-              {list.title}
-              <span className="text-faint">{list.openTasks}</span>
-            </Link>
-          ))}
-          {editableSpaces.length > 0 && (
-            <button className="filter-chip" onClick={() => setCreatingList(true)} type="button">
-              <Icon name="plus" size={14} />
-              New list
-            </button>
-          )}
-        </nav>
+        <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
       </Toolbar>
 
       {!completed && addTo && addTo.role !== 'viewer' && (
@@ -112,12 +89,7 @@ export function TodoPage() {
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link className="text-button text-sm" to={link({ completed: !completed, page: 1 })}>
-          {completed ? 'Show open' : 'Show done'}
-        </Link>
-        <Pagination page={tasks.data.page} pageHref={(next) => link({ page: next })} totalPages={tasks.data.totalPages} />
-      </div>
+      <TaskListFooter completed={completed} link={link} tasks={tasks.data} />
 
       {creatingList && (
         <FormDialog

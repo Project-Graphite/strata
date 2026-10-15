@@ -8,21 +8,10 @@ import { required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
 import { ProofFields, proofFrom } from './ProofFields';
 import { Button } from './Button';
+import { Copyable } from './Copyable';
 import { DialogActions } from './DialogActions';
 
 export const forwarderUrl = 'https://f-droid.org/packages/tech.bogomolov.incomingsmsgateway/';
-
-function Copyable({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-sm text-muted">{label}</span>
-      <div className="flex items-start gap-2">
-        <code className="mono-sm block min-w-0 flex-1 break-all rounded-lg border border-line p-3 text-ink">{value}</code>
-        <Button label="Copy" onClick={() => void navigator.clipboard.writeText(value)} />
-      </div>
-    </div>
-  );
-}
 
 export function PhoneSetup({ onClose, spaceId, spaceName }: { onClose: () => void; spaceId: string; spaceName: string }) {
   const auth = useAuth();

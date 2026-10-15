@@ -10,6 +10,7 @@ import { CurrencyField } from './CurrencyField';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { Choice, toggled } from './Selection';
 
 const shownAtMost = 200;
 
@@ -20,9 +21,9 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
   const statement = useStatementFile(setChosenCurrency);
   const categories = useCategories(spaceId);
   const [category, setCategory] = useState('other');
-  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
   const charges = statement.charges.slice(0, shownAtMost);
-  const chosen = charges.filter((_, index) => !skipped.has(index));
+  const chosen = charges.filter((_, index) => !skipped.has(String(index)));
 
   return (
     <Dialog onClose={onClose} title="Import spending from a statement">
@@ -42,24 +43,13 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             {charges.length > 0 && (
               <ul className="panel-rows max-h-72 overflow-y-auto">
                 {charges.map((charge, index) => (
-                  <li className="panel-row" key={index}>
-                    <label className="flex items-center gap-3">
-                      <input
-                        checked={!skipped.has(index)}
-                        onChange={(event) => {
-                          const next = new Set(skipped);
-                          if (event.currentTarget.checked) next.delete(index);
-                          else next.add(index);
-                          setSkipped(next);
-                        }}
-                        type="checkbox"
-                      />
-                      <span className="min-w-0 flex-1 truncate text-ink">{charge.description}</span>
-                      <span className="shrink-0 text-sm text-muted">
-                        {charge.date} · {money(toMinor(charge.amount.toFixed(2), chosenCurrency), chosenCurrency)}
-                      </span>
-                    </label>
-                  </li>
+                  <Choice
+                    checked={!skipped.has(String(index))}
+                    detail={`${charge.date} · ${money(toMinor(charge.amount.toFixed(2), chosenCurrency), chosenCurrency)}`}
+                    key={index}
+                    label={charge.description}
+                    onToggle={() => setSkipped((current) => toggled(current, String(index)))}
+                  />
                 ))}
               </ul>
             )}

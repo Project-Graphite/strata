@@ -12,6 +12,7 @@ import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
+import { saveBlob } from '../../files';
 
 export function DataSettings() {
   const auth = useAuth();
@@ -38,11 +39,7 @@ export function DataSettings() {
                 onClick={() =>
                   void exporting.run(async () => {
                     const data = await auth.request<object>('/me/export');
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-                    link.download = 'strata-export.json';
-                    link.click();
-                    URL.revokeObjectURL(link.href);
+                    saveBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'strata-export.json');
                     return 'Your export is downloading.';
                   }, 'Could not export your data')
                 }
