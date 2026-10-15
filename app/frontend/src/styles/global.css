@@ -891,10 +891,6 @@ header.backdrop-blur-md {
   background: color-mix(in srgb, var(--color-paper) 72%, transparent);
 }
 
-.sidebar-panel {
-  transition: none;
-}
-
 .sidebar .sidebar-item {
   min-height: calc(0.9rem * 1.55 + 0.9rem);
   justify-content: flex-start;

@@ -1,12 +1,11 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { Page, Subheading } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
-import { pagesTabs } from '../notes';
 import { useResource, type Resource } from '../useResource';
 import { PeriodNav } from '../components/PeriodNav';
 
@@ -44,9 +43,8 @@ export function JournalPage() {
       actions={
         <ButtonLink label="Write a weekly review" to="/review" />
       }
-      title="Pages"
+      title="Journal"
     >
-      <Tabs items={pagesTabs('journal')} label="Pages" />
       {journal.error ? (
         <LoadError error={journal.error} onRetry={journal.reload} />
       ) : !journal.data ? (

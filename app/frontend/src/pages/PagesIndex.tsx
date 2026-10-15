@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button, buttonClass, IconButton } from '../components/Button';
@@ -16,18 +16,21 @@ import { useResource } from '../useResource';
 const wording = {
   board: { title: 'Boards', create: 'New board', empty: 'No boards yet', hint: 'A board is a white canvas to draw, sketch and plan on together.' },
   note: { title: 'Pages', create: 'New page', empty: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything you write.' },
+  journal: { title: 'Pages', create: 'New page', empty: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
 };
 
 export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const spaces = useSpaces();
   const listed = useResource<Note[]>(`/me/notes?kind=${kind}`, true);
   const creating = useAction();
   const [importing, setImporting] = useState(false);
-  const words = wording[kind];
+  const journal = kind === 'note' && params.get('tab') === 'journal';
+  const words = wording[journal ? 'journal' : kind];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const pages = listed.data?.filter((note) => !note.journal) ?? [];
+  const pages = listed.data?.filter((note) => note.journal === journal) ?? [];
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);
@@ -84,7 +87,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       }
       title={words.title}
     >
-      {kind === 'note' && <Tabs items={pagesTabs('pages')} label="Pages" />}
+      {kind === 'note' && <Tabs items={pagesTabs(journal)} label="Pages" />}
       {importing && (
         <ImportPages
           onClose={() => setImporting(false)}

@@ -21,9 +21,9 @@ export function nestedUnder(pages: Note[], parentId: string | null) {
   return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
 }
 
-export const pagesTabs = (active: 'pages' | 'journal') => [
-  { active: active === 'pages', href: '/pages', label: 'Pages' },
-  { active: active === 'journal', href: '/journal', label: 'Journal' },
+export const pagesTabs = (journal: boolean) => [
+  { active: !journal, href: '/pages', label: 'Pages' },
+  { active: journal, href: '/pages?tab=journal', label: 'Journal entries' },
 ];
 
 export interface NoteDetails extends Note {
