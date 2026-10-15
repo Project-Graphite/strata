@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
-import { ColorSwatches, Icon, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
+import { useSearchParams } from 'react-router';
+import { ColorSwatches, Icon, Select, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
 import type { Resource } from './useResource';
 import { atMost, required, type Check } from './validation';
 
@@ -121,4 +122,28 @@ export function NameAndColorFields({
       <ColorSwatches defaultValue={color} label="Colour" name="color" />
     </div>
   );
+}
+
+export function useChosenSpace() {
+  const spaces = useSpaces();
+  const [params, setParams] = useSearchParams();
+  const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
+  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
+  return {
+    spaceId,
+    space,
+    editable: Boolean(space && space.role !== 'viewer'),
+    choose: (chosen: string) =>
+      setParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set('space', chosen);
+        return next;
+      }),
+  };
+}
+
+export function SpaceChooser() {
+  const spaces = useSpaces();
+  const { spaceId, choose } = useChosenSpace();
+  return (spaces.data?.length ?? 0) > 1 && spaceId ? <Select aria-label="Space" onChange={choose} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} /> : null;
 }

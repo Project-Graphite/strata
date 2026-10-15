@@ -4,15 +4,14 @@ import { useAuth } from '../auth';
 import { spaceOptions, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { Hint } from './Hint';
+import { FileButton } from './FileButton';
 
 export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
   const auth = useAuth();
   const importing = useAction();
   const [spaceId, setSpaceId] = useState(spaces[0]!.id);
 
-  function start(files: FileList | null) {
-    if (!files?.length) return;
-    const chosen = [...files];
+  function start(chosen: File[]) {
     void importing.run(async () => {
       const { importPages } = await import('../page-import');
       const { imported, tooLong } = await importPages(auth.request, spaceId, chosen);
@@ -37,14 +36,8 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           <Select label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
         )}
         <div className="flex flex-wrap gap-3">
-          <label className={`secondary-button ${importing.busy ? 'pointer-events-none opacity-60' : ''}`}>
-            Choose Markdown files
-            <input accept=".md,.markdown,text/markdown" className="sr-only" disabled={importing.busy} multiple onChange={(event) => start(event.currentTarget.files)} type="file" />
-          </label>
-          <label className={`secondary-button ${importing.busy ? 'pointer-events-none opacity-60' : ''}`}>
-            Choose a folder
-            <input className="sr-only" disabled={importing.busy} onChange={(event) => start(event.currentTarget.files)} type="file" {...{ webkitdirectory: '' }} />
-          </label>
+          <FileButton accept=".md,.markdown,text/markdown" busy={importing.busy} label="Choose Markdown files" multiple onFiles={start} />
+          <FileButton busy={importing.busy} folder label="Choose a folder" onFiles={start} />
         </div>
         {importing.busy && (
           <p className="m-0 text-sm text-muted" role="status">

@@ -1,10 +1,11 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, Icon, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Empty } from '../components/Empty';
+import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { IconButton, IconLink } from '../components/IconButton';
@@ -428,26 +429,19 @@ export function DashboardHome() {
               <div className="flex flex-wrap items-center gap-3">
                 {layout.background?.imageId && <BackgroundPreview background={layout.background} />}
                 {personal && (
-                  <label className="secondary-button px-3 py-2 text-sm">
-                    <Icon name="upload" size={16} />
-                    {saving.busy ? 'Uploading…' : layout.background?.imageId ? 'Change the image' : 'Use an image'}
-                    <input
-                      accept="image/*"
-                      aria-label="Background image"
-                      className="sr-only"
-                      disabled={saving.busy}
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0];
-                        if (!file) return;
-                        void saving.run(async () => {
-                          const uploaded = await uploadFile(auth.request, personal.id, file);
-                          change({ background: { imageId: uploaded.id } });
-                          return '';
-                        }, 'Could not upload the image');
-                      }}
-                      type="file"
-                    />
-                  </label>
+                  <FileButton
+                    accept="image/*"
+                    busy={saving.busy}
+                    inputLabel="Background image"
+                    label={saving.busy ? 'Uploading…' : layout.background?.imageId ? 'Change the image' : 'Use an image'}
+                    onFiles={(files) =>
+                      void saving.run(async () => {
+                        const uploaded = await uploadFile(auth.request, personal.id, files[0]!);
+                        change({ background: { imageId: uploaded.id } });
+                        return '';
+                      }, 'Could not upload the image')
+                    }
+                  />
                 )}
                 {layout.background && (
                   <button className="text-button text-sm" onClick={() => change({ background: undefined })} type="button">

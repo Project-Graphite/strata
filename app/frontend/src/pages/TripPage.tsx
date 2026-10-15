@@ -6,11 +6,13 @@ import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
+import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
+import { MissingRates } from '../components/Stats';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { categoryName, type MoneyAccount } from '../spending';
@@ -160,7 +162,7 @@ export function TripPage() {
             {shown.budgetMinor !== null && <span className="text-muted"> of {money(shown.budgetMinor, budgetCurrency)}</span>}
           </p>
           {shown.budgetMinor !== null && <Meter label="Spent of the trip budget" value={shown.budgetMinor ? shown.spending.spentMinor / shown.budgetMinor : 1} />}
-          {shown.spending.missing.length > 0 && <p className="notice m-0">There is no exchange rate for {shown.spending.missing.join(', ')} yet, so those amounts are left out.</p>}
+          <MissingRates currencies={shown.spending.missing} />
         </div>
         {shown.expenses.length > 0 && (
           <ul className="panel-rows">
@@ -183,28 +185,22 @@ export function TripPage() {
       <Section
         action={
           editable && (
-            <label className={`secondary-button px-3 py-2 text-sm ${action.busy ? 'pointer-events-none opacity-60' : ''}`}>
-              <Icon name="upload" size={16} />
-              Upload
-              <input
-                className="sr-only"
-                multiple
-                onChange={(event) => {
-                  const chosen = [...(event.currentTarget.files ?? [])];
-                  event.currentTarget.value = '';
-                  void action.run(async () => {
-                    const accepted = chosen.filter((file) => file.size <= maxUploadBytes);
-                    for (const file of accepted) {
-                      const uploaded = await uploadFile(auth.request, shown.spaceId, file);
-                      await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: uploaded.id, kind: 'reference' }) });
-                    }
-                    trip.reload();
-                    return accepted.length < chosen.length ? 'Files over 25 MB were left out.' : '';
-                  }, 'Could not upload that file');
-                }}
-                type="file"
-              />
-            </label>
+            <FileButton
+              busy={action.busy}
+              label="Upload"
+              multiple
+              onFiles={(chosen) =>
+                void action.run(async () => {
+                  const accepted = chosen.filter((file) => file.size <= maxUploadBytes);
+                  for (const file of accepted) {
+                    const uploaded = await uploadFile(auth.request, shown.spaceId, file);
+                    await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: uploaded.id, kind: 'reference' }) });
+                  }
+                  trip.reload();
+                  return accepted.length < chosen.length ? 'Files over 25 MB were left out.' : '';
+                }, 'Could not upload that file')
+              }
+            />
           )
         }
         title="Documents"

@@ -8,7 +8,7 @@ import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Toolbar } from '../components/Page';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
-import { spaceOptions, useSpaces } from '../spaces';
+import { SpaceChooser, useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesTabs } from './RecipesPage';
@@ -19,15 +19,11 @@ const weekRange = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 's
 
 export function MealPlanPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const today = dayKey(new Date());
   const monday = mondayOf(params.get('week') ?? today);
-  const personal = spaces.data?.find((space) => space.kind === 'personal');
-  const spaceId = params.get('space') ?? personal?.id;
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const { spaceId, space, editable } = useChosenSpace();
   const plan = useResource<PlannedMeal[]>(spaceId ? `/spaces/${spaceId}/meal-plan?from=${monday}` : null, true);
   const [adding, setAdding] = useState<{ day: string; meal: Meal }>();
   const days = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
@@ -60,11 +56,7 @@ export function MealPlanPage() {
     >
       <RecipesTabs />
       <Toolbar
-        actions={
-          (spaces.data?.length ?? 0) > 1 && spaceId && (
-            <Select aria-label="Space" onChange={(chosen) => go({ space: chosen })} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} />
-          )
-        }
+        actions={<SpaceChooser />}
       >
         <PeriodNav
           current={{ label: 'This week', onSelect: () => go({ week: mondayOf(today) }) }}

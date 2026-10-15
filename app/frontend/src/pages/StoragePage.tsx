@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { fileSize, maxUploadBytes, saveBlob, uploadFiles } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Empty } from '../components/Empty';
+import { FileButton } from '../components/FileButton';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
@@ -44,27 +45,20 @@ export function StoragePage() {
     <Page
       actions={
         target && (
-          <label className={`primary-button px-3 py-2 text-sm ${action.busy ? 'opacity-60' : ''}`}>
-            <Icon name="upload" size={16} />
-            {action.busy ? 'Uploading…' : 'Upload files'}
-            <input
-              aria-label="Files to upload"
-              className="sr-only"
-              disabled={action.busy}
-              multiple
-              onChange={(event) => {
-                const files = [...(event.currentTarget.files ?? [])];
-                event.currentTarget.value = '';
-                if (files.length === 0) return;
-                void action.run(async () => {
-                  const message = await uploadFiles(auth.request, target, files);
-                  storage.reload();
-                  return message;
-                }, 'Could not upload the files');
-              }}
-              type="file"
-            />
-          </label>
+          <FileButton
+            busy={action.busy}
+            inputLabel="Files to upload"
+            label={action.busy ? 'Uploading…' : 'Upload files'}
+            multiple
+            onFiles={(files) =>
+              void action.run(async () => {
+                const message = await uploadFiles(auth.request, target, files);
+                storage.reload();
+                return message;
+              }, 'Could not upload the files')
+            }
+            primary
+          />
         )
       }
       title="Storage"

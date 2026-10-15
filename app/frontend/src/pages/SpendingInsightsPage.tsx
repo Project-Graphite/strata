@@ -1,32 +1,27 @@
 import { useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton, Select, Tabs } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Toolbar } from '../components/Page';
 import { categoryName, spendingTabs, type SpendingInsights } from '../spending';
-import { spaceOptions, useSpaces } from '../spaces';
+import { SpaceChooser, useChosenSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
+import { MissingRates } from '../components/Stats';
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
 const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 78)}%, var(--color-surface))`;
 
 export function SpendingInsightsPage() {
-  const spaces = useSpaces();
-  const [params, setParams] = useSearchParams();
-  const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
+  const [params] = useSearchParams();
+  const { spaceId } = useChosenSpace();
   const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true);
   const shown = insights.data;
 
   return (
     <Page title="Spending">
       <Tabs items={spendingTabs('insights', params.get('space'))} label="Spending" />
-      <Toolbar
-        actions={
-          (spaces.data?.length ?? 0) > 1 &&
-          spaceId && <Select aria-label="Space" onChange={(chosen) => setParams({ space: chosen })} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} />
-        }
-      />
+      <Toolbar actions={<SpaceChooser />} />
       {insights.error ? (
         <LoadError error={insights.error} onRetry={insights.reload} />
       ) : !shown ? (
@@ -52,7 +47,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
   return (
     <>
-      {insights.missing.length > 0 && <p className="notice m-0">There is no exchange rate for {insights.missing.join(', ')} yet, so those amounts are left out.</p>}
+      <MissingRates currencies={insights.missing} />
       <Section title="Spent each month">
         <div aria-hidden="true" className="grid max-w-[40rem] gap-1">
           <div className="flex h-36 items-end gap-2 border-b border-line">

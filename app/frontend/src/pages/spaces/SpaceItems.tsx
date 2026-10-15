@@ -9,6 +9,7 @@ import { useResource } from '../../useResource';
 import { ItemList } from './ItemList';
 import { useSpace } from './SpaceLayout';
 import { Empty } from '../../components/Empty';
+import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
 
 export function SpaceItems() {
@@ -50,20 +51,7 @@ export function SpaceItems() {
           )}
         </div>
         {editable && !archived && (
-          <label className={`secondary-button inline-flex cursor-pointer px-3 py-2 text-sm ${uploading.busy ? 'opacity-60' : ''}`}>
-            {uploading.busy ? 'Uploading…' : 'Upload files'}
-            <input
-              className="sr-only"
-              disabled={uploading.busy}
-              multiple
-              onChange={(event) => {
-                const chosen = [...(event.currentTarget.files ?? [])];
-                event.currentTarget.value = '';
-                if (chosen.length) upload(chosen);
-              }}
-              type="file"
-            />
-          </label>
+          <FileButton busy={uploading.busy} label={uploading.busy ? 'Uploading…' : 'Upload files'} multiple onFiles={upload} />
         )}
       </div>
       {items.data.results.length === 0 ? (
