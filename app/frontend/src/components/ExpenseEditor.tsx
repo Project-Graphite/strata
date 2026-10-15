@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
-import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, directionOptions, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount } from '../spending';
+import { directionOptions, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
+import { CategoryChips } from './CategoryChips';
+import { CurrencyField } from './CurrencyField';
 
 
 export function ExpenseEditor({
@@ -105,14 +106,14 @@ export function ExpenseEditor({
           label="Amount"
           {...form.field('amount')}
         />
-        <Select defaultValue={expense?.currency ?? suggested?.currency ?? currency} label="Currency" name="currency" options={currencyOptions(allCurrencies)} searchable />
+        <CurrencyField defaultValue={expense?.currency ?? suggested?.currency ?? currency} name="currency" />
         <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
-        {direction !== 'received' && !transfer && <Select label="Category" onChange={setCategory} options={categoryOptions(categories.data ?? [])} value={chosenCategory} />}
         {accounts.length > 0 && (
           <Select error={form.errors.from} label={transfer ? 'From' : 'Account'} name="from" onChange={setAccountId} options={accountOptions} value={accountId} />
         )}
         {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
       </div>
+      {direction !== 'received' && !transfer && <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={chosenCategory} />}
       {suggested?.merchant && (
         <label className="flex items-center gap-2 text-sm text-ink">
           <input defaultChecked name="remember" type="checkbox" />

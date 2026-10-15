@@ -27,6 +27,8 @@ import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments' | 'savings';
+export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
+export type WidgetGroup = (typeof widgetGroups)[number];
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export type CardPadding = 'compact' | 'normal' | 'roomy';
@@ -600,28 +602,36 @@ function Tidy() {
 
 export const widgetKinds: Record<
   WidgetType,
-  { title: string; size: WidgetSize; settings: Record<string, unknown>; View: (props: WidgetProps) => ReactNode; Settings?: (props: SettingsProps) => ReactNode }
+  {
+    title: string;
+    group: WidgetGroup;
+    description: string;
+    size: WidgetSize;
+    settings: Record<string, unknown>;
+    View: (props: WidgetProps) => ReactNode;
+    Settings?: (props: SettingsProps) => ReactNode;
+  }
 > = {
-  clock: { title: 'Clock', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
-  today: { title: 'Today', size: 'medium', settings: {}, View: Today },
-  tasks: { title: 'To-do list', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
-  shortcuts: { title: 'Shortcuts', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
-  recurring: { title: 'Renewals and spend', size: 'small', settings: {}, View: Recurring },
-  inbox: { title: 'Inbox', size: 'medium', settings: {}, View: Inbox },
-  agenda: { title: 'Agenda', size: 'medium', settings: {}, View: Agenda },
-  countdown: { title: 'Countdown', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
-  focus: { title: 'Focus timer', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
-  tidy: { title: 'Tidy status', size: 'small', settings: {}, View: Tidy },
-  weather: { title: 'Weather', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
-  news: { title: 'News', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  capture: { title: 'Quick note', size: 'medium', settings: {}, View: Capture },
-  habits: { title: 'Habits', size: 'medium', settings: {}, View: Habits },
-  pages: { title: 'Pinned and recent pages', size: 'medium', settings: {}, View: Pages },
-  board: { title: 'Board', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
-  bookmarks: { title: 'Read later', size: 'medium', settings: {}, View: ReadLater },
-  status: { title: 'Are my apps up?', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
-  quote: { title: 'Quote of the day', size: 'medium', settings: {}, View: Quote },
-  spending: { title: 'Spending this month', size: 'medium', settings: {}, View: SpendingWidget },
-  payments: { title: 'Upcoming payments', size: 'small', settings: {}, View: PaymentsWidget },
-  savings: { title: 'Savings goals', size: 'small', settings: {}, View: SavingsWidget },
+  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
+  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", size: 'medium', settings: {}, View: Today },
+  tasks: { title: 'To-do list', group: 'Your day', description: 'A to-do list to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
+  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
+  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', size: 'small', settings: {}, View: Recurring },
+  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', size: 'medium', settings: {}, View: Inbox },
+  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', size: 'medium', settings: {}, View: Agenda },
+  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
+  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
+  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', size: 'small', settings: {}, View: Tidy },
+  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
+  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
+  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home.', size: 'medium', settings: {}, View: Capture },
+  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", size: 'medium', settings: {}, View: Habits },
+  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', size: 'medium', settings: {}, View: Pages },
+  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
+  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', size: 'medium', settings: {}, View: ReadLater },
+  status: { title: 'Are my apps up?', group: 'Around you', description: 'Whether your sites are up.', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
+  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', size: 'medium', settings: {}, View: Quote },
+  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', size: 'medium', settings: {}, View: SpendingWidget },
+  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', size: 'small', settings: {}, View: PaymentsWidget },
+  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', size: 'small', settings: {}, View: SavingsWidget },
 };

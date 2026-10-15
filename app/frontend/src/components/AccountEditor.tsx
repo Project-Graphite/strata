@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
 import { accountKindOptions, type AccountKind, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, required, useFormErrors, type Check } from '../validation';
 import { FormDialog } from './FormDialog';
+import { CurrencyField } from './CurrencyField';
+import { DayOfMonthField } from './DayOfMonthField';
 
 const listOf = (text: string) =>
   text
@@ -35,7 +36,6 @@ export function AccountEditor({
   const form = useFormErrors();
   const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank');
   const [chosenCurrency, setChosenCurrency] = useState(account?.currency ?? currency);
-  const [dueDay, setDueDay] = useState(account?.dueDay ? String(account.dueDay) : '');
   const owed = kind === 'credit';
   const shownBalance = account ? fromMinor(Math.abs(account.balanceMinor), account.currency) : '';
 
@@ -65,7 +65,7 @@ export function AccountEditor({
           cardDigits: listOf(text('cardDigits')),
           senders: listOf(text('senders')),
           creditLimitMinor: owed && text('creditLimit') ? toMinor(text('creditLimit'), chosenCurrency) : null,
-          dueDay: owed && dueDay ? Number(dueDay) : null,
+          dueDay: owed && text('dueDay') ? Number(text('dueDay')) : null,
           ...(balance === shownBalance && account?.currency === chosenCurrency ? {} : { balanceMinor: (owed ? -1 : 1) * toMinor(balance || '0', chosenCurrency) }),
         };
         void saving
@@ -82,17 +82,19 @@ export function AccountEditor({
       <TextField autoComplete="off" autoFocus defaultValue={account?.name} label="Name" maxLength={60} placeholder="CIB current account" {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="Type" onChange={setKind} options={accountKindOptions} value={kind} />
-        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+        <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
         <TextField defaultValue={shownBalance} inputMode="decimal" label={owed ? 'Owed today' : 'Balance today'} {...form.field('balance')} />
         {owed && (
           <TextField defaultValue={account?.creditLimitMinor ? fromMinor(account.creditLimitMinor, account.currency) : ''} inputMode="decimal" label="Credit limit (optional)" {...form.field('creditLimit')} />
         )}
         {owed && (
-          <Select
+          <DayOfMonthField
+            defaultValue={account?.dueDay ? String(account.dueDay) : ''}
+            emptyLabel="Not set"
             label="Payment due on"
-            onChange={setDueDay}
-            options={[{ value: '', label: 'Not set' }, ...Array.from({ length: 31 }, (_, index) => ({ value: String(index + 1), label: `Day ${index + 1}` }))]}
-            value={dueDay}
+            last={31}
+            name="dueDay"
+            presets={[{ label: 'Last day', value: '31' }]}
           />
         )}
       </div>

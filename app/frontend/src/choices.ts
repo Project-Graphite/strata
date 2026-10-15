@@ -16,8 +16,6 @@ export function timeZoneOptions(current?: string | null) {
 
 const currencyNames = new Intl.DisplayNames(undefined, { type: 'currency' });
 
-export function currencyOptions(codes: string[]) {
-  return [...new Set(codes)].sort().map((code) => ({ value: code, label: code, hint: currencyNames.of(code) }));
-}
+export const currencyName = (code: string) => currencyNames.of(code) ?? code;
 
 export const allCurrencies = Intl.supportedValuesOf('currency');

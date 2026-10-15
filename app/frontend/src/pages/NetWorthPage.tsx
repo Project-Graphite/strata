@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { DatePicker, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
@@ -12,6 +11,7 @@ import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
+import { CurrencyField } from '../components/CurrencyField';
 
 export function NetWorthPage() {
   const auth = useAuth();
@@ -226,7 +226,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
       <TextField autoComplete="off" autoFocus defaultValue={asset?.name} label="Name" maxLength={120} placeholder="21k gold, 20 g" {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="Kind" onChange={setKind} options={assetKindOptions} value={kind} />
-        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+        <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
         <TextField defaultValue={asset ? fromMinor(asset.valueMinor, asset.currency) : ''} inputMode="decimal" label="Worth today" {...form.field('value')} />
         {kind === 'certificate' && <TextField defaultValue={asset?.ratePercent ?? ''} inputMode="decimal" label="Yearly rate % (optional)" {...form.field('rate')} />}
         {kind === 'certificate' && <DatePicker label="Matures on (optional)" onChange={setMaturesOn} value={maturesOn} />}
@@ -281,7 +281,7 @@ function GoalEditor({
       <TextField autoComplete="off" autoFocus defaultValue={goal?.name} label="Name" maxLength={120} placeholder="New car" {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField defaultValue={goal ? fromMinor(goal.targetMinor, goal.currency) : ''} inputMode="decimal" label="Target" {...form.field('target')} />
-        <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
+        <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
         <DatePicker label="By (optional)" onChange={setDueOn} value={dueOn} />
         {accounts.length > 0 && (
           <Select label="Follow an account" onChange={setAccountId} options={[{ value: '', label: 'No, I add to it' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))]} value={accountId} />

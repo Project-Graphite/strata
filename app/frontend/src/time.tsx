@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Select } from '@project-graphite/ui';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { Dialog, Icon } from '@project-graphite/ui';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
 
@@ -17,13 +17,111 @@ export function applyTimeFormat(format: TimeFormat | undefined) {
 
 export const timeOptions = (): Intl.DateTimeFormatOptions => (hour12 === undefined ? {} : { hour12 });
 
+export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
+
 export function clockTime(time: string) {
   const [hours, minutes] = time.split(':').map(Number) as [number, number];
   return new Date(2000, 0, 1, hours, minutes).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', ...timeOptions() });
 }
 
-const everyStep = (step: number) =>
-  Array.from({ length: (24 * 60) / step }, (_, index) => `${String(Math.floor((index * step) / 60)).padStart(2, '0')}:${String((index * step) % 60).padStart(2, '0')}`);
+const pad = (value: number) => String(value).padStart(2, '0');
+
+function Digits({ label, max, min, onChange, step, value }: { label: string; max: number; min: number; onChange: (value: number) => void; step: number; value: number }) {
+  const typed = useRef('');
+  const size = max - min + 1;
+  const turn = (next: number) => onChange(((((next - min) % size) + size) % size) + min);
+  const key = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      typed.current = '';
+      turn(value + (event.key === 'ArrowUp' ? step : -step));
+    } else if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      const both = Number(`${typed.current}${event.key}`);
+      typed.current = both >= min && both <= max && typed.current ? '' : event.key;
+      const next = both >= min && both <= max ? both : Number(event.key);
+      if (next >= min && next <= max) onChange(next);
+    }
+  };
+  return (
+    <div className="grid justify-items-center gap-1">
+      <button aria-label={`More ${label.toLowerCase()}`} className="icon-button" onClick={() => turn(value + step)} type="button">
+        <Icon name="chevron-up" size={20} />
+      </button>
+      <span
+        aria-label={label}
+        aria-valuemax={max}
+        aria-valuemin={min}
+        aria-valuenow={value}
+        className="clock-digits"
+        onBlur={() => (typed.current = '')}
+        onKeyDown={key}
+        role="spinbutton"
+        tabIndex={0}
+      >
+        {pad(value)}
+      </span>
+      <button aria-label={`Less ${label.toLowerCase()}`} className="icon-button" onClick={() => turn(value - step)} type="button">
+        <Icon name="chevron-down" size={20} />
+      </button>
+    </div>
+  );
+}
+
+function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: string; onClose: () => void; onSet: (time: string) => void; optional: boolean; title: string }) {
+  const twelve = usesTwelveHours();
+  const now = new Date();
+  const [hours, setHours] = useState(initial ? Number(initial.slice(0, 2)) : now.getHours());
+  const [minutes, setMinutes] = useState(initial ? Number(initial.slice(3, 5)) : (Math.ceil(now.getMinutes() / 5) * 5) % 60);
+  const afternoon = hours >= 12;
+
+  return (
+    <Dialog onClose={onClose} title={title}>
+      <div className="mt-5 grid gap-6">
+        <div className="clock-face">
+          {twelve ? (
+            <Digits label="Hours" max={12} min={1} onChange={(next) => setHours((next % 12) + (afternoon ? 12 : 0))} step={1} value={hours % 12 || 12} />
+          ) : (
+            <Digits label="Hours" max={23} min={0} onChange={setHours} step={1} value={hours} />
+          )}
+          <span aria-hidden="true" className="clock-digits clock-colon">
+            :
+          </span>
+          <Digits label="Minutes" max={59} min={0} onChange={setMinutes} step={5} value={minutes} />
+          {twelve && (
+            <div aria-label="Morning or afternoon" className="ml-2 grid gap-1" role="radiogroup">
+              {(['AM', 'PM'] as const).map((half) => (
+                <button
+                  aria-checked={(half === 'PM') === afternoon}
+                  className={(half === 'PM') === afternoon ? 'primary-button px-3 py-1.5 text-sm' : 'secondary-button px-3 py-1.5 text-sm'}
+                  key={half}
+                  onClick={() => setHours((hours % 12) + (half === 'PM' ? 12 : 0))}
+                  role="radio"
+                  type="button"
+                >
+                  {half}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {optional && (
+            <button className="text-button mr-auto text-sm" onClick={() => onSet('')} type="button">
+              Clear
+            </button>
+          )}
+          <button className="secondary-button" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="primary-button" onClick={() => onSet(`${pad(hours)}:${pad(minutes)}`)} type="button">
+            Set time
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
 
 export function TimeField({
   'aria-label': ariaLabel,
@@ -33,7 +131,7 @@ export function TimeField({
   label,
   name,
   onChange,
-  step = 15,
+  optional = true,
   value,
 }: {
   'aria-label'?: string;
@@ -43,28 +141,45 @@ export function TimeField({
   label?: string;
   name?: string;
   onChange?: (value: string) => void;
-  step?: number;
+  optional?: boolean;
   value?: string;
 }) {
-  const extra = value ?? defaultValue ?? '';
-  const format = hour12;
-  const options = useMemo(() => {
-    const times = everyStep(step);
-    if (extra && !times.includes(extra)) times.push(extra);
-    return [{ value: '', label: emptyLabel }, ...times.sort().map((time) => ({ value: time, label: clockTime(time) }))];
-  }, [emptyLabel, extra, format, step]);
+  const id = useId();
+  const [own, setOwn] = useState(defaultValue ?? '');
+  const [open, setOpen] = useState(false);
+  const current = value ?? own;
+
   return (
-    <Select
-      aria-label={ariaLabel}
-      defaultValue={defaultValue}
-      disabled={disabled}
-      label={label}
-      name={name}
-      onChange={onChange}
-      options={options}
-      placeholder={emptyLabel}
-      searchable
-      value={value}
-    />
+    <div className={label ? 'field-label' : ''}>
+      {label && <span id={`${id}-label`}>{label}</span>}
+      <button
+        aria-label={ariaLabel ? `${ariaLabel}: ${current ? clockTime(current) : emptyLabel}` : undefined}
+        aria-labelledby={ariaLabel ? undefined : `${id}-label ${id}-value`}
+        className="select-trigger field-control"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        type="button"
+      >
+        <span className={`flex min-w-0 items-center gap-2 truncate ${current ? '' : 'text-faint'}`} id={`${id}-value`}>
+          <Icon name="clock" size={16} />
+          {current ? clockTime(current) : emptyLabel}
+        </span>
+      </button>
+      <input name={name} type="hidden" value={current} />
+      {label && <span aria-hidden="true" className="field-slot" />}
+      {open && (
+        <ClockDialog
+          initial={current}
+          onClose={() => setOpen(false)}
+          onSet={(next) => {
+            if (value === undefined) setOwn(next);
+            if (next !== current) onChange?.(next);
+            setOpen(false);
+          }}
+          optional={optional}
+          title={label ?? ariaLabel ?? 'Time'}
+        />
+      )}
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { useResource } from './useResource';
 export interface SpendingCategory {
   name: string;
   colour: TagColor;
+  uses?: number;
 }
 
 export interface MerchantRule {
@@ -209,5 +210,3 @@ export function useCategories(spaceId: string | null | undefined) {
 
 export const categoryName = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);
 
-export const categoryOptions = (categories: SpendingCategory[]) =>
-  categories.map(({ name, colour }) => ({ value: name, label: categoryName(name), leading: <span aria-hidden="true" className={`swatch-dot tag-${colour}`} /> }));

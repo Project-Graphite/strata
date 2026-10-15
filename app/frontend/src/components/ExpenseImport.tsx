@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Dialog, Select } from '@project-graphite/ui';
+import { Dialog } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { allCurrencies, currencyOptions } from '../choices';
-import { categoryOptions, useCategories } from '../spending';
+import { useCategories } from '../spending';
 import { money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useStatementFile } from './StatementFile';
+import { CategoryChips } from './CategoryChips';
+import { CurrencyField } from './CurrencyField';
 
 const shownAtMost = 200;
 
@@ -28,10 +29,10 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
         {statement.loaded && (
           <>
             {statement.columns}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Currency" onChange={setChosenCurrency} options={currencyOptions(allCurrencies)} searchable value={chosenCurrency} />
-              <Select label="Category" onChange={setCategory} options={categoryOptions(categories.data ?? [])} value={category} />
+            <div className="max-w-xs">
+              <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
             </div>
+            <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={category} />
             <p className="m-0 text-sm text-muted">
               {statement.charges.length} charges read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
             </p>

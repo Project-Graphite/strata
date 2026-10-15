@@ -50,7 +50,11 @@ export class CategoriesService {
 
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    return this.categories(spaceId);
+    const [categories, counts] = await Promise.all([
+      this.categories(spaceId),
+      this.prisma.expense.groupBy({ by: ['category'], where: { item: { spaceId, trashedAt: null }, direction: { in: ['spent', 'refund'] } }, _count: { _all: true } }),
+    ]);
+    return categories.map((category) => ({ ...category, uses: counts.find((count) => count.category === category.name)?._count._all ?? 0 }));
   }
 
   async save(userId: string, spaceId: string, input: SaveCategoriesDto) {

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { DatePicker, Dialog, Select, SuggestField, TextField } from '@project-graphite/ui';
-import { allCurrencies, currencyOptions } from '../choices';
 import { useAuth } from '../auth';
 import { catalogue, knownService } from '../catalogue';
 import { spaceOptions, type Space } from '../spaces';
 import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, type Check, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
+import { CurrencyField } from './CurrencyField';
 
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
@@ -108,13 +108,7 @@ export function SubscriptionEditor({
             label="Price"
             {...form.field('amount')}
           />
-          <Select
-            defaultValue={subscription?.currency ?? 'EUR'}
-            label="Currency"
-            name="currency"
-            options={currencyOptions(allCurrencies)}
-            searchable
-          />
+          <CurrencyField defaultValue={subscription?.currency ?? 'EUR'} name="currency" />
           <Select
             defaultValue={subscription?.repeatRule ?? 'FREQ=MONTHLY'}
             label="Billed"

@@ -929,3 +929,93 @@ header.backdrop-blur-md {
   color: var(--color-muted);
   font-size: 0.75rem;
 }
+
+.clock-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--color-ink) 4%, var(--color-paper));
+  padding: 1rem 1.25rem;
+}
+
+.clock-digits {
+  min-width: 2ch;
+  border-radius: 0.5rem;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 3.5rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.clock-digits[role='spinbutton']:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
+.clock-colon {
+  min-width: auto;
+  animation: clock-blink 1s steps(1) infinite;
+}
+
+@keyframes clock-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-colon {
+    animation: none;
+  }
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.45rem;
+}
+
+.category-chip .swatch-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.category-chip:hover {
+  border-color: var(--color-muted);
+}
+
+.category-chip-chosen {
+  border-color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.widget-choice {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+}
+
+.widget-choice:hover,
+.widget-choice:focus-visible {
+  border-color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+

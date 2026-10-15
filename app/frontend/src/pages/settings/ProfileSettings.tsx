@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FormSkeleton, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { currencyOptions, timeZoneOptions } from '../../choices';
+import { timeZoneOptions } from '../../choices';
 import { DevicePush } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
@@ -12,6 +12,7 @@ import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
+import { CurrencyField } from '../../components/CurrencyField';
 
 export function ProfileSettings() {
   const auth = useAuth();
@@ -80,17 +81,13 @@ export function ProfileSettings() {
               searchable
             />
             <Select<TimeFormat> defaultValue={current.timeFormat} label="Time format" name="timeFormat" options={timeFormatOptions} />
-            <Select
+            <CurrencyField
+              codes={currencies.data?.currencies}
               defaultValue={current.homeCurrency ?? ''}
               hint="Spending, Recurring and net worth totals are shown in it."
-              key={currencies.data ? 'loaded' : 'loading'}
               label="Home currency"
               name="homeCurrency"
-              options={[
-                { value: '', label: 'None, keep each currency separate' },
-                ...currencyOptions([...(current.homeCurrency ? [current.homeCurrency] : []), ...(currencies.data?.currencies ?? [])]),
-              ]}
-              searchable
+              noneLabel="None, keep each currency separate"
             />
           </div>
           <button className="primary-button inline-flex w-fit" disabled={profile.busy} type="submit">

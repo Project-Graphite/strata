@@ -139,11 +139,16 @@ describe('Spending and budgets against Postgres', () => {
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
     const defaults = (await viewer.call('GET', `/spaces/${home.id}/spending-categories`)).body;
     expect(defaults).toHaveLength(12);
-    expect(defaults[0]).toEqual({ name: 'groceries', colour: 'green' });
+    expect(defaults[0]).toEqual({ name: 'groceries', colour: 'green', uses: 0 });
 
     const base = { currency: 'EGP', spentOn: '2026-10-10' };
     const market = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Market', amountMinor: 100, category: 'groceries' })).body;
     const cinema = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Cinema', amountMinor: 200, category: 'entertainment' })).body;
+    const used = (await viewer.call('GET', `/spaces/${home.id}/spending-categories`)).body;
+    expect(used.filter((category: { uses: number }) => category.uses > 0)).toEqual([
+      { name: 'groceries', colour: 'green', uses: 1 },
+      { name: 'entertainment', colour: 'teal', uses: 1 },
+    ]);
     await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 5000, currency: 'EGP' });
     await owner.call('PUT', `/spaces/${home.id}/budgets/entertainment`, { amountMinor: 3000, currency: 'EGP' });
     expect((await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Gym', amountMinor: 300, category: 'fitness' })).status).toBe(400);
