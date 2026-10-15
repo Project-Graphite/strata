@@ -1,7 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
-import { FeedQueryDto, PlaceQueryDto, StatusQueryDto, WeatherQueryDto } from './dto/widgets.dto';
+import { FeedQueryDto, PlaceQueryDto, WeatherQueryDto } from './dto/widgets.dto';
 import { WidgetsService } from './widgets.service';
 
 @Controller('widgets')
@@ -27,9 +27,4 @@ export class WidgetsController {
     return this.widgets.feed(query.url);
   }
 
-  @Get('status')
-  @RateLimit('widget-status', 600, 3_600)
-  status(@Query() query: StatusQueryDto) {
-    return this.widgets.status(query.url);
-  }
 }

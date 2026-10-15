@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDashboardDto, LayoutDto, templates, UpdateDashboardDto, WidgetDto } from './dto/dashboards.dto';
+import { CreateDashboardDto, LayoutDto, templates, UpdateDashboardDto, WidgetDto, widgetTypes } from './dto/dashboards.dto';
 
 const maxDashboards = 10;
 const maxSettingsLength = 4_096;
@@ -36,6 +36,13 @@ const starters: Record<Template, Pick<WidgetDto, 'type' | 'x' | 'y' | 'w' | 'set
 };
 
 const dashboardFields = { id: true, name: true, position: true, layout: true, showFrom: true, showUntil: true, showOn: true, updatedAt: true } satisfies Prisma.DashboardSelect;
+
+type DashboardRow = Prisma.DashboardGetPayload<{ select: typeof dashboardFields }>;
+
+function withKnownWidgets(dashboard: DashboardRow) {
+  const layout = dashboard.layout as { widgets?: { type: string }[] };
+  return { ...dashboard, layout: { ...layout, widgets: (layout.widgets ?? []).filter((widget) => (widgetTypes as readonly string[]).includes(widget.type)) } };
+}
 
 function starterLayout(template: Template): Prisma.InputJsonObject {
   return {
@@ -147,7 +154,7 @@ export class DashboardsService {
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
       select: dashboardFields,
     });
-    if (dashboards.length > 0) return dashboards;
+    if (dashboards.length > 0) return dashboards.map(withKnownWidgets);
     return [
       await this.prisma.dashboard.create({
         data: { userId, name: 'Home', layout: starterLayout('morning') },
@@ -191,7 +198,7 @@ export class DashboardsService {
       select: dashboardFields,
     });
     if (!updated) throw new NotFoundException('Dashboard not found');
-    return updated;
+    return withKnownWidgets(updated);
   }
 
   async remove(userId: string, dashboardId: string) {

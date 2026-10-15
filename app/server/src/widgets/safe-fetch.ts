@@ -181,24 +181,3 @@ export function postPublic(text: string, body: string, headers: Record<string, s
     guard(outgoing, timeoutMs, reject).end(body);
   });
 }
-
-export async function statusOfPublic(text: string, timeoutMs: number, redirects = 3): Promise<number> {
-  const url = checkedUrl(text);
-  return new Promise<number>((resolve, reject) => {
-    const outgoing = request(
-      url,
-      { headers: { 'User-Agent': 'Strata status check (+https://strata.project-graphite.com)' }, lookup: guardedLookup, timeout: timeoutMs },
-      (response) => {
-        response.destroy();
-        const status = response.statusCode ?? 0;
-        if (status >= 300 && status < 400 && response.headers.location) {
-          if (redirects === 0) reject(new UnsafeUrlError('That address redirects too many times'));
-          else statusOfPublic(new URL(response.headers.location, url).toString(), timeoutMs, redirects - 1).then(resolve, reject);
-          return;
-        }
-        resolve(status);
-      },
-    );
-    guard(outgoing, timeoutMs, reject).end();
-  });
-}

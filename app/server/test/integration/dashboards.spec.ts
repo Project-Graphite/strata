@@ -94,4 +94,16 @@ describe('Dashboards against Postgres', () => {
       showOn: 'any',
     });
   });
+
+  it('drops widgets that no longer exist from saved layouts and refuses new ones', async () => {
+    const owner = await member('retired-widget');
+    const [home] = (await owner.call('GET', '/me/dashboards')).body;
+    await strata.prisma.dashboard.update({
+      where: { id: home.id },
+      data: { layout: { widgets: [{ id: 'up', type: 'status', x: 0, y: 0, w: 6, settings: {} }, { id: 'clock', type: 'clock', x: 6, y: 0, w: 3, settings: {} }] } },
+    });
+    expect((await owner.call('GET', '/me/dashboards')).body[0].layout.widgets.map((widget: { type: string }) => widget.type)).toEqual(['clock']);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Renamed' })).body.layout.widgets.map((widget: { type: string }) => widget.type)).toEqual(['clock']);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: { widgets: [{ id: 'up', type: 'status', x: 0, y: 0, w: 6, settings: {} }] } })).status).toBe(400);
+  });
 });

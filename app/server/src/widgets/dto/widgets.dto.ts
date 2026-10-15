@@ -27,13 +27,6 @@ export class PlaceQueryDto {
   name!: string;
 }
 
-export class StatusQueryDto {
-  @Trimmed()
-  @IsString()
-  @MaxLength(500, { message: 'Addresses are at most 500 characters long.' })
-  url!: string;
-}
-
 export class FeedQueryDto {
   @Trimmed()
   @IsString()
