@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { EmptyState, Icon, Menu, Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
+import { EmptyState, Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { TaskEditor } from '../components/TaskEditor';
@@ -80,8 +82,8 @@ export function GoalPage() {
       actions={
         editable && (
           <>
-            <HeaderButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
-            <Menu items={statusItems} label="Goal actions" trigger={<Icon name="more" size={18} />} triggerClassName="icon-button" triggerLabel="More goal actions" />
+            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
+            <ActionsMenu items={statusItems} name={shown.title} />
           </>
         )
       }
@@ -121,7 +123,7 @@ export function GoalPage() {
               <TaskRow
                 actions={
                   editable && (
-                    <Menu
+                    <ActionsMenu
                       items={[
                         {
                           label: 'Unlink from this goal',
@@ -133,10 +135,7 @@ export function GoalPage() {
                             }, 'Could not unlink the task'),
                         },
                       ]}
-                      label={`${task.title} actions`}
-                      trigger={<Icon name="more" size={18} />}
-                      triggerClassName="icon-button"
-                      triggerLabel={`Actions for ${task.title}`}
+                      name={task.title}
                     />
                   )
                 }

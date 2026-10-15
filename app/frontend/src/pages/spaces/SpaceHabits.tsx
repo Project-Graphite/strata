@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, EmptyState, Icon, ListSkeleton, Menu, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { HeaderButton, Toolbar } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
@@ -50,15 +51,12 @@ export function SpaceHabits() {
                 <HabitRow habit={habit} onChange={replace} />
               </div>
               {editable && (
-                <Menu
+                <ActionsMenu
                   items={[
                     { label: 'Edit', onSelect: () => setEditing(habit) },
                     { label: 'Delete', onSelect: () => setDeleting(habit), separated: true },
                   ]}
-                  label={`${habit.name} actions`}
-                  trigger={<Icon name="more" size={18} />}
-                  triggerClassName="icon-button"
-                  triggerLabel={`Actions for ${habit.name}`}
+                  name={habit.name}
                 />
               )}
             </li>

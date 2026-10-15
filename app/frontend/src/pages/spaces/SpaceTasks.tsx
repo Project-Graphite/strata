@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Menu, Pagination, TextField } from '@project-graphite/ui';
+import { EmptyState, Icon, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Toolbar } from '../../components/Page';
@@ -84,7 +85,7 @@ export function SpaceTasks() {
           )}
         </nav>
         {editable && shownList && (
-          <Menu
+          <ActionsMenu
             items={[
               { label: 'Rename list', onSelect: () => setListDialog('rename') },
               {
@@ -99,10 +100,7 @@ export function SpaceTasks() {
                   }, 'Could not move the list to the trash'),
               },
             ]}
-            label={`${shownList.title} actions`}
-            trigger={<Icon name="more" size={18} />}
-            triggerClassName="icon-button"
-            triggerLabel={`Actions for ${shownList.title}`}
+            name={shownList.title}
           />
         )}
       </Toolbar>

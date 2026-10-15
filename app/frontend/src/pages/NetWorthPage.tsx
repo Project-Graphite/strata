@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { DatePicker, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
+import { DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
@@ -88,7 +89,7 @@ export function NetWorthPage() {
                         </span>
                       </span>
                       {editable && (
-                        <Menu
+                        <ActionsMenu
                           items={[
                             ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
                             { label: 'Edit', onSelect: () => setDialog({ goal }) },
@@ -103,10 +104,7 @@ export function NetWorthPage() {
                                 }, 'Could not remove the goal'),
                             },
                           ]}
-                          label={`${goal.name} actions`}
-                          trigger={<Icon name="more" size={18} />}
-                          triggerClassName="icon-button"
-                          triggerLabel={`Actions for ${goal.name}`}
+                          name={goal.name}
                         />
                       )}
                     </span>
@@ -139,7 +137,7 @@ export function NetWorthPage() {
                     </span>
                     <span className="shrink-0 text-ink">{money(asset.valueMinor, asset.currency)}</span>
                     {editable && (
-                      <Menu
+                      <ActionsMenu
                         items={[
                           { label: 'Edit', onSelect: () => setDialog({ asset }) },
                           {
@@ -153,10 +151,7 @@ export function NetWorthPage() {
                               }, 'Could not remove the asset'),
                           },
                         ]}
-                        label={`${asset.name} actions`}
-                        trigger={<Icon name="more" size={18} />}
-                        triggerClassName="icon-button"
-                        triggerLabel={`Actions for ${asset.name}`}
+                        name={asset.name}
                       />
                     )}
                   </li>

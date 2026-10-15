@@ -678,7 +678,7 @@ describe('Notes', () => {
     ]);
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Calendar')!.click());
-    const later = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Later →')!;
+    const later = container.querySelector<HTMLButtonElement>('section[aria-label="Database"] button[aria-label="Next month"]')!;
     const target = new Date(2026, 9, 20).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
     for (let step = 0; step < 24 && !container.querySelector(`[role="group"][aria-label="${target}"] a`); step += 1) {
       await act(async () => later.click());

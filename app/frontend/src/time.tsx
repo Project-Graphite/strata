@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Dialog, Icon } from '@project-graphite/ui';
+import { IconButton } from './components/IconButton';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
 
@@ -45,9 +46,7 @@ function Digits({ label, max, min, onChange, step, value }: { label: string; max
   };
   return (
     <div className="grid justify-items-center gap-1">
-      <button aria-label={`More ${label.toLowerCase()}`} className="icon-button" onClick={() => turn(value + step)} type="button">
-        <Icon name="chevron-up" size={20} />
-      </button>
+      <IconButton icon="chevron-up" label={`More ${label.toLowerCase()}`} onClick={() => turn(value + step)} />
       <span
         aria-label={label}
         aria-valuemax={max}
@@ -61,9 +60,7 @@ function Digits({ label, max, min, onChange, step, value }: { label: string; max
       >
         {pad(value)}
       </span>
-      <button aria-label={`Less ${label.toLowerCase()}`} className="icon-button" onClick={() => turn(value - step)} type="button">
-        <Icon name="chevron-down" size={20} />
-      </button>
+      <IconButton icon="chevron-down" label={`Less ${label.toLowerCase()}`} onClick={() => turn(value - step)} />
     </div>
   );
 }

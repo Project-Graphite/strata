@@ -99,6 +99,11 @@ export function addDays(key: string, days: number) {
   return dayKey(date);
 }
 
+export function shiftMonth(month: string, by: number) {
+  const [year, number] = month.split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(year, number - 1 + by, 1)).toISOString().slice(0, 7);
+}
+
 export function monthDays(anchor: string) {
   const date = new Date(`${anchor}T00:00:00`);
   const first = dayKey(new Date(date.getFullYear(), date.getMonth(), 1));

@@ -207,7 +207,7 @@ describe('Recurring', () => {
     });
     await render('/recurring');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Import a statement')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Import a statement"]')!.click());
     const statement = [
       'Booked;Payee;Amount',
       '03/01/2026;NETFLIX.COM 866;-15,49',

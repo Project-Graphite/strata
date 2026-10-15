@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Icon, type IconName } from '@project-graphite/ui';
 
@@ -9,10 +10,11 @@ export function IconButton({ disabled, icon, label, onClick }: { disabled?: bool
   );
 }
 
-export function IconLink({ icon, label, to }: { icon: IconName; label: string; to: string }) {
+export function IconLink({ children, icon, label, to }: { children?: ReactNode; icon: IconName; label: string; to: string }) {
   return (
     <Link aria-label={label} className="icon-button" title={label} to={to}>
       <Icon name={icon} size={18} />
+      {children}
     </Link>
   );
 }

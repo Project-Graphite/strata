@@ -1,3 +1,4 @@
+import { addDays } from './agenda';
 import { useAuth } from './auth';
 import { useAction } from './useAction';
 
@@ -22,16 +23,10 @@ function progressText(habit: Habit) {
   return habit.perWeek >= 7 ? streak : `${habit.thisWeek} of ${habit.perWeek} this week · ${streak}`;
 }
 
-function shiftDay(day: string, days: number) {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit; onChange: (habit: Habit) => void; showSpace?: boolean }) {
   const auth = useAuth();
   const saving = useAction();
-  const days = Array.from({ length: 7 }, (_, index) => shiftDay(habit.today, index - 6));
+  const days = Array.from({ length: 7 }, (_, index) => addDays(habit.today, index - 6));
 
   function toggle(day: string) {
     void saving.run(async () => {

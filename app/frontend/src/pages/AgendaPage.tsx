@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { addDays, clock, dayKey, entryDay, monthDays, useAgenda, type AgendaEntry } from '../agenda';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { EventEditor } from '../components/EventEditor';
+import { PeriodNav } from '../components/PeriodNav';
 import { TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page } from '../components/Page';
+import { HeaderButton, HeaderLink, Page } from '../components/Page';
 
 type View = 'list' | 'day' | 'week' | 'month';
 
@@ -59,37 +60,28 @@ export function AgendaPage() {
     <Page
       actions={
         <>
-          <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/agenda/calendars">
-            <Icon name="calendar" size={16} />
-            Calendars
-          </Link>
+          <HeaderLink icon="calendar" label="Calendars" to="/agenda/calendars" />
           <HeaderButton disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" onClick={() => setCreating(true)} primary />
         </>
       }
       title="Agenda"
     >
       <Tabs items={agendaTabs(view, (option) => link({ view: option }))} label="Agenda view" />
-      <div className="flex flex-wrap items-center gap-2">
-        <Link aria-label="Earlier" className="icon-button" title="Earlier" to={link({ date: shift(-1) })}>
-          <Icon name="chevron-left" size={18} />
-        </Link>
-        <Link aria-label="Later" className="icon-button" title="Later" to={link({ date: shift(1) })}>
-          <Icon name="chevron-right" size={18} />
-        </Link>
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to={link({ date: today })}>
-          Today
-        </Link>
-        <h2 className="m-0 ml-2 text-lg font-medium">
-          {view === 'month'
+      <PeriodNav
+        current={{ label: 'Today', onSelect: () => navigate(link({ date: today })) }}
+        onShift={(step) => navigate(link({ date: shift(step) }))}
+        title={
+          view === 'month'
             ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
             : view === 'day'
               ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
               : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(
                   new Date(`${from}T00:00:00`),
                   new Date(`${addDays(to, -1)}T00:00:00`),
-                )}
-        </h2>
-      </div>
+                )
+        }
+        unit={view === 'list' ? 'period' : view}
+      />
 
       {agenda.error ? (
         <LoadError error={agenda.error} onRetry={agenda.reload} />

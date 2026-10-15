@@ -7,6 +7,7 @@ import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
 import { StatementImport } from '../components/StatementImport';
@@ -53,7 +54,7 @@ export function RecurringPage() {
       actions={
         editable.length > 0 && (
           <>
-            <HeaderButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
+            <IconButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
             <HeaderButton icon="plus" label="Add subscription" onClick={() => setAdding(true)} primary />
           </>
         )
