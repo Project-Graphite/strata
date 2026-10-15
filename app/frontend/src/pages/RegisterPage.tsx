@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { errorMessage, FormPanelSkeleton, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Button } from '../components/Button';
 import { ResendVerification } from '../components/ResendVerification';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { useResource } from '../useResource';
@@ -120,9 +121,7 @@ export function RegisterPage() {
           type="password"
           {...form.field('password')}
         />
-        <button className="primary-button" disabled={busy} type="submit">
-          {busy ? 'Creating…' : 'Create account'}
-        </button>
+        <Button disabled={busy} label={busy ? 'Creating…' : 'Create account'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
         Already registered? <Link className="rule-link" to="/login">Sign in</Link>

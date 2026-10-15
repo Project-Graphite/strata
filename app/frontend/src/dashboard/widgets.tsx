@@ -26,6 +26,7 @@ import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets'
 import { quoteFor } from './quotes';
 import { type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
+import { Button } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
@@ -261,18 +262,15 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
         <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
           <input aria-label="Shortcut name" maxLength={40} onChange={(event) => setLabel(event.currentTarget.value)} placeholder="Name" value={label} />
           <input aria-label="Shortcut link" inputMode="url" onChange={(event) => setUrl(event.currentTarget.value)} value={url} />
-          <button
-            className="secondary-button px-3 py-2 text-sm"
+          <Button
             disabled={!valid}
+            label="Add"
             onClick={() => {
               onChange({ links: [...links, { label: label.trim(), url: address }] });
               setLabel('');
               setUrl('https://');
             }}
-            type="button"
-          >
-            Add
-          </button>
+          />
         </div>
       )}
     </div>
@@ -422,20 +420,15 @@ function Focus({ settings }: WidgetProps) {
         <p className="mono-sm m-0 mt-1 text-faint">{phase === 'focus' ? 'Focus' : 'Break'}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} type="button">
-          {endsAt === undefined ? 'Start' : 'Pause'}
-        </button>
-        <button
-          className="secondary-button px-3 py-2 text-sm"
+        <Button label={endsAt === undefined ? 'Start' : 'Pause'} onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} />
+        <Button
+          label="Reset"
           onClick={() => {
             setEndsAt(undefined);
             setPhase('focus');
             setLeft(focusMinutes * minuteMs);
           }}
-          type="button"
-        >
-          Reset
-        </button>
+        />
       </div>
     </div>
   );

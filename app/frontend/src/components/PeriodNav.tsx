@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import { IconButton } from './IconButton';
-import { HeaderButton } from './Page';
+import { Button, IconButton } from './Button';
 
 export function PeriodNav({
   current,
@@ -21,7 +20,7 @@ export function PeriodNav({
     <div className="flex flex-wrap items-center gap-2">
       <IconButton disabled={disabled} icon="chevron-left" label={`Previous ${unit}`} onClick={() => onShift(-1)} />
       <IconButton disabled={disabled || last} icon="chevron-right" label={`Next ${unit}`} onClick={() => onShift(1)} />
-      {current && <HeaderButton label={current.label} onClick={current.onSelect} />}
+      {current && <Button label={current.label} onClick={current.onSelect} />}
       <h2 className="m-0 ml-2 text-lg font-medium">{title}</h2>
     </div>
   );

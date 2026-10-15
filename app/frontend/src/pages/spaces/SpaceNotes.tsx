@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router';
 import { Icon, ListSkeleton, Menu } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { Button, buttonClass } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 import { builtInTemplates, flattenTree, noteTitle, type Note } from '../../notes';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -68,11 +69,11 @@ export function SpaceNotes() {
                     <Icon name="chevron-down" size={16} />
                   </>
                 }
-                triggerClassName="secondary-button px-3 py-2 text-sm"
+                triggerClassName={buttonClass()}
                 triggerLabel="Start a page from a template"
               />
-              <HeaderButton disabled={creating.busy} icon="board" label="New board" onClick={() => create({ board: true })} />
-              <HeaderButton disabled={creating.busy} icon="plus" label="New page" onClick={() => create({})} primary />
+              <Button disabled={creating.busy} icon="board" label="New board" onClick={() => create({ board: true })} />
+              <Button disabled={creating.busy} icon="plus" label="New page" onClick={() => create({})} primary />
             </>
           )
         }

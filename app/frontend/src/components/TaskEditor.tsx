@@ -7,6 +7,8 @@ import { reminderOptions, repeatOptions, type Task, type TaskList } from '../tas
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 import { TimeField } from '../time';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 interface Member {
   userId: string;
@@ -132,7 +134,7 @@ export function TaskEditor({
           </div>
         </fieldset>
         <p className="mono-sm m-0 text-faint">Times are in {(task?.timeZone ?? auth.user?.timeZone ?? 'UTC').replaceAll('_', ' ')}.</p>
-        <div className="flex flex-wrap justify-end gap-3">
+        <DialogActions>
           {task && editable && onTrashed && (
             <button
               className="text-button mr-auto text-sm"
@@ -151,15 +153,11 @@ export function TaskEditor({
               Move to trash
             </button>
           )}
-          <button className="secondary-button" onClick={onClose} type="button">
-            {editable ? 'Cancel' : 'Close'}
-          </button>
+          <Button label={editable ? 'Cancel' : 'Close'} large onClick={onClose} />
           {editable && (
-            <button className="primary-button" disabled={saving.busy} type="submit">
-              {saving.busy ? 'Saving…' : task ? 'Save' : 'Add task'}
-            </button>
+            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : task ? 'Save' : 'Add task'} large primary submit />
           )}
-        </div>
+        </DialogActions>
       </form>
     </Dialog>
   );

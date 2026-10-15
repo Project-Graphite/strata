@@ -8,6 +8,7 @@ import { required, useFormErrors } from '../../validation';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
+import { Button } from '../../components/Button';
 
 export function SpaceInvitations({ inviting, onClose, space }: { inviting: boolean; onClose: () => void; space: Space }) {
   const auth = useAuth();
@@ -30,9 +31,9 @@ export function SpaceInvitations({ inviting, onClose, space }: { inviting: boole
                     as {invitation.role} · sent {timeAgo(invitation.createdAt)}
                   </p>
                 </div>
-                <button
-                  className="secondary-button shrink-0 px-3 py-2 text-sm"
+                <Button
                   disabled={withdrawing.busy}
+                  label="Withdraw"
                   onClick={() =>
                     void withdrawing.run(async () => {
                       await auth.request(`/invitations/${invitation.id}`, { method: 'DELETE' });
@@ -40,10 +41,7 @@ export function SpaceInvitations({ inviting, onClose, space }: { inviting: boole
                       return 'Invite withdrawn.';
                     }, 'Could not withdraw the invite')
                   }
-                  type="button"
-                >
-                  Withdraw
-                </button>
+                />
               </li>
             ))}
           </ul>

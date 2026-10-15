@@ -6,6 +6,7 @@ import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button } from '../components/Button';
 import { CategoriesEditor } from '../components/CategoriesEditor';
 import { Empty } from '../components/Empty';
 import { ExpenseEditor } from '../components/ExpenseEditor';
@@ -14,7 +15,7 @@ import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
+import { Page, Section, Toolbar } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { PhoneSetup } from '../components/PhoneSetup';
 import { saveBlob } from '../files';
@@ -111,7 +112,7 @@ export function SpendingPage() {
               name="spending"
             />
           )}
-          {editable && <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
+          {editable && <Button icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
         </>
       }
       title="Spending"
@@ -171,9 +172,7 @@ export function SpendingPage() {
           }}
         >
           <TextField aria-label="Quick add" autoComplete="off" className="min-w-0 flex-1" label="" maxLength={200} name="quick" placeholder="120 talabat" />
-          <button className="secondary-button" disabled={action.busy} type="submit">
-            Add
-          </button>
+          <Button disabled={action.busy} label="Add" large submit />
         </form>
       )}
 
@@ -209,9 +208,7 @@ export function SpendingPage() {
                     )}
                     {editable && (
                       <>
-                        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDialog({ capture: message })} type="button">
-                          Add
-                        </button>
+                        <Button label="Add" onClick={() => setDialog({ capture: message })} />
                         <button
                           className="text-button text-sm"
                           disabled={action.busy}
@@ -255,7 +252,7 @@ export function SpendingPage() {
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <HeaderButton label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
+            <Section action={editable && <Button label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
               {!accounts.data?.length ? (
                 <Hint>No accounts yet.</Hint>
               ) : (
@@ -297,7 +294,7 @@ export function SpendingPage() {
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <HeaderButton label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+            <Section action={editable && <Button label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
               {!installments.data?.length ? (
                 <Hint>No installment plans.</Hint>
               ) : (
@@ -361,9 +358,9 @@ export function SpendingPage() {
               action={
                 editable && managing && (
                   <span className="flex flex-wrap gap-2">
-                    <HeaderButton label="Budget settings" onClick={() => setDialog('plan')} />
-                    <HeaderButton label="Edit categories" onClick={() => setDialog('categories')} />
-                    <HeaderButton label="Set a budget" onClick={() => setDialog({ budget: null })} />
+                    <Button label="Budget settings" onClick={() => setDialog('plan')} />
+                    <Button label="Edit categories" onClick={() => setDialog('categories')} />
+                    <Button label="Set a budget" onClick={() => setDialog({ budget: null })} />
                   </span>
                 )
               }
@@ -452,7 +449,7 @@ export function SpendingPage() {
 
           {(tab === 'overview' || tab === 'transactions') && (
             <Section
-              action={tab === 'overview' && shown.expenses.length > recentCount && <HeaderButton label="All transactions" onClick={() => go({ tab: 'transactions' })} />}
+              action={tab === 'overview' && shown.expenses.length > recentCount && <Button label="All transactions" onClick={() => go({ tab: 'transactions' })} />}
               title={tab === 'overview' ? 'Recent' : 'Transactions'}
             >
               {shown.expenses.length === 0 ? (

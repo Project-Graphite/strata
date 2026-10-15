@@ -3,6 +3,7 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundPage } from './NotFoundPage';
+import { Button } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
@@ -83,9 +84,7 @@ export function AdminPage() {
             name="fileQuotaMb"
             type="number"
           />
-          <button className="primary-button inline-flex w-fit" disabled={quota.busy} type="submit">
-            {quota.busy ? 'Saving…' : 'Save limit'}
-          </button>
+          <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save limit'} primary submit />
         </form>
       </Section>
       <Section description={accounts.data && (accounts.data.length === 1 ? '1 account' : `${accounts.data.length} accounts`)} title="People">

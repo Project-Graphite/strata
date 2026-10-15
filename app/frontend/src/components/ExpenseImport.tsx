@@ -8,6 +8,8 @@ import { useStatementFile } from './StatementFile';
 import { CategoryChips } from './CategoryChips';
 import { CurrencyField } from './CurrencyField';
 import { Hint } from './Hint';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 const shownAtMost = 200;
 
@@ -63,13 +65,12 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             )}
           </>
         )}
-        <div className="mt-1 flex justify-end gap-3">
-          <button className="secondary-button" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button
-            className="primary-button"
+        <DialogActions>
+          <Button label="Cancel" large onClick={onClose} />
+          <Button
             disabled={chosen.length === 0 || adding.busy}
+            label={adding.busy ? 'Adding…' : `Add ${chosen.length} expense${chosen.length === 1 ? '' : 's'}`}
+            large
             onClick={() =>
               void adding
                 .run(async () => {
@@ -90,11 +91,9 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
                 }, 'Could not add the expenses')
                 .then((done) => done && onClose())
             }
-            type="button"
-          >
-            {adding.busy ? 'Adding…' : `Add ${chosen.length} expense${chosen.length === 1 ? '' : 's'}`}
-          </button>
-        </div>
+            primary
+          />
+        </DialogActions>
       </div>
     </Dialog>
   );

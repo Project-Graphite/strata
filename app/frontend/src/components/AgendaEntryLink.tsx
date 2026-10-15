@@ -5,6 +5,7 @@ import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type Cal
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
+import { ButtonAnchor } from './Button';
 
 function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: () => void }) {
   const details = useResource<CalendarEvent>(`/calendars/${entry.calendarId}/event?uid=${encodeURIComponent(entry.uid!)}`, true);
@@ -46,9 +47,7 @@ function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: 
             </dl>
           )}
           {details.data.meetingUrl && (
-            <a className="primary-button justify-self-start no-underline" href={details.data.meetingUrl} rel="noreferrer" target="_blank">
-              Join meeting
-            </a>
+            <ButtonAnchor href={details.data.meetingUrl} label="Join meeting" large primary />
           )}
           {details.data.description && (
             <p className="m-0 max-h-72 overflow-y-auto rounded-[var(--radius-field)] border border-line p-3 text-sm whitespace-pre-line break-words text-muted">

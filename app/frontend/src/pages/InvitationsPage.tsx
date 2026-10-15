@@ -6,11 +6,13 @@ import { addJoinedSpace, SpaceMark, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
+import { Button } from '../components/Button';
 import { CopyLink } from '../components/CopyLink';
+import { DialogActions } from '../components/DialogActions';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
   pending: 'waiting',
@@ -41,8 +43,8 @@ export function InvitationsPage() {
     <Page
       actions={
         <>
-          <HeaderButton icon="link" label="Create invite link" onClick={() => setCreating('link')} />
-          <HeaderButton icon="mail" label="Invite by email" onClick={() => setCreating('email')} primary />
+          <Button icon="link" label="Create invite link" onClick={() => setCreating('link')} />
+          <Button icon="mail" label="Invite by email" onClick={() => setCreating('email')} primary />
         </>
       }
       title="Invitations"
@@ -69,12 +71,8 @@ export function InvitationsPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <button className="secondary-button px-3 py-2 text-sm" disabled={answering.busy} onClick={() => answer(invitation, false)} type="button">
-                    Decline
-                  </button>
-                  <button className="primary-button px-3 py-2 text-sm" disabled={answering.busy} onClick={() => answer(invitation, true)} type="button">
-                    Accept
-                  </button>
+                  <Button disabled={answering.busy} label="Decline" onClick={() => answer(invitation, false)} />
+                  <Button disabled={answering.busy} label="Accept" onClick={() => answer(invitation, true)} primary />
                 </div>
               </li>
             ))}
@@ -122,11 +120,9 @@ export function InvitationsPage() {
           <div className="mt-4 grid gap-4">
             <Hint>Send this link to the person you are inviting. It works once, for 14 days.</Hint>
             <CopyLink link={link} />
-            <div className="flex justify-end">
-              <button className="primary-button" onClick={() => setLink('')} type="button">
-                Done
-              </button>
-            </div>
+            <DialogActions>
+              <Button label="Done" large onClick={() => setLink('')} primary />
+            </DialogActions>
           </div>
         </Dialog>
       )}

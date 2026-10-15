@@ -3,6 +3,7 @@ import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Menu } from '@project-graphite/ui';
 import type * as Y from 'yjs';
 import { Hint } from './Hint';
+import { buttonClass } from './Button';
 
 export interface VoteRound {
   startedAt: number;
@@ -104,7 +105,7 @@ export function BrainstormBar({
             ]}
             label="Brainstorm"
             trigger="Brainstorm"
-            triggerClassName="secondary-button px-3 py-1.5 text-sm"
+            triggerClassName={buttonClass()}
             triggerLabel="Brainstorm: timer and voting"
           />
         )}

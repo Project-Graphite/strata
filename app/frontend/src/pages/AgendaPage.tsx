@@ -3,12 +3,13 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { addDays, clock, dayKey, entryDay, monthDays, useAgenda, type AgendaEntry } from '../agenda';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
+import { Button, ButtonLink } from '../components/Button';
 import { EventEditor } from '../components/EventEditor';
 import { PeriodNav } from '../components/PeriodNav';
 import { TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, HeaderLink, Page } from '../components/Page';
+import { Page } from '../components/Page';
 
 type View = 'list' | 'day' | 'week' | 'month';
 
@@ -60,8 +61,8 @@ export function AgendaPage() {
     <Page
       actions={
         <>
-          <HeaderLink icon="calendar" label="Calendars" to="/agenda/calendars" />
-          <HeaderButton disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" onClick={() => setCreating(true)} primary />
+          <ButtonLink icon="calendar" label="Calendars" to="/agenda/calendars" />
+          <Button disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" onClick={() => setCreating(true)} primary />
         </>
       }
       title="Agenda"

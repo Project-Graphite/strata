@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
+import { Button } from './Button';
 
 interface NoteComment {
   id: string;
@@ -69,9 +70,7 @@ function CommentForm({
     >
       <textarea aria-label={label} autoFocus={autoFocus} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
       <div className="flex gap-2">
-        <button className="secondary-button px-3 py-1.5 text-sm" disabled={!body.trim() || busy} type="submit">
-          {label}
-        </button>
+        <Button disabled={!body.trim() || busy} label={label} submit />
         {onCancel && (
           <button className="text-button text-sm" onClick={onCancel} type="button">
             Cancel

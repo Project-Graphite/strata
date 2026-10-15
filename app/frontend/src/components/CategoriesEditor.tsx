@@ -3,8 +3,8 @@ import { Select, tagColors, TextField, type TagColor } from '@project-graphite/u
 import { useAuth } from '../auth';
 import { categoryName, type SpendingCategory } from '../spending';
 import { useAction } from '../useAction';
+import { Button, IconButton } from './Button';
 import { FormDialog } from './FormDialog';
-import { IconButton } from './IconButton';
 
 interface Row extends SpendingCategory {
   key: number;
@@ -69,14 +69,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
           </li>
         ))}
       </ul>
-      <button
-        className="secondary-button w-fit px-3 py-2 text-sm"
-        disabled={rows.length >= 40}
-        onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])}
-        type="button"
-      >
-        Add a category
-      </button>
+      <Button disabled={rows.length >= 40} label="Add a category" onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])} />
       {error && (
         <p className="error-message m-0" role="alert">
           {error}

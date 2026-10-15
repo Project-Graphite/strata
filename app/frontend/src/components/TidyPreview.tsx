@@ -3,6 +3,8 @@ import { Dialog, ListSkeleton, errorMessage, isAbortError } from '@project-graph
 import { useAuth } from '../auth';
 import type { Tag } from '../spaces';
 import { useAction } from '../useAction';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
 
@@ -122,14 +124,13 @@ export function TidyPreview({
               </ul>
             </section>
           )}
-          <div className="flex justify-end gap-3">
-            <button className="secondary-button" onClick={onClose} type="button">
-              Close
-            </button>
+          <DialogActions>
+            <Button label="Close" large onClick={onClose} />
             {preview.changes.length > 0 && (
-              <button
-                className="primary-button"
+              <Button
                 disabled={applying.busy}
+                label={applying.busy ? 'Working…' : confirmLabels[request.action]}
+                large
                 onClick={() =>
                   void applying.run(async () => {
                     const applied = await send<{ batch: TidyBatch | null }>('/tidy/apply', {
@@ -140,12 +141,10 @@ export function TidyPreview({
                     return '';
                   }, 'Could not tidy these items')
                 }
-                type="button"
-              >
-                {applying.busy ? 'Working…' : confirmLabels[request.action]}
-              </button>
+                primary
+              />
             )}
-          </div>
+          </DialogActions>
         </div>
       )}
     </Dialog>

@@ -12,6 +12,7 @@ import { PropertiesDialog } from './PropertiesDialog';
 import { PropertyField, propertyDisplay } from './PropertyField';
 import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
+import { Button } from '../Button';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -269,10 +270,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
             <button className="text-button text-sm" onClick={() => setEditing(true)} type="button">
               Properties
             </button>
-            <button className="secondary-button px-3 py-1.5 text-sm" disabled={adding.busy} onClick={() => addRow()} type="button">
-              <Icon name="plus" size={14} />
-              New page
-            </button>
+            <Button disabled={adding.busy} icon="plus" label="New page" onClick={() => addRow()} />
           </div>
         )}
       </div>

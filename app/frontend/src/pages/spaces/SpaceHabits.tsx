@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 import { goalText, HabitRow, type Habit } from '../../habits';
 import { useAction } from '../../useAction';
@@ -41,7 +42,7 @@ export function SpaceHabits() {
 
   return (
     <div className="fade-in grid gap-6">
-      <Toolbar actions={editable && <HeaderButton icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
+      <Toolbar actions={editable && <Button icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
       {habits.data.length === 0 ? (
         <Empty title="No habits yet" />
       ) : (

@@ -1,8 +1,9 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
-import { HeaderLink, Page } from '../components/Page';
+import { Page } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
 import { pagesTabs } from '../notes';
@@ -41,7 +42,7 @@ export function JournalPage() {
   return (
     <Page
       actions={
-        <HeaderLink label="Write a weekly review" to="/review" />
+        <ButtonLink label="Write a weekly review" to="/review" />
       }
       title="Pages"
     >
@@ -86,21 +87,10 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
         <h2 className="m-0 text-base font-medium">How was today?</h2>
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
           {moods.map((label, index) => (
-            <button
-              aria-pressed={todayMood === index + 1}
-              className={`${todayMood === index + 1 ? 'primary-button' : 'secondary-button'} px-3 py-2 text-sm`}
-              disabled={action.busy}
-              key={label}
-              onClick={() => setMood(index + 1)}
-              type="button"
-            >
-              {label}
-            </button>
+            <Button disabled={action.busy} key={label} label={label} onClick={() => setMood(index + 1)} pressed={todayMood === index + 1} />
           ))}
         </div>
-        <button className="secondary-button w-fit px-3 py-2 text-sm" onClick={() => navigate(`/journal/${today}`)} type="button">
-          {entries.get(today)?.noteId ? 'Open today’s page' : 'Write today’s page'}
-        </button>
+        <Button label={entries.get(today)?.noteId ? 'Open today’s page' : 'Write today’s page'} onClick={() => navigate(`/journal/${today}`)} />
       </div>
 
       <div className="grid gap-3">

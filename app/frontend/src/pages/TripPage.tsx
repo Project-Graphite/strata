@@ -4,14 +4,14 @@ import { formatDay, Icon, Meter, PageSkeleton, TextField } from '@project-graphi
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, IconButton } from '../components/Button';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { MissingRates } from '../components/Stats';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
@@ -98,7 +98,7 @@ export function TripPage() {
       eyebrow={shown.spaceName}
       title={shown.title}
     >
-      <Section action={editable && <HeaderButton icon="plus" label="Add a plan" onClick={() => setDialog('plan')} />} title="Itinerary">
+      <Section action={editable && <Button icon="plus" label="Add a plan" onClick={() => setDialog('plan')} />} title="Itinerary">
         {days.length === 0 ? (
           <Hint>No plans yet.</Hint>
         ) : (
@@ -127,7 +127,7 @@ export function TripPage() {
 
       {shown.packing && (
         <Section
-          action={editable && <HeaderButton icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
+          action={editable && <Button icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
           description={shown.packing.tasks.length ? `${packed} of ${shown.packing.tasks.length} packed` : undefined}
           title="Packing list"
         >
@@ -155,7 +155,7 @@ export function TripPage() {
         </Section>
       )}
 
-      <Section action={editable && <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('expense')} />} title="Spending">
+      <Section action={editable && <Button icon="plus" label="Add expense" onClick={() => setDialog('expense')} />} title="Spending">
         <div className="grid gap-2">
           <p className="m-0 text-ink">
             {money(shown.spending.spentMinor, shown.spending.currency)} spent
@@ -235,7 +235,7 @@ export function TripPage() {
       <Section
         action={
           editable && (
-            <HeaderButton
+            <Button
               icon="plus"
               label="New page"
               onClick={() =>

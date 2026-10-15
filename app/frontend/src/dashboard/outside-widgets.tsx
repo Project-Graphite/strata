@@ -5,6 +5,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useResource } from '../useResource';
 import { type SettingsProps, type WidgetProps } from './widget-parts';
+import { Button } from '../components/Button';
 
 interface Place {
   name: string;
@@ -125,13 +126,9 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
           placeholder="City or town"
           value={query}
         />
-        <button className="secondary-button px-3 py-2 text-sm" disabled={query.trim().length < 2} onClick={() => void search()} type="button">
-          Search
-        </button>
+        <Button disabled={query.trim().length < 2} label="Search" onClick={() => void search()} />
         {'geolocation' in navigator && (
-          <button className="secondary-button px-3 py-2 text-sm" onClick={here} type="button">
-            Use my location
-          </button>
+          <Button label="Use my location" onClick={here} />
         )}
       </div>
       {found && (

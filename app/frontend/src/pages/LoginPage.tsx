@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { CodeInput, errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Button } from '../components/Button';
 import { ResendVerification } from '../components/ResendVerification';
 import { emailAddress, required, useFormErrors } from '../validation';
 
@@ -48,9 +49,7 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
         ) : (
           <CodeInput autoFocus label="Six-digit code" {...form.field('code')} />
         )}
-        <button className="primary-button" disabled={busy} type="submit">
-          {busy ? 'Checking…' : 'Sign in'}
-        </button>
+        <Button disabled={busy} label={busy ? 'Checking…' : 'Sign in'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
         <button className="text-button rule-link" onClick={() => setRecovery((current) => !current)} type="button">
@@ -113,9 +112,7 @@ export function LoginPage() {
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
-        <button className="primary-button" disabled={busy} type="submit">
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
+        <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       {error === unverified && <ResendVerification email={email} key={email} />}
       <p className="mt-6 text-sm text-muted">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
+import { Button } from '../components/Button';
 import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { Empty } from '../components/Empty';
@@ -119,9 +120,7 @@ export function RsvpPage() {
         )}
         <ResponseFields current={guest.response} missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        <button className="primary-button" disabled={answering.busy} type="submit">
-          {answering.busy ? 'Saving…' : 'Send answer'}
-        </button>
+        <Button disabled={answering.busy} label={answering.busy ? 'Saving…' : 'Send answer'} large primary submit />
       </form>
     </section>
   );
@@ -196,9 +195,7 @@ export function SharePage() {
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
         <ResponseFields missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        <button className="primary-button" disabled={answering.busy} type="submit">
-          {answering.busy ? 'Saving…' : 'Send answer'}
-        </button>
+        <Button disabled={answering.busy} label={answering.busy ? 'Saving…' : 'Send answer'} large primary submit />
       </form>
     </section>
   );

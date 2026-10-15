@@ -7,9 +7,10 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace } from './SpaceLayout';
+import { Button } from '../../components/Button';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 
 interface Member {
   userId: string;
@@ -51,7 +52,7 @@ export function SpaceMembers() {
 
   return (
     <div className="fade-in grid gap-6">
-      <Toolbar actions={invites && <HeaderButton icon="plus" label="Invite people" onClick={() => setInviting(true)} primary />}>
+      <Toolbar actions={invites && <Button icon="plus" label="Invite people" onClick={() => setInviting(true)} primary />}>
         <Hint>{members.data.length === 1 ? '1 member' : `${members.data.length} members`}</Hint>
       </Toolbar>
       <ul className="panel-rows">
@@ -84,13 +85,7 @@ export function SpaceMembers() {
                 <span className="text-sm text-muted">{roleOptions.find((option) => option.value === member.role)?.label}</span>
               )}
               {space.kind === 'shared' && (manages || member.userId === self) && (
-                <button
-                  className="secondary-button min-w-20 justify-center px-3 py-2 text-sm"
-                  onClick={() => setRemoving(member)}
-                  type="button"
-                >
-                  {member.userId === self ? 'Leave' : 'Remove'}
-                </button>
+                <Button label={member.userId === self ? 'Leave' : 'Remove'} onClick={() => setRemoving(member)} />
               )}
             </div>
           </li>

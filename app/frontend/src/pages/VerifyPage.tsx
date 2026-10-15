@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { required, useFormErrors } from '../validation';
+import { Button, ButtonLink } from '../components/Button';
 
 export function VerifyPage() {
   const auth = useAuth();
@@ -37,11 +38,9 @@ export function VerifyPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Your email address is confirmed.</h1>
-        {auth.user ? (
-          <Link className="primary-button mt-7 inline-flex" to="/settings/account">Back to settings</Link>
-        ) : (
-          <Link className="primary-button mt-7 inline-flex" to="/login">Sign in</Link>
-        )}
+        <div className="mt-7">
+          {auth.user ? <ButtonLink label="Back to settings" large primary to="/settings/account" /> : <ButtonLink label="Sign in" large primary to="/login" />}
+        </div>
       </section>
     );
   }
@@ -56,9 +55,7 @@ export function VerifyPage() {
           spellCheck={false}
           {...form.field('token')}
         />
-        <button className="primary-button" disabled={busy} type="submit">
-          {busy ? 'Verifying…' : 'Verify email'}
-        </button>
+        <Button disabled={busy} label={busy ? 'Verifying…' : 'Verify email'} large primary submit />
       </form>
     </section>
   );

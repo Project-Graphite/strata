@@ -10,6 +10,7 @@ import { ItemList } from './spaces/ItemList';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
+import { Button } from '../components/Button';
 
 export function TrashPage() {
   const auth = useAuth();
@@ -34,9 +35,9 @@ export function TrashPage() {
           <ItemList
             actions={(item) => (
               <>
-                <button
-                  className="secondary-button px-3 py-2 text-sm"
+                <Button
                   disabled={action.busy}
+                  label="Restore"
                   onClick={() =>
                     void action.run(async () => {
                       await auth.request(`/items/${item.id}/restore`, { method: 'POST' });
@@ -44,13 +45,8 @@ export function TrashPage() {
                       return `${item.title || 'Untitled'} is back in ${spaceName(item)}.`;
                     }, 'Could not restore that')
                   }
-                  type="button"
-                >
-                  Restore
-                </button>
-                <button className="secondary-button px-3 py-2 text-sm" onClick={() => setDeleting(item)} type="button">
-                  Delete
-                </button>
+                />
+                <Button label="Delete" onClick={() => setDeleting(item)} />
               </>
             )}
             detail={(item) => `${spaceName(item)} · trashed ${timeAgo(item.trashedAt!)}`}

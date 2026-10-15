@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { Avatar, ListSkeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
 import { nextBirthdayText, type Person } from '../people';
 import { useSpaces } from '../spaces';
@@ -39,7 +40,7 @@ export function PeoplePage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <HeaderButton icon="plus" label="Add person" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="Add person" onClick={() => setAdding(true)} primary />}
       title="People"
     >
       {people.error ? (

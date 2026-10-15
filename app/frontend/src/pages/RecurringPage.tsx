@@ -7,10 +7,10 @@ import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Button, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page } from '../components/Page';
+import { Page } from '../components/Page';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates, Stat, Stats } from '../components/Stats';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
@@ -57,7 +57,7 @@ export function RecurringPage() {
         editable.length > 0 && (
           <>
             <IconButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
-            <HeaderButton icon="plus" label="Add subscription" onClick={() => setAdding(true)} primary />
+            <Button icon="plus" label="Add subscription" onClick={() => setAdding(true)} primary />
           </>
         )
       }
@@ -152,9 +152,9 @@ export function RecurringPage() {
                     <Link className="min-w-0 truncate text-ink" to={`/spaces/${subscription.spaceId}/recurring`}>
                       {subscription.name}
                     </Link>
-                    <button
-                      className="secondary-button shrink-0 px-3 py-2 text-sm"
+                    <Button
                       disabled={action.busy}
+                      label="I used this"
                       onClick={() =>
                         void action.run(async () => {
                           await auth.request(`/subscriptions/${subscription.id}/used`, { method: 'POST' });
@@ -165,10 +165,7 @@ export function RecurringPage() {
                           return `Noted that you used ${subscription.name}.`;
                         }, 'Could not update the subscription')
                       }
-                      type="button"
-                    >
-                      I used this
-                    </button>
+                    />
                   </li>
                 ))}
               </ul>

@@ -7,6 +7,8 @@ import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subs
 import { useAction } from '../useAction';
 import { atMost, type Check, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
 import { CurrencyField } from './CurrencyField';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
@@ -155,14 +157,10 @@ export function SubscriptionEditor({
           value={cancelUrl}
         />
         <TextField defaultValue={subscription?.usedBy ?? ''} label="Who uses it" maxLength={200} name="usedBy" />
-        <div className="flex justify-end gap-3">
-          <button className="secondary-button" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="primary-button" disabled={saving.busy} type="submit">
-            {saving.busy ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+        <DialogActions>
+          <Button label="Cancel" large onClick={onClose} />
+          <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
+        </DialogActions>
       </form>
     </Dialog>
   );

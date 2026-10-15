@@ -5,11 +5,11 @@ import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, IconButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
 import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
@@ -132,7 +132,7 @@ export function PersonPage() {
         </Section>
       )}
 
-      <Section action={editable && <HeaderButton icon="gift" label="Add idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
+      <Section action={editable && <Button icon="gift" label="Add idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
           <Hint>No gift ideas yet.</Hint>
         ) : (
@@ -157,7 +157,7 @@ export function PersonPage() {
         )}
       </Section>
 
-      <Section action={editable && <HeaderButton icon="link" label="Link an event" onClick={() => setDialog('event')} />} title="Events together">
+      <Section action={editable && <Button icon="link" label="Link an event" onClick={() => setDialog('event')} />} title="Events together">
         {shown.events.length === 0 ? (
           <Hint>No events linked yet.</Hint>
         ) : (

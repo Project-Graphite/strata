@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { Dialog } from '@project-graphite/ui';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 export function FormDialog({
   busy,
@@ -29,14 +31,10 @@ export function FormDialog({
         }}
       >
         {children}
-        <div className="mt-1 flex justify-end gap-3">
-          <button className="secondary-button" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="primary-button" disabled={busy} type="submit">
-            {busy ? busyLabel : submitLabel}
-          </button>
-        </div>
+        <DialogActions>
+          <Button label="Cancel" large onClick={onClose} />
+          <Button disabled={busy} label={busy ? busyLabel : submitLabel} large primary submit />
+        </DialogActions>
       </form>
     </Dialog>
   );

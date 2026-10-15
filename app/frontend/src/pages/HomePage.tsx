@@ -1,7 +1,7 @@
-import { Link } from 'react-router';
 import { Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { DashboardHome } from '../dashboard/Dashboard';
+import { ButtonLink } from '../components/Button';
 
 const areas: [IconName, string, string][] = [
   ['home', 'Home', 'A dashboard of widgets you arrange.'],
@@ -25,12 +25,8 @@ export function HomePage() {
       <h1 className="page-heading max-w-3xl">Tasks, events, subscriptions and files in one place.</h1>
       <p className="mt-5 max-w-2xl text-lg text-muted">Free and open source, from Project Graphite.</p>
       <div className="mt-8 flex flex-wrap gap-3">
-        <Link className="primary-button inline-flex" to="/register">
-          Create an account
-        </Link>
-        <Link className="secondary-button inline-flex" to="/login">
-          Sign in
-        </Link>
+        <ButtonLink label="Create an account" large primary to="/register" />
+        <ButtonLink label="Sign in" large to="/login" />
       </div>
       <ul className="mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map(([icon, name, description]) => (

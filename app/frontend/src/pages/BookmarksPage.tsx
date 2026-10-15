@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { ListSkeleton, Select, Tabs, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page } from '../components/Page';
+import { Page } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -40,7 +41,7 @@ export function BookmarksPage() {
   }
 
   return (
-    <Page actions={writable.length > 0 && <HeaderButton icon="plus" label="Save a link" onClick={() => setAdding(true)} primary />} title="Bookmarks">
+    <Page actions={writable.length > 0 && <Button icon="plus" label="Save a link" onClick={() => setAdding(true)} primary />} title="Bookmarks">
       {adding && (
         <FormDialog
           busy={saving.busy}

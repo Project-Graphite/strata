@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { Hint } from '../components/Hint';
+import { Button } from '../components/Button';
 
 export function Capture() {
   const auth = useAuth();
@@ -46,12 +47,8 @@ export function Capture() {
         {editable.length > 1 && (
           <Select aria-label="Save in" onChange={setSpaceId} options={spaceOptions(editable)} size="small" value={target ?? ''} />
         )}
-        <button className="secondary-button px-3 py-1.5 text-sm" disabled={!text.trim() || saving.busy} onClick={() => save('note')} type="button">
-          Save as page
-        </button>
-        <button className="secondary-button px-3 py-1.5 text-sm" disabled={!text.trim() || saving.busy} onClick={() => save('task')} type="button">
-          Save as task
-        </button>
+        <Button disabled={!text.trim() || saving.busy} label="Save as page" onClick={() => save('note')} />
+        <Button disabled={!text.trim() || saving.busy} label="Save as task" onClick={() => save('task')} />
       </div>
     </div>
   );

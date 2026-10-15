@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { Hint } from '../../components/Hint';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
@@ -12,7 +13,7 @@ import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Section } from '../../components/Page';
+import { Section } from '../../components/Page';
 
 interface Rule {
   id: string;
@@ -73,7 +74,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
 
   return (
     <Section
-      action={editable && tags.length > 0 && <HeaderButton icon="plus" label="New rule" onClick={() => setAdding(true)} />}
+      action={editable && tags.length > 0 && <Button icon="plus" label="New rule" onClick={() => setAdding(true)} />}
       description="Tag new items in this space by words in their title, by file type, or both."
       title="Tagging rules"
     >
@@ -95,9 +96,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
               </div>
               {editable && (
                 <div className="flex shrink-0 items-center gap-2">
-                  <button className="secondary-button px-3 py-2 text-sm" disabled={changing.busy} onClick={() => findMatches(rule)} type="button">
-                    Tag existing items
-                  </button>
+                  <Button disabled={changing.busy} label="Tag existing items" onClick={() => findMatches(rule)} />
                   <ActionsMenu
                     items={[
                       { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },

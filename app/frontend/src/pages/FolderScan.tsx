@@ -4,6 +4,7 @@ import { Empty } from '../components/Empty';
 import { Choice, Suggestion } from '../components/TidyList';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
+import { Button } from '../components/Button';
 
 interface FileHandle {
   kind: 'file';
@@ -124,9 +125,9 @@ export function FolderScan() {
           Strata looks through a folder on this computer for duplicate, large and old files. Nothing is uploaded, and the results are gone when you
           leave this page.
         </p>
-        <button
-          className="primary-button inline-flex w-fit"
+        <Button
           disabled={scanning.busy}
+          label={scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
           onClick={() =>
             void scanning.run(async () => {
               let folder: FolderHandle;
@@ -148,10 +149,8 @@ export function FolderScan() {
               }`;
             }, 'Could not read the folder')
           }
-          type="button"
-        >
-          {scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
-        </button>
+          primary
+        />
       </div>
 
       {report && (
@@ -159,13 +158,7 @@ export function FolderScan() {
           {report.duplicates.length > 0 && (
             <Suggestion
               action={
-                <button
-                  className="secondary-button px-3 py-2 text-sm"
-                  onClick={() => setSelected(new Set([...selected, ...report.duplicates.flatMap((group) => group.slice(1).map((file) => file.path))]))}
-                  type="button"
-                >
-                  Select the extra copies
-                </button>
+                <Button label="Select the extra copies" onClick={() => setSelected(new Set([...selected, ...report.duplicates.flatMap((group) => group.slice(1).map((file) => file.path))]))} />
               }
               hint="Files with exactly the same content. The oldest copy comes first. Files over 100 MB are not compared."
               title="Duplicate files"
@@ -205,12 +198,8 @@ export function FolderScan() {
           <span className="mono-sm text-faint">
             {chosen.length} file{chosen.length === 1 ? '' : 's'} selected
           </span>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setConfirming(true)} type="button">
-            Delete from this computer
-          </button>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setSelected(new Set())} type="button">
-            Clear
-          </button>
+          <Button label="Delete from this computer" onClick={() => setConfirming(true)} />
+          <Button label="Clear" onClick={() => setSelected(new Set())} />
         </div>
       )}
 
