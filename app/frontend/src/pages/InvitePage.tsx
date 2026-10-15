@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { EmptyState, FormPanelSkeleton } from '@project-graphite/ui';
+import { FormPanelSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { addJoinedSpace, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Empty } from '../components/Empty';
 
 export function InvitePage() {
   const { code = '' } = useParams();
@@ -18,11 +19,9 @@ export function InvitePage() {
   if (!auth.ready || invite.loading) return <FormPanelSkeleton label="Loading this invite" />;
   if (!invite.data) {
     return (
-      <EmptyState title="This invite cannot be used">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-          {invite.error} Ask the person who invited you for a new link.
-        </p>
-      </EmptyState>
+      <Empty title="This invite cannot be used">
+        {invite.error} Ask the person who invited you for a new link.
+      </Empty>
     );
   }
 

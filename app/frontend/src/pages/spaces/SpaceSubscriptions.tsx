@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { Empty } from '../../components/Empty';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
 import type { Member } from '../../spaces';
@@ -61,7 +62,7 @@ export function SpaceSubscriptions() {
       </Toolbar>
       {shared && !cancelled && <SpaceBalances key={splitVersion} spaceId={space.id} />}
       {subscriptions.data.length === 0 ? (
-        <EmptyState title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />
+        <Empty title={cancelled ? 'Nothing cancelled' : 'No subscriptions yet'} />
       ) : (
         <ul className="m-0 grid list-none gap-0 p-0">
           {subscriptions.data.map((subscription) => (

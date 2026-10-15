@@ -1,10 +1,11 @@
 import { Link, useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 
@@ -59,7 +60,7 @@ export function InboxPage() {
       ) : !notifications.data ? (
         <ListSkeleton label="Loading your inbox" rows={4} />
       ) : notifications.data.results.length === 0 ? (
-        <EmptyState title="Nothing new" />
+        <Empty title="Nothing new" />
       ) : (
         <>
           <ul className="m-0 grid list-none gap-0 p-0">

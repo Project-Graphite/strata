@@ -1,10 +1,12 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { EmptyState, FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
+import { FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
 import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
+import { Empty } from '../components/Empty';
+import { Hint } from '../components/Hint';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
 import { useAction } from '../useAction';
@@ -67,9 +69,7 @@ export function RsvpPage() {
   if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
   if (!invitation.data) {
     return (
-      <EmptyState title="This invitation is no longer open">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">Ask the person who invited you for a new link.</p>
-      </EmptyState>
+      <Empty title="This invitation is no longer open">Ask the person who invited you for a new link.</Empty>
     );
   }
   const { event, guest } = invitation.data;
@@ -192,7 +192,7 @@ export function SharePage() {
           }, 'Could not save your answer');
         }}
       >
-        {shared.data.datePoll && <p className="m-0 text-sm text-muted">The date isn’t fixed yet. Answer here, then say which of the suggested dates work.</p>}
+        {shared.data.datePoll && <Hint>The date isn’t fixed yet. Answer here, then say which of the suggested dates work.</Hint>}
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
         <ResponseFields missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />

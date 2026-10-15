@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { CopyLink } from './CopyLink';
+import { Hint } from './Hint';
 
 type Access = 'view' | 'edit';
 
@@ -93,13 +94,13 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
               {link.link ? (
                 <CopyLink link={link.link} />
               ) : (
-                <p className="m-0 text-sm text-muted">This older link can’t be shown again. Turn it off and create a new one to copy it.</p>
+                <Hint>This older link can’t be shown again. Turn it off and create a new one to copy it.</Hint>
               )}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="m-0 text-sm text-muted">No links yet. Only members of this space can open this {noun}.</p>
+        <Hint>No links yet. Only members of this space can open this {noun}.</Hint>
       )}
     </Dialog>
   );

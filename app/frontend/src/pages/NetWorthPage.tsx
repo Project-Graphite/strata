@@ -4,6 +4,7 @@ import { DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } f
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
 import { assetKindOptions, spendingTabs, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
@@ -70,7 +71,7 @@ export function NetWorthPage() {
 
           <Section title="Savings goals">
             {goals.data.length === 0 ? (
-              <p className="m-0 text-sm text-muted">No savings goals.</p>
+              <Hint>No savings goals.</Hint>
             ) : (
               <ul className="panel-rows">
                 {goals.data.map((goal) => (
@@ -117,7 +118,7 @@ export function NetWorthPage() {
 
           <Section title="Assets">
             {worth.data.assets.length === 0 ? (
-              <p className="m-0 text-sm text-muted">No assets.</p>
+              <Hint>No assets.</Hint>
             ) : (
               <ul className="panel-rows">
                 {worth.data.assets.map((asset) => (

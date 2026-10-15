@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
@@ -133,7 +134,7 @@ export function PersonPage() {
 
       <Section action={editable && <HeaderButton icon="gift" label="Add idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No gift ideas yet.</p>
+          <Hint>No gift ideas yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.giftIdeas.map((idea) => (
@@ -158,7 +159,7 @@ export function PersonPage() {
 
       <Section action={editable && <HeaderButton icon="link" label="Link an event" onClick={() => setDialog('event')} />} title="Events together">
         {shown.events.length === 0 ? (
-          <p className="m-0 text-sm text-muted">No events linked yet.</p>
+          <Hint>No events linked yet.</Hint>
         ) : (
           <div className="grid gap-4">
             {upcoming.length > 0 && eventList(upcoming)}
@@ -231,7 +232,7 @@ function LinkEventDialog({ onClose, onLinked, person }: { onClose: () => void; o
       title={`Link an event with ${person.name}`}
     >
       {events.data && choices.length === 0 ? (
-        <p className="m-0 text-sm text-muted">There are no other events in {person.spaceName} to link.</p>
+        <Hint>There are no other events in {person.spaceName} to link.</Hint>
       ) : (
         <Select
           label="Event"

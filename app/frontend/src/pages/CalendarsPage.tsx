@@ -3,6 +3,7 @@ import { ConfirmDialog, Icon, ListSkeleton, Select, TextField, timeAgo } from '@
 import { useAuth } from '../auth';
 import { CopyLink } from '../components/CopyLink';
 import { FormDialog } from '../components/FormDialog';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -35,7 +36,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
   return (
     <>
       {calendars.data.length === 0 ? (
-        <p className="m-0 text-sm text-muted">You don’t follow any calendars yet.</p>
+        <Hint>You don’t follow any calendars yet.</Hint>
       ) : (
         <ul className="panel-rows">
           {calendars.data.map((calendar) => {
@@ -154,7 +155,7 @@ export function CalendarsPage() {
         ) : url ? (
           <div className="grid gap-2">
             <CopyLink link={url} />
-            <p className="m-0 text-sm text-muted">Copy it now. It is shown only once.</p>
+            <Hint>Copy it now. It is shown only once.</Hint>
           </div>
         ) : feed.data.enabled ? (
           <div className="flex flex-wrap gap-2">
@@ -201,7 +202,7 @@ export function CalendarsPage() {
           }}
           title="Make a new calendar link?"
         >
-          <p className="m-0 text-sm text-muted">The old link stops working, so calendars subscribed to it stop updating.</p>
+          <Hint>The old link stops working, so calendars subscribed to it stop updating.</Hint>
         </ConfirmDialog>
       )}
     </Page>

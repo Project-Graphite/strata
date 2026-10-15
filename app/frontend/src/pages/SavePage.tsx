@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { EmptyState, FormPanelSkeleton, Select, TextField } from '@project-graphite/ui';
+import { FormPanelSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
+import { Empty } from '../components/Empty';
 
 interface Shared {
   title: string;
@@ -61,11 +62,9 @@ export function SavePage() {
   if (shared === undefined || !spaces.data) return <FormPanelSkeleton label="Opening what you shared" />;
   if (!shared) {
     return (
-      <EmptyState title="Nothing to save">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-          Share a link, some text or files to Strata from another app on this device, and they appear here.
-        </p>
-      </EmptyState>
+      <Empty title="Nothing to save">
+        Share a link, some text or files to Strata from another app on this device, and they appear here.
+      </Empty>
     );
   }
   const editable = spaces.data.filter((space) => space.role !== 'viewer');

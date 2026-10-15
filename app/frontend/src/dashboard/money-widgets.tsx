@@ -1,12 +1,12 @@
 import { Link } from 'react-router';
 import { formatDay, ListSkeleton, Meter } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '../spending';
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { Empty } from './widget-parts';
 
 function usePersonalSpace() {
   return useSpaces().data?.find((space) => space.kind === 'personal')?.id;
@@ -33,7 +33,7 @@ export function SpendingWidget() {
         {money(spentMinor, currency)} <span className="text-sm text-muted">{budgetMinor === null ? 'spent' : `of ${money(budgetMinor, currency)}`}</span>
       </p>
       {budgetMinor !== null && <Meter label="Spent of the budget" value={budgetMinor ? spentMinor / budgetMinor : 1} />}
-      {safeDailyMinor !== null && <p className="m-0 text-sm text-muted">{money(safeDailyMinor, currency)} a day to stay on budget</p>}
+      {safeDailyMinor !== null && <Hint>{money(safeDailyMinor, currency)} a day to stay on budget</Hint>}
       <ul className="m-0 grid list-none gap-1 p-0">
         {expenses.slice(0, 4).map((expense) => (
           <li className="flex justify-between gap-3 text-sm" key={expense.id}>
@@ -67,7 +67,7 @@ export function PaymentsWidget() {
         : [],
     ),
   ].sort((a, b) => a.on.localeCompare(b.on));
-  if (payments.length === 0) return <Empty>No payments coming up.</Empty>;
+  if (payments.length === 0) return <Hint>No payments coming up.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {payments.slice(0, 5).map((payment) => (
@@ -90,9 +90,9 @@ export function SavingsWidget() {
   if (!goals.data) return <ListSkeleton label="Looking at your goals" rows={3} />;
   if (goals.data.length === 0) {
     return (
-      <Empty>
+      <Hint>
         No savings goals yet. <Link to="/spending/net-worth">Add one</Link>
-      </Empty>
+      </Hint>
     );
   }
   return (

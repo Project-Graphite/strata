@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { EmptyState, ListSkeleton } from '@project-graphite/ui';
+import { ListSkeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { TripEditor } from '../components/TripEditor';
@@ -29,7 +30,7 @@ export function TripsPage() {
       ) : !trips.data ? (
         <ListSkeleton label="Loading your trips" rows={3} />
       ) : trips.data.length === 0 ? (
-        <EmptyState title="No trips yet" />
+        <Empty title="No trips yet" />
       ) : (
         groups
           .filter(([, shown]) => shown.length > 0)

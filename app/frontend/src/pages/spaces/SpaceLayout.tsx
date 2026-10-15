@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useOutletContext, useParams } from 'react-router';
-import { EmptyState, PageHeader, PageSkeleton, Tabs } from '@project-graphite/ui';
+import { PageHeader, PageSkeleton, Tabs } from '@project-graphite/ui';
 import { SpaceMark, useSpaces, type Space } from '../../spaces';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 
 export function useSpace() {
@@ -17,11 +18,9 @@ export function SpaceLayout() {
   const space = spaces.data.find((candidate) => candidate.id === id);
   if (!space) {
     return (
-      <EmptyState title="Space not found">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-          It may have been deleted, or you are no longer a member. <Link to="/spaces">See your spaces</Link>
-        </p>
-      </EmptyState>
+      <Empty title="Space not found">
+        It may have been deleted, or you are no longer a member. <Link to="/spaces">See your spaces</Link>
+      </Empty>
     );
   }
   const base = `/spaces/${space.id}`;

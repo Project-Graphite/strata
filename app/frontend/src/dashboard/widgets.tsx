@@ -17,13 +17,14 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
-import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
@@ -123,7 +124,7 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
   return (
     <div className="grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
-      {list.length === 0 && !quiet && <Empty>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Empty>}
+      {list.length === 0 && !quiet && <Hint>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Hint>}
       <ul className="m-0 grid list-none gap-0 p-0">
         {list.slice(0, 8).map((task) => (
           <TaskRow
@@ -212,7 +213,7 @@ interface Shortcut {
 
 function Shortcuts({ settings }: WidgetProps) {
   const links = Array.isArray(settings.links) ? (settings.links as Shortcut[]) : [];
-  if (links.length === 0) return <Empty>Add links in this widget's settings.</Empty>;
+  if (links.length === 0) return <Hint>Add links in this widget's settings.</Hint>;
   return (
     <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3 p-0">
       {links.map((link) => (
@@ -287,9 +288,9 @@ function Recurring() {
   if (!summary.data) return <ListSkeleton label="Adding up your subscriptions" rows={3} />;
   if (summary.data.totals.length === 0) {
     return (
-      <Empty>
+      <Hint>
         No subscriptions yet. <Link to="/recurring">Add some</Link>
-      </Empty>
+      </Hint>
     );
   }
   return (
@@ -316,7 +317,7 @@ function Inbox() {
   if (notifications.error) return <LoadError compact error={notifications.error} onRetry={notifications.reload} />;
   if (!notifications.data) return <ListSkeleton label="Loading your inbox" rows={3} />;
   const unread = notifications.data.results.filter((notification) => !notification.read).slice(0, 5);
-  if (unread.length === 0) return <Empty>You are all caught up.</Empty>;
+  if (unread.length === 0) return <Hint>You are all caught up.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-2 p-0">
       {unread.map((notification) => (
@@ -336,7 +337,7 @@ function Agenda() {
   const agenda = useAgenda(today, addDays(today, 7));
   if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;
   if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={3} />;
-  if (agenda.data.length === 0) return <Empty>Nothing in the next seven days.</Empty>;
+  if (agenda.data.length === 0) return <Hint>Nothing in the next seven days.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {agenda.data.slice(0, 6).map((entry) => (
@@ -365,7 +366,7 @@ function Quote() {
 
 function Countdown({ settings }: WidgetProps) {
   const label = typeof settings.label === 'string' && settings.label ? settings.label : 'the day';
-  if (typeof settings.date !== 'string') return <Empty>Choose a date in this widget's settings.</Empty>;
+  if (typeof settings.date !== 'string') return <Hint>Choose a date in this widget's settings.</Hint>;
   const days = Math.round((new Date(`${settings.date}T00:00:00`).getTime() - new Date(`${dayKey(new Date())}T00:00:00`).getTime()) / 86_400_000);
   return (
     <div>
@@ -467,7 +468,7 @@ function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true);
   if (habits.error) return <LoadError error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) return <ListSkeleton label="Loading your habits" rows={3} />;
-  if (habits.data.length === 0) return <Empty>No habits yet. Add them in a space’s Habits tab.</Empty>;
+  if (habits.data.length === 0) return <Hint>No habits yet. Add them in a space’s Habits tab.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-3 p-0">
       {habits.data.map((habit) => (
@@ -503,7 +504,7 @@ function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
 
 function Board({ settings }: WidgetProps) {
   const boardId = typeof settings.boardId === 'string' ? settings.boardId : null;
-  if (!boardId) return <Empty>Choose a board in this widget's settings.</Empty>;
+  if (!boardId) return <Hint>Choose a board in this widget's settings.</Hint>;
   return (
     <Link className="block no-underline" to={`/notes/${boardId}`}>
       <BoardPreview boardId={boardId} key={boardId} label="Board preview" />
@@ -530,7 +531,7 @@ function Pages() {
   if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
   if (!pages.data) return <ListSkeleton label="Loading your pages" rows={4} />;
   const { pinned, recent } = pages.data;
-  if (pinned.length === 0 && recent.length === 0) return <Empty>No pages yet. Write one in a space’s Notes tab.</Empty>;
+  if (pinned.length === 0 && recent.length === 0) return <Hint>No pages yet. Write one in a space’s Notes tab.</Hint>;
   return (
     <div className="grid gap-3">
       {pinned.length > 0 && <PageLinks heading="Pinned" pages={pinned} />}
@@ -543,7 +544,7 @@ function ReadLater() {
   const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true);
   if (bookmarks.error) return <LoadError compact error={bookmarks.error} onRetry={bookmarks.reload} />;
   if (!bookmarks.data) return <ListSkeleton label="Loading your reading list" rows={3} />;
-  if (bookmarks.data.length === 0) return <Empty>Nothing to read later. Save links on the Bookmarks page.</Empty>;
+  if (bookmarks.data.length === 0) return <Hint>Nothing to read later. Save links on the Bookmarks page.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {bookmarks.data.slice(0, 5).map((bookmark) => (
@@ -590,7 +591,7 @@ function Tidy() {
           ))}
         </ul>
       ) : (
-        <Empty>Nothing to tidy.</Empty>
+        <Hint>Nothing to tidy.</Hint>
       )}
       <p className="mono-sm m-0 text-faint">{last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet'}</p>
       <Link className="w-fit text-ink" to="/tidy">

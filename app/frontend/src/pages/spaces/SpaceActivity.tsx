@@ -1,8 +1,9 @@
 import { useSearchParams } from 'react-router';
-import { EmptyState, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 
 interface ActivityEvent {
@@ -74,7 +75,7 @@ export function SpaceActivity() {
   if (!activity.data) return <ListSkeleton label="Loading what happened in this space" rows={5} />;
   if (activity.data.results.length === 0) {
     return (
-      <EmptyState title="Nothing has happened yet" />
+      <Empty title="Nothing has happened yet" />
     );
   }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ConfirmDialog, EmptyState, ListSkeleton, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { HeaderButton, Toolbar } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
@@ -42,7 +43,7 @@ export function SpaceHabits() {
     <div className="fade-in grid gap-6">
       <Toolbar actions={editable && <HeaderButton icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
       {habits.data.length === 0 ? (
-        <EmptyState title="No habits yet" />
+        <Empty title="No habits yet" />
       ) : (
         <ul className="panel-rows">
           {habits.data.map((habit) => (

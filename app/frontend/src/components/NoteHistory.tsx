@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Dialog, EmptyState, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { Dialog, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { timeOptions } from '../time';
+import { Empty } from './Empty';
 
 interface Version {
   id: string;
@@ -27,7 +28,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
         ) : !versions.data ? (
           <ListSkeleton label="Loading the history" rows={3} />
         ) : versions.data.length === 0 ? (
-          <EmptyState title="No earlier versions yet" />
+          <Empty title="No earlier versions yet" />
         ) : (
           <>
             <ul className="panel-rows max-h-56 overflow-y-auto">

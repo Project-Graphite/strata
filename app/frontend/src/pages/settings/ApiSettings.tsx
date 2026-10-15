@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, Dialog, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { spaceOptions, useSpaces } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -158,7 +159,7 @@ export function ApiSettings() {
           title="Copy the signing secret"
         >
           <div className="mt-5 grid gap-4">
-            <p className="m-0 text-sm text-muted">It won’t be shown again. Use it to check the X-Strata-Signature header.</p>
+            <Hint>It won’t be shown again. Use it to check the X-Strata-Signature header.</Hint>
             <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{secret}</code>
             <div className="flex justify-end gap-3">
               <button className="secondary-button" onClick={() => void navigator.clipboard.writeText(secret)} type="button">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CodeInput, Dialog, FormSkeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { QrCode } from '../../components/QrCode';
@@ -27,7 +28,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   };
   return (
     <div className="mt-5 grid gap-4">
-      <p className="m-0 text-sm text-muted">Each code signs you in once if you lose your phone. They won’t be shown again.</p>
+      <Hint>Each code signs you in once if you lose your phone. They won’t be shown again.</Hint>
       <ul className="mono-sm m-0 grid list-none grid-cols-2 gap-2 rounded-lg border border-line p-4 text-ink">
         {codes.map((code) => (
           <li key={code}>{code}</li>
@@ -114,7 +115,7 @@ function EnableTwoStep({ onClose, onDone }: { onClose: () => void; onDone: () =>
           <a className="rule-link w-fit text-sm" href={pending.uri}>
             Open in authenticator app
           </a>
-          <p className="m-0 text-sm text-muted">Or enter this key:</p>
+          <Hint>Or enter this key:</Hint>
           <code className="mono-sm break-all text-ink">{pending.secret.match(/.{1,4}/g)?.join(' ')}</code>
         </div>
       </div>
@@ -155,7 +156,7 @@ function RecoveryCodesDialog({ enabled, onClose }: { enabled: boolean; onClose: 
       submitLabel="Create codes"
       title="New recovery codes"
     >
-      <p className="m-0 text-sm text-muted">Your current codes stop working.</p>
+      <Hint>Your current codes stop working.</Hint>
       <ProofFields form={form} twoStep={enabled} />
     </FormDialog>
   );
@@ -278,7 +279,7 @@ export function SecuritySettings() {
           submitLabel="Turn off"
           title="Turn off two-step sign-in?"
         >
-          <p className="m-0 text-sm text-muted">Your password alone will be enough to sign in.</p>
+          <Hint>Your password alone will be enough to sign in.</Hint>
           <ProofFields form={disableForm} twoStep />
         </FormDialog>
       )}

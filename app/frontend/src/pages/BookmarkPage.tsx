@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { EmptyState, PageSkeleton } from '@project-graphite/ui';
+import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type FetchedPage, type Inline } from '../bookmarks';
+import { Empty, NotFoundState } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -97,9 +98,7 @@ export function BookmarkPage() {
 
   if (bookmark.status === 404) {
     return (
-      <EmptyState title="Bookmark not found">
-        <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">It may have been deleted, or you are not a member of its space.</p>
-      </EmptyState>
+      <NotFoundState thing="Bookmark" />
     );
   }
   if (bookmark.error) return <LoadError error={bookmark.error} onRetry={bookmark.reload} />;
@@ -174,11 +173,9 @@ export function BookmarkPage() {
       {blocks.length ? (
         <ArticleBody blocks={blocks} />
       ) : (
-        <EmptyState title="No article saved">
-          <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">
-            {details.description ?? 'The page could not be read, or it has no article text.'} You can open the original, or fetch the page again.
-          </p>
-        </EmptyState>
+        <Empty title="No article saved">
+          {details.description ?? 'The page could not be read, or it has no article text.'} You can open the original, or fetch the page again.
+        </Empty>
       )}
     </article>
   );

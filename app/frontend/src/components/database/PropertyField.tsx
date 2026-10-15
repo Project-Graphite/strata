@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { DatePicker, formatDay, Popover, Select, TagChip } from '@project-graphite/ui';
 import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
+import { Hint } from '../Hint';
 
 const optionsOf = (property: Property, ids: unknown) =>
   (Array.isArray(ids) ? ids : [ids]).flatMap((id) => property.options?.filter((option) => option.id === id) ?? []);
@@ -111,7 +112,7 @@ export function PropertyField({
                   </label>
                 ))
               ) : (
-                <p className="m-0 text-sm text-muted">Add options to this property first.</p>
+                <Hint>Add options to this property first.</Hint>
               )}
             </div>
           )}

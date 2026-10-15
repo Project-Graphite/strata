@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ListSkeleton } from '@project-graphite/ui';
 import { shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
@@ -61,7 +62,7 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
       ) : !balances.data ? (
         <ListSkeleton label="Adding up who owes what" rows={2} />
       ) : balances.data.charges.length === 0 && balances.data.settlements.length === 0 ? (
-        <p className="m-0 text-sm text-muted">No split subscriptions renew this month.</p>
+        <Hint>No split subscriptions renew this month.</Hint>
       ) : (
         <>
           {balances.data.debts.length === 0 ? (

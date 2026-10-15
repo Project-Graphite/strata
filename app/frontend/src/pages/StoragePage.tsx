@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, formatDay, Icon, ListSkeleton, Meter, Select } from '@project-graphite/ui';
+import { formatDay, Icon, ListSkeleton, Meter, Select } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { fileSize, maxUploadBytes, saveBlob, uploadFiles } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Empty } from '../components/Empty';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -78,7 +80,7 @@ export function StoragePage() {
               {fileSize(shown.usedBytes)} of {fileSize(shown.quotaBytes)} used
             </p>
             <Meter label="Storage used" value={shown.quotaBytes ? shown.usedBytes / shown.quotaBytes : 1} />
-            <p className="m-0 text-sm text-muted">
+            <Hint>
               Up to {fileSize(maxUploadBytes)} a file.
               {shown.trashedBytes > 0 && (
                 <>
@@ -86,7 +88,7 @@ export function StoragePage() {
                   {fileSize(shown.trashedBytes)} is in the <Link to="/trash">trash</Link> and still counts until it is emptied.
                 </>
               )}
-            </p>
+            </Hint>
           </div>
           {writable.length > 1 && target && (
             <div className="max-w-xs">
@@ -95,7 +97,7 @@ export function StoragePage() {
           )}
           <Section title="Files">
             {shown.files.length === 0 ? (
-              <EmptyState title="No files yet" />
+              <Empty title="No files yet" />
             ) : (
               <ul className="panel-rows">
                 {shown.files.map((file) => (

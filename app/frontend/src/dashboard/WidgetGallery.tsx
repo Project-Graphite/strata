@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Dialog, TextField } from '@project-graphite/ui';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
+import { Hint } from '../components/Hint';
 
 export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) => void; onClose: () => void }) {
   const [query, setQuery] = useState('');
@@ -11,7 +12,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
     <Dialog onClose={onClose} title="Add a widget">
       <div className="mt-5 grid gap-5">
         <TextField aria-label="Search widgets" autoComplete="off" autoFocus label="" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search widgets" value={query} />
-        {kinds.length === 0 && <p className="m-0 text-sm text-muted">No widget matches “{query}”.</p>}
+        {kinds.length === 0 && <Hint>No widget matches “{query}”.</Hint>}
         {widgetGroups.map((group) => {
           const inGroup = kinds.filter((type) => widgetKinds[type].group === group);
           return (

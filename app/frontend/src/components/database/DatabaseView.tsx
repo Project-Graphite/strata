@@ -11,6 +11,7 @@ import { LoadError } from '../LoadError';
 import { PropertiesDialog } from './PropertiesDialog';
 import { PropertyField, propertyDisplay } from './PropertyField';
 import { PeriodNav } from '../PeriodNav';
+import { Hint } from '../Hint';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -96,11 +97,11 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       </div>
     );
 
-  const empty = <p className="m-0 text-sm text-muted">No pages in this database yet.</p>;
+  const empty = <Hint>No pages in this database yet.</Hint>;
 
   function body() {
     if (data.view === 'board') {
-      if (!group) return <p className="m-0 text-sm text-muted">Add a select property to sort pages into columns.</p>;
+      if (!group) return <Hint>Add a select property to sort pages into columns.</Hint>;
       return (
         <>
           {chooser('Group by', selects, group, 'groupBy')}
@@ -147,7 +148,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       );
     }
     if (data.view === 'calendar') {
-      if (!dateProperty) return <p className="m-0 text-sm text-muted">Add a date property to place pages on a calendar.</p>;
+      if (!dateProperty) return <Hint>Add a date property to place pages on a calendar.</Hint>;
       const { from, days } = monthDays(month);
       const shown = new Date(`${month}T00:00:00`);
       const shift = (direction: number) => setMonth(dayKey(new Date(shown.getFullYear(), shown.getMonth() + direction, 1)));

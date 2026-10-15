@@ -7,6 +7,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace } from './SpaceLayout';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Toolbar } from '../../components/Page';
 
@@ -51,7 +52,7 @@ export function SpaceMembers() {
   return (
     <div className="fade-in grid gap-6">
       <Toolbar actions={invites && <HeaderButton icon="plus" label="Invite people" onClick={() => setInviting(true)} primary />}>
-        <p className="m-0 text-sm text-muted">{members.data.length === 1 ? '1 member' : `${members.data.length} members`}</p>
+        <Hint>{members.data.length === 1 ? '1 member' : `${members.data.length} members`}</Hint>
       </Toolbar>
       <ul className="panel-rows">
         {members.data.map((member) => (

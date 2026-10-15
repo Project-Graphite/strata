@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, EmptyState, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
@@ -58,11 +60,9 @@ export function TokensSettings() {
         title="Access tokens"
       >
         {tokens.data.length === 0 ? (
-          <EmptyState title="No tokens">
-            <p className="mx-auto mt-2 mb-0 max-w-md text-sm text-muted">
-              A token lets your own scripts use Strata as you, with only the permissions you give it.
-            </p>
-          </EmptyState>
+          <Empty title="No tokens">
+            A token lets your own scripts use Strata as you, with only the permissions you give it.
+          </Empty>
         ) : (
           <SettingsRows>
             {tokens.data.map((token) => (
@@ -88,7 +88,7 @@ export function TokensSettings() {
       {open && created && (
         <Dialog onClose={close} title="Copy your token">
           <div className="mt-5 grid gap-4">
-            <p className="m-0 text-sm text-muted">It won’t be shown again. Store it like a password.</p>
+            <Hint>It won’t be shown again. Store it like a password.</Hint>
             <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{created}</code>
             <div className="flex justify-end gap-3">
               <button className="secondary-button" onClick={() => void navigator.clipboard.writeText(created)} type="button">

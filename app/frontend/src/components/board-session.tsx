@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Menu } from '@project-graphite/ui';
 import type * as Y from 'yjs';
+import { Hint } from './Hint';
 
 export interface VoteRound {
   startedAt: number;
@@ -122,7 +123,7 @@ export function BrainstormBar({
         <section aria-label="Vote results" className="grid gap-1 rounded-lg border border-line-soft px-3 py-2">
           <h3 className="mono-sm m-0 text-faint">Vote results</h3>
           {session.results.length === 0 ? (
-            <p className="m-0 text-sm text-muted">No dots landed on a shape.</p>
+            <Hint>No dots landed on a shape.</Hint>
           ) : (
             <ol className="m-0 grid list-none gap-0.5 p-0 text-sm">
               {session.results.map((result) => (

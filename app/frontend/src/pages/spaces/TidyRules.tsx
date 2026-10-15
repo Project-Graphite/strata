@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Hint } from '../../components/Hint';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
 import type { Tag } from '../../spaces';
@@ -81,7 +82,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       ) : !rules.data ? (
         <ListSkeleton label="Loading the tagging rules" rows={2} />
       ) : rules.data.length === 0 ? (
-        <p className="m-0 text-sm text-muted">{editable && tags.length === 0 ? 'Add a tag first, then make a rule for it.' : 'No rules yet.'}</p>
+        <Hint>{editable && tags.length === 0 ? 'Add a tag first, then make a rule for it.' : 'No rules yet.'}</Hint>
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (

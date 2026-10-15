@@ -1,8 +1,9 @@
 import { useSearchParams, Link } from 'react-router';
 import { useState } from 'react';
-import { EmptyState, ListSkeleton, Select, Tabs, TextField, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Select, Tabs, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page } from '../components/Page';
@@ -73,7 +74,7 @@ export function BookmarksPage() {
       ) : !listed.data ? (
         <ListSkeleton label="Loading your bookmarks" rows={4} />
       ) : listed.data.length === 0 ? (
-        <EmptyState title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'} />
+        <Empty title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'} />
       ) : (
         <ul className="panel-rows">
           {listed.data.map((bookmark) => (
