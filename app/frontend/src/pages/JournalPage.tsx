@@ -1,11 +1,12 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
-import { useResource } from '../useResource';
+import { pagesTabs } from '../notes';
+import { useResource, type Resource } from '../useResource';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -32,17 +33,37 @@ function yearDays(year: number) {
 const dayLabel = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 
 export function JournalPage() {
-  const auth = useAuth();
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const year = params.get('year');
   const journal = useResource<JournalYear>(`/me/journal${year ? `?year=${year}` : ''}`, true);
-  const action = useAction();
 
-  if (journal.error) return <LoadError error={journal.error} onRetry={journal.reload} />;
-  if (!journal.data) return <ListSkeleton label="Loading your journal" rows={6} />;
-  const { today, days } = journal.data;
-  const shown = journal.data.year;
+  return (
+    <Page
+      actions={
+        <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
+          Write a weekly review
+        </Link>
+      }
+      title="Pages"
+    >
+      <Tabs items={pagesTabs('journal')} label="Pages" />
+      {journal.error ? (
+        <LoadError error={journal.error} onRetry={journal.reload} />
+      ) : !journal.data ? (
+        <ListSkeleton label="Loading your journal" rows={6} />
+      ) : (
+        <JournalMoods journal={journal.data} mutate={journal.mutate} />
+      )}
+    </Page>
+  );
+}
+
+function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resource<JournalYear>['mutate'] }) {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const action = useAction();
+  const { today, days } = journal;
+  const shown = journal.year;
   const entries = new Map(days.map((entry) => [entry.day, entry]));
   const todayMood = entries.get(today)?.mood ?? null;
   const all = yearDays(shown);
@@ -52,7 +73,7 @@ export function JournalPage() {
     const next = todayMood === mood ? null : mood;
     void action.run(async () => {
       await auth.request(`/me/journal/${today}/mood`, { method: 'PUT', body: JSON.stringify({ mood: next }) });
-      journal.mutate((current) => ({
+      mutate((current) => ({
         ...current,
         days: [...current.days.filter((entry) => entry.day !== today), { day: today, mood: next, noteId: entries.get(today)?.noteId ?? null }],
       }));
@@ -61,14 +82,7 @@ export function JournalPage() {
   }
 
   return (
-    <Page
-      actions={
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
-          Write a weekly review
-        </Link>
-      }
-      title="Journal"
-    >
+    <>
       <div className="panel grid gap-4 p-5">
         <h2 className="m-0 text-base font-medium">How was today?</h2>
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
@@ -125,7 +139,7 @@ export function JournalPage() {
         </div>
         <p className="mono-sm m-0 text-faint">Darker days felt better. A ring means the day has a page.</p>
       </div>
-    </Page>
+    </>
   );
 }
 

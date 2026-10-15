@@ -74,7 +74,8 @@ describe('App routes', () => {
       }),
     );
 
-    await render('/recurring');
+    await render('/todo');
+    expect([...container.querySelectorAll('nav[aria-label="Main"] a')].map((tab) => tab.textContent)).toEqual(['Home', 'Spending', 'Agenda', 'Spaces', 'More']);
     const more = container.querySelector('nav[aria-label="Main"] a[href="/menu"]')!;
     expect(more.textContent).toBe('More');
     expect(more.getAttribute('aria-current')).toBe('page');
@@ -82,8 +83,9 @@ describe('App routes', () => {
     await act(async () => more.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     const main = container.querySelector('main')!;
     expect(main.querySelector('h1')?.textContent).toBe('Menu');
+    expect(main.querySelector('h1')?.className).toBe('sr-only');
     const links = [...main.querySelectorAll('a')].map((link) => link.getAttribute('href'));
-    expect(links).toEqual(expect.arrayContaining(['/spending', '/spaces/club', '/inbox', '/invitations', '/trash', '/settings']));
+    expect(links).toEqual(expect.arrayContaining(['/todo', '/spending', '/spaces/club', '/inbox', '/invitations', '/trash', '/settings']));
     expect(links).not.toContain('/tidy');
     expect(main.querySelector('a[href="/inbox"]')?.textContent).toContain('3');
   });

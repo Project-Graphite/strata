@@ -891,6 +891,26 @@ header.backdrop-blur-md {
   background: color-mix(in srgb, var(--color-paper) 72%, transparent);
 }
 
+.sidebar-panel {
+  transition: none;
+}
+
+.sidebar .sidebar-item {
+  min-height: calc(0.9rem * 1.55 + 0.9rem);
+  justify-content: flex-start;
+  padding-inline: 0.8125rem;
+}
+
+.sidebar[data-collapsed='true'] .sidebar-section-label {
+  height: auto;
+  margin: 0;
+  padding: 0 0.75rem 0.375rem;
+  border-top: 0;
+  overflow: hidden;
+  color: transparent;
+  white-space: nowrap;
+}
+
 .dashboard-backdrop-image {
   background:
     linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)) fixed,

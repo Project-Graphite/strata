@@ -25,6 +25,9 @@ describe('Journal against Postgres', () => {
     expect(parent.title).toBe('Journal');
     expect((await writer.call('GET', `/notes/${again.body.noteId}`)).body.parentId).toBe(page.parentId);
     expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE' } })).toBe(3);
+    const listed = (await writer.call('GET', '/me/notes?kind=note')).body as { id: string; journal: boolean }[];
+    expect(listed.filter((note) => note.journal).map((note) => note.id).sort()).toEqual([first.body.noteId, again.body.noteId].sort());
+    expect(listed.find((note) => note.id === page.parentId)?.journal).toBe(false);
 
     expect((await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 6 })).status).toBe(400);
     expect((await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 4 })).body).toEqual({ day: today, mood: 4 });

@@ -19,6 +19,7 @@ export const noteFields = {
   updatedAt: true,
   note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true } },
   databaseSchema: { select: { itemId: true } },
+  _count: { select: { journalEntries: true } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
@@ -35,6 +36,7 @@ export function present(row: NoteRow) {
     pinnedAt: row.note?.pinnedAt ?? null,
     template: row.note?.template ?? false,
     database: Boolean(row.databaseSchema),
+    journal: row._count.journalEntries > 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

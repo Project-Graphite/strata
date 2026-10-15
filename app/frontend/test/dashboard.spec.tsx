@@ -192,7 +192,8 @@ describe('Home dashboard', () => {
       ),
     );
 
-    const wall = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Wall display')!;
+    const wall = container.querySelector('a[aria-label="Wall display"]')!;
+    expect(wall.textContent).toBe('');
     expect(wall.getAttribute('href')).toBe('/?d=home&display=wall');
     await act(async () => wall.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
 

@@ -4,6 +4,7 @@ import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, ta
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { FormDialog } from '../components/FormDialog';
+import { IconButton, IconLink } from '../components/IconButton';
 import { HeaderButton, Page, Toolbar } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -257,11 +258,8 @@ export function DashboardHome() {
           </>
         ) : (
           <>
-            <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${current.id}&display=wall`}>
-              <Icon name="monitor" size={16} />
-              Wall display
-            </Link>
-            <HeaderButton
+            <IconLink icon="monitor" label="Wall display" to={`/?d=${current.id}&display=wall`} />
+            <IconButton
               icon="pencil"
               label="Edit"
               onClick={() => {
@@ -270,7 +268,7 @@ export function DashboardHome() {
                 setDraft(layoutOf(current));
               }}
             />
-            <HeaderButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} primary />
+            <IconButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} />
           </>
         )
       }

@@ -2,7 +2,7 @@ import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { noteTitle, onPagesChanged, type Note } from '../notes';
+import { nestedUnder, noteTitle, onPagesChanged, type Note } from '../notes';
 import { SpaceMark, useSpaces } from '../spaces';
 import { NoteMark } from './NoteMark';
 import { useAction } from '../useAction';
@@ -49,10 +49,9 @@ export function PageTree() {
 
   if (collapsed || !listed.data || !spaces.data) return null;
   const pages = listed.data.filter((note) => !note.template);
-  const known = new Set(pages.map((note) => note.id));
   const childrenOf = (spaceId: string, parentId: string | null) =>
-    pages
-      .filter((note) => note.spaceId === spaceId && (note.parentId && known.has(note.parentId) ? note.parentId : null) === parentId)
+    nestedUnder(pages, parentId)
+      .filter((note) => note.spaceId === spaceId)
       .sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
 
   function toggle(id: string) {

@@ -14,7 +14,7 @@ export function MenuPage() {
   const inbox = useInbox();
 
   return (
-    <Page title="Menu">
+    <Page title="Menu" titleHidden>
       {areaSections(pathname, spaces.data, inbox.data?.unread ?? 0, enabledFeatures(auth.user?.features)).map((section, index) => (
         <nav aria-label={section.label ?? 'Areas'} className="grid gap-2" key={section.label ?? index}>
           {section.label && <h2 className="m-0 text-sm font-medium text-muted">{section.label}</h2>}
