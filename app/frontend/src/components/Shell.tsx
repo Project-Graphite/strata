@@ -18,6 +18,7 @@ import { areaSections, moreAreas } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
+import { AboutLinks } from './AboutLinks';
 import { AccountMenu } from './AccountMenu';
 import { CrashBoundary } from './CrashBoundary';
 import { PageTree } from './PageTree';
@@ -45,17 +46,10 @@ function rememberSession(signedIn: boolean) {
   }
 }
 
-function SiteFooter() {
+function SiteFooter({ signedIn }: { signedIn: boolean }) {
   return (
-    <footer className="shell mono-sm mt-16 border-t border-line-soft py-8 text-faint">
-      <nav aria-label="About" className="flex justify-end gap-5">
-        <Link className="text-faint no-underline hover:text-ink" to="/privacy">
-          Privacy
-        </Link>
-        <Link className="text-faint no-underline hover:text-ink" to="/terms">
-          Terms
-        </Link>
-      </nav>
+    <footer className={`shell mt-16 border-t border-line-soft py-8 ${signedIn ? 'hidden md:block' : ''}`}>
+      <AboutLinks className="justify-end" />
     </footer>
   );
 }
@@ -95,7 +89,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
     { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
     ...(auth.user
       ? [
-          { href: '/todo', label: 'To-do', icon: 'check-mark' as const, active: pathname === '/todo' },
+          { href: '/spending', label: 'Spending', icon: 'wallet' as const, active: pathname.startsWith('/spending') || pathname === '/recurring' },
           { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/events/') },
           { href: '/spaces', label: 'Spaces', icon: 'folder' as const, active: pathname.startsWith('/spaces') },
           { href: '/menu', label: 'More', icon: 'filter' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
@@ -142,7 +136,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
           )
         }
         brand={{ href: '/', mark: <StrataMark />, name: 'Strata' }}
-        footer={<SiteFooter />}
+        footer={<SiteFooter signedIn={signedIn} />}
         nav={[]}
         sidebar={
           showSidebar && (

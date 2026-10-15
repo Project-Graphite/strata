@@ -61,6 +61,40 @@ describe('Journal', () => {
     await act(async () => {});
   }
 
+  it('keeps journal pages behind the Journal tab and nests pages under their parents', async () => {
+    const page = (id: string, title: string, parentId: string | null, position = 0, journal = false) => ({
+      id, spaceId: 'mine', title, kind: 'note', parentId, position, icon: null, pinnedAt: null, template: false, database: false, journal,
+      createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-07T00:00:00Z',
+    });
+    serve((path) =>
+      path === '/me/notes?kind=note'
+        ? json([
+            page('trip', 'Trip', null),
+            page('day-two', 'Day two', 'trip', 2),
+            page('day-one', 'Day one', 'trip', 1),
+            page('packing', 'Packing', 'day-one'),
+            page('journal', 'Journal', null),
+            page('tuesday', 'Tuesday, 6 October 2026', 'journal', 0, true),
+          ])
+        : undefined,
+    );
+    await render('/pages');
+
+    const tabs = [...container.querySelectorAll('nav[aria-label="Pages"] a')];
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
+      ['Pages', '/pages', 'page'],
+      ['Journal', '/journal', null],
+    ]);
+    const rows = [...container.querySelectorAll<HTMLAnchorElement>('main li a')];
+    expect(rows.map((row) => [row.textContent?.split('Personal')[0], row.style.paddingInlineStart])).toEqual([
+      ['Trip', ''],
+      ['Day one', '2.5rem'],
+      ['Packing', '4rem'],
+      ['Day two', '2.5rem'],
+      ['Journal', ''],
+    ]);
+  });
+
   it('sets today’s mood with one tap and shows the year with moods and pages', async () => {
     const sent: unknown[] = [];
     serve((path, init) => {

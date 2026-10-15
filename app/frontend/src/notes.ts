@@ -11,9 +11,20 @@ export interface Note {
   pinnedAt: string | null;
   template: boolean;
   database: boolean;
+  journal: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export function nestedUnder(pages: Note[], parentId: string | null) {
+  const known = new Set(pages.map((page) => page.id));
+  return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
+}
+
+export const pagesTabs = (active: 'pages' | 'journal') => [
+  { active: active === 'pages', href: '/pages', label: 'Pages' },
+  { active: active === 'journal', href: '/journal', label: 'Journal' },
+];
 
 export interface NoteDetails extends Note {
   editable: boolean;

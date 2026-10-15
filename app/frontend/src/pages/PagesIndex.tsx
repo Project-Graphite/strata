@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { EmptyState, Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
+import { EmptyState, Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { IconButton } from '../components/IconButton';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
 import { NoteMark } from '../components/NoteMark';
 import { HeaderButton, Page } from '../components/Page';
-import { announcePagesChanged, noteTitle, type Note } from '../notes';
+import { announcePagesChanged, nestedUnder, noteTitle, pagesTabs, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -25,6 +26,27 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const [importing, setImporting] = useState(false);
   const words = wording[kind];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
+  const pages = listed.data?.filter((note) => !note.journal) ?? [];
+
+  function rows(parentId: string | null, depth: number): ReactNode[] {
+    const level = nestedUnder(pages, parentId);
+    return (parentId ? level.sort((a, b) => a.position - b.position) : level).flatMap((note) => [
+      <li key={note.id}>
+        <Link
+          className="flex items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft"
+          style={depth ? { paddingInlineStart: `${1 + depth * 1.5}rem` } : undefined}
+          to={`/notes/${note.id}`}
+        >
+          <NoteMark note={note} />
+          <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
+          <span className="mono-sm shrink-0 text-faint">
+            {spaces.data?.find((space) => space.id === note.spaceId)?.name} · {timeAgo(note.updatedAt)}
+          </span>
+        </Link>
+      </li>,
+      ...rows(note.id, depth + 1),
+    ]);
+  }
 
   function create(spaceId: string) {
     void creating.run(async () => {
@@ -38,7 +60,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
     <Page
       actions={
         <>
-          {kind === 'note' && writable.length > 0 && <HeaderButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
+          {kind === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
           {writable.length === 1 ? (
             <HeaderButton disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
           ) : (
@@ -61,6 +83,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       }
       title={words.title}
     >
+      {kind === 'note' && <Tabs items={pagesTabs('pages')} label="Pages" />}
       {importing && (
         <ImportPages
           onClose={() => setImporting(false)}
@@ -75,24 +98,12 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
         <ListSkeleton label={`Loading your ${words.title.toLowerCase()}`} rows={4} />
-      ) : listed.data.length === 0 ? (
+      ) : pages.length === 0 ? (
         <EmptyState title={words.empty}>
           <p className="mx-auto mt-3 mb-0 max-w-md text-sm text-muted">{words.hint}</p>
         </EmptyState>
       ) : (
-        <ul className="panel-rows">
-          {listed.data.map((note) => (
-            <li key={note.id}>
-              <Link className="flex items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft" to={`/notes/${note.id}`}>
-                <NoteMark note={note} />
-                <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
-                <span className="mono-sm shrink-0 text-faint">
-                  {spaces.data?.find((space) => space.id === note.spaceId)?.name} · {timeAgo(note.updatedAt)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <ul className="panel-rows">{rows(null, 0)}</ul>
       )}
     </Page>
   );

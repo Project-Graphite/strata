@@ -7,18 +7,24 @@ export function Page({
   description,
   eyebrow,
   title,
+  titleHidden = false,
 }: {
   actions?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
   eyebrow?: ReactNode;
   title: ReactNode;
+  titleHidden?: boolean;
 }) {
   return (
     <section className="page-enter grid content-start gap-8">
-      <PageHeader actions={actions} eyebrow={eyebrow} title={title}>
-        {description}
-      </PageHeader>
+      {titleHidden ? (
+        <h1 className="sr-only">{title}</h1>
+      ) : (
+        <PageHeader actions={actions} eyebrow={eyebrow} title={title}>
+          {description}
+        </PageHeader>
+      )}
       {children}
     </section>
   );

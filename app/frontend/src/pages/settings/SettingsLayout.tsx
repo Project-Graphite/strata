@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { Tabs } from '@project-graphite/ui';
+import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import type { TimeFormat } from '../../time';
 
@@ -52,6 +53,7 @@ export function SettingsLayout() {
     <Page title="Settings">
       <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Settings" />
       <Outlet />
+      <AboutLinks />
     </Page>
   );
 }
