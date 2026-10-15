@@ -66,6 +66,7 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   pinnedAt: null,
   template: false,
   database: false,
+  journal: false,
   createdAt: '2026-10-05T10:00:00Z',
   updatedAt: '2026-10-05T10:00:00Z',
 });
