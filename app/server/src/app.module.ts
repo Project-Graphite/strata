@@ -4,6 +4,7 @@ import { AccessModule } from './access/access.module';
 import { AccessTokensModule } from './access-tokens/access-tokens.module';
 import { TokenAuthModule } from './access-tokens/token-auth.module';
 import { ActivityModule } from './activity/activity.module';
+import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
@@ -55,6 +56,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     InboxModule,
     JobsModule,
     SiteModule,
+    AdminModule,
     RedisModule,
     MailModule,
     AuthModule,
