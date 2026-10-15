@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
-import { CopyLink } from '../components/CopyLink';
+import { Copyable } from '../components/Copyable';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -54,7 +54,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                   }
                   title={calendar.name}
                 >
-                  {calendar.lastError && <p className="m-0 mt-0.5 text-sm text-danger">The last check failed: {calendar.lastError}</p>}
+                  {calendar.lastError && <span className="text-sm text-danger">The last check failed: {calendar.lastError}</span>}
                 </RowText>
                 {space && space.role !== 'viewer' && (
                   <div className="flex gap-2">
@@ -153,7 +153,7 @@ export function CalendarsPage() {
           <ListSkeleton label="Loading your calendar link" rows={1} />
         ) : url ? (
           <div className="grid gap-2">
-            <CopyLink link={url} />
+            <Copyable value={url} />
             <Hint>Copy it now. It is shown only once.</Hint>
           </div>
         ) : feed.data.enabled ? (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, Pagination, TextField } from '@project-graphite/ui';
+import { useNavigate, useSearchParams } from 'react-router';
+import { ListSkeleton, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
@@ -11,7 +11,7 @@ import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
 import { TaskEditor } from '../../components/TaskEditor';
 import type { Tag } from '../../spaces';
-import { TaskRow, type Task, type TaskList } from '../../tasks';
+import { TaskListChips, TaskListFooter, taskLink, TaskRow, type Task, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -25,7 +25,6 @@ export function SpaceTasks() {
   const listId = params.get('list');
   const completed = params.get('completed') === 'true';
   const page = Number(params.get('page')) || 1;
-  const base = `/spaces/${space.id}/tasks`;
   const filters = `${listId ? `&listId=${encodeURIComponent(listId)}` : ''}${completed ? '&completed=true' : ''}`;
   const tasks = useResource<ResultPage<Task>>(`/spaces/${space.id}/tasks?page=${page}${filters}`, true);
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);
@@ -36,14 +35,7 @@ export function SpaceTasks() {
   const [editing, setEditing] = useState<Task | 'new'>();
   const [listDialog, setListDialog] = useState<'new' | 'rename'>();
   const editable = space.role !== 'viewer';
-  const link = (next: { list?: string | null; completed?: boolean; page?: number }) => {
-    const query = new URLSearchParams();
-    const list = next.list === undefined ? listId : next.list;
-    if (list) query.set('list', list);
-    if (next.completed ?? completed) query.set('completed', 'true');
-    if (next.page && next.page > 1) query.set('page', String(next.page));
-    return `${base}${query.size ? `?${query}` : ''}`;
-  };
+  const link = taskLink(`/spaces/${space.id}/tasks`, listId, completed);
 
   function replace(task: Task) {
     tasks.mutate((current) => {
@@ -69,23 +61,7 @@ export function SpaceTasks() {
   return (
     <>
       <Toolbar actions={editable && <Button icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
-        <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
-          <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null })}>
-            All tasks
-          </Link>
-          {lists.data.map((list) => (
-            <Link aria-current={listId === list.id ? 'page' : undefined} className="filter-chip" key={list.id} to={link({ list: list.id })}>
-              {list.title}
-              <span className="text-faint">{list.openTasks}</span>
-            </Link>
-          ))}
-          {editable && (
-            <button className="filter-chip" onClick={() => setListDialog('new')} type="button">
-              <Icon name="plus" size={14} />
-              New list
-            </button>
-          )}
-        </nav>
+        <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editable ? () => setListDialog('new') : undefined} />
         {editable && shownList && (
           <ActionsMenu
             items={[
@@ -129,12 +105,7 @@ export function SpaceTasks() {
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link className="text-button text-sm" to={link({ completed: !completed })}>
-          {completed ? 'Show open' : 'Show finished'}
-        </Link>
-        <Pagination page={tasks.data.page} pageHref={(next) => link({ page: next })} totalPages={tasks.data.totalPages} />
-      </div>
+      <TaskListFooter completed={completed} link={link} tasks={tasks.data} />
 
       {editing && (
         <TaskEditor

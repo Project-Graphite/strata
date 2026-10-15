@@ -7,7 +7,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
-import { CopyLink } from '../components/CopyLink';
+import { Copyable } from '../components/Copyable';
 import { DialogActions } from '../components/DialogActions';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
@@ -67,7 +67,7 @@ export function InvitationsPage() {
                     detail={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>}
                     title={invitation.space.name}
                   >
-                    {invitation.note && <p className="mt-2 mb-0 text-sm text-muted">“{invitation.note}”</p>}
+                    {invitation.note && <span className="text-sm text-muted">“{invitation.note}”</span>}
                   </RowText>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -119,7 +119,7 @@ export function InvitationsPage() {
         <Dialog onClose={() => setLink('')} title="Invite link ready">
           <div className="mt-4 grid gap-4">
             <Hint>Send this link to the person you are inviting. It works once, for 14 days.</Hint>
-            <CopyLink link={link} />
+            <Copyable value={link} />
             <DialogActions>
               <Button label="Done" large onClick={() => setLink('')} primary />
             </DialogActions>

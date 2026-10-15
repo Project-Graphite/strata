@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { Avatar } from '@project-graphite/ui';
+import { Link } from 'react-router';
+import { Avatar, Icon, Pagination } from '@project-graphite/ui';
+import type { Page as ResultPage } from './api';
 
 export interface Task {
   id: string;
@@ -129,5 +131,51 @@ export function TaskRow({
       {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
       {actions}
     </li>
+  );
+}
+
+export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number }) => string;
+
+export function taskLink(base: string, listId: string | null, completed: boolean): TaskLink {
+  return (next) => {
+    const query = new URLSearchParams();
+    const list = next.list === undefined ? listId : next.list;
+    if (list) query.set('list', list);
+    if (next.completed ?? completed) query.set('completed', 'true');
+    if (next.page && next.page > 1) query.set('page', String(next.page));
+    return `${base}${query.size ? `?${query}` : ''}`;
+  };
+}
+
+export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLink; listId: string | null; lists: TaskList[]; onNewList?: () => void }) {
+  return (
+    <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
+      <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null, page: 1 })}>
+        All tasks
+      </Link>
+      {lists.map((list) => (
+        <Link aria-current={listId === list.id ? 'page' : undefined} className="filter-chip" key={list.id} to={link({ list: list.id, page: 1 })}>
+          {list.title}
+          <span className="text-faint">{list.openTasks}</span>
+        </Link>
+      ))}
+      {onNewList && (
+        <button className="filter-chip" onClick={onNewList} type="button">
+          <Icon name="plus" size={14} />
+          New list
+        </button>
+      )}
+    </nav>
+  );
+}
+
+export function TaskListFooter({ completed, link, tasks }: { completed: boolean; link: TaskLink; tasks: ResultPage<Task> }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <Link className="text-button text-sm" to={link({ completed: !completed, page: 1 })}>
+        {completed ? 'Show open' : 'Show finished'}
+      </Link>
+      <Pagination page={tasks.page} pageHref={(next) => link({ page: next })} totalPages={tasks.totalPages} />
+    </div>
   );
 }

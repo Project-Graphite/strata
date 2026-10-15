@@ -14,20 +14,13 @@ import { SessionsSection } from './SessionsSection';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
+import { saveBlob } from '../../files';
 
 type Opened = 'password' | 'enable' | 'codes' | 'disable';
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
-  const download = () => {
-    const file = new Blob([`Strata recovery codes\n\nEach code works once.\n\n${codes.join('\n')}\n`], {
-      type: 'text/plain',
-    });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(file);
-    link.download = 'strata-recovery-codes.txt';
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
+  const download = () =>
+    saveBlob(new Blob([`Strata recovery codes\n\nEach code works once.\n\n${codes.join('\n')}\n`], { type: 'text/plain' }), 'strata-recovery-codes.txt');
   return (
     <div className="mt-5 grid gap-4">
       <Hint>Each code signs you in once if you lose your phone. They won’t be shown again.</Hint>

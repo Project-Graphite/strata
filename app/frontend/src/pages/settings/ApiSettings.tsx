@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
-import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { spaceOptions, useSpaces } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -12,6 +10,7 @@ import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows } from './SettingsLayout';
 import { Button } from '../../components/Button';
+import { SecretDialog } from '../../components/Copyable';
 
 interface ApiReference {
   basePath: string;
@@ -144,30 +143,15 @@ export function ApiSettings() {
       </Section>
 
       {adding && secret && (
-        <Dialog
+        <SecretDialog
+          hint="It won’t be shown again. Use it to check the X-Strata-Signature header."
           onClose={() => {
             setAdding(false);
             setSecret('');
           }}
           title="Copy the signing secret"
-        >
-          <div className="mt-5 grid gap-4">
-            <Hint>It won’t be shown again. Use it to check the X-Strata-Signature header.</Hint>
-            <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{secret}</code>
-            <DialogActions>
-              <Button label="Copy" large onClick={() => void navigator.clipboard.writeText(secret)} />
-              <Button
-                label="Done"
-                large
-                onClick={() => {
-                  setAdding(false);
-                  setSecret('');
-                }}
-                primary
-              />
-            </DialogActions>
-          </div>
-        </Dialog>
+          value={secret}
+        />
       )}
 
       {adding && !secret && (

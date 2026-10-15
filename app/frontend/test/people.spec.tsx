@@ -94,7 +94,7 @@ describe('People', () => {
 
     expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual(['Birthdays coming up', 'Everyone']);
     const soon = container.querySelectorAll('section ul')[0]!;
-    expect([...soon.querySelectorAll('a > div.grid > span')].map((line) => line.textContent)).toEqual(['Ana', 'Tomorrow · turns 30']);
+    expect([...soon.querySelectorAll('a > span.grid > span')].map((line) => line.textContent)).toEqual(['Ana', 'Tomorrow · turns 30']);
     expect(container.textContent).toContain('Sister · Home');
 
     await act(async () => button('Add person').click());

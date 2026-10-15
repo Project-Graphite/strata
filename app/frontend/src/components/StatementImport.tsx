@@ -11,6 +11,7 @@ import { CurrencyField } from './CurrencyField';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { Choice, toggled } from './Selection';
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
   const auth = useAuth();
@@ -44,33 +45,16 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                 {suggestions.map((suggestion) => {
                   const known = tracked.has(suggestion.key);
                   return (
-                    <li className="panel-row" key={suggestion.key}>
-                      <label className="flex items-center gap-3">
-                        <input
-                          checked={!known && !skipped.has(suggestion.key)}
-                          disabled={known}
-                          onChange={(event) => {
-                            const next = new Set(skipped);
-                            if (event.currentTarget.checked) next.delete(suggestion.key);
-                            else next.add(suggestion.key);
-                            setSkipped(next);
-                          }}
-                          type="checkbox"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-ink">{suggestion.name}</span>
-                          <span className="mono-sm block text-faint">
-                            {[
-                              `${suggestion.amount.toFixed(2)} ${cycleLabel(suggestion.repeatRule)}`,
-                              `${suggestion.count} charges`,
-                              known && 'already tracked in this space',
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        </span>
-                      </label>
-                    </li>
+                    <Choice
+                      checked={!known && !skipped.has(suggestion.key)}
+                      detail={[`${suggestion.amount.toFixed(2)} ${cycleLabel(suggestion.repeatRule)}`, `${suggestion.count} charges`, known && 'already tracked in this space']
+                        .filter(Boolean)
+                        .join(' · ')}
+                      disabled={known}
+                      key={suggestion.key}
+                      label={suggestion.name}
+                      onToggle={() => setSkipped((current) => toggled(current, suggestion.key))}
+                    />
                   );
                 })}
               </ul>
