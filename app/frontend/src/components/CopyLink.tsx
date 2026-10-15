@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon } from '@project-graphite/ui';
+import { Button } from './Button';
 
 export function CopyLink({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
@@ -8,19 +8,16 @@ export function CopyLink({ link }: { link: string }) {
       <code className="mono-sm min-w-0 flex-1 truncate text-ink select-all" title={link}>
         {link}
       </code>
-      <button
-        className="secondary-button shrink-0 px-3 py-1.5 text-sm"
+      <Button
+        icon={copied ? 'check-mark' : 'link'}
+        label={copied ? 'Copied' : 'Copy link'}
         onClick={() =>
           void navigator.clipboard.writeText(link).then(() => {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 2000);
           })
         }
-        type="button"
-      >
-        <Icon name={copied ? 'check-mark' : 'link'} size={16} />
-        {copied ? 'Copied' : 'Copy link'}
-      </button>
+      />
     </div>
   );
 }

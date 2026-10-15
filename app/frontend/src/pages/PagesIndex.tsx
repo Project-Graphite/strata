@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Button, buttonClass, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { IconButton } from '../components/IconButton';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
 import { NoteMark } from '../components/NoteMark';
-import { HeaderButton, Page } from '../components/Page';
+import { Page } from '../components/Page';
 import { announcePagesChanged, nestedUnder, noteTitle, pagesTabs, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -63,7 +63,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
         <>
           {kind === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
           {writable.length === 1 ? (
-            <HeaderButton disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
+            <Button disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
           ) : (
             writable.length > 1 && (
               <Menu
@@ -75,7 +75,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
                     {words.create}
                   </>
                 }
-                triggerClassName="primary-button px-3 py-2 text-sm"
+                triggerClassName={buttonClass(true)}
                 triggerLabel={`${words.create}: choose a space`}
               />
             )

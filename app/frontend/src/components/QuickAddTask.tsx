@@ -3,6 +3,7 @@ import { useAuth } from '../auth';
 import { describeQuickTask, parseQuickTask } from '../quick-add';
 import type { Task } from '../tasks';
 import { useAction } from '../useAction';
+import { Button } from './Button';
 
 export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; onAdded: (task: Task) => void; spaceId: string }) {
   const auth = useAuth();
@@ -39,9 +40,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
           placeholder="Add a to-do"
           value={text}
         />
-        <button className="secondary-button shrink-0 px-3 py-1.5 text-sm" disabled={!quick.title || adding.busy} type="submit">
-          Add
-        </button>
+        <Button disabled={!quick.title || adding.busy} label="Add" submit />
       </div>
       {understood && (
         <p className="mono-sm m-0 text-faint" id={hintId} role="status">

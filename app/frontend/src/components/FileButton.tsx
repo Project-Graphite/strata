@@ -1,4 +1,5 @@
 import { Icon } from '@project-graphite/ui';
+import { buttonClass } from './Button';
 
 export function FileButton({
   accept,
@@ -20,7 +21,7 @@ export function FileButton({
   primary?: boolean;
 }) {
   return (
-    <label className={`${primary ? 'primary-button' : 'secondary-button'} px-3 py-2 text-sm ${busy ? 'pointer-events-none opacity-60' : ''}`}>
+    <label className={`${buttonClass(primary)} ${busy ? 'pointer-events-none opacity-60' : ''}`}>
       <Icon name="upload" size={16} />
       {label}
       <input

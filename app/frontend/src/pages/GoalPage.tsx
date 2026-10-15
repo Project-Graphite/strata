@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router';
 import { Meter, PageSkeleton, Select, TextField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { TaskEditor } from '../components/TaskEditor';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
@@ -94,7 +94,7 @@ export function GoalPage() {
       title={shown.title}
     >
       <Section
-        action={editable && shown.target !== null && <HeaderButton label="Update progress" onClick={() => setDialog('progress')} />}
+        action={editable && shown.target !== null && <Button label="Update progress" onClick={() => setDialog('progress')} />}
         title="Progress"
       >
         <div className="grid gap-2">
@@ -110,8 +110,8 @@ export function GoalPage() {
         action={
           editable && (
             <div className="flex flex-wrap gap-2">
-              <HeaderButton icon="link" label="Link a task" onClick={() => setDialog('link')} />
-              <HeaderButton icon="plus" label="New task" onClick={() => setTaskEditing('new')} />
+              <Button icon="link" label="Link a task" onClick={() => setDialog('link')} />
+              <Button icon="plus" label="New task" onClick={() => setTaskEditing('new')} />
             </div>
           )
         }
@@ -158,7 +158,7 @@ export function GoalPage() {
         )}
       </Section>
 
-      <Section action={editable && <HeaderButton label="Choose habits" onClick={() => setDialog('habits')} />} title="Habits">
+      <Section action={editable && <Button label="Choose habits" onClick={() => setDialog('habits')} />} title="Habits">
         {shown.habits.length === 0 ? (
           <Hint>No habits linked yet.</Hint>
         ) : (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { DialogActions } from '../../components/DialogActions';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
@@ -11,6 +12,7 @@ import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
+import { Button } from '../../components/Button';
 
 interface AccessToken {
   id: string;
@@ -52,10 +54,7 @@ export function TokensSettings() {
     <div className="fade-in grid max-w-3xl gap-10">
       <Section
         action={
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setOpen(true)} type="button">
-            <Icon name="plus" size={16} />
-            New token
-          </button>
+          <Button icon="plus" label="New token" onClick={() => setOpen(true)} />
         }
         title="Access tokens"
       >
@@ -68,9 +67,7 @@ export function TokensSettings() {
             {tokens.data.map((token) => (
               <SettingsRow
                 action={
-                  <button className="secondary-button px-3 py-2 text-sm" onClick={() => setRevoking(token)} type="button">
-                    Revoke
-                  </button>
+                  <Button label="Revoke" onClick={() => setRevoking(token)} />
                 }
                 key={token.id}
                 label={token.name}
@@ -90,14 +87,10 @@ export function TokensSettings() {
           <div className="mt-5 grid gap-4">
             <Hint>It won’t be shown again. Store it like a password.</Hint>
             <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{created}</code>
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={() => void navigator.clipboard.writeText(created)} type="button">
-                Copy
-              </button>
-              <button className="primary-button" onClick={close} type="button">
-                Done
-              </button>
-            </div>
+            <DialogActions>
+              <Button label="Copy" large onClick={() => void navigator.clipboard.writeText(created)} />
+              <Button label="Done" large onClick={close} primary />
+            </DialogActions>
           </div>
         </Dialog>
       )}

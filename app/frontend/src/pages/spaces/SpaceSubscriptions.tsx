@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { Button, ButtonAnchor } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
@@ -12,7 +13,7 @@ import { useResource } from '../../useResource';
 import { SpaceBalances } from './SpaceBalances';
 import { useSpace } from './SpaceLayout';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 
 export function SpaceSubscriptions() {
   const auth = useAuth();
@@ -50,7 +51,7 @@ export function SpaceSubscriptions() {
 
   return (
     <div className="fade-in grid gap-6">
-      <Toolbar actions={editable && <HeaderButton icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />}>
+      <Toolbar actions={editable && <Button icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />}>
         <nav aria-label="Subscriptions" className="flex flex-wrap items-center gap-2">
           <Link aria-current={cancelled ? undefined : 'page'} className="filter-chip" to={base}>
             Active
@@ -87,31 +88,19 @@ export function SpaceSubscriptions() {
               {editable && (
                 <div className="flex shrink-0 flex-wrap gap-2">
                   {cancelled ? (
-                    <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => act(subscription, 'resume', `${subscription.name} is active again.`)} type="button">
-                      Resume
-                    </button>
+                    <Button disabled={action.busy} label="Resume" onClick={() => act(subscription, 'resume', `${subscription.name} is active again.`)} />
                   ) : (
                     <>
-                      <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(subscription)} type="button">
-                        Edit
-                      </button>
+                      <Button label="Edit" onClick={() => setEditing(subscription)} />
                       {shared && members.data && members.data.length > 1 && (
-                        <button className="secondary-button px-3 py-2 text-sm" onClick={() => setSplitting(subscription)} type="button">
-                          Split
-                        </button>
+                        <Button label="Split" onClick={() => setSplitting(subscription)} />
                       )}
-                      <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => act(subscription, 'used', `Noted that you used ${subscription.name}.`)} type="button">
-                        I used this
-                      </button>
-                      <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`)} type="button">
-                        Cancelled
-                      </button>
+                      <Button disabled={action.busy} label="I used this" onClick={() => act(subscription, 'used', `Noted that you used ${subscription.name}.`)} />
+                      <Button disabled={action.busy} label="Cancelled" onClick={() => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`)} />
                     </>
                   )}
                   {subscription.cancelUrl && !cancelled && (
-                    <a className="secondary-button px-3 py-2 text-sm no-underline" href={subscription.cancelUrl} rel="noopener noreferrer" target="_blank">
-                      Cancel link
-                    </a>
+                    <ButtonAnchor href={subscription.cancelUrl} label="Cancel link" />
                   )}
                 </div>
               )}

@@ -3,10 +3,10 @@ import { Link, useSearchParams } from 'react-router';
 import { DatePicker, formatDay, Icon, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
+import { Button, IconButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Toolbar } from '../components/Page';
+import { Page, Toolbar } from '../components/Page';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
 import { SpaceChooser, useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
@@ -33,7 +33,7 @@ export function MealPlanPage() {
     <Page
       actions={
         editable && (
-          <HeaderButton
+          <Button
             disabled={action.busy || !plan.data?.some((entry) => entry.recipe)}
             icon="check"
             label="Make a shopping list"

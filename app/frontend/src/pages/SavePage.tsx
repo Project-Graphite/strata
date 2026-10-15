@@ -7,6 +7,7 @@ import { fileSize, uploadFiles } from '../files';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 
 interface Shared {
@@ -147,12 +148,8 @@ export function SavePage() {
           </div>
         )}
         <div className="flex flex-wrap gap-3">
-          <button className="primary-button" disabled={saving.busy || editable.length === 0} type="submit">
-            {saving.busy ? 'Saving…' : 'Save'}
-          </button>
-          <button className="secondary-button" disabled={saving.busy} onClick={() => void discard()} type="button">
-            Discard
-          </button>
+          <Button disabled={saving.busy || editable.length === 0} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
+          <Button disabled={saving.busy} label="Discard" large onClick={() => void discard()} />
         </div>
       </form>
     </section>

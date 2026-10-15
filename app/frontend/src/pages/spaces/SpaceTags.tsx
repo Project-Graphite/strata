@@ -8,10 +8,11 @@ import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 
@@ -33,7 +34,7 @@ export function SpaceTags() {
   return (
     <div className="fade-in grid gap-10">
       <div className="grid gap-4">
-        <Toolbar actions={editable && <HeaderButton icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
+        <Toolbar actions={editable && <Button icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
         {tags.data.length === 0 ? (
           <Empty title="No tags yet" />
         ) : (

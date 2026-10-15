@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router';
 import { ConfirmDialog, ListSkeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Page } from '../../components/Page';
+import { Page } from '../../components/Page';
 import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
@@ -37,7 +38,7 @@ export function SpacesPage() {
   }
 
   return (
-    <Page actions={<HeaderButton icon="plus" label="New space" onClick={() => setCreatingSpace(true)} primary />} title="Spaces">
+    <Page actions={<Button icon="plus" label="New space" onClick={() => setCreatingSpace(true)} primary />} title="Spaces">
       {spaces.error ? (
         <LoadError error={spaces.error} onRetry={spaces.reload} />
       ) : !spaces.data ? (

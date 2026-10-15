@@ -5,6 +5,7 @@ import { useResource } from '../../useResource';
 import { SecurityLog } from './SecurityLog';
 import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
+import { Button } from '../../components/Button';
 
 interface Session {
   id: string;
@@ -36,9 +37,7 @@ export function SessionsSection() {
       <Section
         action={
           others.length > 0 && (
-            <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => signOut()} type="button">
-              Sign out all others
-            </button>
+            <Button disabled={action.busy} label="Sign out all others" onClick={() => signOut()} />
           )
         }
         title="Signed-in devices"
@@ -56,14 +55,7 @@ export function SessionsSection() {
                 </p>
               </div>
               {!session.current && (
-                <button
-                  className="secondary-button inline-flex shrink-0 px-3 py-2 text-sm"
-                  disabled={action.busy}
-                  onClick={() => signOut(session.id)}
-                  type="button"
-                >
-                  Sign out
-                </button>
+                <Button disabled={action.busy} label="Sign out" onClick={() => signOut(session.id)} />
               )}
             </li>
           ))}

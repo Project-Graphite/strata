@@ -8,6 +8,7 @@ import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { PeriodNav } from '../../components/PeriodNav';
+import { Button } from '../../components/Button';
 
 interface Debt {
   fromUserId: string;
@@ -75,9 +76,7 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
                     {debt.fromName} owes {debt.toName} {money(debt.amountMinor, debt.currency)}
                   </span>
                   {me === debt.toUserId && (
-                    <button className="secondary-button px-3 py-1.5 text-sm" disabled={action.busy} onClick={() => settle(debt)} type="button">
-                      Mark as paid
-                    </button>
+                    <Button disabled={action.busy} label="Mark as paid" onClick={() => settle(debt)} />
                   )}
                 </li>
               ))}

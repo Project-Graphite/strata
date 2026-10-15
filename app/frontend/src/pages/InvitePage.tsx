@@ -5,6 +5,7 @@ import { invitedLine, type InviteDetails } from '../invitations';
 import { addJoinedSpace, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 
 export function InvitePage() {
@@ -36,12 +37,8 @@ export function InvitePage() {
               : 'Create your account to start your own workspace.'}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="primary-button inline-flex" to={`/register?invite=${encodeURIComponent(code)}`}>
-              Create account
-            </Link>
-            <Link className="secondary-button inline-flex" state={{ from: location }} to="/login">
-              Sign in
-            </Link>
+            <ButtonLink label="Create account" large primary to={`/register?invite=${encodeURIComponent(code)}`} />
+            <ButtonLink label="Sign in" large state={{ from: location }} to="/login" />
           </div>
         </>
       ) : invite.data.kind === 'app' ? (
@@ -50,9 +47,9 @@ export function InvitePage() {
         </p>
       ) : (
         <div className="mt-8 grid gap-4">
-          <button
-            className="primary-button inline-flex w-fit"
+          <Button
             disabled={joining.busy}
+            label={joining.busy ? 'Joining…' : `Join ${invite.data.space}`}
             onClick={() =>
               void joining.run(async () => {
                 const { spaceId } = await auth.request<{ spaceId: string }>('/invitations/redeem', {
@@ -64,10 +61,8 @@ export function InvitePage() {
                 return '';
               }, 'Could not join the space')
             }
-            type="button"
-          >
-            {joining.busy ? 'Joining…' : `Join ${invite.data.space}`}
-          </button>
+            primary
+          />
         </div>
       )}
     </section>

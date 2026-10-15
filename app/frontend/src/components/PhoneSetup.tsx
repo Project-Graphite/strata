@@ -7,6 +7,8 @@ import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
 import { ProofFields, proofFrom } from './ProofFields';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 export const forwarderUrl = 'https://f-droid.org/packages/tech.bogomolov.incomingsmsgateway/';
 
@@ -16,9 +18,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-muted">{label}</span>
       <div className="flex items-start gap-2">
         <code className="mono-sm block min-w-0 flex-1 break-all rounded-lg border border-line p-3 text-ink">{value}</code>
-        <button className="secondary-button px-3 py-2 text-sm" onClick={() => void navigator.clipboard.writeText(value)} type="button">
-          Copy
-        </button>
+        <Button label="Copy" onClick={() => void navigator.clipboard.writeText(value)} />
       </div>
     </div>
   );
@@ -49,11 +49,9 @@ export function PhoneSetup({ onClose, spaceId, spaceName }: { onClose: () => voi
           <Copyable label="Webhook URL" value={`${window.location.origin}/api/v1/spaces/${spaceId}/captures`} />
           <Copyable label="Headers" value={JSON.stringify({ Authorization: `Bearer ${token}` })} />
           <p className="m-0 text-muted">The token is shown once and can only send messages. Revoke it in Settings → Developer.</p>
-          <div className="flex justify-end">
-            <button className="primary-button" onClick={onClose} type="button">
-              Done
-            </button>
-          </div>
+          <DialogActions>
+            <Button label="Done" large onClick={onClose} primary />
+          </DialogActions>
         </div>
       </Dialog>
     );

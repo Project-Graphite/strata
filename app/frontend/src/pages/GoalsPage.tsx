@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ListSkeleton, Meter } from '@project-graphite/ui';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
+import { Page, Section, Toolbar } from '../components/Page';
 import { periodLabel, progressText, statusLabels, type Goal } from '../goals';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
@@ -24,7 +25,7 @@ export function GoalsPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <HeaderButton icon="plus" label="New goal" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="New goal" onClick={() => setAdding(true)} primary />}
       title="Goals"
     >
       <Toolbar>

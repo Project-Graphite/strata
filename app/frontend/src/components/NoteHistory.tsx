@@ -6,6 +6,8 @@ import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { timeOptions } from '../time';
 import { Empty } from './Empty';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 interface Version {
   id: string;
@@ -58,14 +60,13 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                   {preview.data.text || 'This version is empty.'}
                 </div>
               ))}
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={onClose} type="button">
-                Close
-              </button>
+            <DialogActions>
+              <Button label="Close" large onClick={onClose} />
               {editable && (
-                <button
-                  className="primary-button"
+                <Button
                   disabled={!chosen || restoring.busy}
+                  label={restoring.busy ? 'Restoring…' : 'Restore this version'}
+                  large
                   onClick={() =>
                     void restoring
                       .run(async () => {
@@ -74,12 +75,10 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                       }, 'Could not restore that version')
                       .then((done) => done && onClose())
                   }
-                  type="button"
-                >
-                  {restoring.busy ? 'Restoring…' : 'Restore this version'}
-                </button>
+                  primary
+                />
               )}
-            </div>
+            </DialogActions>
           </>
         )}
       </div>

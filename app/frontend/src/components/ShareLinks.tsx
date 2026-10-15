@@ -5,6 +5,8 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { CopyLink } from './CopyLink';
 import { Hint } from './Hint';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 type Access = 'view' | 'edit';
 
@@ -42,10 +44,11 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
         {editLinks && <Select label="People with the link" onChange={setAccess} options={accessOptions} value={access} />}
         <Select label="Link works for" onChange={setDays} options={durationOptions} value={days} />
       </div>
-      <div className="mt-1 flex justify-end">
-        <button
-          className="primary-button"
+      <DialogActions>
+        <Button
           disabled={action.busy}
+          label="Create link"
+          large
           onClick={() =>
             void action.run(async () => {
               const created = await auth.request<ShareLink>(`/items/${itemId}/share-links`, {
@@ -56,11 +59,9 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
               return '';
             }, 'Could not create the link')
           }
-          type="button"
-        >
-          Create link
-        </button>
-      </div>
+          primary
+        />
+      </DialogActions>
       <h3 className="mt-6 mb-3 text-base font-medium">Links</h3>
       {links.loading ? (
         <LinesSkeleton label="Loading links" lines={2} />

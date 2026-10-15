@@ -14,6 +14,7 @@ import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
+import { Button } from '../components/Button';
 
 interface FileEntry {
   id: string;
@@ -95,9 +96,9 @@ function TidySuggestions() {
         <div className="flex flex-wrap items-center gap-3" role="status">
           <p className="m-0 text-ink">{applied ? `${batchSummary(applied)}.` : 'Nothing needed changing after all.'}</p>
           {applied && (
-            <button
-              className="secondary-button px-3 py-2 text-sm"
+            <Button
               disabled={undoing.busy}
+              label="Undo"
               onClick={() =>
                 void undoing.run(async () => {
                   const result = await auth.request<UndoResult>(`/tidy/history/${applied.id}/undo`, { method: 'POST' });
@@ -106,10 +107,7 @@ function TidySuggestions() {
                   return undoSummary(result);
                 }, 'Could not undo')
               }
-              type="button"
-            >
-              Undo
-            </button>
+            />
           )}
         </div>
       )}
@@ -126,13 +124,7 @@ function TidySuggestions() {
       {files.duplicates.length > 0 && (
         <Suggestion
           action={
-            <button
-              className="secondary-button px-3 py-2 text-sm"
-              onClick={() => setSelected(new Set([...selected, ...files.duplicates.flatMap((group) => group.items.slice(1).map((file) => file.id))]))}
-              type="button"
-            >
-              Select the extra copies
-            </button>
+            <Button label="Select the extra copies" onClick={() => setSelected(new Set([...selected, ...files.duplicates.flatMap((group) => group.items.slice(1).map((file) => file.id))]))} />
           }
           hint="The same file, uploaded more than once. Keep the first copy and move the rest to the trash."
           title="Duplicate uploads"
@@ -202,20 +194,12 @@ function TidySuggestions() {
       {selected.size > 0 && (
         <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4">
           <span className="mono-sm text-faint">{itemsText(selected.size)} selected</span>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => open('archive')} type="button">
-            Archive
-          </button>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => open('trash')} type="button">
-            Move to the trash
-          </button>
+          <Button label="Archive" onClick={() => open('archive')} />
+          <Button label="Move to the trash" onClick={() => open('trash')} />
           {[...selected].some((id) => subscriptionIds.has(id)) && (
-            <button className="secondary-button px-3 py-2 text-sm" onClick={() => open('cancel')} type="button">
-              Cancel subscriptions
-            </button>
+            <Button label="Cancel subscriptions" onClick={() => open('cancel')} />
           )}
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setSelected(new Set())} type="button">
-            Clear
-          </button>
+          <Button label="Clear" onClick={() => setSelected(new Set())} />
         </div>
       )}
 
@@ -264,9 +248,9 @@ function TidyHistory() {
                 </p>
               </div>
               {!batch.undoneAt && batch.remaining > 0 && (
-                <button
-                  className="secondary-button shrink-0 px-3 py-2 text-sm"
+                <Button
                   disabled={undoing.busy}
+                  label="Undo"
                   onClick={() =>
                     void undoing.run(async () => {
                       const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
@@ -274,10 +258,7 @@ function TidyHistory() {
                       return undoSummary(result);
                     }, 'Could not undo')
                   }
-                  type="button"
-                >
-                  Undo
-                </button>
+                />
               )}
             </li>
           ))}

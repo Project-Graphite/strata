@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
   OutageGate,
@@ -19,13 +19,13 @@ import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AboutLinks } from './AboutLinks';
 import { AccountMenu } from './AccountMenu';
+import { ButtonLink, IconButton, IconLink } from './Button';
 import { CrashBoundary } from './CrashBoundary';
 import { PageTree } from './PageTree';
 import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 import { SiteBackdrop } from '../dashboard/backdrop';
-import { IconButton, IconLink } from './IconButton';
 
 const sessionHintKey = 'strata-signed-in';
 
@@ -123,12 +123,10 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             </>
           ) : (
             <>
-              <Link className="secondary-button px-3 py-2 text-sm" to="/login">
-                Sign in
-              </Link>
-              <Link className="primary-button hidden px-3 py-2 text-sm sm:inline-flex" to="/register">
-                Create account
-              </Link>
+              <ButtonLink label="Sign in" to="/login" />
+              <span className="hidden sm:inline-flex">
+                <ButtonLink label="Create account" primary to="/register" />
+              </span>
             </>
           )
         }

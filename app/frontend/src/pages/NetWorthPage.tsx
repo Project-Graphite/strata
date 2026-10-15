@@ -3,10 +3,11 @@ import { useSearchParams } from 'react-router';
 import { DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
+import { Page, Section, Toolbar } from '../components/Page';
 import { assetKindOptions, spendingTabs, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { SpaceChooser, useChosenSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
@@ -32,8 +33,8 @@ export function NetWorthPage() {
       actions={
         editable && (
           <>
-            <HeaderButton label="Add a goal" onClick={() => setDialog({ goal: null })} />
-            <HeaderButton icon="plus" label="Add an asset" onClick={() => setDialog({ asset: null })} primary />
+            <Button label="Add a goal" onClick={() => setDialog({ goal: null })} />
+            <Button icon="plus" label="Add an asset" onClick={() => setDialog({ asset: null })} primary />
           </>
         )
       }

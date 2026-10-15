@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page } from '../components/Page';
+import { Page } from '../components/Page';
 import { ImportRecipe, RecipeEditor } from '../components/RecipeEditor';
 import { recipeFacts, type Recipe, type RecipeDraft } from '../recipes';
 import { useSpaces } from '../spaces';
@@ -34,8 +35,8 @@ export function RecipesPage() {
       actions={
         writable.length > 0 && (
           <>
-            <HeaderButton icon="link" label="Add from a link" onClick={() => setDialog('import')} />
-            <HeaderButton icon="plus" label="New recipe" onClick={() => setDialog({})} primary />
+            <Button icon="link" label="Add from a link" onClick={() => setDialog('import')} />
+            <Button icon="plus" label="New recipe" onClick={() => setDialog({})} primary />
           </>
         )
       }

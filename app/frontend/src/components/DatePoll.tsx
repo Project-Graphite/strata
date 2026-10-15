@@ -3,6 +3,7 @@ import { DatePicker } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';
+import { Button } from './Button';
 
 export type PollAnswer = 'yes' | 'maybe' | 'no';
 
@@ -46,16 +47,7 @@ export function PollOptions({
             </div>
             <div aria-label={`Your answer for ${optionLabel(option)}`} className="flex gap-1.5" role="group">
               {(['yes', 'maybe', 'no'] as const).map((answer) => (
-                <button
-                  aria-pressed={option.mine === answer}
-                  className={`${option.mine === answer ? 'primary-button' : 'secondary-button'} px-2.5 py-1 text-sm`}
-                  disabled={busy}
-                  key={answer}
-                  onClick={() => onVote(option.id, answer)}
-                  type="button"
-                >
-                  {answerLabels[answer]}
-                </button>
+                <Button disabled={busy} key={answer} label={answerLabels[answer]} onClick={() => onVote(option.id, answer)} pressed={option.mine === answer} />
               ))}
               {onPick && (
                 <button className="text-button ml-2 text-sm" disabled={busy} onClick={() => onPick(option)} type="button">
@@ -116,13 +108,9 @@ export function PollEditor({
       ))}
       <div className="flex flex-wrap gap-2">
         {rows.length < 10 && (
-          <button className="secondary-button px-3 py-1.5 text-sm" onClick={() => setRows([...rows, { startsOn: '', startTime: null }])} type="button">
-            Add a date
-          </button>
+          <Button label="Add a date" onClick={() => setRows([...rows, { startsOn: '', startTime: null }])} />
         )}
-        <button className="primary-button px-3 py-1.5 text-sm" disabled={filled.length < 2 || saving.busy} type="submit">
-          Save dates
-        </button>
+        <Button disabled={filled.length < 2 || saving.busy} label="Save dates" primary submit />
         <button className="text-button text-sm" onClick={onCancel} type="button">
           Cancel
         </button>

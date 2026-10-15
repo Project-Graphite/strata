@@ -11,6 +11,7 @@ import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
+import { Button } from '../../components/Button';
 
 export function DataSettings() {
   const auth = useAuth();
@@ -31,9 +32,9 @@ export function DataSettings() {
         <SettingsRows>
           <SettingsRow
             action={
-              <button
-                className="secondary-button px-3 py-2 text-sm"
+              <Button
                 disabled={exporting.busy}
+                label={exporting.busy ? 'Preparing…' : 'Export'}
                 onClick={() =>
                   void exporting.run(async () => {
                     const data = await auth.request<object>('/me/export');
@@ -45,10 +46,7 @@ export function DataSettings() {
                     return 'Your export is downloading.';
                   }, 'Could not export your data')
                 }
-                type="button"
-              >
-                {exporting.busy ? 'Preparing…' : 'Export'}
-              </button>
+              />
             }
             label="Export"
           >
@@ -56,9 +54,7 @@ export function DataSettings() {
           </SettingsRow>
           <SettingsRow
             action={
-              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setRemoving(true)} type="button">
-                Delete
-              </button>
+              <Button label="Delete" onClick={() => setRemoving(true)} />
             }
             label="Delete account"
           >

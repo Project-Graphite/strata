@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, FormSkeleton, Icon, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
@@ -10,6 +11,7 @@ import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows } from './SettingsLayout';
+import { Button } from '../../components/Button';
 
 interface ApiReference {
   basePath: string;
@@ -88,10 +90,7 @@ export function ApiSettings() {
 
       <Section
         action={
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setAdding(true)} type="button">
-            <Icon name="plus" size={16} />
-            New webhook
-          </button>
+          <Button icon="plus" label="New webhook" onClick={() => setAdding(true)} />
         }
         title="Webhooks"
       >
@@ -105,9 +104,9 @@ export function ApiSettings() {
               <SettingsRow
                 action={
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      className="secondary-button px-3 py-2 text-sm"
+                    <Button
                       disabled={action.busy}
+                      label="Send a test"
                       onClick={() =>
                         void action.run(async () => {
                           const sent = await auth.request<{ status: number | null; error: string | null }>(`/me/webhooks/${webhook.id}/ping`, { method: 'POST' });
@@ -115,23 +114,17 @@ export function ApiSettings() {
                           return sent.error ? `The test failed: ${sent.error}` : `The test was delivered (${sent.status}).`;
                         }, 'Could not send the test')
                       }
-                      type="button"
-                    >
-                      Send a test
-                    </button>
-                    <button
-                      className="secondary-button px-3 py-2 text-sm"
+                    />
+                    <Button
                       disabled={action.busy}
+                      label={webhook.active ? 'Pause' : 'Resume'}
                       onClick={() =>
                         void action.run(async () => {
                           replace(await auth.request<Webhook>(`/me/webhooks/${webhook.id}`, { method: 'PATCH', body: JSON.stringify({ active: !webhook.active }) }));
                           return '';
                         }, 'Could not change the webhook')
                       }
-                      type="button"
-                    >
-                      {webhook.active ? 'Pause' : 'Resume'}
-                    </button>
+                    />
                     <button className="text-button text-sm" onClick={() => setRemoving(webhook)} type="button">
                       Delete
                     </button>
@@ -161,21 +154,18 @@ export function ApiSettings() {
           <div className="mt-5 grid gap-4">
             <Hint>It won’t be shown again. Use it to check the X-Strata-Signature header.</Hint>
             <code className="mono-sm block break-all rounded-lg border border-line p-3 text-ink">{secret}</code>
-            <div className="flex justify-end gap-3">
-              <button className="secondary-button" onClick={() => void navigator.clipboard.writeText(secret)} type="button">
-                Copy
-              </button>
-              <button
-                className="primary-button"
+            <DialogActions>
+              <Button label="Copy" large onClick={() => void navigator.clipboard.writeText(secret)} />
+              <Button
+                label="Done"
+                large
                 onClick={() => {
                   setAdding(false);
                   setSecret('');
                 }}
-                type="button"
-              >
-                Done
-              </button>
-            </div>
+                primary
+              />
+            </DialogActions>
           </div>
         </Dialog>
       )}

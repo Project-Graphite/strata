@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
+import { Button, ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
 
 export function ForgotPasswordPage() {
@@ -41,9 +42,7 @@ export function ForgotPasswordPage() {
       ) : (
         <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
           <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
-          <button className="primary-button" disabled={busy} type="submit">
-            {busy ? 'Sending…' : 'Send reset link'}
-          </button>
+          <Button disabled={busy} label={busy ? 'Sending…' : 'Send reset link'} large primary submit />
         </form>
       )}
       <p className="mt-6 text-sm text-muted">
@@ -88,7 +87,9 @@ export function ResetPasswordPage() {
       <section className="form-panel page-enter">
         <h1 className="page-heading">Sign in with your new password.</h1>
         <p className="mt-5 text-muted">Every device that was signed in has been signed out, and your access tokens were revoked.</p>
-        <Link className="primary-button mt-7 inline-flex" to="/login">Sign in</Link>
+        <div className="mt-7">
+          <ButtonLink label="Sign in" large primary to="/login" />
+        </div>
       </section>
     );
   }
@@ -109,9 +110,7 @@ export function ResetPasswordPage() {
             <Link className="rule-link" to="/forgot-password">Request a new link</Link>
           </Hint>
         )}
-        <button className="primary-button" disabled={busy} type="submit">
-          {busy ? 'Saving…' : 'Save password'}
-        </button>
+        <Button disabled={busy} label={busy ? 'Saving…' : 'Save password'} large primary submit />
       </form>
     </section>
   );

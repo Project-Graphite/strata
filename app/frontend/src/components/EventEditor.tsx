@@ -6,6 +6,8 @@ import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
 import { TimeField } from '../time';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
@@ -101,7 +103,7 @@ export function EventEditor({
         <TextField defaultValue={event?.location ?? ''} label="Where" maxLength={200} name="location" />
         <TextField defaultValue={event?.meetingUrl ?? ''} inputMode="url" label="Meeting link" {...form.field('meetingUrl')} />
         <TextAreaField defaultValue={event?.description ?? ''} label="Description" maxLength={5000} name="description" rows={3} />
-        <div className="flex flex-wrap justify-end gap-3">
+        <DialogActions>
           {event && onTrashed && (
             <button
               className="text-button mr-auto text-sm"
@@ -118,13 +120,9 @@ export function EventEditor({
               Move to trash
             </button>
           )}
-          <button className="secondary-button" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="primary-button" disabled={saving.busy || (!event && editable.length === 0)} type="submit">
-            {saving.busy ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+          <Button label="Cancel" large onClick={onClose} />
+          <Button disabled={saving.busy || (!event && editable.length === 0)} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
+        </DialogActions>
       </form>
     </Dialog>
   );

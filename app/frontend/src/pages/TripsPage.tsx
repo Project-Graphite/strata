@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ListSkeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { TripEditor } from '../components/TripEditor';
 import { useSpaces } from '../spaces';
 import { countdown, tripDates, type Trip } from '../trips';
@@ -24,7 +25,7 @@ export function TripsPage() {
   ] as const;
 
   return (
-    <Page actions={writable.length > 0 && <HeaderButton icon="plus" label="New trip" onClick={() => setAdding(true)} primary />} title="Trips">
+    <Page actions={writable.length > 0 && <Button icon="plus" label="New trip" onClick={() => setAdding(true)} primary />} title="Trips">
       {trips.error ? (
         <LoadError error={trips.error} onRetry={trips.reload} />
       ) : !trips.data ? (

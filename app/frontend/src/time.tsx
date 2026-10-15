@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Dialog, Icon } from '@project-graphite/ui';
-import { IconButton } from './components/IconButton';
+import { Button, buttonClass, IconButton } from './components/Button';
+import { DialogActions } from './components/DialogActions';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
 
@@ -90,7 +91,7 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
               {(['AM', 'PM'] as const).map((half) => (
                 <button
                   aria-checked={(half === 'PM') === afternoon}
-                  className={(half === 'PM') === afternoon ? 'primary-button px-3 py-1.5 text-sm' : 'secondary-button px-3 py-1.5 text-sm'}
+                  className={buttonClass((half === 'PM') === afternoon)}
                   key={half}
                   onClick={() => setHours((hours % 12) + (half === 'PM' ? 12 : 0))}
                   role="radio"
@@ -102,19 +103,15 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <DialogActions>
           {optional && (
             <button className="text-button mr-auto text-sm" onClick={() => onSet('')} type="button">
               Clear
             </button>
           )}
-          <button className="secondary-button" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="primary-button" onClick={() => onSet(`${pad(hours)}:${pad(minutes)}`)} type="button">
-            Set time
-          </button>
-        </div>
+          <Button label="Cancel" large onClick={onClose} />
+          <Button label="Set time" large onClick={() => onSet(`${pad(hours)}:${pad(minutes)}`)} primary />
+        </DialogActions>
       </div>
     </Dialog>
   );

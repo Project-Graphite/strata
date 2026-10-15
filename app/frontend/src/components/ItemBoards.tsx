@@ -1,11 +1,11 @@
 import { Link } from 'react-router';
-import { Icon } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteTitle } from '../notes';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
 import { Hint } from './Hint';
+import { Button } from './Button';
 
 interface Linked {
   id: string;
@@ -33,9 +33,10 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
         </div>
       ))}
       {editable && (
-        <button
-          className="secondary-button w-fit px-3 py-2 text-sm"
+        <Button
           disabled={adding.busy}
+          icon="plus"
+          label="Add a board"
           onClick={() =>
             void adding.run(async () => {
               const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
@@ -44,11 +45,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
               return '';
             }, 'Could not add a board')
           }
-          type="button"
-        >
-          <Icon name="plus" size={16} />
-          Add a board
-        </button>
+        />
       )}
     </section>
   );

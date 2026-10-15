@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
+import { Button, IconButton } from '../components/Button';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { CopyLink } from '../components/CopyLink';
 import { EventEditor } from '../components/EventEditor';
 import { Hint } from '../components/Hint';
-import { IconButton } from '../components/IconButton';
 import { ItemBoards } from '../components/ItemBoards';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -107,9 +107,7 @@ export function EventPage() {
               <PollOptions busy={voting.busy} onPick={editable ? setPicking : undefined} onVote={vote} options={options} />
               {editable && (
                 <div className="flex flex-wrap gap-2">
-                  <button className="secondary-button px-3 py-2 text-sm" onClick={() => setPlanning(true)} type="button">
-                    Change dates
-                  </button>
+                  <Button label="Change dates" onClick={() => setPlanning(true)} />
                   <button
                     className="text-button text-sm"
                     disabled={voting.busy}
@@ -129,9 +127,7 @@ export function EventPage() {
             </>
           ) : (
             <>
-              <button className="secondary-button w-fit px-3 py-2 text-sm" onClick={() => setPlanning(true)} type="button">
-                Offer dates
-              </button>
+              <Button label="Offer dates" onClick={() => setPlanning(true)} />
             </>
           )}
         </section>
@@ -155,9 +151,9 @@ export function EventPage() {
                   {guest.note && <p className="mt-1 mb-0 text-sm text-muted">“{guest.note}”</p>}
                 </div>
                 {editable && (
-                  <button
-                    className="secondary-button shrink-0 px-3 py-2 text-sm"
+                  <Button
                     disabled={removing.busy}
+                    label="Remove"
                     onClick={() =>
                       void removing.run(async () => {
                         await auth.request(`/events/${details.id}/guests/${guest.id}`, { method: 'DELETE' });
@@ -165,10 +161,7 @@ export function EventPage() {
                         return `${guest.name} was removed.`;
                       }, 'Could not remove the guest')
                     }
-                    type="button"
-                  >
-                    Remove
-                  </button>
+                  />
                 )}
               </li>
             ))}
@@ -206,9 +199,7 @@ export function EventPage() {
               <TextField inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
             </div>
             {personalLink && <CopyLink link={personalLink} />}
-            <button className="primary-button inline-flex w-fit" disabled={inviting.busy} type="submit">
-              Invite
-            </button>
+            <Button disabled={inviting.busy} label="Invite" primary submit />
           </form>
           <div className="grid gap-3">
             <h3 className="m-0 text-base font-medium">Open invitation link</h3>
@@ -216,9 +207,9 @@ export function EventPage() {
             {openLink ? (
               <CopyLink link={openLink} />
             ) : (
-              <button
-                className="secondary-button inline-flex w-fit px-3 py-2 text-sm"
+              <Button
                 disabled={sharing.busy}
+                label="Create link"
                 onClick={() =>
                   void sharing.run(async () => {
                     const created = await auth.request<{ link: string }>(`/items/${details.id}/share-links`, {
@@ -229,10 +220,7 @@ export function EventPage() {
                     return '';
                   }, 'Could not create the link')
                 }
-                type="button"
-              >
-                Create link
-              </button>
+              />
             )}
           </div>
         </section>

@@ -14,6 +14,7 @@ import { atMost, emailAddress, required, useFormErrors } from '../../validation'
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
 import { CurrencyField } from '../../components/CurrencyField';
+import { Button } from '../../components/Button';
 
 export function ProfileSettings() {
   const auth = useAuth();
@@ -91,9 +92,7 @@ export function ProfileSettings() {
               noneLabel="None, keep each currency separate"
             />
           </div>
-          <button className="primary-button inline-flex w-fit" disabled={profile.busy} type="submit">
-            {profile.busy ? 'Saving…' : 'Save'}
-          </button>
+          <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save'} primary submit />
         </form>
       </Section>
 
@@ -101,9 +100,7 @@ export function ProfileSettings() {
         <SettingsRows>
           <SettingsRow
             action={
-              <button className="secondary-button px-3 py-2 text-sm" onClick={() => setChangingEmail(true)} type="button">
-                Change
-              </button>
+              <Button label="Change" onClick={() => setChangingEmail(true)} />
             }
             label="Email"
           >

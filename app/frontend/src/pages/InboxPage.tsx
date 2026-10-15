@@ -8,6 +8,7 @@ import { useResource } from '../useResource';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
+import { Button } from '../components/Button';
 
 export function InboxPage() {
   const auth = useAuth();
@@ -33,9 +34,9 @@ export function InboxPage() {
     <Page
       actions={
         (inbox.data?.unread ?? 0) > 0 && (
-          <button
-            className="secondary-button px-3 py-2 text-sm"
+          <Button
             disabled={action.busy}
+            label="Mark all read"
             onClick={() =>
               void action.run(async () => {
                 await auth.request('/me/inbox/read', { method: 'POST' });
@@ -47,10 +48,7 @@ export function InboxPage() {
                 return 'Everything is marked read.';
               }, 'Could not mark everything read')
             }
-            type="button"
-          >
-            Mark all read
-          </button>
+          />
         )
       }
       title="Inbox"
@@ -83,14 +81,7 @@ export function InboxPage() {
                   {notification.body && <p className="mt-1 mb-0 text-sm text-muted">“{notification.body}”</p>}
                   <p className="mono-sm m-0 mt-1 text-faint">{timeAgo(notification.createdAt)}</p>
                 </div>
-                <button
-                  className="secondary-button shrink-0 px-3 py-2 text-sm"
-                  disabled={action.busy}
-                  onClick={() => setRead(notification, !notification.read)}
-                  type="button"
-                >
-                  {notification.read ? 'Mark unread' : 'Mark read'}
-                </button>
+                <Button disabled={action.busy} label={notification.read ? 'Mark unread' : 'Mark read'} onClick={() => setRead(notification, !notification.read)} />
               </li>
             ))}
           </ul>

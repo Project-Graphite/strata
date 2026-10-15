@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CodeInput, Dialog, FormSkeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
@@ -12,6 +13,7 @@ import { password as newPasswordChecks, required, useFormErrors } from '../../va
 import { SessionsSection } from './SessionsSection';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
+import { Button } from '../../components/Button';
 
 type Opened = 'password' | 'enable' | 'codes' | 'disable';
 
@@ -34,14 +36,10 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
           <li key={code}>{code}</li>
         ))}
       </ul>
-      <div className="flex flex-wrap justify-end gap-3">
-        <button className="secondary-button" onClick={download} type="button">
-          Download
-        </button>
-        <button className="primary-button" onClick={onDone} type="button">
-          I’ve saved them
-        </button>
-      </div>
+      <DialogActions>
+        <Button label="Download" large onClick={download} />
+        <Button label="I’ve saved them" large onClick={onDone} primary />
+      </DialogActions>
     </div>
   );
 }
@@ -176,9 +174,7 @@ export function SecuritySettings() {
   const status = twoStep.data;
   const close = () => setOpened(undefined);
   const button = (label: string, next: Opened) => (
-    <button className="secondary-button px-3 py-2 text-sm" onClick={() => setOpened(next)} type="button">
-      {label}
-    </button>
+    <Button label={label} onClick={() => setOpened(next)} />
   );
 
   return (

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ConfirmDialog, Icon, ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Button } from '../components/Button';
 import { CopyLink } from '../components/CopyLink';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
@@ -53,22 +54,19 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                 </div>
                 {space && space.role !== 'viewer' && (
                   <div className="flex gap-2">
-                    <button
-                      className="secondary-button px-3 py-2 text-sm"
+                    <Button
                       disabled={action.busy}
+                      label="Check now"
                       onClick={() =>
                         void action.run(async () => {
                           replace(await auth.request<FollowedCalendar>(`/calendars/${calendar.id}/refresh`, { method: 'POST' }));
                           return '';
                         }, 'Could not check the calendar')
                       }
-                      type="button"
-                    >
-                      Check now
-                    </button>
-                    <button
-                      className="secondary-button px-3 py-2 text-sm"
+                    />
+                    <Button
                       disabled={action.busy}
+                      label="Stop following"
                       onClick={() =>
                         void action.run(async () => {
                           await auth.request(`/calendars/${calendar.id}`, { method: 'DELETE' });
@@ -76,10 +74,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                           return `${calendar.name} is no longer followed.`;
                         }, 'Could not stop following the calendar')
                       }
-                      type="button"
-                    >
-                      Stop following
-                    </button>
+                    />
                   </div>
                 )}
               </li>
@@ -143,7 +138,7 @@ export function CalendarsPage() {
   }
 
   return (
-    <Page actions={editable.length > 0 && <HeaderButton icon="plus" label="Follow a calendar" onClick={() => setFollowing(true)} primary />} eyebrow="Agenda" title="Calendars">
+    <Page actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" onClick={() => setFollowing(true)} primary />} eyebrow="Agenda" title="Calendars">
       <Section
         description="Subscribe to this link in Google Calendar, Apple Calendar or Outlook to see the events of all your spaces there. Anyone with the link can see them, so keep it private."
         title="Your agenda in other apps"
@@ -159,12 +154,10 @@ export function CalendarsPage() {
           </div>
         ) : feed.data.enabled ? (
           <div className="flex flex-wrap gap-2">
-            <button className="secondary-button px-3 py-2 text-sm" disabled={action.busy} onClick={() => setResetting(true)} type="button">
-              Make a new link
-            </button>
-            <button
-              className="secondary-button px-3 py-2 text-sm"
+            <Button disabled={action.busy} label="Make a new link" onClick={() => setResetting(true)} />
+            <Button
               disabled={action.busy}
+              label="Turn the link off"
               onClick={() =>
                 void action.run(async () => {
                   await auth.request('/me/calendar-feed', { method: 'DELETE' });
@@ -172,16 +165,10 @@ export function CalendarsPage() {
                   return 'The calendar link is turned off.';
                 }, 'Could not turn the link off')
               }
-              type="button"
-            >
-              Turn the link off
-            </button>
+            />
           </div>
         ) : (
-          <button className="secondary-button w-fit px-3 py-2 text-sm" disabled={action.busy} onClick={create} type="button">
-            <Icon name="link" size={16} />
-            Create a calendar link
-          </button>
+          <Button disabled={action.busy} icon="link" label="Create a calendar link" onClick={create} />
         )}
       </Section>
       <Section

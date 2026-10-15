@@ -11,6 +11,7 @@ import { useSpace } from './SpaceLayout';
 import { Empty } from '../../components/Empty';
 import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
+import { Button } from '../../components/Button';
 
 export function SpaceItems() {
   const auth = useAuth();
@@ -61,24 +62,21 @@ export function SpaceItems() {
           actions={(item) => (
             <>
               {item.file && (
-                <button
-                  className="secondary-button inline-flex px-3 py-2 text-sm"
+                <Button
                   disabled={action.busy}
+                  label="Download"
                   onClick={() =>
                     void action.run(async () => {
                       saveBlob(await auth.request<Blob>(`/files/${item.id}`, {}, readBlob), item.title);
                       return '';
                     }, 'Could not download that file')
                   }
-                  type="button"
-                >
-                  Download
-                </button>
+                />
               )}
               {editable && (
-                <button
-                  className="secondary-button inline-flex px-3 py-2 text-sm"
+                <Button
                   disabled={action.busy}
+                  label="Move to trash"
                   onClick={() =>
                     void action.run(async () => {
                       await auth.request(`/items/${item.id}/trash`, { method: 'POST' });
@@ -86,10 +84,7 @@ export function SpaceItems() {
                       return `${item.title || 'Untitled'} is in the trash.`;
                     }, 'Could not move that to the trash')
                   }
-                  type="button"
-                >
-                  Move to trash
-                </button>
+                />
               )}
             </>
           )}

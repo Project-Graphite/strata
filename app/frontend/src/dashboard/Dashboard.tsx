@@ -4,12 +4,13 @@ import { ConfirmDialog, Dialog, PageSkeleton, Select, tagColors, Tabs, TextField
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, ButtonLink, IconButton, IconLink } from '../components/Button';
+import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { IconButton, IconLink } from '../components/IconButton';
-import { HeaderButton, HeaderLink, Page, Toolbar } from '../components/Page';
+import { Page, Toolbar } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -147,7 +148,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
           <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', ...timeOptions() })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
-        <HeaderLink label="Exit" to={`/?d=${dashboard.id}`} />
+        <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
       {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
       <div className="mt-8 text-lg" key={round}>
@@ -247,7 +248,7 @@ export function DashboardHome() {
       actions={
         editing ? (
           <>
-            <HeaderButton
+            <Button
               disabled={history.length === 0}
               label="Undo"
               onClick={() => {
@@ -255,8 +256,8 @@ export function DashboardHome() {
                 setHistory((past) => past.slice(0, -1));
               }}
             />
-            <HeaderButton label="Cancel" onClick={() => finish(false)} />
-            <HeaderButton disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
+            <Button label="Cancel" onClick={() => finish(false)} />
+            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
           </>
         ) : (
           <>
@@ -287,7 +288,7 @@ export function DashboardHome() {
           actions={
             <>
               <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-              <HeaderButton icon="plus" label="Add widget" onClick={() => setPicking(true)} primary />
+              <Button icon="plus" label="Add widget" onClick={() => setPicking(true)} primary />
             </>
           }
         />
@@ -368,11 +369,9 @@ export function DashboardHome() {
                 value={customized.h ? String(customized.h) : ''}
               />
             </div>
-            <div className="flex justify-end">
-              <button className="primary-button" onClick={() => setCustomizing(undefined)} type="button">
-                Done
-              </button>
-            </div>
+            <DialogActions>
+              <Button label="Done" large onClick={() => setCustomizing(undefined)} primary />
+            </DialogActions>
           </div>
         </Dialog>
       )}
@@ -450,7 +449,7 @@ export function DashboardHome() {
                 )}
               </div>
             </fieldset>
-            <div className="flex flex-wrap items-center justify-end gap-3">
+            <DialogActions>
               {dashboards.data.length > 1 && (
                 <button
                   className="text-button mr-auto text-sm text-danger"
@@ -463,10 +462,8 @@ export function DashboardHome() {
                   Delete this dashboard
                 </button>
               )}
-              <button className="primary-button" onClick={() => setConfiguring(false)} type="button">
-                Done
-              </button>
-            </div>
+              <Button label="Done" large onClick={() => setConfiguring(false)} primary />
+            </DialogActions>
           </div>
         </Dialog>
       )}

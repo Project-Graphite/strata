@@ -4,10 +4,11 @@ import { Icon, ListSkeleton, Pagination, TextField } from '@project-graphite/ui'
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { HeaderButton, Toolbar } from '../../components/Page';
+import { Toolbar } from '../../components/Page';
 import { TaskEditor } from '../../components/TaskEditor';
 import type { Tag } from '../../spaces';
 import { TaskRow, type Task, type TaskList } from '../../tasks';
@@ -67,7 +68,7 @@ export function SpaceTasks() {
 
   return (
     <div className="fade-in grid gap-6">
-      <Toolbar actions={editable && <HeaderButton icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
+      <Toolbar actions={editable && <Button icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
         <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
           <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null })}>
             All tasks

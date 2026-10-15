@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
-import { Icon, PageHeader, type IconName } from '@project-graphite/ui';
+import { PageHeader } from '@project-graphite/ui';
 
 export function Page({
   actions,
@@ -28,36 +27,6 @@ export function Page({
       )}
       {children}
     </section>
-  );
-}
-
-export function HeaderButton({
-  disabled,
-  icon,
-  label,
-  onClick,
-  primary = false,
-}: {
-  disabled?: boolean;
-  icon?: IconName;
-  label: string;
-  onClick: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <button className={`${primary ? 'primary-button' : 'secondary-button'} px-3 py-2 text-sm`} disabled={disabled} onClick={onClick} type="button">
-      {icon && <Icon name={icon} size={16} />}
-      {label}
-    </button>
-  );
-}
-
-export function HeaderLink({ icon, label, to }: { icon?: IconName; label: string; to: string }) {
-  return (
-    <Link className="secondary-button px-3 py-2 text-sm no-underline" to={to}>
-      {icon && <Icon name={icon} size={16} />}
-      {label}
-    </Link>
   );
 }
 

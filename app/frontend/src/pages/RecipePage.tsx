@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router';
 import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, IconButton } from '../components/Button';
 import { Hint } from '../components/Hint';
-import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
-import { HeaderButton, Page, Section } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
 import { recipeFacts, type Recipe } from '../recipes';
 import { useSpaces } from '../spaces';
@@ -34,7 +34,7 @@ export function RecipePage() {
       actions={
         editable && (
           <>
-            <HeaderButton icon="calendar" label="Plan it" onClick={() => setDialog('plan')} />
+            <Button icon="calendar" label="Plan it" onClick={() => setDialog('plan')} />
             <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
             <ActionsMenu
               items={[
