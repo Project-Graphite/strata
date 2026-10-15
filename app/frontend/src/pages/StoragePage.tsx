@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select } from '@project-graphite/ui';
+import { EmptyState, formatDay, Icon, ListSkeleton, Meter, Select } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { fileSize, maxUploadBytes, saveBlob, uploadFiles } from '../files';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -108,7 +109,7 @@ export function StoragePage() {
                           .join(' · ')}
                       </span>
                     </span>
-                    <Menu
+                    <ActionsMenu
                       items={[
                         {
                           label: 'Download',
@@ -129,10 +130,7 @@ export function StoragePage() {
                             }, 'Could not move the file to the trash'),
                         },
                       ]}
-                      label={`${file.name} actions`}
-                      trigger={<Icon name="more" size={18} />}
-                      triggerClassName="icon-button"
-                      triggerLabel={`Actions for ${file.name}`}
+                      name={file.name}
                     />
                   </li>
                 ))}

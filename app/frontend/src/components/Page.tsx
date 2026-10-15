@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { Icon, PageHeader, type IconName } from '@project-graphite/ui';
 
 export function Page({
@@ -48,6 +49,15 @@ export function HeaderButton({
       {icon && <Icon name={icon} size={16} />}
       {label}
     </button>
+  );
+}
+
+export function HeaderLink({ icon, label, to }: { icon?: IconName; label: string; to: string }) {
+  return (
+    <Link className="secondary-button px-3 py-2 text-sm no-underline" to={to}>
+      {icon && <Icon name={icon} size={16} />}
+      {label}
+    </Link>
   );
 }
 

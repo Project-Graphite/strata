@@ -273,7 +273,7 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10');
 
-    await chooseFromMenu(container, 'More', 'Connect your phone');
+    await chooseFromMenu(container, 'Actions for spending', 'Connect your phone');
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'secret words';
     await submit(form);
@@ -433,7 +433,7 @@ describe('Spending', () => {
       return undefined;
     });
     await render('/spending?month=2026-10');
-    await chooseFromMenu(container, 'More', 'Export CSV');
+    await chooseFromMenu(container, 'Actions for spending', 'Export CSV');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/expenses/export', expect.anything());
     expect(created).toHaveBeenCalled();
   });

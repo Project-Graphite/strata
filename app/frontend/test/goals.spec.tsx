@@ -188,7 +188,7 @@ describe('Goals', () => {
     await chooseFromMenu(container, 'Actions for Clear the shed', 'Unlink from this goal');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/garden/links/link-shed', expect.objectContaining({ method: 'DELETE' }));
 
-    await chooseFromMenu(container, 'More goal actions', 'Mark as done');
+    await chooseFromMenu(container, 'Actions for Tidy the garden', 'Mark as done');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/goals/garden', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'done' }) }));
     expect(container.textContent).toContain('Home · Q4 2026 · Done');
   });

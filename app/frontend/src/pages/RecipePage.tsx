@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Icon, Menu, PageSkeleton } from '@project-graphite/ui';
+import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
@@ -32,8 +34,8 @@ export function RecipePage() {
         editable && (
           <>
             <HeaderButton icon="calendar" label="Plan it" onClick={() => setDialog('plan')} />
-            <HeaderButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
-            <Menu
+            <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
+            <ActionsMenu
               items={[
                 ...(shown.sourceUrl ? [{ label: 'Open the original', href: shown.sourceUrl }] : []),
                 {
@@ -47,10 +49,7 @@ export function RecipePage() {
                     }, 'Could not move the recipe to the trash'),
                 },
               ]}
-              label="Recipe actions"
-              trigger={<Icon name="more" size={18} />}
-              triggerClassName="icon-button"
-              triggerLabel="More recipe actions"
+              name={shown.title}
             />
           </>
         )

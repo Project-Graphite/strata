@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ListSkeleton } from '@project-graphite/ui';
+import { shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
 import { LoadError } from '../../components/LoadError';
 import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
+import { PeriodNav } from '../../components/PeriodNav';
 
 interface Debt {
   fromUserId: string;
@@ -22,11 +24,6 @@ interface Balances {
   settlements: (Debt & { id: string })[];
 }
 
-const shiftMonth = (month: string, by: number) => {
-  const [year, number] = month.split('-').map(Number) as [number, number];
-  const date = new Date(Date.UTC(year, number - 1 + by, 1));
-  return date.toISOString().slice(0, 7);
-};
 
 export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const auth = useAuth();
@@ -58,17 +55,7 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
 
   return (
     <section aria-label="Split costs" className="grid gap-3 rounded-xl border border-line bg-surface p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-base font-medium">Split costs · {label}</h2>
-        <div className="flex gap-2">
-          <button aria-label="Previous month" className="secondary-button px-2.5 py-1 text-sm" onClick={() => setMonth(shiftMonth(month, -1))} type="button">
-            ←
-          </button>
-          <button aria-label="Next month" className="secondary-button px-2.5 py-1 text-sm" onClick={() => setMonth(shiftMonth(month, 1))} type="button">
-            →
-          </button>
-        </div>
-      </div>
+      <PeriodNav onShift={(step) => setMonth(shiftMonth(month, step))} title={`Split costs · ${label}`} unit="month" />
       {balances.error ? (
         <LoadError error={balances.error} onRetry={balances.reload} />
       ) : !balances.data ? (

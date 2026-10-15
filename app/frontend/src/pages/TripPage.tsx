@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, Menu, Meter, PageSkeleton, TextField } from '@project-graphite/ui';
+import { formatDay, Icon, Meter, PageSkeleton, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FormDialog } from '../components/FormDialog';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { TripEditor } from '../components/TripEditor';
@@ -46,7 +48,7 @@ export function TripPage() {
 
   const unlinkMenu = (linkId: string, title: string) =>
     editable && (
-      <Menu
+      <ActionsMenu
         items={[
           {
             label: 'Remove from this trip',
@@ -58,10 +60,7 @@ export function TripPage() {
               }, 'Could not remove it from the trip'),
           },
         ]}
-        label={`${title} actions`}
-        trigger={<Icon name="more" size={18} />}
-        triggerClassName="icon-button"
-        triggerLabel={`Actions for ${title}`}
+        name={title}
       />
     );
 
@@ -74,8 +73,8 @@ export function TripPage() {
       actions={
         editable && (
           <>
-            <HeaderButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
-            <Menu
+            <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
+            <ActionsMenu
               items={[
                 {
                   label: 'Move to trash',
@@ -87,10 +86,7 @@ export function TripPage() {
                     }, 'Could not move the trip to the trash'),
                 },
               ]}
-              label="Trip actions"
-              trigger={<Icon name="more" size={18} />}
-              triggerClassName="icon-button"
-              triggerLabel="More trip actions"
+              name={shown.title}
             />
           </>
         )

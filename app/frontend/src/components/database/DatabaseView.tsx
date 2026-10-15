@@ -10,6 +10,7 @@ import { useResource } from '../../useResource';
 import { LoadError } from '../LoadError';
 import { PropertiesDialog } from './PropertiesDialog';
 import { PropertyField, propertyDisplay } from './PropertyField';
+import { PeriodNav } from '../PeriodNav';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -160,13 +161,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       return (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="secondary-button px-3 py-1.5 text-sm" onClick={() => shift(-1)} type="button">
-              ← Earlier
-            </button>
-            <button className="secondary-button px-3 py-1.5 text-sm" onClick={() => shift(1)} type="button">
-              Later →
-            </button>
-            <span className="mono-sm text-faint">{shown.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
+            <PeriodNav onShift={shift} title={shown.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} unit="month" />
             {chooser('Dates from', dates, dateProperty, 'dateBy')}
           </div>
           <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">

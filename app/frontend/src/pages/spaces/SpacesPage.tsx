@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ConfirmDialog, Icon, ListSkeleton, Menu, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Page } from '../../components/Page';
@@ -50,13 +51,7 @@ export function SpacesPage() {
                 {space.name}
               </Link>
               <span className="mono-sm shrink-0 text-faint">{space.kind === 'personal' ? 'Only you' : `Shared · ${space.role}`}</span>
-              <Menu
-                items={actionsFor(space)}
-                label={`${space.name} actions`}
-                trigger={<Icon name="more" size={18} />}
-                triggerClassName="icon-button"
-                triggerLabel={`Actions for ${space.name}`}
-              />
+              <ActionsMenu items={actionsFor(space)} name={space.name} />
             </li>
           ))}
         </ul>

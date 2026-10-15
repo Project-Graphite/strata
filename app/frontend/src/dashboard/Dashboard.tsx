@@ -1,11 +1,12 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, EmptyState, Icon, Menu, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { useNavigate, useSearchParams } from 'react-router';
+import { ConfirmDialog, Dialog, EmptyState, Icon, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
 import { IconButton, IconLink } from '../components/IconButton';
-import { HeaderButton, Page, Toolbar } from '../components/Page';
+import { HeaderButton, HeaderLink, Page, Toolbar } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -143,9 +144,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
           <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', ...timeOptions() })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/?d=${dashboard.id}`}>
-          Exit
-        </Link>
+        <HeaderLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
       {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
       <div className="mt-8 text-lg" key={round}>
@@ -284,7 +283,7 @@ export function DashboardHome() {
         <Toolbar
           actions={
             <>
-              <HeaderButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
+              <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
               <HeaderButton icon="plus" label="Add widget" onClick={() => setPicking(true)} primary />
             </>
           }
@@ -305,7 +304,7 @@ export function DashboardHome() {
                   <header className="flex min-h-8 items-center justify-between gap-2">
                     <h2 className={`m-0 text-sm font-medium ${widget.hideTitle ? 'text-faint line-through' : 'text-muted'}`}>{cardTitle(widget)}</h2>
                     {editing && (
-                      <Menu
+                      <ActionsMenu
                         items={[
                           ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
                           { label: 'Customize card', onSelect: () => setCustomizing(widget.id) },
@@ -316,10 +315,7 @@ export function DashboardHome() {
                           ...(widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
                           { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
                         ]}
-                        label={`${cardTitle(widget)} actions`}
-                        trigger={<Icon name="more" size={18} />}
-                        triggerClassName="icon-button"
-                        triggerLabel={`Actions for ${cardTitle(widget)}`}
+                        name={cardTitle(widget)}
                       />
                     )}
                   </header>

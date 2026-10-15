@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
-  Icon,
   OutageGate,
   Sidebar,
   Skeleton,
@@ -26,6 +25,7 @@ import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 import { SiteBackdrop } from '../dashboard/backdrop';
+import { IconButton, IconLink } from './IconButton';
 
 const sessionHintKey = 'strata-signed-in';
 
@@ -107,13 +107,10 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             <Skeleton className="h-9 w-9 rounded-full" />
           ) : auth.user ? (
             <>
-              <button aria-label="Search (Ctrl+K)" className="icon-button" onClick={openSearch} title="Search (Ctrl+K)" type="button">
-                <Icon name="search" />
-              </button>
-              <Link aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'} className="icon-button relative" title="Inbox" to="/inbox">
-                <Icon name="bell" />
+              <IconButton icon="search" label="Search (Ctrl+K)" onClick={openSearch} />
+              <IconLink icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox">
                 {unread > 0 && <span className="count-badge">{unread > 9 ? '9+' : unread}</span>}
-              </Link>
+              </IconLink>
               <AccountMenu
                 onSignOut={() =>
                   void signingOut.run(async () => {

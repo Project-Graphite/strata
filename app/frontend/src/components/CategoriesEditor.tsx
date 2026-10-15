@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Icon, Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
+import { Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { categoryName, type SpendingCategory } from '../spending';
 import { useAction } from '../useAction';
 import { FormDialog } from './FormDialog';
+import { IconButton } from './IconButton';
 
 interface Row extends SpendingCategory {
   key: number;
@@ -62,21 +63,9 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
               value={row.previous === 'other' ? 'Other' : row.name}
             />
             <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} size="small" value={row.colour} />
-            <button aria-label={`Move ${row.name} up`} className="icon-button" disabled={index === 0} onClick={() => move(index, -1)} type="button">
-              <Icon name="chevron-up" size={16} />
-            </button>
-            <button aria-label={`Move ${row.name} down`} className="icon-button" disabled={index === rows.length - 1} onClick={() => move(index, 1)} type="button">
-              <Icon name="chevron-down" size={16} />
-            </button>
-            <button
-              aria-label={`Remove ${row.name}`}
-              className="icon-button"
-              disabled={row.previous === 'other'}
-              onClick={() => setRows((current) => current.filter((shown) => shown.key !== row.key))}
-              type="button"
-            >
-              <Icon name="x" size={16} />
-            </button>
+            <IconButton disabled={index === 0} icon="chevron-up" label={`Move ${row.name} up`} onClick={() => move(index, -1)} />
+            <IconButton disabled={index === rows.length - 1} icon="chevron-down" label={`Move ${row.name} down`} onClick={() => move(index, 1)} />
+            <IconButton disabled={row.previous === 'other'} icon="x" label={`Remove ${row.name}`} onClick={() => setRows((current) => current.filter((shown) => shown.key !== row.key))} />
           </li>
         ))}
       </ul>

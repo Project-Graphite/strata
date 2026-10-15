@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DatePicker, formatDay, Icon, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { dayKey } from '../agenda';
+import { addDays, dayKey } from '../agenda';
 import { FormDialog } from '../components/FormDialog';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Toolbar } from '../components/Page';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
@@ -11,9 +12,9 @@ import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesTabs } from './RecipesPage';
+import { PeriodNav } from '../components/PeriodNav';
 
-const shiftDay = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-const mondayOf = (day: string) => shiftDay(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 const weekRange = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 export function MealPlanPage() {
@@ -29,7 +30,7 @@ export function MealPlanPage() {
   const editable = Boolean(space && space.role !== 'viewer');
   const plan = useResource<PlannedMeal[]>(spaceId ? `/spaces/${spaceId}/meal-plan?from=${monday}` : null, true);
   const [adding, setAdding] = useState<{ day: string; meal: Meal }>();
-  const days = Array.from({ length: 7 }, (_, index) => shiftDay(monday, index));
+  const days = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
 
   return (
@@ -65,18 +66,12 @@ export function MealPlanPage() {
           )
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <button aria-label="Previous week" className="icon-button" onClick={() => go({ week: shiftDay(monday, -7) })} type="button">
-            <Icon name="chevron-left" size={18} />
-          </button>
-          <button aria-label="Next week" className="icon-button" onClick={() => go({ week: shiftDay(monday, 7) })} type="button">
-            <Icon name="chevron-right" size={18} />
-          </button>
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => go({ week: mondayOf(today) })} type="button">
-            This week
-          </button>
-          <h2 className="m-0 ml-2 text-lg font-medium">{weekRange.formatRange(new Date(`${monday}T00:00:00Z`), new Date(`${shiftDay(monday, 6)}T00:00:00Z`))}</h2>
-        </div>
+        <PeriodNav
+          current={{ label: 'This week', onSelect: () => go({ week: mondayOf(today) }) }}
+          onShift={(step) => go({ week: addDays(monday, step * 7) })}
+          title={weekRange.formatRange(new Date(`${monday}T00:00:00Z`), new Date(`${addDays(monday, 6)}T00:00:00Z`))}
+          unit="week"
+        />
       </Toolbar>
       {plan.error ? (
         <LoadError error={plan.error} onRetry={plan.reload} />
@@ -105,10 +100,10 @@ export function MealPlanPage() {
                           <span className="min-w-0 flex-1 truncate text-sm text-ink">{entry.note || 'A recipe that was removed'}</span>
                         )}
                         {editable && (
-                          <button
-                            aria-label={`Remove ${entry.recipe?.title ?? entry.note} from ${label.toLowerCase()} on ${formatDay(day)}`}
-                            className="icon-button"
+                          <IconButton
                             disabled={action.busy}
+                            icon="x"
+                            label={`Remove ${entry.recipe?.title ?? entry.note} from ${label.toLowerCase()} on ${formatDay(day)}`}
                             onClick={() =>
                               void action.run(async () => {
                                 await auth.request(`/meal-plan/${entry.id}`, { method: 'DELETE' });
@@ -116,10 +111,7 @@ export function MealPlanPage() {
                                 return '';
                               }, 'Could not remove the meal')
                             }
-                            type="button"
-                          >
-                            <Icon name="x" size={14} />
-                          </button>
+                          />
                         )}
                       </span>
                     ))}

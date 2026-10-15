@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, Icon, ListSkeleton, Menu, Select, TagChip, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, ListSkeleton, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
 import type { Tag } from '../../spaces';
@@ -96,15 +97,12 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
                   <button className="secondary-button px-3 py-2 text-sm" disabled={changing.busy} onClick={() => findMatches(rule)} type="button">
                     Tag existing items
                   </button>
-                  <Menu
+                  <ActionsMenu
                     items={[
                       { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },
                       { label: 'Delete', onSelect: () => setDeleting(rule), separated: true },
                     ]}
-                    label="Rule actions"
-                    trigger={<Icon name="more" size={18} />}
-                    triggerClassName="icon-button"
-                    triggerLabel={`Actions for ${ruleText(rule)}`}
+                    name={ruleText(rule)}
                   />
                 </div>
               )}

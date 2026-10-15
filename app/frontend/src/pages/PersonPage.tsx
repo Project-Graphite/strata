@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, Menu, PageSkeleton, Select, TextField } from '@project-graphite/ui';
+import { formatDay, PageSkeleton, Select, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { FormDialog } from '../components/FormDialog';
+import { IconButton } from '../components/IconButton';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
@@ -65,13 +67,7 @@ export function PersonPage() {
             </span>
           </Link>
           {editable && (
-            <Menu
-              items={[{ label: 'Unlink this event', onSelect: () => unlink(event) }]}
-              label={`${event.title} actions`}
-              trigger={<Icon name="more" size={18} />}
-              triggerClassName="icon-button"
-              triggerLabel={`Actions for ${event.title}`}
-            />
+            <ActionsMenu items={[{ label: 'Unlink this event', onSelect: () => unlink(event) }]} name={event.title} />
           )}
         </li>
       ))}
@@ -97,8 +93,8 @@ export function PersonPage() {
       actions={
         editable && (
           <>
-            <HeaderButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
-            <Menu
+            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
+            <ActionsMenu
               items={[
                 {
                   label: 'Move to trash',
@@ -110,10 +106,7 @@ export function PersonPage() {
                     }, 'Could not move this person to the trash'),
                 },
               ]}
-              label="Person actions"
-              trigger={<Icon name="more" size={18} />}
-              triggerClassName="icon-button"
-              triggerLabel="More actions for this person"
+              name={shown.name}
             />
           </>
         )
@@ -155,13 +148,7 @@ export function PersonPage() {
                   <span className={`truncate ${idea.done ? 'text-faint line-through' : 'text-ink'}`}>{idea.text}</span>
                 </label>
                 {editable && (
-                  <Menu
-                    items={[{ label: 'Remove', onSelect: () => void saveIdeas(shown.giftIdeas.filter((kept) => kept.id !== idea.id), 'Gift idea removed.') }]}
-                    label={`${idea.text} actions`}
-                    trigger={<Icon name="more" size={18} />}
-                    triggerClassName="icon-button"
-                    triggerLabel={`Actions for ${idea.text}`}
-                  />
+                  <ActionsMenu items={[{ label: 'Remove', onSelect: () => void saveIdeas(shown.giftIdeas.filter((kept) => kept.id !== idea.id), 'Gift idea removed.') }]} name={idea.text} />
                 )}
               </li>
             ))}

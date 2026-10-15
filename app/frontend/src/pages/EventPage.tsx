@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, EmptyState, Icon, PageSkeleton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, PageSkeleton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { CopyLink } from '../components/CopyLink';
 import { EventEditor } from '../components/EventEditor';
+import { IconButton } from '../components/IconButton';
 import { ItemBoards } from '../components/ItemBoards';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -60,10 +61,7 @@ export function EventPage() {
     <Page
       actions={
         editable && (
-          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setEditing(true)} type="button">
-            <Icon name="pencil" size={16} />
-            Edit
-          </button>
+          <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
         )
       }
       description={

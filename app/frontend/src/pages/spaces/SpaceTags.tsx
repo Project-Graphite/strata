@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, EmptyState, Icon, ListSkeleton, Menu, TagChip } from '@project-graphite/ui';
+import { ConfirmDialog, EmptyState, ListSkeleton, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -7,6 +7,7 @@ import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { HeaderButton, Toolbar } from '../../components/Page';
@@ -40,15 +41,12 @@ export function SpaceTags() {
               <li className="panel-row flex items-center justify-between gap-4" key={tag.id}>
                 <TagChip color={tag.color} label={tag.name} />
                 {editable && (
-                  <Menu
+                  <ActionsMenu
                     items={[
                       { label: 'Edit', onSelect: () => setEditing(tag) },
                       { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
                     ]}
-                    label={`${tag.name} actions`}
-                    trigger={<Icon name="more" size={18} />}
-                    triggerClassName="icon-button"
-                    triggerLabel={`Actions for ${tag.name}`}
+                    name={tag.name}
                   />
                 )}
               </li>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { EmptyState, formatDay, Icon, ListSkeleton, Menu, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { EmptyState, formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { CategoriesEditor } from '../components/CategoriesEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { ExpenseImport } from '../components/ExpenseImport';
@@ -11,6 +13,7 @@ import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { HeaderButton, Page, Section, Toolbar } from '../components/Page';
+import { PeriodNav } from '../components/PeriodNav';
 import { PhoneSetup } from '../components/PhoneSetup';
 import { saveBlob } from '../files';
 import { SplitEditor } from '../components/SplitEditor';
@@ -37,11 +40,6 @@ import { CategoryChips } from '../components/CategoryChips';
 import { CurrencyField } from '../components/CurrencyField';
 import { DayOfMonthField } from '../components/DayOfMonthField';
 
-const shiftMonth = (month: string, by: number) => {
-  const [year, number] = month.split('-').map(Number) as [number, number];
-  const date = new Date(Date.UTC(year, number - 1 + by, 1));
-  return date.toISOString().slice(0, 7);
-};
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 
@@ -93,7 +91,7 @@ export function SpendingPage() {
       actions={
         <>
           {spaceId && (
-            <Menu
+            <ActionsMenu
               items={[
                 ...(editable
                   ? [
@@ -110,10 +108,7 @@ export function SpendingPage() {
                     }, 'Could not export the transactions'),
                 },
               ]}
-              label="More spending actions"
-              trigger={<Icon name="more" size={18} />}
-              triggerClassName="icon-button"
-              triggerLabel="More"
+              name="spending"
             />
           )}
           {editable && <HeaderButton icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
@@ -136,34 +131,26 @@ export function SpendingPage() {
         }
       >
         {tab !== 'accounts' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button aria-label="Previous month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, -1) })} type="button">
-              <Icon name="chevron-left" size={18} />
-            </button>
-            <button aria-label="Next month" className="icon-button" disabled={!shown} onClick={() => go({ month: shiftMonth(shown!.month, 1) })} type="button">
-              <Icon name="chevron-right" size={18} />
-            </button>
-            <button
-              className="secondary-button px-3 py-2 text-sm"
-              onClick={() =>
+          <PeriodNav
+            current={{
+              label: 'This month',
+              onSelect: () =>
                 setParams((current) => {
                   const next = new URLSearchParams(current);
                   next.delete('month');
                   return next;
-                })
-              }
-              type="button"
-            >
-              This month
-            </button>
-            {shown && (
-              <h2 className="m-0 ml-2 text-lg font-medium">
-                {shown.plan.startDay === 1
-                  ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-                  : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`}
-              </h2>
-            )}
-          </div>
+                }),
+            }}
+            disabled={!shown}
+            onShift={(step) => go({ month: shiftMonth(shown!.month, step) })}
+            title={
+              shown &&
+              (shown.plan.startDay === 1
+                ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+                : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`)
+            }
+            unit="month"
+          />
         )}
       </Toolbar>
 
@@ -295,7 +282,7 @@ export function SpendingPage() {
                         {account.kind === 'credit' ? `${money(Math.max(0, -account.balanceMinor), account.currency)} owed` : money(account.balanceMinor, account.currency)}
                       </span>
                       {editable && (
-                        <Menu
+                        <ActionsMenu
                           items={[
                             { label: 'Edit', onSelect: () => setDialog({ account }) },
                             {
@@ -309,10 +296,7 @@ export function SpendingPage() {
                                 }, 'Could not remove the account'),
                             },
                           ]}
-                          label={`${account.name} actions`}
-                          trigger={<Icon name="more" size={18} />}
-                          triggerClassName="icon-button"
-                          triggerLabel={`Actions for ${account.name}`}
+                          name={account.name}
                         />
                       )}
                     </li>
@@ -343,7 +327,7 @@ export function SpendingPage() {
                           {plan.paidCount} of {plan.count}
                         </span>
                         {editable && (
-                          <Menu
+                          <ActionsMenu
                             items={[
                               ...(plan.status === 'done'
                                 ? []
@@ -370,10 +354,7 @@ export function SpendingPage() {
                                   }, 'Could not remove the plan'),
                               },
                             ]}
-                            label={`${plan.name} actions`}
-                            trigger={<Icon name="more" size={18} />}
-                            triggerClassName="icon-button"
-                            triggerLabel={`Actions for ${plan.name}`}
+                            name={plan.name}
                           />
                         )}
                       </span>
@@ -415,7 +396,7 @@ export function SpendingPage() {
                             {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
                           </span>
                           {editable && managing && (
-                            <Menu
+                            <ActionsMenu
                               items={[
                                 { label: row.budgetMinor === null ? 'Set a budget' : 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
                                 ...(row.budgetMinor === null
@@ -433,10 +414,7 @@ export function SpendingPage() {
                                       },
                                     ]),
                               ]}
-                              label={`${categoryName(row.category)} actions`}
-                              trigger={<Icon name="more" size={18} />}
-                              triggerClassName="icon-button"
-                              triggerLabel={`Actions for ${categoryName(row.category)}`}
+                              name={categoryName(row.category)}
                             />
                           )}
                         </span>
@@ -522,13 +500,7 @@ export function SpendingPage() {
                         {money(expense.amountMinor, expense.currency)}
                       </span>
                       {editable && space?.kind === 'shared' && members.data && (
-                        <Menu
-                          items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]}
-                          label={`${expense.title} actions`}
-                          trigger={<Icon name="more" size={18} />}
-                          triggerClassName="icon-button"
-                          triggerLabel={`Actions for ${expense.title}`}
-                        />
+                        <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
                       )}
                     </li>
                   ))}

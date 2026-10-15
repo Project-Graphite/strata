@@ -2,11 +2,12 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { HeaderLink, Page } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
 import { pagesTabs } from '../notes';
 import { useResource, type Resource } from '../useResource';
+import { PeriodNav } from '../components/PeriodNav';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -40,9 +41,7 @@ export function JournalPage() {
   return (
     <Page
       actions={
-        <Link className="secondary-button px-3 py-2 text-sm no-underline" to="/review">
-          Write a weekly review
-        </Link>
+        <HeaderLink label="Write a weekly review" to="/review" />
       }
       title="Pages"
     >
@@ -105,17 +104,13 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
       </div>
 
       <div className="grid gap-3">
-        <div className="flex items-center gap-3">
-          <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/journal?year=${shown - 1}`}>
-            ← {shown - 1}
-          </Link>
-          <h2 className="m-0 text-base font-medium">{shown}</h2>
-          {shown < Number(today.slice(0, 4)) && (
-            <Link className="secondary-button px-3 py-2 text-sm no-underline" to={`/journal?year=${shown + 1}`}>
-              {shown + 1} →
-            </Link>
-          )}
-        </div>
+        <PeriodNav
+          current={shown < Number(today.slice(0, 4)) ? { label: 'This year', onSelect: () => navigate('/journal') } : undefined}
+          last={shown >= Number(today.slice(0, 4))}
+          onShift={(step) => navigate(`/journal?year=${shown + step}`)}
+          title={shown}
+          unit="year"
+        />
         <div aria-label={`Moods in ${shown}`} className="journal-year" role="list">
           {Array.from({ length: leading }, (_, index) => (
             <span aria-hidden="true" className="journal-day is-blank" key={`blank-${index}`} />
