@@ -21,12 +21,12 @@ import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
-import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
+import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments' | 'savings';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
 export type WidgetGroup = (typeof widgetGroups)[number];
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
@@ -629,7 +629,6 @@ export const widgetKinds: Record<
   pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', size: 'medium', settings: {}, View: Pages },
   board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
   bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', size: 'medium', settings: {}, View: ReadLater },
-  status: { title: 'Are my apps up?', group: 'Around you', description: 'Whether your sites are up.', size: 'medium', settings: { sites: projectGraphiteSites }, View: SiteStatus, Settings: SiteStatusSettings },
   quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', size: 'medium', settings: {}, View: Quote },
   spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', size: 'medium', settings: {}, View: SpendingWidget },
   payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', size: 'small', settings: {}, View: PaymentsWidget },

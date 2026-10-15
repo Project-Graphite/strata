@@ -1,10 +1,9 @@
 import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { parseFeed, type Feed } from './feed';
-import { fetchPublic, statusOfPublic, UnsafeUrlError } from './safe-fetch';
+import { fetchPublic, UnsafeUrlError } from './safe-fetch';
 
 const cacheSeconds = 30 * 60;
-const statusCacheSeconds = 60;
 
 interface Forecast {
   current: { temperature_2m: number; weather_code: number; wind_speed_10m: number };
@@ -84,23 +83,6 @@ export class WidgetsService {
         throw new BadGatewayException((error as Error).message);
       }
     });
-  }
-
-  async status(url: string) {
-    return this.cached(
-      `widget:status:${url}`,
-      async () => {
-        const started = Date.now();
-        try {
-          const status = await statusOfPublic(url, 5_000);
-          return { up: status >= 200 && status < 400, status, ms: Date.now() - started, error: null };
-        } catch (error) {
-          if (error instanceof UnsafeUrlError) throw new BadRequestException(error.message);
-          return { up: false, status: null, ms: Date.now() - started, error: (error as Error).message };
-        }
-      },
-      statusCacheSeconds,
-    );
   }
 
   private async openMeteo<T>(url: string) {
