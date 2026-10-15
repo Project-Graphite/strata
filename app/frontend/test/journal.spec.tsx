@@ -61,7 +61,7 @@ describe('Journal', () => {
     await act(async () => {});
   }
 
-  it('keeps journal pages behind the Journal tab and nests pages under their parents', async () => {
+  it('lists journal entries in their own tab and nests pages under their parents', async () => {
     const page = (id: string, title: string, parentId: string | null, position = 0, journal = false) => ({
       id, spaceId: 'mine', title, kind: 'note', parentId, position, icon: null, pinnedAt: null, template: false, database: false, journal,
       createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-07T00:00:00Z',
@@ -83,7 +83,7 @@ describe('Journal', () => {
     const tabs = [...container.querySelectorAll('nav[aria-label="Pages"] a')];
     expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
       ['Pages', '/pages', 'page'],
-      ['Journal', '/journal', null],
+      ['Journal entries', '/pages?tab=journal', null],
     ]);
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('main li a')];
     expect(rows.map((row) => [row.textContent?.split('Personal')[0], row.style.paddingInlineStart])).toEqual([
@@ -93,6 +93,10 @@ describe('Journal', () => {
       ['Day two', '2.5rem'],
       ['Journal', ''],
     ]);
+
+    await act(async () => tabs[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Journal entries');
+    expect([...container.querySelectorAll('main li a')].map((row) => row.textContent?.split('Personal')[0])).toEqual(['Tuesday, 6 October 2026']);
   });
 
   it('sets today’s mood with one tap and shows the year with moods and pages', async () => {
