@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { dayKey, entryTime, type AgendaEntry } from '../agenda';
 import { AgendaEntryLink } from './AgendaEntryLink';
+import { timeOptions } from '../time';
 
 const hourHeight = 48;
 const dayMinutes = 24 * 60;
@@ -118,7 +119,7 @@ export function TimeGrid({
             <div className="relative">
               {Array.from({ length: 23 }, (_, index) => index + 1).map((hour) => (
                 <span className="mono-sm absolute right-2 -translate-y-1/2 text-xs text-faint" key={hour} style={{ top: hour * hourHeight }}>
-                  {new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric' })}
+                  {new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric', ...timeOptions() })}
                 </span>
               ))}
             </div>

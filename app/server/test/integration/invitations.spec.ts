@@ -122,8 +122,8 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     const inviter = await member('friend');
 
     expect((await inviter.call('PATCH', '/admin/site', { inviteOnly: true })).status).toBe(403);
-    expect((await manager.call('PATCH', '/admin/site', { inviteOnly: true })).body).toEqual({ inviteOnly: true, fileQuotaMb: 100 });
-    expect((await strata.anonymous('GET', '/site')).body).toEqual({ inviteOnly: true, fileQuotaMb: 100 });
+    expect((await manager.call('PATCH', '/admin/site', { inviteOnly: true })).body).toEqual({ inviteOnly: true, fileQuotaMb: 150 });
+    expect((await strata.anonymous('GET', '/site')).body).toEqual({ inviteOnly: true, fileQuotaMb: 150 });
     expect((await signUp('uninvited')).status).toBe(403);
 
     const invite = await inviter.call('POST', '/invitations', { email: strata.email('invited'), note: 'Try this' });
@@ -133,7 +133,7 @@ describe('Invitations, the invite-only switch and share links against Postgres',
 
     const [sent] = (await inviter.call('GET', '/invitations')).body;
     expect(sent).toMatchObject({ status: 'used', joined: [{ handle: strata.handle('invited'), displayName: 'invited' }] });
-    expect((await manager.call('PATCH', '/admin/site', { inviteOnly: false })).body).toEqual({ inviteOnly: false, fileQuotaMb: 100 });
+    expect((await manager.call('PATCH', '/admin/site', { inviteOnly: false })).body).toEqual({ inviteOnly: false, fileQuotaMb: 150 });
   });
 
   it('shares one item through a guest link that can be turned off', async () => {

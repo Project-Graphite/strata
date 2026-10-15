@@ -6,6 +6,7 @@ import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { dayKey } from '../src/agenda';
 import { choose } from './controls';
+import { clockTime } from '../src/time';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,6 +150,6 @@ describe('People', () => {
       link.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/ana/links', expect.objectContaining({ body: JSON.stringify({ targetId: 'dinner', kind: 'reference' }) }));
-    expect(container.querySelector('a[href="/events/dinner"]')?.textContent).toContain('19:30');
+    expect(container.querySelector('a[href="/events/dinner"]')?.textContent).toContain(clockTime('19:30'));
   });
 });

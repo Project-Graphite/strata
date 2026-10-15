@@ -1,10 +1,11 @@
-import { DatePicker, Dialog, Select, TextAreaField, TextField, TimePicker } from '@project-graphite/ui';
+import { DatePicker, Dialog, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import type { EventDetails } from '../agenda';
 import { useAuth } from '../auth';
 import { spaceOptions, useSpaces } from '../spaces';
 import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
+import { TimeField } from '../time';
 
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
@@ -91,9 +92,9 @@ export function EventEditor({
             onChange={form.field('startsOn').onInput}
             optional={false}
           />
-          <TimePicker defaultValue={event?.startTime ?? ''} emptyLabel="All day" label="Start time" name="startTime" />
+          <TimeField defaultValue={event?.startTime ?? ''} emptyLabel="All day" label="Start time" name="startTime" />
           <DatePicker defaultValue={event?.endsOn ?? ''} label="Ends" name="endsOn" placeholder="Same day" />
-          <TimePicker defaultValue={event?.endTime ?? ''} emptyLabel="No end time" label="End time" name="endTime" />
+          <TimeField defaultValue={event?.endTime ?? ''} emptyLabel="No end time" label="End time" name="endTime" />
           <Select defaultValue={event?.repeatRule ?? ''} label="Repeats" name="repeatRule" options={repeatOptions(event?.repeatRule)} />
           <Select defaultValue={event?.reminderMinutes == null ? '' : String(event.reminderMinutes)} label="Remind me" name="reminderMinutes" options={reminderOptions(event?.reminderMinutes)} />
         </div>

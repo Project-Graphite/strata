@@ -21,7 +21,7 @@ export class SiteSettingsService {
       return this.cached.settings;
     }
     const stored = await this.prisma.siteSettings.findUnique({ where: { id: 1 }, select: settingsFields });
-    return this.remember(stored ?? { inviteOnly: false, fileQuotaMb: 100 });
+    return this.remember(stored ?? { inviteOnly: false, fileQuotaMb: 150 });
   }
 
   async update(settings: Partial<SiteSettings>) {

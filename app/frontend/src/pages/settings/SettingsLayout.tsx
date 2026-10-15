@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { Tabs } from '@project-graphite/ui';
 import { Page } from '../../components/Page';
+import type { TimeFormat } from '../../time';
 
 export interface Me {
   id: string;
@@ -9,6 +10,7 @@ export interface Me {
   handle: string;
   displayName: string;
   timeZone: string;
+  timeFormat: TimeFormat;
   tidySummary: boolean;
   weeklyReview: boolean;
   homeCurrency: string | null;

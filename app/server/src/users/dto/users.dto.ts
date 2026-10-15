@@ -3,6 +3,8 @@ import { ArrayUnique, IsArray, IsBoolean, IsIn, IsString, IsTimeZone, Length, Ma
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { featureKeys } from '../features';
 
+export const timeFormats = ['auto', '12h', '24h'] as const;
+
 export class UpdateProfileDto {
   @IsOptionalNotNull()
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
@@ -15,6 +17,10 @@ export class UpdateProfileDto {
   @MaxLength(64)
   @IsTimeZone({ message: 'Choose a time zone from the list.' })
   timeZone?: string;
+
+  @IsOptionalNotNull()
+  @IsIn(timeFormats, { message: 'Choose a time format from the list.' })
+  timeFormat?: (typeof timeFormats)[number];
 
   @IsOptionalNotNull()
   @IsBoolean()

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { DatePicker, Dialog, Select, TextField, TimePicker } from '@project-graphite/ui';
+import { DatePicker, Dialog, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { describeQuickTask, parseQuickTask } from '../quick-add';
 import type { Tag } from '../spaces';
 import { reminderOptions, repeatOptions, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
+import { TimeField } from '../time';
 
 interface Member {
   userId: string;
@@ -104,7 +105,7 @@ export function TaskEditor({
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <DatePicker defaultValue={task?.dueDate ?? ''} disabled={!editable} label="Due date" name="dueDate" />
-            <TimePicker defaultValue={task?.dueTime ?? ''} disabled={!editable} label="Time" name="dueTime" />
+            <TimeField defaultValue={task?.dueTime ?? ''} disabled={!editable} label="Time" name="dueTime" />
             <Select defaultValue={task?.repeatRule ?? ''} disabled={!editable} label="Repeats" name="repeatRule" options={repeatOptions(task?.repeatRule)} />
             <Select
               defaultValue={task?.reminderMinutes == null ? '' : String(task.reminderMinutes)}

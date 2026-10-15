@@ -6,6 +6,7 @@ import { DevicePush } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
+import { timeFormatOptions, type TimeFormat } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
@@ -52,11 +53,12 @@ export function ProfileSettings() {
                 body: JSON.stringify({
                   displayName: String(values.get('displayName')).trim(),
                   timeZone: String(values.get('timeZone')),
+                  timeFormat: String(values.get('timeFormat')),
                   homeCurrency: String(values.get('homeCurrency')) || null,
                 }),
               });
               me.mutate(() => next);
-              auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone });
+              auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone, timeFormat: next.timeFormat });
               return 'Saved.';
             }, 'Could not save your profile');
           }}
@@ -77,6 +79,7 @@ export function ProfileSettings() {
               placeholder="Choose a time zone"
               searchable
             />
+            <Select<TimeFormat> defaultValue={current.timeFormat} label="Time format" name="timeFormat" options={timeFormatOptions} />
             <Select
               defaultValue={current.homeCurrency ?? ''}
               hint="Spending, Recurring and net worth totals are shown in it."

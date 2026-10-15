@@ -6,6 +6,7 @@ import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
 import { tripDates } from '../src/trips';
 import { chooseFromMenu, pickDay } from './controls';
+import { clockTime } from '../src/time';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -143,7 +144,7 @@ describe('Trips', () => {
     await render('/trips/lisbon');
 
     expect(container.textContent).toContain(`Lisbon · ${tripDates({ startsOn: '2027-05-01', endsOn: '2027-05-06' })}`);
-    expect(container.querySelector('a[href="/events/flight"]')?.textContent).toContain('08:15 · Airport');
+    expect(container.querySelector('a[href="/events/flight"]')?.textContent).toContain(`${clockTime('08:15')} · Airport`);
     expect(container.textContent).toContain('1 of 2 packed');
     expect(container.textContent).toContain('€600.00 spent of €1,200.00');
     expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('50');

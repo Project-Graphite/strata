@@ -24,6 +24,7 @@ import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, projectGraphiteSites, SiteStatus, SiteStatusSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
 import { Empty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { timeOptions } from '../time';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'status' | 'quote' | 'spending' | 'payments' | 'savings';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
@@ -54,7 +55,7 @@ function Clock({ settings }: WidgetProps) {
     return () => window.clearInterval(timer);
   }, []);
   const zones = Array.isArray(settings.zones) ? (settings.zones as string[]) : [];
-  const time = (timeZone?: string) => now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone });
+  const time = (timeZone?: string) => now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone, ...timeOptions() });
   return (
     <div className="grid gap-3">
       <div>

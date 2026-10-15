@@ -18,6 +18,7 @@ import { tripDates, type TripDetail } from '../trips';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
+import { clockTime } from '../time';
 
 export function TripPage() {
   const { id = '' } = useParams();
@@ -113,7 +114,7 @@ export function TripPage() {
                       <li className="panel-row flex items-center gap-3" key={entry.linkId}>
                         <Link className="grid min-w-0 flex-1 text-ink no-underline hover:underline" to={`/events/${entry.id}`}>
                           <span className="truncate">{entry.title}</span>
-                          <span className="truncate text-sm text-muted">{[entry.startTime ? `${entry.startTime}${entry.endTime ? `–${entry.endTime}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}</span>
+                          <span className="truncate text-sm text-muted">{[entry.startTime ? `${clockTime(entry.startTime)}${entry.endTime ? `–${clockTime(entry.endTime)}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}</span>
                         </Link>
                         {unlinkMenu(entry.linkId, entry.title)}
                       </li>

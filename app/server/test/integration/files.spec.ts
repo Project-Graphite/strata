@@ -112,7 +112,7 @@ describe('The file store against Postgres', () => {
     const refused = await upload(owner, owner.personalSpaceId, 'two.txt', Buffer.alloc(700 * 1024, 0x62));
     expect(refused.status).toBe(413);
     expect((await refused.json()).message).toContain('1 MB');
-    await manager.call('PATCH', '/admin/site', { fileQuotaMb: 100 });
+    await manager.call('PATCH', '/admin/site', { fileQuotaMb: 150 });
   });
 
   it('reports storage used against the quota, with what is in the trash, and lists only my readable files', async () => {
