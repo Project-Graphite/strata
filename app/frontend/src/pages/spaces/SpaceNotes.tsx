@@ -6,7 +6,7 @@ import { Empty } from '../../components/Empty';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
-import { Toolbar } from '../../components/Page';
+import { Subheading, Toolbar } from '../../components/Page';
 import { builtInTemplates, flattenTree, noteTitle, type Note } from '../../notes';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -52,7 +52,7 @@ export function SpaceNotes() {
   }
 
   return (
-    <div className="fade-in grid gap-6">
+    <>
       <Toolbar
         actions={
           editable && (
@@ -91,7 +91,7 @@ export function SpaceNotes() {
       )}
       {templates.length > 0 && (
         <section className="grid gap-2">
-          <h2 className="m-0 text-sm font-medium text-muted">Templates in this space</h2>
+          <Subheading level={2}>Templates in this space</Subheading>
           <ul className="panel-rows">
             {templates.map((note) => (
               <PageRow key={note.id} note={note} />
@@ -99,6 +99,6 @@ export function SpaceNotes() {
           </ul>
         </section>
       )}
-    </div>
+    </>
   );
 }

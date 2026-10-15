@@ -34,7 +34,7 @@ export function ProfileSettings() {
   const current = me.data;
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
+    <>
       <Section title="Profile">
         <form
           className="grid gap-4"
@@ -178,6 +178,6 @@ export function ProfileSettings() {
           <ProofFields form={emailForm} twoStep={twoStep.data.enabled} />
         </FormDialog>
       )}
-    </div>
+    </>
   );
 }

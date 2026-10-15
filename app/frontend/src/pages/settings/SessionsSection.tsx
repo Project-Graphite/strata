@@ -6,6 +6,7 @@ import { SecurityLog } from './SecurityLog';
 import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 import { Button } from '../../components/Button';
+import { RowText } from '../../components/RowText';
 
 interface Session {
   id: string;
@@ -45,15 +46,10 @@ export function SessionsSection() {
         <ul className="panel-rows">
           {sessions.data.map((session) => (
             <li className="flex items-center justify-between gap-4 panel-row" key={session.id}>
-              <div className="min-w-0">
-                <p className="m-0 truncate text-ink">
-                  {session.deviceLabel}
-                  {session.current && <span className="mono-sm text-faint"> · this device</span>}
-                </p>
-                <p className="mono-sm m-0 mt-1 text-faint">
-                  signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}
-                </p>
-              </div>
+              <RowText
+                detail={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
+                title={<>{session.deviceLabel} {session.current && <span className="mono-sm text-faint"> · this device</span>}</>}
+              />
               {!session.current && (
                 <Button disabled={action.busy} label="Sign out" onClick={() => signOut(session.id)} />
               )}

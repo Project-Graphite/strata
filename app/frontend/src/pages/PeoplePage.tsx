@@ -10,6 +10,7 @@ import { PersonEditor } from '../components/PersonEditor';
 import { nextBirthdayText, type Person } from '../people';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
+import { RowText } from '../components/RowText';
 
 const soonDays = 60;
 
@@ -18,10 +19,7 @@ function PersonRow({ detail, person }: { detail: string | null; person: Person }
     <li>
       <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/people/${person.id}`}>
         <Avatar name={person.name} />
-        <span className="grid min-w-0 flex-1">
-          <span className="truncate">{person.name}</span>
-          {detail && <span className="truncate text-sm text-muted">{detail}</span>}
-        </span>
+        <RowText detail={detail} title={person.name} />
       </Link>
     </li>
   );

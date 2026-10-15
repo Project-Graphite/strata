@@ -11,7 +11,8 @@ import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { Page, Section, Subheading } from '../components/Page';
+import { RowText } from '../components/RowText';
 import { MissingRates } from '../components/Stats';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
@@ -105,7 +106,7 @@ export function TripPage() {
           <div className="grid gap-4">
             {days.map((day) => (
               <div className="grid gap-2" key={day}>
-                <h3 className="m-0 text-sm font-medium text-muted">{formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                <Subheading>{formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}</Subheading>
                 <ul className="panel-rows">
                   {shown.itinerary
                     .filter((entry) => entry.startsOn === day)
@@ -134,7 +135,7 @@ export function TripPage() {
           {shown.packing.tasks.length === 0 ? (
             <Hint>Nothing on the list yet.</Hint>
           ) : (
-            <ul className="m-0 grid list-none gap-0 p-0">
+            <ul className="panel-rows">
               {shown.packing.tasks.map((task) => (
                 <TaskRow
                   disabled={!editable || action.busy}
@@ -168,12 +169,10 @@ export function TripPage() {
           <ul className="panel-rows">
             {shown.expenses.map((expense) => (
               <li className="panel-row flex items-center gap-3" key={expense.linkId}>
-                <span className="grid min-w-0 flex-1">
-                  <span className="truncate text-ink">{expense.title}</span>
-                  <span className="truncate text-sm text-muted">
-                    {formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}
-                  </span>
-                </span>
+                <RowText
+                  detail={<>{formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}</>}
+                  title={expense.title}
+                />
                 <span className="shrink-0 text-ink">{money(expense.amountMinor, expense.currency)}</span>
                 {unlinkMenu(expense.linkId, expense.title)}
               </li>

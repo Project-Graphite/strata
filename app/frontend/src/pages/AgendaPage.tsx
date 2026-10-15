@@ -9,7 +9,7 @@ import { PeriodNav } from '../components/PeriodNav';
 import { TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { Page, Subheading } from '../components/Page';
 
 type View = 'list' | 'day' | 'week' | 'month';
 
@@ -92,12 +92,12 @@ export function AgendaPage() {
         agenda.data.length === 0 ? (
           <p className="m-0 text-muted">Nothing in the next 30 days.</p>
         ) : (
-          <div className="grid max-w-3xl gap-5">
+          <div className="grid gap-5">
             {allDays
               .filter((day) => byDay.has(day))
               .map((day) => (
                 <section key={day}>
-                  <h2 className="m-0 text-sm font-medium text-muted">
+                  <Subheading level={2}>
                     <Link className="text-muted no-underline hover:underline" to={link({ view: 'day', date: day })}>
                       {day === today ? 'Today · ' : ''}
                       {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -107,7 +107,7 @@ export function AgendaPage() {
                         Journal
                       </Link>
                     )}
-                  </h2>
+                  </Subheading>
                   <ul className="m-0 mt-2 grid list-none gap-1.5 p-0">
                     {byDay.get(day)!.map((entry) => (
                       <li key={entryKey(entry)}>

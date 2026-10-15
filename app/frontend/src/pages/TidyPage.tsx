@@ -4,7 +4,7 @@ import { ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
 import { Stat, Stats } from '../components/Stats';
-import { Choice, Suggestion } from '../components/TidyList';
+import { Choice } from '../components/TidyList';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
 import { useSpaces } from '../spaces';
@@ -13,7 +13,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { Button } from '../components/Button';
 
 interface FileEntry {
@@ -122,11 +122,11 @@ function TidySuggestions() {
       )}
 
       {files.duplicates.length > 0 && (
-        <Suggestion
+        <Section
           action={
             <Button label="Select the extra copies" onClick={() => setSelected(new Set([...selected, ...files.duplicates.flatMap((group) => group.items.slice(1).map((file) => file.id))]))} />
           }
-          hint="The same file, uploaded more than once. Keep the first copy and move the rest to the trash."
+          description="The same file, uploaded more than once. Keep the first copy and move the rest to the trash."
           title="Duplicate uploads"
         >
           {files.duplicates.map((group) => (
@@ -134,61 +134,61 @@ function TidySuggestions() {
               <p className="mono-sm m-0 text-faint">
                 {group.items.length} copies of {fileSize(group.sizeBytes)}
               </p>
-              <ul className="m-0 grid list-none gap-0 p-0">
+              <ul className="panel-rows">
                 {group.items.map((file) => fileChoice(file, `${spaceName(file.spaceId)} · added ${timeAgo(file.createdAt)}`))}
               </ul>
             </div>
           ))}
-        </Suggestion>
+        </Section>
       )}
 
       {files.large.length > 0 && (
-        <Suggestion hint="Uploads of 5 MB or more, biggest first." title="Large uploads">
-          <ul className="mt-3 grid list-none gap-0 p-0">
+        <Section description="Uploads of 5 MB or more, biggest first." title="Large uploads">
+          <ul className="panel-rows">
             {files.large.map((file) => fileChoice(file, `${fileSize(file.sizeBytes)} · ${spaceName(file.spaceId)}`))}
           </ul>
-        </Suggestion>
+        </Section>
       )}
 
       {files.old.length > 0 && (
-        <Suggestion hint="Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way." title="Old uploads">
-          <ul className="mt-3 grid list-none gap-0 p-0">
+        <Section description="Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way." title="Old uploads">
+          <ul className="panel-rows">
             {files.old.map((file) => fileChoice(file, `unchanged since ${new Date(file.updatedAt).toLocaleDateString()}`))}
           </ul>
-        </Suggestion>
+        </Section>
       )}
 
       {subscriptions.unused.length > 0 && (
-        <Suggestion hint="Nobody has marked these as used in two months." title="Unused subscriptions">
-          <ul className="mt-3 grid list-none gap-0 p-0">
+        <Section description="Nobody has marked these as used in two months." title="Unused subscriptions">
+          <ul className="panel-rows">
             {subscriptions.unused.map((entry) =>
               subscriptionChoice(entry, entry.lastUsedOn ? `last used ${shortDate(entry.lastUsedOn)}` : 'never marked as used'),
             )}
           </ul>
-        </Suggestion>
+        </Section>
       )}
 
       {subscriptions.duplicates.length > 0 && (
-        <Suggestion hint="Subscriptions with the same name, perhaps paid twice." title="Duplicate subscriptions">
+        <Section description="Subscriptions with the same name, perhaps paid twice." title="Duplicate subscriptions">
           {subscriptions.duplicates.map((group) => (
-            <ul className="mt-3 grid list-none gap-0 p-0" key={group.name}>
+            <ul className="panel-rows" key={group.name}>
               {group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}
             </ul>
           ))}
-        </Suggestion>
+        </Section>
       )}
 
       {subscriptions.overlapping.length > 0 && (
-        <Suggestion title="Overlapping subscriptions">
+        <Section title="Overlapping subscriptions">
           {subscriptions.overlapping.map((group) => (
             <div className="mt-4" key={group.category}>
               <p className="mono-sm m-0 text-faint">
                 {group.items.length} in {group.category}
               </p>
-              <ul className="m-0 grid list-none gap-0 p-0">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
+              <ul className="panel-rows">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
             </div>
           ))}
-        </Suggestion>
+        </Section>
       )}
 
       {selected.size > 0 && (
@@ -234,9 +234,9 @@ function TidyHistory() {
           Changes stay here for 90 days, so you can undo them.
         </Empty>
       ) : (
-        <ul className="m-0 grid list-none gap-0 p-0">
+        <ul className="panel-rows">
           {history.data.map((batch) => (
-            <li className="flex items-center justify-between gap-4 border-b border-line-soft py-3" key={batch.id}>
+            <li className="flex items-center justify-between gap-4 panel-row" key={batch.id}>
               <div className="min-w-0">
                 <p className="m-0 text-ink">{batchSummary(batch)}</p>
                 <p className="mono-sm mt-1 mb-0 text-faint">

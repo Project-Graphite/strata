@@ -61,7 +61,7 @@ export function ApiSettings() {
   const replace = (saved: Webhook) => webhooks.mutate((current) => current.map((webhook) => (webhook.id === saved.id ? saved : webhook)));
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
+    <>
       <Section title="Personal API">
         <div className="grid gap-3 text-sm text-muted">
           <p className="m-0">
@@ -226,6 +226,6 @@ export function ApiSettings() {
           Nothing more is sent there, and its delivery log is deleted.
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

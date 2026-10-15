@@ -7,6 +7,7 @@ import { categoryName, spendingTabs, type SpendingInsights } from '../spending';
 import { SpaceChooser, useChosenSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
+import { RowText } from '../components/RowText';
 import { MissingRates } from '../components/Stats';
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
@@ -129,12 +130,10 @@ function Insights({ insights }: { insights: SpendingInsights }) {
           <ul className="panel-rows">
             {merchants.map((merchant) => (
               <li className="panel-row flex items-center gap-3" key={merchant.merchant}>
-                <span className="grid min-w-0 flex-1">
-                  <span className="truncate text-ink">{merchant.merchant}</span>
-                  <span className="truncate text-sm text-muted">
-                    {merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}
-                  </span>
-                </span>
+                <RowText
+                  detail={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
+                  title={merchant.merchant}
+                />
                 <span className="shrink-0 text-ink">{money(merchant.totalMinor, currency)}</span>
               </li>
             ))}

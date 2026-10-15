@@ -3,7 +3,7 @@ import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { Page, Subheading } from '../components/Page';
 import { OpenCreatedPage } from '../components/OpenCreatedPage';
 import { useAction } from '../useAction';
 import { pagesTabs } from '../notes';
@@ -84,7 +84,7 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
   return (
     <>
       <div className="panel grid gap-4 p-5">
-        <h2 className="m-0 text-base font-medium">How was today?</h2>
+        <Subheading level={2}>How was today?</Subheading>
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
           {moods.map((label, index) => (
             <Button disabled={action.busy} key={label} label={label} onClick={() => setMood(index + 1)} pressed={todayMood === index + 1} />

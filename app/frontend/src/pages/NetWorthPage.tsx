@@ -15,6 +15,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { CurrencyField } from '../components/CurrencyField';
+import { RowText } from '../components/RowText';
 import { MissingRates, Stat, Stats } from '../components/Stats';
 
 export function NetWorthPage() {
@@ -64,18 +65,16 @@ export function NetWorthPage() {
                 {goals.data.map((goal) => (
                   <li className="panel-row grid gap-2" key={goal.id}>
                     <span className="flex items-center gap-3">
-                      <span className="grid min-w-0 flex-1">
-                        <span className="truncate text-ink">{goal.name}</span>
-                        <span className="truncate text-sm text-muted">
-                          {[
+                      <RowText
+                        detail={[
                             goal.savedMinor === null ? 'No exchange rate yet' : `${money(goal.savedMinor, goal.currency)} of ${money(goal.targetMinor, goal.currency)}`,
                             goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
                             goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
                           ]
                             .filter(Boolean)
                             .join(' · ')}
-                        </span>
-                      </span>
+                        title={goal.name}
+                      />
                       {editable && (
                         <ActionsMenu
                           items={[
@@ -110,10 +109,8 @@ export function NetWorthPage() {
               <ul className="panel-rows">
                 {worth.data.assets.map((asset) => (
                   <li className="panel-row flex items-center gap-3" key={asset.id}>
-                    <span className="grid min-w-0 flex-1">
-                      <span className="truncate text-ink">{asset.name}</span>
-                      <span className="truncate text-sm text-muted">
-                        {[
+                    <RowText
+                      detail={[
                           assetKindOptions.find((option) => option.value === asset.kind)?.label,
                           asset.ratePercent !== null && `${asset.ratePercent}% a year`,
                           asset.maturesOn && `matures ${formatDay(asset.maturesOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
@@ -121,8 +118,8 @@ export function NetWorthPage() {
                         ]
                           .filter(Boolean)
                           .join(' · ')}
-                      </span>
-                    </span>
+                      title={asset.name}
+                    />
                     <span className="shrink-0 text-ink">{money(asset.valueMinor, asset.currency)}</span>
                     {editable && (
                       <ActionsMenu

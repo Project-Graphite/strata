@@ -10,7 +10,7 @@ import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { Page, Toolbar } from '../components/Page';
+import { Page, Subheading, Toolbar } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -157,7 +157,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
             const kind = widgetKinds[widget.type];
             return (
               <>
-                {!widget.hideTitle && <h2 className="m-0 text-sm font-medium text-muted">{cardTitle(widget)}</h2>}
+                {!widget.hideTitle && <Subheading level={2}>{cardTitle(widget)}</Subheading>}
                 <WidgetBoundary>
                   <kind.View settings={widget.settings} />
                 </WidgetBoundary>

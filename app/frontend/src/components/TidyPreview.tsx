@@ -5,6 +5,7 @@ import type { Tag } from '../spaces';
 import { useAction } from '../useAction';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { Subheading } from './Page';
 
 export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
 
@@ -99,11 +100,11 @@ export function TidyPreview({
       ) : (
         <div className="mt-5 grid gap-6">
           {preview.changes.length > 0 ? (
-            <section>
-              <h3 className="m-0 text-base font-medium">{changeHeading(request.action, preview.changes.length)}</h3>
-              <ul className="mt-2 grid max-h-60 list-none gap-0 overflow-y-auto p-0">
+            <section className="grid gap-2">
+              <Subheading>{changeHeading(request.action, preview.changes.length)}</Subheading>
+              <ul className="panel-rows max-h-60 overflow-y-auto">
                 {preview.changes.map((change) => (
-                  <li className="truncate border-b border-line-soft py-2 text-ink" key={change.id}>
+                  <li className="truncate panel-row text-ink" key={change.id}>
                     {change.title || 'Untitled'}
                   </li>
                 ))}
@@ -113,11 +114,11 @@ export function TidyPreview({
             <p className="m-0 text-muted">Nothing here will change.</p>
           )}
           {preview.skipped.length > 0 && (
-            <section>
-              <h3 className="m-0 text-base font-medium">{itemsText(preview.skipped.length)} will be left alone</h3>
-              <ul className="mt-2 grid max-h-40 list-none gap-0 overflow-y-auto p-0">
+            <section className="grid gap-2">
+              <Subheading>{itemsText(preview.skipped.length)} will be left alone</Subheading>
+              <ul className="panel-rows max-h-40 overflow-y-auto">
                 {preview.skipped.map((entry) => (
-                  <li className="truncate border-b border-line-soft py-2 text-ink" key={entry.id}>
+                  <li className="truncate panel-row text-ink" key={entry.id}>
                     {entry.title || 'An item you cannot open'} <span className="mono-sm text-faint">· {entry.reason}</span>
                   </li>
                 ))}

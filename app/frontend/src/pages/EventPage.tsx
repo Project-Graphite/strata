@@ -14,8 +14,9 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { Page, Section, Subheading } from '../components/Page';
 import { NotFoundState } from '../components/Empty';
+import { RowText } from '../components/RowText';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -90,8 +91,7 @@ export function EventPage() {
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
 
       {poll.data && (options.length > 0 || (editable && !details.repeatRule)) && (
-        <section className="grid gap-3">
-          <h2 className="m-0 text-xl font-medium">Date poll</h2>
+        <Section title="Date poll">
           {planning ? (
             <PollEditor
               onCancel={() => setPlanning(false)}
@@ -130,26 +130,21 @@ export function EventPage() {
               <Button label="Offer dates" onClick={() => setPlanning(true)} />
             </>
           )}
-        </section>
+        </Section>
       )}
 
       <ItemBoards editable={editable} itemId={details.id} key={`boards-${details.id}`} spaceId={details.spaceId} title={details.title} />
 
-      <section>
-        <h2 className="m-0 text-xl font-medium">Guests</h2>
-        <p className="mono-sm mt-2 mb-0 text-faint">
-          {details.headcount.yes} coming · {details.headcount.maybe} maybe · {details.headcount.no} not coming · {details.headcount.pending} waiting
-        </p>
+      <Section description={`${details.headcount.yes} coming · ${details.headcount.maybe} maybe · ${details.headcount.no} not coming · ${details.headcount.pending} waiting`} title="Guests">
         {details.guests.length > 0 && (
-          <ul className="mt-3 grid list-none gap-0 p-0">
+          <ul className="panel-rows">
             {details.guests.map((guest) => (
-              <li className="flex items-center justify-between gap-4 border-b border-line-soft py-3" key={guest.id}>
-                <div className="min-w-0">
-                  <p className="m-0 truncate text-ink">
-                    {guest.name} <span className="mono-sm text-faint">· {responseLabels[guest.response]}</span>
-                  </p>
+              <li className="flex items-center justify-between gap-4 panel-row" key={guest.id}>
+                <RowText
+                  title={<>{guest.name} <span className="mono-sm text-faint">· {responseLabels[guest.response]}</span></>}
+                >
                   {guest.note && <p className="mt-1 mb-0 text-sm text-muted">“{guest.note}”</p>}
-                </div>
+                </RowText>
                 {editable && (
                   <Button
                     disabled={removing.busy}
@@ -167,7 +162,7 @@ export function EventPage() {
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
       {editable && (
         <section className="grid gap-6">
@@ -193,7 +188,7 @@ export function EventPage() {
                 .then((done) => done && target.reset());
             }}
           >
-            <h3 className="m-0 text-base font-medium">Invite a guest</h3>
+            <Subheading>Invite a guest</Subheading>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField label="Name" maxLength={80} {...form.field('name')} />
               <TextField inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
@@ -202,7 +197,7 @@ export function EventPage() {
             <Button disabled={inviting.busy} label="Invite" primary submit />
           </form>
           <div className="grid gap-3">
-            <h3 className="m-0 text-base font-medium">Open invitation link</h3>
+            <Subheading>Open invitation link</Subheading>
             <Hint>Anyone with this link can answer with their name for 60 days. They see only this event.</Hint>
             {openLink ? (
               <CopyLink link={openLink} />

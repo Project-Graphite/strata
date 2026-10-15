@@ -13,6 +13,7 @@ import { Page, Section } from '../components/Page';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { RowText } from '../components/RowText';
 
 interface StoredFile {
   id: string;
@@ -97,14 +98,12 @@ export function StoragePage() {
                 {shown.files.map((file) => (
                   <li className="panel-row flex items-center gap-3" key={file.id}>
                     <Icon name="file" size={18} />
-                    <span className="grid min-w-0 flex-1">
-                      <span className="truncate text-ink">{file.name}</span>
-                      <span className="truncate text-sm text-muted">
-                        {[fileSize(file.sizeBytes), formatDay(file.createdAt.slice(0, 10), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
+                    <RowText
+                      detail={[fileSize(file.sizeBytes), formatDay(file.createdAt.slice(0, 10), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
                           .filter(Boolean)
                           .join(' · ')}
-                      </span>
-                    </span>
+                      title={file.name}
+                    />
                     <ActionsMenu
                       items={[
                         {

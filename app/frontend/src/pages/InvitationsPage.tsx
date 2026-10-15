@@ -13,6 +13,7 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
+import { RowText } from '../components/RowText';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
   pending: 'waiting',
@@ -62,13 +63,12 @@ export function InvitationsPage() {
               <li className="panel-row flex flex-wrap items-center justify-between gap-4" key={invitation.id}>
                 <div className="flex min-w-0 items-start gap-3">
                   <SpaceMark space={invitation.space} />
-                  <div className="min-w-0">
-                    <p className="m-0 text-ink">{invitation.space.name}</p>
-                    <p className="m-0 mt-0.5 text-sm text-muted">
-                      {invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}
-                    </p>
+                  <RowText
+                    detail={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>}
+                    title={invitation.space.name}
+                  >
                     {invitation.note && <p className="mt-2 mb-0 text-sm text-muted">“{invitation.note}”</p>}
-                  </div>
+                  </RowText>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <Button disabled={answering.busy} label="Decline" onClick={() => answer(invitation, false)} />

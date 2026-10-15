@@ -51,7 +51,7 @@ export function TokensSettings() {
   };
 
   return (
-    <div className="fade-in grid max-w-3xl gap-10">
+    <>
       <Section
         action={
           <Button icon="plus" label="New token" onClick={() => setOpen(true)} />
@@ -180,6 +180,6 @@ export function TokensSettings() {
           Anything using it stops working straight away.
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

@@ -39,6 +39,11 @@ export function Toolbar({ actions, children }: { actions?: ReactNode; children?:
   );
 }
 
+export function Subheading({ children, level = 3 }: { children: ReactNode; level?: 2 | 3 }) {
+  const Heading = level === 2 ? 'h2' : 'h3';
+  return <Heading className="m-0 text-sm font-medium text-muted">{children}</Heading>;
+}
+
 export function Section({ action, children, description, title }: { action?: ReactNode; children: ReactNode; description?: ReactNode; title: string }) {
   return (
     <section className="grid gap-3">

@@ -1,8 +1,9 @@
 import { Link, Outlet, useLocation, useOutletContext, useParams } from 'react-router';
-import { PageHeader, PageSkeleton, Tabs } from '@project-graphite/ui';
+import { PageSkeleton, Tabs } from '@project-graphite/ui';
 import { SpaceMark, useSpaces, type Space } from '../../spaces';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
+import { Page } from '../../components/Page';
 
 export function useSpace() {
   return useOutletContext<Space>();
@@ -36,19 +37,19 @@ export function SpaceLayout() {
   ] as const;
 
   return (
-    <div className="page-enter grid max-w-3xl content-start gap-8">
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-3">
-            <SpaceMark large space={space} />
-            {space.name}
-          </span>
-        }
-      >
-        {space.kind === 'shared' && `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
-      </PageHeader>
+    <Page
+      description={space.kind === 'shared' && `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
+      title={
+        <span className="inline-flex items-center gap-3">
+          <SpaceMark large space={space} />
+          {space.name}
+        </span>
+      }
+    >
       <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Space" />
-      <Outlet context={space} />
-    </div>
+      <div className="fade-in grid gap-6">
+        <Outlet context={space} />
+      </div>
+    </Page>
   );
 }

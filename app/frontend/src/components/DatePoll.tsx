@@ -35,9 +35,9 @@ export function PollOptions({
   busy: boolean;
 }) {
   return (
-    <ul className="m-0 grid list-none gap-0 p-0">
+    <ul className="panel-rows">
       {options.map((option) => (
-        <li className="grid gap-2 border-b border-line-soft py-3" key={option.id}>
+        <li className="grid gap-2 panel-row" key={option.id}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="m-0 text-ink">{optionLabel(option)}</p>

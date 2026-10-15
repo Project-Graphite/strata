@@ -32,7 +32,7 @@ export function SpaceTags() {
   if (!tags.data) return <ListSkeleton label="Loading the tags in this space" rows={3} />;
 
   return (
-    <div className="fade-in grid gap-10">
+    <>
       <div className="grid gap-4">
         <Toolbar actions={editable && <Button icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
         {tags.data.length === 0 ? (
@@ -106,6 +106,6 @@ export function SpaceTags() {
           The tag is removed from every item in this space. The items themselves stay.
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

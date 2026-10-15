@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ConfirmDialog, isAbortError } from '@project-graphite/ui';
 import { Empty } from '../components/Empty';
-import { Choice, Suggestion } from '../components/TidyList';
+import { Choice } from '../components/TidyList';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
 import { Button } from '../components/Button';
+import { Section } from '../components/Page';
 
 interface FileHandle {
   kind: 'file';
@@ -156,11 +157,11 @@ export function FolderScan() {
       {report && (
         <>
           {report.duplicates.length > 0 && (
-            <Suggestion
+            <Section
               action={
                 <Button label="Select the extra copies" onClick={() => setSelected(new Set([...selected, ...report.duplicates.flatMap((group) => group.slice(1).map((file) => file.path))]))} />
               }
-              hint="Files with exactly the same content. The oldest copy comes first. Files over 100 MB are not compared."
+              description="Files with exactly the same content. The oldest copy comes first. Files over 100 MB are not compared."
               title="Duplicate files"
             >
               {report.duplicates.map((group) => (
@@ -168,24 +169,24 @@ export function FolderScan() {
                   <p className="mono-sm m-0 text-faint">
                     {group.length} copies of {fileSize(group[0]!.size)}
                   </p>
-                  <ul className="m-0 grid list-none gap-0 p-0">
+                  <ul className="panel-rows">
                     {group.map((file) => choice(file, `changed ${new Date(file.modified).toLocaleDateString()}`))}
                   </ul>
                 </div>
               ))}
-            </Suggestion>
+            </Section>
           )}
           {report.largest.length > 0 && (
-            <Suggestion title="Largest files">
-              <ul className="mt-3 grid list-none gap-0 p-0">{report.largest.map((file) => choice(file, fileSize(file.size)))}</ul>
-            </Suggestion>
+            <Section title="Largest files">
+              <ul className="panel-rows">{report.largest.map((file) => choice(file, fileSize(file.size)))}</ul>
+            </Section>
           )}
           {report.old.length > 0 && (
-            <Suggestion hint="Files nobody has changed for over a year." title="Old files">
-              <ul className="mt-3 grid list-none gap-0 p-0">
+            <Section description="Files nobody has changed for over a year." title="Old files">
+              <ul className="panel-rows">
                 {report.old.map((file) => choice(file, `unchanged since ${new Date(file.modified).toLocaleDateString()}`))}
               </ul>
-            </Suggestion>
+            </Section>
           )}
           {report.duplicates.length + report.largest.length + report.old.length === 0 && (
             <Empty title="Nothing to tidy">This folder has no files to look at.</Empty>

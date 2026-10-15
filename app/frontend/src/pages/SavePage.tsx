@@ -135,11 +135,11 @@ export function SavePage() {
           <TextField defaultValue={title} label={shared.files.length ? 'Also add a task (optional)' : 'Task'} maxLength={200} {...form.field('title')} />
         )}
         {shared.files.length > 0 && (
-          <div>
+          <div className="grid gap-2">
             <p className="field-label m-0">Files</p>
-            <ul className="mt-2 grid list-none gap-0 p-0">
+            <ul className="panel-rows">
               {shared.files.map((file) => (
-                <li className="flex justify-between gap-4 border-b border-line-soft py-2" key={file.name}>
+                <li className="flex justify-between gap-4 panel-row" key={file.name}>
                   <span className="min-w-0 truncate text-ink">{file.name}</span>
                   <span className="mono-sm shrink-0 text-faint">{fileSize(file.size)}</span>
                 </li>

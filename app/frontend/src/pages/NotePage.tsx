@@ -15,6 +15,7 @@ import { itemHref, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundState } from '../components/Empty';
+import { Subheading } from '../components/Page';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
@@ -246,7 +247,7 @@ export function NotePage() {
       {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {details.kind !== 'board' && !details.database && (children.length > 0 || details.editable) && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
-          <h2 className="m-0 text-sm font-medium text-muted">Pages inside</h2>
+          <Subheading level={2}>Pages inside</Subheading>
           {children.length > 0 && (
             <ul className="m-0 grid list-none gap-1 p-0">
               {children.map((child) => (
@@ -283,7 +284,7 @@ export function NotePage() {
       )}
       {backlinks.length > 0 && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
-          <h2 className="m-0 text-sm font-medium text-muted">Linked from</h2>
+          <Subheading level={2}>Linked from</Subheading>
           <ul className="m-0 grid list-none gap-1 p-0">
             {backlinks.map(({ id: linkId, item }) => (
               <li key={linkId}>

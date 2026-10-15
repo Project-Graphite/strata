@@ -106,7 +106,7 @@ export function TaskRow({
     priorityLabels[task.priority] && `${priorityLabels[task.priority]} priority`,
   ].filter(Boolean);
   return (
-    <li className="flex min-w-0 items-center gap-3 border-b border-line-soft py-3">
+    <li className="flex min-w-0 items-center gap-3 panel-row">
       <input
         aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
         checked={done}

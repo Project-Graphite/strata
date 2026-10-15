@@ -27,6 +27,7 @@ import { quoteFor } from './quotes';
 import { type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
 import { Button } from '../components/Button';
+import { Subheading } from '../components/Page';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
@@ -126,7 +127,7 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
     <div className="grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
       {list.length === 0 && !quiet && <Hint>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Hint>}
-      <ul className="m-0 grid list-none gap-0 p-0">
+      <ul className="panel-rows">
         {list.slice(0, 8).map((task) => (
           <TaskRow
             disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
@@ -477,7 +478,7 @@ function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
   const spaces = useSpaces();
   return (
     <section className="grid gap-1">
-      <h3 className="mono-sm m-0 text-faint">{heading}</h3>
+      <Subheading>{heading}</Subheading>
       <ul className="m-0 grid list-none gap-1.5 p-0">
         {pages.map((page) => (
           <li className="text-sm" key={page.id}>

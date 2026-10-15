@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
+import { RowText } from '../components/RowText';
 import { TripEditor } from '../components/TripEditor';
 import { useSpaces } from '../spaces';
 import { countdown, tripDates, type Trip } from '../trips';
@@ -41,10 +42,7 @@ export function TripsPage() {
                 {shown.map((trip) => (
                   <li key={trip.id}>
                     <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/trips/${trip.id}`}>
-                      <span className="grid min-w-0 flex-1">
-                        <span className="truncate">{trip.title}</span>
-                        <span className="truncate text-sm text-muted">{[trip.destination, tripDates(trip), trip.spaceName].filter(Boolean).join(' · ')}</span>
-                      </span>
+                      <RowText detail={[trip.destination, tripDates(trip), trip.spaceName].filter(Boolean).join(' · ')} title={trip.title} />
                       {countdown(trip, today) && <span className="shrink-0 text-sm text-muted">{countdown(trip, today)}</span>}
                     </Link>
                   </li>

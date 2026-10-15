@@ -5,6 +5,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Button } from './Button';
+import { Subheading } from './Page';
 
 interface NoteComment {
   id: string;
@@ -191,7 +192,7 @@ export function NoteComments({
   return (
     <section aria-label="Comments" className="grid gap-4 border-t border-line-soft pt-6">
       <div className="flex items-center gap-3">
-        <h2 className="m-0 text-sm font-medium text-muted">Comments</h2>
+        <Subheading level={2}>Comments</Subheading>
         {resolved > 0 && (
           <button className="text-button text-sm" onClick={() => setShowResolved(!showResolved)} type="button">
             {showResolved ? 'Hide resolved' : `Show ${resolved} resolved`}

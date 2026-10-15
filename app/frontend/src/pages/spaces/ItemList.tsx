@@ -14,9 +14,9 @@ export function ItemList({
   items: Item[];
 }) {
   return (
-    <ul className="m-0 grid list-none gap-0 p-0">
+    <ul className="panel-rows">
       {items.map((item) => (
-        <li className="flex items-center justify-between gap-4 border-b border-line-soft py-4" key={item.id}>
+        <li className="flex items-center justify-between gap-4 panel-row" key={item.id}>
           {hasPreview(item) && <FilePreview item={item} />}
           <div className="min-w-0 flex-1">
             <p className="m-0 truncate text-ink">
