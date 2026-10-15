@@ -17,7 +17,7 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
       items={[
         { label: 'Settings', href: '/settings' },
         { label: 'Invitations', href: '/invitations' },
-        ...(role === 'admin' || role === 'system_manager' ? [{ label: 'Site settings', href: '/admin' }] : []),
+        ...(role === 'admin' || role === 'system_manager' ? [{ label: 'Admin', href: '/admin' }] : []),
         { label: 'Sign out', onSelect: onSignOut, separated: true },
       ]}
       label="Account"
