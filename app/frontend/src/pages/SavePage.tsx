@@ -9,6 +9,7 @@ import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
+import { useDocumentTitle } from '../components/Page';
 
 interface Shared {
   title: string;
@@ -55,6 +56,7 @@ export function SavePage() {
   const form = useFormErrors();
   const [shared, setShared] = useState<Shared | null>();
   const [asTask, setAsTask] = useState(false);
+  useDocumentTitle('Save what you shared');
 
   useEffect(() => {
     void readShare().then(setShared);

@@ -39,6 +39,7 @@ export function SpaceLayout() {
   return (
     <Page
       description={space.kind === 'shared' && `Shared space · you are ${space.role === 'viewer' ? 'a' : 'an'} ${roleOptions.find((option) => option.value === space.role)?.label.toLowerCase()}`}
+      documentTitle={space.name}
       title={
         <span className="inline-flex items-center gap-3">
           <SpaceMark large space={space} />

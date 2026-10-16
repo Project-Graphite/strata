@@ -49,8 +49,9 @@ export function SettingsRow({ action, children, label }: { action?: ReactNode; c
 
 export function SettingsLayout() {
   const { pathname } = useLocation();
+  const tab = tabs.find(([href]) => href === pathname);
   return (
-    <Page title="Settings">
+    <Page documentTitle={tab && `${tab[1]} · Settings`} title="Settings">
       <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Settings" />
       <div className="fade-in grid max-w-3xl gap-10">
         <Outlet />

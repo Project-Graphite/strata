@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
+  ErrorState,
   OutageGate,
   Sidebar,
   Skeleton,
@@ -146,9 +147,15 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         tabs={tabs}
       >
         <OutageGate healthUrl="/api/v1/health" offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={onOutage}>
-          <CrashBoundary key={pathname}>
-            <Outlet />
-          </CrashBoundary>
+          {auth.restoreError ? (
+            <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
+              {auth.restoreError}
+            </ErrorState>
+          ) : (
+            <CrashBoundary key={pathname}>
+              <Outlet />
+            </CrashBoundary>
+          )}
         </OutageGate>
       </AppShell>
       {searching && <SearchPalette onClose={() => setSearching(false)} />}

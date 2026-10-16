@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { errorMessage, FormPanelSkeleton, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { useDocumentTitle } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { useResource } from '../useResource';
@@ -18,6 +19,7 @@ export function RegisterPage() {
   const code = params.get('invite');
   const invite = useResource<InviteDetails>(code ? `/invitations/lookup/${encodeURIComponent(code)}` : null);
   const site = useResource<{ inviteOnly: boolean }>('/site');
+  useDocumentTitle('Create account');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

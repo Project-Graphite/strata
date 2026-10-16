@@ -5,12 +5,14 @@ import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
 import { Button, ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
+import { useDocumentTitle } from '../components/Page';
 
 export function ForgotPasswordPage() {
   const form = useFormErrors();
   const [sentTo, setSentTo] = useState('');
   const show = useSnackbar();
   const [busy, setBusy] = useState(false);
+  useDocumentTitle('Reset your password');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,6 +61,7 @@ export function ResetPasswordPage() {
   const show = useSnackbar();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  useDocumentTitle('Choose a new password');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
