@@ -112,12 +112,12 @@ export class ShareLinksService {
   async file(code: string, fileId: string) {
     const link = await this.prisma.shareLink.findFirst({
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
-      select: { itemId: true },
+      select: { itemId: true, item: { select: { spaceId: true } } },
     });
     const attached =
       link &&
       (await this.prisma.itemLink.findFirst({
-        where: { sourceItemId: link.itemId, targetItemId: fileId, kind: LinkKind.ATTACHMENT, target: { trashedAt: null } },
+        where: { sourceItemId: link.itemId, targetItemId: fileId, kind: LinkKind.ATTACHMENT, target: { trashedAt: null, spaceId: link.item.spaceId } },
         select: { id: true },
       }));
     if (!attached) throw new NotFoundException('That file is not part of this link');

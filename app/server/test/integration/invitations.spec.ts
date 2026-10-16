@@ -170,4 +170,52 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     expect((await strata.anonymous('GET', `/share/${code}`)).status).toBe(404);
     expect((await strata.anonymous('GET', `/share/${'x'.repeat(43)}`)).status).toBe(404);
   });
+
+  it('turns off the links and invitations of someone who is demoted or removed', async () => {
+    const owner = await member('chair');
+    const demoted = await member('former-owner');
+    const leaver = await member('leaver');
+    const space = (await owner.call('POST', '/spaces', { name: 'Committee' })).body;
+    await strata.join(space.id, demoted, SpaceRole.OWNER);
+    await strata.join(space.id, leaver, SpaceRole.EDITOR);
+    const note = await strata.item(space.id, 'Minutes');
+    const share = async (by: typeof owner) => (await by.call('POST', `/items/${note.id}/share-links`, { access: 'view' })).body.link.split('/share/')[1];
+    const [ownerCode, demotedCode, leaverCode] = [await share(owner), await share(demoted), await share(leaver)];
+    const invitation = (inviterId: string, tokenHash: string) =>
+      strata.prisma.invitation.create({
+        data: { kind: 'SPACE', spaceId: space.id, role: SpaceRole.OWNER, inviterId, tokenHash, expiresAt: new Date(Date.now() + 86_400_000) },
+      });
+    const fromDemoted = await invitation(demoted.id, 'd'.repeat(64));
+    const fromLeaver = await invitation(leaver.id, 'e'.repeat(64));
+    const revoked = async (id: string) => (await strata.prisma.invitation.findUniqueOrThrow({ where: { id } })).revokedAt !== null;
+
+    expect((await owner.call('PATCH', `/spaces/${space.id}/members/${demoted.id}`, { role: 'editor' })).status).toBe(200);
+    expect(await revoked(fromDemoted.id)).toBe(true);
+    expect((await strata.anonymous('GET', `/share/${demotedCode}`)).status).toBe(200);
+    expect((await owner.call('PATCH', `/spaces/${space.id}/members/${demoted.id}`, { role: 'viewer' })).status).toBe(200);
+    expect((await strata.anonymous('GET', `/share/${demotedCode}`)).status).toBe(404);
+
+    expect(await revoked(fromLeaver.id)).toBe(false);
+    expect((await strata.anonymous('GET', `/share/${leaverCode}`)).status).toBe(200);
+    expect((await owner.call('DELETE', `/spaces/${space.id}/members/${leaver.id}`)).status).toBe(204);
+    expect((await strata.anonymous('GET', `/share/${leaverCode}`)).status).toBe(404);
+    expect(await revoked(fromLeaver.id)).toBe(true);
+    expect((await strata.anonymous('GET', `/share/${ownerCode}`)).status).toBe(200);
+  });
+
+  it('serves guests only the attached files that live in the shared item’s space', async () => {
+    const owner = await member('collector');
+    const space = (await owner.call('POST', '/spaces', { name: 'Shared album' })).body;
+    const note = await strata.item(space.id, 'Album');
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const inSpace = (await (await strata.upload(owner, space.id, 'shared.png', png)).json()).id;
+    const elsewhere = (await (await strata.upload(owner, owner.personalSpaceId, 'private.png', png)).json()).id;
+    await strata.prisma.itemLink.createMany({
+      data: [inSpace, elsewhere].map((targetItemId) => ({ sourceItemId: note.id, targetItemId, kind: 'ATTACHMENT' as const })),
+    });
+    const code = (await owner.call('POST', `/items/${note.id}/share-links`, { access: 'view' })).body.link.split('/share/')[1];
+
+    expect((await fetch(`${strata.base}/share/${code}/files/${inSpace}`)).status).toBe(200);
+    expect((await fetch(`${strata.base}/share/${code}/files/${elsewhere}`)).status).toBe(404);
+  });
 });

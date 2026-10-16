@@ -125,6 +125,7 @@ export class SpacesService {
       if (changed.count === 0) {
         throw new NotFoundException('That person is not a member of this space');
       }
+      await this.revokeWhatTheyCannotGrant(transaction, spaceId, memberId, input.role.toUpperCase() as SpaceRole);
       const member = await transaction.spaceMember.findUniqueOrThrow({
         where: { spaceId_userId: { spaceId, userId: memberId } },
         select: { ...memberFields, space: { select: { name: true } } },
@@ -160,6 +161,7 @@ export class SpacesService {
         throw new NotFoundException('That person is not a member of this space');
       }
       await transaction.spaceMember.delete({ where: { spaceId_userId: { spaceId, userId: memberId } } });
+      await this.revokeWhatTheyCannotGrant(transaction, spaceId, memberId, null);
       await this.activity.record(transaction, {
         spaceId,
         actorId: userId,
@@ -172,6 +174,16 @@ export class SpacesService {
         ]);
       }
     });
+  }
+
+  private async revokeWhatTheyCannotGrant(transaction: Prisma.TransactionClient, spaceId: string, memberId: string, role: SpaceRole | null) {
+    const revokedAt = new Date();
+    if (role !== SpaceRole.OWNER) {
+      await transaction.invitation.updateMany({ where: { spaceId, inviterId: memberId, revokedAt: null }, data: { revokedAt } });
+    }
+    if (role === null || role === SpaceRole.VIEWER) {
+      await transaction.shareLink.updateMany({ where: { createdById: memberId, revokedAt: null, item: { spaceId } }, data: { revokedAt } });
+    }
   }
 
   private keepingAnOwner<T>(spaceId: string, change: (transaction: Prisma.TransactionClient) => Promise<T>) {

@@ -39,6 +39,10 @@ export class AccessService {
     return member.role;
   }
 
+  async isMember(userId: string, spaceId: string) {
+    return (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
+  }
+
   async assertItem(userId: string, itemId: string, access: Access) {
     const item = await this.prisma.item.findUnique({
       where: { id: itemId },

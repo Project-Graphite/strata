@@ -455,7 +455,7 @@ export class EventsService implements OnModuleInit {
     });
     if (!item?.event || item.trashedAt) return;
     const start = new Date(payload.start);
-    if (item.createdById && slots(item.event, start, new Date(start.getTime() + 1), 1).some((slot) => slot.start.getTime() === start.getTime())) {
+    if (item.createdById && (await this.access.isMember(item.createdById, item.spaceId)) && slots(item.event, start, new Date(start.getTime() + 1), 1).some((slot) => slot.start.getTime() === start.getTime())) {
       await this.inbox.notify(this.prisma, [
         {
           userId: item.createdById,

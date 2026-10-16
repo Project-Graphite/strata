@@ -397,7 +397,7 @@ export class TasksService implements OnModuleInit {
     const task = item?.task;
     if (!item || !task || item.trashedAt || task.completedAt || dueInstant(task)?.toISOString() !== payload.due) return;
     const recipient = task.assigneeId ?? item.createdById;
-    if (!recipient) return;
+    if (!recipient || !(await this.access.isMember(recipient, item.spaceId))) return;
     await this.inbox.notify(this.prisma, [
       {
         userId: recipient,
