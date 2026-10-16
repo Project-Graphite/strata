@@ -45,6 +45,71 @@ describe('inspectFile', () => {
     expect(kept).not.toContain('taken at home');
   });
 
+  it('keeps only colour segments of a JPEG, keeps every scan and drops whatever follows the image', () => {
+    const frame = Buffer.from([8, 0, 4, 0, 3, 3, 1, 0x11, 0, 2, 0x11, 1, 3, 0x11, 1]);
+    const scan = Buffer.from([0x12, 0xff, 0x00, 0x34, 0xff, 0xd0, 0x56]);
+    const jpeg = Buffer.concat([
+      Buffer.from([0xff, 0xd8]),
+      segment(0xe2, Buffer.from('ICC_PROFILE\0colour', 'latin1')),
+      segment(0xe2, Buffer.from('MPF\0second image index', 'latin1')),
+      segment(0xeb, Buffer.from('JP gain map XMP GPS', 'latin1')),
+      segment(0xee, Buffer.from('Adobe', 'latin1')),
+      segment(0xc2, frame),
+      segment(0xda, Buffer.alloc(8)),
+      scan,
+      segment(0xc4, Buffer.from('table', 'latin1')),
+      segment(0xda, Buffer.alloc(8)),
+      scan,
+      Buffer.from([0xff, 0xd9]),
+      Buffer.from([0xff, 0xd8]),
+      segment(0xe1, Buffer.from('Exif\0\0GPS of the hidden image', 'latin1')),
+    ]);
+
+    const inspected = inspectFile(jpeg, 'photo.jpg')!;
+
+    expect(inspected).toMatchObject({ mimeType: 'image/jpeg', width: 3, height: 4 });
+    const kept = inspected.data.toString('latin1');
+    expect(kept).toContain('ICC_PROFILE');
+    expect(kept).toContain('Adobe');
+    expect(kept).toContain('table');
+    expect(kept).not.toContain('MPF');
+    expect(kept).not.toContain('GPS');
+    expect(inspected.data.subarray(-2)).toEqual(Buffer.from([0xff, 0xd9]));
+    expect(inspected.data.indexOf(scan)).not.toBe(inspected.data.lastIndexOf(scan));
+  });
+
+  it('removes comments and metadata from a GIF but keeps its animation loop', () => {
+    const block = (bytes: Buffer) => Buffer.concat([Buffer.from([bytes.length]), bytes]);
+    const extension = (label: number, ...blocks: Buffer[]) => Buffer.concat([Buffer.from([0x21, label]), ...blocks.map(block), Buffer.from([0])]);
+    const screen = Buffer.from([5, 0, 6, 0, 0x80, 0, 0]);
+    const image = Buffer.concat([Buffer.from([0x2c, 0, 0, 0, 0, 5, 0, 6, 0, 0, 2]), block(Buffer.from([0x44, 0x01])), Buffer.from([0])]);
+    const gif = Buffer.concat([
+      Buffer.from('GIF89a', 'latin1'),
+      screen,
+      Buffer.alloc(6),
+      extension(0xff, Buffer.from('NETSCAPE2.0', 'latin1'), Buffer.from([1, 0, 0])),
+      extension(0xff, Buffer.from('XMP DataXMP', 'latin1'), Buffer.from('GPS 51.5,-0.1', 'latin1')),
+      extension(0xfe, Buffer.from('taken at home', 'latin1')),
+      extension(0xf9, Buffer.from([0, 10, 0, 0])),
+      image,
+      Buffer.from([0x3b]),
+      Buffer.from('appended secret', 'latin1'),
+    ]);
+
+    const inspected = inspectFile(gif, 'loop.gif')!;
+
+    expect(inspected).toMatchObject({ mimeType: 'image/gif', width: 5, height: 6 });
+    const kept = inspected.data.toString('latin1');
+    expect(kept).toContain('NETSCAPE2.0');
+    expect(kept).not.toContain('XMP');
+    expect(kept).not.toContain('GPS');
+    expect(kept).not.toContain('taken at home');
+    expect(kept).not.toContain('appended secret');
+    expect(inspected.data.subarray(-1)).toEqual(Buffer.from([0x3b]));
+    expect(inspectFile(gif.subarray(0, gif.indexOf(0x3b, 30)), 'cut.gif')?.data.subarray(-1)).toEqual(Buffer.from([0x3b]));
+    expect(inspectFile(Buffer.concat([gif.subarray(0, 19), Buffer.from([0x99])]), 'broken.gif')).toBeNull();
+  });
+
   it('removes text and Exif chunks from a PNG and reads its size', () => {
     const header = Buffer.alloc(13);
     header.writeUInt32BE(5, 0);
