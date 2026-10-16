@@ -1,3 +1,5 @@
+import { formatDay } from '@project-graphite/ui';
+
 export interface CostSplit {
   payerId: string;
   shares: { userId: string; weight: number }[];
@@ -73,5 +75,5 @@ export function cycleLabel(rule: string) {
 }
 
 export function shortDate(text: string) {
-  return new Date(`${text}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDay(text, { day: 'numeric', month: 'short', year: 'numeric' });
 }

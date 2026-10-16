@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DatePicker } from '@project-graphite/ui';
+import { DatePicker, formatDay } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';
@@ -21,7 +21,7 @@ export interface PollOption {
 const answerLabels: Record<PollAnswer, string> = { yes: 'Yes', maybe: 'Maybe', no: 'No' };
 
 export const optionLabel = (option: { startsOn: string; startTime: string | null }) =>
-  `${new Date(`${option.startsOn}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}${option.startTime ? ` · ${clockTime(option.startTime)}` : ''}`;
+  `${formatDay(option.startsOn)}${option.startTime ? ` · ${clockTime(option.startTime)}` : ''}`;
 
 export function PollOptions({
   options,

@@ -97,7 +97,7 @@ export function RegisterPage() {
   return (
     <section className="form-panel page-enter">
       <h1 className="page-heading">Create your account</h1>
-      {invite.data && <p className="mt-4 mb-0 text-muted">{invitedLine(invite.data)}</p>}
+      {invite.data && <p className="mt-4 mb-0 text-muted">{invitedLine(invite.data)}.</p>}
       {invite.error && <p className="error-message mt-4 mb-0">{invite.error}</p>}
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />

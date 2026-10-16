@@ -189,7 +189,7 @@ describe('Tasks', () => {
   });
 
   async function typeTodo(text: string) {
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Add a to-do"]')!;
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Add a task"]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, text);
       input.dispatchEvent(new Event('input', { bubbles: true }));

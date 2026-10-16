@@ -30,25 +30,30 @@ export function PrivacyPage() {
       <section>
         <h2>What is stored</h2>
         <p>
-          Your email address, handle, display name, time zone and a salted, slow hash of your
-          password. Each signed-in device holds a sign-in cookie that scripts cannot read. The server
-          keeps only a hash of it, and it stops working after 30 days.
+          Your account details: email address, handle, display name, time zone and a salted, slow
+          hash of your password. Each signed-in device holds a sign-in cookie that scripts cannot
+          read. The server keeps only a hash of it, and it stops working after 30 days.
         </p>
         <p>
           Your email address receives verification links, password resets and security notices.
           Those links expire, and the server keeps only a hash of each.
         </p>
         <p>
-          As new parts of Strata arrive, this page lists what each of them stores before it goes
-          live.
+          Everything you add, such as tasks, events, pages, boards, bookmarks and spending, and the
+          files you upload.
+        </p>
+        <p>
+          A security log of sign-ins, password changes and other account events, which you can see
+          in Settings.
         </p>
       </section>
       <section>
         <h2>Who can see it</h2>
         <p>
-          Only you. Administrators can see account names, handles and email addresses to deal with
-          abuse, but they cannot read your private content. One system manager, appointed on the
-          server itself, chooses the administrators.
+          You, and the members of the spaces you share it with. Anyone you give a share link can see
+          the item it links to. Administrators can see account names, handles and email addresses to
+          deal with abuse, but they cannot read your private content. One system manager, appointed
+          on the server itself, chooses the administrators.
         </p>
       </section>
       <section>

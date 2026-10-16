@@ -81,7 +81,7 @@ describe('Signed-out pages', () => {
     const fetchMock = serve({ '/auth/verify-email': () => new Response(null, { status: 204 }) });
     await render('/verify?token=abc123');
 
-    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('Your email address is confirmed.'));
+    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('Your email address is confirmed'));
     expect(fetchMock.mock.calls.filter(([input]) => input.endsWith('/auth/verify-email'))).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/verify-email', expect.objectContaining({ body: JSON.stringify({ token: 'abc123' }) }));
     expect(container.querySelector('input')).toBeNull();

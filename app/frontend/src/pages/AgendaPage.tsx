@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { addDays, clock, dayKey, entryDay, monthDays, useAgenda, type AgendaEntry } from '../agenda';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { Button, ButtonLink } from '../components/Button';
@@ -74,9 +74,9 @@ export function AgendaPage() {
         onShift={(step) => navigate(link({ date: shift(step) }))}
         title={
           view === 'month'
-            ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+            ? formatDay(anchor, { month: 'long', year: 'numeric' })
             : view === 'day'
-              ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+              ? formatDay(anchor, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
               : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(
                   new Date(`${from}T00:00:00`),
                   new Date(`${addDays(to, -1)}T00:00:00`),
@@ -101,7 +101,7 @@ export function AgendaPage() {
                   <Subheading level={2}>
                     <Link className="text-muted no-underline hover:underline" to={link({ view: 'day', date: day })}>
                       {day === today ? 'Today · ' : ''}
-                      {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                      {formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}
                     </Link>
                     {day <= today && (
                       <Link className="mono-sm ml-3 font-normal text-faint" to={`/journal/${day}`}>
@@ -124,7 +124,7 @@ export function AgendaPage() {
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
           {allDays.slice(0, 7).map((day) => (
             <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
-              {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+              {formatDay(day, { weekday: 'short' })}
             </p>
           ))}
           {allDays.map((day) => {
@@ -133,7 +133,7 @@ export function AgendaPage() {
             return (
               <div className={`relative min-h-24 min-w-0 bg-paper p-1.5 ${outside ? 'opacity-50' : ''}`} key={day}>
                 <button
-                  aria-label={new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                  aria-label={formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}
                   className={`mono-sm m-0 grid size-6 cursor-pointer place-items-center rounded-full border-0 p-0 after:absolute after:inset-0 ${day === today ? 'bg-ink font-medium text-paper' : 'bg-transparent text-faint'}`}
                   onClick={() => navigate(link({ view: 'day', date: day }))}
                   type="button"

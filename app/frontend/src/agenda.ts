@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import { formatDay } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, timeOptions } from './time';
+import { clockTime, timeOptions, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -123,7 +124,7 @@ export function entryTime(entry: AgendaEntry) {
 }
 
 export function entryWhen(entry: AgendaEntry) {
-  const day = (at: Date) => at.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const day = (at: Date) => formatDay(dayKey(at), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   if (entry.allDay) {
     const start = day(new Date(`${entry.start}T00:00:00`));
     return entry.end && entry.end !== entry.start ? `${start} to ${day(new Date(`${entry.end}T00:00:00`))}` : `${start}, all day`;
@@ -136,11 +137,12 @@ export function entryWhen(entry: AgendaEntry) {
 
 export function eventWhen(event: PublicEvent) {
   const day = (text: string) =>
-    new Date(`${text}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    formatDay(text, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const start = `${day(event.startsOn)}${event.startTime ? `, ${clockTime(event.startTime)}` : ''}`;
   const end =
     event.endsOn !== event.startsOn ? ` to ${day(event.endsOn)}${event.endTime ? `, ${clockTime(event.endTime)}` : ''}` : event.endTime ? `–${clockTime(event.endTime)}` : '';
-  return `${start}${end}${event.startTime ? ` (${event.timeZone.replaceAll('_', ' ')})` : ''}`;
+  const zone = event.startTime ? zoneLabel(event.timeZone) : '';
+  return `${start}${end}${zone ? ` (${zone})` : ''}`;
 }
 
 export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews', external: 'calendar', birthday: 'birthday', payment: 'payment' };

@@ -1,3 +1,4 @@
+import { formatDay } from '@project-graphite/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { dayKey, entryTime, type AgendaEntry } from '../agenda';
@@ -93,7 +94,7 @@ export function TimeGrid({
                   key={day}
                   to={dayHref(day)}
                 >
-                  <span className="text-xs uppercase">{date.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                  <span className="text-xs uppercase">{formatDay(dayKey(date), { weekday: 'short' })}</span>
                   <span className={`text-lg ${day === today ? 'font-semibold' : ''}`}>{date.getDate()}</span>
                 </Link>
               );

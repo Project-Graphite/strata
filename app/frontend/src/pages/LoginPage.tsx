@@ -130,7 +130,7 @@ export function LoginPage() {
         <Link className="rule-link" to="/forgot-password">Forgot your password?</Link>
       </p>
       <p className="mt-2 text-sm text-muted">
-        New here? <Link className="rule-link" to="/register">Create an account</Link>
+        New here? <Link className="rule-link" to="/register">Create account</Link>
       </p>
     </section>
   );

@@ -28,7 +28,7 @@ export function VerifyPage() {
   if (verified) {
     return (
       <section className="form-panel page-enter">
-        <h1 className="page-heading">Your email address is confirmed.</h1>
+        <h1 className="page-heading">Your email address is confirmed</h1>
         <div className="mt-7">{next}</div>
       </section>
     );

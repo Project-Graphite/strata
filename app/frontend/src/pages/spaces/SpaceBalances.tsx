@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ListSkeleton } from '@project-graphite/ui';
+import { formatDay, ListSkeleton } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
 import { Hint } from '../../components/Hint';
@@ -53,7 +53,7 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
     }, 'Could not remove the payment');
   }
 
-  const label = new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const label = formatDay(`${month}-01`, { month: 'long', year: 'numeric' });
 
   return (
     <section aria-label="Split costs" className="grid gap-3 rounded-xl border border-line bg-surface p-5">

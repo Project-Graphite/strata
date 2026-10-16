@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
+import { errorMessage, formatDay, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -69,7 +69,7 @@ export function Weather({ settings }: WidgetProps) {
       <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-xs">
         {daily.map((day) => (
           <li className="grid gap-0.5" key={day.date} title={condition(day.code)}>
-            <span className="text-faint">{new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
+            <span className="text-faint">{formatDay(day.date, { weekday: 'narrow' })}</span>
             <span className="text-ink">{day.high}°</span>
             <span className="text-faint">{day.low}°</span>
           </li>

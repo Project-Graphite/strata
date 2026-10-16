@@ -19,6 +19,8 @@ export function applyTimeFormat(format: TimeFormat | undefined) {
 
 export const timeOptions = (): Intl.DateTimeFormatOptions => (hour12 === undefined ? {} : { hour12 });
 
+export const zoneLabel = (zone: string) => (zone === Intl.DateTimeFormat().resolvedOptions().timeZone ? '' : zone.replaceAll('_', ' '));
+
 export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 
 export function clockTime(time: string) {

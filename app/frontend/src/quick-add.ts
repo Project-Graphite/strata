@@ -1,3 +1,4 @@
+import { formatDay } from '@project-graphite/ui';
 import { addDays, dayKey } from './agenda';
 import { clockTime } from './time';
 
@@ -104,7 +105,7 @@ export function parseQuickTask(text: string, knownTags: string[], now = new Date
 export function describeQuickTask(task: QuickTask) {
   return [
     task.dueDate &&
-      `due ${new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${
+      `due ${formatDay(task.dueDate, { weekday: 'short', day: 'numeric', month: 'short' })}${
         task.dueTime ? ` ${clockTime(task.dueTime)}` : ''
       }`,
     ...task.tagNames.map((name) => `tag ${name}`),

@@ -6,7 +6,7 @@ import type { Tag } from '../spaces';
 import { reminderOptions, repeatOptions, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
-import { TimeField } from '../time';
+import { TimeField, zoneLabel } from '../time';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 
@@ -54,6 +54,7 @@ export function TaskEditor({
   const quick = task ? undefined : parseQuickTask(title, tags.map((tag) => tag.name));
   const understood = quick && describeQuickTask(quick);
   const text = (values: FormData, name: string) => String(values.get(name) ?? '').trim();
+  const zone = zoneLabel(task?.timeZone ?? auth.user?.timeZone ?? 'UTC');
 
   return (
     <Dialog onClose={onClose} title={task ? (editable ? 'Edit task' : task.title) : 'New task'}>
@@ -135,7 +136,7 @@ export function TaskEditor({
             <Select defaultValue={String(task?.priority ?? 0)} disabled={!editable} label="Priority" name="priority" options={priorities} />
           </div>
         </fieldset>
-        <p className="mono-sm m-0 text-faint">Times are in {(task?.timeZone ?? auth.user?.timeZone ?? 'UTC').replaceAll('_', ' ')}.</p>
+        {zone && <p className="mono-sm m-0 text-faint">Times are in {zone}.</p>}
         <DialogActions>
           {task && editable && onTrashed && (
             <button

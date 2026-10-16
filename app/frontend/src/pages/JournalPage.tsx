@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { formatDay, ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
@@ -32,7 +32,7 @@ function yearDays(year: number) {
   return days;
 }
 
-const dayLabel = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const dayLabel = (day: string) => formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' });
 
 export function JournalPage() {
   const [params] = useSearchParams();

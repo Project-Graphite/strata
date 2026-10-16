@@ -32,7 +32,7 @@ export interface SentInvitation {
 }
 
 export function invitedLine(invite: InviteDetails) {
-  return `${invite.inviter ?? 'Someone'} invited you to ${invite.space ?? 'Strata'}.`;
+  return `${invite.inviter ?? 'Someone'} invited you to ${invite.space ?? 'Strata'}`;
 }
 
 export const noteChecks: Check[] = [

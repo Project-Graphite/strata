@@ -27,17 +27,17 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
           setText('');
           onAdded(added);
           return '';
-        }, 'Could not add the to-do');
+        }, 'Could not add the task');
       }}
     >
       <div className="flex gap-2">
         <input
           aria-describedby={understood ? hintId : undefined}
-          aria-label="Add a to-do"
+          aria-label="Add a task"
           className="min-w-0 flex-1"
           maxLength={300}
           onChange={(event) => setText(event.currentTarget.value)}
-          placeholder="Add a to-do"
+          placeholder="Add a task"
           value={text}
         />
         <Button disabled={!quick.title || adding.busy} label="Add" submit />

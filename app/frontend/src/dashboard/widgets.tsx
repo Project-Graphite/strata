@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Avatar, DatePicker, ListSkeleton, Select, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
+import { Avatar, DatePicker, formatDay, ListSkeleton, Select, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -66,7 +66,7 @@ function Clock({ settings }: WidgetProps) {
       <div>
         <p className="m-0 text-3xl text-ink">{time()}</p>
         <p className="mono-sm m-0 mt-1 text-faint">
-          {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+          {formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
       {zones.length > 0 && (
@@ -355,7 +355,7 @@ function Agenda() {
           <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
             <span className="block truncate text-ink">{entry.title}</span>
             <span className="mono-sm block truncate text-faint">
-              {new Date(`${entryDay(entry)}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} {entryTime(entry)}
+              {formatDay(entryDay(entry), { weekday: 'short' })} {entryTime(entry)}
             </span>
           </AgendaEntryLink>
         </li>
@@ -626,7 +626,7 @@ export const widgetKinds: Record<
 > = {
   clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
   today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", size: 'medium', settings: {}, View: Today },
-  tasks: { title: 'To-do list', group: 'Your day', description: 'A to-do list to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
+  tasks: { title: 'To-do list', group: 'Your day', description: 'Tasks to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
   shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
   recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', size: 'small', settings: {}, View: Recurring },
   inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', size: 'medium', settings: {}, View: Inbox },

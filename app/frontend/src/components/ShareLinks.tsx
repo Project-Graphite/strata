@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, formatDay, LinesSkeleton, Select } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -100,7 +101,7 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
                   {link.access === 'edit' ? 'Can edit' : 'Can view'}
                   <span className="text-faint">
                     {' · Until '}
-                    {new Date(link.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {formatDay(dayKey(new Date(link.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </p>
                 <button className="text-button text-sm" onClick={() => setTurningOff(link)} type="button">

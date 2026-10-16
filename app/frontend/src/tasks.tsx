@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Avatar, Icon, Pagination } from '@project-graphite/ui';
+import { Avatar, formatDay, Icon, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
 import { clockTime } from './time';
 
@@ -76,7 +76,7 @@ export function dueLabel(task: Task) {
   const day =
     task.dueDate === today
       ? 'today'
-      : new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      : formatDay(task.dueDate, { weekday: 'short', day: 'numeric', month: 'short' });
   return task.dueTime ? `${day} ${clockTime(task.dueTime)}` : day;
 }
 

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, ListSkeleton, Select } from '@project-graphite/ui';
+import { formatDay, Icon, ListSkeleton, Select } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -175,18 +175,18 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       return (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <PeriodNav onShift={shift} title={shown.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} unit="month" />
+            <PeriodNav onShift={shift} title={formatDay(dayKey(shown), { month: 'long', year: 'numeric' })} unit="month" />
             {chooser('Dates from', dates, dateProperty, 'dateBy')}
           </div>
           <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
             {Array.from({ length: 7 }, (_, index) => addDays(from, index)).map((day) => (
               <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
-                {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+                {formatDay(day, { weekday: 'short' })}
               </p>
             ))}
             {Array.from({ length: days }, (_, index) => addDays(from, index)).map((day) => (
               <div
-                aria-label={new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                aria-label={formatDay(day, { day: 'numeric', month: 'long' })}
                 className={`grid min-h-20 content-start gap-0.5 bg-paper p-1.5 ${new Date(`${day}T00:00:00`).getMonth() !== shown.getMonth() ? 'opacity-50' : ''}`}
                 key={day}
                 role="group"

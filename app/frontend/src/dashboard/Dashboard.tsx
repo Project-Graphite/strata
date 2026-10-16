@@ -1,6 +1,7 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, PageSkeleton, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, formatDay, PageSkeleton, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -45,8 +46,8 @@ const minutesOf = (time: string) => (time ? Number(time.slice(0, 2)) * 60 + Numb
 
 const templates = [
   ['morning', 'Morning briefing', 'Clock, Today, Agenda, Renewals and spend, Inbox'],
-  ['work', 'Work day', 'Today, Task list, Shortcuts, Clock'],
-  ['student', 'Student', 'Today, Task list, Shortcuts'],
+  ['work', 'Work day', 'Today, To-do list, Shortcuts, Clock'],
+  ['student', 'Student', 'Today, To-do list, Shortcuts'],
   ['travel', 'Travel', 'World clocks, Today, Shortcuts'],
   ['', 'Empty', 'Add widgets yourself'],
 ] as const;
@@ -146,7 +147,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
         <div>
           <Hint>{dashboard.name}</Hint>
           <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', ...timeOptions() })}</p>
-          <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="mono-sm m-0 mt-1 text-faint">{formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>

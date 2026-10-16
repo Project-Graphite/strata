@@ -93,7 +93,7 @@ export function ResetPasswordPage() {
   if (done) {
     return (
       <section className="form-panel page-enter">
-        <h1 className="page-heading">Sign in with your new password.</h1>
+        <h1 className="page-heading">Sign in with your new password</h1>
         <p className="mt-5 text-muted">Every device that was signed in has been signed out. Your access tokens and private calendar link were revoked, and your webhooks were turned off.</p>
         <div className="mt-7">
           <ButtonLink label="Sign in" large primary to="/login" />

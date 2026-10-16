@@ -37,7 +37,7 @@ export function TodoPage() {
   if (failed || !tasks.data || !lists.data || !spaces.data) {
     return (
       <Page title="To-do">
-        {failed ? <LoadError error={failed.error} onRetry={failed.reload} /> : <ListSkeleton label="Loading your to-do list" rows={5} />}
+        {failed ? <LoadError error={failed.error} onRetry={failed.reload} /> : <ListSkeleton label="Loading your tasks" rows={5} />}
       </Page>
     );
   }
@@ -90,7 +90,7 @@ export function TodoPage() {
                         },
                       }
                     : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
-                }, 'Could not update the to-do')
+                }, 'Could not update the task')
               }
               task={task}
               where={[manySpaces && spaceOf(task.spaceId)?.name, !shownList && listTitle(task)].filter(Boolean).join(' · ')}
