@@ -106,4 +106,9 @@ describe('inspectFile', () => {
     expect(inspectFile(Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03]), 'setup.exe')).toBeNull();
     expect(inspectFile(Buffer.from([0xff, 0xd8, 0xff, 0x00]), 'broken.jpg')).toBeNull();
   });
+
+  it('inspects text full of comments without stalling', () => {
+    expect(inspectFile(Buffer.from('<!---->'.repeat(5_000) + 'x'), 'notes.txt')?.mimeType).toBe('text/plain');
+    expect(inspectFile(Buffer.from('<!-- logo --->\n<!-- - -->\n<svg></svg>'), 'logo.svg')?.mimeType).toBe('image/svg+xml');
+  });
 });

@@ -70,4 +70,9 @@ describe('readCalendar', () => {
   it('refuses something that is not a calendar', () => {
     expect(() => readCalendar('<html>Not found</html>', since)).toThrow('not an iCalendar file');
   });
+
+  it('reads hostile notes without stalling', () => {
+    const { events } = readCalendar(calendar(['BEGIN:VEVENT', 'UID:j', 'DTSTART:20261106T090000Z', `DESCRIPTION:${'<a'.repeat(500_000)}`, 'END:VEVENT'].join('\r\n')), since);
+    expect(events[0]!.description).toBe('<a'.repeat(2_500));
+  });
 });

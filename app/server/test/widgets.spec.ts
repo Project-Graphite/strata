@@ -29,6 +29,13 @@ describe('parseFeed', () => {
   it('refuses documents that are not feeds', () => {
     expect(() => parseFeed('<html><title>Shop</title></html>')).toThrow('not an RSS or Atom feed');
   });
+
+  it('reads hostile feeds without stalling', () => {
+    expect(parseFeed('<rss>' + '<item'.repeat(400_000)).items).toEqual([]);
+    expect(parseFeed('<rss><title>' + '<a'.repeat(1_000_000) + '</title>').title).toBe('<a'.repeat(1_000_000));
+    expect(parseFeed('<feed><entry>' + '<link'.repeat(400_000) + '</entry></feed>').items).toEqual([]);
+    expect(parseFeed('<rss><item><title>' + '<![CDATA['.repeat(200_000) + '</title></item></rss>').items).toEqual([]);
+  });
 });
 
 describe('the feed address guard', () => {
