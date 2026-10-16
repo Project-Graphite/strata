@@ -2,11 +2,13 @@ import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Hint } from '../components/Hint';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
 import { LoadError } from '../components/LoadError';
+import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { ShareLinks } from '../components/ShareLinks';
@@ -15,7 +17,7 @@ import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundState } from '../components/Empty';
-import { Subheading } from '../components/Page';
+import { Subheading, useDocumentTitle } from '../components/Page';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
@@ -58,6 +60,8 @@ export function NotePage() {
   const setting = useAction();
   const [history, setHistory] = useState(false);
   const [unconverting, setUnconverting] = useState(false);
+  const trashing = useMovePageToTrash((moved) => navigate(moved.kind === 'board' ? '/boards' : '/pages'));
+  useDocumentTitle(note.data && noteTitle(note.data));
 
   if (note.status === 404) {
     return (
@@ -182,6 +186,9 @@ export function NotePage() {
           <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
             History
           </button>
+          {details.editable && (
+            <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => trashing.move(details, children.length) }]} name={noteTitle(details)} />
+          )}
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -323,6 +330,7 @@ export function NotePage() {
         </ConfirmDialog>
       )}
       {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}
+      {trashing.dialog}
     </article>
   );
 }

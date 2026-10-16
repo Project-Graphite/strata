@@ -10,7 +10,7 @@ import { allPushKinds } from '../src/push';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-const user = { id: 'me', email: 'amr@example.com', handle: 'amr', displayName: 'Amr', role: 'member', timeZone: 'Etc/UTC' };
+const user = { id: 'me', email: 'amr@example.com', handle: 'amr', displayName: 'Amr', role: 'member', timeZone: 'Etc/UTC', features: [] };
 const endpoint = 'https://fcm.googleapis.com/fcm/send/device-1';
 
 describe('Notifications on this device', () => {

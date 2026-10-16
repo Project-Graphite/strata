@@ -8,8 +8,10 @@ import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
+import { useDocumentTitle } from '../components/Page';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
+import { noteTitle } from '../notes';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
@@ -66,6 +68,7 @@ export function RsvpPage() {
   const voting = useAction();
   const form = useFormErrors();
   const [unanswered, setUnanswered] = useState(false);
+  useDocumentTitle(invitation.data?.event.title);
 
   if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
   if (!invitation.data) {
@@ -136,6 +139,7 @@ export function SharePage() {
   const answering = useAction();
   const form = useFormErrors();
   const [unanswered, setUnanswered] = useState(false);
+  useDocumentTitle(shared.data && noteTitle(shared.data.item));
 
   if (shared.loading) return <FormPanelSkeleton label="Loading" />;
   if (!shared.data) {

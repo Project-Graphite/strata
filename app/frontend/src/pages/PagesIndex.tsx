@@ -2,10 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, buttonClass, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
+import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { announcePagesChanged, nestedUnder, noteTitle, pagesTabs, type Note } from '../notes';
@@ -31,13 +33,14 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const words = wording[journal ? 'journal' : kind];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const pages = listed.data?.filter((note) => note.journal === journal) ?? [];
+  const trashing = useMovePageToTrash(listed.reload);
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);
     return (parentId ? level.sort((a, b) => a.position - b.position) : level).flatMap((note) => [
-      <li key={note.id}>
+      <li className="flex items-center pe-2 hover:bg-line-soft" key={note.id}>
         <Link
-          className="flex items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft"
+          className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline"
           style={depth ? { paddingInlineStart: `${1 + depth * 1.5}rem` } : undefined}
           to={`/notes/${note.id}`}
         >
@@ -47,6 +50,9 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
             {[spaces.data?.find((space) => space.id === note.spaceId)?.name, timeAgo(note.updatedAt)].filter(Boolean).join(' · ')}
           </span>
         </Link>
+        {writable.some((space) => space.id === note.spaceId) && (
+          <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => trashing.move(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
+        )}
       </li>,
       ...rows(note.id, depth + 1),
     ]);
@@ -109,6 +115,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       ) : (
         <ul className="panel-rows">{rows(null, 0)}</ul>
       )}
+      {trashing.dialog}
     </Page>
   );
 }

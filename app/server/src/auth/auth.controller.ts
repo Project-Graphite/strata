@@ -113,7 +113,7 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @RateLimit('refresh', 60, 900)
+  @RateLimit('refresh', 600, 900, { name: refreshCookie, limit: 20 })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
