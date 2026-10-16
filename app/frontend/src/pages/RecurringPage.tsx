@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spendingTabs } from '../spending';
@@ -54,6 +55,17 @@ export function RecurringPage() {
   const [editing, setEditing] = useState<Subscription | 'new'>();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const opener = (subscription: Subscription) => (editable.some((space) => space.id === subscription.spaceId) ? () => setEditing(subscription) : undefined);
+  const [params, setParams] = useSearchParams();
+  const linked = useResource<Subscription>(params.get('subscription') ? `/subscriptions/${params.get('subscription')}` : null, true);
+  const opened = editing ?? (linked.data && opener(linked.data) ? linked.data : undefined);
+  const close = () => {
+    setEditing(undefined);
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('subscription');
+      return next;
+    });
+  };
 
   return (
     <Page
@@ -68,13 +80,13 @@ export function RecurringPage() {
       title="Spending"
     >
       <Tabs items={spendingTabs('recurring')} label="Spending" />
-      {editing && (
+      {opened && (
         <SubscriptionEditor
-          onClose={() => setEditing(undefined)}
+          onClose={close}
           onSaved={summary.reload}
-          spaceId={editing === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : editing.spaceId}
-          spaces={editing === 'new' ? editable : undefined}
-          subscription={editing === 'new' ? undefined : editing}
+          spaceId={opened === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : opened.spaceId}
+          spaces={opened === 'new' ? editable : undefined}
+          subscription={opened === 'new' ? undefined : opened}
         />
       )}
       {importing && (

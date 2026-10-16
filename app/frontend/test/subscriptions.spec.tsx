@@ -146,6 +146,18 @@ describe('Recurring', () => {
     expect(container.textContent).toContain('Old app');
   });
 
+  it('opens a subscription linked from the agenda or search on the Recurring tab', async () => {
+    serve((path) => {
+      if (path === '/subscriptions/summary') return json({ home: null, totals: [{ currency: 'EUR', yearlyMinor: 11_988, monthlyMinor: 999 }], categories: [], upcoming: [music], trials: [], stillWorthIt: [] });
+      if (path === '/subscriptions/music') return json(music);
+      return undefined;
+    });
+    await render('/recurring?subscription=music');
+
+    expect(container.querySelector('dialog h2')?.textContent).toBe('Edit Music');
+    expect(container.querySelector('nav[aria-label="Spending"] [aria-current="page"]')?.textContent).toBe('Recurring');
+  });
+
   it('fills the category and cancel link for a known service', async () => {
     serve((path) => (path === '/spaces/home/subscriptions' ? json([]) : undefined));
     await render('/spaces/home/recurring');
