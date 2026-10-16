@@ -68,6 +68,11 @@ export class CreateExpenseDto {
   @ValidateIf(nullable)
   @Merchant()
   merchant?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Matches(/^\d{4}$/, { message: 'A card ending is its last 4 digits.' })
+  cardDigits?: string | null;
 }
 
 export class UpdateExpenseDto {

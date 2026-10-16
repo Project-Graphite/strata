@@ -21,6 +21,7 @@ export interface Suggestion {
   amountMinor: number | null;
   currency: string | null;
   merchant: string | null;
+  cardDigits: string | null;
   accountId: string | null;
   availableMinor: number | null;
 }
@@ -72,6 +73,7 @@ export class CaptureService implements OnModuleInit {
       amountMinor: read.amount !== null && currency ? toMinor(read.amount, currency) : null,
       currency,
       merchant: read.merchant,
+      cardDigits: read.cardDigits,
       accountId: account?.id ?? null,
       availableMinor: read.available !== null && account ? toMinor(read.available, account.currency) : null,
     };
@@ -84,7 +86,7 @@ export class CaptureService implements OnModuleInit {
       });
     if (!message) return { status: 'review', expenseId: null };
 
-    const { direction, amountMinor, merchant } = suggestion;
+    const { direction, amountMinor, merchant, cardDigits } = suggestion;
     const category = direction === 'received' ? 'other' : (rule?.category ?? (merchant ? await this.knownCategory(spaceId, merchant) : null));
     if (!direction || !amountMinor || !currency || !category) return { status: 'review', expenseId: null };
     const expenseId = await this.record(userId, message, {
@@ -96,6 +98,7 @@ export class CaptureService implements OnModuleInit {
       direction,
       accountId: suggestion.accountId,
       merchant,
+      cardDigits,
     });
     return { status: 'recorded', expenseId };
   }

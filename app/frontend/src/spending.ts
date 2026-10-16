@@ -63,6 +63,7 @@ export interface Expense {
   source: 'manual' | 'import' | 'sms';
   accountId: string | null;
   toAccountId: string | null;
+  cardDigits: string | null;
   split: CostSplit | null;
   createdAt: string;
   updatedAt: string;
@@ -146,6 +147,7 @@ export interface CapturedMessage {
     amountMinor: number | null;
     currency: string | null;
     merchant: string | null;
+    cardDigits: string | null;
     accountId: string | null;
   };
 }

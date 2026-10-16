@@ -1091,6 +1091,7 @@ model Expense {
   source       String        @default("manual")
   accountId    String?       @map("account_id") @db.Uuid
   toAccountId  String?       @map("to_account_id") @db.Uuid
+  cardDigits   String?       @map("card_digits")
   item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
   account      MoneyAccount? @relation("AccountExpenses", fields: [accountId], references: [id], onDelete: SetNull)
   toAccount    MoneyAccount? @relation("AccountTransfersIn", fields: [toAccountId], references: [id], onDelete: SetNull)

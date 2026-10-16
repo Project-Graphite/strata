@@ -39,17 +39,17 @@ describe('Bank messages from a phone against Postgres', () => {
       sender: 'BanK-AlAhly',
       text: purchase,
       receivedAt: '2026-10-14T10:00:00.000Z',
-      suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', accountId: bank.id, availableMinor: 975_000 },
+      suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
     });
-    const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI' };
+    const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI', cardDigits: '1234' };
     expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
     expect((await withToken(token, 'POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
-    expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Carrefour', source: 'sms', category: 'groceries', accountId: bank.id });
+    expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Carrefour', source: 'sms', category: 'groceries', accountId: bank.id, cardDigits: '1234' });
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(400);
 
     const again = await send('BanK-AlAhly', 'تم خصم 80.00جم من بطاقة الخصم المباشر رقم ****1234 لدى carrefour maadi في 15/10 09:10 المتاح 9,670.00جم');
     expect(again.body.status).toBe('recorded');
-    expect((await owner.call('GET', `/expenses/${again.body.expenseId}`)).body).toMatchObject({ title: 'carrefour maadi', amountMinor: 8000, category: 'groceries', spentOn: '2026-10-14', accountId: bank.id });
+    expect((await owner.call('GET', `/expenses/${again.body.expenseId}`)).body).toMatchObject({ title: 'carrefour maadi', amountMinor: 8000, category: 'groceries', spentOn: '2026-10-14', accountId: bank.id, cardDigits: '1234' });
 
     const topUp = await send('VF-Cash', 'تم استلام مبلغ 500 جنيه من رقم 01012345678 ورصيدك الحالي 650 جنيه');
     expect(topUp.body.status).toBe('recorded');
@@ -64,7 +64,7 @@ describe('Bank messages from a phone against Postgres', () => {
 
     expect((await send('Unknown', 'Your card **9876 was used for USD 12.99 at NETFLIX.COM')).body.status).toBe('review');
     const unknown = (await owner.call('GET', `/spaces/${home.id}/captures`)).body.find((message: { sender: string }) => message.sender === 'Unknown');
-    expect(unknown.suggestion).toMatchObject({ currency: 'USD', amountMinor: 1299, accountId: null });
+    expect(unknown.suggestion).toMatchObject({ currency: 'USD', amountMinor: 1299, cardDigits: '9876', accountId: null });
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(204);
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(400);
     expect((await owner.call('GET', `/spaces/${home.id}/captures`)).body).toEqual([]);

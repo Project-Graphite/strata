@@ -204,6 +204,33 @@ describe('Spending', () => {
     expect(container.textContent).toContain('No budgets yet');
   });
 
+  it('names the card on each transaction, adds up each card and filters by card', async () => {
+    accounts = [account('bank', 'CIB', 'bank', 120000)];
+    const carded = {
+      ...october,
+      expenses: [
+        { ...expense('shop', 'Corner shop', 1500, 'groceries', '2026-10-20'), accountId: 'bank', cardDigits: '1234' },
+        { ...expense('diner', 'Diner', 2000, 'eating out', '2026-10-07'), cardDigits: '9876' },
+        { ...expense('bakery', 'Bakery', 500, 'groceries', '2026-10-06'), accountId: 'bank', cardDigits: '1234' },
+        expense('market', 'Market', 4000, 'groceries', '2026-10-05'),
+      ],
+    };
+    serve((path) => (path === '/spaces/home/spending?month=2026-10' ? json(carded) : undefined));
+    await render('/spending?month=2026-10');
+
+    const byCard = [...container.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === 'By card')!;
+    expect([...byCard.querySelectorAll('dt')].map((label) => label.textContent)).toEqual(['CIB •••• 1234', '•••• 9876']);
+    expect([...byCard.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€20.00', '€20.00']);
+    expect(container.textContent).toContain('CIB •••• 1234');
+
+    await openTab('Transactions');
+    await choose(container, 'Card', '•••• 9876');
+    const titles = () => [...container.querySelectorAll('li button span:first-child')].map((title) => title.textContent);
+    expect(titles()).toEqual(['Diner']);
+    await choose(container, 'Card', 'All cards');
+    expect(titles()).toEqual(['Corner shop', 'Diner', 'Bakery', 'Market']);
+  });
+
   it('lists accounts with balances and records a transfer between them', async () => {
     accounts = [account('bank', 'CIB', 'bank', 120000), account('card', 'Visa', 'credit', -4500)];
     const transfer = { ...expense('move', 'Top up', 5000, 'other', '2026-10-12'), direction: 'transfer', accountId: 'bank', toAccountId: 'card' };

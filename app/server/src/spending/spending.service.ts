@@ -41,6 +41,7 @@ function present(row: ExpenseRow) {
     source: expense.source,
     accountId: expense.accountId,
     toAccountId: expense.toAccountId,
+    cardDigits: expense.cardDigits,
     split: row.costSplit,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -62,6 +63,7 @@ const expenseData = (input: CreateExpenseDto, source: string) => ({
   paymentLabel: input.paymentLabel || null,
   note: input.note ?? '',
   merchant: input.merchant || null,
+  cardDigits: input.cardDigits ?? null,
   source,
   ...movementOf(input),
 });
