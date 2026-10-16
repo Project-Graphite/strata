@@ -24,8 +24,8 @@ export class CalendarController {
   }
 
   @Post('me/calendar-feed')
-  @UseGuards(JwtAuthGuard)
   @RateLimit('calendar-feed-reset', 20, 3_600)
+  @UseGuards(JwtAuthGuard)
   reset(@CurrentUser() user: AuthenticatedUser) {
     return this.feeds.reset(user.id);
   }
@@ -53,16 +53,16 @@ export class CalendarController {
 
   @Post('me/calendars/refresh')
   @Scope('items:read')
-  @UseGuards(JwtAuthGuard)
   @RateLimit('calendars-refresh', 600, 3_600)
+  @UseGuards(JwtAuthGuard)
   refreshMine(@CurrentUser() user: AuthenticatedUser) {
     return this.subscriptions.refreshMine(user.id, new Date());
   }
 
   @Post('spaces/:spaceId/calendars')
   @Scope('items:write')
-  @UseGuards(JwtAuthGuard)
   @RateLimit('calendar-add', 20, 3_600)
+  @UseGuards(JwtAuthGuard)
   add(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: AddCalendarDto) {
     return this.subscriptions.add(user.id, spaceId, input);
   }
@@ -76,8 +76,8 @@ export class CalendarController {
 
   @Post('calendars/:id/refresh')
   @Scope('items:write')
-  @UseGuards(JwtAuthGuard)
   @RateLimit('calendar-refresh', 30, 3_600)
+  @UseGuards(JwtAuthGuard)
   refresh(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.subscriptions.refreshNow(user.id, id);
   }

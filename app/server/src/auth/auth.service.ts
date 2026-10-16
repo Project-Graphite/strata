@@ -446,7 +446,9 @@ export class AuthService implements OnModuleInit {
 
   async reauthenticate(userId: string, proof: Proof) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    await this.attempts.assertAllowed(user.email);
     if (!(await this.passwords.verify(proof.password, user.passwordHash))) {
+      await this.reauthenticationFailed(user, 'password');
       throw new ForbiddenException('Current password is incorrect');
     }
     if (await this.twoStep.enabled(userId)) {
@@ -454,10 +456,16 @@ export class AuthService implements OnModuleInit {
         throw new ForbiddenException('Enter a code from your authenticator app or a recovery code');
       }
       if (!(await this.twoStep.verify(userId, proof.code))) {
+        await this.reauthenticationFailed(user, 'code');
         throw new ForbiddenException('That code is not right');
       }
     }
     return user;
+  }
+
+  private async reauthenticationFailed(user: { id: string; email: string }, reason: 'password' | 'code') {
+    await this.audit.record(user.id, 'sign_in_failed', { reason, confirming: true });
+    await this.attempts.failed(user.email);
   }
 
   private async issueSession(

@@ -36,4 +36,31 @@ describe('AuthController', () => {
       expect.objectContaining({ httpOnly: true, path: '/api/v1/auth', sameSite: 'strict' }),
     );
   });
+
+  it('refuses sign-ins posted from another site', async () => {
+    const auth = {
+      login: vi.fn().mockResolvedValue({ session: { accessToken: 'access', refreshToken: 'next', user: {} } }),
+      completeTwoStep: vi.fn(),
+    };
+    const controller = new AuthController(
+      auth as never,
+      new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example' }),
+    );
+    const request = (origin?: string) => ({ headers: origin ? { origin } : {}, cookies: {} }) as never;
+    const response = { cookie: vi.fn() };
+    const input = { email: 'sam@example.com', password: 'correct horse battery' };
+
+    await expect(controller.login(input, request('https://attacker.example'), response as never)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    await expect(
+      controller.completeTwoStep({ challenge: 'challenge', code: '123456' }, request('https://attacker.example'), response as never),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(auth.login).not.toHaveBeenCalled();
+    expect(auth.completeTwoStep).not.toHaveBeenCalled();
+
+    await controller.login(input, request('https://strata.example'), response as never);
+    await controller.login(input, request(), response as never);
+    expect(auth.login).toHaveBeenCalledTimes(2);
+  });
 });

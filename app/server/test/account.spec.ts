@@ -366,7 +366,7 @@ describe('Account email flows', () => {
   });
 
   it('requires the current password to change the password, email or delete the account', async () => {
-    const { mail, prisma, service } = setup();
+    const { attempts, audit, mail, prisma, service } = setup();
 
     await expect(service.changePassword(user.id, { password: 'wrong' }, 'a brand new password', { hash: 'device-hash', label: 'Firefox on Windows' })).rejects.toBeInstanceOf(
       ForbiddenException,
@@ -375,6 +375,10 @@ describe('Account email flows', () => {
       ForbiddenException,
     );
     await expect(service.deleteAccount(user.id, { password: 'wrong' })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(attempts.assertAllowed).toHaveBeenCalledWith(user.email);
+    expect(attempts.failed).toHaveBeenCalledTimes(3);
+    expect(attempts.failed).toHaveBeenCalledWith(user.email);
+    expect(audit.record).toHaveBeenCalledWith(user.id, 'sign_in_failed', { reason: 'password', confirming: true });
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.user.delete).not.toHaveBeenCalled();
     expect(mail.send).not.toHaveBeenCalled();
