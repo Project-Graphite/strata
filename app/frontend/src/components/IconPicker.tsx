@@ -5,6 +5,7 @@ const icons = ['📝', '📌', '💡', '✅', '📅', '🎯', '📚', '🧠', '�
 export function IconPicker({ icon, onPick }: { icon: string | null; onPick: (icon: string | null) => void }) {
   return (
     <Popover
+      align="start"
       label="Page icon"
       panelClassName="icon-picker"
       trigger={icon ?? '+'}

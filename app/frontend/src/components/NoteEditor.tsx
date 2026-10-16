@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Avatar, Icon, LinesSkeleton, Menu, TextField, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { useEffect, useState } from 'react';
+import { Avatar, Icon, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
@@ -106,30 +106,30 @@ function Toolbar({ actions, editor, onComment }: { actions: BlockActions; editor
       link: current.isActive('link'),
     }),
   });
-  const tools: [ReactNode, string, boolean, () => void][] = [
-    ['B', 'Bold', state.bold, () => editor.chain().focus().toggleBold().run()],
-    ['I', 'Italic', state.italic, () => editor.chain().focus().toggleItalic().run()],
-    ['▮', 'Highlight', state.highlight, () => editor.chain().focus().toggleHighlight().run()],
-    ['H1', 'Heading', state.heading1, () => editor.chain().focus().toggleHeading({ level: 1 }).run()],
-    ['H2', 'Subheading', state.heading2, () => editor.chain().focus().toggleHeading({ level: 2 }).run()],
-    ['•', 'Bulleted list', state.bullets, () => editor.chain().focus().toggleBulletList().run()],
-    ['1.', 'Numbered list', state.numbers, () => editor.chain().focus().toggleOrderedList().run()],
-    ['☐', 'Checklist', state.checklist, () => editor.chain().focus().toggleTaskList().run()],
-    ['“', 'Quote', state.quote, () => editor.chain().focus().toggleBlockquote().run()],
-    ['</>', 'Code block', state.code, () => editor.chain().focus().toggleCodeBlock().run()],
-    [<Icon name="link" size={16} />, 'Link', state.link, () => setLinking(true)],
+  const tools: [IconName, string, boolean, () => void][] = [
+    ['bold', 'Bold', state.bold, () => editor.chain().focus().toggleBold().run()],
+    ['italic', 'Italic', state.italic, () => editor.chain().focus().toggleItalic().run()],
+    ['highlight', 'Highlight', state.highlight, () => editor.chain().focus().toggleHighlight().run()],
+    ['heading-1', 'Heading', state.heading1, () => editor.chain().focus().toggleHeading({ level: 1 }).run()],
+    ['heading-2', 'Subheading', state.heading2, () => editor.chain().focus().toggleHeading({ level: 2 }).run()],
+    ['list', 'Bulleted list', state.bullets, () => editor.chain().focus().toggleBulletList().run()],
+    ['list-ordered', 'Numbered list', state.numbers, () => editor.chain().focus().toggleOrderedList().run()],
+    ['checklist', 'Checklist', state.checklist, () => editor.chain().focus().toggleTaskList().run()],
+    ['quote', 'Quote', state.quote, () => editor.chain().focus().toggleBlockquote().run()],
+    ['code', 'Code block', state.code, () => editor.chain().focus().toggleCodeBlock().run()],
+    ['link', 'Link', state.link, () => setLinking(true)],
   ];
   return (
     <div aria-label="Formatting" className="note-toolbar" role="toolbar">
       <button aria-label="Undo" className="note-tool" onClick={() => editor.chain().focus().undo().run()} title="Undo" type="button">
-        ↶
+        <Icon name="undo" size={16} />
       </button>
       <button aria-label="Redo" className="note-tool" onClick={() => editor.chain().focus().redo().run()} title="Redo" type="button">
-        ↷
+        <Icon name="redo" size={16} />
       </button>
-      {tools.map(([symbol, label, active, run]) => (
+      {tools.map(([icon, label, active, run]) => (
         <button aria-label={label} aria-pressed={active} className="note-tool" key={label} onClick={run} title={label} type="button">
-          {symbol}
+          <Icon name={icon} size={16} />
         </button>
       ))}
       {window.matchMedia('(hover: none)').matches && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
