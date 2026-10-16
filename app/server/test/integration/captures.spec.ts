@@ -22,7 +22,7 @@ describe('Bank messages from a phone against Postgres', () => {
     const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly'] })).body;
     const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP', senders: ['VF-Cash'] })).body;
     const token = (await owner.call('POST', '/me/tokens', { name: 'Phone', scopes: ['spending:capture'], password })).body.token;
-    const send = (from: string, text: string) => withToken(token, 'POST', `/spaces/${home.id}/captures`, { from, text, sentStamp: '', receivedStamp: '1791972000000', sim: 'sim1' });
+    const send = (from: string, text: string) => withToken(token, 'POST', `/spaces/${home.id}/captures`, { from, text, sentStamp: 1791971990000, receivedStamp: 1791972000000, sim: 'sim1' });
 
     expect((await withToken(token, 'GET', `/spaces/${home.id}/spending?month=2026-10`)).status).toBe(403);
     expect((await send('BanK-AlAhly', 'رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد')).body).toEqual({ status: 'ignored', reason: 'code' });

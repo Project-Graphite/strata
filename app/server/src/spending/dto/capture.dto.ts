@@ -1,5 +1,8 @@
+import { Transform } from 'class-transformer';
 import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 import { CurrencyCode } from '../../validation/money.decorators';
+
+const stampText = Transform(({ value }: { value: unknown }) => (typeof value === 'number' ? String(value) : value));
 
 export class CaptureMessageDto {
   @IsString()
@@ -11,10 +14,12 @@ export class CaptureMessageDto {
   text!: string;
 
   @IsOptional()
+  @stampText
   @Matches(/^\d{0,15}$/, { message: 'Times are milliseconds since 1970.' })
   sentStamp?: string;
 
   @IsOptional()
+  @stampText
   @Matches(/^\d{0,15}$/, { message: 'Times are milliseconds since 1970.' })
   receivedStamp?: string;
 
