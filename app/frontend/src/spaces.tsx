@@ -70,7 +70,7 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   if (item.kind === 'trip') return `/trips/${item.id}`;
   if (item.kind === 'task') return `/spaces/${item.spaceId}/tasks`;
   if (item.kind === 'list') return `/spaces/${item.spaceId}/tasks?list=${item.id}`;
-  if (item.kind === 'subscription') return `/spaces/${item.spaceId}/recurring`;
+  if (item.kind === 'subscription') return `/recurring?subscription=${item.id}`;
   return null;
 }
 

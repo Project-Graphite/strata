@@ -150,5 +150,5 @@ export function entryLink(entry: AgendaEntry) {
   if (entry.kind === 'task') return `/spaces/${entry.spaceId}/tasks`;
   if (entry.kind === 'birthday') return `/people/${entry.itemId}`;
   if (entry.kind === 'payment') return `/spending?space=${entry.spaceId}`;
-  return `/spaces/${entry.spaceId}/recurring`;
+  return `/recurring?subscription=${entry.itemId}`;
 }
