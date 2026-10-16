@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly retryAfter?: number,
   ) {
     super(message);
   }
@@ -90,6 +91,7 @@ export async function apiRequest<T>(
     throw new ApiError(
       message ?? statusMessages[response.status] ?? `Something went wrong (error ${response.status}). Try again.`,
       response.status,
+      Number(response.headers.get('Retry-After')) || undefined,
     );
   }
   return (await read(response)) as T;

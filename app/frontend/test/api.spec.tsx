@@ -58,4 +58,10 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/auth/login')).rejects.toMatchObject({ status: 429, message: 'Too many attempts. Wait a minute, then try again.' });
   });
+
+  it('keeps how long a rate-limited client should wait', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 429, headers: { 'Retry-After': '42' } })));
+
+    await expect(apiRequest('/auth/refresh', { method: 'POST' })).rejects.toMatchObject({ status: 429, retryAfter: 42 });
+  });
 });
