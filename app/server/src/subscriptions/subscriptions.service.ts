@@ -412,7 +412,7 @@ export class SubscriptionsService implements OnModuleInit {
     const details = item?.subscription;
     if (!item || !details || item.trashedAt || details.cancelledOn || !item.createdById) return;
     const current = payload.on === 'trial' ? details.trialEndsOn : details.nextRenewal;
-    if (!current || dateText(current) !== payload.date) return;
+    if (!current || dateText(current) !== payload.date || !(await this.access.isMember(item.createdById, item.spaceId))) return;
     const amount = money(details.amountMinor, details.currency);
     await this.inbox.notify(this.prisma, [
       {

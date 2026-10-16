@@ -157,4 +157,22 @@ describe('Tasks against Postgres', () => {
     await owner.call('POST', `/tasks/${task.id}/complete`);
     expect(await reminders()).toEqual([]);
   });
+
+  it('stops reminding someone who has left the space', async () => {
+    const owner = await member('hall-booker');
+    const helper = await member('stall-helper');
+    const space = (await owner.call('POST', '/spaces', { name: 'Fair' })).body;
+    await strata.join(space.id, helper, SpaceRole.EDITOR);
+    const task = (
+      await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Book the hall', dueDate: utcDate(2), dueTime: '10:00', reminderMinutes: 60 })
+    ).body;
+    expect((await owner.call('PATCH', `/tasks/${task.id}`, { assigneeId: helper.id })).status).toBe(200);
+    expect((await owner.call('DELETE', `/spaces/${space.id}/members/${helper.id}`)).status).toBe(204);
+
+    const [reminder] = await strata.prisma.scheduledJob.findMany({
+      where: { kind: 'task.reminder', doneAt: null, failedAt: null, payload: { path: ['itemId'], equals: task.id } },
+    });
+    await strata.service(JobsService).runDue(new Date(reminder!.runAt.getTime() + 1_000));
+    expect((await helper.call('GET', '/me/inbox')).body.results.map((notice: { kind: string }) => notice.kind)).not.toContain('task_due');
+  });
 });

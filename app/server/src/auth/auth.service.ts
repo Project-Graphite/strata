@@ -436,10 +436,13 @@ export class AuthService implements OnModuleInit {
       );
     }
     await this.reauthenticate(userId, proof);
+    const revokedAt = new Date();
     await this.prisma.$transaction([
       this.prisma.space.deleteMany({
         where: { id: { in: owned.filter((space) => space.members.length === 0).map((space) => space.id) } },
       }),
+      this.prisma.shareLink.updateMany({ where: { createdById: userId, revokedAt: null }, data: { revokedAt } }),
+      this.prisma.invitation.updateMany({ where: { inviterId: userId, revokedAt: null }, data: { revokedAt } }),
       this.prisma.user.delete({ where: { id: userId } }),
     ]);
   }
