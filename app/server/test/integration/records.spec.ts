@@ -121,6 +121,25 @@ describe('Activity, the security log, the inbox and background work against Post
     await strata.prisma.scheduledJob.deleteMany({ where: { id: { in: [ok.id, later.id, failing.id] } } });
   });
 
+  it('runs jobs registered to run last only after every other due job', async () => {
+    const jobs = strata.service(JobsService);
+    const ran: string[] = [];
+    jobs.handle('integration.first', async () => {
+      ran.push('first');
+    });
+    jobs.handle('integration.last', async () => {
+      ran.push('last');
+    }, { runLast: true });
+    const now = new Date();
+    const last = await Promise.all(Array.from({ length: 25 }, (_, index) => jobs.schedule('integration.last', new Date(now.getTime() - 60_000 + index))));
+    const first = await jobs.schedule('integration.first', new Date(now.getTime() - 1_000));
+
+    await jobs.runDue(now);
+    expect(ran.filter((kind) => kind === 'first')).toEqual(['first']);
+    expect(ran).toHaveLength(20);
+    await strata.prisma.scheduledJob.deleteMany({ where: { id: { in: [first.id, ...last.map((job) => job.id)] } } });
+  });
+
   it('empties the trash after 30 days and keeps newer items', async () => {
     const owner = await member('tidier');
     const old = await strata.item(owner.personalSpaceId, 'Old');

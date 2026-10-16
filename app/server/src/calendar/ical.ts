@@ -16,7 +16,7 @@ export interface FeedEvent {
   };
 }
 
-const escapeText = (text: string) => text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const escapeText = (text: string) => text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
 const compactDate = (date: Date) => dateText(date).replaceAll('-', '');
 const clock = (time: string) => `${time.replace(':', '')}00`;
 
