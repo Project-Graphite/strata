@@ -99,11 +99,8 @@ function swapWithNeighbour(widgets: PlacedWidget[], id: string, step: -1 | 1) {
   );
 }
 
-const wallRefreshMs = 5 * 60_000;
-
 function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
   const navigate = useNavigate();
-  const [round, setRound] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const [mayDim, setMayDim] = useState(false);
   const backdrop = useBackdrop(dashboard.layout.background);
@@ -127,13 +124,11 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
     const leave = (event: KeyboardEvent) => {
       if (event.key === 'Escape') navigate(`/?d=${dashboard.id}`);
     };
-    const refresh = setInterval(() => setRound((current) => current + 1), wallRefreshMs);
     const tick = setInterval(() => setNow(new Date()), 15_000);
     keepAwake();
     document.addEventListener('visibilitychange', keepAwake);
     window.addEventListener('keydown', leave);
     return () => {
-      clearInterval(refresh);
       clearInterval(tick);
       document.removeEventListener('visibilitychange', keepAwake);
       window.removeEventListener('keydown', leave);
@@ -159,7 +154,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
             return (
               <>
                 {!widget.hideTitle && <Subheading level={2}>{cardTitle(widget)}</Subheading>}
-                <WidgetBoundary key={widget.type === 'focus' || widget.type === 'capture' ? 'kept' : round}>
+                <WidgetBoundary>
                   <kind.View settings={widget.settings} />
                 </WidgetBoundary>
               </>
@@ -177,7 +172,7 @@ export function DashboardHome() {
   const auth = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const dashboards = useResource<Dashboard[]>('/me/dashboards', true);
+  const dashboards = useResource<Dashboard[]>('/me/dashboards', true, { live: ['dashboards'] });
   const saving = useAction();
   const spaces = useSpaces();
   const wide = useWide();

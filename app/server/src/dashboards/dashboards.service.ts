@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDashboardDto, LayoutDto, templates, UpdateDashboardDto, WidgetDto, widgetTypes } from './dto/dashboards.dto';
 
@@ -146,7 +147,10 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
 
 @Injectable()
 export class DashboardsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly changes: ChangesService,
+  ) {}
 
   async list(userId: string) {
     const dashboards = await this.prisma.dashboard.findMany({
@@ -168,7 +172,7 @@ export class DashboardsService {
     if (count >= maxDashboards) {
       throw new ConflictException(`You can have ${maxDashboards} dashboards. Delete one you no longer use.`);
     }
-    return this.prisma.dashboard.create({
+    const dashboard = await this.prisma.dashboard.create({
       data: {
         userId,
         name: input.name,
@@ -177,6 +181,8 @@ export class DashboardsService {
       },
       select: dashboardFields,
     });
+    this.changes.notify('dashboards', { userId });
+    return dashboard;
   }
 
   async update(userId: string, dashboardId: string, input: UpdateDashboardDto) {
@@ -198,6 +204,7 @@ export class DashboardsService {
       select: dashboardFields,
     });
     if (!updated) throw new NotFoundException('Dashboard not found');
+    this.changes.notify('dashboards', { userId });
     return withKnownWidgets(updated);
   }
 
@@ -209,5 +216,6 @@ export class DashboardsService {
       throw new BadRequestException('Keep at least one dashboard');
     }
     await this.prisma.dashboard.deleteMany({ where: { id: dashboardId, userId } });
+    this.changes.notify('dashboards', { userId });
   }
 }

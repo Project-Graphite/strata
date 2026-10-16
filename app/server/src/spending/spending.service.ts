@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService, fractionDigits } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -77,6 +78,7 @@ export class SpendingService {
     private readonly rates: ExchangeRatesService,
     private readonly categories: CategoriesService,
     private readonly inbox: InboxService,
+    private readonly changes: ChangesService,
   ) {}
 
   async month(userId: string, spaceId: string, month?: string) {
@@ -88,6 +90,7 @@ export class SpendingService {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if ((input.budgetMinor === null) !== (input.currency === null)) throw new BadRequestException('Give the monthly budget an amount and a currency');
     const plan = await this.prisma.spendingPlan.upsert({ where: { spaceId }, create: { spaceId, ...input }, update: input });
+    this.changes.notify('spending', { spaceId });
     return { budgetMinor: plan.budgetMinor, currency: plan.currency, startDay: plan.startDay, rollover: plan.rollover };
   }
 
@@ -384,6 +387,7 @@ export class SpendingService {
       create: { spaceId, category, amountMinor: input.amountMinor, currency: input.currency },
       update: { amountMinor: input.amountMinor, currency: input.currency },
     });
+    this.changes.notify('spending', { spaceId });
     return { category: budget.category, amountMinor: budget.amountMinor, currency: budget.currency };
   }
 
@@ -391,6 +395,7 @@ export class SpendingService {
     await this.access.assertSpace(userId, spaceId, 'edit');
     const removed = await this.prisma.budget.deleteMany({ where: { spaceId, category } });
     if (removed.count === 0) throw new NotFoundException('There is no budget for that category');
+    this.changes.notify('spending', { spaceId });
   }
 
   private async checkAccounts(spaceId: string, movements: Movement[]) {

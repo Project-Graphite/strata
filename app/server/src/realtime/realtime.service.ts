@@ -11,6 +11,7 @@ import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
+import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash } from '../crypto/link-token';
 import { boardElementsKey, documentLinks, documentText, pageKinds } from '../notes/document-text';
 import { PrismaService } from '../prisma/prisma.service';
@@ -58,6 +59,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     private readonly access: AccessService,
     private readonly jwt: JwtService,
     private readonly sessions: JwtStrategy,
+    private readonly changes: ChangesService,
     config: ConfigService,
   ) {
     this.trustedOrigins = config.get<string>('AUTH_TRUSTED_ORIGINS')?.split(',') ?? [];
@@ -93,7 +95,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
           for (const connection of document.getConnections()) connection.close({ code: 4413, reason: 'This page is too large' });
           return;
         }
-        await this.prisma.$transaction([
+        const [, , item] = await this.prisma.$transaction([
           this.prisma.noteDocument.upsert({
             where: { itemId: documentName },
             create: { itemId: documentName, state: Buffer.from(state) },
@@ -105,6 +107,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
             data: { updatedById: lastContext?.userId ?? undefined, updatedAt: new Date() },
           }),
         ]);
+        this.changes.notify('pages', { spaceId: item.spaceId });
         if (lastContext?.userId) await this.syncLinks(documentName, document, lastContext.userId);
         await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },

@@ -3,6 +3,7 @@ import { ItemKind, Prisma, SpaceRole } from '@prisma/client';
 import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { valueMap } from './database';
@@ -49,6 +50,7 @@ export class NotesService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
     private readonly realtime: RealtimeService,
   ) {}
 
@@ -211,6 +213,7 @@ export class NotesService {
       }
       return item;
     });
+    this.changes.notify('pages', { spaceId: found.spaceId });
     return present(updated);
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const pollIntervalMs = 30_000;
@@ -24,7 +25,10 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly changes: ChangesService,
+  ) {}
 
   onModuleInit() {
     this.timer = setInterval(() => void this.runDue(), pollIntervalMs);
@@ -86,7 +90,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
       if (!handler) {
         throw new Error(`No handler is registered for ${job.kind} jobs`);
       }
-      await handler(job.payload);
+      await this.changes.afterWork(() => handler(job.payload));
       await this.prisma.scheduledJob.update({ where: { id: job.id }, data: { doneAt: new Date(), lastError: null } });
     } catch (error) {
       const lastError = error instanceof Error ? error.message : 'Unknown error';

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InstallmentPlan } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ChangesService } from '../changes/changes.service';
 import { fractionDigits } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
@@ -56,6 +57,7 @@ export class InstallmentsService implements OnModuleInit {
     private readonly accounts: AccountsService,
     private readonly inbox: InboxService,
     private readonly maintenance: MaintenanceScheduler,
+    private readonly changes: ChangesService,
   ) {}
 
   onModuleInit() {
@@ -75,6 +77,7 @@ export class InstallmentsService implements OnModuleInit {
     const plan = await this.prisma.installmentPlan.create({
       data: { spaceId, ...input, firstDueOn: dateValue(input.firstDueOn), accountId: input.accountId ?? null },
     });
+    this.changes.notify('spending', { spaceId });
     return present(plan, await this.today(userId));
   }
 
@@ -86,17 +89,22 @@ export class InstallmentsService implements OnModuleInit {
       where: { id },
       data: { ...input, firstDueOn: input.firstDueOn ? dateValue(input.firstDueOn) : undefined },
     });
+    this.changes.notify('spending', { spaceId: plan.spaceId });
     return present(updated, await this.today(userId));
   }
 
   async paid(userId: string, id: string) {
     const plan = await this.find(userId, id);
     if (plan.paidCount >= plan.count) throw new BadRequestException('Every payment is already marked paid');
-    return present(await this.prisma.installmentPlan.update({ where: { id }, data: { paidCount: { increment: 1 } } }), await this.today(userId));
+    const updated = await this.prisma.installmentPlan.update({ where: { id }, data: { paidCount: { increment: 1 } } });
+    this.changes.notify('spending', { spaceId: plan.spaceId });
+    return present(updated, await this.today(userId));
   }
 
   async remove(userId: string, id: string) {
-    await this.prisma.installmentPlan.delete({ where: { id: (await this.find(userId, id)).id } });
+    const plan = await this.find(userId, id);
+    await this.prisma.installmentPlan.delete({ where: { id: plan.id } });
+    this.changes.notify('spending', { spaceId: plan.spaceId });
   }
 
   async remind(now: Date) {

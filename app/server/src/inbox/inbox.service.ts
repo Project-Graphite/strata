@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { InboxEntry } from './inbox-kinds';
 import { PushService } from './push.service';
@@ -33,11 +34,13 @@ export class InboxService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly changes: ChangesService,
   ) {}
 
   async notify(client: Prisma.TransactionClient, entries: InboxEntry[]) {
     await client.inboxNotification.createMany({ data: entries });
     await this.push.queue(client, entries);
+    for (const userId of new Set(entries.map((entry) => entry.userId))) this.changes.notify('inbox', { userId });
   }
 
   async list(userId: string, page: number) {
@@ -71,9 +74,11 @@ export class InboxService {
     if (!count) {
       throw new NotFoundException('Notification not found');
     }
+    this.changes.notify('inbox', { userId });
   }
 
   async readAll(userId: string) {
     await this.prisma.inboxNotification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
+    this.changes.notify('inbox', { userId });
   }
 }

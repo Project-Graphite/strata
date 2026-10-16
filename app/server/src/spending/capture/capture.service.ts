@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from
 import { CapturedMessage, MoneyAccount, Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { AccessService } from '../../access/access.service';
+import { ChangesService } from '../../changes/changes.service';
 import { SecretBox } from '../../crypto/secret-box.service';
 import { fractionDigits } from '../../exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../jobs/maintenance.scheduler';
@@ -44,6 +45,7 @@ export class CaptureService implements OnModuleInit {
     private readonly box: SecretBox,
     private readonly spending: SpendingService,
     private readonly maintenance: MaintenanceScheduler,
+    private readonly changes: ChangesService,
   ) {}
 
   onModuleInit() {
@@ -85,6 +87,7 @@ export class CaptureService implements OnModuleInit {
         throw error;
       });
     if (!message) return { status: 'review', expenseId: null };
+    this.changes.notify('spending', { spaceId });
 
     const { direction, amountMinor, merchant, cardDigits } = suggestion;
     const category = direction === 'received' ? 'other' : (rule?.category ?? (merchant ? await this.knownCategory(spaceId, merchant) : null));
@@ -115,7 +118,9 @@ export class CaptureService implements OnModuleInit {
   }
 
   async ignore(userId: string, id: string) {
-    await this.prisma.capturedMessage.update({ where: { id: (await this.waiting(userId, id)).id }, data: { status: 'ignored' } });
+    const message = await this.waiting(userId, id);
+    await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'ignored' } });
+    this.changes.notify('spending', { spaceId: message.spaceId });
   }
 
   private async waiting(userId: string, id: string) {
@@ -131,6 +136,7 @@ export class CaptureService implements OnModuleInit {
     await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'recorded', expenseId } });
     const { accountId, availableMinor } = message.suggestion as unknown as Suggestion;
     if (availableMinor !== null && accountId && input.accountId === accountId) await this.reportBalance(accountId, availableMinor);
+    this.changes.notify('spending', { spaceId: message.spaceId });
     return expenseId;
   }
 

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from
 import { GuestResponse, ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
@@ -108,6 +109,7 @@ export class EventsService implements OnModuleInit {
     private readonly inbox: InboxService,
     private readonly jobs: JobsService,
     private readonly mail: MailService,
+    private readonly changes: ChangesService,
   ) {}
 
   onModuleInit() {
@@ -217,6 +219,7 @@ export class EventsService implements OnModuleInit {
       }
       await this.reschedule(transaction, itemId, new Date());
     });
+    this.changes.notify('items', { spaceId: current.spaceId });
     return this.get(userId, itemId);
   }
 

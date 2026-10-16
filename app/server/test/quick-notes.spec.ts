@@ -23,7 +23,7 @@ function setup(quick: boolean) {
     assertItem: vi.fn().mockResolvedValue({ id: 'jot', spaceId: 'home', title: 'Jot', trashedAt: null, role: 'EDITOR' }),
     spacesOf: vi.fn().mockReturnValue({ members: { some: { userId: 'me' } } }),
   };
-  const notes = new NotesService(prisma as never, access as never, {} as never, {} as never);
+  const notes = new NotesService(prisma as never, access as never, {} as never, { notify: vi.fn() } as never, {} as never);
   return { prisma, notes, databases: new NoteDatabasesService(prisma as never, notes) };
 }
 

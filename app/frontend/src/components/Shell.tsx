@@ -11,6 +11,7 @@ import {
   useCommandShortcut,
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
+import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
 import { InboxContext, unreadBadge } from '../inbox';
 import { enabledFeatures } from '../features';
@@ -68,7 +69,6 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
-  const { reload: checkInbox } = inbox;
   const unread = inbox.data?.unread ?? 0;
   const [searching, setSearching] = useState(false);
   const [expectSession] = useState(hadSession);
@@ -80,11 +80,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
     if (auth.ready) rememberSession(signedIn);
   }, [auth.ready, signedIn]);
 
-  useEffect(() => {
-    if (!auth.user) return;
-    const timer = setInterval(checkInbox, 60_000);
-    return () => clearInterval(timer);
-  }, [auth.user, checkInbox]);
+  useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
   const tabs: ShellTab[] = [
     { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
@@ -166,7 +162,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
 
 export function Shell() {
   const spaces = useResource<Space[]>('/spaces', true);
-  const inbox = useResource<{ unread: number }>('/me/inbox/summary', true);
+  const inbox = useResource<{ unread: number }>('/me/inbox/summary', true, { live: ['inbox'] });
 
   return (
     <SpacesContext.Provider value={spaces}>

@@ -3,9 +3,11 @@ import { errorMessage, formatDay, ListSkeleton, Select, timeAgo } from '@project
 import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { useResource } from '../useResource';
+import { useLiveRefresh, useResource } from '../useResource';
 import { type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
+
+const outsideRefresh = { every: 15 * 60_000 };
 
 interface Place {
   name: string;
@@ -50,7 +52,7 @@ function placeOf(settings: Record<string, unknown>) {
 export function Weather({ settings }: WidgetProps) {
   const place = placeOf(settings);
   const unit = settings.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
-  const forecast = useResource<Forecast>(place ? `/widgets/weather?latitude=${place.latitude}&longitude=${place.longitude}&unit=${unit}` : null, true);
+  const forecast = useResource<Forecast>(place ? `/widgets/weather?latitude=${place.latitude}&longitude=${place.longitude}&unit=${unit}` : null, true, outsideRefresh);
 
   if (!place) return <Hint>Choose a place in this widget's settings.</Hint>;
   if (forecast.error) return <LoadError compact error={forecast.error} onRetry={forecast.reload} />;
@@ -201,6 +203,8 @@ export function News({ settings }: WidgetProps) {
   const count = typeof settings.count === 'number' ? settings.count : 5;
   const key = feeds.join('\n');
   const [loaded, setLoaded] = useState<{ key: string; stories: Story[]; failed: number }>();
+  const [version, setVersion] = useState(0);
+  useLiveRefresh(() => setVersion((current) => current + 1), outsideRefresh);
 
   useEffect(() => {
     if (!key) return;
@@ -220,7 +224,7 @@ export function News({ settings }: WidgetProps) {
       setLoaded({ key, stories, failed: results.filter((result) => result.status === 'rejected').length });
     });
     return () => controller.abort();
-  }, [key, request]);
+  }, [key, request, version]);
 
   if (feeds.length === 0) return <Hint>Add feed addresses in this widget's settings.</Hint>;
   if (loaded?.key !== key) return <ListSkeleton label="Loading the news" rows={3} />;

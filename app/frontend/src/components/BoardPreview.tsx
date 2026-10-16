@@ -3,6 +3,7 @@ import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import { Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { useLiveRefresh } from '../useResource';
 import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 
@@ -48,10 +49,12 @@ function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; labe
   );
 }
 
-export function BoardPreview({ boardId, label }: { boardId: string; label: string }) {
+export function BoardPreview({ boardId, label, live = false }: { boardId: string; label: string; live?: boolean }) {
   const auth = useAuth();
   const [elements, setElements] = useState<ExcalidrawElement[]>();
   const [failed, setFailed] = useState(false);
+  const [version, setVersion] = useState(0);
+  useLiveRefresh(() => setVersion((current) => current + 1), live ? { live: ['pages'] } : undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +65,7 @@ export function BoardPreview({ boardId, label }: { boardId: string; label: strin
     return () => {
       cancelled = true;
     };
-  }, [auth.request, boardId]);
+  }, [auth.request, boardId, version]);
 
   if (failed) {
     return (

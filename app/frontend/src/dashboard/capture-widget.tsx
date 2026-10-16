@@ -14,7 +14,7 @@ import { PageLinks } from './widget-parts';
 export function Capture() {
   const auth = useAuth();
   const spaces = useSpaces();
-  const notes = useResource<Note[]>('/me/notes?kind=quick', true);
+  const notes = useResource<Note[]>('/me/notes?kind=quick', true, { live: ['items', 'pages'] });
   const saving = useAction();
   const [text, setText] = useState('');
   const [spaceId, setSpaceId] = useState('');

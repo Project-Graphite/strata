@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ChangesService, type Topic } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const pageSize = 50;
+
+const verbTopics: Record<string, Topic> = { task: 'tasks', subscription: 'subscriptions', space: 'spaces', member: 'spaces' };
 
 export const activityVerbs = [
   'space.updated',
@@ -61,9 +64,11 @@ export class ActivityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly changes: ChangesService,
   ) {}
 
   record(client: Prisma.TransactionClient, entry: ActivityEntry) {
+    this.changes.notify(verbTopics[entry.verb.split('.')[0]!] ?? 'items', { spaceId: entry.spaceId });
     return client.activityEvent.create({ data: { ...entry, data: entry.data ?? {} } });
   }
 

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { fetchPublic } from '../widgets/safe-fetch';
 import { articleBlocks, articleText } from './article';
@@ -37,6 +38,7 @@ export class BookmarksService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
   ) {}
 
   async create(userId: string, spaceId: string, input: CreateBookmarkDto) {
@@ -85,8 +87,9 @@ export class BookmarksService {
   }
 
   async markRead(userId: string, itemId: string, read: boolean) {
-    await this.editable(userId, itemId);
+    const { spaceId } = await this.editable(userId, itemId);
     await this.prisma.bookmark.update({ where: { itemId }, data: { readAt: read ? new Date() : null } });
+    this.changes.notify('items', { spaceId });
     return this.get(userId, itemId);
   }
 
@@ -130,6 +133,6 @@ export class BookmarksService {
     if (found.trashedAt) throw new BadRequestException('Restore this bookmark from the trash before changing it');
     const details = await this.prisma.bookmark.findUnique({ where: { itemId }, select: { url: true } });
     if (!details) throw new NotFoundException('That item is not a bookmark');
-    return details;
+    return { ...details, spaceId: found.spaceId };
   }
 }

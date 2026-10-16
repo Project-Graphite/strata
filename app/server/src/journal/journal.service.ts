@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { ChangesService } from '../changes/changes.service';
 import { NotesService } from '../notes/notes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, localDate } from '../recurrence/dates';
@@ -10,6 +11,7 @@ export class JournalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notes: NotesService,
+    private readonly changes: ChangesService,
   ) {}
 
   async year(userId: string, year: number | undefined) {
@@ -37,6 +39,7 @@ export class JournalService {
     const parent = await this.journalPage(userId, space.id);
     const note = await this.notes.create(userId, space.id, { title: longDate.format(entry.day), parentId: parent.id });
     await this.prisma.journalEntry.createMany({ data: [entry], skipDuplicates: true });
+    this.changes.notify('journal', { userId });
     const claimed = await this.prisma.journalEntry.updateMany({
       where: { ...entry, OR: [{ noteId: null }, { note: { trashedAt: { not: null } } }] },
       data: { noteId: note.id },
@@ -54,6 +57,7 @@ export class JournalService {
     const key = { userId_day: { userId, day: dateValue(day) } };
     const entry = await this.prisma.journalEntry.upsert({ where: key, create: { userId, day: dateValue(day), mood }, update: { mood }, select: { noteId: true } });
     if (mood === null && !entry.noteId) await this.prisma.journalEntry.deleteMany({ where: { userId, day: dateValue(day) } });
+    this.changes.notify('journal', { userId });
     return { day, mood };
   }
 

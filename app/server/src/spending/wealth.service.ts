@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Asset, SavingsGoal } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue } from '../recurrence/dates';
@@ -28,6 +29,7 @@ export class WealthService {
     private readonly access: AccessService,
     private readonly accounts: AccountsService,
     private readonly rates: ExchangeRatesService,
+    private readonly changes: ChangesService,
   ) {}
 
   async goals(userId: string, spaceId: string) {
@@ -39,6 +41,7 @@ export class WealthService {
     await this.access.assertSpace(userId, spaceId, 'edit');
     await this.assertAccount(spaceId, input.accountId);
     const goal = await this.prisma.savingsGoal.create({ data: { spaceId, ...input, dueOn: optionalDay(input.dueOn), accountId: input.accountId ?? null } });
+    this.changes.notify('spending', { spaceId });
     return (await this.present([goal]))[0]!;
   }
 
@@ -46,6 +49,7 @@ export class WealthService {
     const goal = await this.goal(userId, id);
     await this.assertAccount(goal.spaceId, input.accountId);
     const updated = await this.prisma.savingsGoal.update({ where: { id }, data: { ...input, dueOn: optionalDay(input.dueOn) } });
+    this.changes.notify('spending', { spaceId: goal.spaceId });
     return (await this.present([updated]))[0]!;
   }
 
@@ -54,11 +58,14 @@ export class WealthService {
     if (goal.accountId) throw new BadRequestException('This goal follows its account balance');
     if (goal.savedMinor + input.amountMinor < 0) throw new BadRequestException('A goal cannot go below zero');
     const updated = await this.prisma.savingsGoal.update({ where: { id }, data: { savedMinor: { increment: input.amountMinor } } });
+    this.changes.notify('spending', { spaceId: goal.spaceId });
     return (await this.present([updated]))[0]!;
   }
 
   async removeGoal(userId: string, id: string) {
-    await this.prisma.savingsGoal.delete({ where: { id: (await this.goal(userId, id)).id } });
+    const goal = await this.goal(userId, id);
+    await this.prisma.savingsGoal.delete({ where: { id: goal.id } });
+    this.changes.notify('spending', { spaceId: goal.spaceId });
   }
 
   async netWorth(userId: string, spaceId: string) {
@@ -95,16 +102,22 @@ export class WealthService {
 
   async createAsset(userId: string, spaceId: string, input: CreateAssetDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
-    return presentAsset(await this.prisma.asset.create({ data: { spaceId, ...input, maturesOn: optionalDay(input.maturesOn) } }));
+    const asset = await this.prisma.asset.create({ data: { spaceId, ...input, maturesOn: optionalDay(input.maturesOn) } });
+    this.changes.notify('spending', { spaceId });
+    return presentAsset(asset);
   }
 
   async updateAsset(userId: string, id: string, input: UpdateAssetDto) {
-    await this.asset(userId, id);
-    return presentAsset(await this.prisma.asset.update({ where: { id }, data: { ...input, maturesOn: optionalDay(input.maturesOn) } }));
+    const asset = await this.asset(userId, id);
+    const updated = await this.prisma.asset.update({ where: { id }, data: { ...input, maturesOn: optionalDay(input.maturesOn) } });
+    this.changes.notify('spending', { spaceId: asset.spaceId });
+    return presentAsset(updated);
   }
 
   async removeAsset(userId: string, id: string) {
-    await this.prisma.asset.delete({ where: { id: (await this.asset(userId, id)).id } });
+    const asset = await this.asset(userId, id);
+    await this.prisma.asset.delete({ where: { id: asset.id } });
+    this.changes.notify('spending', { spaceId: asset.spaceId });
   }
 
   private async present(goals: SavingsGoal[]) {

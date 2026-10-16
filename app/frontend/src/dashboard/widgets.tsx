@@ -117,7 +117,7 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
-  const tasks = useResource<Task[] | Page<Task>>(path, true);
+  const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
   const action = useAction();
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data) return <ListSkeleton label="Loading tasks" rows={3} />;
@@ -292,6 +292,7 @@ function Recurring() {
   const summary = useResource<{ totals: { currency: string; monthlyMinor: number }[]; upcoming: Subscription[] }>(
     '/subscriptions/summary',
     true,
+    { live: ['subscriptions', 'items'] },
   );
   if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
   if (!summary.data) return <ListSkeleton label="Adding up your subscriptions" rows={3} />;
@@ -322,7 +323,7 @@ function Recurring() {
 }
 
 function Inbox() {
-  const notifications = useResource<Page<InboxNotification>>('/me/inbox?page=1', true);
+  const notifications = useResource<Page<InboxNotification>>('/me/inbox?page=1', true, { live: ['inbox'] });
   if (notifications.error) return <LoadError compact error={notifications.error} onRetry={notifications.reload} />;
   if (!notifications.data) return <ListSkeleton label="Loading your inbox" rows={3} />;
   const unread = notifications.data.results.filter((notification) => !notification.read).slice(0, 5);
@@ -475,7 +476,7 @@ interface TidyScanSummary {
 }
 
 function Habits() {
-  const habits = useResource<Habit[]>('/me/habits', true);
+  const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) return <ListSkeleton label="Loading your habits" rows={3} />;
   if (habits.data.length === 0) return <Hint>No habits yet. Add them in a space’s Habits tab.</Hint>;
@@ -495,7 +496,7 @@ function Board({ settings }: WidgetProps) {
   if (!boardId) return <Hint>Choose a board in this widget's settings.</Hint>;
   return (
     <Link className="block no-underline" to={`/notes/${boardId}`}>
-      <BoardPreview boardId={boardId} key={boardId} label="Board preview" />
+      <BoardPreview boardId={boardId} key={boardId} label="Board preview" live />
     </Link>
   );
 }
@@ -515,7 +516,7 @@ function BoardSettings({ onChange, settings }: SettingsProps) {
 }
 
 function Pages() {
-  const pages = useResource<{ pinned: Note[]; recent: Note[] }>('/me/pages', true);
+  const pages = useResource<{ pinned: Note[]; recent: Note[] }>('/me/pages', true, { live: ['items', 'pages'] });
   if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
   if (!pages.data) return <ListSkeleton label="Loading your pages" rows={4} />;
   const { pinned, recent } = pages.data;
@@ -529,7 +530,7 @@ function Pages() {
 }
 
 function ReadLater() {
-  const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true);
+  const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true, { live: ['items'] });
   if (bookmarks.error) return <LoadError compact error={bookmarks.error} onRetry={bookmarks.reload} />;
   if (!bookmarks.data) return <ListSkeleton label="Loading your reading list" rows={3} />;
   if (bookmarks.data.length === 0) return <Hint>Nothing to read later. Save links on the Bookmarks page.</Hint>;
@@ -550,8 +551,8 @@ function ReadLater() {
 }
 
 function Tidy() {
-  const scan = useResource<TidyScanSummary>('/tidy/scan', true);
-  const history = useResource<{ createdAt: string }[]>('/tidy/history', true);
+  const scan = useResource<TidyScanSummary>('/tidy/scan', true, { live: ['items', 'subscriptions'] });
+  const history = useResource<{ createdAt: string }[]>('/tidy/history', true, { live: ['items', 'subscriptions'] });
   if (scan.error) return <LoadError compact error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={2} />;
   const { files, subscriptions } = scan.data;

@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, localDate } from '../recurrence/dates';
 import { CreateHabitDto, UpdateHabitDto } from './dto/habits.dto';
@@ -17,6 +18,7 @@ export class HabitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly changes: ChangesService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -39,18 +41,21 @@ export class HabitsService {
     const count = await this.prisma.habit.count({ where: { spaceId } });
     if (count >= maxHabits) throw new ConflictException(`A space can track ${maxHabits} habits. Delete one you no longer keep.`);
     const habit = await this.prisma.habit.create({ data: { spaceId, name: input.name, perWeek: input.perWeek ?? 7, position: count }, select: habitFields });
+    this.changes.notify('habits', { spaceId });
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
   async update(userId: string, habitId: string, input: UpdateHabitDto) {
     await this.habit(userId, habitId, 'edit');
     const habit = await this.prisma.habit.update({ where: { id: habitId }, data: { name: input.name, perWeek: input.perWeek }, select: habitFields });
+    this.changes.notify('habits', { spaceId: habit.spaceId });
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
   async remove(userId: string, habitId: string) {
-    await this.habit(userId, habitId, 'edit');
+    const { spaceId } = await this.habit(userId, habitId, 'edit');
     await this.prisma.habit.deleteMany({ where: { id: habitId } });
+    this.changes.notify('habits', { spaceId });
   }
 
   async checkIn(userId: string, habitId: string, day: string, done: boolean) {
@@ -63,6 +68,7 @@ export class HabitsService {
     } else {
       await this.prisma.habitCheckIn.deleteMany({ where: key });
     }
+    this.changes.notify('habits', { userId });
     return (await this.withStats(userId, [habit]))[0]!;
   }
 

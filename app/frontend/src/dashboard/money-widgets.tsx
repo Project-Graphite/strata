@@ -24,7 +24,7 @@ function nextCardDue(dueDay: number) {
 
 export function SpendingWidget() {
   const spaceId = usePersonalSpace();
-  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending` : null, true);
+  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending` : null, true, { live: ['spending', 'items'] });
   if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
   if (!summary.data) return <ListSkeleton label="Adding up the month" rows={3} />;
   const { budgetMinor, currency, expenses, safeDailyMinor, spentMinor } = summary.data;
@@ -52,8 +52,8 @@ export function SpendingWidget() {
 
 export function PaymentsWidget() {
   const spaceId = usePersonalSpace();
-  const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true);
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true, { live: ['spending'] });
+  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, { live: ['spending', 'items'] });
   const failed = installments.error ?? accounts.error;
   if (failed) return <LoadError compact error={failed} onRetry={installments.error ? installments.reload : accounts.reload} />;
   if (!installments.data || !accounts.data) return <ListSkeleton label="Looking for payments" rows={3} />;
@@ -84,7 +84,7 @@ export function PaymentsWidget() {
 
 export function SavingsWidget() {
   const spaceId = usePersonalSpace();
-  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
+  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true, { live: ['spending', 'items'] });
   if (goals.error) return <LoadError compact error={goals.error} onRetry={goals.reload} />;
   if (!goals.data) return <ListSkeleton label="Looking at your goals" rows={3} />;
   if (goals.data.length === 0) {

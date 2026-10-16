@@ -15,6 +15,7 @@ import { EventsModule } from './events/events.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { FilesModule } from './files/files.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { ChangesModule } from './changes/changes.module';
 import { GoalsModule } from './goals/goals.module';
 import { HabitsModule } from './habits/habits.module';
 import { PeopleModule } from './people/people.module';
@@ -58,6 +59,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     SiteModule,
     AdminModule,
     RedisModule,
+    ChangesModule,
     MailModule,
     AuthModule,
     UsersModule,

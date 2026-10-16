@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MoneyAccount } from '@prisma/client';
 import { AccessService } from '../access/access.service';
+import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService, RateTable } from '../exchange-rates/exchange-rates.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/accounts.dto';
@@ -34,6 +35,7 @@ export class AccountsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly rates: ExchangeRatesService,
+    private readonly changes: ChangesService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -73,6 +75,7 @@ export class AccountsService {
         position: await this.prisma.moneyAccount.count({ where: { spaceId } }),
       },
     });
+    this.changes.notify('spending', { spaceId });
     return (await this.balances([account]))[0]!;
   }
 
@@ -91,11 +94,14 @@ export class AccountsService {
         dueDay: input.dueDay,
       },
     });
+    this.changes.notify('spending', { spaceId: account.spaceId });
     return (await this.balances([account]))[0]!;
   }
 
   async remove(userId: string, id: string) {
-    await this.prisma.moneyAccount.delete({ where: { id: (await this.find(userId, id, 'edit')).id } });
+    const account = await this.find(userId, id, 'edit');
+    await this.prisma.moneyAccount.delete({ where: { id: account.id } });
+    this.changes.notify('spending', { spaceId: account.spaceId });
   }
 
   private async find(userId: string, id: string, access: 'read' | 'edit') {

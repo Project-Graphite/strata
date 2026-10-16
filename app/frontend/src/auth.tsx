@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { errorMessage } from '@project-graphite/ui';
 import { ApiError, apiRequest } from './api';
+import { announceChange } from './changes';
 import { wipeLocalData } from './local-data';
 import { applyTimeFormat, type TimeFormat } from './time';
 
@@ -126,9 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       read?: (response: Response) => Promise<unknown>,
     ) {
       const token = current.current?.accessToken;
-      try {
-        return await apiRequest<T>(path, init, token, read);
-      } catch (reason) {
+      const result = await apiRequest<T>(path, init, token, read).catch(async (reason: unknown) => {
         if (!(reason instanceof ApiError && reason.status === 401 && token)) {
           throw reason;
         }
@@ -138,7 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw reason;
         }
         return apiRequest<T>(path, init, renewed.accessToken, read);
-      }
+      });
+      if (init.method && init.method !== 'GET') announceChange();
+      return result;
     },
     [applySession],
   );

@@ -39,7 +39,7 @@ const calendarColours = ['#c792ea', '#5fc4c4', '#f2a09a', '#a6d189', '#ffb86c', 
 
 export function useAgenda(from: string, to: string) {
   const { request } = useAuth();
-  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true);
+  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true, { live: ['items', 'tasks', 'subscriptions', 'spending'] });
   const calendars = useResource<{ id: string }[]>('/me/calendars', true);
   const { reload } = agenda;
   useEffect(() => {
