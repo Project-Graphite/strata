@@ -26,6 +26,8 @@ interface User {
   features: string[];
 }
 
+export const isAdmin = (user: User | undefined) => user?.role === 'admin' || user?.role === 'system_manager';
+
 interface Session {
   accessToken: string;
   user: User;

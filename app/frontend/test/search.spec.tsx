@@ -100,8 +100,8 @@ describe('Search palette', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
     const labels = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
-    expect(labels).toEqual(expect.arrayContaining(['New page', 'New task']));
-    const task = [...container.querySelectorAll<HTMLAnchorElement>('[role="option"]')].find((option) => option.textContent === 'New task')!;
+    expect(labels).toEqual(expect.arrayContaining(['New page', 'Go to tasks']));
+    const task = [...container.querySelectorAll<HTMLAnchorElement>('[role="option"]')].find((option) => option.textContent === 'Go to tasks')!;
     expect(task.getAttribute('href')).toBe('/spaces/home/tasks');
 
     await act(async () =>

@@ -12,7 +12,7 @@ import {
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
 import { useAuth } from '../auth';
-import { InboxContext } from '../inbox';
+import { InboxContext, unreadBadge } from '../inbox';
 import { enabledFeatures } from '../features';
 import { areaSections, moreAreas } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
@@ -110,7 +110,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             <>
               <IconButton icon="search" label="Search (Ctrl+K)" onClick={openSearch} />
               <IconLink icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox">
-                {unread > 0 && <span className="count-badge">{unread > 9 ? '9+' : unread}</span>}
+                {unread > 0 && <span className="count-badge">{unreadBadge(unread)}</span>}
               </IconLink>
               <AccountMenu
                 onSignOut={() =>

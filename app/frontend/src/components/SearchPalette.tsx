@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@project-graphite/ui';
-import { useAuth } from '../auth';
+import { isAdmin, useAuth } from '../auth';
 import { enabledFeatures } from '../features';
+import { areaSections } from '../navigation';
 import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
 
@@ -12,18 +13,8 @@ interface SearchResults {
 }
 
 const pages = [
-  ['/', 'Home'],
   ['/today', 'Today'],
-  ['/storage', 'Storage'],
-  ['/todo', 'To-do list'],
-  ['/agenda', 'Agenda and calendar'],
   ['/recurring', 'Recurring subscriptions and bills'],
-  ['/bookmarks', 'Bookmarks and read later'],
-  ['/spaces', 'Spaces'],
-  ['/inbox', 'Inbox'],
-  ['/invitations', 'Invitations'],
-  ['/trash', 'Trash'],
-  ['/settings', 'Profile settings'],
   ['/settings/security', 'Password, two-step sign-in and signed-in devices'],
   ['/settings/features', 'Turn features on or off'],
   ['/settings/developer', 'Access tokens, API and webhooks'],
@@ -75,7 +66,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               return '';
             }, 'Could not create the page'),
         },
-        { group: 'Create', href: `/spaces/${personal.id}/tasks`, id: 'new-task', label: 'New task' },
+        { group: 'Go to', href: `/spaces/${personal.id}/tasks`, id: 'space-tasks', label: 'Go to tasks' },
       ]
     : [];
   const items: CommandItem[] = [
@@ -98,9 +89,9 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       .filter((space) => matches(space.name))
       .map((space) => ({ group: 'Spaces', href: `/spaces/${space.id}`, id: `space-${space.id}`, label: space.name })),
     ...[
+      ...areaSections('', undefined, 0, enabledFeatures(user?.features)).flatMap((section) => section.items.map((item) => [item.href, item.label] as const)),
       ...pages,
-      ...enabledFeatures(user?.features).map((feature) => [feature.href, feature.label] as const),
-      ...(user?.role === 'admin' || user?.role === 'system_manager' ? ([['/admin', 'Admin']] as const) : []),
+      ...(isAdmin(user) ? ([['/admin', 'Admin']] as const) : []),
     ]
       .filter(([, label]) => matches(label))
       .map(([href, label]) => ({ group: 'Go to', href, id: `page-${href}`, label })),

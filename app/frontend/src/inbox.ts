@@ -20,3 +20,5 @@ export function useInbox() {
   }
   return context;
 }
+
+export const unreadBadge = (unread: number) => (unread > 99 ? '99+' : unread);

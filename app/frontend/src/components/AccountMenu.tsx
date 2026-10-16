@@ -1,10 +1,10 @@
 import { Menu } from '@project-graphite/ui';
-import { useAuth } from '../auth';
+import { isAdmin, useAuth } from '../auth';
 
 export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
   const auth = useAuth();
   if (!auth.user) return null;
-  const { displayName, handle, role } = auth.user;
+  const { displayName, handle } = auth.user;
 
   return (
     <Menu
@@ -17,7 +17,7 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
       items={[
         { label: 'Settings', href: '/settings' },
         { label: 'Invitations', href: '/invitations' },
-        ...(role === 'admin' || role === 'system_manager' ? [{ label: 'Admin', href: '/admin' }] : []),
+        ...(isAdmin(auth.user) ? [{ label: 'Admin', href: '/admin' }] : []),
         { label: 'Sign out', onSelect: onSignOut, separated: true },
       ]}
       label="Account"

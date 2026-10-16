@@ -33,18 +33,18 @@ export function areaSections(pathname: string, spaces: Space[] | undefined, unre
           icon: 'calendar',
           label: 'Agenda',
         },
-        { active: pathname === '/pages', href: '/pages', icon: 'library', label: 'Pages' },
-        { active: pathname === '/boards', href: '/boards', icon: 'panel', label: 'Boards' },
-        { active: pathname === '/bookmarks' || pathname.startsWith('/bookmarks/'), href: '/bookmarks', icon: 'compass', label: 'Bookmarks' },
+        { active: pathname === '/pages', href: '/pages', icon: 'file', label: 'Pages' },
+        { active: pathname === '/boards', href: '/boards', icon: 'board', label: 'Boards' },
+        { active: pathname === '/bookmarks' || pathname.startsWith('/bookmarks/'), href: '/bookmarks', icon: 'bookmark', label: 'Bookmarks' },
         { active: pathname === '/journal' || pathname.startsWith('/journal/'), href: '/journal', icon: 'pencil', label: 'Journal' },
-        { active: pathname === '/storage', href: '/storage', icon: 'file', label: 'Storage' },
+        { active: pathname === '/storage', href: '/storage', icon: 'library', label: 'Storage' },
         { active: pathname.startsWith('/spending') || pathname === '/recurring', href: '/spending', icon: 'wallet', label: 'Spending' },
       ],
     },
     ...(features.length
       ? [
           {
-            label: 'Extra features',
+            label: 'Features',
             items: features.map((feature) => ({
               active: pathname === feature.href || pathname.startsWith(`${feature.href}/`),
               href: feature.href,

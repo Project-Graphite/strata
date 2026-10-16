@@ -78,7 +78,7 @@ describe('Session restore', () => {
     const refreshes = serve(() => Promise.resolve(rateLimited()));
 
     await render(<App />);
-    expect(container.textContent).not.toContain('Create an account');
+    expect(container.textContent).not.toContain('Create account');
 
     await wait(3_000);
     await wait(60_000);
@@ -86,7 +86,7 @@ describe('Session restore', () => {
     expect(refreshes()).toBe(2);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Your session could not be restored');
     expect(container.textContent).toContain('Too many requests. Try again later.');
-    expect(container.textContent).not.toContain('Create an account');
+    expect(container.textContent).not.toContain('Create account');
     expect(container.textContent).not.toContain('Sign in');
   });
 

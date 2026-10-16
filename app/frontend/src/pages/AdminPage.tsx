@@ -1,5 +1,5 @@
 import { Avatar, FormSkeleton, ListSkeleton, TextField, timeAgo, Toggle } from '@project-graphite/ui';
-import { useAuth } from '../auth';
+import { isAdmin, useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundPage } from './NotFoundPage';
@@ -30,7 +30,7 @@ const roleNames = { member: '', admin: 'Admin', system_manager: 'System manager'
 
 export function AdminPage() {
   const auth = useAuth();
-  const admin = auth.user?.role === 'admin' || auth.user?.role === 'system_manager';
+  const admin = isAdmin(auth.user);
   const site = useResource<SiteSettings>('/site');
   const accounts = useResource<Account[]>(admin ? '/admin/users' : null, true);
   const saving = useAction();

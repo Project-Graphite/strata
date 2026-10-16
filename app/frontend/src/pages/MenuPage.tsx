@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Page, Subheading } from '../components/Page';
 import { enabledFeatures } from '../features';
-import { useInbox } from '../inbox';
+import { unreadBadge, useInbox } from '../inbox';
 import { areaSections } from '../navigation';
 import { useSpaces } from '../spaces';
 
@@ -16,7 +16,7 @@ export function MenuPage() {
   return (
     <Page title="Menu" titleHidden>
       {areaSections(pathname, spaces.data, inbox.data?.unread ?? 0, enabledFeatures(auth.user?.features)).map((section, index) => (
-        <nav aria-label={section.label ?? 'Areas'} className="grid gap-2" key={section.label ?? index}>
+        <nav aria-label={section.label ?? (index ? 'Inbox and settings' : 'Areas')} className="grid gap-2" key={section.label ?? index}>
           {section.label && <Subheading level={2}>{section.label}</Subheading>}
           <ul className="panel-rows">
             {section.items.map((item) => (
@@ -26,7 +26,7 @@ export function MenuPage() {
                     {typeof item.icon === 'string' ? <Icon name={item.icon as IconName} size={18} /> : item.icon}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  {item.badge ? <span className="mono-sm text-faint">{item.badge}</span> : null}
+                  {item.badge ? <span className="mono-sm text-faint">{unreadBadge(item.badge)}</span> : null}
                 </Link>
               </li>
             ))}
