@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -66,6 +67,13 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
   const todayMood = entries.get(today)?.mood ?? null;
   const all = yearDays(shown);
   const leading = (new Date(`${all[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const yearGrid = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const grid = yearGrid.current!;
+    const day = grid.querySelector('[aria-current="date"]');
+    if (day) grid.scrollLeft += day.getBoundingClientRect().left - grid.getBoundingClientRect().left - grid.clientWidth / 2;
+  }, [shown]);
 
   function setMood(mood: number) {
     const next = todayMood === mood ? null : mood;
@@ -99,7 +107,7 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
           title={shown}
           unit="year"
         />
-        <div aria-label={`Moods in ${shown}`} className="journal-year" role="list">
+        <div aria-label={`Moods in ${shown}`} className="journal-year" ref={yearGrid} role="list">
           {Array.from({ length: leading }, (_, index) => (
             <span aria-hidden="true" className="journal-day is-blank" key={`blank-${index}`} />
           ))}
@@ -110,6 +118,7 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
               <span aria-hidden="true" className="journal-day is-future" key={day} />
             ) : (
               <Link
+                aria-current={day === today ? 'date' : undefined}
                 aria-label={label}
                 className={`journal-day ${entry?.mood ? `mood-${entry.mood}` : ''} ${entry?.noteId ? 'has-page' : ''}`}
                 key={day}
@@ -120,7 +129,19 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
             );
           })}
         </div>
-        <p className="mono-sm m-0 text-faint">Darker days felt better. A ring means the day has a page.</p>
+        <div className="mono-sm flex flex-wrap items-center gap-x-4 gap-y-1 text-faint">
+          <span className="flex items-center gap-1">
+            {moods[0]}
+            {moods.map((label, index) => (
+              <span aria-hidden="true" className={`journal-day mood-${index + 1} size-3`} key={label} />
+            ))}
+            {moods[4]}
+          </span>
+          <span className="flex items-center gap-1">
+            <span aria-hidden="true" className="journal-day has-page size-3" />
+            The day has a page
+          </span>
+        </div>
       </div>
     </>
   );

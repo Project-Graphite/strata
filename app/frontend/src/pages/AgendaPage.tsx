@@ -131,19 +131,19 @@ export function AgendaPage() {
             const entries = byDay.get(day) ?? [];
             const outside = new Date(`${day}T00:00:00`).getMonth() !== month;
             return (
-              <div className={`min-h-24 min-w-0 bg-paper p-1.5 ${outside ? 'opacity-50' : ''}`} key={day}>
+              <div className={`relative min-h-24 min-w-0 bg-paper p-1.5 ${outside ? 'opacity-50' : ''}`} key={day}>
                 <button
                   aria-label={new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
-                  className={`mono-sm m-0 grid size-6 cursor-pointer place-items-center rounded-full border-0 p-0 ${day === today ? 'bg-ink font-medium text-paper' : 'bg-transparent text-faint'}`}
+                  className={`mono-sm m-0 grid size-6 cursor-pointer place-items-center rounded-full border-0 p-0 after:absolute after:inset-0 ${day === today ? 'bg-ink font-medium text-paper' : 'bg-transparent text-faint'}`}
                   onClick={() => navigate(link({ view: 'day', date: day }))}
                   type="button"
                 >
                   {new Date(`${day}T00:00:00`).getDate()}
                 </button>
-                <div className="mt-1 grid gap-0.5">
+                <div className="relative mt-1 grid gap-0.5">
                   {entries.slice(0, 3).map((entry) => (
                     <AgendaEntryLink className="agenda-chip" colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)}>
-                      {!entry.allDay && <span className="text-muted">{clock(entry.start)} </span>}
+                      {!entry.allDay && <span className="text-muted max-sm:hidden">{clock(entry.start)} </span>}
                       {entry.title}
                     </AgendaEntryLink>
                   ))}

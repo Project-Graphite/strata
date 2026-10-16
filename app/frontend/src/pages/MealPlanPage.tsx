@@ -72,8 +72,8 @@ export function MealPlanPage() {
       ) : (
         <ul className="panel-rows">
           {days.map((day) => (
-            <li className="panel-row grid gap-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]" key={day}>
-              <p className={`m-0 text-sm ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
+            <li className="panel-row grid grid-cols-3 gap-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]" key={day}>
+              <p className={`m-0 text-sm max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
                 {formatDay(day, { weekday: 'long', day: 'numeric', month: 'short' })}
                 {day === today && <span className="block text-xs text-muted">Today</span>}
               </p>

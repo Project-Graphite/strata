@@ -16,7 +16,6 @@ export interface Cell {
 }
 
 export const rowsFor = (pixels: number) => Math.max(minRows, Math.ceil((pixels + gapPixels) / (rowPixels + gapPixels)));
-export const pixelsFor = (rows: number) => rows * (rowPixels + gapPixels) - gapPixels;
 
 const overlaps = (a: Cell, b: Cell) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 

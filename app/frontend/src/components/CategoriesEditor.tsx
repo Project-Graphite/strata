@@ -52,10 +52,10 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
     >
       <ul className="m-0 grid list-none gap-2 p-0">
         {rows.map((row, index) => (
-          <li className="flex items-end gap-2" key={row.key}>
+          <li className="flex flex-wrap items-end gap-2" key={row.key}>
             <TextField
               aria-label={`Name of category ${index + 1}`}
-              className="min-w-0 flex-1"
+              className="min-w-0 flex-1 max-sm:basis-full"
               disabled={row.previous === 'other'}
               label=""
               maxLength={40}

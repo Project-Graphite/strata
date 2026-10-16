@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Avatar, LinesSkeleton, Menu, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Avatar, Icon, LinesSkeleton, Menu, TextField, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
@@ -11,13 +11,85 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
 import { maxUploadBytes, uploadFile } from '../files';
+import { FormDialog } from './FormDialog';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 
-function Toolbar({ editor }: { editor: Editor }) {
+interface Block {
+  node: BlockNode;
+  pos: number;
+}
+
+function blockItems(editor: Editor, actions: BlockActions, block: Block | undefined, onComment?: (block: QuotedBlock) => void): MenuItem[] {
+  if (!block) return [];
+  const at = (pos: number, bias: 1 | -1 = 1) =>
+    editor.chain().focus().command(({ tr }) => {
+      tr.setSelection(TextSelection.near(tr.doc.resolve(pos), bias));
+      return true;
+    });
+  const end = block.pos + block.node.nodeSize;
+  const cell = () => (editor.state.selection.from > block.pos && editor.state.selection.from < end ? editor.chain().focus() : at(end - 2, -1));
+  return [
+    { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(end, block.node.toJSON()).run() },
+    { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: end }).run() },
+    ...(onComment && typeof block.node.attrs.id === 'string'
+      ? [{ label: 'Comment', onSelect: () => onComment({ id: block.node.attrs.id as string, excerpt: block.node.textContent.trim().slice(0, 80) }) }]
+      : []),
+    ...(block.node.type.name === 'table'
+      ? [
+          { label: 'Add a row', onSelect: () => at(end - 2, -1).addRowAfter().run(), separated: true },
+          { label: 'Add a column', onSelect: () => at(end - 2, -1).addColumnAfter().run() },
+          { label: 'Delete row', onSelect: () => cell().deleteRow().run() },
+          { label: 'Delete column', onSelect: () => cell().deleteColumn().run() },
+        ]
+      : blockChoices(actions)
+          .filter((choice) => turnInto.has(choice.id))
+          .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
+  ];
+}
+
+function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+  return (
+    <FormDialog
+      busy={false}
+      busyLabel=""
+      onClose={onClose}
+      onSubmit={(form) => {
+        const typed = String(new FormData(form).get('href')).trim();
+        const href = !typed || /^[a-z][a-z\d+.-]*:/i.test(typed) ? typed : `https://${typed}`;
+        const chain = editor.chain().focus().extendMarkRange('link');
+        if (!href) chain.unsetLink().run();
+        else if (editor.state.selection.empty && !editor.isActive('link')) chain.insertContent({ type: 'text', text: href, marks: [{ type: 'link', attrs: { href } }] }).run();
+        else chain.setLink({ href }).run();
+        onClose();
+      }}
+      submitLabel="Save link"
+      title="Link"
+    >
+      <TextField defaultValue={editor.getAttributes('link').href ?? ''} inputMode="url" label="Address" name="href" placeholder="https://" />
+    </FormDialog>
+  );
+}
+
+function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
+  const block = useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      const { $from } = current.state.selection;
+      const pos = $from.depth ? $from.before(1) : $from.pos;
+      const node = current.state.doc.nodeAt(pos);
+      return node ? { node, pos } : undefined;
+    },
+    equalityFn: (a, b) => a?.node === b?.node && a?.pos === b?.pos,
+  });
+  return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerClassName="note-tool" triggerLabel="Change this block" />;
+}
+
+function Toolbar({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
+  const [linking, setLinking] = useState(false);
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -31,9 +103,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       checklist: current.isActive('taskList'),
       quote: current.isActive('blockquote'),
       code: current.isActive('codeBlock'),
+      link: current.isActive('link'),
     }),
   });
-  const tools: [string, string, boolean, () => void][] = [
+  const tools: [ReactNode, string, boolean, () => void][] = [
     ['B', 'Bold', state.bold, () => editor.chain().focus().toggleBold().run()],
     ['I', 'Italic', state.italic, () => editor.chain().focus().toggleItalic().run()],
     ['▮', 'Highlight', state.highlight, () => editor.chain().focus().toggleHighlight().run()],
@@ -44,14 +117,23 @@ function Toolbar({ editor }: { editor: Editor }) {
     ['☐', 'Checklist', state.checklist, () => editor.chain().focus().toggleTaskList().run()],
     ['“', 'Quote', state.quote, () => editor.chain().focus().toggleBlockquote().run()],
     ['</>', 'Code block', state.code, () => editor.chain().focus().toggleCodeBlock().run()],
+    [<Icon name="link" size={16} />, 'Link', state.link, () => setLinking(true)],
   ];
   return (
     <div aria-label="Formatting" className="note-toolbar" role="toolbar">
+      <button aria-label="Undo" className="note-tool" onClick={() => editor.chain().focus().undo().run()} title="Undo" type="button">
+        ↶
+      </button>
+      <button aria-label="Redo" className="note-tool" onClick={() => editor.chain().focus().redo().run()} title="Redo" type="button">
+        ↷
+      </button>
       {tools.map(([symbol, label, active, run]) => (
         <button aria-label={label} aria-pressed={active} className="note-tool" key={label} onClick={run} title={label} type="button">
           {symbol}
         </button>
       ))}
+      {window.matchMedia('(hover: none)').matches && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
+      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
     </div>
   );
 }
@@ -145,8 +227,8 @@ function CollaborativeEditor({
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return (
     <div className="note-editor grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {editable && !outdated ? <Toolbar editor={editor} /> : <span />}
+      <div className={`flex flex-wrap items-center justify-between gap-3 ${editable && !outdated ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
+        {editable && !outdated ? <Toolbar actions={actions} editor={editor} onComment={onComment} /> : <span />}
         <div className="flex items-center gap-3">
           {people.length > 0 && (
             <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
@@ -177,34 +259,12 @@ function HoldHandle({ editor }: { editor: Editor }) {
 }
 
 function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
-  const [block, setBlock] = useState<{ node: BlockNode; pos: number }>();
-  const at = (pos: number, bias: 1 | -1 = 1) =>
-    editor.chain().focus().command(({ tr }) => {
-      tr.setSelection(TextSelection.near(tr.doc.resolve(pos), bias));
-      return true;
-    });
-  const items: MenuItem[] = block
-    ? [
-        { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(block.pos + block.node.nodeSize, block.node.toJSON()).run() },
-        { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: block.pos + block.node.nodeSize }).run() },
-        ...(onComment && typeof block.node.attrs.id === 'string'
-          ? [{ label: 'Comment', onSelect: () => onComment({ id: block.node.attrs.id as string, excerpt: block.node.textContent.trim().slice(0, 80) }) }]
-          : []),
-        ...(block.node.type.name === 'table'
-          ? [
-              { label: 'Add a row', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addRowAfter().run(), separated: true },
-              { label: 'Add a column', onSelect: () => at(block.pos + block.node.nodeSize - 2, -1).addColumnAfter().run() },
-            ]
-          : blockChoices(actions)
-              .filter((choice) => turnInto.has(choice.id))
-              .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
-      ]
-    : [];
+  const [block, setBlock] = useState<Block>();
   return (
     <DragHandle editor={editor} onNodeChange={({ node, pos }) => setBlock(node ? { node, pos } : undefined)}>
       <Menu
         header={<HoldHandle editor={editor} />}
-        items={items}
+        items={blockItems(editor, actions, block, onComment)}
         label="Block actions"
         trigger="⠿"
         triggerClassName="note-block-handle"

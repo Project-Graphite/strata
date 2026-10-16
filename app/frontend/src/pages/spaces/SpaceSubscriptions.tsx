@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { Button, ButtonAnchor } from '../../components/Button';
+import { ActionsMenu } from '../../components/ActionsMenu';
+import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { RowText } from '../../components/RowText';
 import { SplitEditor } from '../../components/SplitEditor';
@@ -83,21 +84,22 @@ export function SpaceSubscriptions() {
                 title={<>{subscription.name} <span className="text-muted">{money(subscription.amountMinor, subscription.currency)}</span></>}
               />
               {editable && (
-                <div className="flex shrink-0 flex-wrap gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   {cancelled ? (
                     <Button disabled={action.busy} label="Resume" onClick={() => act(subscription, 'resume', `${subscription.name} is active again.`)} />
                   ) : (
                     <>
                       <Button label="Edit" onClick={() => setEditing(subscription)} />
-                      {shared && members.data && members.data.length > 1 && (
-                        <Button label="Split" onClick={() => setSplitting(subscription)} />
-                      )}
-                      <Button disabled={action.busy} label="I used this" onClick={() => act(subscription, 'used', `Noted that you used ${subscription.name}.`)} />
-                      <Button disabled={action.busy} label="Cancelled" onClick={() => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`)} />
+                      <ActionsMenu
+                        items={[
+                          ...(shared && members.data && members.data.length > 1 ? [{ label: 'Split', onSelect: () => setSplitting(subscription) }] : []),
+                          { label: 'I used this', onSelect: () => act(subscription, 'used', `Noted that you used ${subscription.name}.`) },
+                          { label: 'Cancelled', onSelect: () => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`) },
+                          ...(subscription.cancelUrl ? [{ label: 'Cancel link', href: subscription.cancelUrl, separated: true }] : []),
+                        ]}
+                        name={subscription.name}
+                      />
                     </>
-                  )}
-                  {subscription.cancelUrl && !cancelled && (
-                    <ButtonAnchor href={subscription.cancelUrl} label="Cancel link" />
                   )}
                 </div>
               )}

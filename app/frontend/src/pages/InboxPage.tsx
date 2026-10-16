@@ -8,7 +8,7 @@ import { useResource } from '../useResource';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
 
 export function InboxPage() {
   const auth = useAuth();
@@ -64,11 +64,16 @@ export function InboxPage() {
           <ul className="panel-rows">
             {notifications.data.results.map((notification) => (
               <li className="flex items-start justify-between gap-4 panel-row" key={notification.id}>
-                <div className="min-w-0">
-                  <p className={`m-0 ${notification.read ? 'text-muted' : 'font-medium text-ink'}`}>
+                <div className="relative min-w-0 flex-1">
+                  <p className={`m-0 flex items-center gap-2 ${notification.read ? 'text-muted' : 'font-medium text-ink'}`}>
+                    {!notification.read && (
+                      <span className="size-2 shrink-0 rounded-full bg-ink">
+                        <span className="sr-only">Unread: </span>
+                      </span>
+                    )}
                     {notification.link ? (
                       <Link
-                        className="text-inherit no-underline hover:underline"
+                        className="text-inherit no-underline after:absolute after:inset-0 hover:underline"
                         onClick={() => !notification.read && setRead(notification, true)}
                         to={notification.link}
                       >
@@ -81,7 +86,12 @@ export function InboxPage() {
                   {notification.body && <p className="mt-1 mb-0 text-sm text-muted">{notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body}</p>}
                   <p className="mono-sm m-0 mt-1 text-faint">{timeAgo(notification.createdAt)}</p>
                 </div>
-                <Button disabled={action.busy} label={notification.read ? 'Mark unread' : 'Mark read'} onClick={() => setRead(notification, !notification.read)} />
+                <IconButton
+                  disabled={action.busy}
+                  icon={notification.read ? 'mail' : 'check-mark'}
+                  label={notification.read ? 'Mark unread' : 'Mark read'}
+                  onClick={() => setRead(notification, !notification.read)}
+                />
               </li>
             ))}
           </ul>

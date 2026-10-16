@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compact, inOrder, pixelsFor, placed, rowsFor } from '../src/dashboard/grid';
+import { compact, inOrder, placed, rowsFor } from '../src/dashboard/grid';
 
 describe('dashboard grid', () => {
   it('packs cards upward so short cards leave no holes', () => {
@@ -49,7 +49,6 @@ describe('dashboard grid', () => {
       { id: 'kept', x: 6, y: 1, w: 6 },
     ]);
     expect(inOrder(widgets.toReversed()).map((widget) => widget.id)).toEqual(['clock', 'links', 'inbox', 'kept']);
-    expect(rowsFor(pixelsFor(10))).toBe(10);
     expect(rowsFor(10)).toBe(4);
   });
 });

@@ -113,14 +113,16 @@ export function TaskRow({
   ].filter(Boolean);
   return (
     <li className="flex min-w-0 items-center gap-3 panel-row">
-      <input
-        aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
-        checked={done}
-        className="h-5 w-5 shrink-0"
-        disabled={disabled}
-        onChange={onToggle}
-        type="checkbox"
-      />
+      <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
+        <input
+          aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
+          checked={done}
+          className="h-5 w-5"
+          disabled={disabled}
+          onChange={onToggle}
+          type="checkbox"
+        />
+      </label>
       <button className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left" onClick={onEdit} type="button">
         <span className={`block truncate ${done ? 'text-faint line-through' : 'text-ink'}`}>
           {task.parentId && <span className="text-faint">↳ </span>}

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
-import { choose } from './controls';
+import { choose, chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -285,7 +285,7 @@ describe('Recurring', () => {
     );
     await render('/spaces/flat/recurring');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Split')!.click());
+    await chooseFromMenu(container, 'Actions for Internet', 'Split');
     const dialog = document.querySelector('dialog')!;
     const samShares = dialog.querySelector<HTMLInputElement>('input[aria-label="Shares for Sam"]')!;
     await act(async () => {

@@ -1,6 +1,12 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Icon, useDismiss } from '@project-graphite/ui';
 
+export function popoverPlace(trigger: HTMLElement): CSSProperties {
+  const box = trigger.getBoundingClientRect();
+  const below = window.innerHeight - box.bottom > 300;
+  return { position: 'fixed', left: box.left, margin: 0, ...(below ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6, top: 'auto' }) };
+}
+
 const ordinal = (day: number) => `${day}${day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th'}`;
 
 export function DayOfMonthField({
@@ -28,9 +34,7 @@ export function DayOfMonthField({
   useDismiss(open, root, () => setOpen(false));
   useLayoutEffect(() => {
     if (!open) return;
-    const box = trigger.current!.getBoundingClientRect();
-    const below = window.innerHeight - box.bottom > 300;
-    setPlace({ position: 'fixed', left: box.left, margin: 0, ...(below ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6, top: 'auto' }) });
+    setPlace(popoverPlace(trigger.current!));
     panel.current?.showPopover?.();
     panel.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
   }, [open]);

@@ -8,6 +8,7 @@ import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ItemList } from './spaces/ItemList';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
@@ -48,7 +49,7 @@ export function TrashPage() {
                     }, 'Could not restore that')
                   }
                 />
-                <Button label="Delete" onClick={() => setDeleting(item)} />
+                <ActionsMenu items={[{ label: 'Delete', onSelect: () => setDeleting(item) }]} name={item.title || 'Untitled'} />
               </>
             )}
             detail={(item) => `${spaceName(item)} · trashed ${timeAgo(item.trashedAt!)}`}

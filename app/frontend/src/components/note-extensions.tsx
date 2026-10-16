@@ -363,7 +363,7 @@ export function pageContent(request: Request, noteId: string) {
     Details.configure({ persist: true, HTMLAttributes: { class: 'note-toggle' } }),
     DetailsSummary,
     DetailsContent,
-    TableKit.configure({ table: { resizable: false } }),
+    TableKit.configure({ table: { resizable: false, cellMinWidth: 96 } }),
     mentionExtension(request, noteId),
     BoardEmbedExtension,
     StoredImageExtension,

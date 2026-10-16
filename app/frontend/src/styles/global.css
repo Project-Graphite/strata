@@ -45,6 +45,13 @@
   color: var(--color-ink);
 }
 
+@media (pointer: coarse) {
+  .note-tool {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+}
+
 .note-content {
   min-height: 45vh;
   color: var(--color-ink);
@@ -284,6 +291,10 @@
   display: none;
 }
 
+.note-content .tableWrapper {
+  overflow-x: auto;
+}
+
 .note-content table {
   width: 100%;
   border-collapse: collapse;
@@ -489,6 +500,13 @@
   background: var(--color-ink);
 }
 
+@media (pointer: coarse) {
+  .habit-check {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
 .habit-day {
   display: inline-block;
   width: 0.6rem;
@@ -498,7 +516,14 @@
 }
 
 button.habit-day {
+  position: relative;
   outline-offset: 2px;
+}
+
+button.habit-day::before {
+  position: absolute;
+  inset: -0.7rem;
+  content: '';
 }
 
 .habit-day.is-done {
@@ -874,6 +899,11 @@ button.habit-day {
 @media (min-width: 64rem) {
   .dashboard-card-editing {
     cursor: grab;
+  }
+}
+
+@media (min-width: 64rem) and (pointer: fine) {
+  .dashboard-card-editing {
     touch-action: none;
   }
 }
@@ -898,8 +928,28 @@ button.habit-day {
   touch-action: none;
 }
 
-.dashboard-backdrop-colour {
-  background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%) fixed;
+@media (pointer: coarse) {
+  .dashboard-resize {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+.dashboard-backdrop-colour,
+.dashboard-backdrop-image {
+  background: transparent;
+}
+
+.dashboard-backdrop-colour::before,
+.dashboard-backdrop-image::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: '';
+}
+
+.dashboard-backdrop-colour::before {
+  background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%);
 }
 
 header.backdrop-blur-md {
@@ -926,10 +976,10 @@ header.backdrop-blur-md {
   white-space: nowrap;
 }
 
-.dashboard-backdrop-image {
+.dashboard-backdrop-image::before {
   background:
-    linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)) fixed,
-    var(--backdrop-image) center / cover fixed;
+    linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)),
+    var(--backdrop-image) center / cover;
 }
 
 .insights-table {

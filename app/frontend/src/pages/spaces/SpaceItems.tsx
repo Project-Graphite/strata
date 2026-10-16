@@ -12,6 +12,7 @@ import { Empty } from '../../components/Empty';
 import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
 import { Button } from '../../components/Button';
+import { ActionsMenu } from '../../components/ActionsMenu';
 
 export function SpaceItems() {
   const auth = useAuth();
@@ -74,16 +75,19 @@ export function SpaceItems() {
                 />
               )}
               {editable && (
-                <Button
-                  disabled={action.busy}
-                  label="Move to trash"
-                  onClick={() =>
-                    void action.run(async () => {
-                      await auth.request(`/items/${item.id}/trash`, { method: 'POST' });
-                      items.reload();
-                      return `${item.title || 'Untitled'} is in the trash.`;
-                    }, 'Could not move that to the trash')
-                  }
+                <ActionsMenu
+                  items={[
+                    {
+                      label: 'Move to trash',
+                      onSelect: () =>
+                        void action.run(async () => {
+                          await auth.request(`/items/${item.id}/trash`, { method: 'POST' });
+                          items.reload();
+                          return `${item.title || 'Untitled'} is in the trash.`;
+                        }, 'Could not move that to the trash'),
+                    },
+                  ]}
+                  name={item.title || 'Untitled'}
                 />
               )}
             </>

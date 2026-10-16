@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { compact, gapPixels, gridColumns, inOrder, minRows, pixelsFor, rowPixels, rowsFor, type Cell } from './grid';
+import { compact, gapPixels, gridColumns, inOrder, minRows, rowPixels, rowsFor, type Cell } from './grid';
 import type { PlacedWidget } from './widgets';
 
 const paddings = { compact: 'p-3', normal: 'p-4', roomy: 'p-6' };
@@ -15,7 +15,7 @@ interface Gesture {
 
 type Preview = Partial<Cell> & { id: string; fixed?: boolean };
 
-function useWide() {
+export function useWide() {
   const query = '(min-width: 64rem)';
   const [wide, setWide] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
@@ -109,7 +109,7 @@ export function DashboardGrid({
 
   return (
     <div
-      className={wide ? 'dashboard-grid' : 'grid grid-cols-1 gap-4'}
+      className={wide ? 'dashboard-grid' : 'grid grid-cols-1 gap-4 md:grid-cols-2'}
       onPointerCancel={end}
       onPointerMove={track}
       onPointerUp={end}
@@ -119,16 +119,10 @@ export function DashboardGrid({
       {ordered.map((widget) => (
         <article
           aria-label={label(widget)}
-          className={`dashboard-card ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${widget.h ? 'overflow-y-auto' : 'overflow-hidden'}`}
+          className={`dashboard-card ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${!wide && widget.w > gridColumns / 2 ? 'md:col-span-2' : ''} ${wide && widget.h ? 'overflow-y-auto' : 'overflow-hidden'}`}
           key={widget.id}
           onPointerDown={(event) => begin(event, widget, 'move')}
-          style={
-            wide
-              ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` }
-              : widget.h
-                ? { height: pixelsFor(widget.h) }
-                : undefined
-          }
+          style={wide ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` } : undefined}
         >
           <div
             className={`grid min-w-0 grid-cols-1 content-start gap-3 ${paddings[widget.padding ?? 'normal']}`}

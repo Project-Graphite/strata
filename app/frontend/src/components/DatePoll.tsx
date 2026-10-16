@@ -91,8 +91,8 @@ export function PollEditor({
       }}
     >
       {rows.map((row, index) => (
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto] items-center gap-2" key={index}>
-          <DatePicker aria-label={`Date ${index + 1}`} onChange={(startsOn) => update(index, { startsOn })} value={row.startsOn} />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto]" key={index}>
+          <DatePicker aria-label={`Date ${index + 1}`} className="max-sm:col-span-2" onChange={(startsOn) => update(index, { startsOn })} value={row.startsOn} />
           <TimeField
             aria-label={`Time ${index + 1} (optional)`}
             emptyLabel="Any time"

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 export function Stats({ children }: { children: ReactNode }) {
-  return <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">{children}</dl>;
+  return <dl className="m-0 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">{children}</dl>;
 }
 
 export function Stat({ children, detail, label, value }: { children?: ReactNode; detail?: ReactNode; label: ReactNode; value: ReactNode }) {

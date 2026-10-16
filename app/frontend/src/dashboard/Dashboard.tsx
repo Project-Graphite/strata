@@ -16,7 +16,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
-import { DashboardGrid } from './DashboardGrid';
+import { DashboardGrid, useWide } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
@@ -179,6 +179,7 @@ export function DashboardHome() {
   const dashboards = useResource<Dashboard[]>('/me/dashboards', true);
   const saving = useAction();
   const spaces = useSpaces();
+  const wide = useWide();
   const [draft, setDraft] = useState<Layout>();
   const [history, setHistory] = useState<Layout[]>([]);
   const [settingsOpen, setSettingsOpen] = useState<string>();
@@ -312,9 +313,9 @@ export function DashboardHome() {
                           { label: 'Customize card', onSelect: () => setCustomizing(widget.id) },
                           ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
                           ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
-                          ...(widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
-                          ...(widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
-                          ...(widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
+                          ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
+                          ...(wide && widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                          ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
                           { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
                         ]}
                         name={cardTitle(widget)}

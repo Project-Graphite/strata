@@ -13,6 +13,7 @@ import { PropertyField, propertyDisplay } from './PropertyField';
 import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
 import { Button } from '../Button';
+import { ActionsMenu } from '../ActionsMenu';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -103,11 +104,12 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   function body() {
     if (data.view === 'board') {
       if (!group) return <Hint>Add a select property to sort pages into columns.</Hint>;
+      const columns = [...(group.options ?? []), { id: '', name: `No ${group.name}` }];
       return (
         <>
           {chooser('Group by', selects, group, 'groupBy')}
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {[...(group.options ?? []), { id: '', name: `No ${group.name}` }].map((column) => {
+            {columns.map((column) => {
               const cards = data.rows.filter((row) => (row.values[group.id] ?? '') === column.id);
               return (
                 <section
@@ -126,7 +128,17 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                   </h3>
                   {cards.map((card) => (
                     <article className="database-card" draggable={editable} key={card.id} onDragStart={(event) => event.dataTransfer.setData('text/plain', card.id)}>
-                      {title(card)}
+                      <div className="flex items-start justify-between gap-2">
+                        {title(card)}
+                        {editable && (
+                          <ActionsMenu
+                            items={columns
+                              .filter((other) => other.id !== column.id)
+                              .map((other) => ({ label: `Move to ${other.name}`, onSelect: () => setValues(card.id, { [group.id]: other.id || null }) }))}
+                            name={noteTitle(card)}
+                          />
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-2">{chips(card, group.id)}</div>
                     </article>
                   ))}

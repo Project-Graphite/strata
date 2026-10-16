@@ -39,7 +39,7 @@ export function ItemList({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 gap-2">{actions(item)}</div>
+          <div className="flex shrink-0 items-center gap-2">{actions(item)}</div>
         </li>
       ))}
     </ul>

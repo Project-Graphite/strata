@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { Icon, useDismiss } from '@project-graphite/ui';
 import { allCurrencies, currencyName } from '../choices';
+import { popoverPlace } from './DayOfMonthField';
 
 const famous = ['USD', 'EUR', 'EGP'];
 
@@ -37,10 +38,9 @@ export function CurrencyField({
   useDismiss(open, root, () => setOpen(false));
   useLayoutEffect(() => {
     if (!open) return;
-    const box = trigger.current!.getBoundingClientRect();
-    setPlace({ position: 'fixed', top: box.bottom + 6, left: box.left, width: Math.max(box.width, 288), margin: 0 });
+    setPlace({ ...popoverPlace(trigger.current!), width: Math.max(trigger.current!.offsetWidth, 288) });
     panel.current?.showPopover?.();
-    search.current?.focus();
+    if (!window.matchMedia('(pointer: coarse)').matches) search.current?.focus();
   }, [open]);
 
   const shown = useMemo(() => {
