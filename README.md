@@ -8,26 +8,34 @@ and files, built by Project Graphite.
 - **Home**: dashboards of widgets (agenda, tasks, pages, weather, news feeds, countdown, focus timer,
   app status and more), picked by time of day and device, and a wall display.
 - **Tasks**: task lists with repeating tasks, assignment and reminders, a quick-add box that reads
-  dates, tags and priority, and the Today and To-do pages.
+  dates, tags and priority, and the Today and To-do pages. Ticking off a task can be undone.
 - **Agenda**: events with guest RSVPs and date polls, followed outside calendars and a private
   calendar link.
 - **Pages**: notes with live co-editing, offline drafts, version history, templates, mentions,
-  comments and database views.
+  comments and database views. Pages and boards can be moved to the trash.
 - **Boards**: whiteboards drawn with Excalidraw, with templates and dot votes, embeddable in pages
   and events and editable by guests through a share link.
 - **Bookmarks**: saved links with a read-later list and a reader view.
 - **Journal**: a daily journal with a mood, and a one-click weekly review page.
 - **Recurring**: subscriptions with renewals, price history, reminders, home-currency totals at ECB
   rates, bank statement suggestions and shared splits; habits with check-ins and streaks.
+- **Spending**: accounts and cards, budgets, installment plans, insights, net worth with assets and
+  savings goals, bank texts to review, and statement import and CSV export.
 - **Files**: uploads, previews and downloads, with metadata stripped.
-- **Tidy**: suggestions for stale items, bulk actions with undo and tagging rules.
 - **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
-- **Optional features**, turned on in Settings: Goals, People, Recipes and meals, Spending and Trips.
+- **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
+  restored from the Trash for 30 days.
+- **Confirmations**: deleting for good, discarding edits and cutting off someone's access ask first.
+  One-time secrets, such as tokens and recovery codes, stay on screen until you confirm you saved
+  them.
+- **Optional features**, turned on in Settings: Goals, People, Recipes and meals, Tidy and Trips.
+  Tidy suggests stale items to clear, with bulk actions, undo and tagging rules.
 - **Inbox**: notices in the app and as push notifications to chosen devices.
 - **Search** and a command palette, an installable app, personal access tokens and webhooks.
 - **Accounts**:
   - registration with email verification and resendable links;
-  - sign-in with rotating refresh sessions and reuse detection;
+  - sign-in with rotating refresh sessions and reuse detection, rate-limited per session, so people
+    sharing a network address don't lock each other out;
   - password reset by email.
 
   Registration never reveals whether an email address already has an account. The owner gets a
@@ -57,7 +65,9 @@ and files, built by Project Graphite.
   - errors that never expose internals;
   - scrypt password hashes that store their own cost settings.
 - **Layout**: the shared [`@project-graphite/ui`](https://github.com/Project-Graphite/graphite-ui)
-  shell, with a sidebar on desktop and a tab bar on phones.
+  shell, with a sidebar on desktop and a tab bar on phones, and browser tabs named after the page.
+- **Errors** say what went wrong and what to do next: inline on forms, with Try again on anything
+  that failed to load, and in plain words when a followed calendar can't be read.
 - Privacy and terms pages.
 
 ## Stack
