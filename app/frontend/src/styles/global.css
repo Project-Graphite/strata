@@ -984,7 +984,6 @@ header.backdrop-blur-md {
 
 .insights-table {
   width: 100%;
-  max-width: 40rem;
   border-collapse: collapse;
   font-size: 0.875rem;
 }

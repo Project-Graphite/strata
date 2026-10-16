@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spendingTabs } from '../spending';
@@ -30,15 +29,19 @@ interface Summary {
   stillWorthIt: Subscription[];
 }
 
-function SubscriptionLine({ subscription, detail }: { subscription: Subscription; detail: string }) {
-  return (
-    <Link
-      className="flex items-baseline justify-between gap-4 panel-row text-ink no-underline hover:bg-line-soft"
-      to={`/spaces/${subscription.spaceId}/recurring`}
-    >
+function SubscriptionLine({ subscription, detail, onOpen }: { subscription: Subscription; detail: string; onOpen?: () => void }) {
+  const content = (
+    <>
       <span className="min-w-0 truncate">{subscription.name}</span>
       <span className="mono-sm shrink-0 text-faint">{detail}</span>
-    </Link>
+    </>
+  );
+  return onOpen ? (
+    <button className="flex w-full cursor-pointer items-baseline justify-between gap-4 border-0 bg-transparent panel-row text-left text-ink hover:bg-line-soft" onClick={onOpen} type="button">
+      {content}
+    </button>
+  ) : (
+    <p className="m-0 flex items-baseline justify-between gap-4 panel-row text-ink">{content}</p>
   );
 }
 
@@ -48,8 +51,9 @@ export function RecurringPage() {
   const summary = useResource<Summary>('/subscriptions/summary', true);
   const action = useAction();
   const [importing, setImporting] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Subscription | 'new'>();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
+  const opener = (subscription: Subscription) => (editable.some((space) => space.id === subscription.spaceId) ? () => setEditing(subscription) : undefined);
 
   return (
     <Page
@@ -57,19 +61,20 @@ export function RecurringPage() {
         editable.length > 0 && (
           <>
             <IconButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
-            <Button icon="plus" label="Add subscription" onClick={() => setAdding(true)} primary />
+            <Button icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />
           </>
         )
       }
       title="Spending"
     >
       <Tabs items={spendingTabs('recurring')} label="Spending" />
-      {adding && (
+      {editing && (
         <SubscriptionEditor
-          onClose={() => setAdding(false)}
+          onClose={() => setEditing(undefined)}
           onSaved={summary.reload}
-          spaceId={(editable.find((space) => space.kind === 'personal') ?? editable[0])!.id}
-          spaces={editable}
+          spaceId={editing === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : editing.spaceId}
+          spaces={editing === 'new' ? editable : undefined}
+          subscription={editing === 'new' ? undefined : editing}
         />
       )}
       {importing && (
@@ -112,6 +117,7 @@ export function RecurringPage() {
                   <SubscriptionLine
                     detail={`ends ${shortDate(subscription.trialEndsOn!)}, then ${money(subscription.amountMinor, subscription.currency)}`}
                     key={subscription.id}
+                    onOpen={opener(subscription)}
                     subscription={subscription}
                   />
                 ))}
@@ -124,6 +130,7 @@ export function RecurringPage() {
                 <SubscriptionLine
                   detail={`${shortDate(subscription.nextRenewal)} · ${money(subscription.amountMinor, subscription.currency)}`}
                   key={subscription.id}
+                  onOpen={opener(subscription)}
                   subscription={subscription}
                 />
               ))}
@@ -144,9 +151,13 @@ export function RecurringPage() {
               <ul className="panel-rows">
                 {summary.data.stillWorthIt.map((subscription) => (
                   <li className="flex items-center justify-between gap-4 panel-row" key={subscription.id}>
-                    <Link className="min-w-0 truncate text-ink" to={`/spaces/${subscription.spaceId}/recurring`}>
-                      {subscription.name}
-                    </Link>
+                    {opener(subscription) ? (
+                      <button className="text-button min-w-0 truncate text-ink" onClick={opener(subscription)} type="button">
+                        {subscription.name}
+                      </button>
+                    ) : (
+                      <span className="min-w-0 truncate text-ink">{subscription.name}</span>
+                    )}
                     <Button
                       disabled={action.busy}
                       label="I used this"

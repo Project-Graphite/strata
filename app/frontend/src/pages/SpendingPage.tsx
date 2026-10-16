@@ -116,23 +116,8 @@ export function SpendingPage() {
           {editable && <Button icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
         </>
       }
-      title="Spending"
-    >
-      <Tabs
-        items={spendingTabs(tab, params.get('space'), (next) => {
-          const query = new URLSearchParams(params);
-          if (next === 'overview') query.delete('tab');
-          else query.set('tab', next);
-          return `/spending${query.size ? `?${query}` : ''}`;
-        })}
-        label="Spending"
-      />
-      <Toolbar
-        actions={
-          <SpaceChooser />
-        }
-      >
-        {tab !== 'accounts' && (
+      beside={
+        tab !== 'accounts' && (
           <PeriodNav
             current={{
               label: 'This month',
@@ -153,29 +138,20 @@ export function SpendingPage() {
             }
             unit="month"
           />
-        )}
-      </Toolbar>
-
-      {tab === 'overview' && editable && spaceId && (
-        <form
-          className="flex max-w-xl items-start gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const input = event.currentTarget.elements.namedItem('quick') as HTMLInputElement;
-            const text = input.value.trim();
-            if (!text) return;
-            void action.run(async () => {
-              const added = await auth.request<Expense>(`/spaces/${spaceId}/expenses/quick`, { method: 'POST', body: JSON.stringify({ text, currency }) });
-              input.value = '';
-              reload();
-              return `Added ${added.title}, ${money(added.amountMinor, added.currency)} in ${categoryName(added.category).toLowerCase()}.`;
-            }, 'Could not add it');
-          }}
-        >
-          <TextField aria-label="Quick add" autoComplete="off" className="min-w-0 flex-1" label="" maxLength={200} name="quick" placeholder="120 talabat" />
-          <Button disabled={action.busy} label="Add" large submit />
-        </form>
-      )}
+        )
+      }
+      title="Spending"
+    >
+      <Tabs
+        items={spendingTabs(tab, params.get('space'), (next) => {
+          const query = new URLSearchParams(params);
+          if (next === 'overview') query.delete('tab');
+          else query.set('tab', next);
+          return `/spending${query.size ? `?${query}` : ''}`;
+        })}
+        label="Spending"
+      />
+      <Toolbar actions={<SpaceChooser />} />
 
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
