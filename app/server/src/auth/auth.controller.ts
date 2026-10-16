@@ -72,6 +72,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
+    this.assertNotCrossSite(request);
     const result = await this.auth.login(input, this.device(request, response));
     if ('challenge' in result) {
       return { twoStep: true, challenge: result.challenge };
@@ -87,14 +88,15 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
+    this.assertNotCrossSite(request);
     const session = await this.auth.completeTwoStep(input.challenge, input.code, this.device(request, response));
     this.setRefreshCookie(response, session.refreshToken);
     return { accessToken: session.accessToken, user: session.user };
   }
 
   @Post('password')
-  @UseGuards(JwtAuthGuard)
   @RateLimit('change-password', 10, 3_600)
+  @UseGuards(JwtAuthGuard)
   async changePassword(
     @CurrentUser() user: AuthenticatedUser,
     @Body() input: ChangePasswordDto,
@@ -165,11 +167,18 @@ export class AuthController {
   }
 
   private assertTrustedOrigin(request: Request) {
-    const trusted = new Set(
-      this.config.get<string>('AUTH_TRUSTED_ORIGINS')?.split(',') ?? [],
-    );
-    if (!request.headers.origin || !trusted.has(request.headers.origin)) {
+    if (!request.headers.origin || !this.trusted(request.headers.origin)) {
       throw new UnauthorizedException('Request origin is not trusted');
     }
+  }
+
+  private assertNotCrossSite(request: Request) {
+    if (request.headers.origin && !this.trusted(request.headers.origin)) {
+      throw new UnauthorizedException('Request origin is not trusted');
+    }
+  }
+
+  private trusted(origin: string) {
+    return (this.config.get<string>('AUTH_TRUSTED_ORIGINS')?.split(',') ?? []).includes(origin);
   }
 }
