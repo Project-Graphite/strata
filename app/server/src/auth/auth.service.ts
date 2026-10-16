@@ -360,6 +360,7 @@ export class AuthService implements OnModuleInit {
         data: {
           passwordHash: await this.passwords.hash(password),
           verifiedAt: record.user.verifiedAt ?? now,
+          calendarFeedHash: null,
         },
       }),
       this.prisma.verificationToken.deleteMany({
@@ -367,6 +368,7 @@ export class AuthService implements OnModuleInit {
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId: record.userId } }),
       this.prisma.accessToken.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: now } }),
+      this.prisma.webhook.updateMany({ where: { userId: record.userId, active: true }, data: { active: false } }),
     ]);
     await this.attempts.clear(record.user.email);
     await this.audit.record(record.userId, 'password_reset');
@@ -379,13 +381,14 @@ export class AuthService implements OnModuleInit {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
-        data: { passwordHash: await this.passwords.hash(newPassword) },
+        data: { passwordHash: await this.passwords.hash(newPassword), calendarFeedHash: null },
       }),
       this.prisma.verificationToken.deleteMany({
         where: { userId, purpose: { in: accountTokens } },
       }),
       this.prisma.refreshSession.deleteMany({ where: { userId } }),
       this.prisma.accessToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.webhook.updateMany({ where: { userId, active: true }, data: { active: false } }),
     ]);
     await this.audit.record(userId, 'password_changed');
     await this.passwordChangedNotice(user);

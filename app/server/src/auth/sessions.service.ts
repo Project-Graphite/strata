@@ -34,6 +34,8 @@ export class SessionsService {
         where: { userId, ...(currentSessionId ? { id: { not: currentSessionId } } : {}) },
       }),
       this.prisma.accessToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.user.update({ where: { id: userId }, data: { calendarFeedHash: null } }),
+      this.prisma.webhook.updateMany({ where: { userId, active: true }, data: { active: false } }),
     ]);
     await this.audit.record(userId, 'other_sessions_signed_out');
   }

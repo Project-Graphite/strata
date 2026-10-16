@@ -74,9 +74,11 @@ describe('Access tokens against Postgres', () => {
     const owner = await member('rotator');
     const created = await owner.call('POST', '/me/tokens', { name: 'Sync', scopes: ['spaces:read'], password });
     expect((await withToken(created.body.token, 'GET', '/spaces')).status).toBe(200);
+    expect((await owner.call('POST', '/me/calendar-feed')).status).toBe(201);
 
     expect((await owner.call('DELETE', '/me/sessions')).status).toBe(204);
 
+    expect((await owner.call('GET', '/me/calendar-feed')).body).toEqual({ enabled: false });
     expect((await withToken(created.body.token, 'GET', '/spaces')).status).toBe(401);
     expect((await owner.call('GET', '/me/tokens')).body).toEqual([]);
     expect((await owner.call('GET', '/spaces')).status).toBe(200);
