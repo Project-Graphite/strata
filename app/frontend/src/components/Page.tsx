@@ -32,7 +32,7 @@ export function Page({
 }) {
   useDocumentTitle(documentTitle ?? (typeof title === 'string' ? title : undefined));
   return (
-    <section className="page-enter grid content-start gap-8">
+    <section className="page-enter grid grid-cols-1 content-start gap-8">
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
       ) : beside ? (
