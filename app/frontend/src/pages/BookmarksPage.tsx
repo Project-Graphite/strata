@@ -36,7 +36,14 @@ export function BookmarksPage() {
     void marking.run(async () => {
       await auth.request(`/bookmarks/${bookmark.id}`, { method: 'PATCH', body: JSON.stringify({ read }) });
       listed.reload();
-      return read ? 'Marked as read.' : 'Back on your read-later list.';
+      return {
+        message: read ? 'Marked as read.' : 'Back on your read-later list.',
+        undo: async () => {
+          await auth.request(`/bookmarks/${bookmark.id}`, { method: 'PATCH', body: JSON.stringify({ read: !read }) });
+          listed.reload();
+          return '';
+        },
+      };
     }, 'Could not change the bookmark');
   }
 

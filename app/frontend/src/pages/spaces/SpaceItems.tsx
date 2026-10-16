@@ -83,7 +83,14 @@ export function SpaceItems() {
                         void action.run(async () => {
                           await auth.request(`/items/${item.id}/trash`, { method: 'POST' });
                           items.reload();
-                          return `${item.title || 'Untitled'} is in the trash.`;
+                          return {
+                            message: `${item.title || 'Untitled'} is in the trash.`,
+                            undo: async () => {
+                              await auth.request(`/items/${item.id}/restore`, { method: 'POST' });
+                              items.reload();
+                              return '';
+                            },
+                          };
                         }, 'Could not move that to the trash'),
                     },
                   ]}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -38,6 +38,26 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
   const action = useAction();
   const [access, setAccess] = useState<Access>('view');
   const [days, setDays] = useState('30');
+  const [turningOff, setTurningOff] = useState<ShareLink>();
+
+  if (turningOff) {
+    return (
+      <ConfirmDialog
+        busyLabel="Turning off…"
+        confirmLabel="Turn off"
+        errorFallback="Could not turn off the link"
+        onClose={() => setTurningOff(undefined)}
+        onConfirm={async () => {
+          await auth.request(`/items/${itemId}/share-links/${turningOff.id}`, { method: 'DELETE' });
+          links.mutate((current) => current.filter((shown) => shown.id !== turningOff.id));
+        }}
+        title="Turn off this link?"
+        tone="danger"
+      >
+        Anyone with it loses access to this {noun} straight away.
+      </ConfirmDialog>
+    );
+  }
 
   return (
     <Dialog onClose={onClose} title={`Share this ${noun}`}>
@@ -83,18 +103,7 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
                     {new Date(link.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </p>
-                <button
-                  className="text-button text-sm"
-                  disabled={action.busy}
-                  onClick={() =>
-                    void action.run(async () => {
-                      await auth.request(`/items/${itemId}/share-links/${link.id}`, { method: 'DELETE' });
-                      links.mutate((current) => current.filter((shown) => shown.id !== link.id));
-                      return 'The link no longer works.';
-                    }, 'Could not turn off the link')
-                  }
-                  type="button"
-                >
+                <button className="text-button text-sm" onClick={() => setTurningOff(link)} type="button">
                   Turn off
                 </button>
               </div>

@@ -183,6 +183,7 @@ describe('Spending', () => {
     expect(container.textContent).toContain('The eating out budget is €80.00 a month.');
 
     await chooseFromMenu(container, 'Actions for Groceries', 'Remove the budget');
+    await act(async () => button('Remove budget').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/groceries', expect.objectContaining({ method: 'DELETE' }));
   });
 
@@ -229,6 +230,27 @@ describe('Spending', () => {
     expect(titles()).toEqual(['Diner']);
     await choose(container, 'Card', 'All cards');
     expect(titles()).toEqual(['Corner shop', 'Diner', 'Bakery', 'Market']);
+  });
+
+  it('asks before removing an account and says what happens to its transactions', async () => {
+    accounts = [account('bank', 'CIB', 'bank', 120000)];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/accounts/bank' && init?.method === 'DELETE') return new Response(null, { status: 204 });
+      return undefined;
+    });
+    await render('/spending?month=2026-10&tab=accounts');
+
+    await chooseFromMenu(container, 'Actions for CIB', 'Remove');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/accounts/bank', expect.objectContaining({ method: 'DELETE' }));
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('Remove CIB?');
+    expect(dialog.textContent).toContain('Transfers show “Removed account” instead.');
+    expect(button('Remove account').className).toBe('danger-button');
+
+    await act(async () => button('Remove account').click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/accounts/bank', expect.objectContaining({ method: 'DELETE' }));
+    expect(container.querySelector('dialog')).toBeNull();
   });
 
   it('lists accounts with balances and records a transfer between them', async () => {
@@ -366,6 +388,7 @@ describe('Spending', () => {
 
     const row = [...container.querySelectorAll('li')].find((item) => item.textContent?.includes('Uber ride'))!;
     await act(async () => [...row.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
+    await act(async () => button('Remove rule').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/merchant-rules/r1', expect.objectContaining({ method: 'DELETE' }));
   });
 

@@ -60,7 +60,10 @@ export function NotePage() {
   const setting = useAction();
   const [history, setHistory] = useState(false);
   const [unconverting, setUnconverting] = useState(false);
-  const trashing = useMovePageToTrash((moved) => navigate(moved.kind === 'board' ? '/boards' : '/pages'));
+  const trashing = useMovePageToTrash(
+    (moved) => navigate(moved.kind === 'board' ? '/boards' : '/pages'),
+    (restored) => navigate(`/notes/${restored.id}`),
+  );
   useDocumentTitle(note.data && noteTitle(note.data));
 
   if (note.status === 404) {
@@ -325,6 +328,7 @@ export function NotePage() {
             setUnconverting(false);
           }}
           title="Turn back into a page?"
+          tone="danger"
         >
           <Hint>The pages inside stay, but the values of their properties are deleted.</Hint>
         </ConfirmDialog>

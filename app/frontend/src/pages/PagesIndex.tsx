@@ -33,7 +33,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const words = wording[journal ? 'journal' : kind];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const pages = listed.data?.filter((note) => note.journal === journal) ?? [];
-  const trashing = useMovePageToTrash(listed.reload);
+  const trashing = useMovePageToTrash(listed.reload, listed.reload);
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);

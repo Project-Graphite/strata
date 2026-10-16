@@ -105,7 +105,14 @@ export function PersonPage() {
                     void action.run(async () => {
                       await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
                       navigate('/people');
-                      return `Moved ${shown.name} to the trash.`;
+                      return {
+                        message: `Moved ${shown.name} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${shown.id}/restore`, { method: 'POST' });
+                          navigate(`/people/${shown.id}`);
+                          return '';
+                        },
+                      };
                     }, 'Could not move this person to the trash'),
                 },
               ]}

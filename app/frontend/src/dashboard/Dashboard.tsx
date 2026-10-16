@@ -186,6 +186,7 @@ export function DashboardHome() {
   const [customizing, setCustomizing] = useState<string>();
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [adding, setAdding] = useState(false);
   const [configuring, setConfiguring] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -206,6 +207,12 @@ export function DashboardHome() {
   const layout = draft ?? layoutOf(current);
   const { widgets } = layout;
   const editing = draft !== undefined;
+  const unsaved =
+    history.length > 0 ||
+    name !== current.name ||
+    schedule.from !== clockTime(current.showFrom) ||
+    schedule.until !== clockTime(current.showUntil) ||
+    schedule.on !== current.showOn;
   const customized = widgets.find((widget) => widget.id === customizing);
   const personal = spaces.data?.find((space) => space.kind === 'personal');
   if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
@@ -257,7 +264,7 @@ export function DashboardHome() {
                 setHistory((past) => past.slice(0, -1));
               }}
             />
-            <Button label="Cancel" onClick={() => finish(false)} />
+            <Button label="Cancel" onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
             <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
           </>
         ) : (
@@ -529,8 +536,21 @@ export function DashboardHome() {
             navigate('/');
           }}
           title={`Delete ${current.name}?`}
+          tone="danger"
         >
           Its layout is removed. Nothing in your spaces is touched.
+        </ConfirmDialog>
+      )}
+      {discarding && (
+        <ConfirmDialog
+          cancelLabel="Keep editing"
+          confirmLabel="Discard changes"
+          onClose={() => setDiscarding(false)}
+          onConfirm={async () => finish(false)}
+          title="Discard your changes?"
+          tone="danger"
+        >
+          The dashboard goes back to how it was before you started editing.
         </ConfirmDialog>
       )}
     </Page>

@@ -56,7 +56,14 @@ export function TodayPage() {
                         const updated = await auth.request<Task>(`/tasks/${task.id}/complete`, { method: 'POST' });
                         tasks.mutate((current) => current.filter((shown) => shown.id !== task.id));
                         return updated.completedAt
-                          ? `Done: ${task.title}.`
+                          ? {
+                              message: `Done: ${task.title}.`,
+                              undo: async () => {
+                                await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
+                                tasks.reload();
+                                return '';
+                              },
+                            }
                           : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
                       }, 'Could not update the task')
                     }

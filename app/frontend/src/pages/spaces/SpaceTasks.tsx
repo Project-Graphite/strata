@@ -75,7 +75,15 @@ export function SpaceTasks() {
                     await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
                     lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
                     navigate(link({ list: null }));
-                    return `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`;
+                    return {
+                      message: `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`,
+                      undo: async () => {
+                        await auth.request(`/items/${shownList.id}/restore`, { method: 'POST' });
+                        lists.reload();
+                        navigate(link({ list: shownList.id }));
+                        return '';
+                      },
+                    };
                   }, 'Could not move the list to the trash'),
               },
             ]}
@@ -95,8 +103,19 @@ export function SpaceTasks() {
               onEdit={() => setEditing(task)}
               onToggle={() =>
                 void action.run(async () => {
-                  replace(await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' }));
-                  return '';
+                  const updated = await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' });
+                  replace(updated);
+                  return !task.completedAt && updated.completedAt
+                    ? {
+                        message: `Done: ${task.title}.`,
+                        undo: async () => {
+                          await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
+                          tasks.reload();
+                          lists.reload();
+                          return '';
+                        },
+                      }
+                    : '';
                 }, 'Could not update the task')
               }
               task={task}
@@ -115,6 +134,10 @@ export function SpaceTasks() {
           lists={lists.data}
           members={members.data ?? []}
           onClose={() => setEditing(undefined)}
+          onRestored={() => {
+            tasks.reload();
+            lists.reload();
+          }}
           onSaved={replace}
           onTrashed={() => {
             if (editing === 'new') return;

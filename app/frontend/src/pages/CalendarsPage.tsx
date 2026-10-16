@@ -29,6 +29,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
   const calendars = useResource<FollowedCalendar[]>('/me/calendars', true);
   const action = useAction();
   const form = useFormErrors();
+  const [stopping, setStopping] = useState<FollowedCalendar>();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
   if (calendars.error) return <LoadError compact error={calendars.error} onRetry={calendars.reload} />;
@@ -68,17 +69,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                         }, 'Could not check the calendar')
                       }
                     />
-                    <Button
-                      disabled={action.busy}
-                      label="Stop following"
-                      onClick={() =>
-                        void action.run(async () => {
-                          await auth.request(`/calendars/${calendar.id}`, { method: 'DELETE' });
-                          calendars.mutate((current) => current.filter((shown) => shown.id !== calendar.id));
-                          return `${calendar.name} is no longer followed.`;
-                        }, 'Could not stop following the calendar')
-                      }
-                    />
+                    <Button label="Stop following" onClick={() => setStopping(calendar)} />
                   </div>
                 )}
               </li>
@@ -117,6 +108,22 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
             <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />
           )}
         </FormDialog>
+      )}
+      {stopping && (
+        <ConfirmDialog
+          busyLabel="Stopping…"
+          confirmLabel="Stop following"
+          errorFallback="Could not stop following the calendar"
+          onClose={() => setStopping(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/calendars/${stopping.id}`, { method: 'DELETE' });
+            calendars.mutate((current) => current.filter((shown) => shown.id !== stopping.id));
+          }}
+          title={`Stop following ${stopping.name}?`}
+          tone="danger"
+        >
+          Its events disappear from the Agenda for everyone in {spaces.data!.find((space) => space.id === stopping.spaceId)!.name}.
+        </ConfirmDialog>
       )}
     </>
   );
@@ -192,6 +199,7 @@ export function CalendarsPage() {
             setResetting(false);
           }}
           title="Make a new calendar link?"
+          tone="danger"
         >
           <Hint>The old link stops working, so calendars subscribed to it stop updating.</Hint>
         </ConfirmDialog>

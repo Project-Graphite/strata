@@ -136,9 +136,18 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
               onEdit={() => navigate(`/spaces/${task.spaceId}/tasks`)}
               onToggle={() =>
                 void action.run(async () => {
-                  await auth.request(`/tasks/${task.id}/complete`, { method: 'POST' });
+                  const updated = await auth.request<Task>(`/tasks/${task.id}/complete`, { method: 'POST' });
                   tasks.reload();
-                  return '';
+                  return updated.completedAt
+                    ? {
+                        message: `Done: ${task.title}.`,
+                        undo: async () => {
+                          await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
+                          tasks.reload();
+                          return '';
+                        },
+                      }
+                    : '';
                 }, 'Could not update the task')
               }
               task={task}

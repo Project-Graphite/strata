@@ -29,6 +29,7 @@ export function TaskEditor({
   members,
   onClose,
   onSaved,
+  onRestored,
   onTrashed,
   spaceId,
   tags = [],
@@ -40,6 +41,7 @@ export function TaskEditor({
   members: Member[];
   onClose: () => void;
   onSaved: (task: Task) => void;
+  onRestored?: () => void;
   onTrashed?: () => void;
   spaceId: string;
   tags?: Tag[];
@@ -144,7 +146,14 @@ export function TaskEditor({
                   .run(async () => {
                     await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
                     onTrashed();
-                    return 'Moved the task to the trash.';
+                    return {
+                      message: 'Moved the task to the trash.',
+                      undo: async () => {
+                        await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
+                        onRestored?.();
+                        return '';
+                      },
+                    };
                   }, 'Could not move the task to the trash')
                   .then((trashed) => trashed && onClose())
               }

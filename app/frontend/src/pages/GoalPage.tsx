@@ -75,7 +75,14 @@ export function GoalPage() {
         void action.run(async () => {
           await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
           navigate('/goals');
-          return `Moved ${shown.title} to the trash.`;
+          return {
+            message: `Moved ${shown.title} to the trash.`,
+            undo: async () => {
+              await auth.request(`/items/${shown.id}/restore`, { method: 'POST' });
+              navigate(`/goals/${shown.id}`);
+              return '';
+            },
+          };
         }, 'Could not move the goal to the trash'),
     },
   ];
@@ -232,6 +239,7 @@ export function GoalPage() {
             if (taskEditing === 'new') void link(saved.id);
             else goal.reload();
           }}
+          onRestored={() => goal.reload()}
           onTrashed={() => goal.reload()}
           spaceId={shown.spaceId}
           tags={tags.data ?? []}

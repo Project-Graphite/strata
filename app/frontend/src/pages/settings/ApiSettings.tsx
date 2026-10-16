@@ -206,6 +206,7 @@ export function ApiSettings() {
             setRemoving(undefined);
           }}
           title={`Delete the webhook to ${removing.host}?`}
+          tone="danger"
         >
           Nothing more is sent there, and its delivery log is deleted.
         </ConfirmDialog>

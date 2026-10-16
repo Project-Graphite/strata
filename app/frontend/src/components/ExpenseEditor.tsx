@@ -18,6 +18,7 @@ export function ExpenseEditor({
   expense,
   onClose,
   onSaved,
+  onRestored,
   onTrashed,
   spaceId,
 }: {
@@ -27,6 +28,7 @@ export function ExpenseEditor({
   expense?: Expense;
   onClose: () => void;
   onSaved: (expense: Expense) => void;
+  onRestored?: () => void;
   onTrashed?: () => void;
   spaceId: string;
 }) {
@@ -133,7 +135,14 @@ export function ExpenseEditor({
               .run(async () => {
                 await auth.request(`/items/${expense.id}/trash`, { method: 'POST' });
                 onTrashed();
-                return `Moved ${expense.title} to the trash.`;
+                return {
+                  message: `Moved ${expense.title} to the trash.`,
+                  undo: async () => {
+                    await auth.request(`/items/${expense.id}/restore`, { method: 'POST' });
+                    onRestored?.();
+                    return '';
+                  },
+                };
               }, 'Could not move the expense to the trash')
               .then((done) => done && onClose())
           }

@@ -172,6 +172,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
             rules.mutate((current) => current.filter((rule) => rule.id !== deleting.id));
           }}
           title="Delete this rule?"
+          tone="danger"
         >
           {ruleText(deleting)}. Items it already tagged keep the tag.
         </ConfirmDialog>

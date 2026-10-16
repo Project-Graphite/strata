@@ -70,6 +70,7 @@ export function TrashPage() {
             trash.reload();
           }}
           title={`Delete ${deleting.title || 'Untitled'} for good?`}
+          tone="danger"
         >
           It is removed for everyone in {spaceName(deleting)}. This cannot be undone.
         </ConfirmDialog>

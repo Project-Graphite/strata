@@ -122,7 +122,14 @@ export function StoragePage() {
                             void action.run(async () => {
                               await auth.request(`/items/${file.id}/trash`, { method: 'POST' });
                               storage.reload();
-                              return `Moved ${file.name} to the trash.`;
+                              return {
+                                message: `Moved ${file.name} to the trash.`,
+                                undo: async () => {
+                                  await auth.request(`/items/${file.id}/restore`, { method: 'POST' });
+                                  storage.reload();
+                                  return '';
+                                },
+                              };
                             }, 'Could not move the file to the trash'),
                         },
                       ]}

@@ -79,7 +79,17 @@ export function TodoPage() {
                   tasks.reload();
                   lists.reload();
                   if (task.completedAt) return '';
-                  return updated.completedAt ? `Done: ${task.title}.` : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
+                  return updated.completedAt
+                    ? {
+                        message: `Done: ${task.title}.`,
+                        undo: async () => {
+                          await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
+                          tasks.reload();
+                          lists.reload();
+                          return '';
+                        },
+                      }
+                    : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
                 }, 'Could not update the to-do')
               }
               task={task}

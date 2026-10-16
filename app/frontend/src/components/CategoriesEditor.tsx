@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { categoryName, type SpendingCategory } from '../spending';
 import { useAction } from '../useAction';
@@ -18,6 +18,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
   const saving = useAction();
   const [rows, setRows] = useState<Row[]>(categories.map((category, key) => ({ ...category, key, previous: category.name })));
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState<SpendingCategory[]>();
   const change = (key: number, patch: Partial<Row>) => setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   const move = (index: number, by: number) =>
     setRows((current) => {
@@ -25,6 +26,38 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
       [next[index], next[index + by]] = [next[index + by]!, next[index]!];
       return next;
     });
+  const save = () =>
+    auth.request(`/spaces/${spaceId}/spending-categories`, {
+      method: 'PUT',
+      body: JSON.stringify({ categories: rows.map(({ name, colour, previous }) => ({ name: name.trim(), colour, ...(previous ? { previous } : {}) })) }),
+    });
+
+  if (removing) {
+    return (
+      <ConfirmDialog
+        busyLabel="Saving…"
+        confirmLabel="Save and move"
+        errorFallback="Could not save the categories"
+        onClose={() => setRemoving(undefined)}
+        onConfirm={async () => {
+          await save();
+          onSaved();
+          onClose();
+        }}
+        title="Move transactions to Other?"
+        tone="danger"
+      >
+        <p className="m-0">Saving moves the transactions in these categories to Other, and removes any budgets for them:</p>
+        <ul className="m-0 list-disc pl-5">
+          {removing.map((category) => (
+            <li key={category.name}>
+              {categoryName(category.name)}: {category.uses} transaction{category.uses === 1 ? '' : 's'}
+            </li>
+          ))}
+        </ul>
+      </ConfirmDialog>
+    );
+  }
 
   return (
     <FormDialog
@@ -36,12 +69,11 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
         if (names.some((name) => !name || name.length > 40)) return setError('Name each category in 1 to 40 characters.');
         if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) return setError('Give each category a different name.');
         setError('');
+        const inUse = categories.filter((category) => category.uses && !rows.some((row) => row.previous === category.name));
+        if (inUse.length) return setRemoving(inUse);
         void saving
           .run(async () => {
-            await auth.request(`/spaces/${spaceId}/spending-categories`, {
-              method: 'PUT',
-              body: JSON.stringify({ categories: rows.map(({ name, colour, previous }) => ({ name: name.trim(), colour, ...(previous ? { previous } : {}) })) }),
-            });
+            await save();
             onSaved();
             return 'Categories saved.';
           }, 'Could not save the categories')

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -86,6 +86,11 @@ export function SpendingPage() {
     | { account: MoneyAccount | null }
     | { capture: CapturedMessage }
     | { installment: InstallmentPlan | null }
+    | { ignoreMerchant: CapturedMessage }
+    | { removeAccount: MoneyAccount }
+    | { removePlan: InstallmentPlan }
+    | { removeBudget: string }
+    | { removeRule: MerchantRule }
   >();
   const [byCategory, setByCategory] = useState(byCategoryStored);
   const showByCategory = (shown: boolean) => {
@@ -281,22 +286,7 @@ export function SpendingPage() {
                           Ignore
                         </button>
                         {message.suggestion.merchant && (
-                          <button
-                            className="text-button text-sm"
-                            disabled={action.busy}
-                            onClick={() =>
-                              void action.run(async () => {
-                                await auth.request(`/spaces/${spaceId}/merchant-rules`, {
-                                  method: 'POST',
-                                  body: JSON.stringify({ match: message.suggestion.merchant!.toLowerCase(), ignore: true }),
-                                });
-                                await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
-                                reload();
-                                return `Messages from ${message.suggestion.merchant} will be ignored.`;
-                              }, 'Could not ignore the merchant')
-                            }
-                            type="button"
-                          >
+                          <button className="text-button text-sm" disabled={action.busy} onClick={() => setDialog({ ignoreMerchant: message })} type="button">
                             Always ignore
                           </button>
                         )}
@@ -332,12 +322,7 @@ export function SpendingPage() {
                             {
                               label: 'Remove',
                               separated: true,
-                              onSelect: () =>
-                                void action.run(async () => {
-                                  await auth.request(`/accounts/${account.id}`, { method: 'DELETE' });
-                                  reload();
-                                  return `Removed ${account.name}.`;
-                                }, 'Could not remove the account'),
+                              onSelect: () => setDialog({ removeAccount: account }),
                             },
                           ]}
                           name={account.name}
@@ -391,12 +376,7 @@ export function SpendingPage() {
                               {
                                 label: 'Remove',
                                 separated: true,
-                                onSelect: () =>
-                                  void action.run(async () => {
-                                    await auth.request(`/installments/${plan.id}`, { method: 'DELETE' });
-                                    installments.mutate((current) => current.filter((shown) => shown.id !== plan.id));
-                                    return `Removed ${plan.name}.`;
-                                  }, 'Could not remove the plan'),
+                                onSelect: () => setDialog({ removePlan: plan }),
                               },
                             ]}
                             name={plan.name}
@@ -464,16 +444,7 @@ export function SpendingPage() {
                             <ActionsMenu
                               items={[
                                 { label: 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
-                                {
-                                  label: 'Remove the budget',
-                                  separated: true,
-                                  onSelect: () =>
-                                    void action.run(async () => {
-                                      await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(row.category)}`, { method: 'DELETE' });
-                                      summary.reload();
-                                      return `Removed the ${categoryName(row.category).toLowerCase()} budget.`;
-                                    }, 'Could not remove the budget'),
-                                },
+                                { label: 'Remove the budget', separated: true, onSelect: () => setDialog({ removeBudget: row.category }) },
                               ]}
                               name={categoryName(row.category)}
                             />
@@ -498,18 +469,7 @@ export function SpendingPage() {
                       title={rule.match}
                     />
                     {editable && (
-                      <button
-                        className="text-button text-sm"
-                        disabled={action.busy}
-                        onClick={() =>
-                          void action.run(async () => {
-                            await auth.request(`/merchant-rules/${rule.id}`, { method: 'DELETE' });
-                            rules.mutate((current) => current.filter((shown) => shown.id !== rule.id));
-                            return '';
-                          }, 'Could not remove the rule')
-                        }
-                        type="button"
-                      >
+                      <button className="text-button text-sm" onClick={() => setDialog({ removeRule: rule })} type="button">
                         Remove
                       </button>
                     )}
@@ -577,6 +537,7 @@ export function SpendingPage() {
           currency={currency}
           expense={dialog.expense}
           onClose={() => setDialog(undefined)}
+          onRestored={reload}
           onSaved={reload}
           onTrashed={reload}
           spaceId={spaceId}
@@ -622,6 +583,89 @@ export function SpendingPage() {
       {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
       {spaceId && categories.data && dialog === 'categories' && (
         <CategoriesEditor categories={categories.data} onClose={() => setDialog(undefined)} onSaved={() => (categories.reload(), reload())} spaceId={spaceId} />
+      )}
+      {typeof dialog === 'object' && 'ignoreMerchant' in dialog && (
+        <ConfirmDialog
+          busyLabel="Saving…"
+          confirmLabel="Always ignore"
+          errorFallback="Could not ignore the merchant"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/spaces/${spaceId}/merchant-rules`, {
+              method: 'POST',
+              body: JSON.stringify({ match: dialog.ignoreMerchant.suggestion.merchant!.toLowerCase(), ignore: true }),
+            });
+            await auth.request(`/captures/${dialog.ignoreMerchant.id}/ignore`, { method: 'POST' });
+            reload();
+          }}
+          title={`Always ignore ${dialog.ignoreMerchant.suggestion.merchant}?`}
+        >
+          This message and every later one from {dialog.ignoreMerchant.suggestion.merchant} are skipped. You can remove the rule under Budgets.
+        </ConfirmDialog>
+      )}
+      {typeof dialog === 'object' && 'removeAccount' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove account"
+          errorFallback="Could not remove the account"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/accounts/${dialog.removeAccount.id}`, { method: 'DELETE' });
+            reload();
+          }}
+          title={`Remove ${dialog.removeAccount.name}?`}
+          tone="danger"
+        >
+          Its transactions stay, but no longer belong to an account. Transfers show “Removed account” instead.
+        </ConfirmDialog>
+      )}
+      {typeof dialog === 'object' && 'removePlan' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove plan"
+          errorFallback="Could not remove the plan"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/installments/${dialog.removePlan.id}`, { method: 'DELETE' });
+            installments.mutate((current) => current.filter((shown) => shown.id !== dialog.removePlan.id));
+          }}
+          title={`Remove ${dialog.removePlan.name}?`}
+          tone="danger"
+        >
+          Its reminders stop and the payments marked so far are forgotten.
+        </ConfirmDialog>
+      )}
+      {typeof dialog === 'object' && 'removeBudget' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove budget"
+          errorFallback="Could not remove the budget"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(dialog.removeBudget)}`, { method: 'DELETE' });
+            summary.reload();
+          }}
+          title={`Remove the ${categoryName(dialog.removeBudget).toLowerCase()} budget?`}
+          tone="danger"
+        >
+          Spending in this category is still tracked, without a limit.
+        </ConfirmDialog>
+      )}
+      {typeof dialog === 'object' && 'removeRule' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove rule"
+          errorFallback="Could not remove the rule"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/merchant-rules/${dialog.removeRule.id}`, { method: 'DELETE' });
+            rules.mutate((current) => current.filter((shown) => shown.id !== dialog.removeRule.id));
+          }}
+          title={`Remove the rule for ${dialog.removeRule.match}?`}
+          tone="danger"
+        >
+          Transactions it has already changed stay as they are.
+        </ConfirmDialog>
       )}
     </Page>
   );

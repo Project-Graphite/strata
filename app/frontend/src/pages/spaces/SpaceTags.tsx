@@ -102,6 +102,7 @@ export function SpaceTags() {
             tags.mutate((current) => current.filter((tag) => tag.id !== deleting.id));
           }}
           title={`Delete ${deleting.name}?`}
+          tone="danger"
         >
           The tag is removed from every item in this space. The items themselves stay.
         </ConfirmDialog>

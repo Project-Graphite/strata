@@ -22,7 +22,7 @@ export function PhoneSetup({ onClose, spaceId, spaceName }: { onClose: () => voi
 
   if (token) {
     return (
-      <Dialog onClose={onClose} title="Connect your Android phone">
+      <Dialog dismissible={false} onClose={onClose} title="Connect your Android phone">
         <div className="mt-5 grid gap-4 text-sm text-ink">
           <ol className="m-0 grid gap-2 pl-5">
             <li>

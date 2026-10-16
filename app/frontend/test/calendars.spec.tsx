@@ -83,6 +83,7 @@ describe('Calendars', () => {
     expect(container.textContent).toContain('Personal · fixtures.example · 12 events · checked');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop following')!.click());
+    await act(async () => [...container.querySelectorAll('dialog button')].find((button) => button.textContent === 'Stop following')!.click());
     expect(container.textContent).not.toContain('fixtures.example ·');
   });
 

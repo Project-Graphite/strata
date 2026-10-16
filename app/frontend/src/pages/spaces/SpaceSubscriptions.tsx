@@ -44,7 +44,16 @@ export function SpaceSubscriptions() {
           ? current.map((shown) => (shown.id === updated.id ? updated : shown))
           : current.filter((shown) => shown.id !== updated.id),
       );
-      return message;
+      return verb === 'cancel'
+        ? {
+            message,
+            undo: async () => {
+              await auth.request(`/subscriptions/${subscription.id}/resume`, { method: 'POST' });
+              subscriptions.reload();
+              return '';
+            },
+          }
+        : message;
     }, 'Could not update the subscription');
   }
 
@@ -94,7 +103,7 @@ export function SpaceSubscriptions() {
                         items={[
                           ...(shared && members.data && members.data.length > 1 ? [{ label: 'Split', onSelect: () => setSplitting(subscription) }] : []),
                           { label: 'I used this', onSelect: () => act(subscription, 'used', `Noted that you used ${subscription.name}.`) },
-                          { label: 'Cancelled', onSelect: () => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`) },
+                          { label: 'Mark cancelled', onSelect: () => act(subscription, 'cancel', `${subscription.name} is marked cancelled.`) },
                           ...(subscription.cancelUrl ? [{ label: 'Cancel link', href: subscription.cancelUrl, separated: true }] : []),
                         ]}
                         name={subscription.name}

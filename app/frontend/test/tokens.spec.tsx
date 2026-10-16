@@ -29,7 +29,7 @@ describe('Access tokens', () => {
     vi.unstubAllGlobals();
   });
 
-  it('creates a token with the chosen permissions and shows it once', async () => {
+  it('creates a token with the chosen permissions and shows it once, until Done', async () => {
     const fetchMock = vi.fn((input: string, init?: RequestInit) => {
       const path = input.replace('/api/v1', '');
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
@@ -84,5 +84,13 @@ describe('Access tokens', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/tokens', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('dialog code')?.textContent).toBe(secret);
     expect(container.textContent).toContain('spaces:read, items:read · never used');
+
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.querySelector('button[aria-label="Close"]')).toBeNull();
+    await act(async () => void dialog.dispatchEvent(new Event('cancel', { cancelable: true })));
+    await act(async () => void dialog.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(container.querySelector('dialog code')?.textContent).toBe(secret);
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Done')!.click());
+    expect(container.querySelector('dialog')).toBeNull();
   });
 });

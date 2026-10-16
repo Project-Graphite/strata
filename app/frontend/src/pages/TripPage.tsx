@@ -86,7 +86,14 @@ export function TripPage() {
                     void action.run(async () => {
                       await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
                       navigate('/trips');
-                      return `Moved ${shown.title} to the trash. Its events, files and expenses stay in ${shown.spaceName}.`;
+                      return {
+                        message: `Moved ${shown.title} to the trash. Its events, files and expenses stay in ${shown.spaceName}.`,
+                        undo: async () => {
+                          await auth.request(`/items/${shown.id}/restore`, { method: 'POST' });
+                          navigate(`/trips/${shown.id}`);
+                          return '';
+                        },
+                      };
                     }, 'Could not move the trip to the trash'),
                 },
               ]}

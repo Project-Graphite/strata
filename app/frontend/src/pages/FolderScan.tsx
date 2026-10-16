@@ -111,6 +111,7 @@ export function FolderScan() {
   const files = report ? [...report.duplicates.flat(), ...report.largest, ...report.old] : [];
   const chosen = [...new Map(files.filter((file) => selected.has(file.path)).map((file) => [file.path, file])).values()];
   const toggle = (path: string) => setSelected((current) => toggled(current, path));
+  const lost = report ? report.duplicates.filter((group) => group.every((file) => selected.has(file.path))).length : 0;
   const choice = (file: LocalFile, detail: string) => (
     <Choice checked={selected.has(file.path)} detail={detail} key={file.path} label={file.path} onToggle={() => toggle(file.path)} />
   );
@@ -218,8 +219,14 @@ export function FolderScan() {
             }
           }}
           title="Delete these files for good?"
+          tone="danger"
         >
           <p className="m-0">They skip the recycle bin and can’t be brought back, not even from Strata’s undo history.</p>
+          {lost > 0 && (
+            <p className="m-0 text-danger">
+              All copies of {lost === 1 ? 'a duplicated file are' : `${lost} duplicated files are`} selected, so no copy will be left.
+            </p>
+          )}
           <ul className="m-0 grid max-h-48 list-none gap-1 overflow-y-auto p-0">
             {chosen.map((file) => (
               <li className="truncate text-ink" key={file.path}>

@@ -15,6 +15,7 @@ export function EventEditor({
   event,
   onClose,
   onSaved,
+  onRestored,
   onTrashed,
   spaceId,
   startsOn,
@@ -22,6 +23,7 @@ export function EventEditor({
   event?: EventDetails;
   onClose: () => void;
   onSaved: (event: EventDetails) => void;
+  onRestored?: () => void;
   onTrashed?: () => void;
   spaceId?: string;
   startsOn?: string;
@@ -112,7 +114,14 @@ export function EventEditor({
                 void saving.run(async () => {
                   await auth.request(`/items/${event.id}/trash`, { method: 'POST' });
                   onTrashed();
-                  return `Moved ${event.title} to the trash.`;
+                  return {
+                    message: `Moved ${event.title} to the trash.`,
+                    undo: async () => {
+                      await auth.request(`/items/${event.id}/restore`, { method: 'POST' });
+                      onRestored?.();
+                      return '';
+                    },
+                  };
                 }, 'Could not move the event to the trash')
               }
               type="button"

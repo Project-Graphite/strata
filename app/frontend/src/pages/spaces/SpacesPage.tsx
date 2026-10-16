@@ -112,6 +112,7 @@ export function SpacesPage() {
             spaces.mutate((current) => current.filter((space) => space.id !== deleting.id));
           }}
           title={`Delete ${deleting.name}?`}
+          tone="danger"
         >
           Everything in this space is deleted for every member, straight away. This cannot be undone.
         </ConfirmDialog>

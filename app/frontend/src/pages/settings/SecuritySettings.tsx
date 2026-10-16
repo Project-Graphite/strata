@@ -48,7 +48,7 @@ function EnableTwoStep({ onClose, onDone }: { onClose: () => void; onDone: () =>
 
   if (codes) {
     return (
-      <Dialog onClose={onDone} title="Save your recovery codes">
+      <Dialog dismissible={false} onClose={onDone} title="Save your recovery codes">
         <RecoveryCodes codes={codes} onDone={onDone} />
       </Dialog>
     );
@@ -123,7 +123,7 @@ function RecoveryCodesDialog({ enabled, onClose }: { enabled: boolean; onClose: 
 
   if (codes) {
     return (
-      <Dialog onClose={onClose} title="Your new recovery codes">
+      <Dialog dismissible={false} onClose={onClose} title="Your new recovery codes">
         <RecoveryCodes codes={codes} onDone={onClose} />
       </Dialog>
     );

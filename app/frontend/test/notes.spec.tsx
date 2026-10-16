@@ -349,11 +349,14 @@ describe('Notes', () => {
     await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Create link')!.click());
     expect(dialog.querySelector('code')?.textContent).toBe('http://localhost/share/abc');
     await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
+    const confirm = container.querySelector('dialog')!;
+    expect(confirm.textContent).toContain('Anyone with it loses access to this page straight away.');
+    await act(async () => [...confirm.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
     expect(sent).toEqual([
       { method: 'POST', path: '/items/trips/share-links', body: { access: 'view', expiresInDays: 7 } },
       { method: 'DELETE', path: '/items/trips/share-links/link' },
     ]);
-    expect(dialog.querySelector('code')).toBeNull();
+    expect(container.querySelector('dialog code')).toBeNull();
   });
 
   it('offers edit links for a board', async () => {
@@ -437,6 +440,25 @@ describe('Notes', () => {
     expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Lisbon to the trash.');
     expect(container.querySelector('main a[href="/notes/lisbon"]')).toBeNull();
     expect(container.querySelector('main a[href="/notes/food"]')).not.toBeNull();
+  });
+
+  it('undoes moving a page to the trash and opens it again', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/lisbon') return json({ ...note('lisbon', 'Lisbon', 'trips'), editable: true, path: [{ id: 'trips', title: 'Trips' }] });
+      if (path === '/items/lisbon/trash' && init?.method === 'POST') return new Response(null, { status: 204 });
+      if (path === '/items/lisbon/restore' && init?.method === 'POST') return new Response(null, { status: 204 });
+      if (path === '/me/notes?kind=note') return json(listed);
+      return undefined;
+    });
+    await render('/notes/lisbon');
+
+    await chooseFromMenu(container, 'Actions for Lisbon', 'Move to trash');
+    await act(async () => [...container.querySelector('dialog')!.querySelectorAll('button')].find((button) => button.textContent === 'Move to trash')!.click());
+    expect(container.querySelector('h1')?.textContent).toBe('Pages');
+
+    await act(async () => [...container.querySelectorAll('.snackbar button')].find((button) => button.textContent === 'Undo')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/lisbon/restore', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')?.value).toBe('Lisbon');
   });
 
   it('moves a page without pages inside to the trash from the list straight away', async () => {

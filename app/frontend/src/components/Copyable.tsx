@@ -32,7 +32,7 @@ export function Copyable({ label, value }: { label?: string; value: string }) {
 
 export function SecretDialog({ hint, onClose, title, value }: { hint: string; onClose: () => void; title: string; value: string }) {
   return (
-    <Dialog onClose={onClose} title={title}>
+    <Dialog dismissible={false} onClose={onClose} title={title}>
       <div className="mt-5 grid gap-4">
         <Hint>{hint}</Hint>
         <Copyable value={value} />

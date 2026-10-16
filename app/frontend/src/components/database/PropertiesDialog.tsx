@@ -1,11 +1,21 @@
 import { useState } from 'react';
-import { Icon, Select, tagColors } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, Select, tagColors } from '@project-graphite/ui';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
 import { colorOptions } from '../../spaces';
 import { Hint } from '../Hint';
 
 const hasOptions = (type: PropertyType) => type === 'select' || type === 'multiSelect';
+
+function clearedBy(before: Property[], after: Property[]) {
+  return before.flatMap((original) => {
+    const kept = after.find((property) => property.id === original.id);
+    if (!kept) return [`Every ${original.name} value`];
+    if (kept.type !== original.type) return [`Every ${original.name} value, since its kind changed`];
+    const dropped = (original.options ?? []).filter((option) => !kept.options?.some((candidate) => candidate.id === option.id));
+    return dropped.length ? [`${dropped.map((option) => `“${option.name}”`).join(', ')} in ${original.name}`] : [];
+  });
+}
 
 export function PropertiesDialog({
   busy,
@@ -19,22 +29,44 @@ export function PropertiesDialog({
   properties: Property[];
 }) {
   const [draft, setDraft] = useState(properties);
+  const [clearing, setClearing] = useState<{ saved: Property[]; cleared: string[] }>();
   const change = (id: string, next: Partial<Property>) => setDraft((current) => current.map((property) => (property.id === id ? { ...property, ...next } : property)));
+
+  if (clearing) {
+    return (
+      <ConfirmDialog
+        busyLabel="Saving…"
+        confirmLabel="Save and clear"
+        onClose={() => setClearing(undefined)}
+        onConfirm={async () => onSave(clearing.saved)}
+        title="Clear values on every page?"
+        tone="danger"
+      >
+        <p className="m-0">Saving clears these from every page in this database:</p>
+        <ul className="m-0 list-disc pl-5">
+          {clearing.cleared.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </ConfirmDialog>
+    );
+  }
 
   return (
     <FormDialog
       busy={busy}
       busyLabel="Saving…"
       onClose={onClose}
-      onSubmit={() =>
-        onSave(
-          draft
-            .map((property) => ({ ...property, name: property.name.trim() || 'Untitled' }))
-            .map(({ options, ...property }) =>
-              hasOptions(property.type) ? { ...property, options: (options ?? []).filter((option) => option.name.trim()).map((option) => ({ ...option, name: option.name.trim() })) } : property,
-            ),
-        )
-      }
+      onSubmit={() => {
+        const saved = draft
+          .map((property) => ({ ...property, name: property.name.trim() || 'Untitled' }))
+          .map(({ options, ...property }) =>
+            hasOptions(property.type) ? { ...property, options: (options ?? []).filter((option) => option.name.trim()).map((option) => ({ ...option, name: option.name.trim() })) } : property,
+          );
+        const cleared = clearedBy(properties, saved);
+        if (cleared.length) setClearing({ saved, cleared });
+        else onSave(saved);
+      }}
       submitLabel="Save properties"
       title="Properties"
     >

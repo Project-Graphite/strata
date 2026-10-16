@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -105,6 +105,7 @@ export function NoteComments({
   const [replying, setReplying] = useState<string>();
   const [editing, setEditing] = useState<string>();
   const [showResolved, setShowResolved] = useState(false);
+  const [deleting, setDeleting] = useState<{ id: string; replies: number }>();
   const commented = (comments.data ?? [])
     .filter((comment) => comment.blockId && !comment.parentId && !comment.resolvedAt)
     .map((comment) => comment.blockId!)
@@ -134,10 +135,13 @@ export function NoteComments({
       setEditing(undefined);
       return '';
     }, 'The comment could not be changed.');
+  async function deleteComment(id: string) {
+    await auth.request(`/comments/${id}`, { method: 'DELETE' });
+    comments.mutate((current) => current.filter((comment) => comment.id !== id && comment.parentId !== id));
+  }
   const remove = (id: string) =>
     action.run(async () => {
-      await auth.request(`/comments/${id}`, { method: 'DELETE' });
-      comments.mutate((current) => current.filter((comment) => comment.id !== id && comment.parentId !== id));
+      await deleteComment(id);
       return 'Comment deleted.';
     }, 'The comment could not be deleted.');
   const resolve = (id: string, done: boolean) =>
@@ -180,7 +184,16 @@ export function NoteComments({
             </button>
           )}
           {(mine || owner) && (
-            <button className="text-button" disabled={action.busy} onClick={() => void remove(comment.id)} type="button">
+            <button
+              className="text-button"
+              disabled={action.busy}
+              onClick={() => {
+                const replies = all.filter((reply) => reply.parentId === comment.id).length;
+                if (replies) setDeleting({ id: comment.id, replies });
+                else void remove(comment.id);
+              }}
+              type="button"
+            >
               Delete
             </button>
           )}
@@ -215,6 +228,19 @@ export function NoteComments({
         </div>
       ) : (
         <CommentForm label="Comment" onSave={(body) => add(body)} />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          busyLabel="Deleting…"
+          confirmLabel="Delete comment"
+          errorFallback="The comment could not be deleted."
+          onClose={() => setDeleting(undefined)}
+          onConfirm={() => deleteComment(deleting.id)}
+          title="Delete this comment?"
+          tone="danger"
+        >
+          {deleting.replies === 1 ? 'Its reply is deleted too.' : `Its ${deleting.replies} replies are deleted too.`}
+        </ConfirmDialog>
       )}
     </section>
   );

@@ -29,10 +29,11 @@ export function EventPage() {
   const poll = useResource<{ options: PollOption[] }>(`/events/${id}/poll`, true);
   const inviting = useAction();
   const sharing = useAction();
-  const removing = useAction();
   const voting = useAction();
   const [planning, setPlanning] = useState(false);
   const [picking, setPicking] = useState<PollOption>();
+  const [closingPoll, setClosingPoll] = useState(false);
+  const [removing, setRemoving] = useState<Guest>();
   const form = useFormErrors();
   const [editing, setEditing] = useState(false);
   const [personalLink, setPersonalLink] = useState('');
@@ -108,18 +109,7 @@ export function EventPage() {
               {editable && (
                 <div className="flex flex-wrap gap-2">
                   <Button label="Change dates" onClick={() => setPlanning(true)} />
-                  <button
-                    className="text-button text-sm"
-                    disabled={voting.busy}
-                    onClick={() =>
-                      void voting.run(async () => {
-                        await auth.request(`/events/${details.id}/poll`, { method: 'DELETE' });
-                        poll.mutate(() => ({ options: [] }));
-                        return 'The poll is closed.';
-                      }, 'Could not close the poll')
-                    }
-                    type="button"
-                  >
+                  <button className="text-button text-sm" disabled={voting.busy} onClick={() => setClosingPoll(true)} type="button">
                     Close the poll
                   </button>
                 </div>
@@ -146,17 +136,7 @@ export function EventPage() {
                   {guest.note && <span className="text-sm text-muted">“{guest.note}”</span>}
                 </RowText>
                 {editable && (
-                  <Button
-                    disabled={removing.busy}
-                    label="Remove"
-                    onClick={() =>
-                      void removing.run(async () => {
-                        await auth.request(`/events/${details.id}/guests/${guest.id}`, { method: 'DELETE' });
-                        event.reload();
-                        return `${guest.name} was removed.`;
-                      }, 'Could not remove the guest')
-                    }
-                  />
+                  <Button label="Remove" onClick={() => setRemoving(guest)} />
                 )}
               </li>
             ))}
@@ -237,8 +217,40 @@ export function EventPage() {
           <Hint>The poll closes and the other dates are dropped.</Hint>
         </ConfirmDialog>
       )}
+      {closingPoll && (
+        <ConfirmDialog
+          busyLabel="Closing…"
+          confirmLabel="Close the poll"
+          errorFallback="Could not close the poll"
+          onClose={() => setClosingPoll(false)}
+          onConfirm={async () => {
+            await auth.request(`/events/${details.id}/poll`, { method: 'DELETE' });
+            poll.mutate(() => ({ options: [] }));
+          }}
+          title="Close the poll?"
+          tone="danger"
+        >
+          The dates on offer and every vote are deleted. The event keeps its current date.
+        </ConfirmDialog>
+      )}
+      {removing && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove guest"
+          errorFallback="Could not remove the guest"
+          onClose={() => setRemoving(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/events/${details.id}/guests/${removing.id}`, { method: 'DELETE' });
+            event.reload();
+          }}
+          title={`Remove ${removing.name}?`}
+          tone="danger"
+        >
+          Their invitation link stops working and their answer is lost.
+        </ConfirmDialog>
+      )}
       {editing && (
-        <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} onTrashed={() => navigate('/agenda')} />
+        <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} onRestored={() => navigate(`/events/${details.id}`)} onTrashed={() => navigate('/agenda')} />
       )}
     </Page>
   );

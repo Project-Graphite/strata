@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -20,13 +20,14 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 
 export function NetWorthPage() {
   const auth = useAuth();
-  const action = useAction();
   const [params] = useSearchParams();
   const { spaceId, editable } = useChosenSpace();
   const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
-  const [dialog, setDialog] = useState<{ asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal }>();
+  const [dialog, setDialog] = useState<
+    { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { removeGoal: SavingsGoal } | { removeAsset: Asset }
+  >();
   const failed = worth.error ?? goals.error;
 
   return (
@@ -83,12 +84,7 @@ export function NetWorthPage() {
                             {
                               label: 'Remove',
                               separated: true,
-                              onSelect: () =>
-                                void action.run(async () => {
-                                  await auth.request(`/savings-goals/${goal.id}`, { method: 'DELETE' });
-                                  goals.mutate((current) => current.filter((shown) => shown.id !== goal.id));
-                                  return `Removed ${goal.name}.`;
-                                }, 'Could not remove the goal'),
+                              onSelect: () => setDialog({ removeGoal: goal }),
                             },
                           ]}
                           name={goal.name}
@@ -128,12 +124,7 @@ export function NetWorthPage() {
                           {
                             label: 'Remove',
                             separated: true,
-                            onSelect: () =>
-                              void action.run(async () => {
-                                await auth.request(`/assets/${asset.id}`, { method: 'DELETE' });
-                                worth.reload();
-                                return `Removed ${asset.name}.`;
-                              }, 'Could not remove the asset'),
+                            onSelect: () => setDialog({ removeAsset: asset }),
                           },
                         ]}
                         name={asset.name}
@@ -161,6 +152,38 @@ export function NetWorthPage() {
         />
       )}
       {dialog && 'add' in dialog && <AddToGoal goal={dialog.add} onClose={() => setDialog(undefined)} onSaved={goals.reload} />}
+      {dialog && 'removeGoal' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove goal"
+          errorFallback="Could not remove the goal"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/savings-goals/${dialog.removeGoal.id}`, { method: 'DELETE' });
+            goals.mutate((current) => current.filter((shown) => shown.id !== dialog.removeGoal.id));
+          }}
+          title={`Remove ${dialog.removeGoal.name}?`}
+          tone="danger"
+        >
+          Its progress is lost. Nothing in your accounts changes.
+        </ConfirmDialog>
+      )}
+      {dialog && 'removeAsset' in dialog && (
+        <ConfirmDialog
+          busyLabel="Removing…"
+          confirmLabel="Remove asset"
+          errorFallback="Could not remove the asset"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/assets/${dialog.removeAsset.id}`, { method: 'DELETE' });
+            worth.reload();
+          }}
+          title={`Remove ${dialog.removeAsset.name}?`}
+          tone="danger"
+        >
+          It no longer counts towards your net worth.
+        </ConfirmDialog>
+      )}
     </Page>
   );
 }

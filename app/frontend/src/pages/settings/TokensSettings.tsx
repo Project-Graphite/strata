@@ -167,6 +167,7 @@ export function TokensSettings() {
             tokens.mutate((current) => current.filter((token) => token.id !== revoking.id));
           }}
           title={`Revoke ${revoking.name}?`}
+          tone="danger"
         >
           Anything using it stops working straight away.
         </ConfirmDialog>

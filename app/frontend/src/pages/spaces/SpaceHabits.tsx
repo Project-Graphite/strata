@@ -107,6 +107,7 @@ export function SpaceHabits() {
             setDeleting(undefined);
           }}
           title={`Delete “${deleting.name}”?`}
+          tone="danger"
         >
           Everyone’s check-ins for it are deleted too.
         </ConfirmDialog>

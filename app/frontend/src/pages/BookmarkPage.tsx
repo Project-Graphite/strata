@@ -136,7 +136,14 @@ export function BookmarkPage() {
                   void acting.run(async () => {
                     const saved = await auth.request<BookmarkDetails>(`/bookmarks/${details.id}`, { method: 'PATCH', body: JSON.stringify({ read: !details.readAt }) });
                     mutate(() => saved);
-                    return details.readAt ? 'Back on your read-later list.' : 'Marked as read.';
+                    return {
+                      message: details.readAt ? 'Back on your read-later list.' : 'Marked as read.',
+                      undo: async () => {
+                        const restored = await auth.request<BookmarkDetails>(`/bookmarks/${details.id}`, { method: 'PATCH', body: JSON.stringify({ read: Boolean(details.readAt) }) });
+                        mutate(() => restored);
+                        return '';
+                      },
+                    };
                   }, 'Could not change the bookmark')
                 }
                 type="button"
@@ -153,7 +160,14 @@ export function BookmarkPage() {
                   void acting.run(async () => {
                     await auth.request(`/items/${details.id}/trash`, { method: 'POST' });
                     navigate('/bookmarks');
-                    return 'Moved to the trash.';
+                    return {
+                      message: 'Moved to the trash.',
+                      undo: async () => {
+                        await auth.request(`/items/${details.id}/restore`, { method: 'POST' });
+                        navigate(`/bookmarks/${details.id}`);
+                        return '';
+                      },
+                    };
                   }, 'Could not move the bookmark to the trash')
                 }
                 type="button"
