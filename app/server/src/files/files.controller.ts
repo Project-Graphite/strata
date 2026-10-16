@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { fileHeaders, FilesService, maxFileBytes } from './files.service';
+import { UploadQueue } from './upload-queue';
 
 function tooLarge() {
   return new PayloadTooLargeException('Files can be at most 25 MB');
@@ -66,7 +67,10 @@ async function readBody(request: Request) {
 
 @Controller()
 export class FilesController {
-  constructor(private readonly files: FilesService) {}
+  constructor(
+    private readonly files: FilesService,
+    private readonly uploads: UploadQueue,
+  ) {}
 
   @Post('spaces/:spaceId/files')
   @Scope('items:write')
@@ -81,7 +85,8 @@ export class FilesController {
     if (request.is('application/json') || request.is('application/x-www-form-urlencoded')) {
       throw new BadRequestException('Send the file itself as the request body');
     }
-    return this.files.upload(user.id, spaceId, fileName(name), await readBody(request));
+    const cleanedName = fileName(name);
+    return this.uploads.run(user.id, async () => this.files.upload(user.id, spaceId, cleanedName, await readBody(request)));
   }
 
   @Get('me/storage')
