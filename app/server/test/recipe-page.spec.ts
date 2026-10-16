@@ -43,6 +43,12 @@ describe('reading a recipe from a page', () => {
     expect(readRecipe('<p>Nothing here</p>')).toBeNull();
   });
 
+  it('reads hostile pages without stalling and ignores invalid character references', () => {
+    expect(readRecipe('<script'.repeat(400_000))).toBeNull();
+    expect(readRecipe('<script type="application/ld+json">'.repeat(80_000))).toBeNull();
+    expect(readRecipe(page({ '@type': 'Recipe', name: `Pie&#99999999;&#x41;&#65;${'<a'.repeat(500_000)}` }))?.title.startsWith('PieAA<a')).toBe(true);
+  });
+
   it('turns ISO durations into minutes', () => {
     expect(minutes('PT1H30M')).toBe(90);
     expect(minutes('P1DT2H')).toBe(1560);

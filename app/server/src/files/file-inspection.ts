@@ -153,5 +153,5 @@ export function inspectFile(data: Buffer, name: string): InspectedFile | null {
   }
   const content = text(data);
   if (content === null) return null;
-  return attachment(/^﻿?\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(content) ? 'image/svg+xml' : 'text/plain', data);
+  return attachment(/^﻿?\s*(?:<\?xml[^>]*>\s*)?(?:<!--(?:[^-]|-(?!->))*-->\s*)*<svg[\s>]/i.test(content) ? 'image/svg+xml' : 'text/plain', data);
 }

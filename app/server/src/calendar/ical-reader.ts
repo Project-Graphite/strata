@@ -47,10 +47,10 @@ function validZone(zone: string | undefined) {
 const unescapeText = (value: string) => value.replace(/\\([\\;,nN])/g, (_, character: string) => (character.toLowerCase() === 'n' ? '\n' : character));
 
 function plainText(value: string) {
-  if (!/<\/?[a-z][^>]*>/i.test(value)) return value;
+  if (!/<\/?[a-z][^<>]*>/i.test(value)) return value;
   return value
     .replace(/<br\s*\/?>|<\/(?:p|div|li|h\d)>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
+    .replace(/<[^<>]*>/g, '')
     .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, name: string) => entities[name]!)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
