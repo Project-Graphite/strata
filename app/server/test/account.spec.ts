@@ -62,13 +62,13 @@ function setup(overrides: Record<string, object> = {}) {
     accessToken: {
       updateMany: vi.fn().mockReturnValue('access-token-revoke'),
     },
-    webhook: {
-      updateMany: vi.fn().mockReturnValue('webhook-disable'),
-    },
     space: {
       create: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockReturnValue('space-delete'),
+    },
+    webhook: {
+      updateMany: vi.fn().mockReturnValue('webhook-disable'),
     },
     $transaction: vi.fn((work: unknown) =>
       typeof work === 'function' ? (work as (client: unknown) => unknown)(prisma) : work,
