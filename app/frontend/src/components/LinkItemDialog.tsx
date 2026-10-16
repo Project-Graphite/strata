@@ -24,7 +24,7 @@ export function LinkItemDialog({
   return (
     <FormDialog busy={busy} busyLabel="Linking…" onClose={onClose} onSubmit={() => chosen && onLink(chosen)} submitLabel={`Link ${noun}`} title={title}>
       {choices && choices.length === 0 ? (
-        <Empty title={`No ${noun}s to link`}>{empty}</Empty>
+        <Empty level={3} title={`No ${noun}s to link`}>{empty}</Empty>
       ) : (
         <Select
           label={noun === 'task' ? 'Task' : 'Event'}

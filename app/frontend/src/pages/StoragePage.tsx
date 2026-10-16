@@ -93,7 +93,7 @@ export function StoragePage() {
           )}
           <Section title="Files">
             {shown.files.length === 0 ? (
-              <Empty title="No files yet" />
+              <Empty level={3} title="No files yet" />
             ) : (
               <ul className="panel-rows">
                 {shown.files.map((file) => (

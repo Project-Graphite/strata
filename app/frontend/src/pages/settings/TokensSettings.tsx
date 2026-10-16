@@ -59,7 +59,7 @@ export function TokensSettings() {
         title="Access tokens"
       >
         {tokens.data.length === 0 ? (
-          <Empty title="No tokens">
+          <Empty level={3} title="No tokens">
             A token lets your own scripts use Strata as you, with only the permissions you give it.
           </Empty>
         ) : (

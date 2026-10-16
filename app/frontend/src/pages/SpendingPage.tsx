@@ -525,7 +525,7 @@ export function SpendingPage() {
               title={tab === 'overview' ? 'Recent' : 'Transactions'}
             >
               {listed.length === 0 ? (
-                <Empty title="Nothing this month" />
+                <Empty level={3} title="Nothing this month" />
               ) : (
                 <ul className="panel-rows">
                   {(tab === 'overview' ? listed.slice(0, recentCount) : listed).map((expense) => (

@@ -30,7 +30,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
         ) : !versions.data ? (
           <ListSkeleton label="Loading the history" rows={3} />
         ) : versions.data.length === 0 ? (
-          <Empty title="No earlier versions yet" />
+          <Empty level={3} title="No earlier versions yet" />
         ) : (
           <>
             <ul className="panel-rows max-h-56 overflow-y-auto">

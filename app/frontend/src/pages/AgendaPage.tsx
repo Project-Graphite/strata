@@ -91,7 +91,7 @@ export function AgendaPage() {
         <ListSkeleton label="Loading your agenda" rows={6} />
       ) : view === 'list' ? (
         agenda.data.length === 0 ? (
-          <Empty title="Nothing in this period" />
+          <Empty level={3} title="Nothing in this period" />
         ) : (
           <div className="grid gap-5">
             {allDays
