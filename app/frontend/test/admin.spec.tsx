@@ -66,7 +66,7 @@ describe('Admin', () => {
     const rows = [...main.querySelectorAll('li')].map((row) => row.textContent);
     expect(rows[0]).toContain('Amr · Admin');
     expect(rows[1]).toContain('sara@example.com · @sara');
-    expect(rows[1]).toContain('3.0 MB stored · not verified');
+    expect(rows[1]).toContain('3 MB stored · not verified');
   });
 
   it('is not found for members', async () => {
