@@ -50,6 +50,7 @@ describe('Access tokens against Postgres', () => {
     expect((await owner.call('GET', '/me/audit')).body.results.map((event: { action: string }) => event.action)).toEqual([
       'access_token_revoked',
       'access_token_created',
+      'sign_in_failed',
     ]);
   });
 
