@@ -39,7 +39,7 @@ export class SearchService {
     ]);
     const items = await this.prisma.item.findMany({
       where: { id: { in: matches.map((match) => match.id) } },
-      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true } } },
+      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true } }, note: { select: { quick: true } } },
     });
     const byId = new Map(items.map((item) => [item.id, item]));
     return {
@@ -52,6 +52,7 @@ export class SearchService {
                 spaceId: item.spaceId,
                 spaceName: item.space.name,
                 kind: item.kind.toLowerCase(),
+                quick: item.note?.quick ?? false,
                 title: item.title,
                 archived: item.archivedAt !== null,
               },

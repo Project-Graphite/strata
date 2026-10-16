@@ -38,7 +38,10 @@ describe('Search palette', () => {
       if (path === '/search?q=fla') {
         return Promise.resolve(
           json({
-            items: [{ id: 'rota', spaceId: 'flat', spaceName: 'Flat', kind: 'note', title: 'Flat rota', archived: false }],
+            items: [
+              { id: 'rota', spaceId: 'flat', spaceName: 'Flat', kind: 'note', quick: false, title: 'Flat rota', archived: false },
+              { id: 'chores', spaceId: 'flat', spaceName: 'Flat', kind: 'note', quick: true, title: 'Flat chores', archived: false },
+            ],
             tags: [{ id: 'bills', spaceId: 'flat', name: 'Flat bills', color: 'blue' }],
           }),
         );
@@ -71,7 +74,7 @@ describe('Search palette', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/search?q=fla', expect.anything());
     const options = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
-    expect(options).toEqual(['Flat rotapage · Flat', 'Flat billsFlat', 'Flat']);
+    expect(options).toEqual(['Flat rotapage · Flat', 'Flat choresnote · Flat', 'Flat billsFlat', 'Flat']);
     expect(container.querySelector<HTMLAnchorElement>('[role="option"]')?.getAttribute('href')).toBe('/notes/rota');
   });
 

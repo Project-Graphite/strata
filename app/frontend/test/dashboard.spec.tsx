@@ -439,8 +439,25 @@ describe('Home dashboard', () => {
     expect(widget.textContent).toContain('Mine ·');
   });
 
-  it('saves a quick note as a page or as a task in the chosen space', async () => {
+  it('saves a quick note as a note or as a task in the chosen space, and lists the latest notes', async () => {
     const quick = { ...home, layout: { widgets: [{ id: 'jot', type: 'capture', size: 'medium', settings: {} }] } };
+    const jotted = (id: string, title: string) => ({
+      id,
+      spaceId: 'mine',
+      title,
+      kind: 'note',
+      parentId: null,
+      position: 1,
+      icon: null,
+      pinnedAt: null,
+      template: false,
+      quick: true,
+      database: false,
+      journal: false,
+      createdAt: '2026-10-01T00:00:00Z',
+      updatedAt: new Date().toISOString(),
+    });
+    let notes = [jotted('milk', 'Buy milk'), jotted('keys', ''), jotted('gym', 'Gym times'), jotted('old', 'Old idea')];
     const spaces = [
       { id: 'mine', name: 'Mine', color: 'teal', kind: 'personal', role: 'owner', createdAt: '2026-10-01T00:00:00Z' },
       { id: 'flat', name: 'Flat', color: 'blue', kind: 'shared', role: 'editor', createdAt: '2026-10-01T00:00:00Z' },
@@ -452,6 +469,8 @@ describe('Home dashboard', () => {
       if (path === '/spaces') return Promise.resolve(json(spaces));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
       if (path === '/me/dashboards') return Promise.resolve(json([quick]));
+      if (path === '/me/notes?kind=quick') return Promise.resolve(json(notes));
+      if (path === '/spaces/mine/notes' && init?.method === 'POST') notes = [jotted('new', 'Call the landlord'), ...notes];
       if (init?.method === 'POST') return Promise.resolve(json({ id: 'new' }, 201));
       return Promise.resolve(new Response(null, { status: 404 }));
     });
@@ -469,6 +488,13 @@ describe('Home dashboard', () => {
 
     const widget = container.querySelector('article[aria-label="Quick note"]')!;
     const note = widget.querySelector<HTMLTextAreaElement>('textarea')!;
+    const links = () => [...widget.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')]);
+    expect(links()).toEqual([
+      ['Buy milk', '/notes/milk'],
+      ['Untitled', '/notes/keys'],
+      ['Gym times', '/notes/gym'],
+      ['All notes', '/pages?tab=notes'],
+    ]);
     await act(async () => widget.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
     expect([...widget.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual(['Mine', 'Flat']);
     await act(async () => widget.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
@@ -479,12 +505,18 @@ describe('Home dashboard', () => {
       });
 
     await type('Call the landlord\nabout the boiler');
-    await act(async () => button('Save as page').click());
+    await act(async () => button('Save note').click());
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/spaces/mine/notes',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Call the landlord', text: 'about the boiler' }) }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ title: 'Call the landlord', quick: true, text: 'about the boiler' }) }),
     );
     expect(note.value).toBe('');
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Saved as a note.');
+    expect(links().slice(0, 3)).toEqual([
+      ['Call the landlord', '/notes/new'],
+      ['Buy milk', '/notes/milk'],
+      ['Untitled', '/notes/keys'],
+    ]);
 
     await choose(widget, 'Save in', 'Flat');
     await type('Buy bin bags\nthe big ones');

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBase64, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
 import { IsColor } from '../../validation/color.decorator';
@@ -37,6 +37,10 @@ export class CreateNoteDto {
   @IsBase64(undefined, { message: 'That page could not be read.' })
   @MaxLength(100_000, { message: 'That page is too long to import.' })
   state?: string;
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  quick?: boolean;
 }
 
 export class UpdateNoteDto {
@@ -68,6 +72,10 @@ export class UpdateNoteDto {
   @IsOptionalNotNull()
   @IsBoolean()
   template?: boolean;
+
+  @IsOptionalNotNull()
+  @Equals(false, { message: 'A page cannot turn into a note.' })
+  quick?: false;
 }
 
 export class PropertyOptionDto {
@@ -155,6 +163,6 @@ export class UpdateCommentDto {
 
 export class PageKindQueryDto {
   @IsOptional()
-  @IsIn(['note', 'board'], { message: 'Choose note or board.' })
-  kind?: 'note' | 'board';
+  @IsIn(['note', 'board', 'quick'], { message: 'Choose note, board or quick.' })
+  kind?: 'note' | 'board' | 'quick';
 }

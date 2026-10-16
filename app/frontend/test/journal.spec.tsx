@@ -83,6 +83,7 @@ describe('Journal', () => {
     const tabs = [...container.querySelectorAll('nav[aria-label="Pages"] a')];
     expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
       ['Pages', '/pages', 'page'],
+      ['Notes', '/pages?tab=notes', null],
       ['Journal entries', '/pages?tab=journal', null],
     ]);
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('main li a')];
@@ -94,7 +95,7 @@ describe('Journal', () => {
       ['Journal', ''],
     ]);
 
-    await act(async () => tabs[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    await act(async () => tabs[2]!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Journal entries');
     expect([...container.querySelectorAll('main li a')].map((row) => row.textContent?.split('Personal')[0])).toEqual(['Tuesday, 6 October 2026']);
   });

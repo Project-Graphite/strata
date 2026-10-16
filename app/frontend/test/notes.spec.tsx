@@ -9,8 +9,8 @@ import { internalPath, storedFileId } from '../src/components/note-extensions';
 import { flattenTree, type Note } from '../src/notes';
 
 vi.mock('../src/components/NoteEditor', () => ({
-  default: ({ editable, noteId, onComment, commentedBlocks }: { editable: boolean; noteId: string; onComment?: (block: { id: string; excerpt: string }) => void; commentedBlocks?: string[] }) => (
-    <div data-commented={(commentedBlocks ?? []).join(' ')} data-editable={editable} data-note={noteId} data-testid="editor">
+  default: ({ editable, noteId, onComment, commentedBlocks, quick }: { editable: boolean; noteId: string; onComment?: (block: { id: string; excerpt: string }) => void; commentedBlocks?: string[]; quick: boolean }) => (
+    <div data-commented={(commentedBlocks ?? []).join(' ')} data-editable={editable} data-note={noteId} data-quick={quick} data-testid="editor">
       <button onClick={() => onComment?.({ id: 'block-1', excerpt: 'Buy milk' })} type="button">
         Comment on a block
       </button>
@@ -65,6 +65,7 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   icon: null,
   pinnedAt: null,
   template: false,
+  quick: false,
   database: false,
   journal: false,
   createdAt: '2026-10-05T10:00:00Z',
@@ -481,6 +482,86 @@ describe('Notes', () => {
       expect.stringContaining('Lisbon'),
       expect.stringContaining('Food'),
     ]);
+  });
+
+  it('lists notes under their own tab and starts a new note', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/notes?kind=quick') return json([{ ...note('milk', 'Buy milk'), quick: true }, { ...note('keys', ''), quick: true }]);
+      if (path === '/spaces/home/notes' && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body))).toEqual({ quick: true });
+        return json({ ...note('fresh', ''), quick: true }, 201);
+      }
+      if (path === '/notes/fresh') return json({ ...note('fresh', ''), quick: true, editable: true, path: [] });
+      return undefined;
+    });
+    await render('/pages?tab=notes');
+
+    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Notes');
+    const rows = [...container.querySelectorAll('main a[href^="/notes/"]')];
+    expect(rows.map((row) => row.getAttribute('href'))).toEqual(['/notes/milk', '/notes/keys']);
+    expect(rows.map((row) => row.textContent)).toEqual([expect.stringContaining('Buy milkHome · '), expect.stringContaining('UntitledHome · ')]);
+    expect(container.querySelector('button[aria-label="Actions for Buy milk"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Import"]')).toBeNull();
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New note')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('fresh');
+  });
+
+  it('keeps a note to the essentials until it is turned into a page', async () => {
+    const jot = { ...note('jot', 'Call the landlord'), quick: true };
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/jot' && init?.method === 'PATCH') {
+        expect(JSON.parse(String(init.body))).toEqual({ quick: false });
+        return json({ ...jot, quick: false });
+      }
+      if (path === '/notes/jot') return json({ ...jot, editable: true, path: [] });
+      if (path === '/notes/jot/comments') return json([]);
+      return undefined;
+    });
+    await render('/notes/jot');
+
+    const buttons = () => [...container.querySelectorAll('main button')].map((button) => button.textContent);
+    expect(buttons()).toEqual(expect.arrayContaining(['Turn into a page', 'Share']));
+    for (const left of ['Turn into a database', 'Use as a template', 'Full width', 'History', 'Add a page inside']) expect(buttons()).not.toContain(left);
+    expect(container.querySelector('[aria-label="Page icon"]')).toBeNull();
+    expect(container.querySelector('nav[aria-label="Breadcrumb"]')).toBeNull();
+    expect(container.querySelector('section[aria-label="Comments"]')).toBeNull();
+    expect(container.querySelector('main a[href="/pages?tab=notes"]')?.textContent).toBe('Notes');
+    expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-quick')).toBe('true');
+    expect(document.title).toBe('Call the landlord · Strata');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn into a page')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/jot', expect.objectContaining({ method: 'PATCH' }));
+    expect(buttons()).toEqual(expect.arrayContaining(['Turn into a database', 'Use as a template', 'Full width', 'History', 'Add a page inside']));
+    expect(buttons()).not.toContain('Turn into a page');
+    expect(container.querySelector('nav[aria-label="Breadcrumb"]')).not.toBeNull();
+    expect(container.querySelector('section[aria-label="Comments"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-quick')).toBe('false');
+  });
+
+  it('moves a note to the trash and lands on the Notes tab', async () => {
+    let notes = [{ ...note('jot', 'Call the landlord'), quick: true }, { ...note('milk', 'Buy milk'), quick: true }];
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/jot') return json({ ...notes[0], editable: true, path: [] });
+      if (path.startsWith('/items/') && path.endsWith('/trash') && init?.method === 'POST') {
+        notes = notes.filter((shown) => !path.includes(shown.id));
+        return new Response(null, { status: 204 });
+      }
+      if (path === '/me/notes?kind=quick') return json(notes);
+      return undefined;
+    });
+    await render('/notes/jot');
+
+    await chooseFromMenu(container, 'Actions for Call the landlord', 'Move to trash');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/jot/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Notes');
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Call the landlord to the trash.');
+    expect([...container.querySelectorAll('main a[href^="/notes/"]')].map((link) => link.getAttribute('href'))).toEqual(['/notes/milk']);
+
+    await chooseFromMenu(container, 'Actions for Buy milk', 'Move to trash');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/milk/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.textContent).toContain('No notes yet');
   });
 
   it('opens a viewer’s page read-only and explains a missing page', async () => {

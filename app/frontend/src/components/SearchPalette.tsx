@@ -8,7 +8,7 @@ import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
 
 interface SearchResults {
-  items: { id: string; spaceId: string; spaceName: string; kind: string; title: string; archived: boolean }[];
+  items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string; archived: boolean }[];
   tags: Tag[];
 }
 
@@ -73,7 +73,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...actions.filter((action) => !text || matches(action.label)),
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
-      hint: `${itemKindName(item.kind)} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
+      hint: `${itemKindName(item)} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
       href: itemHref(item) ?? `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
       id: `item-${item.id}`,
       label: item.title || 'Untitled',

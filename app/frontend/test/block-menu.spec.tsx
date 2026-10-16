@@ -7,7 +7,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blockMenuExtension, Callout } from '../src/components/note-extensions';
+import { blockChoices, blockMenuExtension, Callout } from '../src/components/note-extensions';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,6 +78,11 @@ describe('The / block menu', () => {
     await typeIn(' /whiteboard');
     await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
     expect(onBoard).toHaveBeenCalledWith(editor);
+  });
+
+  it('leaves boards out of a note, which cannot hold one', () => {
+    expect(blockChoices({ onImages: vi.fn(), onBoard: vi.fn() }).map((choice) => choice.id)).toContain('board');
+    expect(blockChoices({ onImages: vi.fn() }).map((choice) => choice.id)).not.toContain('board');
   });
 
   it('adds callouts, toggles and tables', async () => {

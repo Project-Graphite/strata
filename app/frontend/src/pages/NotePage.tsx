@@ -12,7 +12,7 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { ShareLinks } from '../components/ShareLinks';
-import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { announcePagesChanged, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -43,8 +43,8 @@ export function NotePage() {
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [boardAnchors, setBoardAnchors] = useState<CommentAnchors>();
-  const pages = useResource<Note[]>(note.data ? `/spaces/${note.data.spaceId}/notes` : null, true);
-  const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; title: string } }[] }>(
+  const pages = useResource<Note[]>(note.data && !note.data.quick ? `/spaces/${note.data.spaceId}/notes` : null, true);
+  const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
     true,
   );
@@ -57,11 +57,12 @@ export function NotePage() {
   const adding = useAction();
   const marking = useAction();
   const converting = useAction();
+  const unquicking = useAction();
   const setting = useAction();
   const [history, setHistory] = useState(false);
   const [unconverting, setUnconverting] = useState(false);
   const trashing = useMovePageToTrash(
-    (moved) => navigate(moved.kind === 'board' ? '/boards' : '/pages'),
+    (moved) => navigate(moved.kind === 'board' ? '/boards' : moved.quick ? '/pages?tab=notes' : '/pages'),
     (restored) => navigate(`/notes/${restored.id}`),
   );
   useDocumentTitle(note.data && noteTitle(note.data));
@@ -110,7 +111,7 @@ export function NotePage() {
       announcePagesChanged();
       pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
       return '';
-    }, 'Could not rename the page');
+    }, `Could not rename the ${pageNoun(details)}`);
   }
 
   function turnIntoDatabase() {
@@ -140,21 +141,44 @@ export function NotePage() {
   return (
     <article className={`page-enter grid gap-6 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-          <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
-            {space?.name ?? 'Space'}
+        {details.quick ? (
+          <Link className="text-sm text-muted no-underline hover:text-ink" to="/pages?tab=notes">
+            Notes
           </Link>
-          {details.path.map((step) => (
-            <Fragment key={step.id}>
-              <span aria-hidden="true">/</span>
-              <Link className="text-muted no-underline hover:text-ink" to={`/notes/${step.id}`}>
-                {noteTitle(step)}
-              </Link>
-            </Fragment>
-          ))}
-        </nav>
+        ) : (
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
+              {space?.name ?? 'Space'}
+            </Link>
+            {details.path.map((step) => (
+              <Fragment key={step.id}>
+                <span aria-hidden="true">/</span>
+                <Link className="text-muted no-underline hover:text-ink" to={`/notes/${step.id}`}>
+                  {noteTitle(step)}
+                </Link>
+              </Fragment>
+            ))}
+          </nav>
+        )}
         <div className="flex flex-wrap items-center gap-4">
-          {details.editable && details.kind !== 'board' && (
+          {details.editable && details.quick && (
+            <button
+              className="text-button text-sm"
+              disabled={unquicking.busy}
+              onClick={() =>
+                void unquicking.run(async () => {
+                  const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ quick: false }) });
+                  note.mutate((current) => ({ ...current, ...saved }));
+                  announcePagesChanged();
+                  return '';
+                }, 'Could not turn the note into a page')
+              }
+              type="button"
+            >
+              Turn into a page
+            </button>
+          )}
+          {details.editable && details.kind !== 'board' && !details.quick && (
             <button
               className="text-button text-sm"
               disabled={converting.busy}
@@ -164,7 +188,7 @@ export function NotePage() {
               {details.database ? 'Turn back into a page' : 'Turn into a database'}
             </button>
           )}
-          {details.editable && details.kind !== 'board' && (
+          {details.editable && details.kind !== 'board' && !details.quick && (
             <button
               className="text-button text-sm"
               disabled={marking.busy}
@@ -180,39 +204,43 @@ export function NotePage() {
               {details.template ? 'Stop using as a template' : 'Use as a template'}
             </button>
           )}
-          {details.kind !== 'board' && !details.database && (
+          {details.kind !== 'board' && !details.database && !details.quick && (
             <button className="text-button text-sm" onClick={toggleWide} type="button">
               {wide ? 'Standard width' : 'Full width'}
             </button>
           )}
-          {details.editable && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} key={`share-${details.id}`} noun={details.kind === 'board' ? 'board' : 'page'} />}
-          <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
-            History
-          </button>
+          {details.editable && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} key={`share-${details.id}`} noun={pageNoun(details)} />}
+          {!details.quick && (
+            <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
+              History
+            </button>
+          )}
           {details.editable && (
             <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => trashing.move(details, children.length) }]} name={noteTitle(details)} />
           )}
         </div>
       </div>
       <div className="flex items-center gap-3">
-      {(details.editable || details.icon) &&
-        (details.editable ? <IconPicker icon={details.icon} onPick={setIcon} /> : <span className="page-icon">{details.icon}</span>)}
-      <input
-        aria-label="Page title"
-        className="note-title"
-        defaultValue={details.title}
-        key={details.id}
-        maxLength={200}
-        onBlur={(event) => details.editable && rename(event.currentTarget.value.trim())}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            event.currentTarget.blur();
-          }
-        }}
-        placeholder="Untitled"
-        readOnly={!details.editable}
-      />
+        {(details.editable || details.icon) &&
+          !details.quick &&
+          (details.editable ? <IconPicker icon={details.icon} onPick={setIcon} /> : <span className="page-icon">{details.icon}</span>)}
+        <input
+          aria-label={details.quick ? 'Note title' : 'Page title'}
+          autoFocus={details.editable && !details.title}
+          className="note-title"
+          defaultValue={details.title}
+          key={details.id}
+          maxLength={200}
+          onBlur={(event) => details.editable && rename(event.currentTarget.value.trim())}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.currentTarget.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus();
+            }
+          }}
+          placeholder="Untitled"
+          readOnly={!details.editable}
+        />
       </div>
       {details.row && details.row.properties.length > 0 && (
         <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
@@ -249,13 +277,14 @@ export function NotePage() {
             editable={details.editable}
             key={details.id}
             noteId={details.id}
-            onComment={quote}
+            onComment={details.quick ? undefined : quote}
+            quick={details.quick}
             spaceId={details.spaceId}
           />
         )}
       </Suspense>
       {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {details.kind !== 'board' && !details.database && (children.length > 0 || details.editable) && (
+      {details.kind !== 'board' && !details.database && !details.quick && (children.length > 0 || details.editable) && (
         <section className="grid gap-2 border-t border-line-soft pt-6">
           <Subheading level={2}>Pages inside</Subheading>
           {children.length > 0 && (
@@ -301,22 +330,24 @@ export function NotePage() {
                 <Link className="text-ink no-underline hover:underline" to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
                   {noteTitle(item)}
                 </Link>
-                <span className="mono-sm text-faint"> · {itemKindName(item.kind)}</span>
+                <span className="mono-sm text-faint"> · {itemKindName(item)}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
-      <NoteComments
-        anchors={details.kind === 'board' ? boardAnchors : undefined}
-        editable={details.editable}
-        key={`comments-${details.id}`}
-        noteId={details.id}
-        onBlocks={setCommentedBlocks}
-        onQuoteDone={() => setQuoting(undefined)}
-        owner={space?.role === 'owner'}
-        quoting={quoting?.noteId === details.id ? quoting : undefined}
-      />
+      {!details.quick && (
+        <NoteComments
+          anchors={details.kind === 'board' ? boardAnchors : undefined}
+          editable={details.editable}
+          key={`comments-${details.id}`}
+          noteId={details.id}
+          onBlocks={setCommentedBlocks}
+          onQuoteDone={() => setQuoting(undefined)}
+          owner={space?.role === 'owner'}
+          quoting={quoting?.noteId === details.id ? quoting : undefined}
+        />
+      )}
       {unconverting && (
         <ConfirmDialog
           confirmLabel="Turn back into a page"

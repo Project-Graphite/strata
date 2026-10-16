@@ -20,15 +20,17 @@ const itemFields = {
   updatedAt: true,
   tags: { select: { tag: { select: tagFields } }, orderBy: { tag: { name: 'asc' } } },
   file: { select: { mimeType: true, sizeBytes: true, width: true, height: true } },
+  note: { select: { quick: true } },
 } satisfies Prisma.ItemSelect;
 
-const linkedFields = { id: true, spaceId: true, kind: true, title: true } satisfies Prisma.ItemSelect;
+const linkedFields = { id: true, spaceId: true, kind: true, title: true, note: { select: { quick: true } } } satisfies Prisma.ItemSelect;
 
 function presentItem(item: Prisma.ItemGetPayload<{ select: typeof itemFields }>) {
   return {
     id: item.id,
     spaceId: item.spaceId,
     kind: item.kind.toLowerCase(),
+    quick: item.note?.quick ?? false,
     title: item.title,
     tags: item.tags.map(({ tag }) => presentTag(tag)),
     file: item.file,
@@ -46,7 +48,7 @@ function presentLink(
   return {
     id: link.id,
     kind: link.kind.toLowerCase(),
-    item: { id: item.id, spaceId: item.spaceId, kind: item.kind.toLowerCase(), title: item.title },
+    item: { id: item.id, spaceId: item.spaceId, kind: item.kind.toLowerCase(), quick: item.note?.quick ?? false, title: item.title },
   };
 }
 

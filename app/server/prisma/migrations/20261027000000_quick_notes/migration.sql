@@ -1,0 +1,1 @@
+ALTER TABLE "notes" ADD COLUMN "quick" BOOLEAN NOT NULL DEFAULT false;

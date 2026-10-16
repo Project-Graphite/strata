@@ -35,6 +35,7 @@ export class NoteDatabasesService {
   async save(userId: string, noteId: string, input: SaveDatabaseDto) {
     const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
+    if (found.quick) throw new BadRequestException('A note cannot be a database');
     const properties: Property[] = input.properties.map(({ id, name, type, options }) =>
       type === 'select' || type === 'multiSelect' ? { id, name, type, options: options ?? [] } : { id, name, type },
     );

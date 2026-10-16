@@ -94,6 +94,32 @@ describe('Notes and real-time editing against Postgres', () => {
     expect((await viewer.call('PATCH', `/notes/${parent.id}`, { title: 'Mine' })).status).toBe(403);
   });
 
+  it('keeps notes apart from pages, refuses nesting and turns a note into a page', async () => {
+    const owner = await member('jotter');
+    const space = (await owner.call('POST', '/spaces', { name: 'Scribbles' })).body;
+    const page = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Plans' })).body;
+    const note = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Call the landlord', text: 'About the boiler', quick: true })).body;
+    expect(note).toMatchObject({ quick: true, parentId: null });
+
+    expect((await owner.call('POST', `/spaces/${space.id}/notes`, { quick: true, parentId: page.id })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${space.id}/notes`, { parentId: note.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${page.id}`, { parentId: note.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${note.id}`, { template: true })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${note.id}`, { icon: '📝' })).status).toBe(400);
+    expect((await owner.call('PUT', `/notes/${note.id}/database`, { properties: [], view: 'table' })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${page.id}`, { quick: true })).status).toBe(400);
+
+    const ids = (listed: { id: string }[]) => listed.map((shown) => shown.id);
+    expect(ids((await owner.call('GET', '/me/notes?kind=quick')).body)).toEqual([note.id]);
+    expect(ids((await owner.call('GET', '/me/notes?kind=note')).body)).toEqual([page.id]);
+    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id]);
+    expect(ids((await owner.call('GET', '/me/pages')).body.recent)).toEqual([page.id]);
+
+    expect((await owner.call('PATCH', `/notes/${note.id}`, { quick: false })).body).toMatchObject({ quick: false });
+    expect(ids((await owner.call('GET', '/me/notes?kind=quick')).body)).toEqual([]);
+    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, note.id]);
+  });
+
   it('syncs edits between people, saves them, feeds search and drops a viewer’s changes', async () => {
     const owner = await member('cowriter');
     const friend = await member('friend');

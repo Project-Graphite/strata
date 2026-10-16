@@ -10,7 +10,7 @@ import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
-import { announcePagesChanged, nestedUnder, noteTitle, pagesTabs, type Note } from '../notes';
+import { announcePagesChanged, nestedUnder, noteTitle, pageNoun, pagesTabs, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -18,6 +18,7 @@ import { useResource } from '../useResource';
 const wording = {
   board: { title: 'Boards', create: 'New board', empty: 'No boards yet', hint: 'A board is a white canvas to draw, sketch and plan on together.' },
   note: { title: 'Pages', create: 'New page', empty: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything you write.' },
+  quick: { title: 'Pages', create: 'New note', empty: 'No notes yet', hint: 'Notes are for quick, one-off writing. Jot one down here or from Home.' },
   journal: { title: 'Pages', create: 'New page', empty: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
 };
 
@@ -26,13 +27,15 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>(`/me/notes?kind=${kind}`, true);
+  const tab = kind === 'note' ? params.get('tab') : null;
+  const shown = tab === 'notes' ? 'quick' : tab === 'journal' ? 'journal' : kind;
+  const listed = useResource<Note[]>(`/me/notes?kind=${shown === 'quick' ? 'quick' : kind}`, true);
   const creating = useAction();
   const [importing, setImporting] = useState(false);
-  const journal = kind === 'note' && params.get('tab') === 'journal';
-  const words = wording[journal ? 'journal' : kind];
+  const words = wording[shown];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const pages = listed.data?.filter((note) => note.journal === journal) ?? [];
+  const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
+  const pages = listed.data?.filter((note) => note.journal === (shown === 'journal')) ?? [];
   const trashing = useMovePageToTrash(listed.reload, listed.reload);
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
@@ -47,7 +50,8 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
           <NoteMark note={note} />
           <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
           <span className="mono-sm shrink-0 text-faint">
-            {[spaces.data?.find((space) => space.id === note.spaceId)?.name, timeAgo(note.updatedAt)].filter(Boolean).join(' · ')}
+            {spaceNames.has(note.spaceId) && <span className="max-sm:hidden">{spaceNames.get(note.spaceId)} · </span>}
+            {timeAgo(note.updatedAt)}
           </span>
         </Link>
         {writable.some((space) => space.id === note.spaceId) && (
@@ -60,18 +64,21 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
 
   function create(spaceId: string) {
     void creating.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(kind === 'board' ? { board: true } : {}) });
+      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify(kind === 'board' ? { board: true } : shown === 'quick' ? { quick: true } : {}),
+      });
       navigate(`/notes/${created.id}`);
       return '';
-    }, `Could not create the ${kind === 'board' ? 'board' : 'page'}`);
+    }, `Could not create the ${pageNoun({ kind, quick: shown === 'quick' })}`);
   }
 
   return (
     <Page
       actions={
-        !journal && (
+        shown !== 'journal' && (
           <>
-            {kind === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
+            {shown === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
             {writable.length === 1 ? (
               <Button disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
             ) : (
@@ -95,7 +102,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       }
       title={words.title}
     >
-      {kind === 'note' && <Tabs items={pagesTabs(journal)} label="Pages" />}
+      {kind === 'note' && <Tabs items={pagesTabs(tab)} label="Pages" />}
       {importing && (
         <ImportPages
           onClose={() => setImporting(false)}

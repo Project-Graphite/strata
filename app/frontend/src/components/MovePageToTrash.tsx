@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { announcePagesChanged, noteTitle, type Note } from '../notes';
+import { announcePagesChanged, noteTitle, pageNoun, type Note } from '../notes';
 import { useAction } from '../useAction';
 
 export function useMovePageToTrash(onMoved: (note: Note) => void, onRestored: (note: Note) => void) {
@@ -28,7 +28,7 @@ export function useMovePageToTrash(onMoved: (note: Note) => void, onRestored: (n
     move: (note: Note, inside: number) =>
       inside
         ? setAsking({ note, inside })
-        : void run(() => moveToTrash(note), `Could not move the ${note.kind === 'board' ? 'board' : 'page'} to the trash`),
+        : void run(() => moveToTrash(note), `Could not move the ${pageNoun(note)} to the trash`),
     dialog: asking && (
       <ConfirmDialog
         confirmLabel="Move to trash"

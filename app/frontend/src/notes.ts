@@ -10,6 +10,7 @@ export interface Note {
   icon: string | null;
   pinnedAt: string | null;
   template: boolean;
+  quick: boolean;
   database: boolean;
   journal: boolean;
   createdAt: string;
@@ -21,9 +22,10 @@ export function nestedUnder(pages: Note[], parentId: string | null) {
   return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
 }
 
-export const pagesTabs = (journal: boolean) => [
-  { active: !journal, href: '/pages', label: 'Pages' },
-  { active: journal, href: '/pages?tab=journal', label: 'Journal entries' },
+export const pagesTabs = (tab: string | null) => [
+  { active: tab !== 'notes' && tab !== 'journal', href: '/pages', label: 'Pages' },
+  { active: tab === 'notes', href: '/pages?tab=notes', label: 'Notes' },
+  { active: tab === 'journal', href: '/pages?tab=journal', label: 'Journal entries' },
 ];
 
 export interface NoteDetails extends Note {
@@ -125,3 +127,5 @@ export const builtInTemplates = [
 ] as const;
 
 export const noteTitle = (note: { title: string }) => note.title || 'Untitled';
+
+export const pageNoun = (note: Pick<Note, 'kind' | 'quick'>) => (note.kind === 'board' ? 'board' : note.quick ? 'note' : 'page');

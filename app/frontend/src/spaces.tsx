@@ -31,6 +31,7 @@ export interface Item {
   id: string;
   spaceId: string;
   kind: string;
+  quick: boolean;
   title: string;
   tags: Tag[];
   file: { mimeType: string; sizeBytes: number; width: number | null; height: number | null } | null;
@@ -76,7 +77,7 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
 
 const itemKindNames: Record<string, string> = { note: 'page', list: 'task list' };
 
-export const itemKindName = (kind: string) => itemKindNames[kind] ?? kind;
+export const itemKindName = (item: { kind: string; quick: boolean }) => (item.quick ? 'note' : (itemKindNames[item.kind] ?? item.kind));
 
 export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
   return (

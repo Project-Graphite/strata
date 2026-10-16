@@ -17,7 +17,7 @@ export const noteFields = {
   title: true,
   createdAt: true,
   updatedAt: true,
-  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true } },
+  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true } },
   databaseSchema: { select: { itemId: true } },
   _count: { select: { journalEntries: true } },
 } satisfies Prisma.ItemSelect;
@@ -35,6 +35,7 @@ export function present(row: NoteRow) {
     icon: row.note?.icon ?? null,
     pinnedAt: row.note?.pinnedAt ?? null,
     template: row.note?.template ?? false,
+    quick: row.note?.quick ?? false,
     database: Boolean(row.databaseSchema),
     journal: row._count.journalEntries > 0,
     createdAt: row.createdAt,
@@ -54,21 +55,21 @@ export class NotesService {
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null },
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, note: { quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       select: noteFields,
     });
     return rows.map(present);
   }
 
-  async everywhere(userId: string, kind: 'note' | 'board' | undefined) {
+  async everywhere(userId: string, kind: 'note' | 'board' | 'quick' | undefined) {
     const rows = await this.prisma.item.findMany({
       where: {
-        kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' ? ItemKind.NOTE : { in: pageKinds },
+        kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' || kind === 'quick' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
         space: this.access.spacesOf(userId),
-        note: { template: false },
+        note: { template: false, quick: kind === 'quick' },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
       take: 500,
@@ -81,13 +82,13 @@ export class NotesService {
     const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
     const [pinned, recent] = await Promise.all([
       this.prisma.item.findMany({
-        where: { ...where, note: { template: false, pinnedAt: { not: null } } },
+        where: { ...where, note: { template: false, quick: false, pinnedAt: { not: null } } },
         orderBy: [{ note: { pinnedAt: 'desc' } }, { id: 'asc' }],
         take: 8,
         select: noteFields,
       }),
       this.prisma.item.findMany({
-        where: { ...where, note: { template: false, pinnedAt: null } },
+        where: { ...where, note: { template: false, quick: false, pinnedAt: null } },
         orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
         take: 5,
         select: noteFields,
@@ -98,6 +99,8 @@ export class NotesService {
 
   async create(userId: string, spaceId: string, input: CreateNoteDto, document?: Y.Doc) {
     await this.access.assertSpace(userId, spaceId, 'edit');
+    if (input.quick && input.board) throw new BadRequestException('A board cannot be a note');
+    if (input.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
     if (input.parentId) await this.parentIn(spaceId, input.parentId);
     const initial = document ?? (await this.initialState(spaceId, input));
     const last = await this.prisma.note.aggregate({
@@ -112,7 +115,7 @@ export class NotesService {
           title: input.title ?? '',
           createdById: userId,
           updatedById: userId,
-          note: { create: { parentId: input.parentId ?? null, position: (last._max.position ?? 0) + 1 } },
+          note: { create: { parentId: input.parentId ?? null, position: (last._max.position ?? 0) + 1, quick: input.quick } },
         },
         select: noteFields,
       });
@@ -155,6 +158,9 @@ export class NotesService {
     const found = await this.note(userId, noteId, 'edit');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     if (input.template && found.kind === ItemKind.BOARD) throw new BadRequestException('A board cannot be a template');
+    if (found.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
+    if (found.quick && input.template) throw new BadRequestException('A note cannot be a template');
+    if (found.quick && input.icon) throw new BadRequestException('A note cannot have an icon');
     if (input.parentId) {
       await this.parentIn(found.spaceId, input.parentId);
       if (input.parentId === noteId || (await this.ancestors(input.parentId)).some((ancestor) => ancestor.id === noteId)) {
@@ -186,6 +192,7 @@ export class NotesService {
           icon: input.icon,
           pinnedAt: input.pinned === undefined ? undefined : input.pinned ? new Date() : null,
           template: input.template,
+          quick: input.quick,
         },
       });
       const item = await transaction.item.update({
@@ -209,9 +216,9 @@ export class NotesService {
 
   async note(userId: string, noteId: string, access: 'read' | 'edit', kinds: ItemKind[] = pageKinds) {
     const found = await this.access.assertItem(userId, noteId, access);
-    const { kind } = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true } });
+    const { kind, note } = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true, note: { select: { quick: true } } } });
     if (!kinds.includes(kind)) throw new NotFoundException('Note not found');
-    return { ...found, kind };
+    return { ...found, kind, quick: note?.quick ?? false };
   }
 
   private async initialState(spaceId: string, input: CreateNoteDto) {
@@ -235,7 +242,7 @@ export class NotesService {
 
   private async parentIn(spaceId: string, parentId: string) {
     const parent = await this.prisma.item.findFirst({
-      where: { id: parentId, spaceId, kind: ItemKind.NOTE, trashedAt: null },
+      where: { id: parentId, spaceId, kind: ItemKind.NOTE, trashedAt: null, note: { quick: false } },
       select: { id: true },
     });
     if (!parent) throw new BadRequestException('Choose a page from this space');

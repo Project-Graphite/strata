@@ -24,10 +24,9 @@ import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
-import { type SettingsProps, type WidgetProps } from './widget-parts';
+import { PageLinks, type SettingsProps, type WidgetProps } from './widget-parts';
 import { timeOptions } from '../time';
 import { Button } from '../components/Button';
-import { Subheading } from '../components/Page';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
@@ -491,28 +490,6 @@ function Habits() {
   );
 }
 
-function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
-  const spaces = useSpaces();
-  return (
-    <section className="grid gap-1">
-      <Subheading>{heading}</Subheading>
-      <ul className="m-0 grid list-none gap-1.5 p-0">
-        {pages.map((page) => (
-          <li className="text-sm" key={page.id}>
-            <Link className="text-ink no-underline hover:underline" to={`/notes/${page.id}`}>
-              {page.icon ? `${page.icon} ` : ''}
-              {page.title || 'Untitled'}
-            </Link>
-            <span className="mono-sm block text-faint">
-              {[spaces.data?.find((space) => space.id === page.spaceId)?.name, timeAgo(page.updatedAt)].filter(Boolean).join(' · ')}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function Board({ settings }: WidgetProps) {
   const boardId = typeof settings.boardId === 'string' ? settings.boardId : null;
   if (!boardId) return <Hint>Choose a board in this widget's settings.</Hint>;
@@ -636,7 +613,7 @@ export const widgetKinds: Record<
   tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', size: 'small', settings: {}, View: Tidy },
   weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
   news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home.', size: 'medium', settings: {}, View: Capture },
+  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', size: 'medium', settings: {}, View: Capture },
   habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", size: 'medium', settings: {}, View: Habits },
   pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', size: 'medium', settings: {}, View: Pages },
   board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },

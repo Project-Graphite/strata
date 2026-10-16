@@ -36,7 +36,7 @@ export interface BlockChoice extends Candidate {
 }
 
 interface SearchReply {
-  items: { id: string; spaceId: string; spaceName: string; kind: string; title: string }[];
+  items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string }[];
 }
 
 type Request = ReturnType<typeof useAuth>['request'];
@@ -149,7 +149,7 @@ export function mentionExtension(request: Request, noteId: string) {
         return reply.items
           .filter((item) => item.id !== noteId)
           .slice(0, 8)
-          .map((item) => ({ id: item.id, label: item.title || 'Untitled', href: itemHref(item) ?? `/spaces/${item.spaceId}`, hint: `${itemKindName(item.kind)} · ${item.spaceName}` }));
+          .map((item) => ({ id: item.id, label: item.title || 'Untitled', href: itemHref(item) ?? `/spaces/${item.spaceId}`, hint: `${itemKindName(item)} · ${item.spaceName}` }));
       },
       render: suggestionPopup,
     },
@@ -220,7 +220,7 @@ export const Callout = Node.create({
 
 export interface BlockActions {
   onImages: (view: Editor['view'], files: File[]) => void;
-  onBoard: (editor: Editor) => void;
+  onBoard?: (editor: Editor) => void;
 }
 
 export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[] {
@@ -255,16 +255,20 @@ export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[]
         chooseImages(editor);
       },
     },
-    {
-      id: 'board',
-      label: 'Board',
-      hint: 'whiteboard',
-      words: 'board whiteboard drawing sketch canvas diagram',
-      run: (chain, editor) => {
-        chain.run();
-        onBoard(editor);
-      },
-    },
+    ...(onBoard
+      ? [
+          {
+            id: 'board',
+            label: 'Board',
+            hint: 'whiteboard',
+            words: 'board whiteboard drawing sketch canvas diagram',
+            run: (chain: ChainedCommands, editor: Editor) => {
+              chain.run();
+              onBoard(editor);
+            },
+          },
+        ]
+      : []),
     { id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain) => chain.insertContent('@').run() },
   ];
 }

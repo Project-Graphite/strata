@@ -124,7 +124,7 @@ export class WeeklyReviewService implements OnModuleInit {
     return this.prisma.$transaction(async (transaction) => {
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${parentTitle}:${spaceId}`}::text))`;
       const existing = await this.prisma.item.findFirst({
-        where: { spaceId, kind: ItemKind.NOTE, title: parentTitle, trashedAt: null, note: { parentId: null } },
+        where: { spaceId, kind: ItemKind.NOTE, title: parentTitle, trashedAt: null, note: { parentId: null, quick: false } },
         orderBy: { createdAt: 'asc' },
         select: { id: true },
       });

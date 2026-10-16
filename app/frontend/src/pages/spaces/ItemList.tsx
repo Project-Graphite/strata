@@ -29,7 +29,7 @@ export function ItemList({
               )}
             </p>
             <p className="mono-sm m-0 mt-1 text-faint">
-              {itemKindName(item.kind)} · {detail(item)}
+              {itemKindName(item)} · {detail(item)}
             </p>
             {item.tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">

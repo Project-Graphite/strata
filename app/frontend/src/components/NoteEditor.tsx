@@ -17,6 +17,7 @@ import type { QuotedBlock } from './NoteComments';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
+const quickTools = new Set(['Bold', 'Italic', 'Bulleted list', 'Numbered list', 'Checklist', 'Link']);
 
 interface Block {
   node: BlockNode;
@@ -88,7 +89,7 @@ function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActi
   return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerClassName="note-tool" triggerLabel="Change this block" />;
 }
 
-function Toolbar({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
+function Toolbar({ actions, editor, onComment, quick }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void; quick: boolean }) {
   const [linking, setLinking] = useState(false);
   const state = useEditorState({
     editor,
@@ -127,7 +128,7 @@ function Toolbar({ actions, editor, onComment }: { actions: BlockActions; editor
       <button aria-label="Redo" className="note-tool" onClick={() => editor.chain().focus().redo().run()} title="Redo" type="button">
         <Icon name="redo" size={16} />
       </button>
-      {tools.map(([icon, label, active, run]) => (
+      {(quick ? tools.filter(([, label]) => quickTools.has(label)) : tools).map(([icon, label, active, run]) => (
         <button aria-label={label} aria-pressed={active} className="note-tool" key={label} onClick={run} title={label} type="button">
           <Icon name={icon} size={16} />
         </button>
@@ -147,17 +148,18 @@ function CollaborativeEditor({
   connection,
   editable,
   noteId,
+  quick,
   spaceId,
   onComment,
   commentedBlocks,
-}: { connection: Connection; editable: boolean; noteId: string; spaceId: string } & CommentHooks) {
+}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
   const { label, people, outdated } = useLiveStatus(connection, editable);
   const user = auth.user!;
 
-  const actions: BlockActions = { onImages: insertImages, onBoard: addBoard };
+  const actions: BlockActions = { onImages: insertImages, onBoard: quick ? undefined : addBoard };
 
   const editor = useEditor(
     {
@@ -228,7 +230,7 @@ function CollaborativeEditor({
   return (
     <div className="note-editor grid gap-3">
       <div className={`flex flex-wrap items-center justify-between gap-3 ${editable && !outdated ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
-        {editable && !outdated ? <Toolbar actions={actions} editor={editor} onComment={onComment} /> : <span />}
+        {editable && !outdated ? <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} /> : <span />}
         <div className="flex items-center gap-3">
           {people.length > 0 && (
             <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
@@ -274,8 +276,8 @@ function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; ed
   );
 }
 
-export default function NoteEditor({ editable, noteId, spaceId, ...hooks }: { editable: boolean; noteId: string; spaceId: string } & CommentHooks) {
+export default function NoteEditor({ editable, noteId, quick, spaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string } & CommentHooks) {
   const connection = useLiveDocument(noteId);
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
-  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} spaceId={spaceId} {...hooks} />;
+  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={quick} spaceId={spaceId} {...hooks} />;
 }
