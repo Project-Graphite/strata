@@ -74,7 +74,7 @@ export function ExpenseEditor({
           direction,
           accountId: accountId || null,
           toAccountId: transfer ? toAccountId : null,
-          ...(capture ? { merchant: suggested?.merchant ?? null } : {}),
+          ...(capture ? { merchant: suggested?.merchant ?? null, cardDigits: suggested?.cardDigits ?? null } : {}),
         };
         void saving
           .run(async () => {

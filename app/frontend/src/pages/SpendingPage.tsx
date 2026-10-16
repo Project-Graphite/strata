@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
-import { formatDay, ListSkeleton, Meter, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -100,6 +100,20 @@ export function SpendingPage() {
   const shown = summary.data;
   const currency = shown?.currency ?? 'EUR';
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
+  const cardName = (digits: string, accountId: string | null) => [accountName(accountId), `•••• ${digits}`].filter(Boolean).join(' ');
+  const card = params.get('card');
+  const listed = (shown?.expenses ?? []).filter((expense) => tab !== 'transactions' || !card || expense.cardDigits === card);
+  const cards = [...new Map((shown?.expenses ?? []).filter((expense) => expense.cardDigits).map((expense) => [expense.cardDigits!, cardName(expense.cardDigits!, expense.accountId)])).entries()];
+  const cardTotals = [
+    ...(shown?.expenses ?? [])
+      .filter((expense) => expense.cardDigits && expense.direction === 'spent')
+      .reduce((totals, expense) => {
+        const key = `${expense.cardDigits}-${expense.currency}`;
+        const total = totals.get(key) ?? { key, label: cardName(expense.cardDigits!, expense.accountId), currency: expense.currency, spentMinor: 0 };
+        return totals.set(key, { ...total, spentMinor: total.spentMinor + expense.amountMinor });
+      }, new Map<string, { key: string; label: string; currency: string; spentMinor: number }>())
+      .values(),
+  ];
   const reload = () => {
     summary.reload();
     accounts.reload();
@@ -172,7 +186,28 @@ export function SpendingPage() {
         })}
         label="Spending"
       />
-      <Toolbar actions={<SpaceChooser />} />
+      <Toolbar actions={<SpaceChooser />}>
+        {tab === 'transactions' && (cards.length > 0 || card) && (
+          <Select
+            aria-label="Card"
+            onChange={(next: string) =>
+              setParams((current) => {
+                const query = new URLSearchParams(current);
+                if (next) query.set('card', next);
+                else query.delete('card');
+                return query;
+              })
+            }
+            options={[
+              { value: '', label: 'All cards' },
+              ...cards.map(([digits, label]) => ({ value: digits, label })),
+              ...(card && !cards.some(([digits]) => digits === card) ? [{ value: card, label: `•••• ${card}` }] : []),
+            ]}
+            size="small"
+            value={card ?? ''}
+          />
+        )}
+      </Toolbar>
 
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
@@ -205,6 +240,16 @@ export function SpendingPage() {
           )}
           <MissingRates currencies={shown.missing} />
 
+          {tab === 'overview' && cardTotals.length > 0 && (
+            <Section title="By card">
+              <Stats>
+                {cardTotals.map((total) => (
+                  <Stat key={total.key} label={total.label} value={money(total.spentMinor, total.currency)} />
+                ))}
+              </Stats>
+            </Section>
+          )}
+
           {tab === 'overview' && Boolean(captures.data?.length) && (
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
@@ -214,6 +259,7 @@ export function SpendingPage() {
                       <span className="truncate text-ink">{message.suggestion.merchant ?? message.sender}</span>
                       <span className="truncate text-sm text-muted" dir="auto">{message.text}</span>
                     </span>
+                    {message.suggestion.cardDigits && <span className="shrink-0 text-sm text-muted">•••• {message.suggestion.cardDigits}</span>}
                     {message.suggestion.amountMinor !== null && message.suggestion.currency && (
                       <span className="shrink-0 text-ink">{money(message.suggestion.amountMinor, message.suggestion.currency)}</span>
                     )}
@@ -478,11 +524,11 @@ export function SpendingPage() {
               action={tab === 'overview' && shown.expenses.length > recentCount && <Button label="All transactions" onClick={() => go({ tab: 'transactions' })} />}
               title={tab === 'overview' ? 'Recent' : 'Transactions'}
             >
-              {shown.expenses.length === 0 ? (
+              {listed.length === 0 ? (
                 <Empty title="Nothing this month" />
               ) : (
                 <ul className="panel-rows">
-                  {(tab === 'overview' ? shown.expenses.slice(0, recentCount) : shown.expenses).map((expense) => (
+                  {(tab === 'overview' ? listed.slice(0, recentCount) : listed).map((expense) => (
                     <li className="panel-row flex items-center gap-3" key={expense.id}>
                       <button
                         className="grid min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
@@ -499,7 +545,7 @@ export function SpendingPage() {
                               : expense.direction === 'received'
                                 ? 'Received'
                                 : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
-                            expense.direction !== 'transfer' && accountName(expense.accountId),
+                            expense.direction !== 'transfer' && (expense.cardDigits ? cardName(expense.cardDigits, expense.accountId) : accountName(expense.accountId)),
                             expense.split && 'split',
                             expense.paymentLabel,
                           ]
