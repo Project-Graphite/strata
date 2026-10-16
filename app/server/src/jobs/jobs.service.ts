@@ -20,6 +20,7 @@ interface ClaimedJob {
 export class JobsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(JobsService.name);
   private readonly handlers = new Map<string, JobHandler>();
+  private readonly lastKinds = new Set<string>();
   private timer?: NodeJS.Timeout;
   private running = false;
 
@@ -34,8 +35,9 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
     clearInterval(this.timer);
   }
 
-  handle(kind: string, handler: JobHandler) {
+  handle(kind: string, handler: JobHandler, { runLast = false } = {}) {
     this.handlers.set(kind, handler);
+    if (runLast) this.lastKinds.add(kind);
   }
 
   schedule(
@@ -51,9 +53,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      for (const job of await this.claim(now)) {
-        await this.run(job);
-      }
+      await Promise.all((await this.claim(now)).map((job) => this.run(job)));
     } catch (error) {
       this.logger.error('Claiming due jobs failed; retrying on the next poll', error);
     } finally {
@@ -73,7 +73,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
           AND "run_at" <= ${at}::timestamptz AT TIME ZONE 'UTC'
           AND ("claimed_at" IS NULL
             OR "claimed_at" < (${at}::timestamptz AT TIME ZONE 'UTC') - make_interval(mins => ${claimTimeoutMinutes}))
-        ORDER BY "run_at"
+        ORDER BY "kind" = ANY(${[...this.lastKinds]}::text[]), "run_at"
         LIMIT ${batchSize}
         FOR UPDATE SKIP LOCKED
       )

@@ -50,4 +50,14 @@ describe('calendarText', () => {
     expect(lines.every((line) => Buffer.byteLength(line) <= 75)).toBe(true);
     expect(text.replace(/\r\n /g, '')).toContain(`SUMMARY:${longTitle}\r\n`);
   });
+
+  it('escapes every kind of line break so text cannot add properties', () => {
+    const text = calendarText(
+      'Agenda',
+      [{ id: 'sneaky', title: 'Lunch\rX-A:1\r\nX-B:2\nX-C:3', updatedAt: new Date('2026-10-07T10:00:00Z'), event }],
+      (path) => `https://strata.example${path}`,
+    );
+
+    expect(text.split(/\r\n|\r|\n/)).toContain('SUMMARY:Lunch\\nX-A:1\\nX-B:2\\nX-C:3');
+  });
 });

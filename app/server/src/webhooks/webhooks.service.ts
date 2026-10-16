@@ -49,7 +49,7 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    this.jobs.handle(deliverKind, (payload) => this.deliver((payload as { deliveryId: string }).deliveryId));
+    this.jobs.handle(deliverKind, (payload) => this.deliver((payload as { deliveryId: string }).deliveryId), { runLast: true });
     this.maintenance.register((now) => this.prisma.webhookDelivery.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - keepDays * dayMs) } } }));
     this.timer = setInterval(() => void this.scan(), scanEveryMs);
     this.timer.unref();

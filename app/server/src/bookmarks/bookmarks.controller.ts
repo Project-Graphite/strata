@@ -3,6 +3,7 @@ import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { BookmarksService } from './bookmarks.service';
 import { CreateBookmarkDto, ListBookmarksDto, SaveArticleDto, UpdateBookmarkDto } from './dto/bookmarks.dto';
@@ -20,6 +21,7 @@ export class BookmarksController {
 
   @Post('spaces/:spaceId/bookmarks')
   @Scope('items:write')
+  @RateLimit('bookmark-fetch', 60, 3_600)
   create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateBookmarkDto) {
     return this.bookmarks.create(user.id, spaceId, input);
   }
@@ -38,6 +40,7 @@ export class BookmarksController {
 
   @Post('bookmarks/:id/fetch')
   @Scope('items:write')
+  @RateLimit('bookmark-fetch', 60, 3_600)
   fetchAgain(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.bookmarks.fetchAgain(user.id, id);
   }

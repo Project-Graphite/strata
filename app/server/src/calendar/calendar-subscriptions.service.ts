@@ -114,7 +114,7 @@ export class CalendarSubscriptionsService implements OnModuleInit {
   }
 
   async refreshMine(userId: string, now: Date) {
-    return { refreshed: await this.refreshStale({ space: this.access.spacesOf(userId) }, freshForMs, now) };
+    return { refreshed: await this.refreshStale({ space: this.access.spacesOf(userId) }, freshForMs, now, refreshesPerRun) };
   }
 
   async refreshDue(now: Date) {
