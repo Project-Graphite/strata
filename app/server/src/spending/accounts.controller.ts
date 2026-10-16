@@ -18,6 +18,12 @@ export class AccountsController {
     return this.accounts.list(user.id, spaceId);
   }
 
+  @Get('spaces/:spaceId/cards')
+  @Scope('items:read')
+  cards(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
+    return this.accounts.cards(user.id, spaceId);
+  }
+
   @Post('spaces/:spaceId/accounts')
   @Scope('items:write')
   create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateAccountDto) {

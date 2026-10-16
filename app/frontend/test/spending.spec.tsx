@@ -72,6 +72,7 @@ let accounts: ReturnType<typeof account>[] = [];
 let captures: object[] = [];
 let rules: object[] = [];
 let installments: object[] = [];
+let knownCards: object[] = [];
 const categories = ['groceries', 'eating out', 'transport', 'other'].map((name) => ({ name, colour: name === 'other' ? 'gray' : 'green' }));
 
 describe('Spending', () => {
@@ -89,6 +90,7 @@ describe('Spending', () => {
     captures = [];
     rules = [];
     installments = [];
+    knownCards = [];
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
@@ -106,6 +108,7 @@ describe('Spending', () => {
       if (path === '/spaces/home/spending-categories' && !init?.method) return Promise.resolve(json(categories));
       if (path === '/spaces/home/merchant-rules' && !init?.method) return Promise.resolve(json(rules));
       if (path === '/spaces/home/installments' && !init?.method) return Promise.resolve(json(installments));
+      if (path === '/spaces/home/cards' && !init?.method) return Promise.resolve(json(knownCards));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -156,6 +159,7 @@ describe('Spending', () => {
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Bread';
     form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '3,5';
+    await choose(form, 'Paid with (optional)', 'Other…');
     form.querySelector<HTMLInputElement>('input[name="paymentLabel"]')!.value = '4242 4242 4242';
     await submit(form);
     expect(container.textContent).toContain('never a card number');
@@ -163,7 +167,43 @@ describe('Spending', () => {
     await pickChip(form, 'Groceries');
     await submit(form);
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/expenses' && init?.method === 'POST')![1]!.body));
-    expect(body).toMatchObject({ title: 'Bread', amountMinor: 350, currency: 'EUR', category: 'groceries', paymentLabel: 'Visa ending 1234', note: '' });
+    expect(body).toMatchObject({ title: 'Bread', amountMinor: 350, currency: 'EUR', category: 'groceries', paymentLabel: 'Visa ending 1234', cardDigits: null, note: '' });
+  });
+
+  it('pays with a saved card, a new card or an online method', async () => {
+    accounts = [account('bank', 'CIB', 'bank', 0)];
+    knownCards = [{ digits: '1234', accountId: 'bank' }];
+    const fetchMock = serve((path, init) => {
+      if (path === '/spaces/home/spending?month=2026-10') return json(october);
+      if (path === '/spaces/home/expenses' && init?.method === 'POST') return json(expense('bread', 'Bread', 350, 'groceries', '2026-10-11'), 201);
+      return undefined;
+    });
+    await render('/spending?month=2026-10');
+    const add = async (pick: (form: HTMLFormElement) => Promise<void>) => {
+      await act(async () => button('Add expense').click());
+      const form = container.querySelector('dialog form') as HTMLFormElement;
+      form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Bread';
+      form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '3.50';
+      await pick(form);
+      await submit(form);
+      return form;
+    };
+    const sent = () => fetchMock.mock.calls.filter(([path, init]) => path === '/api/v1/spaces/home/expenses' && init?.method === 'POST').map(([, init]) => JSON.parse(String(init!.body)));
+
+    await add((form) => choose(form, 'Paid with (optional)', '•••• 1234'));
+    expect(sent().at(-1)).toMatchObject({ cardDigits: '1234', paymentLabel: null, accountId: 'bank' });
+
+    const form = await add(async (form) => {
+      await choose(form, 'Paid with (optional)', 'Add a card…');
+      form.querySelector<HTMLInputElement>('input[name="cardDigits"]')!.value = '98';
+    });
+    expect(form.textContent).toContain('Enter the last 4 digits of the card.');
+    form.querySelector<HTMLInputElement>('input[name="cardDigits"]')!.value = '9876';
+    await submit(form);
+    expect(sent().at(-1)).toMatchObject({ cardDigits: '9876', paymentLabel: null });
+
+    await add((form) => choose(form, 'Paid with (optional)', 'PayPal'));
+    expect(sent().at(-1)).toMatchObject({ cardDigits: null, paymentLabel: 'PayPal' });
   });
 
   it('sets and removes a category budget', async () => {

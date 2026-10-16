@@ -10,6 +10,7 @@ export const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as 
 const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Describe the expense in 1 to 200 characters.' }));
 const DayText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
+const CardDigits = () => Matches(/^\d{4}$/, { message: 'A card ending is its last 4 digits.' });
 const Category = () => applyDecorators(Trimmed(), IsString(), Length(1, 40, { message: 'Choose a category from the list.' }));
 const PaymentLabel = () =>
   applyDecorators(
@@ -71,7 +72,7 @@ export class CreateExpenseDto {
 
   @IsOptional()
   @ValidateIf(nullable)
-  @Matches(/^\d{4}$/, { message: 'A card ending is its last 4 digits.' })
+  @CardDigits()
   cardDigits?: string | null;
 }
 
@@ -125,6 +126,11 @@ export class UpdateExpenseDto {
   @ValidateIf(nullable)
   @Merchant()
   merchant?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @CardDigits()
+  cardDigits?: string | null;
 }
 
 export class ImportExpensesDto {

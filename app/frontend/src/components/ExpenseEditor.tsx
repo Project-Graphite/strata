@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
-import { directionOptions, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type MoneyAccount } from '../spending';
+import { directionOptions, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
+import { useResource } from '../useResource';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
 import { CategoryChips } from './CategoryChips';
@@ -52,6 +53,28 @@ export function ExpenseEditor({
   const transfer = direction === 'transfer';
   const words = directionWords[direction];
   const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
+  const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
+  const startCard = expense?.cardDigits ?? suggested?.cardDigits ?? null;
+  const startLabel = expense?.paymentLabel ?? null;
+  const [paidWith, setPaidWith] = useState(
+    startCard ? `card:${startCard}` : !startLabel ? '' : paymentMethods.some(([method]) => method === startLabel) ? `method:${startLabel}` : 'other',
+  );
+  const knownCards = [
+    ...(cards.data ?? []),
+    ...(startCard && !cards.data?.some((card) => card.digits === startCard) ? [{ digits: startCard, accountId: expense?.accountId ?? suggested?.accountId ?? null }] : []),
+  ];
+  const paidWithOptions = [
+    { value: '', label: 'Not set' },
+    ...knownCards.map((card) => ({ value: `card:${card.digits}`, label: `•••• ${card.digits}`, hint: accounts.find((account) => account.id === card.accountId)?.name ?? 'Card' })),
+    ...paymentMethods.map(([method, hint]) => ({ value: `method:${method}`, label: method, hint })),
+    { value: 'new-card', label: 'Add a card…' },
+    { value: 'other', label: 'Other…' },
+  ];
+  const choosePaidWith = (next: string) => {
+    setPaidWith(next);
+    const card = knownCards.find((known) => `card:${known.digits}` === next);
+    if (card?.accountId && !accountId) setAccountId(card.accountId);
+  };
 
   return (
     <FormDialog
@@ -64,6 +87,7 @@ export function ExpenseEditor({
             title: [required('Say what it was for.'), atMost(200, 'Use at most 200 characters.')],
             amount: [required('Enter the amount.'), moneyAmount],
             paymentLabel: [atMost(40, 'Use at most 40 characters.'), notCardNumber],
+            ...(paidWith === 'new-card' ? { cardDigits: [(value) => (/^\d{4}$/.test(value.trim()) ? undefined : 'Enter the last 4 digits of the card.')] } : {}),
           }) ||
           (transfer && !form.check(target, { from: [() => (accountId && toAccountId && accountId !== toAccountId ? undefined : 'Choose two different accounts.')] }))
         ) {
@@ -78,12 +102,13 @@ export function ExpenseEditor({
           currency: chosen,
           spentOn,
           category: chosenCategory,
-          paymentLabel: text('paymentLabel') || null,
+          paymentLabel: paidWith.startsWith('method:') ? paidWith.slice('method:'.length) : paidWith === 'other' ? text('paymentLabel') || null : null,
+          cardDigits: paidWith.startsWith('card:') ? paidWith.slice('card:'.length) : paidWith === 'new-card' ? text('cardDigits') : null,
           note: text('note'),
           direction,
           accountId: accountId || null,
           toAccountId: transfer ? toAccountId : null,
-          ...(capture ? { merchant: suggested?.merchant ?? null, cardDigits: suggested?.cardDigits ?? null } : {}),
+          ...(capture ? { merchant: suggested?.merchant ?? null } : {}),
         };
         void saving
           .run(async () => {
@@ -129,8 +154,14 @@ export function ExpenseEditor({
           Always do this for {suggested.merchant}
         </label>
       )}
-      {(accounts.length === 0 || expense?.paymentLabel) && (
-        <TextField defaultValue={expense?.paymentLabel ?? ''} hint="Such as “Visa ending 1234”. Never a card number." label="Paid with (optional)" maxLength={40} {...form.field('paymentLabel')} />
+      {!transfer && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
+          {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
+          {paidWith === 'other' && (
+            <TextField defaultValue={startLabel ?? ''} hint="Such as a gift card. Never a card number." label="What you paid with" maxLength={40} {...form.field('paymentLabel')} />
+          )}
+        </div>
       )}
       <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
       {expense && onTrashed && (
