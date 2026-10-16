@@ -59,7 +59,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker(), excalidrawFonts()],
   server: {
     proxy: {
-      '/api': { target: process.env.VITE_API_ORIGIN ?? 'http://localhost:3000', ws: true },
+      '/api': { target: process.env.VITE_API_ORIGIN ?? 'http://localhost:3000', ws: true, xfwd: true },
     },
   },
 });
