@@ -40,6 +40,7 @@ describe('App routes', () => {
     await render('/nowhere/at/all');
 
     expect(container.textContent).toContain('Page not found');
+    expect(document.title).toBe('Page not found · Strata');
     expect(
       [...container.querySelectorAll('a')].find((link) => link.textContent === 'Go home'),
     ).toHaveProperty('pathname', '/');
@@ -58,6 +59,7 @@ describe('App routes', () => {
     expect(placeholder?.getAttribute('aria-label')).toBe('Loading your session');
     expect(container.textContent).not.toContain('Loading your session…');
     await act(async () => restore(new Response(null, { status: 401 })));
+    expect(document.title).toBe('Sign in · Strata');
   });
 
   it('reaches every area on a phone through the More tab', async () => {

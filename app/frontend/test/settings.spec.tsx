@@ -126,6 +126,7 @@ describe('Profile settings', () => {
     });
 
     expect(container.textContent).toContain('On · 8 of 10 recovery codes left');
+    expect(document.title).toBe('Security · Settings · Strata');
     expect(container.querySelector('input[type="password"]')).toBeNull();
     await act(async () => button('Change').click());
     expect(container.querySelector('dialog h2')?.textContent).toBe('Change password');

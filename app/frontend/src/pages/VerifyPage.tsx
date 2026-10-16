@@ -4,6 +4,7 @@ import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { required, useFormErrors } from '../validation';
 import { Button, ButtonLink } from '../components/Button';
+import { useDocumentTitle } from '../components/Page';
 
 export function VerifyPage() {
   const auth = useAuth();
@@ -12,6 +13,7 @@ export function VerifyPage() {
   const show = useSnackbar();
   const [verified, setVerified] = useState(false);
   const [busy, setBusy] = useState(false);
+  useDocumentTitle('Verify your email');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

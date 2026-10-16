@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
-import { choose } from './controls';
+import { choose, chooseFromMenu } from './controls';
 import { internalPath, storedFileId } from '../src/components/note-extensions';
 import { flattenTree, type Note } from '../src/notes';
 
@@ -401,14 +401,64 @@ describe('Notes', () => {
     expect([...container.querySelectorAll('nav[aria-label="Breadcrumb"] a')].map((link) => link.textContent)).toEqual(['Home', 'Trips', 'Lisbon']);
     const title = container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')!;
     expect(title.value).toBe('Food');
+    expect(document.title).toBe('Food · Strata');
     title.value = 'Food and drink';
     await act(async () => {
       title.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/food', expect.objectContaining({ method: 'PATCH' }));
+    expect(document.title).toBe('Food and drink · Strata');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Add a page inside'))!.click());
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('pastel');
+    expect(document.title).toBe('Untitled · Strata');
+  });
+
+  it('moves a page to the trash, asking first when pages inside it would move up', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/notes/lisbon') return json({ ...note('lisbon', 'Lisbon', 'trips'), editable: true, path: [{ id: 'trips', title: 'Trips' }] });
+      if (path === '/items/lisbon/trash' && init?.method === 'POST') {
+        listed = listed.filter((page) => page.id !== 'lisbon');
+        return new Response(null, { status: 204 });
+      }
+      if (path === '/me/notes?kind=note') return json(listed);
+      return undefined;
+    });
+    await render('/notes/lisbon');
+
+    await chooseFromMenu(container, 'Actions for Lisbon', 'Move to trash');
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.textContent).toContain('The page inside stays in the space, at the top level, until you restore Lisbon.');
+    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Move to trash')!.click());
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/lisbon/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('h1')?.textContent).toBe('Pages');
+    expect(document.title).toBe('Pages · Strata');
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Lisbon to the trash.');
+    expect(container.querySelector('main a[href="/notes/lisbon"]')).toBeNull();
+    expect(container.querySelector('main a[href="/notes/food"]')).not.toBeNull();
+  });
+
+  it('moves a page without pages inside to the trash from the list straight away', async () => {
+    const fetchMock = serve((path, init) => {
+      if (path === '/items/recipes/trash' && init?.method === 'POST') {
+        listed = listed.filter((page) => page.id !== 'recipes');
+        return new Response(null, { status: 204 });
+      }
+      if (path === '/me/notes?kind=note') return json(listed);
+      return undefined;
+    });
+    await render('/pages');
+
+    await chooseFromMenu(container, 'Actions for Untitled', 'Move to trash');
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/recipes/trash', expect.objectContaining({ method: 'POST' }));
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Untitled to the trash.');
+    expect([...container.querySelectorAll('main a[href^="/notes/"]')].map((link) => link.textContent)).toEqual([
+      expect.stringContaining('Trips'),
+      expect.stringContaining('Lisbon'),
+      expect.stringContaining('Food'),
+    ]);
   });
 
   it('opens a viewer’s page read-only and explains a missing page', async () => {
