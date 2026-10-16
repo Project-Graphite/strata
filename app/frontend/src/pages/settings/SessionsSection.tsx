@@ -29,7 +29,7 @@ export function SessionsSection() {
     void action.run(async () => {
       await auth.request(id ? `/me/sessions/${id}` : '/me/sessions', { method: 'DELETE' });
       sessions.mutate((current) => current.filter((session) => (id ? session.id !== id : session.current)));
-      return id ? 'That device was signed out.' : 'Every other device was signed out and your access tokens were revoked.';
+      return id ? 'That device was signed out.' : 'Every other device was signed out, your access tokens and private calendar link were revoked, and your webhooks were turned off.';
     }, 'Could not sign that device out');
   }
 

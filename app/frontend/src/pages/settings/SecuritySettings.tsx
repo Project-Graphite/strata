@@ -212,7 +212,7 @@ export function SecuritySettings() {
             void password
               .run(async () => {
                 await auth.changePassword(proofFrom(target), next);
-                return 'Password changed. Your other devices were signed out and your access tokens were revoked.';
+                return 'Password changed. Your other devices were signed out, your access tokens and private calendar link were revoked, and your webhooks were turned off.';
               }, 'Could not change your password')
               .then((changed) => changed && close());
           }}

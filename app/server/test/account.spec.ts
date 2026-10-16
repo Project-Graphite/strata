@@ -73,6 +73,9 @@ function setup(overrides: Record<string, object> = {}) {
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockReturnValue('space-delete'),
     },
+    webhook: {
+      updateMany: vi.fn().mockReturnValue('webhook-disable'),
+    },
     $transaction: vi.fn((work: unknown) =>
       typeof work === 'function' ? (work as (client: unknown) => unknown)(prisma) : work,
     ),
@@ -331,7 +334,7 @@ describe('Account email flows', () => {
     });
   });
 
-  it('resets the password, confirms the address, cancels pending email changes, signs every device out and revokes access tokens', async () => {
+  it('resets the password, confirms the address, cancels pending email changes, signs every device out and revokes access tokens, the calendar link and webhooks', async () => {
     const { prisma, service } = setup();
     prisma.verificationToken.findUnique.mockResolvedValueOnce({
       userId: user.id,
@@ -348,6 +351,7 @@ describe('Account email flows', () => {
       data: {
         passwordHash: expect.stringMatching(/^scrypt\$32768\$8\$1\$[0-9a-f]{32}\$[0-9a-f]{128}$/),
         verifiedAt: expect.any(Date),
+        calendarFeedHash: null,
       },
     });
     expect(prisma.verificationToken.deleteMany).toHaveBeenCalledWith({
@@ -359,6 +363,8 @@ describe('Account email flows', () => {
     expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
     expect(prisma.accessToken.updateMany).toHaveBeenCalledWith({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
     expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('access-token-revoke');
+    expect(prisma.webhook.updateMany).toHaveBeenCalledWith({ where: { userId: user.id, active: true }, data: { active: false } });
+    expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('webhook-disable');
 
     prisma.verificationToken.findUnique.mockResolvedValueOnce({
       userId: user.id,
@@ -405,6 +411,8 @@ describe('Account email flows', () => {
     expect(prisma.refreshSession.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
     expect(prisma.accessToken.updateMany).toHaveBeenCalledWith({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
     expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('access-token-revoke');
+    expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('webhook-disable');
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: user.id }, data: { passwordHash: expect.any(String), calendarFeedHash: null } });
     expect(prisma.refreshSession.create).toHaveBeenCalledTimes(1);
 
     await service.deleteAccount(user.id, { password: 'correct horse battery' });
