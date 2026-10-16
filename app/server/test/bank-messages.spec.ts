@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalise, readMessage, readQuickEntry } from '../src/spending/capture/bank-messages';
+import { normalise, readMessage } from '../src/spending/capture/bank-messages';
 
 const movement = (fields: object) => ({ kind: 'movement', direction: 'spent', amount: null, currency: null, cardDigits: null, merchant: null, available: null, ...fields });
 
@@ -52,21 +52,5 @@ describe('Bank text messages', () => {
     ['promotion', 'Enjoy 20% cashback on all purchases with your CIB card. Minimum purchase EGP 500'],
   ])('ignores a %s message', (reason, text) => {
     expect(readMessage(text)).toEqual({ kind: 'ignored', reason });
-  });
-
-  it.each([
-    ['120 talabat', { amount: 120, currency: null, title: 'talabat' }],
-    ['coffee 45.5', { amount: 45.5, currency: null, title: 'coffee' }],
-    ['٥٠ قهوة', { amount: 50, currency: null, title: 'قهوة' }],
-    ['EGP 1,250 groceries at Seoudi', { amount: 1250, currency: 'EGP', title: 'groceries at Seoudi' }],
-    ['300جم بنزين', { amount: 300, currency: 'EGP', title: 'بنزين' }],
-    ['12.99 USD Netflix', { amount: 12.99, currency: 'USD', title: 'Netflix' }],
-    ['75', { amount: 75, currency: null, title: null }],
-  ])('reads the quick entry %s', (text, entry) => {
-    expect(readQuickEntry(text)).toEqual(entry);
-  });
-
-  it('needs a number for a quick entry', () => {
-    expect(readQuickEntry('lunch with Sara')).toBeNull();
   });
 });

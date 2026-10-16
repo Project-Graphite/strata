@@ -13,6 +13,7 @@ export function useDocumentTitle(title: string | undefined) {
 
 export function Page({
   actions,
+  beside,
   children,
   description,
   documentTitle,
@@ -21,6 +22,7 @@ export function Page({
   titleHidden = false,
 }: {
   actions?: ReactNode;
+  beside?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
   documentTitle?: string;
@@ -33,6 +35,16 @@ export function Page({
     <section className="page-enter grid content-start gap-8">
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
+      ) : beside ? (
+        <div className="page-header">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
+            <PageHeader eyebrow={eyebrow} title={title}>
+              {description}
+            </PageHeader>
+            {beside}
+          </div>
+          {actions && <div className="page-header-actions">{actions}</div>}
+        </div>
       ) : (
         <PageHeader actions={actions} eyebrow={eyebrow} title={title}>
           {description}

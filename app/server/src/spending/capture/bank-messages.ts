@@ -104,18 +104,3 @@ export function readMessage(raw: string): ReadMessage {
     available: mentions.find((found) => found.balance)?.amount ?? null,
   };
 }
-
-export function readQuickEntry(raw: string) {
-  const text = normalise(raw);
-  const priced = [...text.matchAll(mention)][0];
-  const bare = priced ? null : text.match(new RegExp(String.raw`(?:^|\s)${number}(?=\s|$)`));
-  const found = priced ?? bare;
-  if (!found) return null;
-  const start = found.index!;
-  const title = `${text.slice(0, start)} ${text.slice(start + found[0].length)}`.replace(/\s+/g, ' ').trim();
-  return {
-    amount: amountOf(priced ? (priced[2] ?? priced[3]!) : bare![1]!),
-    currency: priced ? currencyOf(priced[1] ?? priced[4]!) : null,
-    title: title || null,
-  };
-}

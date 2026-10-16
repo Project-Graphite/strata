@@ -498,18 +498,4 @@ describe('Spending', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/savings-goals/g1/add', expect.objectContaining({ body: JSON.stringify({ amountMinor: -5000 }) }));
   });
 
-  it('adds a one-line expense', async () => {
-    const fetchMock = serve((path, init) => {
-      if (path === '/spaces/home/spending?month=2026-10') return json(october);
-      if (path === '/spaces/home/expenses/quick' && init?.method === 'POST') return json(expense('quick', 'talabat', 12000, 'eating out', '2026-10-14'));
-      return undefined;
-    });
-    await render('/spending?month=2026-10');
-    const input = container.querySelector<HTMLInputElement>('input[name="quick"]')!;
-    input.value = '120 talabat';
-    await submit(input.form!);
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/expenses/quick', expect.objectContaining({ body: JSON.stringify({ text: '120 talabat', currency: 'EUR' }) }));
-    expect(container.textContent).toContain('Added talabat, €120.00 in eating out.');
-    expect(input.value).toBe('');
-  });
 });
