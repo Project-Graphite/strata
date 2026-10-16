@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, PageSkeleton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
-import { Button, IconButton } from '../components/Button';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, IconButton, TextButton } from '../components/Button';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { Copyable } from '../components/Copyable';
 import { EventEditor } from '../components/EventEditor';
@@ -13,12 +14,12 @@ import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
-import { LoadError } from '../components/LoadError';
-import { Page, Section, Subheading } from '../components/Page';
-import { NotFoundState } from '../components/Empty';
+import { DetailState, Page, Section } from '../components/Page';
 import { RowText } from '../components/RowText';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
+
+const back = { to: '/agenda', label: 'Agenda' };
 
 export function EventPage() {
   const { id = '' } = useParams();
@@ -27,6 +28,7 @@ export function EventPage() {
   const spaces = useSpaces();
   const event = useResource<EventDetails>(`/events/${id}`, true);
   const poll = useResource<{ options: PollOption[] }>(`/events/${id}/poll`, true);
+  const action = useAction();
   const inviting = useAction();
   const sharing = useAction();
   const voting = useAction();
@@ -39,13 +41,7 @@ export function EventPage() {
   const [personalLink, setPersonalLink] = useState('');
   const [openLink, setOpenLink] = useState('');
 
-  if (event.status === 404) {
-    return (
-      <NotFoundState thing="Event" />
-    );
-  }
-  if (event.error) return <LoadError error={event.error} onRetry={event.reload} />;
-  if (!event.data) return <PageSkeleton label="Loading the event" />;
+  if (!event.data) return <DetailState back={back} resource={event} thing="Event" />;
   const details = event.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const editable = space ? space.role !== 'viewer' : false;
@@ -63,12 +59,37 @@ export function EventPage() {
     <Page
       actions={
         editable && (
-          <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
+          <>
+            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
+            <ActionsMenu
+              items={[
+                {
+                  label: 'Move to trash',
+                  separated: true,
+                  onSelect: () =>
+                    void action.run(async () => {
+                      await auth.request(`/items/${details.id}/trash`, { method: 'POST' });
+                      navigate('/agenda');
+                      return {
+                        message: `Moved ${details.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${details.id}/restore`, { method: 'POST' });
+                          navigate(`/events/${details.id}`);
+                          return '';
+                        },
+                      };
+                    }, 'Could not move the event to the trash'),
+                },
+              ]}
+              name={details.title}
+            />
+          </>
         )
       }
+      back={back}
       description={
         <>
-          <p className="m-0">{eventWhen(details)}</p>
+          <p className="m-0">{[space?.name, eventWhen(details)].filter(Boolean).join(' · ')}</p>
           {details.location && (
             <p className="mt-1 mb-0">
               {details.location} ·{' '}
@@ -86,7 +107,6 @@ export function EventPage() {
           )}
         </>
       }
-      eyebrow={space?.name}
       title={details.title}
     >
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
@@ -107,18 +127,14 @@ export function EventPage() {
             <>
               <PollOptions busy={voting.busy} onPick={editable ? setPicking : undefined} onVote={vote} options={options} />
               {editable && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button label="Change dates" onClick={() => setPlanning(true)} />
-                  <button className="text-button text-sm" disabled={voting.busy} onClick={() => setClosingPoll(true)} type="button">
-                    Close the poll
-                  </button>
+                  <TextButton disabled={voting.busy} label="Close the poll" onClick={() => setClosingPoll(true)} />
                 </div>
               )}
             </>
           ) : (
-            <>
-              <Button label="Offer dates" onClick={() => setPlanning(true)} />
-            </>
+            <Button label="Offer dates" onClick={() => setPlanning(true)} />
           )}
         </Section>
       )}
@@ -126,18 +142,14 @@ export function EventPage() {
       <ItemBoards editable={editable} itemId={details.id} key={`boards-${details.id}`} spaceId={details.spaceId} title={details.title} />
 
       <Section description={`${details.headcount.yes} coming · ${details.headcount.maybe} maybe · ${details.headcount.no} not coming · ${details.headcount.pending} waiting`} title="Guests">
-        {details.guests.length > 0 && (
+        {details.guests.length === 0 ? (
+          <Hint>No guests yet.</Hint>
+        ) : (
           <ul className="panel-rows">
             {details.guests.map((guest) => (
               <li className="flex items-center justify-between gap-4 panel-row" key={guest.id}>
-                <RowText
-                  title={<>{guest.name} <span className="mono-sm text-faint">· {responseLabels[guest.response]}</span></>}
-                >
-                  {guest.note && <span className="text-sm text-muted">“{guest.note}”</span>}
-                </RowText>
-                {editable && (
-                  <Button label="Remove" onClick={() => setRemoving(guest)} />
-                )}
+                <RowText detail={guest.note ? `${responseLabels[guest.response]} · “${guest.note}”` : responseLabels[guest.response]} title={guest.name} />
+                {editable && <ActionsMenu items={[{ label: 'Remove', separated: true, onSelect: () => setRemoving(guest) }]} name={guest.name} />}
               </li>
             ))}
           </ul>
@@ -145,7 +157,7 @@ export function EventPage() {
       </Section>
 
       {editable && (
-        <section className="grid gap-6">
+        <Section title="Invite a guest">
           <form
             className="grid gap-4"
             noValidate
@@ -154,21 +166,21 @@ export function EventPage() {
               const target = submitted.currentTarget;
               if (!form.check(target, { name: [required('Enter the guest’s name.')], email: [emailAddress] })) return;
               const values = new FormData(target);
+              const name = String(values.get('name')).trim();
               const email = String(values.get('email')).trim();
               void inviting
                 .run(async () => {
                   const invited = await auth.request<{ link: string; emailed: boolean }>(`/events/${details.id}/guests`, {
                     method: 'POST',
-                    body: JSON.stringify({ name: String(values.get('name')).trim(), ...(email ? { email } : {}) }),
+                    body: JSON.stringify({ name, ...(email ? { email } : {}) }),
                   });
                   setPersonalLink(invited.link);
                   event.reload();
-                  return invited.emailed ? `Invitation sent to ${email}.` : 'Send them this personal link.';
+                  return invited.emailed ? `Invited ${name} by email.` : `Invited ${name}. Send them their personal link.`;
                 }, 'Could not invite the guest')
                 .then((done) => done && target.reset());
             }}
           >
-            <Subheading>Invite a guest</Subheading>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField label="Name" maxLength={80} {...form.field('name')} />
               <TextField inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
@@ -176,33 +188,35 @@ export function EventPage() {
             {personalLink && <Copyable value={personalLink} />}
             <Button disabled={inviting.busy} label="Invite" primary submit />
           </form>
-          <div className="grid gap-3">
-            <Subheading>Open invitation link</Subheading>
-            <Hint>Anyone with this link can answer with their name for 60 days. They see only this event.</Hint>
-            {openLink ? (
-              <Copyable value={openLink} />
-            ) : (
-              <Button
-                disabled={sharing.busy}
-                label="Create link"
-                onClick={() =>
-                  void sharing.run(async () => {
-                    const created = await auth.request<{ link: string }>(`/items/${details.id}/share-links`, {
-                      method: 'POST',
-                      body: JSON.stringify({ access: 'view', expiresInDays: 60 }),
-                    });
-                    setOpenLink(created.link);
-                    return '';
-                  }, 'Could not create the link')
-                }
-              />
-            )}
-          </div>
-        </section>
+        </Section>
+      )}
+
+      {editable && (
+        <Section description="Anyone with this link can answer with their name for 60 days. They see only this event." title="Open invitation link">
+          {openLink ? (
+            <Copyable value={openLink} />
+          ) : (
+            <Button
+              disabled={sharing.busy}
+              label="Create link"
+              onClick={() =>
+                void sharing.run(async () => {
+                  const created = await auth.request<{ link: string }>(`/items/${details.id}/share-links`, {
+                    method: 'POST',
+                    body: JSON.stringify({ access: 'view', expiresInDays: 60 }),
+                  });
+                  setOpenLink(created.link);
+                  return 'Created an invitation link.';
+                }, 'Could not create the link')
+              }
+            />
+          )}
+        </Section>
       )}
 
       {picking && (
         <ConfirmDialog
+          busyLabel="Moving…"
           confirmLabel="Use this date"
           errorFallback="Could not move the event"
           onClose={() => setPicking(undefined)}
@@ -210,11 +224,11 @@ export function EventPage() {
             const saved = await auth.request<EventDetails>(`/events/${details.id}/poll/pick`, { method: 'POST', body: JSON.stringify({ optionId: picking.id }) });
             event.mutate(() => saved);
             poll.mutate(() => ({ options: [] }));
-            setPicking(undefined);
+            action.report(`Moved ${details.title} to ${optionLabel(picking)}.`);
           }}
           title={`Move the event to ${optionLabel(picking)}?`}
         >
-          <Hint>The poll closes and the other dates are dropped.</Hint>
+          The poll closes and the other dates are dropped.
         </ConfirmDialog>
       )}
       {closingPoll && (
@@ -226,11 +240,12 @@ export function EventPage() {
           onConfirm={async () => {
             await auth.request(`/events/${details.id}/poll`, { method: 'DELETE' });
             poll.mutate(() => ({ options: [] }));
+            action.report('Closed the poll.');
           }}
           title="Close the poll?"
           tone="danger"
         >
-          The dates on offer and every vote are deleted. The event keeps its current date.
+          The dates on offer and every vote are deleted, and the event keeps its current date.
         </ConfirmDialog>
       )}
       {removing && (
@@ -242,6 +257,7 @@ export function EventPage() {
           onConfirm={async () => {
             await auth.request(`/events/${details.id}/guests/${removing.id}`, { method: 'DELETE' });
             event.reload();
+            action.report(`Removed ${removing.name}.`);
           }}
           title={`Remove ${removing.name}?`}
           tone="danger"
@@ -249,9 +265,7 @@ export function EventPage() {
           Their invitation link stops working and their answer is lost.
         </ConfirmDialog>
       )}
-      {editing && (
-        <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} onRestored={() => navigate(`/events/${details.id}`)} onTrashed={() => navigate('/agenda')} />
-      )}
+      {editing && <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} />}
     </Page>
   );
 }

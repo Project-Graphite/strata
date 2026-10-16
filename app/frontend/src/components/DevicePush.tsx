@@ -3,6 +3,7 @@ import { errorMessage, Toggle } from '@project-graphite/ui';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
+import { RowText } from './RowText';
 import { allPushKinds, pushGroups, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -42,8 +43,7 @@ export function DevicePush() {
   const note = (text: string) => (
     <div className="panel-rows">
       <div className="panel-row">
-        <p className="m-0 font-medium text-ink">Notifications on this device</p>
-        <p className="m-0 mt-0.5 text-sm text-muted">{text}</p>
+        <RowText detail={text} title="Notifications on this device" />
       </div>
     </div>
   );

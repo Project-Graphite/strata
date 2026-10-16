@@ -115,6 +115,7 @@ describe('Goals', () => {
     const fetchMock = serve(['goals'], (path, init) => {
       if (path === '/me/goals') return json([goal, run]);
       if (path === '/spaces/home/goals' && init?.method === 'POST') return json({ ...run, id: 'read', title: 'Read 12 books' }, 201);
+      if (path === '/goals/read') return json({ ...run, id: 'read', title: 'Read 12 books', taskList: [], habits: [] });
       return undefined;
     });
     await render('/goals');
@@ -143,6 +144,7 @@ describe('Goals', () => {
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/goals' && init?.method === 'POST')![1]!.body));
     expect(body).toEqual({ title: 'Read 12 books', period: 'year', startsOn: '2027-01-01', why: '', target: 12, current: null, unit: 'books' });
     expect(container.querySelector('dialog')).toBeNull();
+    expect(container.querySelector('h1')?.textContent).toBe('Read 12 books');
   });
 
   it('links, ticks off and unlinks tasks, and marks the goal done', async () => {
@@ -185,7 +187,7 @@ describe('Goals', () => {
     await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Mark Clear the shed as done"]')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/tasks/shed/complete', expect.objectContaining({ method: 'POST' }));
 
-    await chooseFromMenu(container, 'Actions for Clear the shed', 'Unlink from this goal');
+    await chooseFromMenu(container, 'Actions for Clear the shed', 'Remove from this goal');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/garden/links/link-shed', expect.objectContaining({ method: 'DELETE' }));
 
     await chooseFromMenu(container, 'Actions for Tidy the garden', 'Mark as done');

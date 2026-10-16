@@ -3,7 +3,7 @@ import { DatePicker, formatDay } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';
-import { Button } from './Button';
+import { Button, TextButton } from './Button';
 
 export type PollAnswer = 'yes' | 'maybe' | 'no';
 
@@ -45,14 +45,14 @@ export function PollOptions({
                 {option.yes} yes · {option.maybe} maybe · {option.no} no
               </p>
             </div>
-            <div aria-label={`Your answer for ${optionLabel(option)}`} className="flex gap-1.5" role="group">
+            <div aria-label={`Your answer for ${optionLabel(option)}`} className="flex items-center gap-1.5" role="group">
               {(['yes', 'maybe', 'no'] as const).map((answer) => (
                 <Button disabled={busy} key={answer} label={answerLabels[answer]} onClick={() => onVote(option.id, answer)} pressed={option.mine === answer} />
               ))}
               {onPick && (
-                <button className="text-button ml-2 text-sm" disabled={busy} onClick={() => onPick(option)} type="button">
-                  Pick this date
-                </button>
+                <span className="ml-2">
+                  <TextButton disabled={busy} label="Pick this date" onClick={() => onPick(option)} />
+                </span>
               )}
             </div>
           </div>
@@ -86,7 +86,7 @@ export function PollEditor({
         event.preventDefault();
         void saving.run(async () => {
           await onSave(filled);
-          return 'The dates are saved.';
+          return 'Saved the dates.';
         }, 'Could not save the dates');
       }}
     >
@@ -99,21 +99,13 @@ export function PollEditor({
             onChange={(startTime) => update(index, { startTime: startTime || null })}
             value={row.startTime ?? ''}
           />
-          {rows.length > 2 && (
-            <button className="text-button text-sm" onClick={() => setRows(rows.filter((_, at) => at !== index))} type="button">
-              Remove
-            </button>
-          )}
+          {rows.length > 2 && <TextButton label="Remove" onClick={() => setRows(rows.filter((_, at) => at !== index))} />}
         </div>
       ))}
-      <div className="flex flex-wrap gap-2">
-        {rows.length < 10 && (
-          <Button label="Add a date" onClick={() => setRows([...rows, { startsOn: '', startTime: null }])} />
-        )}
-        <Button disabled={filled.length < 2 || saving.busy} label="Save dates" primary submit />
-        <button className="text-button text-sm" onClick={onCancel} type="button">
-          Cancel
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {rows.length < 10 && <Button icon="plus" label="Add a date" onClick={() => setRows([...rows, { startsOn: '', startTime: null }])} />}
+        <Button disabled={filled.length < 2 || saving.busy} label={saving.busy ? 'Saving…' : 'Save dates'} primary submit />
+        <Button label="Cancel" onClick={onCancel} />
       </div>
     </form>
   );

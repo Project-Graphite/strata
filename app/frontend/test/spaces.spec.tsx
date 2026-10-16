@@ -104,7 +104,8 @@ describe('Spaces', () => {
     expect(container.textContent).toContain('Sara');
     expect(container.querySelector('select')).toBeNull();
     expect(button('Remove')).toBeUndefined();
-    expect(button('Leave')).toBeDefined();
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Actions for Family"]')!.click());
+    expect([...container.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(['Leave']);
   });
 
   it('restores an item from the trash', async () => {

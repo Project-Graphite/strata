@@ -7,7 +7,7 @@ import { useResource } from '../useResource';
 import { Copyable } from './Copyable';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
-import { Button } from './Button';
+import { Button, TextButton } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
 
@@ -33,7 +33,7 @@ const durationOptions = [
   { value: '365', label: '1 year' },
 ];
 
-function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void }) {
+export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void }) {
   const auth = useAuth();
   const links = useResource<ShareLink[]>(`/items/${itemId}/share-links`, true);
   const action = useAction();
@@ -45,12 +45,13 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
     return (
       <ConfirmDialog
         busyLabel="Turning off…"
-        confirmLabel="Turn off"
+        confirmLabel="Turn off link"
         errorFallback="Could not turn off the link"
         onClose={() => setTurningOff(undefined)}
         onConfirm={async () => {
           await auth.request(`/items/${itemId}/share-links/${turningOff.id}`, { method: 'DELETE' });
           links.mutate((current) => current.filter((shown) => shown.id !== turningOff.id));
+          action.report('Turned off the link.');
         }}
         title="Turn off this link?"
         tone="danger"
@@ -62,16 +63,15 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
 
   return (
     <Dialog onClose={onClose} title={`Share this ${noun}`}>
-      <p className="mt-2 mb-0 text-sm text-muted">Anyone with a link can open this {noun} without an account, until the link ends or you turn it off.</p>
-      <div className={`mt-5 grid gap-3 ${editLinks ? 'sm:grid-cols-2' : ''}`}>
-        {editLinks && <Select label="People with the link" onChange={setAccess} options={accessOptions} value={access} />}
-        <Select label="Link works for" onChange={setDays} options={durationOptions} value={days} />
-      </div>
-      <DialogActions>
+      <div className="mt-5 grid gap-4">
+        <Hint>Anyone with a link can open this {noun} without an account, until the link ends or you turn it off.</Hint>
+        <div className={`grid gap-3 ${editLinks ? 'sm:grid-cols-2' : ''}`}>
+          {editLinks && <Select label="People with the link" onChange={setAccess} options={accessOptions} value={access} />}
+          <Select label="Link works for" onChange={setDays} options={durationOptions} value={days} />
+        </div>
         <Button
           disabled={action.busy}
-          label="Create link"
-          large
+          label={action.busy ? 'Creating…' : 'Create link'}
           onClick={() =>
             void action.run(async () => {
               const created = await auth.request<ShareLink>(`/items/${itemId}/share-links`, {
@@ -79,58 +79,45 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
                 body: JSON.stringify({ access, expiresInDays: Number(days) }),
               });
               links.mutate((current) => [created, ...current]);
-              return '';
+              return 'Created the link.';
             }, 'Could not create the link')
           }
           primary
         />
-      </DialogActions>
-      <div className="mt-6 mb-3">
         <Subheading>Links</Subheading>
+        {links.error ? (
+          <LoadError compact error={links.error} onRetry={links.reload} />
+        ) : links.loading ? (
+          <LinesSkeleton label="Loading links" lines={2} />
+        ) : links.data?.length ? (
+          <ul className="m-0 grid list-none gap-3 p-0">
+            {links.data.map((link) => (
+              <li className="grid gap-2 rounded-panel border border-line p-3" key={link.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="m-0 text-sm text-ink">
+                    {link.access === 'edit' ? 'Can edit' : 'Can view'}
+                    <span className="text-faint">
+                      {' · Until '}
+                      {formatDay(dayKey(new Date(link.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </p>
+                  <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
+                </div>
+                {link.link ? (
+                  <Copyable value={link.link} />
+                ) : (
+                  <Hint>This older link can’t be shown again. Turn it off and create a new one to copy it.</Hint>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Hint>No links yet. Only members of this space can open this {noun}.</Hint>
+        )}
+        <DialogActions>
+          <Button label="Done" large onClick={onClose} />
+        </DialogActions>
       </div>
-      {links.error ? (
-        <LoadError compact error={links.error} onRetry={links.reload} />
-      ) : links.loading ? (
-        <LinesSkeleton label="Loading links" lines={2} />
-      ) : links.data?.length ? (
-        <ul className="m-0 grid list-none gap-3 p-0">
-          {links.data.map((link) => (
-            <li className="grid gap-2 rounded-[var(--radius-panel)] border border-line p-3" key={link.id}>
-              <div className="flex items-center justify-between gap-3">
-                <p className="m-0 text-sm text-ink">
-                  {link.access === 'edit' ? 'Can edit' : 'Can view'}
-                  <span className="text-faint">
-                    {' · Until '}
-                    {formatDay(dayKey(new Date(link.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                </p>
-                <button className="text-button text-sm" onClick={() => setTurningOff(link)} type="button">
-                  Turn off
-                </button>
-              </div>
-              {link.link ? (
-                <Copyable value={link.link} />
-              ) : (
-                <Hint>This older link can’t be shown again. Turn it off and create a new one to copy it.</Hint>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Hint>No links yet. Only members of this space can open this {noun}.</Hint>
-      )}
     </Dialog>
-  );
-}
-
-export function ShareLinks({ editLinks, itemId, noun }: { editLinks: boolean; itemId: string; noun: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button className="text-button text-sm" onClick={() => setOpen(true)} type="button">
-        Share
-      </button>
-      {open && <ShareDialog editLinks={editLinks} itemId={itemId} noun={noun} onClose={() => setOpen(false)} />}
-    </>
   );
 }

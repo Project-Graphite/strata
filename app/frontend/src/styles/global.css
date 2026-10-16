@@ -2,6 +2,10 @@
 @import '@project-graphite/ui/theme.css';
 @source '../../../node_modules/@project-graphite/ui/dist';
 
+:root {
+  --color-highlight: #d7b24a;
+}
+
 .note-title {
   width: 100%;
   border: 0;
@@ -39,7 +43,7 @@
   padding: 0.3rem 0.5rem;
   color: var(--color-muted);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .note-tool:hover,
@@ -77,7 +81,7 @@
 .board-preview {
   overflow: hidden;
   border: 1px solid var(--color-line);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-panel);
   background: #ffffff;
 }
 
@@ -95,7 +99,7 @@
 }
 
 .board-action {
-  border-radius: 0.5rem;
+  border-radius: var(--radius-field);
   background: #1e1e1e;
   padding: 0.4rem 0.75rem;
   color: #ffffff;
@@ -116,7 +120,7 @@
   max-width: calc(100% - 2rem);
   transform: translateX(-50%);
   border: 1px solid #dee2e6;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-panel);
   background: #ffffff;
   padding: 0.6rem 0.8rem;
   box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
@@ -135,7 +139,7 @@
   height: max(28rem, calc(100dvh - 16rem));
   overflow: hidden;
   border: 1px solid var(--color-line);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-panel);
 }
 
 .board-pin {
@@ -146,7 +150,7 @@
   transform: translate(-30%, -70%);
   border: 2px solid #ffffff;
   border-radius: 9999px 9999px 9999px 0;
-  background: #d7b24a;
+  background: var(--color-highlight);
   box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
 }
 
@@ -162,17 +166,17 @@
 
 .note-content h2 {
   font-size: 1.25rem;
-  font-weight: 620;
+  font-weight: 500;
 }
 
 .note-content h3 {
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .note-content h4 {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .note-content ul,
@@ -239,7 +243,7 @@
 
 .note-content mark {
   border-radius: 0.2em;
-  background: color-mix(in srgb, #d7b24a 35%, transparent);
+  background: color-mix(in srgb, var(--color-highlight) 35%, transparent);
   color: inherit;
   padding: 0 0.1em;
 }
@@ -287,7 +291,7 @@
 }
 
 .note-toggle summary {
-  font-weight: 560;
+  font-weight: 500;
   list-style: none;
 }
 
@@ -314,7 +318,7 @@
 
 .note-content th {
   background: var(--color-surface);
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
 }
 
@@ -361,49 +365,21 @@
   left: -1px;
   border-radius: 3px 3px 3px 0;
   padding: 0.1rem 0.3rem;
-  color: #0c0c0e;
+  color: var(--color-paper);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: normal;
   white-space: nowrap;
   user-select: none;
 }
 
 .note-content .mention {
-  border-radius: 0.3rem;
+  border-radius: var(--radius-field);
   background: var(--color-line-soft);
   padding: 0.05rem 0.3rem;
   color: var(--color-ink);
   cursor: pointer;
   white-space: nowrap;
-}
-
-.suggestion-menu {
-  display: grid;
-  width: min(22rem, calc(100vw - 2rem));
-  max-height: 18rem;
-  overflow-y: auto;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface);
-  padding: 0.25rem;
-  box-shadow: var(--shadow-popover);
-}
-
-.suggestion-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  border-radius: var(--radius-field);
-  padding: 0.45rem 0.6rem;
-  color: var(--color-ink);
-  font-size: 0.9rem;
-  text-align: left;
-}
-
-.suggestion-option[aria-selected='true'] {
-  background: var(--color-line-soft);
 }
 
 .note-image {
@@ -437,29 +413,30 @@
   border-color: var(--color-line);
 }
 
-.database-table {
+.database-table,
+.insights-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
 
-.database-table th,
-.database-table td {
+.database-table :is(th, td),
+.insights-table :is(th, td) {
   border-bottom: 1px solid var(--color-line-soft);
-  padding: 0.25rem 0.5rem;
+  padding: 0.375rem 0.5rem;
   text-align: left;
   vertical-align: middle;
 }
 
-.database-table thead th {
-  color: var(--color-muted);
+.database-table th,
+.insights-table th {
   font-weight: 500;
   white-space: nowrap;
 }
 
-.database-table tbody th {
-  font-weight: 500;
-  white-space: nowrap;
+.database-table thead th,
+.insights-table thead th {
+  color: var(--color-muted);
 }
 
 .database-column {
@@ -651,7 +628,7 @@ button.habit-day::before {
 
 .page-tree-link[aria-current='page'] {
   color: var(--color-ink);
-  font-weight: 560;
+  font-weight: 500;
 }
 
 .page-tree-add {
@@ -670,7 +647,6 @@ button.habit-day::before {
 }
 
 .page-tree-row:focus-within .page-tree-add,
-
 .page-tree-row:hover .page-tree-add {
   visibility: visible;
 }
@@ -712,7 +688,7 @@ button.habit-day::before {
 }
 
 .note-content .has-comments {
-  box-shadow: inset 3px 0 0 #d7b24a;
+  box-shadow: inset 3px 0 0 var(--color-highlight);
   padding-left: 0.6rem;
 }
 
@@ -725,7 +701,7 @@ button.habit-day::before {
   width: fit-content;
   max-width: 100%;
   overflow: hidden;
-  border-left: 3px solid #d7b24a;
+  border-left: 3px solid var(--color-highlight);
   padding-left: 0.6rem;
   color: var(--color-muted);
   font-size: 0.85rem;
@@ -733,7 +709,6 @@ button.habit-day::before {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 
 .tag-mark[data-initial]::before {
   content: attr(data-initial);
@@ -743,8 +718,23 @@ button.habit-day::before {
   width: 2.5rem;
   height: 2.5rem;
   flex: none;
-  border-radius: 0.65rem;
+  border-radius: var(--radius-panel);
   font-size: 1.05rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: -0.2rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 140ms ease;
+}
+
+.back-link:hover {
+  color: var(--color-ink);
 }
 
 .filter-chip {
@@ -795,21 +785,21 @@ button.habit-day::before {
 .agenda-card {
   width: 100%;
   border: 1px solid var(--color-line);
-  border-left: 3px solid var(--entry-colour);
+  border-left: 3px solid var(--entry-color);
   border-radius: var(--radius-field);
-  background: color-mix(in srgb, var(--entry-colour) 7%, var(--color-surface));
+  background: color-mix(in srgb, var(--entry-color) 7%, var(--color-surface));
   padding: 0.45rem 0.75rem;
 }
 
 .agenda-card:hover {
-  background: color-mix(in srgb, var(--entry-colour) 15%, var(--color-surface));
+  background: color-mix(in srgb, var(--entry-color) 15%, var(--color-surface));
 }
 
 .agenda-chip {
   width: 100%;
   border: 0;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--entry-colour) 20%, transparent);
+  border-radius: var(--radius-field);
+  background: color-mix(in srgb, var(--entry-color) 20%, transparent);
   padding: 0.05rem 0.35rem;
   font-size: 0.75rem;
   line-height: 1.35;
@@ -818,15 +808,15 @@ button.habit-day::before {
 }
 
 .agenda-chip:hover {
-  background: color-mix(in srgb, var(--entry-colour) 32%, transparent);
+  background: color-mix(in srgb, var(--entry-color) 32%, transparent);
 }
 
 .agenda-block {
   position: absolute;
   border: 0;
-  border-left: 3px solid var(--entry-colour);
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--entry-colour) 22%, var(--color-surface));
+  border-left: 3px solid var(--entry-color);
+  border-radius: var(--radius-field);
+  background: color-mix(in srgb, var(--entry-color) 22%, var(--color-surface));
   padding: 0.15rem 0.4rem;
   font-size: 0.75rem;
   line-height: 1.3;
@@ -835,7 +825,7 @@ button.habit-day::before {
 .agenda-block:hover,
 .agenda-block:focus-visible {
   z-index: 2;
-  background: color-mix(in srgb, var(--entry-colour) 34%, var(--color-surface));
+  background: color-mix(in srgb, var(--entry-color) 34%, var(--color-surface));
 }
 
 .agenda-day-head {
@@ -924,7 +914,7 @@ button.habit-day::before {
   height: 14px;
   border-right: 2px solid var(--color-muted);
   border-bottom: 2px solid var(--color-muted);
-  border-bottom-right-radius: 6px;
+  border-bottom-right-radius: var(--radius-field);
   cursor: nwse-resize;
   touch-action: none;
 }
@@ -936,12 +926,12 @@ button.habit-day::before {
   }
 }
 
-.dashboard-backdrop-colour,
+.dashboard-backdrop-color,
 .dashboard-backdrop-image {
   background: transparent;
 }
 
-.dashboard-backdrop-colour::before,
+.dashboard-backdrop-color::before,
 .dashboard-backdrop-image::before {
   position: fixed;
   inset: 0;
@@ -949,7 +939,7 @@ button.habit-day::before {
   content: '';
 }
 
-.dashboard-backdrop-colour::before {
+.dashboard-backdrop-color::before {
   background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%);
 }
 
@@ -984,33 +974,18 @@ header.backdrop-blur-md {
 }
 
 .insights-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
 
-.insights-table th,
-.insights-table td {
-  padding: 0.375rem 0.5rem;
-  border-bottom: 1px solid var(--color-line-soft);
+.insights-table :is(th, td):not(:first-child) {
   text-align: right;
-  font-weight: 400;
-}
-
-.insights-table th:first-child {
-  text-align: left;
-}
-
-.insights-table thead th {
-  color: var(--color-muted);
 }
 
 .spend-day {
   display: grid;
   aspect-ratio: 1;
   place-items: center;
-  border-radius: 4px;
+  border-radius: var(--radius-field);
   background: var(--color-line-soft);
   color: var(--color-muted);
   font-size: 0.75rem;
@@ -1022,14 +997,14 @@ header.backdrop-blur-md {
   justify-content: center;
   gap: 0.5rem;
   border: 1px solid var(--color-line);
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--color-ink) 4%, var(--color-paper));
   padding: 1rem 1.25rem;
 }
 
 .clock-digits {
   min-width: 2ch;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-field);
   color: var(--color-ink);
   font-family: var(--font-mono);
   font-size: 3.5rem;
@@ -1087,21 +1062,3 @@ header.backdrop-blur-md {
   border-color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 10%, transparent);
 }
-
-.widget-choice {
-  display: grid;
-  gap: 0.2rem;
-  border: 1px solid var(--color-line);
-  border-radius: 0.75rem;
-  background: transparent;
-  cursor: pointer;
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-}
-
-.widget-choice:hover,
-.widget-choice:focus-visible {
-  border-color: var(--color-muted);
-  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
-}
-

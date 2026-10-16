@@ -20,7 +20,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={person ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         const valid = form.check(target, { name: [required('Enter their name.'), atMost(200, 'Use at most 200 characters.')], email: [emailAddress], birthYear: [yearCheck] });
@@ -48,19 +48,19 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
                 body: JSON.stringify(body),
               }),
             );
-            return person ? '' : `Added ${body.name}.`;
+            return `${person ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save this person')
           .then((saved) => saved && onClose());
       }}
       submitLabel={person ? 'Save' : 'Add person'}
-      title={person ? `Edit ${person.name}` : 'Add a person'}
+      title={person ? 'Edit person' : 'New person'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />
       {!person && spaces.length > 1 && <Select defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
       {!person && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" placeholder="Friend, sister, colleague" />
       <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
-        <legend className="field-label mb-1.5 p-0">Birthday (optional)</legend>
+        <legend className="field-label mb-2 p-0">Birthday (optional)</legend>
         <Select error={birthdayError} label="Day" onChange={setDay} options={[{ value: '', label: 'None' }, ...dayOptions]} value={day} />
         <Select label="Month" onChange={setMonth} options={[{ value: '', label: 'None' }, ...monthOptions]} value={month} />
         <TextField defaultValue={person?.birthYear ?? ''} inputMode="numeric" label="Year, if known" maxLength={4} {...form.field('birthYear')} />

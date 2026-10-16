@@ -50,7 +50,7 @@ describe('Weekly review against Postgres', () => {
     await reviews.remind(keen.id);
     await reviews.remind(quiet.id);
     const notice = (await keen.call('GET', '/me/inbox?page=1')).body.results.find((entry: { kind: string }) => entry.kind === 'weekly_review');
-    expect(notice).toMatchObject({ title: 'Time for your weekly review', link: '/review' });
+    expect(notice).toMatchObject({ title: 'Time for your weekly review', link: '/journal' });
     expect((await quiet.call('GET', '/me/inbox?page=1')).body.results).toEqual([]);
   });
 

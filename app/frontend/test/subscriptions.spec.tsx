@@ -105,7 +105,7 @@ describe('Recurring', () => {
     });
     await render('/spaces/home/recurring');
 
-    const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Add subscription')!;
+    const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'New subscription')!;
     await act(async () => add.click());
     const form = document.querySelector('dialog form') as HTMLFormElement;
     fill(form, 'name', 'Music');
@@ -154,7 +154,7 @@ describe('Recurring', () => {
     });
     await render('/recurring?subscription=music');
 
-    expect(container.querySelector('dialog h2')?.textContent).toBe('Edit Music');
+    expect(container.querySelector('dialog h2')?.textContent).toBe('Edit subscription');
     expect(container.querySelector('nav[aria-label="Spending"] [aria-current="page"]')?.textContent).toBe('Recurring');
   });
 
@@ -162,7 +162,7 @@ describe('Recurring', () => {
     serve((path) => (path === '/spaces/home/subscriptions' ? json([]) : undefined));
     await render('/spaces/home/recurring');
 
-    const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Add subscription')!;
+    const add = [...container.querySelectorAll('button')].find((button) => button.textContent === 'New subscription')!;
     await act(async () => add.click());
     const form = document.querySelector('dialog form') as HTMLFormElement;
     const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
@@ -219,7 +219,7 @@ describe('Recurring', () => {
     });
     await render('/recurring');
 
-    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Import a statement"]')!.click());
+    await chooseFromMenu(container, 'Actions for subscriptions', 'Import subscriptions from a statement');
     const statement = [
       'Booked;Payee;Amount',
       '03/01/2026;NETFLIX.COM 866;-15,49',
@@ -309,10 +309,11 @@ describe('Recurring', () => {
     expect(sent[0]).toEqual({ payerId: 'me', shares: [{ userId: 'me', weight: 1 }, { userId: 'sam', weight: 2 }] });
     expect(container.textContent).toContain('split · paid by Amr');
 
-    const balances = container.querySelector('section[aria-label="Split costs"]')!;
+    const splitCosts = () => [...container.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === 'Split costs')!;
+    const balances = splitCosts();
     expect(balances.textContent).toContain(`Sam owes Amr ${euros(2000)}`);
     await act(async () => [...balances.querySelectorAll('button')].find((button) => button.textContent === 'Mark as paid')!.click());
     expect(sent[1]).toEqual({ fromUserId: 'sam', toUserId: 'me', amountMinor: 2000, currency: 'EUR', month: new Date().toISOString().slice(0, 7) });
-    expect(container.querySelector('section[aria-label="Split costs"]')!.textContent).toContain('Everyone is square.');
+    expect(splitCosts().textContent).toContain('Everyone is square.');
   });
 });

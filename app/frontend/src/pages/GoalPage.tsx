@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Meter, PageSkeleton, TextField, type MenuItem } from '@project-graphite/ui';
+import { Meter, TextField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, IconButton } from '../components/Button';
@@ -8,8 +8,7 @@ import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
-import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { DetailState, Page, Section } from '../components/Page';
 import { TaskEditor } from '../components/TaskEditor';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
@@ -39,8 +38,8 @@ export function GoalPage() {
   const [dialog, setDialog] = useState<'progress' | 'link' | 'habits'>();
   const openTasks = useResource<ResultPage<Task>>(dialog === 'link' && spaceId ? `/spaces/${spaceId}/tasks?page=1` : null, true);
 
-  if (goal.error) return <LoadError error={goal.error} onRetry={goal.reload} />;
-  if (!goal.data) return <PageSkeleton label="Loading the goal" />;
+  const back = { to: '/goals', label: 'Goals' };
+  if (!goal.data) return <DetailState back={back} resource={goal} thing="Goal" />;
   const shown = goal.data;
   const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
@@ -53,12 +52,9 @@ export function GoalPage() {
     }, 'Could not change the goal');
   }
 
-  function link(taskId: string) {
-    return action.run(async () => {
-      await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: taskId, kind: 'reference' }) });
-      goal.reload();
-      return '';
-    }, 'Could not link the task');
+  async function link(taskId: string) {
+    await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: taskId, kind: 'reference' }) });
+    goal.reload();
   }
 
   const statusItems: MenuItem[] = [
@@ -66,7 +62,7 @@ export function GoalPage() {
       .filter((status) => status !== shown.status)
       .map((status) => ({
         label: status === 'active' ? 'Make active again' : status === 'done' ? 'Mark as done' : 'Drop this goal',
-        onSelect: () => void patch({ status }, status === 'done' ? 'Goal marked as done.' : status === 'dropped' ? 'Goal dropped.' : 'Goal is active again.'),
+        onSelect: () => void patch({ status }, status === 'done' ? `Marked ${shown.title} as done.` : status === 'dropped' ? `Dropped ${shown.title}.` : `Made ${shown.title} active again.`),
       })),
     {
       label: 'Move to trash',
@@ -97,10 +93,16 @@ export function GoalPage() {
           </>
         )
       }
-      description={shown.why || undefined}
-      eyebrow={`${shown.spaceName} · ${periodLabel(shown.period, shown.startsOn)}${shown.status === 'active' ? '' : ` · ${statusLabels[shown.status]}`}`}
+      back={back}
+      description={`${shown.spaceName} · ${periodLabel(shown.period, shown.startsOn)}${shown.status === 'active' ? '' : ` · ${statusLabels[shown.status]}`}`}
       title={shown.title}
     >
+      {shown.why && (
+        <Section title="Why it matters">
+          <p className="m-0 whitespace-pre-wrap text-ink">{shown.why}</p>
+        </Section>
+      )}
+
       <Section
         action={editable && shown.target !== null && <Button label="Update progress" onClick={() => setDialog('progress')} />}
         title="Progress"
@@ -136,13 +138,19 @@ export function GoalPage() {
                     <ActionsMenu
                       items={[
                         {
-                          label: 'Unlink from this goal',
+                          label: 'Remove from this goal',
                           onSelect: () =>
                             void action.run(async () => {
                               await auth.request(`/items/${shown.id}/links/${task.linkId}`, { method: 'DELETE' });
                               goal.reload();
-                              return '';
-                            }, 'Could not unlink the task'),
+                              return {
+                                message: `Removed ${task.title} from this goal.`,
+                                undo: async () => {
+                                  await link(task.id);
+                                  return '';
+                                },
+                              };
+                            }, 'Could not remove the task from this goal'),
                         },
                       ]}
                       name={task.title}
@@ -189,7 +197,7 @@ export function GoalPage() {
           onClose={() => setDialog(undefined)}
           onSubmit={(target) => {
             if (!progressForm.check(target, { current: [numberCheck] })) return;
-            void patch({ current: Number(String(new FormData(target).get('current')).trim().replace(',', '.')) }, 'Progress updated.').then(
+            void patch({ current: Number(String(new FormData(target).get('current')).trim().replace(',', '.')) }, `Saved the progress of ${shown.title}.`).then(
               (saved) => saved && setDialog(undefined),
             );
           }}
@@ -209,11 +217,19 @@ export function GoalPage() {
 
       {dialog === 'link' && (
         <LinkItemDialog
+          busy={action.busy}
           choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: dueLabel(task) || undefined }))}
           empty={`Every open task in ${shown.spaceName} is already linked.`}
           noun="task"
           onClose={() => setDialog(undefined)}
-          onLink={(taskId) => void link(taskId).then((done) => done && setDialog(undefined))}
+          onLink={(taskId) =>
+            void action
+              .run(async () => {
+                await link(taskId);
+                return `Linked ${openTasks.data?.results.find((task) => task.id === taskId)?.title ?? 'the task'}.`;
+              }, 'Could not link the task')
+              .then((done) => done && setDialog(undefined))
+          }
           title="Link a task"
         />
       )}
@@ -236,8 +252,14 @@ export function GoalPage() {
           members={members.data ?? []}
           onClose={() => setTaskEditing(undefined)}
           onSaved={(saved) => {
-            if (taskEditing === 'new') void link(saved.id);
-            else goal.reload();
+            if (taskEditing !== 'new') {
+              goal.reload();
+              return;
+            }
+            void action.run(async () => {
+              await link(saved.id);
+              return '';
+            }, 'Could not link the task');
           }}
           onRestored={() => goal.reload()}
           onTrashed={() => goal.reload()}
@@ -264,7 +286,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
         const habitIds = new FormData(target).getAll('habitId').map(String);
         void saving.run(async () => {
           onSaved(await auth.request<GoalDetail>(`/goals/${goal.id}/habits`, { method: 'PUT', body: JSON.stringify({ habitIds }) }));
-          return '';
+          return `Saved the habits for ${goal.title}.`;
         }, 'Could not save the habits');
       }}
       submitLabel="Save"
@@ -274,7 +296,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
         <Hint>{goal.spaceName} has no habits yet.</Hint>
       ) : (
         <fieldset className="m-0 grid gap-3 border-0 p-0">
-          <legend className="field-label mb-1 p-0">Follow these habits</legend>
+          <legend className="field-label mb-2 p-0">Follow these habits</legend>
           {(habits.data ?? []).map((habit) => (
             <label className="flex items-center gap-3 text-ink" key={habit.id}>
               <input defaultChecked={goal.habits.some((followed) => followed.id === habit.id)} name="habitId" type="checkbox" value={habit.id} />

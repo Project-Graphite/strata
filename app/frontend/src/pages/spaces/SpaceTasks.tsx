@@ -9,9 +9,10 @@ import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
+import { QuickAddTask } from '../../components/QuickAddTask';
 import { TaskEditor } from '../../components/TaskEditor';
 import type { Tag } from '../../spaces';
-import { TaskListChips, TaskListFooter, taskLink, TaskRow, type Task, type TaskList } from '../../tasks';
+import { completeTask, TaskListChips, TaskListFooter, taskLink, TaskRow, TaskStatusChips, type Task, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -36,6 +37,10 @@ export function SpaceTasks() {
   const [listDialog, setListDialog] = useState<'new' | 'rename'>();
   const editable = space.role !== 'viewer';
   const link = taskLink(`/spaces/${space.id}/tasks`, listId, completed);
+  const reload = () => {
+    tasks.reload();
+    lists.reload();
+  };
 
   function replace(task: Task) {
     tasks.mutate((current) => {
@@ -55,20 +60,25 @@ export function SpaceTasks() {
   }
 
   const failed = [tasks, lists].find((resource) => resource.error);
-  if (failed) return <LoadError error={failed.error} onRetry={failed.reload} />;
-  if (!tasks.data || !lists.data) return <ListSkeleton label="Loading the tasks in this space" rows={5} />;
-  const shownList = lists.data.find((list) => list.id === listId);
+  const shownList = lists.data?.find((list) => list.id === listId);
 
   return (
     <>
-      <Toolbar actions={editable && <Button icon="plus" label="New task" onClick={() => setEditing('new')} primary />}>
-        <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editable ? () => setListDialog('new') : undefined} />
+      <Toolbar
+        actions={
+          <>
+            <TaskStatusChips completed={completed} link={link} />
+            {editable && <Button icon="plus" label="New task" onClick={() => setEditing('new')} />}
+          </>
+        }
+      >
+        {lists.data && <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editable ? () => setListDialog('new') : undefined} />}
         {editable && shownList && (
           <ActionsMenu
             items={[
               { label: 'Rename list', onSelect: () => setListDialog('rename') },
               {
-                label: 'Move list to trash',
+                label: 'Move to trash',
                 separated: true,
                 onSelect: () =>
                   void action.run(async () => {
@@ -76,7 +86,7 @@ export function SpaceTasks() {
                     lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
                     navigate(link({ list: null }));
                     return {
-                      message: `Moved the list ${shownList.title} to the trash. Its tasks stay in this space.`,
+                      message: `Moved ${shownList.title} to the trash. Its tasks stay in this space.`,
                       undo: async () => {
                         await auth.request(`/items/${shownList.id}/restore`, { method: 'POST' });
                         lists.reload();
@@ -92,52 +102,51 @@ export function SpaceTasks() {
         )}
       </Toolbar>
 
-      {tasks.data.results.length === 0 ? (
-        <Empty title={completed ? 'Nothing finished yet' : 'Nothing to do'} />
+      {failed ? (
+        <LoadError error={failed.error} onRetry={failed.reload} />
+      ) : !tasks.data || !lists.data ? (
+        <ListSkeleton label="Loading the tasks in this space" rows={5} />
       ) : (
-        <ul className="panel-rows">
-          {tasks.data.results.map((task) => (
-            <TaskRow
-              disabled={!editable || action.busy}
-              key={task.id}
-              onEdit={() => setEditing(task)}
-              onToggle={() =>
-                void action.run(async () => {
-                  const updated = await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' });
-                  replace(updated);
-                  return !task.completedAt && updated.completedAt
-                    ? {
-                        message: `Done: ${task.title}.`,
-                        undo: async () => {
-                          await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
-                          tasks.reload();
-                          lists.reload();
-                          return '';
-                        },
-                      }
-                    : '';
-                }, 'Could not update the task')
-              }
-              task={task}
-              where={lists.data?.find((list) => list.id === task.listId)?.title}
-            />
-          ))}
-        </ul>
+        <>
+          {!completed && editable && <QuickAddTask key={listId ?? ''} listId={shownList?.id} onAdded={replace} spaceId={space.id} />}
+          {tasks.data.results.length === 0 ? (
+            completed ? (
+              <Empty title="Nothing finished yet">Tasks you tick off in this space show up here.</Empty>
+            ) : (
+              <Empty title="Nothing to do">Tasks you add to this space show up here.</Empty>
+            )
+          ) : (
+            <ul className="panel-rows">
+              {tasks.data.results.map((task) => (
+                <TaskRow
+                  disabled={!editable || action.busy}
+                  key={task.id}
+                  onEdit={() => setEditing(task)}
+                  onToggle={() =>
+                    void action.run(async () => {
+                      if (!task.completedAt) return completeTask(auth.request, task, (updated) => (updated ? replace(updated) : reload()));
+                      replace(await auth.request<Task>(`/tasks/${task.id}/reopen`, { method: 'POST' }));
+                      return '';
+                    }, 'Could not update the task')
+                  }
+                  task={task}
+                  where={lists.data?.find((list) => list.id === task.listId)?.title}
+                />
+              ))}
+            </ul>
+          )}
+          <TaskListFooter link={link} tasks={tasks.data} />
+        </>
       )}
 
-      <TaskListFooter completed={completed} link={link} tasks={tasks.data} />
-
-      {editing && (
+      {editing && lists.data && (
         <TaskEditor
           defaultListId={listId}
           editable={editable}
           lists={lists.data}
           members={members.data ?? []}
           onClose={() => setEditing(undefined)}
-          onRestored={() => {
-            tasks.reload();
-            lists.reload();
-          }}
+          onRestored={reload}
           onSaved={replace}
           onTrashed={() => {
             if (editing === 'new') return;
@@ -157,7 +166,7 @@ export function SpaceTasks() {
       {listDialog && (
         <FormDialog
           busy={action.busy}
-          busyLabel="Saving…"
+          busyLabel={listDialog === 'rename' ? 'Saving…' : 'Adding…'}
           onClose={() => setListDialog(undefined)}
           onSubmit={(target) => {
             if (!listForm.check(target, { title: [required('Name the list.'), atMost(100, 'Use at most 100 characters.')] })) return;
@@ -168,18 +177,18 @@ export function SpaceTasks() {
                   if (listDialog === 'rename' && shownList) {
                     await auth.request(`/items/${shownList.id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
                     lists.mutate((current) => current.map((list) => (list.id === shownList.id ? { ...list, title } : list)));
-                    return '';
+                    return `Saved ${title}.`;
                   }
                   const created = await auth.request<TaskList>(`/spaces/${space.id}/lists`, { method: 'POST', body: JSON.stringify({ title }) });
                   lists.mutate((current) => [...current, created]);
                   navigate(link({ list: created.id }));
-                  return `Added the list ${created.title}.`;
+                  return `Added ${created.title}.`;
                 },
                 listDialog === 'rename' ? 'Could not rename the list' : 'Could not add the list',
               )
               .then((saved) => saved && setListDialog(undefined));
           }}
-          submitLabel={listDialog === 'rename' ? 'Rename' : 'Add list'}
+          submitLabel={listDialog === 'rename' ? 'Save' : 'Add list'}
           title={listDialog === 'rename' ? 'Rename list' : 'New list'}
         >
           <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />

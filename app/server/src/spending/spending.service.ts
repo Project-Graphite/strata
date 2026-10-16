@@ -213,7 +213,7 @@ export class SpendingService {
             kind: 'budget_alert' as const,
             title,
             body: `${format(target.spent)} of ${format(target.budget)}`,
-            link: `/spending?space=${spaceId}`,
+            link: `/spending/budgets?space=${spaceId}`,
           }));
         }),
       );

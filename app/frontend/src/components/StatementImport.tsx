@@ -30,7 +30,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
   const chosen = suggestions.filter((suggestion) => !tracked.has(suggestion.key) && !skipped.has(suggestion.key));
 
   return (
-    <Dialog onClose={onClose} title="Import a statement">
+    <Dialog onClose={onClose} title="Import subscriptions from a statement">
       <div className="mt-5 grid gap-4">
         <Hint>Choose a CSV export from your bank or card. It is read on this device and never uploaded.</Hint>
         {statement.picker}
@@ -66,7 +66,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
           </>
         )}
         <DialogActions>
-          <Button label="Cancel" large onClick={onClose} />
+          <Button disabled={adding.busy} label="Cancel" large onClick={onClose} />
           <Button
             disabled={!target || chosen.length === 0 || adding.busy}
             label={adding.busy ? 'Adding…' : `Add ${chosen.length} subscription${chosen.length === 1 ? '' : 's'}`}

@@ -79,9 +79,9 @@ export function FilePreview({ item }: { item: Item }) {
   }, [item.id, request]);
 
   return url ? (
-    <img alt="" className="h-14 w-14 shrink-0 rounded-lg border border-line object-cover" src={url} />
+    <img alt="" className="h-14 w-14 shrink-0 rounded-field border border-line object-cover" src={url} />
   ) : (
-    <span aria-hidden="true" className="h-14 w-14 shrink-0 rounded-lg border border-line bg-surface" />
+    <span aria-hidden="true" className="h-14 w-14 shrink-0 rounded-field border border-line bg-surface" />
   );
 }
 

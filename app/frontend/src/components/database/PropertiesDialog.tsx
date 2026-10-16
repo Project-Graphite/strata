@@ -67,8 +67,8 @@ export function PropertiesDialog({
         if (cleared.length) setClearing({ saved, cleared });
         else onSave(saved);
       }}
-      submitLabel="Save properties"
-      title="Properties"
+      submitLabel="Save"
+      title="Edit properties"
     >
       {draft.length === 0 && <Hint>Pages in this database have no properties yet.</Hint>}
       <ul className="m-0 grid list-none gap-4 p-0">

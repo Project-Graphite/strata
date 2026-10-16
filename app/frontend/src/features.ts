@@ -40,7 +40,7 @@ export const featureCatalogue: Feature[] = [
   {
     key: 'trips',
     label: 'Trips',
-    description: 'A place for each trip: itinerary, packing list, documents, notes and what it costs, shared with whoever comes along.',
+    description: 'A place for each trip: itinerary, packing list, documents, pages and what it costs, shared with whoever comes along.',
     icon: 'plane',
     href: '/trips',
   },

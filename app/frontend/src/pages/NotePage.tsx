@@ -1,23 +1,26 @@
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, Icon, LinesSkeleton, PageSkeleton } from '@project-graphite/ui';
+import { ConfirmDialog, LinesSkeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Hint } from '../components/Hint';
+import { Button, IconButton } from '../components/Button';
 import { DatabaseView } from '../components/database/DatabaseView';
-import { IconPicker } from '../components/IconPicker';
 import { PropertyField } from '../components/database/PropertyField';
-import { LoadError } from '../components/LoadError';
+import { Hint } from '../components/Hint';
+import { IconPicker } from '../components/IconPicker';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
+import { NoteMark } from '../components/NoteMark';
+import { BackLink, DetailState, Section, useDocumentTitle } from '../components/Page';
+import { RowText } from '../components/RowText';
 import { ShareLinks } from '../components/ShareLinks';
-import { announcePagesChanged, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { OpenTask } from '../components/TaskEditor';
+import { useInArea } from '../navigation';
+import { announcePagesChanged, noteArea, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { NotFoundState } from '../components/Empty';
-import { Subheading, useDocumentTitle } from '../components/Page';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
@@ -31,6 +34,8 @@ const widePages = (() => {
     return new Set<string>();
   }
 })();
+
+const linkRow = 'flex w-full items-center gap-3 panel-row text-left text-ink no-underline hover:bg-line-soft';
 
 export function NotePage() {
   const { id = '' } = useParams();
@@ -53,44 +58,38 @@ export function NotePage() {
     true,
   );
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
-  const renaming = useAction();
+  const { report, run } = useAction();
   const adding = useAction();
-  const marking = useAction();
-  const converting = useAction();
-  const unquicking = useAction();
-  const setting = useAction();
-  const [history, setHistory] = useState(false);
-  const [unconverting, setUnconverting] = useState(false);
-  const trashing = useMovePageToTrash(
-    (moved) => navigate(moved.kind === 'board' ? '/boards' : moved.quick ? '/pages?tab=notes' : '/pages'),
+  const [open, setOpen] = useState<'share' | 'history' | 'unconvert'>();
+  const [openTask, setOpenTask] = useState<string>();
+  const parent = note.data?.path.at(-1);
+  const back = !note.data ? { to: '/pages', label: 'Pages' } : parent ? { to: `/notes/${parent.id}`, label: noteTitle(parent) } : noteParent(note.data);
+  const moveToTrash = useMovePageToTrash(
+    () => navigate(back.to),
     (restored) => navigate(`/notes/${restored.id}`),
   );
+  useInArea(note.data ? noteArea(note.data) : null);
   useDocumentTitle(note.data && noteTitle(note.data));
 
-  if (note.status === 404) {
-    return (
-      <NotFoundState thing="Page" />
-    );
-  }
-  if (note.error) return <LoadError error={note.error} onRetry={note.reload} />;
-  if (!note.data) return <PageSkeleton label="Opening the page" />;
+  if (!note.data) return <DetailState back={back} resource={note} thing="Page" />;
   const details = note.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = (pages.data ?? []).filter((page) => page.parentId === details.id);
+  const pageOnly = details.kind !== 'board' && !details.quick;
 
   function quote(block: QuotedBlock) {
     setQuoting({ ...block, noteId: details.id });
     window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   }
 
-  function setIcon(icon: string | null) {
-    void renaming.run(async () => {
-      const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ icon }) });
+  function save(change: Partial<Note>, done: (saved: Note) => string, fallback: string) {
+    void run(async () => {
+      const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify(change) });
       note.mutate((current) => ({ ...current, ...saved }));
       announcePagesChanged();
       pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
-      return '';
-    }, 'Could not change the icon');
+      return done(saved);
+    }, fallback);
   }
 
   function toggleWide() {
@@ -103,32 +102,21 @@ export function NotePage() {
     }
   }
 
-  function rename(next: string) {
-    if (next === details.title) return;
-    void renaming.run(async () => {
-      const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ title: next }) });
-      note.mutate((current) => ({ ...current, ...saved }));
-      announcePagesChanged();
-      pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
-      return '';
-    }, `Could not rename the ${pageNoun(details)}`);
-  }
-
   function turnIntoDatabase() {
     const option = (name: string, color: string) => ({ id: crypto.randomUUID(), name, color });
     const status = { id: crypto.randomUUID(), name: 'Status', type: 'select', options: [option('To do', 'gray'), option('Doing', 'blue'), option('Done', 'green')] };
-    void converting.run(async () => {
+    void run(async () => {
       await auth.request(`/notes/${details.id}/database`, {
         method: 'PUT',
         body: JSON.stringify({ properties: [status, { id: crypto.randomUUID(), name: 'Date', type: 'date' }], view: 'table', groupBy: status.id }),
       });
       note.mutate((current) => ({ ...current, database: true }));
-      return '';
+      return `Turned ${noteTitle(details)} into a database.`;
     }, 'Could not turn the page into a database');
   }
 
   function setValue(propertyId: string, value: unknown) {
-    void setting.run(async () => {
+    void run(async () => {
       const saved = await auth.request<{ values: PropertyValues }>(`/notes/${details.id}/properties`, {
         method: 'PATCH',
         body: JSON.stringify({ values: { [propertyId]: value } }),
@@ -138,110 +126,69 @@ export function NotePage() {
     }, 'Could not save that');
   }
 
+  const options: MenuItem[] = [
+    ...(details.editable && details.quick
+      ? [{ label: 'Turn into a page', onSelect: () => save({ quick: false }, (saved) => `Turned ${noteTitle(saved)} into a page.`, 'Could not turn the note into a page') }]
+      : []),
+    ...(details.editable && pageOnly
+      ? [
+          { label: details.database ? 'Turn back into a page' : 'Turn into a database', onSelect: () => (details.database ? setOpen('unconvert') : turnIntoDatabase()) },
+          {
+            label: details.template ? 'Stop using as a template' : 'Use as a template',
+            onSelect: () =>
+              save(
+                { template: !details.template },
+                (saved) => (saved.template ? 'New pages in this space can start from this one.' : 'This page is no longer a template.'),
+                'Could not change the page',
+              ),
+          },
+        ]
+      : []),
+    ...(pageOnly && !details.database ? [{ label: wide ? 'Standard width' : 'Full width', onSelect: toggleWide }] : []),
+  ];
+  const menu: MenuItem[] = details.editable
+    ? [...options, { label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: options.length > 0 }]
+    : options;
+
   return (
-    <article className={`page-enter grid gap-6 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {details.quick ? (
-          <Link className="text-sm text-muted no-underline hover:text-ink" to="/pages?tab=notes">
-            Notes
-          </Link>
-        ) : (
-          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-            <Link className="text-muted no-underline hover:text-ink" to={`/spaces/${details.spaceId}/notes`}>
-              {space?.name ?? 'Space'}
-            </Link>
-            {details.path.map((step) => (
-              <Fragment key={step.id}>
-                <span aria-hidden="true">/</span>
-                <Link className="text-muted no-underline hover:text-ink" to={`/notes/${step.id}`}>
-                  {noteTitle(step)}
-                </Link>
-              </Fragment>
-            ))}
-          </nav>
-        )}
-        <div className="flex flex-wrap items-center gap-4">
-          {details.editable && details.quick && (
-            <button
-              className="text-button text-sm"
-              disabled={unquicking.busy}
-              onClick={() =>
-                void unquicking.run(async () => {
-                  const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ quick: false }) });
-                  note.mutate((current) => ({ ...current, ...saved }));
-                  announcePagesChanged();
-                  return '';
-                }, 'Could not turn the note into a page')
-              }
-              type="button"
-            >
-              Turn into a page
-            </button>
-          )}
-          {details.editable && details.kind !== 'board' && !details.quick && (
-            <button
-              className="text-button text-sm"
-              disabled={converting.busy}
-              onClick={() => (details.database ? setUnconverting(true) : turnIntoDatabase())}
-              type="button"
-            >
-              {details.database ? 'Turn back into a page' : 'Turn into a database'}
-            </button>
-          )}
-          {details.editable && details.kind !== 'board' && !details.quick && (
-            <button
-              className="text-button text-sm"
-              disabled={marking.busy}
-              onClick={() =>
-                void marking.run(async () => {
-                  const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ template: !details.template }) });
-                  note.mutate((current) => ({ ...current, ...saved }));
-                  return saved.template ? 'New pages in this space can start from this one.' : 'This page is no longer a template.';
-                }, 'Could not change the page')
-              }
-              type="button"
-            >
-              {details.template ? 'Stop using as a template' : 'Use as a template'}
-            </button>
-          )}
-          {details.kind !== 'board' && !details.database && !details.quick && (
-            <button className="text-button text-sm" onClick={toggleWide} type="button">
-              {wide ? 'Standard width' : 'Full width'}
-            </button>
-          )}
-          {details.editable && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} key={`share-${details.id}`} noun={pageNoun(details)} />}
-          {!details.quick && (
-            <button className="text-button text-sm" onClick={() => setHistory(true)} type="button">
-              History
-            </button>
-          )}
-          {details.editable && (
-            <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => trashing.move(details, children.length) }]} name={noteTitle(details)} />
-          )}
+    <article className={`page-enter grid gap-8 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+      <header className="page-header">
+        <div className="min-w-0 flex-1">
+          <p className="page-header-eyebrow">
+            <BackLink back={back} />
+          </p>
+          <div className="flex items-center gap-3">
+            {(details.editable || details.icon) &&
+              !details.quick &&
+              (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
+            <input
+              aria-label={details.quick ? 'Note title' : 'Page title'}
+              autoFocus={details.editable && !details.title}
+              className="note-title"
+              defaultValue={details.title}
+              key={details.id}
+              maxLength={200}
+              onBlur={(event) => {
+                const title = event.currentTarget.value.trim();
+                if (details.editable && title !== details.title) save({ title }, () => '', `Could not rename the ${pageNoun(details)}`);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  event.currentTarget.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus();
+                }
+              }}
+              placeholder="Untitled"
+              readOnly={!details.editable}
+            />
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3">
-        {(details.editable || details.icon) &&
-          !details.quick &&
-          (details.editable ? <IconPicker icon={details.icon} onPick={setIcon} /> : <span className="page-icon">{details.icon}</span>)}
-        <input
-          aria-label={details.quick ? 'Note title' : 'Page title'}
-          autoFocus={details.editable && !details.title}
-          className="note-title"
-          defaultValue={details.title}
-          key={details.id}
-          maxLength={200}
-          onBlur={(event) => details.editable && rename(event.currentTarget.value.trim())}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              event.currentTarget.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus();
-            }
-          }}
-          placeholder="Untitled"
-          readOnly={!details.editable}
-        />
-      </div>
+        <div className="page-header-actions">
+          {details.editable && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
+          {!details.quick && <IconButton icon="clock" label="History" onClick={() => setOpen('history')} />}
+          {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
+        </div>
+      </header>
       {details.row && details.row.properties.length > 0 && (
         <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
           {details.row.properties.map((property) => (
@@ -284,57 +231,67 @@ export function NotePage() {
         )}
       </Suspense>
       {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {details.kind !== 'board' && !details.database && !details.quick && (children.length > 0 || details.editable) && (
-        <section className="grid gap-2 border-t border-line-soft pt-6">
-          <Subheading level={2}>Pages inside</Subheading>
-          {children.length > 0 && (
-            <ul className="m-0 grid list-none gap-1 p-0">
+      {pageOnly && !details.database && (children.length > 0 || details.editable) && (
+        <Section
+          action={
+            details.editable && (
+              <Button
+                disabled={adding.busy}
+                icon="plus"
+                label="New page"
+                onClick={() =>
+                  void adding.run(async () => {
+                    const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {
+                      method: 'POST',
+                      body: JSON.stringify({ parentId: details.id }),
+                    });
+                    navigate(`/notes/${created.id}`);
+                    return '';
+                  }, 'Could not add the page')
+                }
+              />
+            )
+          }
+          title="Pages inside"
+        >
+          {children.length > 0 ? (
+            <ul className="panel-rows">
               {children.map((child) => (
                 <li key={child.id}>
-                  <Link className="text-ink no-underline hover:underline" to={`/notes/${child.id}`}>
-                    {child.icon ? `${child.icon} ` : ''}
-                    {noteTitle(child)}
+                  <Link className={linkRow} to={`/notes/${child.id}`}>
+                    <NoteMark note={child} />
+                    <RowText title={noteTitle(child)} />
                   </Link>
                 </li>
               ))}
             </ul>
+          ) : (
+            <Hint>No pages inside yet.</Hint>
           )}
-          {details.editable && (
-            <button
-              className="text-button inline-flex w-fit items-center gap-1.5 text-sm"
-              disabled={adding.busy}
-              onClick={() =>
-                void adding.run(async () => {
-                  const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {
-                    method: 'POST',
-                    body: JSON.stringify({ parentId: details.id }),
-                  });
-                  navigate(`/notes/${created.id}`);
-                  return '';
-                }, 'Could not add the page')
-              }
-              type="button"
-            >
-              <Icon name="plus" size={14} />
-              Add a page inside
-            </button>
-          )}
-        </section>
+        </Section>
       )}
       {backlinks.length > 0 && (
-        <section className="grid gap-2 border-t border-line-soft pt-6">
-          <Subheading level={2}>Linked from</Subheading>
-          <ul className="m-0 grid list-none gap-1 p-0">
-            {backlinks.map(({ id: linkId, item }) => (
-              <li key={linkId}>
-                <Link className="text-ink no-underline hover:underline" to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
-                  {noteTitle(item)}
-                </Link>
-                <span className="mono-sm text-faint"> · {itemKindName(item)}</span>
-              </li>
-            ))}
+        <Section title="Linked from">
+          <ul className="panel-rows">
+            {backlinks.map(({ id: linkId, item }) => {
+              const kind = itemKindName(item);
+              const text = <RowText detail={`${kind.charAt(0).toUpperCase()}${kind.slice(1)}`} title={noteTitle(item)} />;
+              return (
+                <li key={linkId}>
+                  {item.kind === 'task' ? (
+                    <button className={linkRow} onClick={() => setOpenTask(item.id)} type="button">
+                      {text}
+                    </button>
+                  ) : (
+                    <Link className={linkRow} to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
+                      {text}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-        </section>
+        </Section>
       )}
       {!details.quick && (
         <NoteComments
@@ -348,24 +305,26 @@ export function NotePage() {
           quoting={quoting?.noteId === details.id ? quoting : undefined}
         />
       )}
-      {unconverting && (
+      {open === 'unconvert' && (
         <ConfirmDialog
+          busyLabel="Turning back…"
           confirmLabel="Turn back into a page"
           errorFallback="Could not change the page"
-          onClose={() => setUnconverting(false)}
+          onClose={() => setOpen(undefined)}
           onConfirm={async () => {
             await auth.request(`/notes/${details.id}/database`, { method: 'DELETE' });
             note.mutate((current) => ({ ...current, database: false }));
-            setUnconverting(false);
+            report(`Turned ${noteTitle(details)} back into a page.`);
           }}
           title="Turn back into a page?"
           tone="danger"
         >
-          <Hint>The pages inside stay, but the values of their properties are deleted.</Hint>
+          The pages inside stay, but the values of their properties are deleted.
         </ConfirmDialog>
       )}
-      {history && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setHistory(false)} />}
-      {trashing.dialog}
+      {open === 'share' && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} />}
+      {open === 'history' && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} />}
+      {openTask && <OpenTask onChanged={links.reload} onClose={() => setOpenTask(undefined)} taskId={openTask} />}
     </article>
   );
 }

@@ -86,7 +86,7 @@ describe('Activity, inbox and security log', () => {
 
     expect(container.querySelector('a[aria-label="Inbox, 1 unread"]')).not.toBeNull();
     expect(container.textContent).toContain('Sara joined Choir');
-    const markAll = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Mark all read')!;
+    const markAll = container.querySelector<HTMLButtonElement>('button[aria-label="Mark all read"]')!;
     await act(async () => markAll.click());
 
     expect(container.textContent).toContain('Everything is marked read.');

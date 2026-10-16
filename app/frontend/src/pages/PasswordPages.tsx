@@ -39,7 +39,7 @@ export function ForgotPasswordPage() {
     <section className="form-panel page-enter">
       <h1 className="page-heading">Reset your password</h1>
       {sentTo ? (
-        <p className="mt-6 text-muted">
+        <p className="mt-4 text-muted">
           If an account uses {sentTo}, a reset link is on its way. It works for one hour.
         </p>
       ) : (
@@ -94,8 +94,8 @@ export function ResetPasswordPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Sign in with your new password</h1>
-        <p className="mt-5 text-muted">Every device that was signed in has been signed out. Your access tokens and private calendar link were revoked, and your webhooks were turned off.</p>
-        <div className="mt-7">
+        <p className="mt-4 text-muted">Every device that was signed in has been signed out. Your access tokens and private calendar link were revoked, and your webhooks were turned off.</p>
+        <div className="mt-8">
           <ButtonLink label="Sign in" large primary to="/login" />
         </div>
       </section>
@@ -106,8 +106,8 @@ export function ResetPasswordPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">This link is incomplete</h1>
-        <p className="mt-5 text-muted">Open the whole link from the email, or request a new one.</p>
-        <div className="mt-7">
+        <p className="mt-4 text-muted">Open the whole link from the email, or request a new one.</p>
+        <div className="mt-8">
           <ButtonLink label="Request a new link" large primary to="/forgot-password" />
         </div>
       </section>

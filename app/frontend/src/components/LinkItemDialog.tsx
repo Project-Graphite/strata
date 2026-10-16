@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Select, type SelectOption } from '@project-graphite/ui';
-import { Empty } from './Empty';
 import { FormDialog } from './FormDialog';
+import { Hint } from './Hint';
 
 export function LinkItemDialog({
   busy = false,
@@ -22,9 +22,9 @@ export function LinkItemDialog({
 }) {
   const [chosen, setChosen] = useState('');
   return (
-    <FormDialog busy={busy} busyLabel="Linking…" onClose={onClose} onSubmit={() => chosen && onLink(chosen)} submitLabel={`Link ${noun}`} title={title}>
+    <FormDialog busy={busy} busyLabel="Linking…" onClose={onClose} onSubmit={() => onLink(chosen)} submitDisabled={!chosen} submitLabel={`Link ${noun}`} title={title}>
       {choices && choices.length === 0 ? (
-        <Empty level={3} title={`No ${noun}s to link`}>{empty}</Empty>
+        <Hint>{empty}</Hint>
       ) : (
         <Select
           label={noun === 'task' ? 'Task' : 'Event'}

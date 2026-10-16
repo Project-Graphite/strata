@@ -5,7 +5,7 @@ import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, ButtonLink, IconButton, IconLink } from '../components/Button';
+import { Button, ButtonLink, IconButton, IconLink, TextButton } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
@@ -22,7 +22,7 @@ import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
-import { TimeField, timeOptions } from '../time';
+import { clockTime, TimeField } from '../time';
 
 type Device = 'any' | 'phone' | 'desktop';
 
@@ -41,13 +41,13 @@ interface Dashboard {
   showOn: Device;
 }
 
-const clockTime = (minutes: number | null) => (minutes === null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
+const fieldTime = (minutes: number | null) => (minutes === null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
 const minutesOf = (time: string) => (time ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) : null);
 
 const templates = [
   ['morning', 'Morning briefing', 'Clock, Today, Agenda, Renewals and spend, Inbox'],
-  ['work', 'Work day', 'Today, To-do list, Shortcuts, Clock'],
-  ['student', 'Student', 'Today, To-do list, Shortcuts'],
+  ['work', 'Work day', 'Today, Tasks, Shortcuts, Clock'],
+  ['student', 'Student', 'Today, Tasks, Shortcuts'],
   ['travel', 'Travel', 'World clocks, Today, Shortcuts'],
   ['', 'Empty', 'Add widgets yourself'],
 ] as const;
@@ -70,7 +70,7 @@ const cardTitle = (widget: Widget) => widget.title ?? widgetKinds[widget.type].t
 
 function BackgroundPreview({ background }: { background: Background }) {
   const { image } = useBackdrop(background);
-  return <span aria-label="Chosen image" className="h-10 w-16 rounded-md border border-line bg-cover bg-center" role="img" style={{ backgroundImage: image || undefined }} />;
+  return <span aria-label="Chosen image" className="h-10 w-16 rounded-field border border-line bg-cover bg-center" role="img" style={{ backgroundImage: image || undefined }} />;
 }
 
 class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -141,12 +141,12 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Hint>{dashboard.name}</Hint>
-          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', ...timeOptions() })}</p>
+          <p className="m-0 text-5xl text-ink">{clockTime(now)}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
-      {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
+      {mayDim && <p className="mt-4 mb-0 text-sm text-muted">This browser may still let the screen turn itself off.</p>}
       <div className="mt-8 text-lg">
         <DashboardGrid
           card={(widget) => {
@@ -206,8 +206,8 @@ export function DashboardHome() {
   const unsaved =
     history.length > 0 ||
     name !== current.name ||
-    schedule.from !== clockTime(current.showFrom) ||
-    schedule.until !== clockTime(current.showUntil) ||
+    schedule.from !== fieldTime(current.showFrom) ||
+    schedule.until !== fieldTime(current.showUntil) ||
     schedule.on !== current.showOn;
   const customized = widgets.find((widget) => widget.id === customizing);
   const personal = spaces.data?.find((space) => space.kind === 'personal');
@@ -242,7 +242,7 @@ export function DashboardHome() {
           }),
         });
         dashboards.mutate((all) => all.map((dashboard) => (dashboard.id === saved.id ? saved : dashboard)));
-        return '';
+        return `Saved ${saved.name}.`;
       }, 'Could not save the dashboard')
       .then((done) => done && finish(false));
   }
@@ -271,7 +271,7 @@ export function DashboardHome() {
               label="Edit"
               onClick={() => {
                 setName(current.name);
-                setSchedule({ from: clockTime(current.showFrom), until: clockTime(current.showUntil), on: current.showOn });
+                setSchedule({ from: fieldTime(current.showFrom), until: fieldTime(current.showUntil), on: current.showOn });
                 setDraft(layoutOf(current));
               }}
             />
@@ -292,7 +292,7 @@ export function DashboardHome() {
           actions={
             <>
               <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-              <Button icon="plus" label="Add widget" onClick={() => setPicking(true)} primary />
+              <Button icon="plus" label="Add widget" onClick={() => setPicking(true)} />
             </>
           }
         />
@@ -308,12 +308,14 @@ export function DashboardHome() {
               <>
                 {(editing || !widget.hideTitle) && (
                   <header className="flex min-h-8 items-center justify-between gap-2">
-                    <h2 className={`m-0 text-sm font-medium ${widget.hideTitle ? 'text-faint line-through' : 'text-muted'}`}>{cardTitle(widget)}</h2>
+                    <Subheading level={2}>
+                      <span className={widget.hideTitle ? 'text-faint line-through' : undefined}>{cardTitle(widget)}</span>
+                    </Subheading>
                     {editing && (
                       <ActionsMenu
                         items={[
                           ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
-                          { label: 'Customize card', onSelect: () => setCustomizing(widget.id) },
+                          { label: 'Customise card', onSelect: () => setCustomizing(widget.id) },
                           ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
                           ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
                           ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
@@ -327,7 +329,7 @@ export function DashboardHome() {
                   </header>
                 )}
                 {editing && settingsOpen === widget.id && kind.Settings && (
-                  <div className="rounded-lg border border-line-soft p-3">
+                  <div className="rounded-field border border-line-soft p-3">
                     <kind.Settings onChange={(settings) => update(widget.id, { settings })} settings={widget.settings} />
                   </div>
                 )}
@@ -345,7 +347,7 @@ export function DashboardHome() {
       )}
       <ShowBackdrop background={layout.background} />
       {customized && (
-        <Dialog onClose={() => setCustomizing(undefined)} title="Customize card">
+        <Dialog onClose={() => setCustomizing(undefined)} title="Customise card">
           <div className="mt-5 grid gap-4">
             <TextField
               label="Title"
@@ -395,7 +397,7 @@ export function DashboardHome() {
           <div className="mt-5 grid gap-5">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
             <fieldset className="m-0 grid gap-3 border-0 p-0">
-              <legend className="mb-3 p-0 text-sm font-medium text-ink">Opens by itself</legend>
+              <legend className="field-label mb-2">Opens by itself</legend>
               <div className="grid gap-4 sm:grid-cols-3">
                 <TimeField emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
                 <TimeField emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
@@ -412,7 +414,7 @@ export function DashboardHome() {
               </div>
             </fieldset>
             <fieldset className="m-0 grid gap-3 border-0 p-0">
-              <legend className="mb-3 p-0 text-sm font-medium text-ink">Background</legend>
+              <legend className="field-label mb-2">Background</legend>
               <div className="swatches">
                 {colorOptions.map(({ value: colour, label }) => (
                   <label className="swatch" key={colour} title={label}>
@@ -446,26 +448,23 @@ export function DashboardHome() {
                     }
                   />
                 )}
-                {layout.background && (
-                  <button className="text-button text-sm" onClick={() => change({ background: undefined })} type="button">
-                    No background
-                  </button>
-                )}
+                {layout.background && <TextButton label="No background" onClick={() => change({ background: undefined })} />}
               </div>
             </fieldset>
-            <DialogActions>
-              {dashboards.data.length > 1 && (
-                <button
-                  className="text-button mr-auto text-sm text-danger"
-                  onClick={() => {
-                    setConfiguring(false);
-                    setDeleting(true);
-                  }}
-                  type="button"
-                >
-                  Delete this dashboard
-                </button>
-              )}
+            <DialogActions
+              start={
+                dashboards.data.length > 1 && (
+                  <TextButton
+                    danger
+                    label="Delete dashboard"
+                    onClick={() => {
+                      setConfiguring(false);
+                      setDeleting(true);
+                    }}
+                  />
+                )
+              }
+            >
               <Button label="Done" large onClick={() => setConfiguring(false)} primary />
             </DialogActions>
           </div>
@@ -488,7 +487,7 @@ export function DashboardHome() {
                 });
                 dashboards.mutate((all) => [...all, created]);
                 navigate(`/?d=${created.id}`);
-                return '';
+                return `Added ${created.name}.`;
               }, 'Could not add the dashboard')
               .then((added) => added && setAdding(false));
           }}
@@ -512,7 +511,7 @@ export function DashboardHome() {
                 />
                 <span className="grid gap-0.5">
                   <span className="text-ink">{label}</span>
-                  <span className="text-xs text-faint">{contents}</span>
+                  <span className="text-sm text-muted">{contents}</span>
                 </span>
               </label>
             ))}
@@ -530,6 +529,7 @@ export function DashboardHome() {
             dashboards.mutate((all) => all.filter((dashboard) => dashboard.id !== current.id));
             finish(false);
             navigate('/');
+            saving.report(`Deleted ${current.name}.`);
           }}
           title={`Delete ${current.name}?`}
           tone="danger"

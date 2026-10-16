@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Avatar, ListSkeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Button } from '../components/Button';
@@ -26,6 +26,7 @@ function PersonRow({ detail, person }: { detail: string | null; person: Person }
 }
 
 export function PeoplePage() {
+  const navigate = useNavigate();
   const spaces = useSpaces();
   const people = useResource<Person[]>('/me/people', true);
   const [adding, setAdding] = useState(false);
@@ -38,7 +39,7 @@ export function PeoplePage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="Add person" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="New person" onClick={() => setAdding(true)} primary />}
       title="People"
     >
       {people.error ? (
@@ -46,7 +47,7 @@ export function PeoplePage() {
       ) : !people.data ? (
         <ListSkeleton label="Loading people" rows={4} />
       ) : people.data.length === 0 ? (
-        <Empty title="Nobody here yet" />
+        <Empty title="No people yet">Add the people you care about to keep their birthdays on your agenda, gift ideas and the events you shared.</Empty>
       ) : (
         <>
           {soon.length > 0 && (
@@ -67,7 +68,7 @@ export function PeoplePage() {
           </Section>
         </>
       )}
-      {adding && <PersonEditor onClose={() => setAdding(false)} onSaved={() => people.reload()} spaces={writable} />}
+      {adding && <PersonEditor onClose={() => setAdding(false)} onSaved={(saved) => navigate(`/people/${saved.id}`)} spaces={writable} />}
     </Page>
   );
 }

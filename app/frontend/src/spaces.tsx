@@ -67,17 +67,22 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   if (item.kind === 'goal') return `/goals/${item.id}`;
   if (item.kind === 'person') return `/people/${item.id}`;
   if (item.kind === 'recipe') return `/recipes/${item.id}`;
-  if (item.kind === 'expense') return `/spending?space=${item.spaceId}`;
+  if (item.kind === 'expense') return `/spending/transactions?space=${item.spaceId}`;
   if (item.kind === 'trip') return `/trips/${item.id}`;
-  if (item.kind === 'task') return `/spaces/${item.spaceId}/tasks`;
-  if (item.kind === 'list') return `/spaces/${item.spaceId}/tasks?list=${item.id}`;
-  if (item.kind === 'subscription') return `/recurring?subscription=${item.id}`;
+  if (item.kind === 'task') return `/tasks?task=${item.id}`;
+  if (item.kind === 'list') return `/tasks?list=${item.id}`;
+  if (item.kind === 'subscription') return `/spending/recurring?subscription=${item.id}`;
   return null;
 }
 
 const itemKindNames: Record<string, string> = { note: 'page', list: 'task list' };
 
-export const itemKindName = (item: { kind: string; quick: boolean }) => (item.quick ? 'note' : (itemKindNames[item.kind] ?? item.kind));
+export const spacesTabs = (active: 'spaces' | 'invitations') => [
+  { active: active === 'spaces', href: '/spaces', label: 'Spaces' },
+  { active: active === 'invitations', href: '/spaces/invitations', label: 'Invitations' },
+];
+
+export const itemKindName = (item: { kind: string; quick: boolean }) => (item.quick ? 'quick note' : (itemKindNames[item.kind] ?? item.kind));
 
 export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
   return (

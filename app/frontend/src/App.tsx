@@ -1,8 +1,6 @@
-import type { ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, type Location } from 'react-router';
+import { Link, Navigate, Outlet, Route, Routes, useLocation, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { OpenCreatedPage } from './components/OpenCreatedPage';
 import { Shell } from './components/Shell';
 import { AdminPage } from './pages/AdminPage';
 import { AgendaPage } from './pages/AgendaPage';
@@ -10,13 +8,14 @@ import { BookmarkPage } from './pages/BookmarkPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CalendarsPage } from './pages/CalendarsPage';
 import { EventPage } from './pages/EventPage';
+import { FilesPage } from './pages/FilesPage';
 import { GoalPage } from './pages/GoalPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { InvitationsPage } from './pages/InvitationsPage';
 import { InvitePage } from './pages/InvitePage';
-import { JournalDayPage, JournalPage } from './pages/JournalPage';
+import { JournalPage } from './pages/JournalPage';
 import { PagesIndex } from './pages/PagesIndex';
 import { PeoplePage } from './pages/PeoplePage';
 import { PersonPage } from './pages/PersonPage';
@@ -26,13 +25,12 @@ import { RecipesPage } from './pages/RecipesPage';
 import { NetWorthPage } from './pages/NetWorthPage';
 import { SpendingInsightsPage } from './pages/SpendingInsightsPage';
 import { SpendingPage } from './pages/SpendingPage';
-import { StoragePage } from './pages/StoragePage';
 import { TripPage } from './pages/TripPage';
 import { TripsPage } from './pages/TripsPage';
 import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { RecurringPage } from './pages/RecurringPage';
 import { LoginPage } from './pages/LoginPage';
-import { MenuPage } from './pages/MenuPage';
+import { MorePage } from './pages/MorePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { NotePage } from './pages/NotePage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordPages';
@@ -55,24 +53,24 @@ import { SpacesPage } from './pages/spaces/SpacesPage';
 import { SpaceSubscriptions } from './pages/spaces/SpaceSubscriptions';
 import { SpaceTags } from './pages/spaces/SpaceTags';
 import { SpaceTasks } from './pages/spaces/SpaceTasks';
+import { TasksPage } from './pages/TasksPage';
 import { TidyPage } from './pages/TidyPage';
-import { TodayPage } from './pages/TodayPage';
-import { TodoPage } from './pages/TodoPage';
 import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
 
-function Protected({ children }: { children: ReactNode }) {
+function Protected() {
   const auth = useAuth();
   const location = useLocation();
   if (!auth.ready) {
     return <PageSkeleton label="Loading your session" />;
   }
-  return auth.user ? children : <Navigate replace state={{ from: location }} to="/login" />;
+  return auth.user ? <Outlet /> : <Navigate replace state={{ from: location }} to="/login" />;
 }
 
-function FeatureRoute({ children, feature }: { children: ReactNode; feature: string }) {
+function FeatureRoute({ feature }: { feature: string }) {
   const auth = useAuth();
-  return auth.user?.features.includes(feature) ? children : <Navigate replace state={{ feature }} to="/settings/features" />;
+  const location = useLocation();
+  return auth.user?.features.includes(feature) ? <Outlet /> : <Navigate replace state={{ feature, from: location }} to="/settings/features" />;
 }
 
 function SignedOutLogin() {
@@ -84,6 +82,21 @@ function SignedOutLogin() {
   const from = (location.state as { from?: Location } | null)?.from;
   return auth.user ? <Navigate replace to={from ?? '/'} /> : <LoginPage />;
 }
+
+function Moved({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate replace to={`${to}${search}`} />;
+}
+
+const legacyRoutes = [
+  ['todo', '/tasks'],
+  ['today', '/agenda'],
+  ['storage', '/files'],
+  ['recurring', '/spending/recurring'],
+  ['review', '/journal'],
+  ['invitations', '/spaces/invitations'],
+  ['menu', '/more'],
+] as const;
 
 function RouterLink({ href, ...props }: UiLinkProps) {
   return <Link to={href} {...props} />;
@@ -102,342 +115,91 @@ export function App() {
           <Route path="login" element={<SignedOutLogin />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
-          <Route
-            path="spaces"
-            element={
-              <Protected>
-                <SpacesPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="spaces/:id"
-            element={
-              <Protected>
-                <SpaceLayout />
-              </Protected>
-            }
-          >
-            <Route index element={<SpaceItems />} />
-            <Route path="notes" element={<SpaceNotes />} />
-            <Route path="tasks" element={<SpaceTasks />} />
-            <Route path="recurring" element={<SpaceSubscriptions />} />
-            <Route path="habits" element={<SpaceHabits />} />
-            <Route path="tags" element={<SpaceTags />} />
-            <Route path="members" element={<SpaceMembers />} />
-            <Route path="activity" element={<SpaceActivity />} />
-          </Route>
           <Route path="invite/:code" element={<InvitePage />} />
           <Route path="rsvp/:code" element={<RsvpPage />} />
           <Route path="share/:code" element={<SharePage />} />
-          <Route
-            path="goals"
-            element={
-              <Protected>
-                <FeatureRoute feature="goals">
-                  <GoalsPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="goals/:id"
-            element={
-              <Protected>
-                <FeatureRoute feature="goals">
-                  <GoalPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="people"
-            element={
-              <Protected>
-                <FeatureRoute feature="people">
-                  <PeoplePage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="people/:id"
-            element={
-              <Protected>
-                <FeatureRoute feature="people">
-                  <PersonPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="recipes"
-            element={
-              <Protected>
-                <FeatureRoute feature="recipes">
-                  <RecipesPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="recipes/plan"
-            element={
-              <Protected>
-                <FeatureRoute feature="recipes">
-                  <MealPlanPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="recipes/:id"
-            element={
-              <Protected>
-                <FeatureRoute feature="recipes">
-                  <RecipePage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="spending"
-            element={
-              <Protected>
-                <SpendingPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="spending/insights"
-            element={
-              <Protected>
-                <SpendingInsightsPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="spending/net-worth"
-            element={
-              <Protected>
-                <NetWorthPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="trips"
-            element={
-              <Protected>
-                <FeatureRoute feature="trips">
-                  <TripsPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="trips/:id"
-            element={
-              <Protected>
-                <FeatureRoute feature="trips">
-                  <TripPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="agenda"
-            element={
-              <Protected>
-                <AgendaPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="agenda/calendars"
-            element={
-              <Protected>
-                <CalendarsPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="pages"
-            element={
-              <Protected>
-                <PagesIndex kind="note" key="note" />
-              </Protected>
-            }
-          />
-          <Route
-            path="boards"
-            element={
-              <Protected>
-                <PagesIndex kind="board" key="board" />
-              </Protected>
-            }
-          />
-          <Route
-            path="bookmarks"
-            element={
-              <Protected>
-                <BookmarksPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="bookmarks/:id"
-            element={
-              <Protected>
-                <BookmarkPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="journal"
-            element={
-              <Protected>
-                <JournalPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="journal/:day"
-            element={
-              <Protected>
-                <JournalDayPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="review"
-            element={
-              <Protected>
-                <OpenCreatedPage back="/journal" fallback="The weekly review could not be written." label="Writing your weekly review" path="/me/weekly-review" />
-              </Protected>
-            }
-          />
-          <Route
-            path="notes/:id"
-            element={
-              <Protected>
-                <NotePage />
-              </Protected>
-            }
-          />
-          <Route
-            path="events/:id"
-            element={
-              <Protected>
-                <EventPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="recurring"
-            element={
-              <Protected>
-                <RecurringPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="menu"
-            element={
-              <Protected>
-                <MenuPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="save"
-            element={
-              <Protected>
-                <SavePage />
-              </Protected>
-            }
-          />
-          <Route
-            path="tidy"
-            element={
-              <Protected>
-                <FeatureRoute feature="tidy">
-                  <TidyPage />
-                </FeatureRoute>
-              </Protected>
-            }
-          />
-          <Route
-            path="today"
-            element={
-              <Protected>
-                <TodayPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="todo"
-            element={
-              <Protected>
-                <TodoPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="inbox"
-            element={
-              <Protected>
-                <InboxPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="invitations"
-            element={
-              <Protected>
-                <InvitationsPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="admin"
-            element={
-              <Protected>
-                <AdminPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="storage"
-            element={
-              <Protected>
-                <StoragePage />
-              </Protected>
-            }
-          />
-          <Route
-            path="trash"
-            element={
-              <Protected>
-                <TrashPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="settings"
-            element={
-              <Protected>
-                <SettingsLayout />
-              </Protected>
-            }
-          >
-            <Route index element={<ProfileSettings />} />
-            <Route path="features" element={<FeaturesSettings />} />
-            <Route path="security" element={<SecuritySettings />} />
-            <Route path="developer" element={<DeveloperSettings />} />
-            <Route path="sessions" element={<Navigate replace to="/settings/security" />} />
-            <Route path="tokens" element={<Navigate replace to="/settings/developer" />} />
-            <Route path="api" element={<Navigate replace to="/settings/developer" />} />
-            <Route path="data" element={<DataSettings />} />
+          {legacyRoutes.map(([path, to]) => (
+            <Route element={<Moved to={to} />} key={path} path={path} />
+          ))}
+          <Route element={<Protected />}>
+            <Route path="tasks" element={<TasksPage />} />
+            <Route path="agenda">
+              <Route index element={<AgendaPage key="today" view="today" />} />
+              <Route path="list" element={<AgendaPage key="list" view="list" />} />
+              <Route path="day" element={<AgendaPage key="day" view="day" />} />
+              <Route path="week" element={<AgendaPage key="week" view="week" />} />
+              <Route path="month" element={<AgendaPage key="month" view="month" />} />
+              <Route path="calendars" element={<CalendarsPage />} />
+            </Route>
+            <Route path="events/:id" element={<EventPage />} />
+            <Route path="pages">
+              <Route index element={<PagesIndex key="pages" section="pages" />} />
+              <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
+              <Route path="journal" element={<PagesIndex key="journal" section="journal" />} />
+            </Route>
+            <Route path="boards" element={<PagesIndex key="boards" section="boards" />} />
+            <Route path="notes/:id" element={<NotePage />} />
+            <Route path="bookmarks" element={<BookmarksPage />} />
+            <Route path="bookmarks/:id" element={<BookmarkPage />} />
+            <Route path="journal" element={<JournalPage />} />
+            <Route path="files" element={<FilesPage />} />
+            <Route path="spending">
+              <Route index element={<SpendingPage key="overview" tab="overview" />} />
+              <Route path="transactions" element={<SpendingPage key="transactions" tab="transactions" />} />
+              <Route path="accounts" element={<SpendingPage key="accounts" tab="accounts" />} />
+              <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
+              <Route path="recurring" element={<RecurringPage />} />
+              <Route path="insights" element={<SpendingInsightsPage />} />
+              <Route path="net-worth" element={<NetWorthPage />} />
+            </Route>
+            <Route path="spaces">
+              <Route index element={<SpacesPage />} />
+              <Route path="invitations" element={<InvitationsPage />} />
+              <Route path=":id" element={<SpaceLayout />}>
+                <Route index element={<SpaceItems />} />
+                <Route path="pages" element={<SpaceNotes />} />
+                <Route path="tasks" element={<SpaceTasks />} />
+                <Route path="recurring" element={<SpaceSubscriptions />} />
+                <Route path="habits" element={<SpaceHabits />} />
+                <Route path="tags" element={<SpaceTags />} />
+                <Route path="members" element={<SpaceMembers />} />
+                <Route path="activity" element={<SpaceActivity />} />
+              </Route>
+            </Route>
+            <Route element={<FeatureRoute feature="goals" />}>
+              <Route path="goals" element={<GoalsPage />} />
+              <Route path="goals/:id" element={<GoalPage />} />
+            </Route>
+            <Route element={<FeatureRoute feature="people" />}>
+              <Route path="people" element={<PeoplePage />} />
+              <Route path="people/:id" element={<PersonPage />} />
+            </Route>
+            <Route element={<FeatureRoute feature="recipes" />}>
+              <Route path="recipes" element={<RecipesPage />} />
+              <Route path="recipes/plan" element={<MealPlanPage />} />
+              <Route path="recipes/:id" element={<RecipePage />} />
+            </Route>
+            <Route element={<FeatureRoute feature="tidy" />}>
+              <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
+              <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
+              <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
+            </Route>
+            <Route element={<FeatureRoute feature="trips" />}>
+              <Route path="trips" element={<TripsPage />} />
+              <Route path="trips/:id" element={<TripPage />} />
+            </Route>
+            <Route path="inbox" element={<InboxPage />} />
+            <Route path="trash" element={<TrashPage />} />
+            <Route path="more" element={<MorePage />} />
+            <Route path="save" element={<SavePage />} />
+            <Route path="admin" element={<AdminPage />} />
+            <Route path="settings" element={<SettingsLayout />}>
+              <Route index element={<ProfileSettings />} />
+              <Route path="features" element={<FeaturesSettings />} />
+              <Route path="security" element={<SecuritySettings />} />
+              <Route path="developer" element={<DeveloperSettings />} />
+              <Route path="data" element={<DataSettings />} />
+            </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

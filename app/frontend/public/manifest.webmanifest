@@ -1,7 +1,7 @@
 {
   "name": "Strata",
   "short_name": "Strata",
-  "description": "A personal workspace for your dashboard, agenda, notes, whiteboards, subscriptions and files.",
+  "description": "A personal workspace for your dashboard, tasks, agenda, pages, boards, spending and files.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

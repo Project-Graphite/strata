@@ -24,7 +24,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   return (
     <div className="mt-5 grid gap-4">
       <Hint>Each code signs you in once if you lose your phone. They won’t be shown again.</Hint>
-      <ul className="mono-sm m-0 grid list-none grid-cols-2 gap-2 rounded-lg border border-line p-4 text-ink">
+      <ul className="mono-sm m-0 grid list-none grid-cols-2 gap-2 rounded-field border border-line p-4 text-ink">
         {codes.map((code) => (
           <li key={code}>{code}</li>
         ))}
@@ -265,6 +265,7 @@ export function SecuritySettings() {
               }, 'Could not turn off two-step sign-in')
               .then((done) => done && close());
           }}
+          danger
           submitLabel="Turn off"
           title="Turn off two-step sign-in?"
         >

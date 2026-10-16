@@ -11,7 +11,7 @@ export function Copyable({ label, value }: { label?: string; value: string }) {
     <div className="grid gap-1">
       {label && <span className="text-sm text-muted">{label}</span>}
       <div className="flex items-start gap-2">
-        <code className="mono-sm block min-w-0 flex-1 break-all rounded-lg border border-line p-3 text-ink select-all">{value}</code>
+        <code className="mono-sm block min-w-0 flex-1 break-all rounded-field border border-line p-3 text-ink select-all">{value}</code>
         <Button
           icon={copied ? 'check-mark' : undefined}
           label={copied ? 'Copied' : 'Copy'}

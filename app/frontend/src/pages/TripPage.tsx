@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, Meter, PageSkeleton, TextField } from '@project-graphite/ui';
+import { formatDay, Icon, Meter, TextField, type MenuItem } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -11,10 +11,10 @@ import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { LoadError } from '../components/LoadError';
-import { Page, Section, Subheading } from '../components/Page';
+import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { MissingRates } from '../components/Stats';
+import { OpenTask } from '../components/TaskEditor';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { categoryName, type MoneyAccount } from '../spending';
@@ -34,38 +34,50 @@ export function TripPage() {
   const spaces = useSpaces();
   const trip = useResource<TripDetail>(`/trips/${id}`, true);
   const action = useAction();
-  const [dialog, setDialog] = useState<'edit' | 'plan' | 'pack' | 'expense'>();
+  const [dialog, setDialog] = useState<'edit' | 'event' | 'pack' | 'expense'>();
+  const [openTask, setOpenTask] = useState<Task>();
   const accounts = useResource<MoneyAccount[]>(trip.data ? `/spaces/${trip.data.spaceId}/accounts` : null, true);
 
-  if (trip.error) return <LoadError error={trip.error} onRetry={trip.reload} />;
-  if (!trip.data) return <PageSkeleton label="Loading the trip" />;
+  const back = { to: '/trips', label: 'Trips' };
+  if (!trip.data) return <DetailState back={back} resource={trip} thing="Trip" />;
   const shown = trip.data;
   const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
 
-  function link(targetId: string) {
-    return action.run(async () => {
-      await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId, kind: 'reference' }) });
-      trip.reload();
-      return '';
-    }, 'Could not add it to the trip');
+  async function link(targetId: string) {
+    await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId, kind: 'reference' }) });
+    trip.reload();
   }
 
-  const unlinkMenu = (linkId: string, title: string) =>
+  const addToTrip = (targetId: string) =>
+    void action.run(async () => {
+      await link(targetId);
+      return '';
+    }, 'Could not add it to the trip');
+
+  const linkedMenu = (linked: { linkId: string; id: string; title: string }, items: MenuItem[] = []) =>
     editable && (
       <ActionsMenu
         items={[
+          ...items,
           {
             label: 'Remove from this trip',
+            separated: items.length > 0,
             onSelect: () =>
               void action.run(async () => {
-                await auth.request(`/items/${shown.id}/links/${linkId}`, { method: 'DELETE' });
+                await auth.request(`/items/${shown.id}/links/${linked.linkId}`, { method: 'DELETE' });
                 trip.reload();
-                return `${title} is no longer part of this trip. It is still in ${shown.spaceName}.`;
+                return {
+                  message: `Removed ${linked.title} from this trip. It’s still in ${shown.spaceName}.`,
+                  undo: async () => {
+                    await link(linked.id);
+                    return '';
+                  },
+                };
               }, 'Could not remove it from the trip'),
           },
         ]}
-        name={title}
+        name={linked.title}
       />
     );
 
@@ -83,6 +95,7 @@ export function TripPage() {
               items={[
                 {
                   label: 'Move to trash',
+                  separated: true,
                   onSelect: () =>
                     void action.run(async () => {
                       await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
@@ -103,13 +116,13 @@ export function TripPage() {
           </>
         )
       }
-      description={[shown.destination, tripDates(shown)].filter(Boolean).join(' · ')}
-      eyebrow={shown.spaceName}
+      back={back}
+      description={[shown.spaceName, shown.destination, tripDates(shown)].filter(Boolean).join(' · ')}
       title={shown.title}
     >
-      <Section action={editable && <Button icon="plus" label="Add a plan" onClick={() => setDialog('plan')} />} title="Itinerary">
+      <Section action={editable && <Button icon="plus" label="New event" onClick={() => setDialog('event')} />} title="Itinerary">
         {days.length === 0 ? (
-          <Hint>No plans yet.</Hint>
+          <Hint>No events yet.</Hint>
         ) : (
           <div className="grid gap-4">
             {days.map((day) => (
@@ -119,12 +132,14 @@ export function TripPage() {
                   {shown.itinerary
                     .filter((entry) => entry.startsOn === day)
                     .map((entry) => (
-                      <li className="panel-row flex items-center gap-3" key={entry.linkId}>
-                        <Link className="grid min-w-0 flex-1 text-ink no-underline hover:underline" to={`/events/${entry.id}`}>
-                          <span className="truncate">{entry.title}</span>
-                          <span className="truncate text-sm text-muted">{[entry.startTime ? `${clockTime(entry.startTime)}${entry.endTime ? `–${clockTime(entry.endTime)}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}</span>
+                      <li className="flex items-center pe-2 hover:bg-line-soft" key={entry.linkId}>
+                        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/events/${entry.id}`}>
+                          <RowText
+                            detail={[entry.startTime ? `${clockTime(entry.startTime)}${entry.endTime ? `–${clockTime(entry.endTime)}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}
+                            title={entry.title}
+                          />
                         </Link>
-                        {unlinkMenu(entry.linkId, entry.title)}
+                        {linkedMenu(entry)}
                       </li>
                     ))}
                 </ul>
@@ -138,17 +153,17 @@ export function TripPage() {
         <Section
           action={editable && <Button icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
           description={shown.packing.tasks.length ? `${packed} of ${shown.packing.tasks.length} packed` : undefined}
-          title="Packing list"
+          title="Packing"
         >
           {shown.packing.tasks.length === 0 ? (
-            <Hint>Nothing on the list yet.</Hint>
+            <Hint>Nothing to pack yet.</Hint>
           ) : (
             <ul className="panel-rows">
               {shown.packing.tasks.map((task) => (
                 <TaskRow
                   disabled={!editable || action.busy}
                   key={task.id}
-                  onEdit={() => navigate(`/spaces/${shown.spaceId}/tasks?list=${shown.packing!.id}`)}
+                  onEdit={() => setOpenTask(task)}
                   onToggle={() =>
                     void action.run(async () => {
                       await auth.request<Task>(`/tasks/${task.id}/${task.completedAt ? 'reopen' : 'complete'}`, { method: 'POST' });
@@ -164,7 +179,7 @@ export function TripPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="Add expense" onClick={() => setDialog('expense')} />} title="Spending">
+      <Section action={editable && <Button icon="plus" label="New expense" onClick={() => setDialog('expense')} />} title="Spending">
         <div className="grid gap-2">
           <p className="m-0 text-ink">
             {money(shown.spending.spentMinor, shown.spending.currency)} spent
@@ -182,7 +197,7 @@ export function TripPage() {
                   title={expense.title}
                 />
                 <Amount currency={expense.currency} minor={expense.amountMinor} />
-                {unlinkMenu(expense.linkId, expense.title)}
+                {linkedMenu(expense)}
               </li>
             ))}
           </ul>
@@ -204,7 +219,12 @@ export function TripPage() {
                     await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: uploaded.id, kind: 'reference' }) });
                   }
                   trip.reload();
-                  return accepted.length < chosen.length ? 'Files over 25 MB were left out.' : '';
+                  return [
+                    accepted.length > 0 && `Added ${accepted.length === 1 ? accepted[0]!.name : `${accepted.length} files`}.`,
+                    accepted.length < chosen.length && 'Files over 25 MB were left out.',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
                 }, 'Could not upload that file')
               }
             />
@@ -219,20 +239,17 @@ export function TripPage() {
             {shown.documents.map((document) => (
               <li className="panel-row flex items-center gap-3" key={document.linkId}>
                 <Icon name="file" size={18} />
-                <button
-                  className="grid min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-                  onClick={() =>
-                    void action.run(async () => {
-                      saveBlob(await auth.request<Blob>(`/files/${document.id}`, {}, readBlob), document.title);
-                      return '';
-                    }, 'Could not download that file')
-                  }
-                  type="button"
-                >
-                  <span className="truncate text-ink">{document.title}</span>
-                  {document.sizeBytes !== null && <span className="text-sm text-muted">{fileSize(document.sizeBytes)}</span>}
-                </button>
-                {unlinkMenu(document.linkId, document.title)}
+                <RowText detail={document.sizeBytes !== null && fileSize(document.sizeBytes)} title={document.title} />
+                {linkedMenu(document, [
+                  {
+                    label: 'Download',
+                    onSelect: () =>
+                      void action.run(async () => {
+                        saveBlob(await auth.request<Blob>(`/files/${document.id}`, {}, readBlob), document.title);
+                        return '';
+                      }, 'Could not download that file'),
+                  },
+                ])}
               </li>
             ))}
           </ul>
@@ -248,7 +265,7 @@ export function TripPage() {
               onClick={() =>
                 void action.run(async () => {
                   const page = await auth.request<{ id: string }>(`/spaces/${shown.spaceId}/notes`, { method: 'POST', body: JSON.stringify({ title: `${shown.title} notes` }) });
-                  await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: page.id, kind: 'reference' }) });
+                  await link(page.id);
                   navigate(`/notes/${page.id}`);
                   return '';
                 }, 'Could not start the page')
@@ -256,19 +273,19 @@ export function TripPage() {
             />
           )
         }
-        title="Notes"
+        title="Pages"
       >
         {shown.pages.length === 0 ? (
           <Hint>No pages yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {shown.pages.map((page) => (
-              <li className="panel-row flex items-center gap-3" key={page.linkId}>
-                <Icon name="file" size={18} />
-                <Link className="min-w-0 flex-1 truncate text-ink no-underline hover:underline" to={`/notes/${page.id}`}>
-                  {page.title || 'Untitled'}
+              <li className="flex items-center pe-2 hover:bg-line-soft" key={page.linkId}>
+                <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/notes/${page.id}`}>
+                  <Icon name="file" size={18} />
+                  <RowText title={page.title || 'Untitled'} />
                 </Link>
-                {unlinkMenu(page.linkId, page.title || 'Untitled')}
+                {linkedMenu({ ...page, title: page.title || 'Untitled' })}
               </li>
             ))}
           </ul>
@@ -276,23 +293,24 @@ export function TripPage() {
       </Section>
 
       {dialog === 'edit' && space && <TripEditor onClose={() => setDialog(undefined)} onSaved={() => trip.reload()} spaces={[space]} trip={shown} />}
-      {dialog === 'plan' && <EventEditor onClose={() => setDialog(undefined)} onSaved={(event) => void link(event.id)} spaceId={shown.spaceId} startsOn={shown.startsOn} />}
-      {dialog === 'expense' && <ExpenseEditor accounts={accounts.data ?? []} currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => void link(expense.id)} spaceId={shown.spaceId} />}
+      {dialog === 'event' && <EventEditor onClose={() => setDialog(undefined)} onSaved={(event) => addToTrip(event.id)} spaceId={shown.spaceId} startsOn={shown.startsOn} />}
+      {dialog === 'expense' && <ExpenseEditor accounts={accounts.data ?? []} currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => addToTrip(expense.id)} spaceId={shown.spaceId} />}
       {dialog === 'pack' && shown.packing && (
         <PackDialog
+          busy={action.busy}
           onClose={() => setDialog(undefined)}
           onSubmit={(title) =>
             action
               .run(async () => {
                 await auth.request(`/spaces/${shown.spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title, listId: shown.packing!.id }) });
                 trip.reload();
-                return '';
+                return `Added ${title} to the packing list.`;
               }, 'Could not add it to the packing list')
               .then((done) => done && setDialog(undefined))
           }
-          busy={action.busy}
         />
       )}
+      {openTask && <OpenTask onChanged={() => trip.reload()} onClose={() => setOpenTask(undefined)} task={openTask} />}
     </Page>
   );
 }
@@ -308,8 +326,8 @@ function PackDialog({ busy, onClose, onSubmit }: { busy: boolean; onClose: () =>
         if (!form.check(target, { title: [required('Say what to pack.'), atMost(200, 'Use at most 200 characters.')] })) return;
         onSubmit(String(new FormData(target).get('title')).trim());
       }}
-      submitLabel="Add to list"
-      title="Add to the packing list"
+      submitLabel="Add item"
+      title="Add item"
     >
       <TextField autoComplete="off" autoFocus label="Item" maxLength={200} placeholder="Passport" {...form.field('title')} />
     </FormDialog>

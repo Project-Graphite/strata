@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { TagChip } from '@project-graphite/ui';
 import { FilePreview, hasPreview } from '../../files';
 import { itemHref, itemKindName, type Item } from '../../spaces';
+import { RowText } from '../../components/RowText';
 
 export function ItemList({
   actions,
@@ -15,33 +16,35 @@ export function ItemList({
 }) {
   return (
     <ul className="panel-rows">
-      {items.map((item) => (
-        <li className="flex items-center justify-between gap-4 panel-row" key={item.id}>
-          {hasPreview(item) && <FilePreview item={item} />}
-          <div className="min-w-0 flex-1">
-            <p className="m-0 truncate text-ink">
-              {!item.trashedAt && itemHref(item) ? (
-                <Link className="text-ink no-underline hover:underline" to={itemHref(item)!}>
-                  {item.title || 'Untitled'}
-                </Link>
-              ) : (
-                item.title || 'Untitled'
+      {items.map((item) => {
+        const href = !item.trashedAt && itemHref(item);
+        const content = (
+          <>
+            {hasPreview(item) && <FilePreview item={item} />}
+            <RowText detail={`${itemKindName(item)} · ${detail(item)}`} title={item.title || 'Untitled'}>
+              {item.tags.length > 0 && (
+                <span className="mt-1.5 flex flex-wrap gap-1.5">
+                  {item.tags.map((tag) => (
+                    <TagChip color={tag.color} key={tag.id} label={tag.name} />
+                  ))}
+                </span>
               )}
-            </p>
-            <p className="mono-sm m-0 mt-1 text-faint">
-              {itemKindName(item)} · {detail(item)}
-            </p>
-            {item.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {item.tags.map((tag) => (
-                  <TagChip color={tag.color} key={tag.id} label={tag.name} />
-                ))}
-              </div>
+            </RowText>
+          </>
+        );
+        return (
+          <li className={`flex items-center gap-2 pe-2 ${href ? 'hover:bg-line-soft' : ''}`} key={item.id}>
+            {href ? (
+              <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={href}>
+                {content}
+              </Link>
+            ) : (
+              <div className="flex min-w-0 flex-1 items-center gap-3 panel-row">{content}</div>
             )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">{actions(item)}</div>
-        </li>
-      ))}
+            {actions(item)}
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -8,7 +8,7 @@ export function QrCode({ label, value }: { label: string; value: string }) {
   return (
     <svg
       aria-label={label}
-      className="h-48 w-48 rounded-lg"
+      className="h-48 w-48 rounded-field"
       role="img"
       shapeRendering="crispEdges"
       viewBox={`0 0 ${size} ${size}`}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, PageSkeleton, TextField } from '@project-graphite/ui';
+import { formatDay, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
@@ -9,9 +9,9 @@ import { Button, IconButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
-import { LoadError } from '../components/LoadError';
-import { Page, Section, Subheading } from '../components/Page';
+import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
+import { RowText } from '../components/RowText';
 import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
@@ -33,8 +33,8 @@ export function PersonPage() {
   const [dialog, setDialog] = useState<'idea' | 'event'>();
   const events = useResource<ResultPage<Item>>(dialog === 'event' && person.data ? `/spaces/${person.data.spaceId}/items?kind=event` : null, true);
 
-  if (person.error) return <LoadError error={person.error} onRetry={person.reload} />;
-  if (!person.data) return <PageSkeleton label="Loading this person" />;
+  const back = { to: '/people', label: 'People' };
+  if (!person.data) return <DetailState back={back} resource={person} thing="Person" />;
   const shown = person.data;
   const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
@@ -42,36 +42,52 @@ export function PersonPage() {
   const upcoming = shown.events.filter((event) => event.startsOn >= today).reverse();
   const earlier = shown.events.filter((event) => event.startsOn < today);
 
-  function saveIdeas(giftIdeas: GiftIdea[], done: string) {
-    return action.run(async () => {
-      const saved = await auth.request<PersonDetail>(`/people/${shown.id}`, { method: 'PATCH', body: JSON.stringify({ giftIdeas }) });
-      person.mutate(() => saved);
-      return done;
-    }, 'Could not save the gift ideas');
+  async function saveIdeas(giftIdeas: GiftIdea[]) {
+    const saved = await auth.request<PersonDetail>(`/people/${shown.id}`, { method: 'PATCH', body: JSON.stringify({ giftIdeas }) });
+    person.mutate(() => saved);
+  }
+
+  async function link(eventId: string) {
+    await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: eventId, kind: 'reference' }) });
+    person.reload();
   }
 
   function unlink(event: EventLink) {
     void action.run(async () => {
       await auth.request(`/items/${event.ownLink ? shown.id : event.id}/links/${event.linkId}`, { method: 'DELETE' });
       person.mutate((current) => ({ ...current, events: current.events.filter((kept) => kept.linkId !== event.linkId) }));
-      return '';
-    }, 'Could not unlink the event');
+      return {
+        message: `Removed ${event.title} from ${shown.name}’s events.`,
+        undo: async () => {
+          await link(event.id);
+          return '';
+        },
+      };
+    }, 'Could not remove the event');
+  }
+
+  function removeIdea(idea: GiftIdea) {
+    const before = shown.giftIdeas;
+    void action.run(async () => {
+      await saveIdeas(before.filter((kept) => kept.id !== idea.id));
+      return {
+        message: `Removed ${idea.text}.`,
+        undo: async () => {
+          await saveIdeas(before);
+          return '';
+        },
+      };
+    }, 'Could not remove the gift idea');
   }
 
   const eventList = (events: EventLink[]) => (
     <ul className="panel-rows">
       {events.map((event) => (
-        <li className="panel-row flex items-center gap-3" key={event.linkId}>
-          <Link className="grid min-w-0 flex-1 text-ink no-underline hover:underline" to={`/events/${event.id}`}>
-            <span className="truncate">{event.title}</span>
-            <span className="text-sm text-muted">
-              {formatDay(event.startsOn)}
-              {event.startTime ? ` · ${clockTime(event.startTime)}` : ''}
-            </span>
+        <li className="flex items-center pe-2 hover:bg-line-soft" key={event.linkId}>
+          <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/events/${event.id}`}>
+            <RowText detail={`${formatDay(event.startsOn)}${event.startTime ? ` · ${clockTime(event.startTime)}` : ''}`} title={event.title} />
           </Link>
-          {editable && (
-            <ActionsMenu items={[{ label: 'Unlink this event', onSelect: () => unlink(event) }]} name={event.title} />
-          )}
+          {editable && <ActionsMenu items={[{ label: `Remove from ${shown.name}’s events`, onSelect: () => unlink(event) }]} name={event.title} />}
         </li>
       ))}
     </ul>
@@ -101,6 +117,7 @@ export function PersonPage() {
               items={[
                 {
                   label: 'Move to trash',
+                  separated: true,
                   onSelect: () =>
                     void action.run(async () => {
                       await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
@@ -121,8 +138,8 @@ export function PersonPage() {
           </>
         )
       }
-      description={shown.relationship ?? undefined}
-      eyebrow={shown.spaceName}
+      back={back}
+      description={[shown.spaceName, shown.relationship].filter(Boolean).join(' · ')}
       title={shown.name}
     >
       {(details.length > 0 || shown.notes) && (
@@ -141,7 +158,7 @@ export function PersonPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="gift" label="Add idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
+      <Section action={editable && <Button icon="plus" label="New gift idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
           <Hint>No gift ideas yet.</Hint>
         ) : (
@@ -152,14 +169,17 @@ export function PersonPage() {
                   <input
                     checked={idea.done}
                     disabled={!editable || action.busy}
-                    onChange={() => void saveIdeas(shown.giftIdeas.map((kept) => (kept.id === idea.id ? { ...kept, done: !kept.done } : kept)), '')}
+                    onChange={() =>
+                      void action.run(async () => {
+                        await saveIdeas(shown.giftIdeas.map((kept) => (kept.id === idea.id ? { ...kept, done: !kept.done } : kept)));
+                        return '';
+                      }, 'Could not save the gift idea')
+                    }
                     type="checkbox"
                   />
                   <span className={`truncate ${idea.done ? 'text-faint line-through' : 'text-ink'}`}>{idea.text}</span>
                 </label>
-                {editable && (
-                  <ActionsMenu items={[{ label: 'Remove', onSelect: () => void saveIdeas(shown.giftIdeas.filter((kept) => kept.id !== idea.id), 'Gift idea removed.') }]} name={idea.text} />
-                )}
+                {editable && <ActionsMenu items={[{ label: 'Remove', onSelect: () => removeIdea(idea) }]} name={idea.text} />}
               </li>
             ))}
           </ul>
@@ -187,15 +207,20 @@ export function PersonPage() {
       {dialog === 'idea' && (
         <FormDialog
           busy={action.busy}
-          busyLabel="Saving…"
+          busyLabel="Adding…"
           onClose={() => setDialog(undefined)}
           onSubmit={(target) => {
             if (!ideaForm.check(target, { text: [required('Write the idea down.'), atMost(200, 'Use at most 200 characters.')] })) return;
             const text = String(new FormData(target).get('text')).trim();
-            void saveIdeas([...shown.giftIdeas, { id: crypto.randomUUID(), text, done: false }], '').then((saved) => saved && setDialog(undefined));
+            void action
+              .run(async () => {
+                await saveIdeas([...shown.giftIdeas, { id: crypto.randomUUID(), text, done: false }]);
+                return `Added ${text}.`;
+              }, 'Could not add the gift idea')
+              .then((saved) => saved && setDialog(undefined));
           }}
-          submitLabel="Add idea"
-          title={`A gift idea for ${shown.name}`}
+          submitLabel="Add gift idea"
+          title="New gift idea"
         >
           <TextField autoComplete="off" autoFocus label="Idea" maxLength={200} {...ideaForm.field('text')} />
         </FormDialog>
@@ -211,9 +236,8 @@ export function PersonPage() {
           onLink={(eventId) =>
             void action
               .run(async () => {
-                await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: eventId, kind: 'reference' }) });
-                person.reload();
-                return '';
+                await link(eventId);
+                return `Linked ${events.data?.results.find((event) => event.id === eventId)?.title || 'the event'}.`;
               }, 'Could not link the event')
               .then((done) => done && setDialog(undefined))
           }

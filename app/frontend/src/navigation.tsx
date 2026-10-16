@@ -1,78 +1,109 @@
-import type { SidebarSection } from '@project-graphite/ui';
+import { createContext, useContext, useEffect } from 'react';
+import type { IconName, ShellTab, SidebarSection } from '@project-graphite/ui';
 import { featureCatalogue, type Feature } from './features';
 import { SpaceMark, type Space } from './spaces';
 
-export const moreAreas = [
-  '/menu',
-  '/todo',
-  '/pages',
-  '/boards',
-  '/bookmarks',
-  '/journal',
-  '/notes',
-  '/review',
-  '/save',
-  '/storage',
-  ...featureCatalogue.map((feature) => feature.href),
-  '/inbox',
-  '/invitations',
-  '/trash',
-  '/settings',
-  '/admin',
+export interface Area {
+  href: string;
+  label: string;
+  icon: IconName;
+  within?: string[];
+}
+
+export const mainAreas: Area[] = [
+  { href: '/', label: 'Home', icon: 'home' },
+  { href: '/tasks', label: 'Tasks', icon: 'check-mark' },
+  { href: '/agenda', label: 'Agenda', icon: 'calendar', within: ['/events'] },
+  { href: '/pages', label: 'Pages', icon: 'file', within: ['/notes'] },
+  { href: '/boards', label: 'Boards', icon: 'board' },
+  { href: '/bookmarks', label: 'Bookmarks', icon: 'bookmark' },
+  { href: '/journal', label: 'Journal', icon: 'pencil' },
+  { href: '/files', label: 'Files', icon: 'library' },
+  { href: '/spending', label: 'Spending', icon: 'wallet' },
 ];
 
-export function areaSections(pathname: string, spaces: Space[] | undefined, unread: number, features: Feature[]): SidebarSection[] {
+const trash: Area = { href: '/trash', label: 'Trash', icon: 'trash' };
+
+const otherAreas = ['/spaces', '/inbox', '/settings', '/admin', '/save', '/more'];
+
+const phoneTabs = ['/', '/spending', '/agenda', '/spaces'];
+
+const inside = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+export function areaOf(pathname: string) {
+  const space = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname);
+  if (space) return `/spaces/${space[1]}`;
+  if (pathname === '/') return '/';
+  const area = ([...mainAreas, ...featureCatalogue, trash] as Area[]).find(
+    (candidate) => candidate.href !== '/' && [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)),
+  );
+  return area?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
+}
+
+export const AreaContext = createContext<{ setArea: (area: string | null) => void }>({ setArea: () => {} });
+
+export function useInArea(area: string | null) {
+  const { setArea } = useContext(AreaContext);
+  useEffect(() => {
+    setArea(area);
+    return () => setArea(null);
+  }, [area, setArea]);
+}
+
+const toItem = (area: Area, active: string | null) => ({ active: area.href === active, href: area.href, icon: area.icon, label: area.label });
+
+export function sidebarSections(active: string | null, spaces: Space[] | undefined, features: Feature[]): SidebarSection[] {
   return [
-    {
-      items: [
-        { active: pathname === '/', href: '/', icon: 'home', label: 'Home' },
-        { active: pathname === '/todo', href: '/todo', icon: 'check-mark', label: 'To-do' },
-        {
-          active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/'),
-          href: '/agenda',
-          icon: 'calendar',
-          label: 'Agenda',
-        },
-        { active: pathname === '/pages', href: '/pages', icon: 'file', label: 'Pages' },
-        { active: pathname === '/boards', href: '/boards', icon: 'board', label: 'Boards' },
-        { active: pathname === '/bookmarks' || pathname.startsWith('/bookmarks/'), href: '/bookmarks', icon: 'bookmark', label: 'Bookmarks' },
-        { active: pathname === '/journal' || pathname.startsWith('/journal/'), href: '/journal', icon: 'pencil', label: 'Journal' },
-        { active: pathname === '/storage', href: '/storage', icon: 'library', label: 'Storage' },
-        { active: pathname.startsWith('/spending') || pathname === '/recurring', href: '/spending', icon: 'wallet', label: 'Spending' },
-      ],
-    },
-    ...(features.length
-      ? [
-          {
-            label: 'Features',
-            items: features.map((feature) => ({
-              active: pathname === feature.href || pathname.startsWith(`${feature.href}/`),
-              href: feature.href,
-              icon: feature.icon,
-              label: feature.label,
-            })),
-          },
-        ]
-      : []),
+    { items: mainAreas.map((area) => toItem(area, active)) },
+    ...(features.length ? [{ label: 'Features', items: features.map((feature) => toItem(feature, active)) }] : []),
     {
       label: 'Spaces',
       items: [
-        ...(spaces ?? []).map((space) => ({
-          active: pathname === `/spaces/${space.id}` || pathname.startsWith(`/spaces/${space.id}/`),
-          href: `/spaces/${space.id}`,
-          icon: <SpaceMark space={space} />,
-          label: space.name,
-        })),
-        { active: pathname === '/spaces', href: '/spaces', icon: 'folder', label: 'All spaces' },
+        ...(spaces ?? []).map((space) => ({ active: active === `/spaces/${space.id}`, href: `/spaces/${space.id}`, icon: <SpaceMark space={space} />, label: space.name })),
+        { active: active === '/spaces', href: '/spaces', icon: 'folder' as const, label: 'All spaces' },
       ],
     },
-    {
-      items: [
-        { active: pathname === '/inbox', badge: unread || undefined, href: '/inbox', icon: 'bell', label: 'Inbox' },
-        { active: pathname === '/invitations', href: '/invitations', icon: 'mail', label: 'Invitations' },
-        { active: pathname === '/trash', href: '/trash', icon: 'trash', label: 'Trash' },
-        { active: pathname.startsWith('/settings'), href: '/settings', icon: 'settings', label: 'Settings' },
-      ],
-    },
+    { items: [toItem(trash, active)] },
+  ];
+}
+
+export function moreSections(active: string | null, features: Feature[]): SidebarSection[] {
+  return [
+    { items: mainAreas.filter((area) => !phoneTabs.includes(area.href)).map((area) => toItem(area, active)) },
+    ...(features.length ? [{ label: 'Features', items: features.map((feature) => toItem(feature, active)) }] : []),
+    { items: [toItem(trash, active)] },
+  ];
+}
+
+export function phoneTabBar(active: string | null): ShellTab[] {
+  const tab = (href: string, label: string, icon: IconName, current: boolean): ShellTab => ({ active: current, href, icon, label });
+  return [
+    tab('/', 'Home', 'home', active === '/'),
+    tab('/spending', 'Spending', 'wallet', active === '/spending'),
+    tab('/agenda', 'Agenda', 'calendar', active === '/agenda'),
+    tab('/spaces', 'Spaces', 'folder', Boolean(active?.startsWith('/spaces'))),
+    tab('/more', 'More', 'more', active !== null && !active.startsWith('/spaces') && !phoneTabs.includes(active)),
+  ];
+}
+
+export function searchableAreas(features: Feature[], admin: boolean): { href: string; label: string; hint?: string }[] {
+  return [
+    ...mainAreas.map((area) => ({ href: area.href, label: area.label })),
+    { href: '/agenda/calendars', label: 'Calendars', hint: 'Agenda' },
+    { href: '/pages/quick-notes', label: 'Quick notes', hint: 'Pages' },
+    { href: '/spending/recurring', label: 'Recurring', hint: 'Spending' },
+    { href: '/spending/budgets', label: 'Budgets', hint: 'Spending' },
+    { href: '/spending/net-worth', label: 'Net worth', hint: 'Spending' },
+    ...features.map((feature) => ({ href: feature.href, label: feature.label })),
+    { href: '/spaces', label: 'Spaces' },
+    { href: '/spaces/invitations', label: 'Invitations', hint: 'Spaces' },
+    { href: '/inbox', label: 'Inbox' },
+    { href: '/trash', label: 'Trash' },
+    { href: '/settings', label: 'Settings' },
+    { href: '/settings/features', label: 'Features', hint: 'Settings' },
+    { href: '/settings/security', label: 'Security', hint: 'Settings' },
+    { href: '/settings/developer', label: 'Developer', hint: 'Settings' },
+    { href: '/settings/data', label: 'Your data', hint: 'Settings' },
+    ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 }

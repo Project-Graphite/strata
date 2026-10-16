@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -115,8 +116,7 @@ describe('Files', () => {
     );
     await render();
 
-    const download = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Download')!;
-    await act(async () => download.click());
+    await chooseFromMenu(container, 'Actions for notes.txt', 'Download');
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/files/notes',

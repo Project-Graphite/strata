@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -82,7 +83,7 @@ describe('Calendars', () => {
     expect(sent).toEqual([{ url: 'webcal://fixtures.example/cal.ics' }]);
     expect(container.textContent).toContain('Personal · fixtures.example · 12 events · checked');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop following')!.click());
+    await chooseFromMenu(container, 'Actions for Club fixtures', 'Stop following');
     await act(async () => [...container.querySelectorAll('dialog button')].find((button) => button.textContent === 'Stop following')!.click());
     expect(container.textContent).not.toContain('fixtures.example ·');
   });
@@ -107,13 +108,15 @@ describe('Calendars', () => {
     const button = (label: string) => [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === label)!;
     await act(async () => button('Create a calendar link').click());
     expect(container.textContent).toContain('https://strata.example/api/v1/calendar/secret.ics');
-    expect(container.textContent).toContain('It is shown only once.');
+    expect(container.textContent).toContain('It’s shown only once.');
 
     act(() => root.unmount());
     root = createRoot(container);
     await render('/agenda/calendars');
     expect(container.textContent).not.toContain('secret.ics');
     await act(async () => button('Turn the link off').click());
+    expect(document.querySelector('dialog h2')?.textContent).toBe('Turn off this link?');
+    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Turn off link')!.click());
     expect(button('Create a calendar link')).toBeDefined();
   });
 });

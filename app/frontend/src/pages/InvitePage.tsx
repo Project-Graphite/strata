@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { FormPanelSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { invitedLine, type InviteDetails } from '../invitations';
@@ -23,7 +23,7 @@ export function InvitePage() {
   if (!auth.ready || invite.loading) return <FormPanelSkeleton label="Loading this invite" />;
   if (invite.status === 404) {
     return (
-      <Empty title="This invite cannot be used">
+      <Empty title="This invite can’t be used">
         {invite.error} Ask the person who invited you for a new link.
       </Empty>
     );
@@ -44,7 +44,7 @@ export function InvitePage() {
       <h1 className="page-heading">{invitedLine(invite.data)}</h1>
       {!auth.user ? (
         <>
-          <p className="mt-5 text-muted">
+          <p className="mt-4 text-muted">
             {invite.data.kind === 'space'
               ? 'Create an account to join, or sign in if you already have one.'
               : 'Create your account to start your own workspace.'}
@@ -55,11 +55,14 @@ export function InvitePage() {
           </div>
         </>
       ) : invite.data.kind === 'app' ? (
-        <p className="mt-5 text-muted">
-          You already have a Strata account, so there is nothing more to do. <Link to="/">Go home</Link>
-        </p>
+        <>
+          <p className="mt-4 text-muted">You already have a Strata account, so there’s nothing more to do.</p>
+          <div className="mt-8">
+            <ButtonLink label="Go home" large primary to="/" />
+          </div>
+        </>
       ) : (
-        <div className="mt-8 grid gap-4">
+        <div className="mt-8">
           <Button
             disabled={joining.busy}
             label={joining.busy ? 'Joining…' : `Join ${invite.data.space}`}
@@ -74,6 +77,7 @@ export function InvitePage() {
                 return '';
               }, 'Could not join the space')
             }
+            large
             primary
           />
         </div>

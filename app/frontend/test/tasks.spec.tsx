@@ -112,7 +112,7 @@ describe('Tasks', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'House' }) }));
     expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).toContain('House');
 
-    await chooseFromMenu(container, 'Actions for House', 'Move list to trash');
+    await chooseFromMenu(container, 'Actions for House', 'Move to trash');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/chores/trash', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('nav[aria-label="Lists"]')?.textContent).not.toContain('House');
   });
@@ -220,9 +220,9 @@ describe('Tasks', () => {
 
   it('gathers one to-do list across spaces, adds to the chosen list and ticks things off', async () => {
     const added = serveTodos((path) => (path === '/me/lists' ? json([{ id: 'groceries', spaceId: 'home', title: 'Groceries', openTasks: 1 }]) : undefined));
-    await render('/todo');
+    await render('/tasks');
 
-    expect(container.querySelector('h1')?.textContent).toBe('To-do');
+    expect(container.querySelector('h1')?.textContent).toBe('Tasks');
     expect(container.textContent).toContain('Home · Groceries');
     const form = await typeTodo('Call the bank !3');
     expect(form.querySelector('[role="status"]')?.textContent).toBe('Understood: high priority');
@@ -235,8 +235,26 @@ describe('Tasks', () => {
     expect(added[1]).toEqual({ path: '/spaces/home/tasks', body: { title: 'Eggs', listId: 'groceries' } });
 
     await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Mark Milk as done"]')!.click());
-    expect(container.textContent).toContain('Done: Milk.');
+    expect(container.textContent).toContain('Completed Milk.');
     expect(container.querySelector('input[aria-label="Mark Milk as done"]')).toBeNull();
+  });
+
+  it('opens a linked task in place, drops the link when it closes, and opens a clicked task in place', async () => {
+    serveTodos((path) => {
+      if (path === '/me/lists') return json([]);
+      if (path === '/tasks/milk') return json(task({ id: 'milk', title: 'Milk', listId: null, dueDate: null, dueTime: null, repeatRule: null }));
+      return undefined;
+    });
+    await render('/tasks?task=milk');
+
+    await vi.waitFor(() => expect(document.querySelector('dialog h2')?.textContent).toBe('Edit task'));
+    expect(document.querySelector<HTMLInputElement>('dialog input[name="title"]')?.value).toBe('Milk');
+    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Cancel')!.click());
+    expect(document.querySelector('dialog')).toBeNull();
+
+    await act(async () => [...container.querySelectorAll('li button')].find((candidate) => candidate.textContent?.startsWith('Milk'))!.click());
+    await vi.waitFor(() => expect(document.querySelector('dialog h2')?.textContent).toBe('Edit task'));
+    expect(container.querySelector('h1')?.textContent).toBe('Tasks');
   });
 
   it('adds to the to-do list widget on Home, which starts with the personal space', async () => {
@@ -246,7 +264,7 @@ describe('Tasks', () => {
     );
     await render('/');
 
-    const widget = await vi.waitFor(() => container.querySelector('article[aria-label="To-do list"]')!);
+    const widget = await vi.waitFor(() => container.querySelector('article[aria-label="Tasks"]')!);
     await vi.waitFor(() => expect(widget.textContent).toContain('Milk'));
     await act(async () => (await typeTodo('Book the dentist')).requestSubmit());
     expect(added).toEqual([{ path: '/spaces/mine/tasks', body: { title: 'Book the dentist' } }]);
@@ -268,7 +286,7 @@ describe('Tasks', () => {
       }
       return undefined;
     });
-    await render('/today');
+    await render('/agenda');
 
     const sections = [...container.querySelectorAll('section h2')].map((heading) => heading.textContent);
     expect(sections).toEqual(['Schedule', 'Due']);
@@ -278,7 +296,7 @@ describe('Tasks', () => {
     expect(container.textContent).toContain('Bins out');
     expect(container.textContent).toContain('Home ·');
     await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Mark Bins out as done"]')!.click());
-    expect(container.textContent).toContain('Done: Bins out.');
+    expect(container.textContent).toContain('Completed Bins out.');
     expect(container.querySelector('input[aria-label="Mark Bins out as done"]')).toBeNull();
   });
 
@@ -297,7 +315,7 @@ describe('Tasks', () => {
     );
     await render('/spaces/home/tasks');
 
-    const finished = [...container.querySelectorAll('a')].find((link) => link.textContent === 'Show finished')!;
+    const finished = [...container.querySelectorAll('nav[aria-label="Status"] a')].find((link) => link.textContent === 'Finished')!;
     await act(async () => finished.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     expect(container.textContent).toContain('Bins out');
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();

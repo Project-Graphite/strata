@@ -7,16 +7,22 @@ export function FormDialog({
   busy,
   busyLabel,
   children,
+  danger = false,
   onClose,
   onSubmit,
+  start,
+  submitDisabled = false,
   submitLabel,
   title,
 }: {
   busy: boolean;
   busyLabel: string;
   children: ReactNode;
+  danger?: boolean;
   onClose: () => void;
   onSubmit: (form: HTMLFormElement) => void;
+  start?: ReactNode;
+  submitDisabled?: boolean;
   submitLabel: string;
   title: string;
 }) {
@@ -31,9 +37,15 @@ export function FormDialog({
         }}
       >
         {children}
-        <DialogActions>
-          <Button label="Cancel" large onClick={onClose} />
-          <Button disabled={busy} label={busy ? busyLabel : submitLabel} large primary submit />
+        <DialogActions start={start}>
+          <Button disabled={busy} label="Cancel" large onClick={onClose} />
+          {danger ? (
+            <button className="danger-button" disabled={busy || submitDisabled} type="submit">
+              {busy ? busyLabel : submitLabel}
+            </button>
+          ) : (
+            <Button disabled={busy || submitDisabled} label={busy ? busyLabel : submitLabel} large primary submit />
+          )}
         </DialogActions>
       </form>
     </Dialog>

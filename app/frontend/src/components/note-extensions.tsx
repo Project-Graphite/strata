@@ -59,14 +59,14 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
     },
   }));
   return (
-    <div className="suggestion-menu" role="listbox">
+    <div className="popover-panel listbox-options grid max-h-72 w-[min(22rem,calc(100vw-2rem))]" role="listbox">
       {items.length === 0 ? (
         <p className="m-0 px-3 py-2 text-sm text-muted">Nothing matches</p>
       ) : (
         items.map((item, index) => (
           <button
-            aria-selected={index === active}
-            className="suggestion-option"
+            className="listbox-option w-full justify-between text-left"
+            data-active={index === active}
             key={item.id}
             onClick={() => command(item)}
             onMouseEnter={() => setActive(index)}

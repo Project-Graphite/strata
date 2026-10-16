@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { chooseFromMenu } from './controls';
 
 vi.mock('../src/components/NoteEditor', () => ({
   default: ({ noteId }: { noteId: string }) => <div data-note={noteId} data-testid="editor" />,
@@ -83,16 +84,16 @@ describe('Journal', () => {
     const tabs = [...container.querySelectorAll('nav[aria-label="Pages"] a')];
     expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
       ['Pages', '/pages', 'page'],
-      ['Notes', '/pages?tab=notes', null],
-      ['Journal entries', '/pages?tab=journal', null],
+      ['Quick notes', '/pages/quick-notes', null],
+      ['Journal entries', '/pages/journal', null],
     ]);
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('main li a')];
     expect(rows.map((row) => [row.textContent?.split('Personal')[0], row.style.paddingInlineStart])).toEqual([
-      ['Trip', ''],
-      ['Day one', '2.5rem'],
-      ['Packing', '4rem'],
-      ['Day two', '2.5rem'],
-      ['Journal', ''],
+      ['Trip', '1rem'],
+      ['Day one', '2.25rem'],
+      ['Packing', '3.5rem'],
+      ['Day two', '2.25rem'],
+      ['Journal', '1rem'],
     ]);
 
     await act(async () => tabs[2]!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
@@ -121,32 +122,67 @@ describe('Journal', () => {
     await act(async () => great.click());
     expect(sent).toEqual([{ mood: 5 }, { mood: null }]);
 
-    const yesterday = container.querySelector('a[href="/journal/2026-10-06"]')!;
+    const yesterday = container.querySelector('a[href="/notes/page"]')!;
     expect(yesterday.className).toContain('mood-4');
     expect(yesterday.className).toContain('has-page');
     expect(yesterday.getAttribute('aria-label')).toContain(': Good, with a page');
-    expect(container.querySelector('a[href="/journal/2026-10-08"]')).toBeNull();
+    const today = container.querySelector('.journal-day[aria-current="date"]')!;
+    expect(today.tagName).toBe('BUTTON');
+    expect(today.getAttribute('aria-label')).toBe('Wednesday, October 7, write a page');
+    expect(container.querySelector('a[href="/notes/page"]')?.nextElementSibling).toBe(today);
+    expect(today.nextElementSibling?.matches('.journal-day.is-future:not(a):not(button)')).toBe(true);
     expect(container.querySelectorAll('.journal-day.is-future')).toHaveLength(85);
   });
 
   it('opens or creates the page for a day and goes to it', async () => {
-    const fetchMock = serve((path, init) => (path === '/me/journal/2026-10-06/page' && init?.method === 'POST' ? json({ noteId: 'page' }, 201) : undefined));
-    await render('/journal/2026-10-06');
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/journal') return json({ year: 2026, today: '2026-10-07', days: [] });
+      return path === '/me/journal/2026-10-06/page' && init?.method === 'POST' ? json({ noteId: 'page' }, 201) : undefined;
+    });
+    await render('/journal');
 
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Tuesday, October 6, write a page"]')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/journal/2026-10-06/page', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Note page');
   });
 
+  it('writes today’s page from the header, or links to it once it exists', async () => {
+    let noteId: string | null = null;
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/journal') return json({ year: 2026, today: '2026-10-07', days: noteId ? [{ day: '2026-10-07', mood: null, noteId }] : [] });
+      if (path === '/me/journal/2026-10-07/page' && init?.method === 'POST') return json({ noteId: 'today' }, 201);
+      return undefined;
+    });
+    await render('/journal');
+
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Write today’s page')!.click());
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/journal/2026-10-07/page', expect.objectContaining({ method: 'POST' }));
+    expect(container.textContent).toContain('Note page');
+
+    noteId = 'today';
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render('/journal');
+    expect([...container.querySelectorAll('a')].find((link) => link.textContent === 'Open today’s page')?.getAttribute('href')).toBe('/notes/today');
+  });
+
   it('writes a weekly review page and goes to it', async () => {
-    const fetchMock = serve((path, init) => (path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined));
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/journal') return json({ year: 2026, today: '2026-10-07', days: [] });
+      return path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined;
+    });
     await render('/review');
 
+    await chooseFromMenu(container, 'Actions for Journal', 'Write a weekly review');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/me/weekly-review', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Note page');
   });
 
   it('writes one weekly review when the page mounts twice', async () => {
-    const fetchMock = serve((path, init) => (path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined));
+    const fetchMock = serve((path, init) => {
+      if (path === '/me/journal') return json({ year: 2026, today: '2026-10-07', days: [] });
+      return path === '/me/weekly-review' && init?.method === 'POST' ? json({ noteId: 'review' }, 201) : undefined;
+    });
     await act(async () =>
       root.render(
         <StrictMode>
@@ -162,7 +198,9 @@ describe('Journal', () => {
       ),
     );
     await act(async () => {});
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/v1/me/weekly-review')).toHaveLength(0);
 
+    await chooseFromMenu(container, 'Actions for Journal', 'Write a weekly review');
     expect(fetchMock.mock.calls.filter(([path]) => path === '/api/v1/me/weekly-review')).toHaveLength(1);
     expect(container.textContent).toContain('Note page');
   });

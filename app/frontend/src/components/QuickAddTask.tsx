@@ -1,16 +1,19 @@
 import { useId, useState } from 'react';
 import { useAuth } from '../auth';
 import { describeQuickTask, parseQuickTask } from '../quick-add';
+import type { Tag } from '../spaces';
 import type { Task } from '../tasks';
 import { useAction } from '../useAction';
+import { useResource } from '../useResource';
 import { Button } from './Button';
 
 export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; onAdded: (task: Task) => void; spaceId: string }) {
   const auth = useAuth();
   const adding = useAction();
   const hintId = useId();
+  const tags = useResource<Tag[]>(`/spaces/${spaceId}/tags`, true);
   const [text, setText] = useState('');
-  const quick = parseQuickTask(text, []);
+  const quick = parseQuickTask(text, (tags.data ?? []).map((tag) => tag.name));
   const understood = describeQuickTask(quick);
 
   return (
@@ -24,9 +27,11 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
             method: 'POST',
             body: JSON.stringify({ title: quick.title.slice(0, 200), listId, dueDate: quick.dueDate, dueTime: quick.dueTime, priority: quick.priority }),
           });
+          const tagIds = (tags.data ?? []).filter((tag) => quick.tagNames.includes(tag.name)).map((tag) => tag.id);
+          if (tagIds.length) await auth.request(`/items/${added.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
           setText('');
           onAdded(added);
-          return '';
+          return `Added ${added.title}.`;
         }, 'Could not add the task');
       }}
     >

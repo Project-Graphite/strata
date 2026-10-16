@@ -88,6 +88,7 @@ describe('People', () => {
         ]);
       }
       if (path === '/spaces/home/people' && init?.method === 'POST') return json(person('cy', 'Cy', {}), 201);
+      if (path === '/people/cy') return json({ ...person('cy', 'Cy', {}), events: [] });
       return undefined;
     });
     await render('/people');
@@ -97,7 +98,7 @@ describe('People', () => {
     expect([...soon.querySelectorAll('a > span.grid > span')].map((line) => line.textContent)).toEqual(['Ana', 'Tomorrow · turns 30']);
     expect(container.textContent).toContain('Sister · Home');
 
-    await act(async () => button('Add person').click());
+    await act(async () => button('New person').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Cy';
     await choose(form, 'Day', '9');
@@ -112,6 +113,7 @@ describe('People', () => {
     });
     const body = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/people' && init?.method === 'POST')![1]!.body));
     expect(body).toEqual({ name: 'Cy', relationship: null, birthdayMonth: 3, birthdayDay: 9, birthYear: 1990, email: null, phone: null, notes: '' });
+    expect(container.querySelector('h1')?.textContent).toBe('Cy');
   });
 
   it('keeps gift ideas and links events shared with a person', async () => {
@@ -132,7 +134,7 @@ describe('People', () => {
     await render('/people/ana');
 
     expect(container.querySelector('a[href="mailto:ana@example.com"]')).not.toBeNull();
-    await act(async () => button('Add idea').click());
+    await act(async () => button('New gift idea').click());
     const idea = container.querySelector('dialog form') as HTMLFormElement;
     idea.querySelector<HTMLInputElement>('input[name="text"]')!.value = 'A good umbrella';
     await act(async () => {

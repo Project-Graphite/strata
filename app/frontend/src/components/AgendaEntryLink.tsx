@@ -1,11 +1,12 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Dialog, LinesSkeleton } from '@project-graphite/ui';
+import { Dialog, LinesSkeleton, type TagColor } from '@project-graphite/ui';
 import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
-import { ButtonAnchor } from './Button';
+import { Button, ButtonAnchor } from './Button';
+import { DialogActions } from './DialogActions';
 
 function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: () => void }) {
   const details = useResource<CalendarEvent>(`/calendars/${entry.calendarId}/event?uid=${encodeURIComponent(entry.uid!)}`, true);
@@ -50,7 +51,7 @@ function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: 
             <ButtonAnchor href={details.data.meetingUrl} label="Join meeting" large primary />
           )}
           {details.data.description && (
-            <p className="m-0 max-h-72 overflow-y-auto rounded-[var(--radius-field)] border border-line p-3 text-sm whitespace-pre-line break-words text-muted">
+            <p className="m-0 max-h-72 overflow-y-auto rounded-field border border-line p-3 text-sm whitespace-pre-line break-words text-muted">
               {details.data.description}
             </p>
           )}
@@ -62,6 +63,11 @@ function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: 
           </p>
         </div>
       )}
+      <div className="mt-5">
+        <DialogActions>
+          <Button label="Done" large onClick={onClose} primary />
+        </DialogActions>
+      </div>
     </Dialog>
   );
 }
@@ -75,12 +81,12 @@ export function AgendaEntryLink({
 }: {
   children: ReactNode;
   className: string;
-  colour: string;
+  colour: TagColor;
   entry: AgendaEntry;
   style?: CSSProperties;
 }) {
   const [open, setOpen] = useState(false);
-  const shared = { className, style: { ...style, '--entry-colour': colour } as CSSProperties, title: entry.title };
+  const shared = { className: `${className} tag-${colour}`, style: { ...style, '--entry-color': 'var(--tag-color)' } as CSSProperties, title: entry.title };
   if (entry.kind !== 'external') {
     return (
       <Link {...shared} to={entryLink(entry)}>
@@ -98,7 +104,7 @@ export function AgendaEntryLink({
   );
 }
 
-export function AgendaCard({ colour, entry }: { colour: string; entry: AgendaEntry }) {
+export function AgendaCard({ colour, entry }: { colour: TagColor; entry: AgendaEntry }) {
   return (
     <AgendaEntryLink className="agenda-card" colour={colour} entry={entry}>
       <span className="block truncate text-sm text-ink">{entry.title}</span>

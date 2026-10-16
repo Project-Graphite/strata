@@ -106,7 +106,7 @@ describe('Bookmarks', () => {
     await render('/bookmarks');
     expect(container.textContent).toContain('Nothing to read later');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Save a link')!.click());
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New bookmark')!.click());
     const input = container.querySelector<HTMLInputElement>('input[name="url"]')!;
     await act(async () => {
       input.value = 'https://bread.example/slow';
@@ -158,7 +158,10 @@ describe('Bookmarks', () => {
     expect(link.rel).toBe('noopener noreferrer nofollow');
     expect(link.target).toBe('_blank');
     expect(container.querySelector('a[href="https://bread.example/loaf.jpg"]')?.textContent).toBe('Image: A crusty loaf');
-    await vi.waitFor(() => expect(container.textContent).toContain('Read later'));
+    await vi.waitFor(() => expect(container.querySelector('.snackbar')?.textContent).toContain('Marked Slow bread as read.'));
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/bookmarks/b2', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ read: true }) }));
+    expect(container.querySelector('.back-link')?.getAttribute('href')).toBe('/bookmarks');
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Actions for Slow bread"]')!.click());
+    expect([...container.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent)).toEqual(['Move back to read later', 'Fetch again', 'Move to trash']);
   });
 });

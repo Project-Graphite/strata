@@ -74,7 +74,7 @@ describe('Search palette', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/search?q=fla', expect.anything());
     const options = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
-    expect(options).toEqual(['Flat rotapage · Flat', 'Flat choresnote · Flat', 'Flat billsFlat', 'Flat']);
+    expect(options).toEqual(['Flat rotapage · Flat', 'Flat choresquick note · Flat', 'Flat billsFlat', 'Flat']);
     expect(container.querySelector<HTMLAnchorElement>('[role="option"]')?.getAttribute('href')).toBe('/notes/rota');
   });
 
@@ -103,9 +103,10 @@ describe('Search palette', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
     const labels = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
-    expect(labels).toEqual(expect.arrayContaining(['New page', 'Go to tasks']));
-    const task = [...container.querySelectorAll<HTMLAnchorElement>('[role="option"]')].find((option) => option.textContent === 'Go to tasks')!;
-    expect(task.getAttribute('href')).toBe('/spaces/home/tasks');
+    expect(labels).toEqual(expect.arrayContaining(['New page', 'Tasks']));
+    expect(labels).not.toContain('Go to tasks');
+    const task = [...container.querySelectorAll<HTMLAnchorElement>('[role="option"]')].find((option) => option.textContent === 'Tasks')!;
+    expect(task.getAttribute('href')).toBe('/tasks');
 
     await act(async () =>
       [...container.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'New page')!.click(),

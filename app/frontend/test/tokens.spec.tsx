@@ -36,6 +36,8 @@ describe('Access tokens', () => {
       if (path === '/spaces') return Promise.resolve(json([]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
       if (path === '/me/two-step') return Promise.resolve(json({ enabled: false, recoveryCodesLeft: 0 }));
+      if (path === '/me/api-reference') return Promise.resolve(json({ basePath: '/api/v1', scopes: [] }));
+      if (path === '/me/webhooks') return Promise.resolve(json([]));
       if (path === '/me/tokens' && init?.method === 'POST') {
         expect(JSON.parse(String(init.body))).toEqual({
           name: 'Backup',
@@ -64,7 +66,7 @@ describe('Access tokens', () => {
     vi.stubGlobal('fetch', fetchMock);
     await act(async () =>
       root.render(
-        <MemoryRouter initialEntries={['/settings/tokens']}>
+        <MemoryRouter initialEntries={['/settings/developer']}>
           <AuthProvider>
             <App />
           </AuthProvider>

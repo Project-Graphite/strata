@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { Avatar, ConfirmDialog, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { roleOptions, useSpaces, type SpaceRole } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
-import { useSpace } from './SpaceLayout';
+import { useSpace, useSpaceInvites } from './SpaceLayout';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
-import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
 import { RowText } from '../../components/RowText';
@@ -21,21 +20,18 @@ interface Member {
   joinedAt: string;
 }
 
+const roleLabel = (role: SpaceRole) => roleOptions.find((option) => option.value === role)?.label;
+
 export function SpaceMembers() {
   const auth = useAuth();
-  const navigate = useNavigate();
   const space = useSpace();
+  const { invite, invited } = useSpaceInvites();
   const spaces = useSpaces();
   const members = useResource<Member[]>(`/spaces/${space.id}/members`, true);
   const action = useAction();
   const [removing, setRemoving] = useState<Member>();
-  const [inviting, setInviting] = useState(false);
-  const manages = space.role === 'owner';
-  const invites = manages && space.kind === 'shared';
+  const manages = space.role === 'owner' && space.kind === 'shared';
   const self = auth.user?.id;
-
-  if (members.error) return <LoadError error={members.error} onRetry={members.reload} />;
-  if (!members.data) return <ListSkeleton label="Loading the members of this space" rows={3} />;
 
   function changeRole(member: Member, role: SpaceRole) {
     void action.run(async () => {
@@ -53,21 +49,21 @@ export function SpaceMembers() {
 
   return (
     <>
-      <Toolbar actions={invites && <Button icon="plus" label="Invite people" onClick={() => setInviting(true)} primary />}>
-        <Hint>{members.data.length === 1 ? '1 member' : `${members.data.length} members`}</Hint>
-      </Toolbar>
-      <ul className="panel-rows">
-        {members.data.map((member) => (
-          <li className="panel-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3" key={member.userId}>
-            <div className="flex min-w-0 items-center gap-3">
+      {manages && <Toolbar actions={<Button icon="plus" label="Invite people" onClick={invite} />} />}
+      {members.error ? (
+        <LoadError error={members.error} onRetry={members.reload} />
+      ) : !members.data ? (
+        <ListSkeleton label="Loading the members of this space" rows={3} />
+      ) : (
+        <ul className="panel-rows">
+          {members.data.map((member) => (
+            <li className="flex items-center gap-3 panel-row" key={member.userId}>
               <Avatar name={member.displayName} />
               <RowText
-                detail={<>@{member.handle} · joined {timeAgo(member.joinedAt)}</>}
-                title={<>{member.displayName} {member.userId === self && <span className="text-muted"> · you</span>}</>}
+                detail={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${timeAgo(member.joinedAt)}`].filter(Boolean).join(' · ')}
+                title={member.userId === self ? `${member.displayName} · you` : member.displayName}
               />
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {invites ? (
+              {manages && (
                 <Select
                   aria-label={`Role of ${member.displayName}`}
                   className="w-32"
@@ -77,38 +73,29 @@ export function SpaceMembers() {
                   size="small"
                   value={member.role}
                 />
-              ) : (
-                <span className="text-sm text-muted">{roleOptions.find((option) => option.value === member.role)?.label}</span>
               )}
-              {space.kind === 'shared' && (manages || member.userId === self) && (
-                <Button label={member.userId === self ? 'Leave' : 'Remove'} onClick={() => setRemoving(member)} />
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      {invites && <SpaceInvitations inviting={inviting} onClose={() => setInviting(false)} space={space} />}
+              {manages && member.userId !== self && <ActionsMenu items={[{ label: 'Remove', onSelect: () => setRemoving(member) }]} name={member.displayName} />}
+            </li>
+          ))}
+        </ul>
+      )}
+      {manages && <SpaceInvitations key={invited} space={space} />}
 
       {removing && (
         <ConfirmDialog
-          busyLabel={removing.userId === self ? 'Leaving…' : 'Removing…'}
-          confirmLabel={removing.userId === self ? 'Leave space' : 'Remove'}
-          errorFallback="Could not finish this"
+          busyLabel="Removing…"
+          confirmLabel="Remove member"
+          errorFallback={`Could not remove ${removing.displayName}`}
           onClose={() => setRemoving(undefined)}
           onConfirm={async () => {
             await auth.request(`/spaces/${space.id}/members/${removing.userId}`, { method: 'DELETE' });
-            if (removing.userId === self) {
-              spaces.mutate((current) => current.filter((shown) => shown.id !== space.id));
-              navigate('/spaces');
-            } else {
-              members.mutate((current) => current.filter((shown) => shown.userId !== removing.userId));
-            }
+            members.mutate((current) => current.filter((shown) => shown.userId !== removing.userId));
+            action.report(`Removed ${removing.displayName}.`);
           }}
-          title={removing.userId === self ? `Leave ${space.name}?` : `Remove ${removing.displayName}?`}
+          title={`Remove ${removing.displayName}?`}
+          tone="danger"
         >
-          {removing.userId === self
-            ? 'You lose access to everything in it until someone invites you back.'
-            : `${removing.displayName} loses access to everything in ${space.name}.`}
+          {removing.displayName} loses access to everything in {space.name} until someone invites them back.
         </ConfirmDialog>
       )}
     </>

@@ -8,7 +8,9 @@ import { useResource } from '../useResource';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
-import { Button, IconButton } from '../components/Button';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { IconButton } from '../components/Button';
+import { RowText } from '../components/RowText';
 
 export function InboxPage() {
   const auth = useAuth();
@@ -34,8 +36,9 @@ export function InboxPage() {
     <Page
       actions={
         (inbox.data?.unread ?? 0) > 0 && (
-          <Button
+          <IconButton
             disabled={action.busy}
+            icon="check-mark"
             label="Mark all read"
             onClick={() =>
               void action.run(async () => {
@@ -58,42 +61,44 @@ export function InboxPage() {
       ) : !notifications.data ? (
         <ListSkeleton label="Loading your inbox" rows={4} />
       ) : notifications.data.results.length === 0 ? (
-        <Empty title="Nothing new" />
+        <Empty title="Nothing new">Comments, invitations and changes in your shared spaces show up here.</Empty>
       ) : (
         <>
           <ul className="panel-rows">
-            {notifications.data.results.map((notification) => (
-              <li className="flex items-start justify-between gap-4 panel-row" key={notification.id}>
-                <div className="relative min-w-0 flex-1">
-                  <p className={`m-0 flex items-center gap-2 ${notification.read ? 'text-muted' : 'font-medium text-ink'}`}>
-                    {!notification.read && (
-                      <span className="size-2 shrink-0 rounded-full bg-ink">
-                        <span className="sr-only">Unread: </span>
-                      </span>
-                    )}
-                    {notification.link ? (
-                      <Link
-                        className="text-inherit no-underline after:absolute after:inset-0 hover:underline"
-                        onClick={() => !notification.read && setRead(notification, true)}
-                        to={notification.link}
-                      >
-                        {notification.title}
-                      </Link>
-                    ) : (
-                      notification.title
-                    )}
-                  </p>
-                  {notification.body && <p className="mt-1 mb-0 text-sm text-muted">{notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body}</p>}
-                  <p className="mono-sm m-0 mt-1 text-faint">{timeAgo(notification.createdAt)}</p>
-                </div>
-                <IconButton
-                  disabled={action.busy}
-                  icon={notification.read ? 'mail' : 'check-mark'}
-                  label={notification.read ? 'Mark unread' : 'Mark read'}
-                  onClick={() => setRead(notification, !notification.read)}
-                />
-              </li>
-            ))}
+            {notifications.data.results.map((notification) => {
+              const content = (
+                <>
+                  <span aria-hidden={notification.read} className={`mt-2 size-2 shrink-0 rounded-full ${notification.read ? '' : 'bg-ink'}`}>
+                    {!notification.read && <span className="sr-only">Unread: </span>}
+                  </span>
+                  <RowText
+                    detail={notification.body && (notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body)}
+                    title={<span className={notification.read ? 'text-muted' : 'font-medium'}>{notification.title}</span>}
+                  >
+                    <span className="mono-sm text-faint">{timeAgo(notification.createdAt)}</span>
+                  </RowText>
+                </>
+              );
+              return (
+                <li className={`flex items-center gap-3 pe-2 ${notification.link ? 'hover:bg-line-soft' : ''}`} key={notification.id}>
+                  {notification.link ? (
+                    <Link
+                      className="flex min-w-0 flex-1 items-start gap-3 panel-row text-ink no-underline"
+                      onClick={() => !notification.read && setRead(notification, true)}
+                      to={notification.link}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 items-start gap-3 panel-row">{content}</div>
+                  )}
+                  <ActionsMenu
+                    items={[{ label: notification.read ? 'Mark unread' : 'Mark read', onSelect: () => setRead(notification, !notification.read) }]}
+                    name={notification.title}
+                  />
+                </li>
+              );
+            })}
           </ul>
           <Pagination
             page={notifications.data.page}

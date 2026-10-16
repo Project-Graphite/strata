@@ -140,7 +140,7 @@ export class InstallmentsService implements OnModuleInit {
       notes.flatMap((note) =>
         members
           .filter((member) => member.spaceId === note.spaceId)
-          .map((member) => ({ userId: member.userId, kind: 'payment_due' as const, title: note.title, body: note.body, link: `/spending?space=${note.spaceId}` })),
+          .map((member) => ({ userId: member.userId, kind: 'payment_due' as const, title: note.title, body: note.body, link: `/spending/accounts?space=${note.spaceId}` })),
       ),
     );
   }

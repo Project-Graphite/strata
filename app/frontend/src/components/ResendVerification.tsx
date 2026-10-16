@@ -28,7 +28,7 @@ export function ResendVerification({ email }: { email: string }) {
         <p className="m-0">
           Nothing arrived?{' '}
           <button
-            className="text-button"
+            className="text-button rule-link"
             disabled={state === 'sending'}
             onClick={() => void resend()}
             type="button"

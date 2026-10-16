@@ -1,64 +1,67 @@
-import { Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { useState } from 'react';
+import { ConfirmDialog, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { noteChecks, type SentInvitation } from '../../invitations';
 import { roleOptions, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { Button } from '../../components/Button';
 import { RowText } from '../../components/RowText';
 
-export function SpaceInvitations({ inviting, onClose, space }: { inviting: boolean; onClose: () => void; space: Space }) {
+const invitee = (invitation: SentInvitation) => (invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : (invitation.email ?? 'Invite link'));
+
+export function SpaceInvitations({ space }: { space: Space }) {
   const auth = useAuth();
   const pending = useResource<SentInvitation[]>(`/spaces/${space.id}/invitations`, true);
-  const withdrawing = useAction();
+  const { report } = useAction();
+  const [withdrawing, setWithdrawing] = useState<SentInvitation>();
+
+  if (!pending.error && !pending.data?.length) return null;
 
   return (
-    <>
-      {pending.error && <LoadError compact error={pending.error} onRetry={pending.reload} />}
-      {pending.data && pending.data.length > 0 && (
-        <Section title="Waiting for an answer">
-          <ul className="panel-rows">
-            {pending.data.map((invitation) => (
-              <li className="panel-row flex items-center justify-between gap-4" key={invitation.id}>
-                <RowText
-                  detail={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
-                  title={invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : invitation.email}
-                />
-                <Button
-                  disabled={withdrawing.busy}
-                  label="Withdraw"
-                  onClick={() =>
-                    void withdrawing.run(async () => {
-                      await auth.request(`/invitations/${invitation.id}`, { method: 'DELETE' });
-                      pending.mutate((current) => current.filter((shown) => shown.id !== invitation.id));
-                      return 'Invite withdrawn.';
-                    }, 'Could not withdraw the invite')
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-        </Section>
+    <Section title="Waiting for an answer">
+      {!pending.data ? (
+        <LoadError compact error={pending.error} onRetry={pending.reload} />
+      ) : (
+        <ul className="panel-rows">
+          {pending.data.map((invitation) => (
+            <li className="flex items-center gap-3 panel-row" key={invitation.id}>
+              <RowText
+                detail={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
+                title={invitee(invitation)}
+              />
+              <ActionsMenu items={[{ label: 'Withdraw', onSelect: () => setWithdrawing(invitation) }]} name={invitee(invitation)} />
+            </li>
+          ))}
+        </ul>
       )}
-      {inviting && (
-        <InviteToSpaceDialog
-          onClose={onClose}
-          onInvited={() => {
-            pending.reload();
-            onClose();
+
+      {withdrawing && (
+        <ConfirmDialog
+          busyLabel="Withdrawing…"
+          confirmLabel="Withdraw invite"
+          errorFallback="Could not withdraw the invite"
+          onClose={() => setWithdrawing(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/invitations/${withdrawing.id}`, { method: 'DELETE' });
+            pending.mutate((current) => current.filter((shown) => shown.id !== withdrawing.id));
+            report(`Withdrew the invite to ${invitee(withdrawing)}.`);
           }}
-          space={space}
-        />
+          title={`Withdraw the invite to ${invitee(withdrawing)}?`}
+          tone="danger"
+        >
+          The invite stops working straight away.
+        </ConfirmDialog>
       )}
-    </>
+    </Section>
   );
 }
 
-function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: () => void; onInvited: () => void; space: Space }) {
+export function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: () => void; onInvited: () => void; space: Space }) {
   const auth = useAuth();
   const inviting = useAction();
   const form = useFormErrors();
@@ -66,7 +69,7 @@ function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: () => voi
   return (
     <FormDialog
       busy={inviting.busy}
-      busyLabel="Inviting…"
+      busyLabel="Sending…"
       onClose={onClose}
       onSubmit={(target) => {
         if (!form.check(target, { who: [required('Enter an email address or a @handle.')], note: noteChecks })) return;
@@ -83,11 +86,11 @@ function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: () => voi
             }),
           });
           onInvited();
-          return created.emailed ? `Invited ${who}.` : `Invited ${who}, but the email could not be sent.`;
+          return created.emailed ? `Invited ${who}.` : `Invited ${who}, but the email couldn’t be sent.`;
         }, 'Could not send the invite');
       }}
       submitLabel="Send invite"
-      title={`Invite people to ${space.name}`}
+      title="Invite people"
     >
       <TextField
         autoCapitalize="none"

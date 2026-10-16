@@ -68,7 +68,7 @@ export function Weather({ settings }: WidgetProps) {
           {condition(current.code)} · {place.name.split(',')[0]} · wind {current.wind} {unit === 'fahrenheit' ? 'mph' : 'km/h'}
         </p>
       </div>
-      <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-xs">
+      <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-sm">
         {daily.map((day) => (
           <li className="grid gap-0.5" key={day.date} title={condition(day.code)}>
             <span className="text-faint">{formatDay(day.date, { weekday: 'narrow' })}</span>
@@ -245,9 +245,7 @@ export function News({ settings }: WidgetProps) {
         ))}
       </ul>
       {loaded.failed > 0 && (
-        <p className="m-0 text-xs text-faint">
-          {loaded.failed === feeds.length ? 'None of the feeds loaded.' : `${loaded.failed} of ${feeds.length} feeds didn’t load.`}
-        </p>
+        <Hint>{loaded.failed === feeds.length ? 'None of the feeds loaded.' : `${loaded.failed} of ${feeds.length} feeds didn’t load.`}</Hint>
       )}
     </div>
   );

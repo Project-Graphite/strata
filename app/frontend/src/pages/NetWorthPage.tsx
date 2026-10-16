@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { ConfirmDialog, DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, formatDay, ListSkeleton, Meter, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
@@ -8,43 +7,40 @@ import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section, Toolbar } from '../components/Page';
-import { assetKindOptions, spendingTabs, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
-import { SpaceChooser, useChosenSpace } from '../spaces';
+import { MoneyRow } from '../components/MoneyRow';
+import { Section } from '../components/Page';
+import { SpendingFrame } from '../components/SpendingFrame';
+import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
+import { useChosenSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { CurrencyField } from '../components/CurrencyField';
-import { RowText } from '../components/RowText';
 import { MissingRates, Stat, Stats } from '../components/Stats';
 
 export function NetWorthPage() {
   const auth = useAuth();
-  const [params] = useSearchParams();
+  const action = useAction();
   const { spaceId, editable } = useChosenSpace();
   const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const [dialog, setDialog] = useState<
-    { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { removeGoal: SavingsGoal } | { removeAsset: Asset }
+    { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { deleteGoal: SavingsGoal } | { deleteAsset: Asset }
   >();
   const failed = worth.error ?? goals.error;
 
   return (
-    <Page
-      actions={
-        editable && (
-          <>
-            <Button label="Add a goal" onClick={() => setDialog({ goal: null })} />
-            <Button icon="plus" label="Add an asset" onClick={() => setDialog({ asset: null })} primary />
-          </>
-        )
-      }
-      title="Spending"
+    <SpendingFrame
+      accounts={accounts.data}
+      currency={worth.data?.currency}
+      onChanged={() => {
+        worth.reload();
+        accounts.reload();
+      }}
+      tab="net-worth"
     >
-      <Tabs items={spendingTabs('net-worth', params.get('space'))} label="Spending" />
-      <Toolbar actions={<SpaceChooser />} />
       {failed ? (
         <LoadError error={failed} onRetry={worth.error ? worth.reload : goals.reload} />
       ) : !worth.data || !goals.data ? (
@@ -52,91 +48,76 @@ export function NetWorthPage() {
       ) : (
         <>
           <Stats>
-            <Stat label="Net worth" value={money(worth.data.totalMinor, worth.data.currency)} />
-            <Stat label="Accounts" value={money(worth.data.accountsMinor, worth.data.currency)} />
-            <Stat label="Assets" value={money(worth.data.assetsMinor, worth.data.currency)} />
-            <Stat label="Installments owed" value={money(worth.data.installmentsMinor, worth.data.currency)} />
+            <Stat label="Net worth" value={<Amount currency={worth.data.currency} minor={worth.data.totalMinor} />} />
+            <Stat label="Accounts" value={<Amount currency={worth.data.currency} minor={worth.data.accountsMinor} />} />
+            <Stat label="Assets" value={<Amount currency={worth.data.currency} minor={worth.data.assetsMinor} />} />
+            <Stat label="Installments owed" value={<Amount currency={worth.data.currency} minor={worth.data.installmentsMinor} />} />
           </Stats>
           <MissingRates currencies={worth.data.missing} />
 
-          <Section title="Savings goals">
+          <Section action={editable && <Button icon="plus" label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
             {goals.data.length === 0 ? (
-              <Hint>No savings goals.</Hint>
+              <Hint>No savings goals yet.</Hint>
             ) : (
               <ul className="panel-rows">
                 {goals.data.map((goal) => (
-                  <li className="panel-row grid gap-2" key={goal.id}>
-                    <span className="flex items-center gap-3">
-                      <RowText
-                        detail={[
-                            goal.savedMinor === null && 'No exchange rate yet',
-                            goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-                            goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        title={goal.name}
-                      />
-                      {goal.savedMinor !== null && (
+                  <MoneyRow
+                    amount={
+                      goal.savedMinor !== null && (
                         <Amount currency={goal.currency} minor={goal.savedMinor}>
                           {` of ${money(goal.targetMinor, goal.currency)}`}
                         </Amount>
-                      )}
-                      {editable && (
-                        <ActionsMenu
-                          items={[
-                            ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
-                            { label: 'Edit', onSelect: () => setDialog({ goal }) },
-                            {
-                              label: 'Remove',
-                              separated: true,
-                              onSelect: () => setDialog({ removeGoal: goal }),
-                            },
-                          ]}
-                          name={goal.name}
-                        />
-                      )}
-                    </span>
-                    <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />
-                  </li>
+                      )
+                    }
+                    detail={[
+                      goal.savedMinor === null && 'No exchange rate yet',
+                      goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
+                      goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    key={goal.id}
+                    meter={<Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />}
+                    onOpen={editable ? () => setDialog({ goal }) : undefined}
+                    title={goal.name}
+                  >
+                    {editable && (
+                      <ActionsMenu
+                        items={[
+                          ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
+                          { label: 'Delete', separated: true, onSelect: () => setDialog({ deleteGoal: goal }) },
+                        ]}
+                        name={goal.name}
+                      />
+                    )}
+                  </MoneyRow>
                 ))}
               </ul>
             )}
           </Section>
 
-          <Section title="Assets">
+          <Section action={editable && <Button icon="plus" label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
             {worth.data.assets.length === 0 ? (
-              <Hint>No assets.</Hint>
+              <Hint>No assets yet.</Hint>
             ) : (
               <ul className="panel-rows">
                 {worth.data.assets.map((asset) => (
-                  <li className="panel-row flex items-center gap-3" key={asset.id}>
-                    <RowText
-                      detail={[
-                          assetKindOptions.find((option) => option.value === asset.kind)?.label,
-                          asset.ratePercent !== null && `${asset.ratePercent}% a year`,
-                          asset.maturesOn && `matures ${formatDay(asset.maturesOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-                          `updated ${formatDay(asset.updatedAt.slice(0, 10), { day: 'numeric', month: 'short' })}`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      title={asset.name}
-                    />
-                    <Amount currency={asset.currency} minor={asset.valueMinor} />
-                    {editable && (
-                      <ActionsMenu
-                        items={[
-                          { label: 'Edit', onSelect: () => setDialog({ asset }) },
-                          {
-                            label: 'Remove',
-                            separated: true,
-                            onSelect: () => setDialog({ removeAsset: asset }),
-                          },
-                        ]}
-                        name={asset.name}
-                      />
-                    )}
-                  </li>
+                  <MoneyRow
+                    amount={<Amount currency={asset.currency} minor={asset.valueMinor} />}
+                    detail={[
+                      assetKindOptions.find((option) => option.value === asset.kind)?.label,
+                      asset.ratePercent !== null && `${asset.ratePercent}% a year`,
+                      asset.maturesOn && `matures ${formatDay(asset.maturesOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
+                      `updated ${formatDay(asset.updatedAt.slice(0, 10), { day: 'numeric', month: 'short' })}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    key={asset.id}
+                    onOpen={editable ? () => setDialog({ asset }) : undefined}
+                    title={asset.name}
+                  >
+                    {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAsset: asset }) }]} name={asset.name} />}
+                  </MoneyRow>
                 ))}
               </ul>
             )}
@@ -158,39 +139,41 @@ export function NetWorthPage() {
         />
       )}
       {dialog && 'add' in dialog && <AddToGoal goal={dialog.add} onClose={() => setDialog(undefined)} onSaved={goals.reload} />}
-      {dialog && 'removeGoal' in dialog && (
+      {dialog && 'deleteGoal' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove goal"
-          errorFallback="Could not remove the goal"
+          busyLabel="Deleting…"
+          confirmLabel="Delete goal"
+          errorFallback="Could not delete the goal"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/savings-goals/${dialog.removeGoal.id}`, { method: 'DELETE' });
-            goals.mutate((current) => current.filter((shown) => shown.id !== dialog.removeGoal.id));
+            await auth.request(`/savings-goals/${dialog.deleteGoal.id}`, { method: 'DELETE' });
+            goals.mutate((current) => current.filter((shown) => shown.id !== dialog.deleteGoal.id));
+            action.report(`Deleted ${dialog.deleteGoal.name}.`);
           }}
-          title={`Remove ${dialog.removeGoal.name}?`}
+          title={`Delete ${dialog.deleteGoal.name}?`}
           tone="danger"
         >
           Its progress is lost. Nothing in your accounts changes.
         </ConfirmDialog>
       )}
-      {dialog && 'removeAsset' in dialog && (
+      {dialog && 'deleteAsset' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove asset"
-          errorFallback="Could not remove the asset"
+          busyLabel="Deleting…"
+          confirmLabel="Delete asset"
+          errorFallback="Could not delete the asset"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/assets/${dialog.removeAsset.id}`, { method: 'DELETE' });
+            await auth.request(`/assets/${dialog.deleteAsset.id}`, { method: 'DELETE' });
             worth.reload();
+            action.report(`Deleted ${dialog.deleteAsset.name}.`);
           }}
-          title={`Remove ${dialog.removeAsset.name}?`}
+          title={`Delete ${dialog.deleteAsset.name}?`}
           tone="danger"
         >
           It no longer counts towards your net worth.
         </ConfirmDialog>
       )}
-    </Page>
+    </SpendingFrame>
   );
 }
 
@@ -206,7 +189,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={asset ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (!form.check(target, { name: [required('Name the asset.'), atMost(120, 'Use at most 120 characters.')], value: [required('Enter what it is worth.'), moneyAmount], rate: [rate] })) return;
@@ -225,7 +208,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
           .run(async () => {
             await auth.request(asset ? `/assets/${asset.id}` : `/spaces/${spaceId}/assets`, { method: asset ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
-            return asset ? '' : `Added ${body.name}.`;
+            return `${asset ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the asset')
           .then((saved) => saved && onClose());
       }}
@@ -269,7 +252,7 @@ function SavingsGoalEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={goal ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (!form.check(target, { name: [required('Name the goal.'), atMost(120, 'Use at most 120 characters.')], target: [required('Enter the amount to save.'), moneyAmount] })) return;
@@ -280,12 +263,12 @@ function SavingsGoalEditor({
           .run(async () => {
             await auth.request(goal ? `/savings-goals/${goal.id}` : `/spaces/${spaceId}/savings-goals`, { method: goal ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
-            return goal ? '' : `Added ${body.name}.`;
+            return `${goal ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the goal')
           .then((saved) => saved && onClose());
       }}
       submitLabel={goal ? 'Save' : 'Add goal'}
-      title={goal ? 'Edit goal' : 'New savings goal'}
+      title={goal ? 'Edit savings goal' : 'New savings goal'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={goal?.name} label="Name" maxLength={120} placeholder="New car" {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
@@ -318,12 +301,12 @@ function AddToGoal({ goal, onClose, onSaved }: { goal: SavingsGoal; onClose: () 
           .run(async () => {
             await auth.request(`/savings-goals/${goal.id}/add`, { method: 'POST', body: JSON.stringify({ amountMinor }) });
             onSaved();
-            return '';
+            return direction === 'take' ? `Took ${money(-amountMinor, goal.currency)} out of ${goal.name}.` : `Added ${money(amountMinor, goal.currency)} to ${goal.name}.`;
           }, 'Could not update the goal')
           .then((saved) => saved && onClose());
       }}
       submitLabel="Save"
-      title={goal.name}
+      title="Add or take out"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Select

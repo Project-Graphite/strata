@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
-import { spendingTabs } from '../spending';
 import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { MoneyRow } from '../components/MoneyRow';
+import { Section } from '../components/Page';
+import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates, Stat, Stats } from '../components/Stats';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
@@ -32,23 +35,6 @@ interface Summary {
   stillWorthIt: Subscription[];
 }
 
-function SubscriptionLine({ subscription, detail, onOpen }: { subscription: Subscription; detail: string; onOpen?: () => void }) {
-  const content = (
-    <>
-      <span className="min-w-0 flex-1 truncate">{subscription.name}</span>
-      <span className="shrink-0 text-sm text-muted">{detail}</span>
-      <Amount currency={subscription.currency} minor={subscription.amountMinor} />
-    </>
-  );
-  return onOpen ? (
-    <button className="flex w-full cursor-pointer items-baseline justify-between gap-4 border-0 bg-transparent panel-row text-left text-ink hover:bg-line-soft" onClick={onOpen} type="button">
-      {content}
-    </button>
-  ) : (
-    <p className="m-0 flex items-baseline justify-between gap-4 panel-row text-ink">{content}</p>
-  );
-}
-
 export function RecurringPage() {
   const auth = useAuth();
   const spaces = useSpaces();
@@ -61,6 +47,7 @@ export function RecurringPage() {
   const [params, setParams] = useSearchParams();
   const linked = useResource<Subscription>(params.get('subscription') ? `/subscriptions/${params.get('subscription')}` : null, true);
   const opened = editing ?? (linked.data && opener(linked.data) ? linked.data : undefined);
+  const currency = summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR';
   const close = () => {
     setEditing(undefined);
     setParams((current) => {
@@ -69,112 +56,108 @@ export function RecurringPage() {
       return next;
     });
   };
+  const subscriptionRow = (subscription: Subscription, detail: string) => (
+    <MoneyRow
+      amount={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
+      detail={detail}
+      key={subscription.id}
+      onOpen={opener(subscription)}
+      title={subscription.name}
+    />
+  );
 
   return (
-    <Page
-      actions={
-        editable.length > 0 && (
-          <>
-            <IconButton icon="upload" label="Import a statement" onClick={() => setImporting(true)} />
-            <Button icon="plus" label="Add subscription" onClick={() => setEditing('new')} primary />
-          </>
-        )
-      }
-      title="Spending"
-    >
-      <Tabs items={spendingTabs('recurring')} label="Spending" />
-      {opened && (
-        <SubscriptionEditor
-          onClose={close}
-          onSaved={summary.reload}
-          spaceId={opened === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : opened.spaceId}
-          spaces={opened === 'new' ? editable : undefined}
-          subscription={opened === 'new' ? undefined : opened}
-        />
-      )}
-      {importing && (
-        <StatementImport
-          defaultCurrency={summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR'}
-          onAdded={summary.reload}
-          onClose={() => setImporting(false)}
-        />
-      )}
+    <SpendingFrame currency={currency} tab="recurring">
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !summary.data ? (
         <ListSkeleton label="Adding up your subscriptions" rows={4} />
-      ) : summary.data.totals.length === 0 ? (
-        <Empty title="No subscriptions yet" />
       ) : (
         <>
-          <Stats>
-            {summary.data.home && summary.data.totals.length > 1 && (
-              <Stat
-                detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn ? ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
-                label={`All together, in ${currencyName(summary.data.home.currency)}`}
-                value={`≈ ${money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month`}
-              />
-            )}
-            {summary.data.totals.map((total) => (
-              <Stat
-                detail={`${money(total.yearlyMinor, total.currency)} over the next year`}
-                key={total.currency}
-                label={currencyName(total.currency)}
-                value={`${money(total.monthlyMinor, total.currency)} a month`}
-              />
-            ))}
-          </Stats>
+          {summary.data.totals.length > 0 && (
+            <Stats>
+              {summary.data.home && summary.data.totals.length > 1 && (
+                <Stat
+                  detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn ? ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
+                  label={`All together, in ${currencyName(summary.data.home.currency)}`}
+                  value={
+                    <span>
+                      ≈{' '}
+                      <Amount currency={summary.data.home.currency} minor={summary.data.home.monthlyMinor}>
+                        {' a month'}
+                      </Amount>
+                    </span>
+                  }
+                />
+              )}
+              {summary.data.totals.map((total) => (
+                <Stat
+                  detail={`${money(total.yearlyMinor, total.currency)} over the next year`}
+                  key={total.currency}
+                  label={currencyName(total.currency)}
+                  value={
+                    <Amount currency={total.currency} minor={total.monthlyMinor}>
+                      {' a month'}
+                    </Amount>
+                  }
+                />
+              ))}
+            </Stats>
+          )}
           {summary.data.home && summary.data.totals.length > 1 && <MissingRates currencies={summary.data.home.missing} />}
           {summary.data.trials.length > 0 && (
             <Section title="Trials ending soon">
-              <div className="panel-rows">
-                {summary.data.trials.map((subscription) => (
-                  <SubscriptionLine
-                    detail={`ends ${shortDate(subscription.trialEndsOn!)}`}
-                    key={subscription.id}
-                    onOpen={opener(subscription)}
-                    subscription={subscription}
-                  />
-                ))}
-              </div>
+              <ul className="panel-rows">{summary.data.trials.map((subscription) => subscriptionRow(subscription, `ends ${shortDate(subscription.trialEndsOn!)}`))}</ul>
             </Section>
           )}
-          <Section title="Next renewals">
-            <div className="panel-rows">
-              {summary.data.upcoming.map((subscription) => (
-                <SubscriptionLine
-                  detail={shortDate(subscription.nextRenewal)}
-                  key={subscription.id}
-                  onOpen={opener(subscription)}
-                  subscription={subscription}
-                />
-              ))}
-            </div>
+          <Section
+            action={
+              editable.length > 0 && (
+                <span className="flex items-center gap-2">
+                  <Button icon="plus" label="New subscription" onClick={() => setEditing('new')} />
+                  <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
+                </span>
+              )
+            }
+            title="Next renewals"
+          >
+            {summary.data.totals.length === 0 ? (
+              <Empty level={3} title="No subscriptions yet">
+                Add the subscriptions and bills you pay regularly to see what they cost each month and when they renew.
+              </Empty>
+            ) : summary.data.upcoming.length === 0 ? (
+              <Hint>No renewals coming up.</Hint>
+            ) : (
+              <ul className="panel-rows">{summary.data.upcoming.map((subscription) => subscriptionRow(subscription, shortDate(subscription.nextRenewal)))}</ul>
+            )}
           </Section>
-          <Section title="By category">
-            <div className="panel-rows">
-              {summary.data.categories.map((category) => (
-                <p className="m-0 flex justify-between gap-4 panel-row" key={`${category.category}-${category.currency}`}>
-                  <span className="text-ink">{categoryLabel(category.category)}</span>
-                  <Amount currency={category.currency} minor={category.monthlyMinor}>
-                    {' a month'}
-                  </Amount>
-                </p>
-              ))}
-            </div>
-          </Section>
+          {summary.data.categories.length > 0 && (
+            <Section title="By category">
+              <ul className="panel-rows">
+                {summary.data.categories.map((category) => (
+                  <MoneyRow
+                    amount={
+                      <Amount currency={category.currency} minor={category.monthlyMinor}>
+                        {' a month'}
+                      </Amount>
+                    }
+                    key={`${category.category}-${category.currency}`}
+                    title={categoryLabel(category.category)}
+                  />
+                ))}
+              </ul>
+            </Section>
+          )}
           {summary.data.stillWorthIt.length > 0 && (
             <Section description="Nobody has marked these as used in two months." title="Still worth it?">
               <ul className="panel-rows">
                 {summary.data.stillWorthIt.map((subscription) => (
-                  <li className="flex items-center justify-between gap-4 panel-row" key={subscription.id}>
-                    {opener(subscription) ? (
-                      <button className="text-button min-w-0 truncate text-ink" onClick={opener(subscription)} type="button">
-                        {subscription.name}
-                      </button>
-                    ) : (
-                      <span className="min-w-0 truncate text-ink">{subscription.name}</span>
-                    )}
+                  <MoneyRow
+                    amount={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
+                    key={subscription.id}
+                    onOpen={opener(subscription)}
+                    title={subscription.name}
+                  >
                     <Button
                       disabled={action.busy}
                       label="I used this"
@@ -189,13 +172,23 @@ export function RecurringPage() {
                         }, 'Could not update the subscription')
                       }
                     />
-                  </li>
+                  </MoneyRow>
                 ))}
               </ul>
             </Section>
           )}
         </>
       )}
-    </Page>
+      {opened && (
+        <SubscriptionEditor
+          onClose={close}
+          onSaved={summary.reload}
+          spaceId={opened === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : opened.spaceId}
+          spaces={opened === 'new' ? editable : undefined}
+          subscription={opened === 'new' ? undefined : opened}
+        />
+      )}
+      {importing && <StatementImport defaultCurrency={currency} onAdded={summary.reload} onClose={() => setImporting(false)} />}
+    </SpendingFrame>
   );
 }

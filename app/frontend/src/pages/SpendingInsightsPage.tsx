@@ -1,11 +1,11 @@
-import { useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { formatDay, ListSkeleton } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section, Toolbar } from '../components/Page';
-import { categoryName, spendingTabs, type SpendingInsights } from '../spending';
-import { SpaceChooser, useChosenSpace } from '../spaces';
+import { Section } from '../components/Page';
+import { SpendingFrame } from '../components/SpendingFrame';
+import { categoryName, type SpendingInsights } from '../spending';
+import { useChosenSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
 import { RowText } from '../components/RowText';
@@ -15,15 +15,12 @@ const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone
 const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 78)}%, var(--color-surface))`;
 
 export function SpendingInsightsPage() {
-  const [params] = useSearchParams();
   const { spaceId } = useChosenSpace();
   const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true);
   const shown = insights.data;
 
   return (
-    <Page title="Spending">
-      <Tabs items={spendingTabs('insights', params.get('space'))} label="Spending" />
-      <Toolbar actions={<SpaceChooser />} />
+    <SpendingFrame currency={shown?.currency} onChanged={insights.reload} tab="insights">
       {insights.error ? (
         <LoadError error={insights.error} onRetry={insights.reload} />
       ) : !shown ? (
@@ -31,7 +28,7 @@ export function SpendingInsightsPage() {
       ) : (
         <Insights insights={shown} />
       )}
-    </Page>
+    </SpendingFrame>
   );
 }
 
@@ -66,7 +63,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
             </div>
             <div className="flex gap-2">
               {periods.map((period) => (
-                <span className="flex-1 text-center text-xs text-muted" key={period.month}>
+                <span className="mono-sm flex-1 text-center text-faint" key={period.month}>
                   {monthLabel.format(new Date(`${period.until}T00:00:00Z`))}
                 </span>
               ))}
@@ -144,7 +141,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
         </Section>
 
         <Section title="Day by day">
-          <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted">
+          <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-faint">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}

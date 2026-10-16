@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog, ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
 import { FormDialog } from '../components/FormDialog';
@@ -58,19 +59,20 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                   {calendar.lastError && <span className="text-sm text-danger">The last check failed: {calendar.lastError}</span>}
                 </RowText>
                 {space && space.role !== 'viewer' && (
-                  <div className="flex gap-2">
-                    <Button
-                      disabled={action.busy}
-                      label="Check now"
-                      onClick={() =>
-                        void action.run(async () => {
-                          replace(await auth.request<FollowedCalendar>(`/calendars/${calendar.id}/refresh`, { method: 'POST' }));
-                          return '';
-                        }, 'Could not check the calendar')
-                      }
-                    />
-                    <Button label="Stop following" onClick={() => setStopping(calendar)} />
-                  </div>
+                  <ActionsMenu
+                    items={[
+                      {
+                        label: 'Check now',
+                        onSelect: () =>
+                          void action.run(async () => {
+                            replace(await auth.request<FollowedCalendar>(`/calendars/${calendar.id}/refresh`, { method: 'POST' }));
+                            return `Checked ${calendar.name}.`;
+                          }, 'Could not check the calendar'),
+                      },
+                      { label: 'Stop following', separated: true, onSelect: () => setStopping(calendar) },
+                    ]}
+                    name={calendar.name}
+                  />
                 )}
               </li>
             );
@@ -93,7 +95,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                   body: JSON.stringify({ url: String(values.get('url')).trim(), ...(name ? { name } : {}) }),
                 });
                 calendars.mutate((current) => [...current, added]);
-                return `Following ${added.name}.`;
+                return `Followed ${added.name}.`;
               }, 'Could not follow that calendar')
               .then((done) => done && onClose());
           }}
@@ -118,6 +120,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
           onConfirm={async () => {
             await auth.request(`/calendars/${stopping.id}`, { method: 'DELETE' });
             calendars.mutate((current) => current.filter((shown) => shown.id !== stopping.id));
+            action.report(`Stopped following ${stopping.name}.`);
           }}
           title={`Stop following ${stopping.name}?`}
           tone="danger"
@@ -138,18 +141,14 @@ export function CalendarsPage() {
   const action = useAction();
   const [url, setUrl] = useState('');
   const [resetting, setResetting] = useState(false);
-
-  function create() {
-    void action.run(async () => {
-      const created = await auth.request<{ enabled: boolean; url: string }>('/me/calendar-feed', { method: 'POST' });
-      setUrl(created.url);
-      feed.mutate(() => ({ enabled: true }));
-      return '';
-    }, 'Could not create the link');
-  }
+  const [turningOff, setTurningOff] = useState(false);
 
   return (
-    <Page actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" onClick={() => setFollowing(true)} primary />} eyebrow="Agenda" title="Calendars">
+    <Page
+      actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" onClick={() => setFollowing(true)} primary />}
+      back={{ to: '/agenda', label: 'Agenda' }}
+      title="Calendars"
+    >
       <Section
         description="Subscribe to this link in Google Calendar, Apple Calendar or Outlook to see the events of all your spaces there. Anyone with the link can see them, so keep it private."
         title="Your agenda in other apps"
@@ -161,25 +160,27 @@ export function CalendarsPage() {
         ) : url ? (
           <div className="grid gap-2">
             <Copyable value={url} />
-            <Hint>Copy it now. It is shown only once.</Hint>
+            <Hint>Copy it now. It’s shown only once.</Hint>
           </div>
         ) : feed.data.enabled ? (
           <div className="flex flex-wrap gap-2">
             <Button disabled={action.busy} label="Make a new link" onClick={() => setResetting(true)} />
-            <Button
-              disabled={action.busy}
-              label="Turn the link off"
-              onClick={() =>
-                void action.run(async () => {
-                  await auth.request('/me/calendar-feed', { method: 'DELETE' });
-                  feed.mutate(() => ({ enabled: false }));
-                  return 'The calendar link is turned off.';
-                }, 'Could not turn the link off')
-              }
-            />
+            <Button disabled={action.busy} label="Turn the link off" onClick={() => setTurningOff(true)} />
           </div>
         ) : (
-          <Button disabled={action.busy} icon="link" label="Create a calendar link" onClick={create} />
+          <Button
+            disabled={action.busy}
+            icon="link"
+            label="Create a calendar link"
+            onClick={() =>
+              void action.run(async () => {
+                const created = await auth.request<{ enabled: boolean; url: string }>('/me/calendar-feed', { method: 'POST' });
+                setUrl(created.url);
+                feed.mutate(() => ({ enabled: true }));
+                return 'Created a calendar link.';
+              }, 'Could not create the link')
+            }
+          />
         )}
       </Section>
       <Section
@@ -190,18 +191,36 @@ export function CalendarsPage() {
       </Section>
       {resetting && (
         <ConfirmDialog
+          busyLabel="Making…"
           confirmLabel="Make a new link"
           errorFallback="Could not make a new link"
           onClose={() => setResetting(false)}
           onConfirm={async () => {
             const created = await auth.request<{ enabled: boolean; url: string }>('/me/calendar-feed', { method: 'POST' });
             setUrl(created.url);
-            setResetting(false);
+            action.report('Made a new calendar link.');
           }}
           title="Make a new calendar link?"
           tone="danger"
         >
-          <Hint>The old link stops working, so calendars subscribed to it stop updating.</Hint>
+          The old link stops working, so calendars subscribed to it stop updating.
+        </ConfirmDialog>
+      )}
+      {turningOff && (
+        <ConfirmDialog
+          busyLabel="Turning off…"
+          confirmLabel="Turn off link"
+          errorFallback="Could not turn the link off"
+          onClose={() => setTurningOff(false)}
+          onConfirm={async () => {
+            await auth.request('/me/calendar-feed', { method: 'DELETE' });
+            feed.mutate(() => ({ enabled: false }));
+            action.report('Turned off the calendar link.');
+          }}
+          title="Turn off this link?"
+          tone="danger"
+        >
+          Calendars subscribed to it stop showing your events.
         </ConfirmDialog>
       )}
     </Page>

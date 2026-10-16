@@ -1,9 +1,9 @@
-import { formatDay } from '@project-graphite/ui';
+import { formatDay, type TagColor } from '@project-graphite/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { dayKey, entryTime, type AgendaEntry } from '../agenda';
 import { AgendaEntryLink } from './AgendaEntryLink';
-import { timeOptions } from '../time';
+import { clockTime } from '../time';
 
 const hourHeight = 48;
 const dayMinutes = 24 * 60;
@@ -51,6 +51,12 @@ function place(day: string, entries: AgendaEntry[]) {
   return placed;
 }
 
+export function DayNumber({ day, today }: { day: string; today: string }) {
+  return (
+    <span className={`mono-sm grid size-7 place-items-center rounded-full ${day === today ? 'bg-ink font-medium text-paper' : ''}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
+  );
+}
+
 export function TimeGrid({
   colourOf,
   dayHref,
@@ -58,7 +64,7 @@ export function TimeGrid({
   entries,
   today,
 }: {
-  colourOf: (entry: AgendaEntry) => string;
+  colourOf: (entry: AgendaEntry) => TagColor;
   dayHref: (day: string) => string;
   days: string[];
   entries: AgendaEntry[];
@@ -68,7 +74,7 @@ export function TimeGrid({
   const [now, setNow] = useState(() => new Date().toISOString());
   const timed = entries.filter((entry) => !entry.allDay);
   const allDay = entries.filter((entry) => entry.allDay);
-  const columns = { gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` };
+  const columns = { gridTemplateColumns: `4.5rem repeat(${days.length}, minmax(0, 1fr))` };
   const firstHour = Math.min(8, ...timed.filter((entry) => days.includes(dayKey(new Date(entry.start)))).map((entry) => new Date(entry.start).getHours()));
 
   useEffect(() => {
@@ -80,29 +86,26 @@ export function TimeGrid({
   }, [firstHour]);
 
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-xl border border-line" ref={scroller}>
+    <div className="max-h-[70vh] overflow-auto rounded-panel border border-line" ref={scroller}>
       <div style={{ minWidth: days.length > 1 ? '40rem' : undefined }}>
         <div className="sticky top-0 z-2 bg-paper">
           <div className="grid border-b border-line" style={columns}>
             <span className="sticky left-0 bg-paper" />
-            {days.map((day) => {
-              const date = new Date(`${day}T00:00:00`);
-              return (
-                <Link
-                  aria-current={day === today ? 'date' : undefined}
-                  className={`agenda-day-head border-l border-line ${day === today ? 'text-ink' : 'text-faint'}`}
-                  key={day}
-                  to={dayHref(day)}
-                >
-                  <span className="text-xs uppercase">{formatDay(dayKey(date), { weekday: 'short' })}</span>
-                  <span className={`text-lg ${day === today ? 'font-semibold' : ''}`}>{date.getDate()}</span>
-                </Link>
-              );
-            })}
+            {days.map((day) => (
+              <Link
+                aria-current={day === today ? 'date' : undefined}
+                className={`agenda-day-head border-l border-line ${day === today ? 'text-ink' : 'text-faint'}`}
+                key={day}
+                to={dayHref(day)}
+              >
+                <span className="text-xs uppercase">{formatDay(day, { weekday: 'short' })}</span>
+                <DayNumber day={day} today={today} />
+              </Link>
+            ))}
           </div>
           {allDay.length > 0 && (
             <div className="grid border-b border-line" style={columns}>
-              <span className="mono-sm sticky left-0 grid content-center bg-paper px-1 text-xs text-faint">all day</span>
+              <span className="mono-sm sticky left-0 grid content-center bg-paper px-1 text-faint">all day</span>
               {days.map((day) => (
                 <div className="grid content-start gap-0.5 border-l border-line p-1" key={day}>
                   {allDay
@@ -120,8 +123,8 @@ export function TimeGrid({
         <div className="grid" style={{ ...columns, height: 24 * hourHeight }}>
           <div className={days.length > 1 ? 'sticky left-0 z-1 bg-paper' : 'relative'}>
             {Array.from({ length: 23 }, (_, index) => index + 1).map((hour) => (
-              <span className="mono-sm absolute right-2 -translate-y-1/2 text-xs text-faint" key={hour} style={{ top: hour * hourHeight }}>
-                {new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric', ...timeOptions() })}
+              <span className="mono-sm absolute right-1.5 -translate-y-1/2 text-faint" key={hour} style={{ top: hour * hourHeight }}>
+                {clockTime(new Date(2000, 0, 1, hour))}
               </span>
             ))}
           </div>

@@ -1,14 +1,14 @@
 import { useLayoutEffect, useRef } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton } from '@project-graphite/ui';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { formatDay, Placeholder, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
-import { Page, Subheading } from '../components/Page';
-import { OpenCreatedPage } from '../components/OpenCreatedPage';
+import { Page, Section } from '../components/Page';
+import { PeriodNav } from '../components/PeriodNav';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
-import { PeriodNav } from '../components/PeriodNav';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -35,31 +35,72 @@ function yearDays(year: number) {
 const dayLabel = (day: string) => formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' });
 
 export function JournalPage() {
+  const auth = useAuth();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const year = params.get('year');
   const journal = useResource<JournalYear>(`/me/journal${year ? `?year=${year}` : ''}`, true);
+  const opening = useAction();
+  const data = journal.data;
+  const todayPage = data?.days.find((entry) => entry.day === data.today)?.noteId;
+  const thisYear = data ? Number(data.today.slice(0, 4)) : 0;
+
+  function open(path: string, fallback: string) {
+    void opening.run(async () => {
+      const { noteId } = await auth.request<{ noteId: string }>(path, { method: 'POST' });
+      navigate(`/notes/${noteId}`);
+      return '';
+    }, fallback);
+  }
+
+  const writeDay = (day: string) => open(`/me/journal/${day}/page`, 'Could not open the journal page');
 
   return (
     <Page
       actions={
-        <ButtonLink label="Write a weekly review" to="/review" />
+        data && (
+          <>
+            <ActionsMenu items={[{ label: 'Write a weekly review', onSelect: () => open('/me/weekly-review', 'Could not write the weekly review') }]} name="Journal" />
+            {todayPage ? (
+              <ButtonLink icon="pencil" label="Open today’s page" primary to={`/notes/${todayPage}`} />
+            ) : (
+              <Button disabled={opening.busy} icon="pencil" label="Write today’s page" onClick={() => writeDay(data.today)} primary />
+            )}
+          </>
+        )
       }
       title="Journal"
+      toolbar={
+        data && (
+          <PeriodNav
+            current={data.year < thisYear ? { label: 'This year', onSelect: () => navigate('/journal') } : undefined}
+            last={data.year >= thisYear}
+            onShift={(step) => navigate(`/journal?year=${data.year + step}`)}
+            title={data.year}
+            unit="year"
+          />
+        )
+      }
     >
       {journal.error ? (
         <LoadError error={journal.error} onRetry={journal.reload} />
-      ) : !journal.data ? (
-        <ListSkeleton label="Loading your journal" rows={6} />
+      ) : !data ? (
+        <Placeholder className="grid gap-8" label="Loading your journal">
+          <div className="grid gap-3">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-9 w-full max-w-md" />
+          </div>
+          <Skeleton className="h-36 w-full rounded-panel" />
+        </Placeholder>
       ) : (
-        <JournalMoods journal={journal.data} mutate={journal.mutate} />
+        <JournalMoods busy={opening.busy} journal={data} mutate={journal.mutate} onWrite={writeDay} />
       )}
     </Page>
   );
 }
 
-function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resource<JournalYear>['mutate'] }) {
+function JournalMoods({ busy, journal, mutate, onWrite }: { busy: boolean; journal: JournalYear; mutate: Resource<JournalYear>['mutate']; onWrite: (day: string) => void }) {
   const auth = useAuth();
-  const navigate = useNavigate();
   const action = useAction();
   const { today, days } = journal;
   const shown = journal.year;
@@ -84,52 +125,52 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
         days: [...current.days.filter((entry) => entry.day !== today), { day: today, mood: next, noteId: entries.get(today)?.noteId ?? null }],
       }));
       return '';
-    }, 'The mood could not be saved.');
+    }, 'Could not save the mood');
   }
 
   return (
     <>
-      <div className="panel grid gap-4 p-5">
-        <Subheading level={2}>How was today?</Subheading>
+      <Section title="How was today?">
         <div aria-label="Today’s mood" className="flex flex-wrap gap-2" role="group">
           {moods.map((label, index) => (
             <Button disabled={action.busy} key={label} label={label} onClick={() => setMood(index + 1)} pressed={todayMood === index + 1} />
           ))}
         </div>
-        <Button label={entries.get(today)?.noteId ? 'Open today’s page' : 'Write today’s page'} onClick={() => navigate(`/journal/${today}`)} />
-      </div>
-
+      </Section>
       <div className="grid gap-3">
-        <PeriodNav
-          current={shown < Number(today.slice(0, 4)) ? { label: 'This year', onSelect: () => navigate('/journal') } : undefined}
-          last={shown >= Number(today.slice(0, 4))}
-          onShift={(step) => navigate(`/journal?year=${shown + step}`)}
-          title={shown}
-          unit="year"
-        />
-        <div aria-label={`Moods in ${shown}`} className="journal-year" ref={yearGrid} role="list">
+        <div aria-label={`Moods in ${shown}`} className="journal-year" ref={yearGrid} role="group">
           {Array.from({ length: leading }, (_, index) => (
             <span aria-hidden="true" className="journal-day is-blank" key={`blank-${index}`} />
           ))}
           {all.map((day) => {
             const entry = entries.get(day);
-            const label = `${dayLabel(day)}${entry?.mood ? `: ${moods[entry.mood - 1]}` : ''}${entry?.noteId ? ', with a page' : ''}`;
-            return day > today ? (
-              <span aria-hidden="true" className="journal-day is-future" key={day} />
-            ) : (
+            const base = `${dayLabel(day)}${entry?.mood ? `: ${moods[entry.mood - 1]}` : ''}`;
+            const className = `journal-day ${entry?.mood ? `mood-${entry.mood}` : ''} ${entry?.noteId ? 'has-page' : ''}`;
+            if (day > today) return <span aria-hidden="true" className="journal-day is-future" key={day} />;
+            return entry?.noteId ? (
               <Link
                 aria-current={day === today ? 'date' : undefined}
-                aria-label={label}
-                className={`journal-day ${entry?.mood ? `mood-${entry.mood}` : ''} ${entry?.noteId ? 'has-page' : ''}`}
+                aria-label={`${base}, with a page`}
+                className={className}
                 key={day}
-                role="listitem"
-                title={label}
-                to={`/journal/${day}`}
+                title={`${base}, with a page`}
+                to={`/notes/${entry.noteId}`}
+              />
+            ) : (
+              <button
+                aria-current={day === today ? 'date' : undefined}
+                aria-label={`${base}, write a page`}
+                className={`${className} cursor-pointer`}
+                disabled={busy}
+                key={day}
+                onClick={() => onWrite(day)}
+                title={`${base}, write a page`}
+                type="button"
               />
             );
           })}
         </div>
-        <div className="mono-sm flex flex-wrap items-center gap-x-4 gap-y-1 text-faint">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
           <span className="flex items-center gap-1">
             {moods[0]}
             {moods.map((label, index) => (
@@ -145,9 +186,4 @@ function JournalMoods({ journal, mutate }: { journal: JournalYear; mutate: Resou
       </div>
     </>
   );
-}
-
-export function JournalDayPage() {
-  const { day = '' } = useParams();
-  return <OpenCreatedPage back="/journal" fallback="The journal page could not be opened." label="Opening the journal page" path={`/me/journal/${day}/page`} />;
 }

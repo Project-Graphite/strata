@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, Menu, Tabs, timeAgo } from '@project-graphite/ui';
+import { Link, useNavigate } from 'react-router';
+import { Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, buttonClass, IconButton } from '../components/Button';
@@ -10,99 +10,94 @@ import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
-import { announcePagesChanged, nestedUnder, noteTitle, pageNoun, pagesTabs, type Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { RowText } from '../components/RowText';
+import { announcePagesChanged, nestedUnder, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
+import { useSpaces, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-const wording = {
-  board: { title: 'Boards', create: 'New board', empty: 'No boards yet', hint: 'A board is a white canvas to draw, sketch and plan on together.' },
-  note: { title: 'Pages', create: 'New page', empty: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything you write.' },
-  quick: { title: 'Pages', create: 'New note', empty: 'No notes yet', hint: 'Notes are for quick, one-off writing. Jot one down here or from Home.' },
-  journal: { title: 'Pages', create: 'New page', empty: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
+const emptyStates = {
+  pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.' },
+  'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.' },
+  journal: { title: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
+  boards: { title: 'No boards yet', hint: 'A board is a blank canvas to draw, sketch and plan on together.' },
 };
 
-export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
+function CreateButton({ busy, label, onCreate, primary = false, spaces }: { busy: boolean; label: string; onCreate: (spaceId: string) => void; primary?: boolean; spaces: Space[] }) {
+  if (spaces.length === 1) return <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaces[0]!.id)} primary={primary} />;
+  return (
+    <Menu
+      items={spaces.map((space) => ({ label: `In ${space.name}`, onSelect: () => onCreate(space.id) }))}
+      label="Spaces"
+      trigger={
+        <>
+          <Icon name="plus" size={16} />
+          {label}
+        </>
+      }
+      triggerClassName={buttonClass(primary)}
+      triggerLabel={`${label}: choose a space`}
+    />
+  );
+}
+
+export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const spaces = useSpaces();
-  const tab = kind === 'note' ? params.get('tab') : null;
-  const shown = tab === 'notes' ? 'quick' : tab === 'journal' ? 'journal' : kind;
-  const listed = useResource<Note[]>(`/me/notes?kind=${shown === 'quick' ? 'quick' : kind}`, true);
+  const listed = useResource<Note[]>(`/me/notes?kind=${section === 'boards' ? 'board' : section === 'quick-notes' ? 'quick' : 'note'}`, true);
   const creating = useAction();
   const [importing, setImporting] = useState(false);
-  const words = wording[shown];
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
-  const pages = listed.data?.filter((note) => note.journal === (shown === 'journal')) ?? [];
-  const trashing = useMovePageToTrash(listed.reload, listed.reload);
+  const pages = listed.data?.filter((note) => note.journal === (section === 'journal')) ?? [];
+  const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
+  const empty = emptyStates[section];
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);
     return (parentId ? level.sort((a, b) => a.position - b.position) : level).flatMap((note) => [
-      <li className="flex items-center pe-2 hover:bg-line-soft" key={note.id}>
-        <Link
-          className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline"
-          style={depth ? { paddingInlineStart: `${1 + depth * 1.5}rem` } : undefined}
-          to={`/notes/${note.id}`}
-        >
+      <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={note.id}>
+        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={`/notes/${note.id}`}>
           <NoteMark note={note} />
-          <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
-          <span className="mono-sm shrink-0 text-faint">
-            {spaceNames.has(note.spaceId) && <span className="max-sm:hidden">{spaceNames.get(note.spaceId)} · </span>}
-            {timeAgo(note.updatedAt)}
-          </span>
+          <RowText detail={[spaceNames.get(note.spaceId), timeAgo(note.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
         </Link>
         {writable.some((space) => space.id === note.spaceId) && (
-          <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => trashing.move(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
+          <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
         )}
       </li>,
       ...rows(note.id, depth + 1),
     ]);
   }
 
-  function create(spaceId: string) {
+  function create(spaceId: string, body: { board?: true; quick?: true }, noun: string) {
     void creating.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, {
-        method: 'POST',
-        body: JSON.stringify(kind === 'board' ? { board: true } : shown === 'quick' ? { quick: true } : {}),
-      });
+      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(body) });
       navigate(`/notes/${created.id}`);
       return '';
-    }, `Could not create the ${pageNoun({ kind, quick: shown === 'quick' })}`);
+    }, `Could not create the ${noun}`);
   }
 
   return (
     <Page
       actions={
-        shown !== 'journal' && (
+        writable.length > 0 &&
+        (section === 'boards' ? (
+          <CreateButton busy={creating.busy} label="New board" onCreate={(spaceId) => create(spaceId, { board: true }, 'board')} primary spaces={writable} />
+        ) : (
           <>
-            {shown === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
-            {writable.length === 1 ? (
-              <Button disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
-            ) : (
-              writable.length > 1 && (
-                <Menu
-                  items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
-                  label="Spaces"
-                  trigger={
-                    <>
-                      <Icon name="plus" size={16} />
-                      {words.create}
-                    </>
-                  }
-                  triggerClassName={buttonClass(true)}
-                  triggerLabel={`${words.create}: choose a space`}
-                />
-              )
-            )}
+            <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />
+            <CreateButton busy={creating.busy} label="New page" onCreate={(spaceId) => create(spaceId, {}, 'page')} primary spaces={writable} />
           </>
-        )
+        ))
       }
-      title={words.title}
+      tabs={section === 'boards' ? undefined : pagesTabs(section)}
+      title={section === 'boards' ? 'Boards' : 'Pages'}
+      toolbarEnd={
+        section === 'quick-notes' &&
+        writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaces={writable} />
+      }
     >
-      {kind === 'note' && <Tabs items={pagesTabs(tab)} label="Pages" />}
       {importing && (
         <ImportPages
           onClose={() => setImporting(false)}
@@ -116,13 +111,12 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
-        <ListSkeleton label={`Loading your ${words.title.toLowerCase()}`} rows={4} />
+        <ListSkeleton label={`Loading your ${section === 'boards' ? 'boards' : 'pages'}`} rows={4} />
       ) : pages.length === 0 ? (
-        <Empty title={words.empty}>{words.hint}</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">{rows(null, 0)}</ul>
       )}
-      {trashing.dialog}
     </Page>
   );
 }

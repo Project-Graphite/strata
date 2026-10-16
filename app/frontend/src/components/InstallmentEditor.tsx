@@ -36,7 +36,7 @@ export function InstallmentEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={plan ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (
@@ -62,7 +62,7 @@ export function InstallmentEditor({
           .run(async () => {
             await auth.request(plan ? `/installments/${plan.id}` : `/spaces/${spaceId}/installments`, { method: plan ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
-            return plan ? '' : `Added ${body.name}.`;
+            return `${plan ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the plan')
           .then((saved) => saved && onClose());
       }}

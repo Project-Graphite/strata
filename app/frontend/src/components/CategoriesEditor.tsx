@@ -42,6 +42,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
         onConfirm={async () => {
           await save();
           onSaved();
+          saving.report('Saved the categories.');
           onClose();
         }}
         title="Move transactions to Other?"
@@ -75,12 +76,12 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
           .run(async () => {
             await save();
             onSaved();
-            return 'Categories saved.';
+            return 'Saved the categories.';
           }, 'Could not save the categories')
           .then((done) => done && onClose());
       }}
-      submitLabel="Save categories"
-      title="Categories"
+      submitLabel="Save"
+      title="Edit categories"
     >
       <ul className="m-0 grid list-none gap-2 p-0">
         {rows.map((row, index) => (

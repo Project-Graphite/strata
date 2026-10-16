@@ -10,7 +10,7 @@ export function CategoryChips({ categories, label = 'Category', onChange, value 
 
   return (
     <fieldset className="m-0 grid gap-2 border-0 p-0">
-      <legend className="field-label mb-1.5 p-0">{label}</legend>
+      <legend className="field-label mb-2 p-0">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {shown.map((category) => (
           <button

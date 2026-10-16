@@ -71,6 +71,12 @@ const note = (id: string, title: string, parentId: string | null = null, positio
   createdAt: '2026-10-05T10:00:00Z',
   updatedAt: '2026-10-05T10:00:00Z',
 });
+const menuItems = async (root: ParentNode, trigger: string) => {
+  await act(async () => root.querySelector<HTMLButtonElement>(`button[aria-label="${trigger}"]`)!.click());
+  const items = [...root.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent);
+  await act(async () => root.querySelector<HTMLButtonElement>(`button[aria-label="${trigger}"]`)!.click());
+  return items;
+};
 const pages = [note('trips', 'Trips'), note('lisbon', 'Lisbon', 'trips'), note('food', 'Food', 'lisbon'), note('recipes', '', null, 2)];
 
 describe('Notes', () => {
@@ -139,11 +145,11 @@ describe('Notes', () => {
       if (path === '/notes/new') return json({ ...note('new', ''), editable: true, path: [] });
       return undefined;
     });
-    await render('/spaces/home/notes');
+    await render('/spaces/home/pages');
 
     const links = [...container.querySelectorAll('main a[href^="/notes/"]')];
-    expect(links.map((link) => link.textContent)).toEqual(['Trips', 'Lisbon', 'Food', 'Untitled']);
-    expect((links[2] as HTMLElement).style.paddingLeft).toBe('3.5rem');
+    expect(links.map((link) => link.querySelector('span.truncate')?.textContent)).toEqual(['Trips', 'Lisbon', 'Food', 'Untitled']);
+    expect((links[2] as HTMLElement).style.paddingInlineStart).toBe('3.5rem');
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New page')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
@@ -161,16 +167,16 @@ describe('Notes', () => {
       if (path === '/notes/seating') return json({ ...board, editable: true, path: [] });
       return undefined;
     });
-    await render('/spaces/home/notes');
+    await render('/spaces/home/pages');
 
-    expect([...container.querySelectorAll('main a[href^="/notes/"]')].at(-1)?.textContent).toBe('SeatingBoard');
+    const seating = [...container.querySelectorAll('main a[href^="/notes/"]')].at(-1)!;
+    expect(seating.querySelector('span.truncate')?.textContent).toBe('Seating');
+    expect(seating.querySelector('span.text-sm')?.textContent).toMatch(/^Board · /);
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New board')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('[data-testid="board"]')?.getAttribute('data-note')).toBe('seating');
     expect(container.querySelector('[data-testid="editor"]')).toBeNull();
-    const buttons = [...container.querySelectorAll('button')].map((button) => button.textContent);
-    expect(buttons).not.toContain('Turn into a database');
-    expect(buttons).not.toContain('Use as a template');
+    expect(await menuItems(container, 'Actions for Seating')).toEqual(['Move to trash']);
     expect(container.textContent).not.toContain('Pages inside');
   });
 
@@ -254,7 +260,7 @@ describe('Notes', () => {
     expect(container.querySelector('[aria-label="Change the page icon"]')?.textContent).toBe('✈️');
 
     expect(container.querySelector('article')?.className).toContain('max-w-3xl');
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Full width')!.click());
+    await chooseFromMenu(container, 'Actions for Trips', 'Full width');
     expect(container.querySelector('article')?.className).toContain('max-w-none');
     expect(JSON.parse(localStorage.getItem('strata-wide-pages')!)).toEqual(['trips']);
   });
@@ -342,7 +348,7 @@ describe('Notes', () => {
     });
     await render('/notes/trips');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Share')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Share"]')!.click());
     const dialog = container.querySelector('dialog')!;
     expect(dialog.textContent).toContain('This older link can’t be shown again');
     expect(dialog.textContent).not.toContain('People with the link');
@@ -352,7 +358,7 @@ describe('Notes', () => {
     await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
     const confirm = container.querySelector('dialog')!;
     expect(confirm.textContent).toContain('Anyone with it loses access to this page straight away.');
-    await act(async () => [...confirm.querySelectorAll('button')].find((button) => button.textContent === 'Turn off')!.click());
+    await act(async () => [...confirm.querySelectorAll('button')].find((button) => button.textContent === 'Turn off link')!.click());
     expect(sent).toEqual([
       { method: 'POST', path: '/items/trips/share-links', body: { access: 'view', expiresInDays: 7 } },
       { method: 'DELETE', path: '/items/trips/share-links/link' },
@@ -374,7 +380,7 @@ describe('Notes', () => {
     });
     await render('/notes/seating');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Share')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Share"]')!.click());
     const dialog = container.querySelector('dialog')!;
     expect(dialog.textContent).toContain('No links yet');
     await choose(dialog, 'People with the link', 'Can edit');
@@ -384,7 +390,7 @@ describe('Notes', () => {
     expect(dialog.querySelector('code')?.textContent).toBe('http://localhost/share/xyz');
   });
 
-  it('shows the path, renames on blur and adds a page inside', async () => {
+  it('links back to the parent page, renames on blur and adds a page inside', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/food' && init?.method === 'PATCH') {
         expect(JSON.parse(String(init.body))).toEqual({ title: 'Food and drink' });
@@ -402,7 +408,8 @@ describe('Notes', () => {
     });
     await render('/notes/food');
 
-    expect([...container.querySelectorAll('nav[aria-label="Breadcrumb"] a')].map((link) => link.textContent)).toEqual(['Home', 'Trips', 'Lisbon']);
+    const back = container.querySelector('main .back-link')!;
+    expect([back.textContent, back.getAttribute('href')]).toEqual(['Lisbon', '/notes/lisbon']);
     const title = container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')!;
     expect(title.value).toBe('Food');
     expect(document.title).toBe('Food · Strata');
@@ -413,14 +420,15 @@ describe('Notes', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/food', expect.objectContaining({ method: 'PATCH' }));
     expect(document.title).toBe('Food and drink · Strata');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Add a page inside'))!.click());
+    await act(async () => [...container.querySelectorAll('main button')].find((button) => button.textContent === 'New page')!.click());
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('pastel');
     expect(document.title).toBe('Untitled · Strata');
   });
 
-  it('moves a page to the trash, asking first when pages inside it would move up', async () => {
+  it('moves a page to the trash without asking, says where its pages inside went and lands on its parent', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/lisbon') return json({ ...note('lisbon', 'Lisbon', 'trips'), editable: true, path: [{ id: 'trips', title: 'Trips' }] });
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
       if (path === '/items/lisbon/trash' && init?.method === 'POST') {
         listed = listed.filter((page) => page.id !== 'lisbon');
         return new Response(null, { status: 204 });
@@ -431,21 +439,20 @@ describe('Notes', () => {
     await render('/notes/lisbon');
 
     await chooseFromMenu(container, 'Actions for Lisbon', 'Move to trash');
-    const dialog = container.querySelector('dialog')!;
-    expect(dialog.textContent).toContain('The page inside stays in the space, at the top level, until you restore Lisbon.');
-    await act(async () => [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Move to trash')!.click());
+    expect(container.querySelector('dialog')).toBeNull();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/lisbon/trash', expect.objectContaining({ method: 'POST' }));
-    expect(container.querySelector('h1')?.textContent).toBe('Pages');
-    expect(document.title).toBe('Pages · Strata');
-    expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Lisbon to the trash.');
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')?.value).toBe('Trips');
+    expect(document.title).toBe('Trips · Strata');
+    expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Lisbon to the trash. The page inside stays at the top level until you restore it.');
     expect(container.querySelector('main a[href="/notes/lisbon"]')).toBeNull();
-    expect(container.querySelector('main a[href="/notes/food"]')).not.toBeNull();
+    expect(container.querySelector('main .back-link')?.getAttribute('href')).toBe('/pages');
   });
 
   it('undoes moving a page to the trash and opens it again', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/notes/lisbon') return json({ ...note('lisbon', 'Lisbon', 'trips'), editable: true, path: [{ id: 'trips', title: 'Trips' }] });
+      if (path === '/notes/trips') return json({ ...note('trips', 'Trips'), editable: true, path: [] });
       if (path === '/items/lisbon/trash' && init?.method === 'POST') return new Response(null, { status: 204 });
       if (path === '/items/lisbon/restore' && init?.method === 'POST') return new Response(null, { status: 204 });
       if (path === '/me/notes?kind=note') return json(listed);
@@ -454,8 +461,7 @@ describe('Notes', () => {
     await render('/notes/lisbon');
 
     await chooseFromMenu(container, 'Actions for Lisbon', 'Move to trash');
-    await act(async () => [...container.querySelector('dialog')!.querySelectorAll('button')].find((button) => button.textContent === 'Move to trash')!.click());
-    expect(container.querySelector('h1')?.textContent).toBe('Pages');
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')?.value).toBe('Trips');
 
     await act(async () => [...container.querySelectorAll('.snackbar button')].find((button) => button.textContent === 'Undo')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/lisbon/restore', expect.objectContaining({ method: 'POST' }));
@@ -484,7 +490,7 @@ describe('Notes', () => {
     ]);
   });
 
-  it('lists notes under their own tab and starts a new note', async () => {
+  it('lists quick notes under their own tab and starts a new quick note', async () => {
     const fetchMock = serve((path, init) => {
       if (path === '/me/notes?kind=quick') return json([{ ...note('milk', 'Buy milk'), quick: true }, { ...note('keys', ''), quick: true }]);
       if (path === '/spaces/home/notes' && init?.method === 'POST') {
@@ -494,16 +500,18 @@ describe('Notes', () => {
       if (path === '/notes/fresh') return json({ ...note('fresh', ''), quick: true, editable: true, path: [] });
       return undefined;
     });
-    await render('/pages?tab=notes');
+    await render('/pages/quick-notes');
 
-    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Notes');
+    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Quick notes');
+    expect(document.title).toBe('Quick notes · Pages · Strata');
     const rows = [...container.querySelectorAll('main a[href^="/notes/"]')];
     expect(rows.map((row) => row.getAttribute('href'))).toEqual(['/notes/milk', '/notes/keys']);
     expect(rows.map((row) => row.textContent)).toEqual([expect.stringContaining('Buy milkHome · '), expect.stringContaining('UntitledHome · ')]);
     expect(container.querySelector('button[aria-label="Actions for Buy milk"]')).not.toBeNull();
-    expect(container.querySelector('button[aria-label="Import"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Import"]')).not.toBeNull();
+    expect([...container.querySelectorAll('main header button')].map((button) => button.getAttribute('aria-label') ?? button.textContent)).toEqual(['Import', 'New page']);
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New note')!.click());
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New quick note')!.click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST' }));
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-note')).toBe('fresh');
   });
@@ -521,26 +529,27 @@ describe('Notes', () => {
     });
     await render('/notes/jot');
 
-    const buttons = () => [...container.querySelectorAll('main button')].map((button) => button.textContent);
-    expect(buttons()).toEqual(expect.arrayContaining(['Turn into a page', 'Share']));
-    for (const left of ['Turn into a database', 'Use as a template', 'Full width', 'History', 'Add a page inside']) expect(buttons()).not.toContain(left);
+    const buttons = () => [...container.querySelectorAll('main button')].map((button) => button.getAttribute('aria-label') ?? button.textContent);
+    expect(buttons()).toEqual(expect.arrayContaining(['Share']));
+    for (const left of ['History', 'New page']) expect(buttons()).not.toContain(left);
+    expect(await menuItems(container, 'Actions for Call the landlord')).toEqual(['Turn into a page', 'Move to trash']);
     expect(container.querySelector('[aria-label="Page icon"]')).toBeNull();
-    expect(container.querySelector('nav[aria-label="Breadcrumb"]')).toBeNull();
     expect(container.querySelector('section[aria-label="Comments"]')).toBeNull();
-    expect(container.querySelector('main a[href="/pages?tab=notes"]')?.textContent).toBe('Notes');
+    const back = container.querySelector('main .back-link')!;
+    expect([back.textContent, back.getAttribute('href')]).toEqual(['Quick notes', '/pages/quick-notes']);
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-quick')).toBe('true');
     expect(document.title).toBe('Call the landlord · Strata');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn into a page')!.click());
+    await chooseFromMenu(container, 'Actions for Call the landlord', 'Turn into a page');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/jot', expect.objectContaining({ method: 'PATCH' }));
-    expect(buttons()).toEqual(expect.arrayContaining(['Turn into a database', 'Use as a template', 'Full width', 'History', 'Add a page inside']));
-    expect(buttons()).not.toContain('Turn into a page');
-    expect(container.querySelector('nav[aria-label="Breadcrumb"]')).not.toBeNull();
+    expect(buttons()).toEqual(expect.arrayContaining(['Share', 'History', 'New page']));
+    expect(await menuItems(container, 'Actions for Call the landlord')).toEqual(['Turn into a database', 'Use as a template', 'Full width', 'Move to trash']);
+    expect(container.querySelector('main .back-link')?.getAttribute('href')).toBe('/pages');
     expect(container.querySelector('section[aria-label="Comments"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-quick')).toBe('false');
   });
 
-  it('moves a note to the trash and lands on the Notes tab', async () => {
+  it('moves a quick note to the trash and lands on the Quick notes tab', async () => {
     let notes = [{ ...note('jot', 'Call the landlord'), quick: true }, { ...note('milk', 'Buy milk'), quick: true }];
     const fetchMock = serve((path, init) => {
       if (path === '/notes/jot') return json({ ...notes[0], editable: true, path: [] });
@@ -555,13 +564,13 @@ describe('Notes', () => {
 
     await chooseFromMenu(container, 'Actions for Call the landlord', 'Move to trash');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/jot/trash', expect.objectContaining({ method: 'POST' }));
-    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Notes');
+    expect(container.querySelector('nav[aria-label="Pages"] a[aria-current="page"]')?.textContent).toBe('Quick notes');
     expect(container.querySelector('.snackbar')?.textContent).toContain('Moved Call the landlord to the trash.');
     expect([...container.querySelectorAll('main a[href^="/notes/"]')].map((link) => link.getAttribute('href'))).toEqual(['/notes/milk']);
 
     await chooseFromMenu(container, 'Actions for Buy milk', 'Move to trash');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/milk/trash', expect.objectContaining({ method: 'POST' }));
-    expect(container.textContent).toContain('No notes yet');
+    expect(container.textContent).toContain('No quick notes yet');
   });
 
   it('opens a viewer’s page read-only and explains a missing page', async () => {
@@ -573,12 +582,13 @@ describe('Notes', () => {
     await render('/notes/trips');
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Page title"]')!.readOnly).toBe(true);
     expect(container.querySelector('[data-testid="editor"]')?.getAttribute('data-editable')).toBe('false');
-    expect(container.textContent).not.toContain('Add a page inside');
+    expect([...container.querySelectorAll('main button')].some((button) => button.textContent === 'New page')).toBe(false);
 
     act(() => root.unmount());
     root = createRoot(container);
     await render('/notes/gone');
     expect(container.textContent).toContain('Page not found');
+    expect(container.querySelector('main .back-link')?.getAttribute('href')).toBe('/pages');
   });
 
   it('adds comments and replies, resolves a thread and hides it until asked', async () => {
@@ -648,7 +658,7 @@ describe('Notes', () => {
     });
     await render('/notes/trips');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'History')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="History"]')!.click());
     const dialog = container.querySelector('dialog')!;
     expect(dialog.textContent).toContain('Sam');
     const restore = [...dialog.querySelectorAll('button')].find((button) => button.textContent === 'Restore this version')!;
@@ -664,7 +674,7 @@ describe('Notes', () => {
     act(() => root.unmount());
     root = createRoot(container);
     await render('/notes/trips');
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'History')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="History"]')!.click());
     expect([...container.querySelectorAll('dialog button')].some((button) => button.textContent === 'Restore this version')).toBe(false);
   });
 
@@ -686,10 +696,8 @@ describe('Notes', () => {
     await render('/notes/lisbon');
 
     const section = [...container.querySelectorAll('section')].find((candidate) => candidate.textContent?.startsWith('Linked from'))!;
-    expect([...section.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Holiday plan', '/notes/plan'],
-      ['Book flights', '/spaces/home/tasks'],
-    ]);
+    expect([...section.querySelectorAll('a')].map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Holiday planPage', '/notes/plan']]);
+    expect([...section.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['Book flightsTask']);
   });
 
   it('starts pages from built-in and space templates and marks a page as a template', async () => {
@@ -709,9 +717,9 @@ describe('Notes', () => {
       return undefined;
     });
     listed = withTemplate;
-    await render('/spaces/home/notes');
+    await render('/spaces/home/pages');
 
-    expect(container.textContent).toContain('Templates in this space');
+    expect([...container.querySelectorAll('main h2')].map((heading) => heading.textContent)).toContain('Templates');
     expect([...container.querySelectorAll('main ul')][0]!.textContent).not.toContain('Standup');
     const menu = container.querySelector<HTMLButtonElement>('button[aria-label="Start a page from a template"]')!;
     await act(async () => menu.click());
@@ -720,7 +728,7 @@ describe('Notes', () => {
 
     act(() => root.unmount());
     root = createRoot(container);
-    await render('/spaces/home/notes');
+    await render('/spaces/home/pages');
     await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Start a page from a template"]')!.click());
     await act(async () => [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === 'Standup')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(created[1]).toEqual({ fromNoteId: 'standup', title: 'Standup' });
@@ -728,8 +736,8 @@ describe('Notes', () => {
     act(() => root.unmount());
     root = createRoot(container);
     await render('/notes/standup');
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Stop using as a template')!.click());
-    expect([...container.querySelectorAll('button')].some((button) => button.textContent === 'Use as a template')).toBe(true);
+    await chooseFromMenu(container, 'Actions for Standup', 'Stop using as a template');
+    expect(await menuItems(container, 'Actions for Standup')).toContain('Use as a template');
   });
 
   const status = {
@@ -770,7 +778,7 @@ describe('Notes', () => {
     });
     await render('/notes/trips');
 
-    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Turn into a database')!.click());
+    await chooseFromMenu(container, 'Actions for Trips', 'Turn into a database');
     expect(sent[0]).toMatchObject({ path: '/notes/trips/database', method: 'PUT', body: { view: 'table' } });
     expect((sent[0]!.body as { properties: { name: string; type: string }[] }).properties.map(({ name, type }) => `${name}:${type}`)).toEqual(['Status:select', 'Date:date']);
 

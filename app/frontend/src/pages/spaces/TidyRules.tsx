@@ -11,6 +11,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
+import { RowText } from '../../components/RowText';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
@@ -49,6 +50,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
   const rules = useResource<Rule[]>(`/spaces/${space.id}/tidy-rules`, true);
   const creating = useAction();
   const changing = useAction();
+  const { report } = changing;
   const form = useFormErrors();
   const [deleting, setDeleting] = useState<Rule>();
   const [request, setRequest] = useState<TidyRequest>();
@@ -79,7 +81,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       title="Tagging rules"
     >
       {rules.error ? (
-        <LoadError error={rules.error} onRetry={rules.reload} />
+        <LoadError compact error={rules.error} onRetry={rules.reload} />
       ) : !rules.data ? (
         <ListSkeleton label="Loading the tagging rules" rows={2} />
       ) : rules.data.length === 0 ? (
@@ -87,24 +89,24 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (
-            <li className="panel-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3" key={rule.id}>
-              <div className="min-w-0">
-                <p className="m-0 flex flex-wrap items-center gap-2 text-ink">
-                  {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
-                </p>
-                <p className="m-0 mt-0.5 text-sm text-muted">{rule.enabled ? 'On' : 'Paused'}</p>
-              </div>
+            <li className="flex items-center gap-3 panel-row" key={rule.id}>
+              <RowText
+                detail={rule.enabled ? 'On' : 'Paused'}
+                title={
+                  <>
+                    {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
+                  </>
+                }
+              />
               {editable && (
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button disabled={changing.busy} label="Tag existing items" onClick={() => findMatches(rule)} />
-                  <ActionsMenu
-                    items={[
-                      { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },
-                      { label: 'Delete', onSelect: () => setDeleting(rule), separated: true },
-                    ]}
-                    name={ruleText(rule)}
-                  />
-                </div>
+                <ActionsMenu
+                  items={[
+                    { label: 'Tag existing items', onSelect: () => findMatches(rule) },
+                    { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },
+                    { label: 'Delete', onSelect: () => setDeleting(rule), separated: true },
+                  ]}
+                  name={ruleText(rule)}
+                />
               )}
             </li>
           ))}
@@ -170,6 +172,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
           onConfirm={async () => {
             await auth.request(`/tidy-rules/${deleting.id}`, { method: 'DELETE' });
             rules.mutate((current) => current.filter((rule) => rule.id !== deleting.id));
+            report('Deleted the rule.');
           }}
           title="Delete this rule?"
           tone="danger"
@@ -182,10 +185,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
         <TidyPreview
           onApplied={(batch) => {
             setRequest(undefined);
-            void changing.run(
-              () => Promise.resolve(batch ? `${batchSummary(batch)}. You can undo it from Tidy.` : 'Nothing needed tagging after all.'),
-              '',
-            );
+            report(batch ? `${batchSummary(batch)}. You can undo it from Tidy.` : 'Nothing needed tagging after all.');
           }}
           onClose={() => setRequest(undefined)}
           request={request}

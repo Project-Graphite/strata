@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Dialog, Icon } from '@project-graphite/ui';
-import { Button, buttonClass, IconButton } from './components/Button';
+import { Button, buttonClass, IconButton, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
@@ -23,9 +23,9 @@ export const zoneLabel = (zone: string) => (zone === Intl.DateTimeFormat().resol
 
 export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 
-export function clockTime(time: string) {
-  const [hours, minutes] = time.split(':').map(Number) as [number, number];
-  return new Date(2000, 0, 1, hours, minutes).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', ...timeOptions() });
+export function clockTime(time: string | Date, timeZone?: string) {
+  const at = typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time;
+  return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...timeOptions() });
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -106,12 +106,7 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
             </div>
           )}
         </div>
-        <DialogActions>
-          {optional && (
-            <button className="text-button mr-auto text-sm" onClick={() => onSet('')} type="button">
-              Clear
-            </button>
-          )}
+        <DialogActions start={optional && <TextButton label="Clear" onClick={() => onSet('')} />}>
           <Button label="Cancel" large onClick={onClose} />
           <Button label="Set time" large onClick={() => onSet(`${pad(hours)}:${pad(minutes)}`)} primary />
         </DialogActions>

@@ -24,7 +24,7 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={trip ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         const valid = form.check(target, {
@@ -52,12 +52,12 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
                 body: JSON.stringify(body),
               }),
             );
-            return trip ? '' : `${body.title} is planned, with a packing list ready.`;
+            return trip ? `Saved ${body.title}.` : `Added ${body.title}, with a packing list ready.`;
           }, 'Could not save the trip')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={trip ? 'Save' : 'Plan trip'}
-      title={trip ? `Edit ${trip.title}` : 'New trip'}
+      submitLabel={trip ? 'Save' : 'Add trip'}
+      title={trip ? 'Edit trip' : 'New trip'}
     >
       <TextField autoFocus defaultValue={trip?.title} label="Trip" maxLength={200} placeholder="Lisbon in May" {...form.field('title')} />
       {!trip && spaces.length > 1 && (

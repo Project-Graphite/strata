@@ -20,55 +20,61 @@ interface Session {
 export function SessionsSection() {
   const auth = useAuth();
   const sessions = useResource<Session[]>('/me/sessions', true);
-  const action = useAction();
-  const [signingOut, setSigningOut] = useState(false);
-
-  if (sessions.error) return <LoadError error={sessions.error} onRetry={sessions.reload} />;
-  if (!sessions.data) return <ListSkeleton label="Loading your sessions" rows={3} />;
-  const others = sessions.data.filter((session) => !session.current);
-
-  function signOut(id: string) {
-    void action.run(async () => {
-      await auth.request(`/me/sessions/${id}`, { method: 'DELETE' });
-      sessions.mutate((current) => current.filter((session) => session.id !== id));
-      return 'That device was signed out.';
-    }, 'Could not sign that device out');
-  }
+  const { report } = useAction();
+  const [signingOut, setSigningOut] = useState<Session | 'others'>();
 
   return (
     <>
       <Section
-        action={
-          others.length > 0 && (
-            <Button disabled={action.busy} label="Sign out all others" onClick={() => setSigningOut(true)} />
-          )
-        }
+        action={sessions.data?.some((session) => !session.current) && <Button label="Sign out all others" onClick={() => setSigningOut('others')} />}
         title="Signed-in devices"
       >
-        <ul className="panel-rows">
-          {sessions.data.map((session) => (
-            <li className="flex items-center justify-between gap-4 panel-row" key={session.id}>
-              <RowText
-                detail={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
-                title={<>{session.deviceLabel} {session.current && <span className="mono-sm text-faint"> · this device</span>}</>}
-              />
-              {!session.current && (
-                <Button disabled={action.busy} label="Sign out" onClick={() => signOut(session.id)} />
-              )}
-            </li>
-          ))}
-        </ul>
+        {sessions.error ? (
+          <LoadError compact error={sessions.error} onRetry={sessions.reload} />
+        ) : !sessions.data ? (
+          <ListSkeleton label="Loading your sessions" rows={3} />
+        ) : (
+          <ul className="panel-rows">
+            {sessions.data.map((session) => (
+              <li className="flex items-center gap-3 panel-row" key={session.id}>
+                <RowText
+                  detail={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
+                  title={session.current ? `${session.deviceLabel} · this device` : session.deviceLabel}
+                />
+                {!session.current && <Button label="Sign out" onClick={() => setSigningOut(session)} />}
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
       <SecurityLog />
-      {signingOut && (
+      {signingOut && signingOut !== 'others' && (
+        <ConfirmDialog
+          busyLabel="Signing out…"
+          confirmLabel="Sign out"
+          errorFallback="Could not sign that device out"
+          onClose={() => setSigningOut(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/me/sessions/${signingOut.id}`, { method: 'DELETE' });
+            sessions.mutate((current) => current.filter((session) => session.id !== signingOut.id));
+            report(`Signed out ${signingOut.deviceLabel}.`);
+          }}
+          title="Sign out this device?"
+          tone="danger"
+        >
+          {signingOut.deviceLabel} needs your password to get back in.
+        </ConfirmDialog>
+      )}
+      {signingOut === 'others' && (
         <ConfirmDialog
           busyLabel="Signing out…"
           confirmLabel="Sign out all others"
           errorFallback="Could not sign the other devices out"
-          onClose={() => setSigningOut(false)}
+          onClose={() => setSigningOut(undefined)}
           onConfirm={async () => {
             await auth.request('/me/sessions', { method: 'DELETE' });
             sessions.mutate((current) => current.filter((session) => session.current));
+            report('Signed out every other device.');
           }}
           title="Sign out every other device?"
           tone="danger"

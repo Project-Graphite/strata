@@ -73,11 +73,7 @@ export function SpaceActivity() {
 
   if (activity.error) return <LoadError error={activity.error} onRetry={activity.reload} />;
   if (!activity.data) return <ListSkeleton label="Loading what happened in this space" rows={5} />;
-  if (activity.data.results.length === 0) {
-    return (
-      <Empty title="Nothing has happened yet" />
-    );
-  }
+  if (activity.data.results.length === 0) return <Empty title="No activity yet">What people add, change and finish in this space shows up here.</Empty>;
 
   return (
     <>

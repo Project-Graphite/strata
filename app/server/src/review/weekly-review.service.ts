@@ -56,7 +56,7 @@ export class WeeklyReviewService implements OnModuleInit {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { weeklyReview: true, isActive: true } });
     if (!user?.weeklyReview || !user.isActive) return;
     await this.inbox.notify(this.prisma, [
-      { userId, kind: 'weekly_review', title: 'Time for your weekly review', body: 'Look back at the week and plan the next one.', link: '/review' },
+      { userId, kind: 'weekly_review', title: 'Time for your weekly review', body: 'Look back at the week and plan the next one.', link: '/journal' },
     ]);
   }
 
