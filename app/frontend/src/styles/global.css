@@ -987,6 +987,7 @@ header.backdrop-blur-md {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .insights-table th,

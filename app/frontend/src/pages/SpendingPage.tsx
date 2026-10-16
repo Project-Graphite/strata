@@ -6,6 +6,7 @@ import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Amount } from '../components/Amount';
 import { Button } from '../components/Button';
 import { CategoriesEditor } from '../components/CategoriesEditor';
 import { Empty } from '../components/Empty';
@@ -266,7 +267,7 @@ export function SpendingPage() {
                     </span>
                     {message.suggestion.cardDigits && <span className="shrink-0 text-sm text-muted">•••• {message.suggestion.cardDigits}</span>}
                     {message.suggestion.amountMinor !== null && message.suggestion.currency && (
-                      <span className="shrink-0 text-ink">{money(message.suggestion.amountMinor, message.suggestion.currency)}</span>
+                      <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />
                     )}
                     {editable && (
                       <>
@@ -312,9 +313,9 @@ export function SpendingPage() {
                         detail={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
                         title={account.name}
                       />
-                      <span className="shrink-0 text-ink">
-                        {account.kind === 'credit' ? `${money(Math.max(0, -account.balanceMinor), account.currency)} owed` : money(account.balanceMinor, account.currency)}
-                      </span>
+                      <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+                        {account.kind === 'credit' && ' owed'}
+                      </Amount>
                       {editable && (
                         <ActionsMenu
                           items={[
@@ -436,10 +437,10 @@ export function SpendingPage() {
                           {categoryName(row.category)}
                         </span>
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-muted">
-                            {`${money(row.spentMinor, currency)} of ${money(row.budgetMinor!, currency)}`}
+                          <Amount currency={currency} danger={row.spentMinor > row.budgetMinor!} minor={row.spentMinor}>
+                            {` of ${money(row.budgetMinor!, currency)}`}
                             {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
-                          </span>
+                          </Amount>
                           {editable && (
                             <ActionsMenu
                               items={[
@@ -513,10 +514,7 @@ export function SpendingPage() {
                             .join(' · ')}
                         </span>
                       </button>
-                      <span className={expense.direction === 'transfer' ? 'shrink-0 text-muted' : 'shrink-0 text-ink'}>
-                        {expense.direction === 'received' || expense.direction === 'refund' ? '+' : ''}
-                        {money(expense.amountMinor, expense.currency)}
-                      </span>
+                      <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
                       {editable && space?.kind === 'shared' && members.data && (
                         <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
                       )}
@@ -698,9 +696,9 @@ function CategoryChart({ colourOf, currency, rows }: { colourOf: (category: stri
           <li className="flex items-center gap-2 text-sm" key={part.key}>
             <span aria-hidden="true" className={`swatch-dot tag-${part.colour}`} />
             <span className="min-w-0 flex-1 truncate text-ink">{part.label}</span>
-            <span className="shrink-0 text-muted">
-              {money(part.spentMinor, currency)} · {share(part.spentMinor)}
-            </span>
+            <Amount currency={currency} minor={part.spentMinor}>
+              {` · ${share(part.spentMinor)}`}
+            </Amount>
           </li>
         ))}
       </ul>

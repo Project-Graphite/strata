@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { ConfirmDialog, DatePicker, formatDay, ListSkeleton, Meter, Select, Tabs, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Amount } from '../components/Amount';
 import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
@@ -68,7 +69,7 @@ export function NetWorthPage() {
                     <span className="flex items-center gap-3">
                       <RowText
                         detail={[
-                            goal.savedMinor === null ? 'No exchange rate yet' : `${money(goal.savedMinor, goal.currency)} of ${money(goal.targetMinor, goal.currency)}`,
+                            goal.savedMinor === null && 'No exchange rate yet',
                             goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
                             goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
                           ]
@@ -76,6 +77,11 @@ export function NetWorthPage() {
                             .join(' · ')}
                         title={goal.name}
                       />
+                      {goal.savedMinor !== null && (
+                        <Amount currency={goal.currency} minor={goal.savedMinor}>
+                          {` of ${money(goal.targetMinor, goal.currency)}`}
+                        </Amount>
+                      )}
                       {editable && (
                         <ActionsMenu
                           items={[
@@ -116,7 +122,7 @@ export function NetWorthPage() {
                           .join(' · ')}
                       title={asset.name}
                     />
-                    <span className="shrink-0 text-ink">{money(asset.valueMinor, asset.currency)}</span>
+                    <Amount currency={asset.currency} minor={asset.valueMinor} />
                     {editable && (
                       <ActionsMenu
                         items={[

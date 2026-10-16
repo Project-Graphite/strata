@@ -10,6 +10,12 @@ import { FormDialog } from './FormDialog';
 import { CategoryChips } from './CategoryChips';
 import { CurrencyField } from './CurrencyField';
 
+const directionWords: Record<ExpenseDirection, { noun: string; what: string; example: string }> = {
+  spent: { noun: 'expense', what: 'What for', example: 'Groceries at the market' },
+  received: { noun: 'income', what: 'Where from', example: 'Salary' },
+  refund: { noun: 'refund', what: 'What for', example: 'Returned shoes' },
+  transfer: { noun: 'transfer', what: 'What for', example: 'Paying off the card' },
+};
 
 export function ExpenseEditor({
   accounts,
@@ -44,6 +50,7 @@ export function ExpenseEditor({
   const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.accountId ?? '');
   const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? '');
   const transfer = direction === 'transfer';
+  const words = directionWords[direction];
   const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
 
   return (
@@ -91,16 +98,16 @@ export function ExpenseEditor({
               });
             }
             onSaved(saved);
-            return expense ? '' : 'Expense added.';
-          }, 'Could not save the expense')
+            return expense ? '' : `Added the ${words.noun}.`;
+          }, `Could not save the ${words.noun}`)
           .then((saved) => saved && onClose());
       }}
-      submitLabel={expense ? 'Save' : 'Add expense'}
-      title={expense ? 'Edit expense' : capture ? 'Add from message' : 'New expense'}
+      submitLabel={expense ? 'Save' : `Add ${words.noun}`}
+      title={expense ? `Edit ${words.noun}` : capture ? 'Add from message' : `New ${words.noun}`}
     >
       {capture && <blockquote className="m-0 rounded-lg border border-line p-3 text-sm text-muted">{capture.text}</blockquote>}
       <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
-      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label="What for" maxLength={200} placeholder="Groceries at the market" {...form.field('title')} />
+      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : suggested?.amountMinor && suggested.currency ? fromMinor(suggested.amountMinor, suggested.currency) : ''}
@@ -143,7 +150,7 @@ export function ExpenseEditor({
                     return '';
                   },
                 };
-              }, 'Could not move the expense to the trash')
+              }, `Could not move the ${words.noun} to the trash`)
               .then((done) => done && onClose())
           }
           type="button"

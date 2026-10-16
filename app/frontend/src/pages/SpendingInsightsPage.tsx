@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router';
 import { formatDay, ListSkeleton, Tabs } from '@project-graphite/ui';
+import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Toolbar } from '../components/Page';
@@ -135,7 +136,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
                     detail={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
                     title={merchant.merchant}
                   />
-                  <span className="shrink-0 text-ink">{money(merchant.totalMinor, currency)}</span>
+                  <Amount currency={currency} minor={merchant.totalMinor} />
                 </li>
               ))}
             </ul>

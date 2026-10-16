@@ -92,6 +92,7 @@ describe('Spending', () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   function serve(route: (path: string, init?: RequestInit) => Response | undefined) {
@@ -513,6 +514,7 @@ describe('Spending', () => {
   });
 
   it('shows the month and the next payments on Home widgets', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-16T10:00:00'), toFake: ['Date'] });
     accounts = [{ ...account('card', 'Visa', 'credit', -4500), dueDay: 20 } as ReturnType<typeof account>];
     installments = [{ id: 'p1', name: 'valU phone', currency: 'EUR', monthlyMinor: 10000, nextDueOn: '2026-10-31', status: 'missed' }];
     serve((path) => {
@@ -535,8 +537,8 @@ describe('Spending', () => {
     expect(container.textContent).toContain('€75.00 of €300.00');
     expect(container.textContent).toContain('€15.00 a day to stay on budget');
     expect(container.textContent).toContain('Corner shop');
-    expect(container.textContent).toContain('valU phone€100.00 · missed Oct 31');
-    expect(container.textContent).toContain('Visa€45.00');
+    expect(container.textContent).toContain('valU phonemissed Oct 31€100.00');
+    expect(container.textContent).toContain('VisaOct 20€45.00');
   });
 
   it('adds up net worth, adds a certificate and saves towards a goal', async () => {
@@ -552,7 +554,7 @@ describe('Spending', () => {
     await render('/spending/net-worth');
 
     expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€16,000.00', '€5,000.00', '€12,000.00', '€1,000.00']);
-    expect(container.textContent).toContain('€2,500.00 of €10,000.00 · by Jun 1, 2027');
+    expect(container.textContent).toContain('Carby Jun 1, 2027€2,500.00 of €10,000.00');
 
     await act(async () => button('Add an asset').click());
     let form = container.querySelector('dialog form') as HTMLFormElement;

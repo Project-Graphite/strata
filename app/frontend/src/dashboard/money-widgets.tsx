@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { formatDay, ListSkeleton, Meter } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '../spending';
@@ -38,10 +39,7 @@ export function SpendingWidget() {
         {expenses.slice(0, 4).map((expense) => (
           <li className="flex justify-between gap-3 text-sm" key={expense.id}>
             <span className="truncate text-ink">{expense.title}</span>
-            <span className="shrink-0 text-muted">
-              {expense.direction === 'received' || expense.direction === 'refund' ? '+' : ''}
-              {money(expense.amountMinor, expense.currency)}
-            </span>
+            <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
           </li>
         ))}
       </ul>
@@ -72,11 +70,12 @@ export function PaymentsWidget() {
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {payments.slice(0, 5).map((payment) => (
         <li className="flex justify-between gap-3 text-sm" key={payment.key}>
-          <span className="truncate text-ink">{payment.name}</span>
+          <span className="min-w-0 flex-1 truncate text-ink">{payment.name}</span>
           <span className={payment.missed ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}>
-            {money(payment.amountMinor, payment.currency)} · {payment.missed ? 'missed ' : ''}
+            {payment.missed ? 'missed ' : ''}
             {formatDay(payment.on, { day: 'numeric', month: 'short' })}
           </span>
+          <Amount currency={payment.currency} danger={payment.missed} minor={payment.amountMinor} />
         </li>
       ))}
     </ul>
@@ -99,10 +98,11 @@ export function SavingsWidget() {
     <ul className="m-0 grid list-none gap-3 p-0">
       {goals.data.slice(0, 4).map((goal) => (
         <li className="grid gap-1" key={goal.id}>
-          <span className="truncate text-sm text-ink">{goal.name}</span>
-          <span className="text-xs text-muted">
-            {goal.savedMinor === null ? '' : `${money(goal.savedMinor, goal.currency)} of `}
-            {money(goal.targetMinor, goal.currency)}
+          <span className="flex flex-wrap justify-between gap-x-3 text-sm">
+            <span className="max-w-full shrink-0 truncate text-ink">{goal.name}</span>
+            <Amount currency={goal.currency} minor={goal.savedMinor ?? goal.targetMinor}>
+              {goal.savedMinor !== null && ` of ${money(goal.targetMinor, goal.currency)}`}
+            </Amount>
           </span>
           <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
         </li>

@@ -3,13 +3,14 @@ import { Link, useSearchParams } from 'react-router';
 import { ListSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { Amount } from '../../components/Amount';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { RowText } from '../../components/RowText';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
 import type { Member } from '../../spaces';
-import { cycleLabel, money, shortDate, type Subscription } from '../../subscriptions';
+import { cycleLabel, shortDate, type Subscription } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceBalances } from './SpaceBalances';
@@ -90,8 +91,9 @@ export function SpaceSubscriptions() {
                   ]
                     .filter(Boolean)
                     .join(' · ')}
-                title={<>{subscription.name} <span className="text-muted">{money(subscription.amountMinor, subscription.currency)}</span></>}
+                title={subscription.name}
               />
+              <Amount currency={subscription.currency} minor={subscription.amountMinor} />
               {editable && (
                 <div className="flex shrink-0 items-center gap-2">
                   {cancelled ? (

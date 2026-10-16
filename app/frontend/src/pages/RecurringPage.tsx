@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { currencyName } from '../choices';
 import { spendingTabs } from '../spending';
 import { useSpaces } from '../spaces';
 import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Amount } from '../components/Amount';
 import { Button, IconButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
@@ -33,8 +35,9 @@ interface Summary {
 function SubscriptionLine({ subscription, detail, onOpen }: { subscription: Subscription; detail: string; onOpen?: () => void }) {
   const content = (
     <>
-      <span className="min-w-0 truncate">{subscription.name}</span>
-      <span className="mono-sm shrink-0 text-faint">{detail}</span>
+      <span className="min-w-0 flex-1 truncate">{subscription.name}</span>
+      <span className="shrink-0 text-sm text-muted">{detail}</span>
+      <Amount currency={subscription.currency} minor={subscription.amountMinor} />
     </>
   );
   return onOpen ? (
@@ -108,7 +111,7 @@ export function RecurringPage() {
             {summary.data.home && summary.data.totals.length > 1 && (
               <Stat
                 detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn ? ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
-                label={`All together, in ${summary.data.home.currency}`}
+                label={`All together, in ${currencyName(summary.data.home.currency)}`}
                 value={`≈ ${money(summary.data.home.monthlyMinor, summary.data.home.currency)} a month`}
               />
             )}
@@ -116,7 +119,7 @@ export function RecurringPage() {
               <Stat
                 detail={`${money(total.yearlyMinor, total.currency)} over the next year`}
                 key={total.currency}
-                label={total.currency}
+                label={currencyName(total.currency)}
                 value={`${money(total.monthlyMinor, total.currency)} a month`}
               />
             ))}
@@ -127,7 +130,7 @@ export function RecurringPage() {
               <div className="panel-rows">
                 {summary.data.trials.map((subscription) => (
                   <SubscriptionLine
-                    detail={`ends ${shortDate(subscription.trialEndsOn!)}, then ${money(subscription.amountMinor, subscription.currency)}`}
+                    detail={`ends ${shortDate(subscription.trialEndsOn!)}`}
                     key={subscription.id}
                     onOpen={opener(subscription)}
                     subscription={subscription}
@@ -140,7 +143,7 @@ export function RecurringPage() {
             <div className="panel-rows">
               {summary.data.upcoming.map((subscription) => (
                 <SubscriptionLine
-                  detail={`${shortDate(subscription.nextRenewal)} · ${money(subscription.amountMinor, subscription.currency)}`}
+                  detail={shortDate(subscription.nextRenewal)}
                   key={subscription.id}
                   onOpen={opener(subscription)}
                   subscription={subscription}
@@ -153,7 +156,9 @@ export function RecurringPage() {
               {summary.data.categories.map((category) => (
                 <p className="m-0 flex justify-between gap-4 panel-row" key={`${category.category}-${category.currency}`}>
                   <span className="text-ink">{categoryLabel(category.category)}</span>
-                  <span className="mono-sm text-faint">{money(category.monthlyMinor, category.currency)} a month</span>
+                  <Amount currency={category.currency} minor={category.monthlyMinor}>
+                    {' a month'}
+                  </Amount>
                 </p>
               ))}
             </div>

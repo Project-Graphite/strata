@@ -4,6 +4,7 @@ import { formatDay, Icon, Meter, PageSkeleton, TextField } from '@project-graphi
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Amount } from '../components/Amount';
 import { Button, IconButton } from '../components/Button';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
@@ -180,7 +181,7 @@ export function TripPage() {
                   detail={<>{formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}</>}
                   title={expense.title}
                 />
-                <span className="shrink-0 text-ink">{money(expense.amountMinor, expense.currency)}</span>
+                <Amount currency={expense.currency} minor={expense.amountMinor} />
                 {unlinkMenu(expense.linkId, expense.title)}
               </li>
             ))}

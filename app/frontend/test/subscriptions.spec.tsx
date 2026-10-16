@@ -120,7 +120,7 @@ describe('Recurring', () => {
     fill(form, 'paymentLabel', 'Visa ending 1234');
     await submit(form);
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/subscriptions', expect.objectContaining({ method: 'POST' }));
-    expect(container.textContent).toContain(`Music ${euros(999)}`);
+    expect(container.textContent).toContain(`Visa ending 1234${euros(999)}`);
     expect(container.textContent).toContain('monthly · music');
   });
 
@@ -198,7 +198,7 @@ describe('Recurring', () => {
     );
     await render('/recurring');
 
-    expect(container.textContent).toContain('All together, in EUR');
+    expect(container.textContent).toContain('All together, in Euro');
     expect(container.textContent).toContain(`≈ ${euros(2000)} a month`);
     expect(container.textContent).toContain('ECB rates of');
     expect(container.textContent).toContain('There is no exchange rate for XAU yet, so those amounts are left out of the totals.');
