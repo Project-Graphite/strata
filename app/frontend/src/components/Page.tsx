@@ -1,10 +1,21 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { PageHeader } from '@project-graphite/ui';
+
+export function useDocumentTitle(title: string | undefined) {
+  useEffect(() => {
+    if (!title) return;
+    document.title = `${title} · Strata`;
+    return () => {
+      document.title = 'Strata';
+    };
+  }, [title]);
+}
 
 export function Page({
   actions,
   children,
   description,
+  documentTitle,
   eyebrow,
   title,
   titleHidden = false,
@@ -12,10 +23,12 @@ export function Page({
   actions?: ReactNode;
   children: ReactNode;
   description?: ReactNode;
+  documentTitle?: string;
   eyebrow?: ReactNode;
   title: ReactNode;
   titleHidden?: boolean;
 }) {
+  useDocumentTitle(documentTitle ?? (typeof title === 'string' ? title : undefined));
   return (
     <section className="page-enter grid content-start gap-8">
       {titleHidden ? (

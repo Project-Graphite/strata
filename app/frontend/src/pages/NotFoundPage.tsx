@@ -1,7 +1,9 @@
 import { Icon } from '@project-graphite/ui';
 import { ButtonLink } from '../components/Button';
+import { useDocumentTitle } from '../components/Page';
 
 export function NotFoundPage() {
+  useDocumentTitle('Page not found');
   return (
     <div className="page-enter mx-auto grid max-w-md justify-items-center gap-3 py-16 text-center">
       <span className="error-state-icon">

@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { CodeInput, errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { useDocumentTitle } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
 import { emailAddress, required, useFormErrors } from '../validation';
 
@@ -73,6 +74,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [challenge, setChallenge] = useState('');
+  useDocumentTitle('Sign in');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
