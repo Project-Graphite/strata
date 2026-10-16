@@ -133,9 +133,12 @@ describe('Spaces', () => {
 
     expect(container.textContent).toContain('Shopping list');
     expect(container.textContent).toContain('Family · trashed');
+    const sidebarLoads = () => fetchMock.mock.calls.filter(([input]) => input === '/api/v1/me/notes').length;
+    const loadsBefore = sidebarLoads();
     await act(async () => button('Restore')!.click());
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/note/restore', expect.objectContaining({ method: 'POST' }));
+    expect(sidebarLoads()).toBeGreaterThan(loadsBefore);
     expect(container.textContent).toContain('Shopping list is back in Family.');
     expect(container.textContent).toContain('The trash is empty');
   });

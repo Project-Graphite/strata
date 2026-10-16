@@ -7,6 +7,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
+import { useDocumentTitle } from '../components/Page';
 
 export function InvitePage() {
   const { code = '' } = useParams();
@@ -16,6 +17,7 @@ export function InvitePage() {
   const spaces = useSpaces();
   const invite = useResource<InviteDetails>(`/invitations/lookup/${encodeURIComponent(code)}`);
   const joining = useAction();
+  useDocumentTitle('Invitation');
 
   if (!auth.ready || invite.loading) return <FormPanelSkeleton label="Loading this invite" />;
   if (!invite.data) {
