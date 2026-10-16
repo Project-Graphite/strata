@@ -18,7 +18,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
       onDone();
       onClose();
       return [
-        imported === 0 ? 'No Markdown files were found.' : imported === 1 ? 'Imported 1 page.' : `Imported ${imported} pages.`,
+        imported === 1 ? 'Imported 1 page.' : imported ? `Imported ${imported} pages.` : tooLong ? '' : 'No Markdown files were found.',
         tooLong ? `${tooLong} ${tooLong === 1 ? 'page was' : 'pages were'} too long to import.` : '',
       ]
         .filter(Boolean)

@@ -74,6 +74,10 @@ export function itemHref(item: { id: string; kind: string; spaceId: string }) {
   return null;
 }
 
+const itemKindNames: Record<string, string> = { note: 'page', list: 'task list' };
+
+export const itemKindName = (kind: string) => itemKindNames[kind] ?? kind;
+
 export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
   return (
     <span aria-hidden="true" className={`tag-mark tag-${space.color} ${large ? 'space-mark-large' : ''}`} data-initial={space.kind === 'personal' ? undefined : space.name.charAt(0).toUpperCase()}>

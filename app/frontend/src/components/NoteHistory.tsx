@@ -44,7 +44,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                   >
                     <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...timeOptions() })}</span>
                     <span className="mono-sm text-faint">
-                      {version.createdBy ?? 'someone'} · {timeAgo(version.createdAt)}
+                      {version.createdBy ?? 'Someone'} · {timeAgo(version.createdAt)}
                     </span>
                   </button>
                 </li>
@@ -56,7 +56,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
               ) : !preview.data || preview.data.id !== chosen ? (
                 <ListSkeleton label="Loading this version" rows={2} />
               ) : (
-                <div className="max-h-56 overflow-y-auto rounded-lg border border-line p-4 text-sm whitespace-pre-wrap text-ink">
+                <div className="max-h-56 overflow-y-auto rounded-lg border border-line p-4 text-sm whitespace-pre-wrap break-words text-ink">
                   {preview.data.text || 'This version is empty.'}
                 </div>
               ))}

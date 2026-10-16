@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DatePicker, Dialog, Select, SuggestField, TextField } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { catalogue, knownService } from '../catalogue';
 import { spaceOptions, type Space } from '../spaces';
@@ -31,7 +32,7 @@ export function SubscriptionEditor({
   const [category, setCategory] = useState(subscription?.category ?? 'other');
   const [cancelUrl, setCancelUrl] = useState(subscription?.cancelUrl ?? '');
   const customCycle = subscription && !billingCycles.some(([value]) => value === subscription.repeatRule);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dayKey(new Date());
 
   function fillKnown(name: string) {
     const known = knownService(name);
@@ -117,7 +118,7 @@ export function SubscriptionEditor({
             name="repeatRule"
             options={[
               ...billingCycles.map(([value, label]) => ({ value: value as string, label: label as string })),
-              ...(customCycle ? [{ value: subscription.repeatRule, label: `Custom (${subscription.repeatRule})` }] : []),
+              ...(customCycle ? [{ value: subscription.repeatRule, label: 'Custom cycle' }] : []),
             ]}
           />
           <DatePicker defaultValue={subscription?.startDate ?? today} label="First payment" name="startDate" optional={false} />

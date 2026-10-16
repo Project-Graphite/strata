@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, isAbortError } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, isAbortError } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { Empty } from '../components/Empty';
 import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { fileSize } from '../files';
@@ -140,7 +141,7 @@ export function FolderScan() {
               await collect(folder, '', found, setProgress);
               setRoot(folder);
               setReport(await analyse(found));
-              return `Looked at ${found.length} files in ${folder.name}.${
+              return `Looked at ${found.length.toLocaleString()} file${found.length === 1 ? '' : 's'} in ${folder.name}.${
                 found.length >= maxFiles ? ' Strata stops at 20,000 files, so choose a smaller folder to see everything.' : ''
               }`;
             }, 'Could not read the folder')
@@ -165,7 +166,7 @@ export function FolderScan() {
                     {group.length} copies of {fileSize(group[0]!.size)}
                   </p>
                   <ul className="panel-rows">
-                    {group.map((file) => choice(file, `changed ${new Date(file.modified).toLocaleDateString()}`))}
+                    {group.map((file) => choice(file, `changed ${formatDay(dayKey(new Date(file.modified)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
                   </ul>
                 </div>
               ))}
@@ -179,7 +180,7 @@ export function FolderScan() {
           {report.old.length > 0 && (
             <Section description="Files nobody has changed for over a year." title="Old files">
               <ul className="panel-rows">
-                {report.old.map((file) => choice(file, `unchanged since ${new Date(file.modified).toLocaleDateString()}`))}
+                {report.old.map((file) => choice(file, `unchanged since ${formatDay(dayKey(new Date(file.modified)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
               </ul>
             </Section>
           )}

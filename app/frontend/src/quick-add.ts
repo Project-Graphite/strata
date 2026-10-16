@@ -1,4 +1,5 @@
 import { addDays, dayKey } from './agenda';
+import { clockTime } from './time';
 
 export interface QuickTask {
   title: string;
@@ -104,7 +105,7 @@ export function describeQuickTask(task: QuickTask) {
   return [
     task.dueDate &&
       `due ${new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${
-        task.dueTime ? ` ${task.dueTime}` : ''
+        task.dueTime ? ` ${clockTime(task.dueTime)}` : ''
       }`,
     ...task.tagNames.map((name) => `tag ${name}`),
     task.priority && `${['', 'low', 'medium', 'high'][task.priority]} priority`,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog } from '@project-graphite/ui';
+import { Dialog, formatDay } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useCategories } from '../spending';
 import { money, toMinor } from '../subscriptions';
@@ -22,8 +22,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
   const categories = useCategories(spaceId);
   const [category, setCategory] = useState('other');
   const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
-  const charges = statement.charges.slice(0, shownAtMost);
-  const chosen = charges.filter((_, index) => !skipped.has(String(index)));
+  const chosen = statement.charges.filter((_, index) => !skipped.has(String(index)));
 
   return (
     <Dialog onClose={onClose} title="Import spending from a statement">
@@ -38,14 +37,14 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             </div>
             <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={category} />
             <Hint>
-              {statement.charges.length} charges read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
+              {statement.charges.length} charge{statement.charges.length === 1 ? '' : 's'} read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
             </Hint>
-            {charges.length > 0 && (
+            {statement.charges.length > 0 && (
               <ul className="panel-rows max-h-72 overflow-y-auto">
-                {charges.map((charge, index) => (
+                {statement.charges.slice(0, shownAtMost).map((charge, index) => (
                   <Choice
                     checked={!skipped.has(String(index))}
-                    detail={`${charge.date} · ${money(toMinor(charge.amount.toFixed(2), chosenCurrency), chosenCurrency)}`}
+                    detail={`${formatDay(charge.date)} · ${money(toMinor(String(charge.amount), chosenCurrency), chosenCurrency)}`}
                     key={index}
                     label={charge.description}
                     onToggle={() => setSkipped((current) => toggled(current, String(index)))}
@@ -69,7 +68,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
                     body: JSON.stringify({
                       expenses: chosen.map((charge) => ({
                         title: charge.description.slice(0, 200) || 'Card payment',
-                        amountMinor: toMinor(charge.amount.toFixed(2), chosenCurrency),
+                        amountMinor: toMinor(String(charge.amount), chosenCurrency),
                         currency: chosenCurrency,
                         spentOn: charge.date,
                         category,

@@ -7,7 +7,7 @@ import { Button } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
-import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
+import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
 
@@ -51,7 +51,7 @@ export function SpacesPage() {
               <Link className="min-w-0 flex-1 truncate text-ink no-underline hover:underline" to={`/spaces/${space.id}`}>
                 {space.name}
               </Link>
-              <span className="mono-sm shrink-0 text-faint">{space.kind === 'personal' ? 'Only you' : `Shared · ${space.role}`}</span>
+              <span className="mono-sm shrink-0 text-faint">{space.kind === 'personal' ? 'Only you' : `Shared · ${roleOptions.find((option) => option.value === space.role)?.label}`}</span>
               <ActionsMenu items={actionsFor(space)} name={space.name} />
             </li>
           ))}

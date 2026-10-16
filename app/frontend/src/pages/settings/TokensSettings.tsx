@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { dayKey } from '../../agenda';
 import { useAuth } from '../../auth';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
@@ -73,7 +74,7 @@ export function TokensSettings() {
               >
                 <span className="mono-sm">
                   {token.scopes.join(', ')} · {token.lastUsedAt ? `used ${timeAgo(token.lastUsedAt)}` : 'never used'} · expires{' '}
-                  {new Date(token.expiresAt).toLocaleDateString()}
+                  {formatDay(dayKey(new Date(token.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
               </SettingsRow>
             ))}

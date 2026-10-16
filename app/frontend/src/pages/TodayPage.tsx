@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { ListSkeleton, Tabs } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Tabs } from '@project-graphite/ui';
 import { useTodaySchedule } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard } from '../components/AgendaEntryLink';
@@ -57,7 +57,7 @@ export function TodayPage() {
                         tasks.mutate((current) => current.filter((shown) => shown.id !== task.id));
                         return updated.completedAt
                           ? `Done: ${task.title}.`
-                          : `Done for now. ${task.title} is next due ${updated.dueDate}.`;
+                          : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
                       }, 'Could not update the task')
                     }
                     task={task}

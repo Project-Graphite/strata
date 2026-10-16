@@ -95,7 +95,7 @@ export function NetWorthPage() {
                         />
                       )}
                     </span>
-                    <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
+                    <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />
                   </li>
                 ))}
               </ul>

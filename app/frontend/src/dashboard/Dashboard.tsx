@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, PageSkeleton, Select, tagColors, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, PageSkeleton, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -145,20 +145,20 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Hint>{dashboard.name}</Hint>
-          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', ...timeOptions() })}</p>
+          <p className="m-0 text-5xl text-ink">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', ...timeOptions() })}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
       {mayDim && <p className="mono-sm mt-4 mb-0 text-faint">This browser may still let the screen turn itself off.</p>}
-      <div className="mt-8 text-lg" key={round}>
+      <div className="mt-8 text-lg">
         <DashboardGrid
           card={(widget) => {
             const kind = widgetKinds[widget.type];
             return (
               <>
                 {!widget.hideTitle && <Subheading level={2}>{cardTitle(widget)}</Subheading>}
-                <WidgetBoundary>
+                <WidgetBoundary key={widget.type === 'focus' || widget.type === 'capture' ? 'kept' : round}>
                   <kind.View settings={widget.settings} />
                 </WidgetBoundary>
               </>
@@ -410,10 +410,10 @@ export function DashboardHome() {
             <fieldset className="m-0 grid gap-3 border-0 p-0">
               <legend className="mb-3 p-0 text-sm font-medium text-ink">Background</legend>
               <div className="swatches">
-                {tagColors.map((colour) => (
-                  <label className="swatch" key={colour} title={colour}>
+                {colorOptions.map(({ value: colour, label }) => (
+                  <label className="swatch" key={colour} title={label}>
                     <input
-                      aria-label={colour}
+                      aria-label={label}
                       checked={layout.background?.colour === colour}
                       className="sr-only"
                       name="background"

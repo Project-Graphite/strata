@@ -366,9 +366,11 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
                     Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
                   </button>
                 )}
-                <button className="board-action" onClick={addVote} type="button">
-                  Add a vote
-                </button>
+                {round && (
+                  <button className="board-action" onClick={addVote} type="button">
+                    Add a vote
+                  </button>
+                )}
               </div>
             ) : null
           }

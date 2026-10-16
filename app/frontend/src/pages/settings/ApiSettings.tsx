@@ -71,7 +71,7 @@ export function ApiSettings() {
             <details className="rounded-lg border border-line p-3" key={scope}>
               <summary className="text-ink">
                 <span>
-                  <span className="mono-sm">{scope}</span> · {routes.length} endpoints
+                  <span className="mono-sm">{scope}</span> · {routes.length} endpoint{routes.length === 1 ? '' : 's'}
                 </span>
               </summary>
               <ul className="m-0 mt-2 grid list-none gap-0.5 p-0">

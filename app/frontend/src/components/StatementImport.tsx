@@ -3,7 +3,7 @@ import { Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spaceOptions, useSpaces } from '../spaces';
 import { merchantKey, suggestRecurring } from '../statement';
-import { cycleLabel, toMinor, type Subscription } from '../subscriptions';
+import { cycleLabel, money, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useStatementFile } from './StatementFile';
@@ -38,7 +38,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
           <>
             {statement.columns}
             <p className="mono-sm m-0 text-faint">
-              {charges.length} charges read · {suggestions.length} look recurring
+              {charges.length} charge{charges.length === 1 ? '' : 's'} read · {suggestions.length} look{suggestions.length === 1 ? 's' : ''} recurring
             </p>
             {suggestions.length > 0 && (
               <ul className="panel-rows">
@@ -47,7 +47,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                   return (
                     <Choice
                       checked={!known && !skipped.has(suggestion.key)}
-                      detail={[`${suggestion.amount.toFixed(2)} ${cycleLabel(suggestion.repeatRule)}`, `${suggestion.count} charges`, known && 'already tracked in this space']
+                      detail={[`${money(toMinor(String(suggestion.amount), currency), currency)} ${cycleLabel(suggestion.repeatRule)}`, `${suggestion.count} charges`, known && 'already tracked in this space']
                         .filter(Boolean)
                         .join(' · ')}
                       disabled={known}
@@ -80,7 +80,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                       method: 'POST',
                       body: JSON.stringify({
                         name: suggestion.name,
-                        amountMinor: toMinor(suggestion.amount.toFixed(2), currency),
+                        amountMinor: toMinor(String(suggestion.amount), currency),
                         currency,
                         repeatRule: suggestion.repeatRule,
                         startDate: suggestion.lastDate,

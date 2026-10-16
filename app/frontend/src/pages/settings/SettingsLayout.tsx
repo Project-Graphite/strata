@@ -54,7 +54,7 @@ export function SettingsLayout() {
       <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Settings" />
       <div className="fade-in grid max-w-3xl gap-10">
         <Outlet />
-        <AboutLinks />
+        <AboutLinks className="md:hidden" />
       </div>
     </Page>
   );

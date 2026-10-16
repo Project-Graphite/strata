@@ -90,12 +90,12 @@ export function BookmarksPage() {
                     {siteLabel(bookmark)}
                   </a>
                   {' · '}
-                  {spaces.data?.find((space) => space.id === bookmark.spaceId)?.name} · saved {timeAgo(bookmark.createdAt)}
+                  {[spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
                 </span>
               </div>
               {editable(bookmark) && (
                 <button className="text-button shrink-0 text-sm" disabled={marking.busy} onClick={() => markRead(bookmark, !bookmark.readAt)} type="button">
-                  {bookmark.readAt ? 'Mark unread' : 'Mark read'}
+                  {bookmark.readAt ? 'Read later' : 'Mark read'}
                 </button>
               )}
             </li>

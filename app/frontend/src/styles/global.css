@@ -49,6 +49,7 @@
   min-height: 45vh;
   color: var(--color-ink);
   line-height: 1.7;
+  overflow-wrap: anywhere;
   outline: none;
 }
 
@@ -151,6 +152,16 @@
 .note-content h2 {
   font-size: 1.25rem;
   font-weight: 620;
+}
+
+.note-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.note-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .note-content ul,
@@ -653,6 +664,14 @@ button.habit-day {
 
 .page-icon:hover {
   background: var(--color-line-soft);
+}
+
+.icon-picker {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  width: max-content;
+  padding: 0.5rem;
 }
 
 .icon-picker-choice {

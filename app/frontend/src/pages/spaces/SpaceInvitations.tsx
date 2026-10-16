@@ -25,7 +25,7 @@ export function SpaceInvitations({ inviting, onClose, space }: { inviting: boole
             {pending.data.map((invitation) => (
               <li className="panel-row flex items-center justify-between gap-4" key={invitation.id}>
                 <RowText
-                  detail={<>as {invitation.role} · sent {timeAgo(invitation.createdAt)}</>}
+                  detail={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
                   title={invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : invitation.email}
                 />
                 <Button

@@ -11,7 +11,7 @@ import { NoteComments, type CommentAnchors, type QuotedBlock } from '../componen
 import { NoteHistory } from '../components/NoteHistory';
 import { ShareLinks } from '../components/ShareLinks';
 import { announcePagesChanged, noteTitle, type Note, type NoteDetails, type PropertyValues } from '../notes';
-import { itemHref, useSpaces, type Member } from '../spaces';
+import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { NotFoundState } from '../components/Empty';
@@ -212,7 +212,7 @@ export function NotePage() {
               <dd className="m-0">
                 <PropertyField
                   editable={details.editable}
-                  members={members.data ?? []}
+                  members={members.data}
                   onChange={(value) => setValue(property.id, value)}
                   property={property}
                   value={details.row!.values[property.id]}
@@ -291,7 +291,7 @@ export function NotePage() {
                 <Link className="text-ink no-underline hover:underline" to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
                   {noteTitle(item)}
                 </Link>
-                <span className="mono-sm text-faint"> · {item.kind}</span>
+                <span className="mono-sm text-faint"> · {itemKindName(item.kind)}</span>
               </li>
             ))}
           </ul>

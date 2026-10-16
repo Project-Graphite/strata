@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ListSkeleton } from '@project-graphite/ui';
-import { shiftMonth } from '../../agenda';
+import { dayKey, shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
@@ -30,7 +30,7 @@ interface Balances {
 export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const auth = useAuth();
   const me = auth.user?.id;
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => dayKey(new Date()).slice(0, 7));
   const balances = useResource<Balances>(`/spaces/${spaceId}/balances?month=${month}`, true);
   const action = useAction();
 

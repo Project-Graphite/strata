@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router';
-import { ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
@@ -45,11 +45,11 @@ function describeActivity(event: ActivityEvent) {
     case 'item.deleted':
       return `${who} deleted ${title} for good`;
     case 'task.completed':
-      return data.nextDue ? `${who} finished ${title}, next due ${String(data.nextDue)}` : `${who} finished ${title}`;
+      return data.nextDue ? `${who} finished ${title}, next due ${formatDay(String(data.nextDue), { day: 'numeric', month: 'short', year: 'numeric' })}` : `${who} finished ${title}`;
     case 'task.reopened':
       return `${who} reopened ${title}`;
     case 'subscription.renewed':
-      return `${title} renewed, next on ${String(data.nextRenewal)}`;
+      return `${title} renewed, next on ${formatDay(String(data.nextRenewal), { day: 'numeric', month: 'short', year: 'numeric' })}`;
     case 'subscription.cancelled':
       return event.actor ? `${who} marked ${title} cancelled` : `${title} ended`;
     case 'subscription.resumed':

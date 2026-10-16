@@ -78,7 +78,7 @@ export function InboxPage() {
                       notification.title
                     )}
                   </p>
-                  {notification.body && <p className="mt-1 mb-0 text-sm text-muted">“{notification.body}”</p>}
+                  {notification.body && <p className="mt-1 mb-0 text-sm text-muted">{notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body}</p>}
                   <p className="mono-sm m-0 mt-1 text-faint">{timeAgo(notification.createdAt)}</p>
                 </div>
                 <Button disabled={action.busy} label={notification.read ? 'Mark unread' : 'Mark read'} onClick={() => setRead(notification, !notification.read)} />

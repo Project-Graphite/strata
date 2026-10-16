@@ -1,3 +1,4 @@
+import { formatDay } from '@project-graphite/ui';
 import { addDays } from './agenda';
 import { useAuth } from './auth';
 import { useAction } from './useAction';
@@ -68,7 +69,7 @@ export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit;
               type="button"
             />
           ) : (
-            <span aria-hidden="true" className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`} key={day} title={day} />
+            <span aria-hidden="true" className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`} key={day} title={formatDay(day, { weekday: 'short', day: 'numeric', month: 'short' })} />
           ),
         )}
       </div>

@@ -86,8 +86,8 @@ describe('Tidy', () => {
     });
     await render('/tidy');
 
-    expect(container.textContent).toContain('3.0 MB');
-    expect(container.textContent).toContain('2 copies of 3.0 MB');
+    expect(container.textContent).toContain('3 MB');
+    expect(container.textContent).toContain('2 copies of 3 MB');
     await act(async () => button('Select the extra copies').click());
     expect(container.textContent).toContain('1 item selected');
     await act(async () => button('Move to the trash').click());

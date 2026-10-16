@@ -57,7 +57,7 @@ export function SpaceTags() {
         )}
       </div>
 
-      <TidyRules tags={tags.data} />
+      {auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
 
       {editing && (
         <FormDialog

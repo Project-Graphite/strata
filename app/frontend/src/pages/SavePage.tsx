@@ -138,8 +138,8 @@ export function SavePage() {
           <div className="grid gap-2">
             <p className="field-label m-0">Files</p>
             <ul className="panel-rows">
-              {shared.files.map((file) => (
-                <li className="flex justify-between gap-4 panel-row" key={file.name}>
+              {shared.files.map((file, index) => (
+                <li className="flex justify-between gap-4 panel-row" key={index}>
                   <span className="min-w-0 truncate text-ink">{file.name}</span>
                   <span className="mono-sm shrink-0 text-faint">{fileSize(file.size)}</span>
                 </li>

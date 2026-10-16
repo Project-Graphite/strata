@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { formatDay, Icon, ListSkeleton, Meter, Select } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { fileSize, maxUploadBytes, saveBlob, uploadFiles } from '../files';
@@ -99,7 +100,7 @@ export function StoragePage() {
                   <li className="panel-row flex items-center gap-3" key={file.id}>
                     <Icon name="file" size={18} />
                     <RowText
-                      detail={[fileSize(file.sizeBytes), formatDay(file.createdAt.slice(0, 10), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
+                      detail={[fileSize(file.sizeBytes), formatDay(dayKey(new Date(file.createdAt)), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
                           .filter(Boolean)
                           .join(' · ')}
                       title={file.name}

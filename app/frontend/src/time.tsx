@@ -69,8 +69,9 @@ function Digits({ label, max, min, onChange, step, value }: { label: string; max
 function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: string; onClose: () => void; onSet: (time: string) => void; optional: boolean; title: string }) {
   const twelve = usesTwelveHours();
   const now = new Date();
-  const [hours, setHours] = useState(initial ? Number(initial.slice(0, 2)) : now.getHours());
-  const [minutes, setMinutes] = useState(initial ? Number(initial.slice(3, 5)) : (Math.ceil(now.getMinutes() / 5) * 5) % 60);
+  const rounded = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 5) * 5;
+  const [hours, setHours] = useState(initial ? Number(initial.slice(0, 2)) : Math.floor(rounded / 60) % 24);
+  const [minutes, setMinutes] = useState(initial ? Number(initial.slice(3, 5)) : rounded % 60);
   const afternoon = hours >= 12;
 
   return (

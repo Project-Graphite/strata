@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeQuickTask, parseQuickTask } from '../src/quick-add';
+import { clockTime } from '../src/time';
 
 const monday = new Date('2026-10-05T10:00:00');
 const parse = (text: string) => parseQuickTask(text, ['home', 'Work'], monday);
@@ -30,7 +31,7 @@ describe('plain-language quick add', () => {
 
   it('describes what it understood', () => {
     expect(describeQuickTask(parse('pay rent friday 9am #home !2'))).toBe(
-      `due ${new Date('2026-10-09T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} 09:00 · tag home · medium priority`,
+      `due ${new Date('2026-10-09T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${clockTime('09:00')} · tag home · medium priority`,
     );
     expect(describeQuickTask(parse('just a title'))).toBe('');
   });

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Avatar, Icon, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
+import { clockTime } from './time';
 
 export interface Task {
   id: string;
@@ -49,13 +50,16 @@ export const reminderPresets = [
 
 export function repeatOptions(current?: string | null) {
   const options: { value: string; label: string }[] = repeatPresets.map(([value, label]) => ({ value, label }));
-  if (current && !options.some((option) => option.value === current)) options.push({ value: current, label: `Custom (${current})` });
+  if (current && !options.some((option) => option.value === current)) options.push({ value: current, label: 'Custom schedule' });
   return options;
 }
 
 export function reminderOptions(current?: number | null) {
   const options: { value: string; label: string }[] = reminderPresets.map(([value, label]) => ({ value, label }));
-  if (current != null && !options.some((option) => option.value === String(current))) options.push({ value: String(current), label: `${current} minutes before` });
+  if (current != null && !options.some((option) => option.value === String(current))) {
+    const [amount, unit]: [number, string] = current % 1440 === 0 ? [current / 1440, 'day'] : current % 60 === 0 ? [current / 60, 'hour'] : [current, 'minute'];
+    options.push({ value: String(current), label: `${amount} ${unit}${amount === 1 ? '' : 's'} before` });
+  }
   return options;
 }
 
@@ -73,7 +77,7 @@ export function dueLabel(task: Task) {
     task.dueDate === today
       ? 'today'
       : new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  return task.dueTime ? `${day} ${task.dueTime}` : day;
+  return task.dueTime ? `${day} ${clockTime(task.dueTime)}` : day;
 }
 
 export function isOverdue(task: Task) {

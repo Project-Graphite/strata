@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { CommandPalette, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { enabledFeatures } from '../features';
-import { itemHref, useSpaces, type Tag } from '../spaces';
+import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
 
 interface SearchResults {
   items: { id: string; spaceId: string; spaceName: string; kind: string; title: string; archived: boolean }[];
@@ -78,7 +78,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...actions.filter((action) => !text || matches(action.label)),
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
-      hint: `${item.kind} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
+      hint: `${itemKindName(item.kind)} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
       href: itemHref(item) ?? `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
       id: `item-${item.id}`,
       label: item.title || 'Untitled',

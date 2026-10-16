@@ -62,18 +62,18 @@ describe('Storage', () => {
     );
     await act(async () => {});
 
-    expect(container.textContent).toContain('30.0 MB of 150.0 MB used');
+    expect(container.textContent).toContain('30 MB of 150 MB used');
     expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('20');
-    expect(container.textContent).toContain('5.0 MB is in the trash');
+    expect(container.textContent).toContain('5 MB is in the trash');
     expect(container.textContent).toContain('contract.pdf');
-    expect(container.textContent).toContain('2.0 MB · Oct 10, 2026 · Home');
+    expect(container.textContent).toContain('2 MB · Oct 10, 2026 · Home');
 
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Files to upload"]')!;
     Object.defineProperty(input, 'files', { configurable: true, value: [new File(['hello'], 'notes.txt', { type: 'text/plain' })] });
     await act(async () => void input.dispatchEvent(new Event('change', { bubbles: true })));
     await act(async () => {});
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/files', expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ 'X-File-Name': 'notes.txt' }) }));
-    expect(container.textContent).toContain('31.0 MB of 150.0 MB used');
+    expect(container.textContent).toContain('31 MB of 150 MB used');
 
     await chooseFromMenu(container, 'Actions for contract.pdf', 'Move to trash');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/f1/trash', expect.objectContaining({ method: 'POST' }));

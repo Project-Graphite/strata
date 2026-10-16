@@ -79,7 +79,7 @@ export function EventPage() {
           {details.meetingUrl && (
             <p className="mt-1 mb-0">
               <a href={details.meetingUrl} rel="noopener noreferrer" target="_blank">
-                Join the meeting
+                Join meeting
               </a>
             </p>
           )}

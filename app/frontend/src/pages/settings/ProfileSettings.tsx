@@ -7,7 +7,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
-import { timeFormatOptions, type TimeFormat } from '../../time';
+import { clockTime, timeFormatOptions, type TimeFormat } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
@@ -113,22 +113,24 @@ export function ProfileSettings() {
       <Section title="Notifications">
         <div className="grid gap-6">
           <SettingsRows>
-            <Toggle
-              checked={current.tidySummary}
-              description="Mondays at 09:00, only when Tidy finds something."
-              disabled={notifications.busy}
-              label="Weekly Tidy summary"
-              onChange={(tidySummary) =>
-                void notifications.run(async () => {
-                  const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
-                  me.mutate(() => next);
-                  return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
-                }, 'Could not change the setting')
-              }
-            />
+            {auth.user?.features.includes('tidy') && (
+              <Toggle
+                checked={current.tidySummary}
+                description={`Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}
+                disabled={notifications.busy}
+                label="Weekly Tidy summary"
+                onChange={(tidySummary) =>
+                  void notifications.run(async () => {
+                    const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
+                    me.mutate(() => next);
+                    return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
+                  }, 'Could not change the setting')
+                }
+              />
+            )}
             <Toggle
               checked={current.weeklyReview}
-              description="Sundays at 18:00, with a link that writes the review page for you."
+              description={`Sundays at ${clockTime('18:00')}, with a link that writes the review page for you.`}
               disabled={notifications.busy}
               label="Weekly review reminder"
               onChange={(weeklyReview) =>

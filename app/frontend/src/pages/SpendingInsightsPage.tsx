@@ -56,7 +56,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
               <div
                 className="flex h-full flex-1 items-end justify-center"
                 key={period.month}
-                title={`${monthLabel.format(new Date(`${period.month}-01T00:00:00Z`))}: ${money(period.spentMinor, currency)}`}
+                title={`${monthLabel.format(new Date(`${period.until}T00:00:00Z`))}: ${money(period.spentMinor, currency)}`}
               >
                 <div className="w-full max-w-8 rounded-t bg-ink" style={{ height: `${(period.spentMinor / highest) * 100}%`, minHeight: period.spentMinor ? 2 : 0 }} />
               </div>
@@ -65,7 +65,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
           <div className="flex gap-2">
             {periods.map((period) => (
               <span className="flex-1 text-center text-xs text-muted" key={period.month}>
-                {monthLabel.format(new Date(`${period.month}-01T00:00:00Z`))}
+                {monthLabel.format(new Date(`${period.until}T00:00:00Z`))}
               </span>
             ))}
           </div>

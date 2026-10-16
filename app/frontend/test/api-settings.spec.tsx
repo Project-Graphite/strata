@@ -79,9 +79,9 @@ describe('API and webhooks settings', () => {
 
     expect(container.textContent).toContain('/api/v1');
     expect([...container.querySelectorAll('summary')].map((summary) => summary.textContent)).toEqual([
-      'spaces:read · 1 endpoints',
-      'items:read · 1 endpoints',
-      'items:write · 1 endpoints',
+      'spaces:read · 1 endpoint',
+      'items:read · 1 endpoint',
+      'items:write · 1 endpoint',
     ]);
 
     await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'New webhook')!.click());

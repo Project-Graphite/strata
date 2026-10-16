@@ -90,9 +90,9 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
     ...(auth.user
       ? [
           { href: '/spending', label: 'Spending', icon: 'wallet' as const, active: pathname.startsWith('/spending') || pathname === '/recurring' },
-          { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/events/') },
+          { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/') },
           { href: '/spaces', label: 'Spaces', icon: 'folder' as const, active: pathname.startsWith('/spaces') },
-          { href: '/menu', label: 'More', icon: 'filter' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
+          { href: '/menu', label: 'More', icon: 'more' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
         ]
       : [{ href: '/login', label: 'Sign in', icon: 'user' as const, active: pathname === '/login', loading: !auth.ready }]),
   ];

@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useOutletContext, useParams } from 'react-router';
 import { PageSkeleton, Tabs } from '@project-graphite/ui';
-import { SpaceMark, useSpaces, type Space } from '../../spaces';
+import { roleOptions, SpaceMark, useSpaces, type Space } from '../../spaces';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
@@ -38,7 +38,7 @@ export function SpaceLayout() {
 
   return (
     <Page
-      description={space.kind === 'shared' && `Shared space · you are ${space.role === 'owner' ? 'an owner' : `a ${space.role}`}`}
+      description={space.kind === 'shared' && `Shared space · you are ${space.role === 'viewer' ? 'a' : 'an'} ${roleOptions.find((option) => option.value === space.role)?.label.toLowerCase()}`}
       title={
         <span className="inline-flex items-center gap-3">
           <SpaceMark large space={space} />

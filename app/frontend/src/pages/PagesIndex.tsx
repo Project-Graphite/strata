@@ -44,7 +44,7 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
           <NoteMark note={note} />
           <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
           <span className="mono-sm shrink-0 text-faint">
-            {spaces.data?.find((space) => space.id === note.spaceId)?.name} · {timeAgo(note.updatedAt)}
+            {[spaces.data?.find((space) => space.id === note.spaceId)?.name, timeAgo(note.updatedAt)].filter(Boolean).join(' · ')}
           </span>
         </Link>
       </li>,
@@ -63,27 +63,29 @@ export function PagesIndex({ kind }: { kind: 'note' | 'board' }) {
   return (
     <Page
       actions={
-        <>
-          {kind === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
-          {writable.length === 1 ? (
-            <Button disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
-          ) : (
-            writable.length > 1 && (
-              <Menu
-                items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
-                label="Spaces"
-                trigger={
-                  <>
-                    <Icon name="plus" size={16} />
-                    {words.create}
-                  </>
-                }
-                triggerClassName={buttonClass(true)}
-                triggerLabel={`${words.create}: choose a space`}
-              />
-            )
-          )}
-        </>
+        !journal && (
+          <>
+            {kind === 'note' && writable.length > 0 && <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />}
+            {writable.length === 1 ? (
+              <Button disabled={creating.busy} icon="plus" label={words.create} onClick={() => create(writable[0]!.id)} primary />
+            ) : (
+              writable.length > 1 && (
+                <Menu
+                  items={writable.map((space) => ({ label: `In ${space.name}`, onSelect: () => create(space.id) }))}
+                  label="Spaces"
+                  trigger={
+                    <>
+                      <Icon name="plus" size={16} />
+                      {words.create}
+                    </>
+                  }
+                  triggerClassName={buttonClass(true)}
+                  triggerLabel={`${words.create}: choose a space`}
+                />
+              )
+            )}
+          </>
+        )
       }
       title={words.title}
     >

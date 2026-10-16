@@ -4,6 +4,7 @@ import { ListSkeleton, Tabs } from '@project-graphite/ui';
 import { addDays, clock, dayKey, entryDay, monthDays, useAgenda, type AgendaEntry } from '../agenda';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { Button, ButtonLink } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { EventEditor } from '../components/EventEditor';
 import { PeriodNav } from '../components/PeriodNav';
 import { TimeGrid } from '../components/TimeGrid';
@@ -48,12 +49,12 @@ export function AgendaPage() {
     const date = new Date(`${anchor}T00:00:00`);
     return dayKey(new Date(date.getFullYear(), date.getMonth() + direction, 1));
   };
+  const allDays = Array.from({ length: days }, (_, index) => addDays(from, index));
   const byDay = new Map<string, AgendaEntry[]>();
   for (const entry of agenda.data ?? []) {
-    const day = entryDay(entry);
-    byDay.set(day, [...(byDay.get(day) ?? []), entry]);
+    const spanned = entry.allDay ? allDays.filter((day) => entry.start <= day && (entry.end ?? entry.start) >= day) : [entryDay(entry)];
+    for (const day of spanned) byDay.set(day, [...(byDay.get(day) ?? []), entry]);
   }
-  const allDays = Array.from({ length: days }, (_, index) => addDays(from, index));
   const month = new Date(`${anchor}T00:00:00`).getMonth();
   const entryKey = (entry: AgendaEntry) => `${entry.kind}-${entry.itemId}-${entry.start}`;
 
@@ -90,7 +91,7 @@ export function AgendaPage() {
         <ListSkeleton label="Loading your agenda" rows={6} />
       ) : view === 'list' ? (
         agenda.data.length === 0 ? (
-          <p className="m-0 text-muted">Nothing in the next 30 days.</p>
+          <Empty title="Nothing in this period" />
         ) : (
           <div className="grid gap-5">
             {allDays

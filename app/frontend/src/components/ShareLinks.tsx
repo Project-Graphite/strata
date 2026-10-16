@@ -5,6 +5,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Copyable } from './Copyable';
 import { Hint } from './Hint';
+import { LoadError } from './LoadError';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
@@ -66,7 +67,9 @@ function ShareDialog({ editLinks, itemId, noun, onClose }: { editLinks: boolean;
       <div className="mt-6 mb-3">
         <Subheading>Links</Subheading>
       </div>
-      {links.loading ? (
+      {links.error ? (
+        <LoadError compact error={links.error} onRetry={links.reload} />
+      ) : links.loading ? (
         <LinesSkeleton label="Loading links" lines={2} />
       ) : links.data?.length ? (
         <ul className="m-0 grid list-none gap-3 p-0">

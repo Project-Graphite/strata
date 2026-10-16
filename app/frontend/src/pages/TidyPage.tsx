@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
+import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
 import { Stat, Stats } from '../components/Stats';
@@ -8,7 +9,7 @@ import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
 import { useSpaces } from '../spaces';
-import { money, shortDate } from '../subscriptions';
+import { categoryLabel, money, shortDate } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
@@ -148,7 +149,7 @@ function TidySuggestions() {
       {files.old.length > 0 && (
         <Section description="Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way." title="Old uploads">
           <ul className="panel-rows">
-            {files.old.map((file) => fileChoice(file, `unchanged since ${new Date(file.updatedAt).toLocaleDateString()}`))}
+            {files.old.map((file) => fileChoice(file, `unchanged since ${formatDay(dayKey(new Date(file.updatedAt)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
           </ul>
         </Section>
       )}
@@ -178,7 +179,7 @@ function TidySuggestions() {
           {subscriptions.overlapping.map((group) => (
             <div className="mt-4" key={group.category}>
               <p className="mono-sm m-0 text-faint">
-                {group.items.length} in {group.category}
+                {group.items.length} in {categoryLabel(group.category)}
               </p>
               <ul className="panel-rows">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
             </div>

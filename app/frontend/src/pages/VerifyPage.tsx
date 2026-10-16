@@ -39,7 +39,7 @@ export function VerifyPage() {
       <section className="form-panel page-enter">
         <h1 className="page-heading">Your email address is confirmed.</h1>
         <div className="mt-7">
-          {auth.user ? <ButtonLink label="Back to settings" large primary to="/settings/account" /> : <ButtonLink label="Sign in" large primary to="/login" />}
+          {auth.user ? <ButtonLink label="Back to settings" large primary to="/settings" /> : <ButtonLink label="Sign in" large primary to="/login" />}
         </div>
       </section>
     );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ListSkeleton, Select, TextField } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, Select, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -33,7 +33,8 @@ export function TodoPage() {
   const personal = spaces.data?.find((space) => space.kind === 'personal');
   const link = taskLink('/todo', listId, completed);
 
-  if (tasks.error) return <LoadError error={tasks.error} onRetry={tasks.reload} />;
+  const failed = [tasks, lists, spaces].find((resource) => resource.error);
+  if (failed) return <LoadError error={failed.error} onRetry={failed.reload} />;
   if (!tasks.data || !lists.data || !spaces.data) {
     return (
       <Page title="To-do">
@@ -79,7 +80,7 @@ export function TodoPage() {
                   tasks.reload();
                   lists.reload();
                   if (task.completedAt) return '';
-                  return updated.completedAt ? `Done: ${task.title}.` : `Done for now. ${task.title} is next due ${updated.dueDate}.`;
+                  return updated.completedAt ? `Done: ${task.title}.` : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
                 }, 'Could not update the to-do')
               }
               task={task}

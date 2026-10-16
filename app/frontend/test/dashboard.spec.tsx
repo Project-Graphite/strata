@@ -151,7 +151,7 @@ describe('Home dashboard', () => {
     await choose(dialog, 'Height', 'Tall');
     await act(async () => [...dialog.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Done')!.click());
     await act(async () => button('Dashboard settings').click());
-    await act(async () => document.querySelector<HTMLInputElement>('dialog input[aria-label="purple"]')!.click());
+    await act(async () => document.querySelector<HTMLInputElement>('dialog input[aria-label="Purple"]')!.click());
     await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Done')!.click());
     await act(async () => button('Done').click());
 
@@ -259,7 +259,7 @@ describe('Home dashboard', () => {
     expect(button('Pause')).toBeDefined();
     await act(async () => button('Reset').click());
     expect(button('Start')).toBeDefined();
-    expect(container.textContent).toContain('2 extra copies (2.0 MB)');
+    expect(container.textContent).toContain('2 extra copies (2 MB)');
     expect(container.textContent).toContain('1 old upload');
     expect(container.textContent).toContain('2 subscriptions to check');
     expect(container.textContent).toContain('Not tidied yet');

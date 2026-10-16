@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { TagChip } from '@project-graphite/ui';
 import { FilePreview, hasPreview } from '../../files';
-import { itemHref, type Item } from '../../spaces';
+import { itemHref, itemKindName, type Item } from '../../spaces';
 
 export function ItemList({
   actions,
@@ -29,7 +29,7 @@ export function ItemList({
               )}
             </p>
             <p className="mono-sm m-0 mt-1 text-faint">
-              {item.kind} · {detail(item)}
+              {itemKindName(item.kind)} · {detail(item)}
             </p>
             {item.tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">

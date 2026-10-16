@@ -60,7 +60,7 @@ function Clock({ settings }: WidgetProps) {
     return () => window.clearInterval(timer);
   }, []);
   const zones = Array.isArray(settings.zones) ? (settings.zones as string[]) : [];
-  const time = (timeZone?: string) => now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone, ...timeOptions() });
+  const time = (timeZone?: string) => now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...timeOptions() });
   return (
     <div className="grid gap-3">
       <div>
@@ -127,23 +127,25 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
     <div className="grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
       {list.length === 0 && !quiet && <Hint>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Hint>}
-      <ul className="panel-rows">
-        {list.slice(0, 8).map((task) => (
-          <TaskRow
-            disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
-            key={task.id}
-            onEdit={() => navigate(`/spaces/${task.spaceId}/tasks`)}
-            onToggle={() =>
-              void action.run(async () => {
-                await auth.request(`/tasks/${task.id}/complete`, { method: 'POST' });
-                tasks.reload();
-                return '';
-              }, 'Could not update the task')
-            }
-            task={task}
-          />
-        ))}
-      </ul>
+      {list.length > 0 && (
+        <ul className="panel-rows">
+          {list.slice(0, 8).map((task) => (
+            <TaskRow
+              disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
+              key={task.id}
+              onEdit={() => navigate(`/spaces/${task.spaceId}/tasks`)}
+              onToggle={() =>
+                void action.run(async () => {
+                  await auth.request(`/tasks/${task.id}/complete`, { method: 'POST' });
+                  tasks.reload();
+                  return '';
+                }, 'Could not update the task')
+              }
+              task={task}
+            />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -250,11 +252,11 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
               {link.label} <span className="text-faint">{link.url}</span>
             </span>
             <button
-              className="text-button mono-sm"
+              className="text-button text-sm"
               onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })}
               type="button"
             >
-              remove
+              Remove
             </button>
           </li>
         ))}
@@ -394,6 +396,12 @@ function Focus({ settings }: WidgetProps) {
   const [phase, setPhase] = useState<'focus' | 'break'>('focus');
   const [left, setLeft] = useState(focusMinutes * minuteMs);
   const [endsAt, setEndsAt] = useState<number>();
+  const duration = (phase === 'focus' ? focusMinutes : breakMinutes) * minuteMs;
+  const [chosenDuration, setChosenDuration] = useState(duration);
+  if (duration !== chosenDuration) {
+    setChosenDuration(duration);
+    if (endsAt === undefined) setLeft(duration);
+  }
 
   useEffect(() => {
     if (endsAt === undefined) return;
@@ -460,7 +468,7 @@ interface TidyScanSummary {
 
 function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true);
-  if (habits.error) return <LoadError error={habits.error} onRetry={habits.reload} />;
+  if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) return <ListSkeleton label="Loading your habits" rows={3} />;
   if (habits.data.length === 0) return <Hint>No habits yet. Add them in a space’s Habits tab.</Hint>;
   return (
@@ -487,7 +495,7 @@ function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
               {page.title || 'Untitled'}
             </Link>
             <span className="mono-sm block text-faint">
-              {spaces.data?.find((space) => space.id === page.spaceId)?.name} · {timeAgo(page.updatedAt)}
+              {[spaces.data?.find((space) => space.id === page.spaceId)?.name, timeAgo(page.updatedAt)].filter(Boolean).join(' · ')}
             </span>
           </li>
         ))}

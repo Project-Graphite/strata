@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { clockTime } from '../src/time';
 import { chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -177,7 +178,7 @@ describe('Tasks', () => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(form.querySelector('[role="status"]')?.textContent).toBe(
-      `due ${new Date('2030-01-04T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} 09:00 · tag home · medium priority`,
+      `due ${new Date('2030-01-04T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${clockTime('09:00')} · tag home · medium priority`,
     );
 
     await act(async () => {

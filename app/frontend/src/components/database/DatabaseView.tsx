@@ -29,7 +29,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   if (database.error) return <LoadError error={database.error} onRetry={database.reload} />;
   if (!database.data) return <ListSkeleton label="Loading the database" rows={4} />;
   const data = database.data;
-  const people = members.data ?? [];
+  const people = members.data;
   const selects = data.properties.filter((property) => property.type === 'select');
   const dates = data.properties.filter((property) => property.type === 'date');
   const group = selects.find((property) => property.id === data.groupBy) ?? selects[0];

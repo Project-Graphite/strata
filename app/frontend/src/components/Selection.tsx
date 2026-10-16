@@ -21,7 +21,7 @@ export function toggled(current: ReadonlySet<string>, id: string) {
 
 export function SelectionBar({ children, label, onClear }: { children: ReactNode; label: string; onClear: () => void }) {
   return (
-    <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4">
+    <div className="sticky bottom-[calc(var(--tab-bar-height)+0.5rem+env(safe-area-inset-bottom))] z-40 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4 md:bottom-4">
       <span className="mono-sm text-faint">{label}</span>
       {children}
       <Button label="Clear" onClick={onClear} />

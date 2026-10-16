@@ -100,7 +100,7 @@ export function PageTree() {
     }, 'Could not move the page');
   }
 
-  function branch(spaceId: string, parentId: string | null, depth: number) {
+  function branch(spaceId: string, parentId: string | null, depth: number, writable: boolean) {
     return childrenOf(spaceId, parentId).map((note) => {
       const nested = childrenOf(spaceId, note.id);
       const expanded = open.has(note.id);
@@ -110,7 +110,7 @@ export function PageTree() {
           <div
             className="page-tree-row"
             data-drop={target?.id === note.id ? target.place : undefined}
-            draggable
+            draggable={writable}
             onDragEnd={() => {
               setDragged(undefined);
               setTarget(undefined);
@@ -145,13 +145,13 @@ export function PageTree() {
               <NoteMark note={note} />
               <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
             </Link>
-            {nests && (
+            {nests && writable && (
               <button aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(spaceId, note.id)} type="button">
                 <Icon name="plus" size={14} />
               </button>
             )}
           </div>
-          {expanded && branch(spaceId, note.id, depth + 1)}
+          {expanded && branch(spaceId, note.id, depth + 1, writable)}
         </div>
       );
     });
@@ -192,7 +192,7 @@ export function PageTree() {
                 </button>
               )}
             </div>
-            {expanded && branch(space.id, null, 1)}
+            {expanded && branch(space.id, null, 1, writable)}
           </div>
         );
       })}

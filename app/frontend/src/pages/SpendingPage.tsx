@@ -186,7 +186,18 @@ export function SpendingPage() {
           {tab === 'overview' && (
             <Stats>
               <Stat label="Spent" value={money(shown.spentMinor, currency)} />
-              <Stat label="Left to spend" value={shown.budgetMinor === null ? 'No budget' : money(shown.budgetMinor - shown.spentMinor, currency)}>
+              <Stat
+                label="Left to spend"
+                value={
+                  shown.budgetMinor === null ? (
+                    'No budget'
+                  ) : shown.spentMinor > shown.budgetMinor ? (
+                    <span className="text-danger">{money(shown.spentMinor - shown.budgetMinor, currency)} over</span>
+                  ) : (
+                    money(shown.budgetMinor - shown.spentMinor, currency)
+                  )
+                }
+              >
                 {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
               </Stat>
               <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)} />
@@ -202,7 +213,7 @@ export function SpendingPage() {
                   <li className="panel-row flex flex-wrap items-center gap-x-3 gap-y-2" key={message.id}>
                     <span className="grid min-w-0 flex-1 basis-56">
                       <span className="truncate text-ink">{message.suggestion.merchant ?? message.sender}</span>
-                      <span className="truncate text-sm text-muted">{message.text}</span>
+                      <span className="truncate text-sm text-muted" dir="auto">{message.text}</span>
                     </span>
                     {message.suggestion.amountMinor !== null && message.suggestion.currency && (
                       <span className="shrink-0 text-ink">{money(message.suggestion.amountMinor, message.suggestion.currency)}</span>
@@ -365,7 +376,7 @@ export function SpendingPage() {
               title={managing ? 'Budgets' : 'By category'}
             >
               {shown.categories.length === 0 ? (
-                <Hint>Nothing spent this month yet.</Hint>
+                <Hint>{managing ? 'No budgets yet.' : 'Nothing spent this month yet.'}</Hint>
               ) : (
                 <ul className="panel-rows">
                   {shown.categories.map((row) => (

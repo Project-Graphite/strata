@@ -15,7 +15,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewPro
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
 import type { useAuth } from '../auth';
-import { itemHref } from '../spaces';
+import { itemHref, itemKindName } from '../spaces';
 import { BoardPreview } from './BoardPreview';
 import { useFileSource } from './file-source';
 import { Hint } from './Hint';
@@ -95,9 +95,10 @@ function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<Sugge
     const box = props.clientRect?.();
     const element = renderer?.element as HTMLElement | undefined;
     if (!box || !element) return;
+    const bottom = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : window.innerHeight;
     element.style.position = 'fixed';
-    element.style.left = `${box.left}px`;
-    element.style.top = `${box.bottom + 6}px`;
+    element.style.left = `${Math.max(16, Math.min(box.left, window.innerWidth - element.offsetWidth - 16))}px`;
+    element.style.top = `${box.bottom + 6 + element.offsetHeight > bottom ? Math.max(0, box.top - element.offsetHeight - 6) : box.bottom + 6}px`;
     element.style.zIndex = '50';
   };
   const close = () => {
@@ -148,7 +149,7 @@ export function mentionExtension(request: Request, noteId: string) {
         return reply.items
           .filter((item) => item.id !== noteId)
           .slice(0, 8)
-          .map((item) => ({ id: item.id, label: item.title || 'Untitled', href: itemHref(item) ?? `/spaces/${item.spaceId}`, hint: `${item.kind} · ${item.spaceName}` }));
+          .map((item) => ({ id: item.id, label: item.title || 'Untitled', href: itemHref(item) ?? `/spaces/${item.spaceId}`, hint: `${itemKindName(item.kind)} · ${item.spaceName}` }));
       },
       render: suggestionPopup,
     },

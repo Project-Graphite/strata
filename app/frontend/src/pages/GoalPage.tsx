@@ -15,7 +15,7 @@ import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
 import { HabitRow, type Habit } from '../habits';
 import { useSpaces, type Tag } from '../spaces';
-import { TaskRow, type Task, type TaskList } from '../tasks';
+import { dueLabel, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useFormErrors, type Check } from '../validation';
@@ -202,7 +202,7 @@ export function GoalPage() {
 
       {dialog === 'link' && (
         <LinkItemDialog
-          choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: task.dueDate ?? undefined }))}
+          choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: dueLabel(task) || undefined }))}
           empty={`Every open task in ${shown.spaceName} is already linked.`}
           noun="task"
           onClose={() => setDialog(undefined)}

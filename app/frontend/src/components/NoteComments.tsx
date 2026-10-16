@@ -162,7 +162,7 @@ export function NoteComments({
             {anchors.label(comment.blockId)}
           </button>
         )}
-        <p className="m-0 whitespace-pre-wrap text-sm text-ink">{comment.body}</p>
+        <p className="m-0 whitespace-pre-wrap break-words text-sm text-ink">{comment.body}</p>
         <div className="flex flex-wrap gap-3 text-sm">
           {!comment.parentId && !comment.resolvedAt && (
             <button className="text-button" onClick={() => setReplying(comment.id)} type="button">

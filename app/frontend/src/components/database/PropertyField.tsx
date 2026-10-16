@@ -9,7 +9,7 @@ const optionsOf = (property: Property, ids: unknown) =>
 
 const asText = (value: unknown) => (value === undefined || value === null ? '' : String(value));
 
-export function propertyDisplay(property: Property, value: unknown, members: Member[]): ReactNode {
+export function propertyDisplay(property: Property, value: unknown, members: Member[] | undefined): ReactNode {
   if (value === undefined || value === null) return null;
   switch (property.type) {
     case 'select':
@@ -20,7 +20,7 @@ export function propertyDisplay(property: Property, value: unknown, members: Mem
     case 'date':
       return formatDay(String(value), { day: 'numeric', month: 'short', year: 'numeric' });
     case 'person':
-      return members.find((member) => member.userId === value)?.displayName ?? 'Former member';
+      return members ? (members.find((member) => member.userId === value)?.displayName ?? 'Former member') : null;
     case 'link':
       return (
         <a href={String(value)} rel="noopener noreferrer" target="_blank">
@@ -42,12 +42,17 @@ export function PropertyField({
   value,
 }: {
   editable: boolean;
-  members: Member[];
+  members: Member[] | undefined;
   onChange: (value: unknown) => void;
   property: Property;
   value: unknown;
 }) {
-  if (!editable) return <span className="flex flex-wrap gap-1">{propertyDisplay(property, value, members) ?? <span className="text-faint">—</span>}</span>;
+  if (!editable)
+    return (
+      <span className="flex flex-wrap gap-1">
+        {(property.type === 'checkbox' ? (value ? 'Yes' : null) : propertyDisplay(property, value, members)) ?? <span className="text-faint">—</span>}
+      </span>
+    );
   const label = property.name;
   switch (property.type) {
     case 'text':
@@ -82,7 +87,7 @@ export function PropertyField({
             { value: '', label: '—' },
             ...(property.type === 'select'
               ? (property.options ?? []).map((option) => ({ value: option.id, label: option.name, leading: <span aria-hidden="true" className={`swatch-dot tag-${option.color}`} /> }))
-              : members.map((member) => ({ value: member.userId, label: member.displayName }))),
+              : (members ?? []).map((member) => ({ value: member.userId, label: member.displayName }))),
           ]}
           quiet
           size="small"
