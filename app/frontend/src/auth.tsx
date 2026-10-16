@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { errorMessage } from '@project-graphite/ui';
 import { ApiError, apiRequest } from './api';
 import { wipeLocalData } from './local-data';
 import { applyTimeFormat, type TimeFormat } from './time';
@@ -38,6 +39,7 @@ export interface Proof {
 interface AuthContextValue {
   user?: User;
   ready: boolean;
+  restoreError?: string;
   request<T>(path: string, init?: RequestInit, read?: (response: Response) => Promise<unknown>): Promise<T>;
   register(input: {
     email: string;
@@ -60,15 +62,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 let sessionRestoration: Promise<Session | undefined> | undefined;
 
-async function requestSession(attempt = 0): Promise<Session | undefined> {
+async function requestSession(retries = 4, delay = 1_000): Promise<Session | undefined> {
   try {
     return await apiRequest<Session>('/auth/refresh', { method: 'POST' });
   } catch (reason) {
-    if ((reason instanceof ApiError && reason.status === 401) || attempt === 12) {
+    if (reason instanceof ApiError && reason.status === 401) {
       return undefined;
     }
-    await new Promise((resolve) => setTimeout(resolve, 750));
-    return requestSession(attempt + 1);
+    const retryAfter = reason instanceof ApiError ? reason.retryAfter : undefined;
+    if (retries === 0 || (retryAfter && retryAfter > 10)) {
+      throw reason;
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryAfter ? retryAfter * 1000 : delay));
+    return requestSession(retryAfter ? 0 : retries - 1, delay * 2);
   }
 }
 
@@ -82,6 +88,7 @@ function restoreSession() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>();
   const [ready, setReady] = useState(false);
+  const [restoreError, setRestoreError] = useState<string>();
   const current = useRef<Session>(undefined);
 
   const applySession = useCallback((next: Session | undefined) => {
@@ -92,13 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     restoreSession()
       .then(applySession)
-      .finally(() => setReady(true));
+      .then(
+        () => setReady(true),
+        (reason: unknown) => setRestoreError(errorMessage(reason, 'Strata could not restore your session.')),
+      );
   }, [applySession]);
 
   useEffect(() => {
     if (!session) return;
     const timer = window.setTimeout(
-      () => void restoreSession().then((renewed) => renewed && applySession(renewed)),
+      () =>
+        void restoreSession()
+          .then((renewed) => renewed && applySession(renewed))
+          .catch(() => null),
       13 * 60 * 1000,
     );
     return () => window.clearTimeout(timer);
@@ -132,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user: session?.user,
       ready,
+      restoreError,
       request,
       register: async (input) => {
         await apiRequest('/auth/register', {
@@ -186,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       accessToken: () => current.current?.accessToken ?? '',
     }),
-    [applySession, ready, request, session],
+    [applySession, ready, request, restoreError, session],
   );
 
   applyTimeFormat(session?.user.timeFormat);

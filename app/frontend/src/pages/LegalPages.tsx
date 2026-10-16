@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
+import { useDocumentTitle } from '../components/Page';
 
 const repository = 'https://github.com/Project-Graphite/strata';
 const security = 'https://github.com/Project-Graphite/.github/blob/main/SECURITY.md';
 
 function LegalPage({ children, title }: { children: ReactNode; title: string }) {
+  useDocumentTitle(title);
   return (
     <article className="page-enter max-w-3xl">
       <h1 className="page-heading">{title}</h1>

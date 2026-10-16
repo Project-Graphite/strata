@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type FetchedPage, type Inline } from '../bookmarks';
 import { Empty, NotFoundState } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
+import { useDocumentTitle } from '../components/Page';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -85,6 +86,7 @@ export function BookmarkPage() {
   const markedRead = useRef('');
   const details = bookmark.data;
   const editable = !!details && !!spaces.data?.some((space) => space.id === details.spaceId && space.role !== 'viewer');
+  useDocumentTitle(details?.title);
 
   useEffect(() => {
     if (!details || !editable || details.readAt || markedRead.current === details.id) return;

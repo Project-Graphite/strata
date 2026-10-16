@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { ConfirmDialog, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
+import { announcePagesChanged } from '../notes';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -42,6 +43,7 @@ export function TrashPage() {
                     void action.run(async () => {
                       await auth.request(`/items/${item.id}/restore`, { method: 'POST' });
                       trash.reload();
+                      if (item.kind === 'note' || item.kind === 'board') announcePagesChanged();
                       return `${item.title || 'Untitled'} is back in ${spaceName(item)}.`;
                     }, 'Could not restore that')
                   }
