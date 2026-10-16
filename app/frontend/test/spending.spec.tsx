@@ -142,9 +142,14 @@ describe('Spending', () => {
     await render('/spending?month=2026-10');
 
     expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€225.00', '—', '€0.00']);
-    expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['25', '18']);
-    expect(container.textContent).toContain('€55.00 of €300.00');
+    expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['25']);
+    expect([...container.querySelectorAll('section li')].map((row) => row.textContent)).toEqual(expect.arrayContaining(['Groceries€55.00 · 73%', 'Eating out€20.00 · 27%']));
     expect(container.textContent).toContain('Corner shop');
+
+    await openTab('Budgets');
+    expect(container.textContent).toContain('€55.00 of €300.00');
+    expect(container.textContent).not.toContain('Eating out');
+    expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['18']);
 
     await act(async () => button('Add expense').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
@@ -169,8 +174,9 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10&tab=budgets');
 
-    await chooseFromMenu(container, 'Actions for Eating out', 'Set a budget');
+    await act(async () => button('Set a budget').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
+    await pickChip(form, 'Eating out');
     form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '80';
     await submit(form);
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/eating%20out', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ amountMinor: 8000, currency: 'EUR' }) }));
@@ -178,6 +184,24 @@ describe('Spending', () => {
 
     await chooseFromMenu(container, 'Actions for Groceries', 'Remove the budget');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/groceries', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('keeps budgets out of the way until one is set and lets the category chart be hidden', async () => {
+    const unplanned = { ...october, budgetMinor: null, budgets: [], categories: october.categories.map((row) => ({ ...row, budgetMinor: null })) };
+    serve((path) => (path === '/spaces/home/spending?month=2026-10' ? json(unplanned) : undefined));
+    await render('/spending?month=2026-10');
+
+    expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€75.00', '€0.00']);
+    expect(container.textContent).not.toContain('Left to spend');
+    expect(container.querySelector('[role="progressbar"]')).toBeNull();
+
+    await act(async () => button('Hide').click());
+    expect(container.textContent).not.toContain('By category');
+    await chooseFromMenu(container, 'Actions for spending', 'Show spending by category');
+    expect(container.textContent).toContain('By category');
+
+    await openTab('Budgets');
+    expect(container.textContent).toContain('No budgets yet');
   });
 
   it('lists accounts with balances and records a transfer between them', async () => {
@@ -294,7 +318,7 @@ describe('Spending', () => {
     await render('/spending?month=2026-10&tab=budgets');
 
     expect(container.textContent).toContain('Uber ride · Transport');
-    await act(async () => button('Edit categories').click());
+    await chooseFromMenu(container, 'Actions for spending', 'Edit categories');
     const form = container.querySelector('dialog form') as HTMLFormElement;
     const names = [...form.querySelectorAll<HTMLInputElement>('input[aria-label^="Name of category"]')];
     expect(names.map((input) => input.value)).toEqual(['groceries', 'eating out', 'transport', 'Other']);

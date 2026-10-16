@@ -47,6 +47,16 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
+const chartedCount = 7;
+const byCategoryKey = 'strata-spending-by-category';
+
+const byCategoryStored = (() => {
+  try {
+    return localStorage.getItem(byCategoryKey) !== 'hidden';
+  } catch {
+    return true;
+  }
+})();
 
 export function SpendingPage() {
   const auth = useAuth();
@@ -77,6 +87,15 @@ export function SpendingPage() {
     | { capture: CapturedMessage }
     | { installment: InstallmentPlan | null }
   >();
+  const [byCategory, setByCategory] = useState(byCategoryStored);
+  const showByCategory = (shown: boolean) => {
+    setByCategory(shown);
+    try {
+      localStorage.setItem(byCategoryKey, shown ? 'shown' : 'hidden');
+    } catch (error) {
+      if (!(error instanceof DOMException)) throw error;
+    }
+  };
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
   const shown = summary.data;
   const currency = shown?.currency ?? 'EUR';
@@ -99,8 +118,10 @@ export function SpendingPage() {
                   ? [
                       { label: 'Import a statement', onSelect: () => setDialog('import') },
                       { label: 'Connect your phone', onSelect: () => setDialog('phone') },
+                      { label: 'Edit categories', onSelect: () => setDialog('categories') },
                     ]
                   : []),
+                { label: byCategory ? 'Hide spending by category' : 'Show spending by category', onSelect: () => showByCategory(!byCategory) },
                 {
                   label: 'Export CSV',
                   onSelect: () =>
@@ -162,21 +183,23 @@ export function SpendingPage() {
           {tab === 'overview' && (
             <Stats>
               <Stat label="Spent" value={money(shown.spentMinor, currency)} />
-              <Stat
-                label="Left to spend"
-                value={
-                  shown.budgetMinor === null ? (
-                    'No budget'
-                  ) : shown.spentMinor > shown.budgetMinor ? (
-                    <span className="text-danger">{money(shown.spentMinor - shown.budgetMinor, currency)} over</span>
-                  ) : (
-                    money(shown.budgetMinor - shown.spentMinor, currency)
-                  )
-                }
-              >
-                {shown.budgetMinor !== null && <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />}
-              </Stat>
-              <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)} />
+              {shown.budgetMinor !== null && (
+                <>
+                  <Stat
+                    label="Left to spend"
+                    value={
+                      shown.spentMinor > shown.budgetMinor ? (
+                        <span className="text-danger">{money(shown.spentMinor - shown.budgetMinor, currency)} over</span>
+                      ) : (
+                        money(shown.budgetMinor - shown.spentMinor, currency)
+                      )
+                    }
+                  >
+                    <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
+                  </Stat>
+                  <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)} />
+                </>
+              )}
               <Stat label="Received" value={money(shown.receivedMinor, currency)} />
             </Stats>
           )}
@@ -342,24 +365,44 @@ export function SpendingPage() {
             </Section>
           )}
 
-          {(tab === 'overview' || managing) && (
+          {tab === 'overview' && byCategory && (
             <Section
               action={
-                editable && managing && (
+                <button className="text-button text-sm" onClick={() => showByCategory(false)} type="button">
+                  Hide
+                </button>
+              }
+              title="By category"
+            >
+              {shown.categories.some((row) => row.spentMinor > 0) ? (
+                <CategoryChart colourOf={colourOf} currency={currency} rows={shown.categories} />
+              ) : (
+                <Hint>Nothing spent this month yet.</Hint>
+              )}
+            </Section>
+          )}
+
+          {managing && (
+            <Section
+              action={
+                editable && (
                   <span className="flex flex-wrap gap-2">
                     <Button label="Budget settings" onClick={() => setDialog('plan')} />
-                    <Button label="Edit categories" onClick={() => setDialog('categories')} />
-                    <Button label="Set a budget" onClick={() => setDialog({ budget: null })} />
+                    <Button label="Set a budget" onClick={() => setDialog({ budget: null })} primary />
                   </span>
                 )
               }
-              title={managing ? 'Budgets' : 'By category'}
+              title="Budgets"
             >
-              {shown.categories.length === 0 ? (
-                <Hint>{managing ? 'No budgets yet.' : 'Nothing spent this month yet.'}</Hint>
+              {!shown.budgets.length && shown.plan.budgetMinor === null ? (
+                <Empty title="No budgets yet">
+                  Budgets are optional. Give a category or the whole month a limit to see what is left and what you can spend each day.
+                </Empty>
+              ) : !shown.categories.some((row) => row.budgetMinor !== null) ? (
+                <Hint>No category has its own budget.</Hint>
               ) : (
                 <ul className="panel-rows">
-                  {shown.categories.map((row) => (
+                  {shown.categories.filter((row) => row.budgetMinor !== null).map((row) => (
                     <li className="panel-row grid gap-2" key={row.category}>
                       <span className="flex items-center justify-between gap-3">
                         <span className="flex items-center gap-2 text-ink">
@@ -368,34 +411,30 @@ export function SpendingPage() {
                         </span>
                         <span className="flex items-center gap-2">
                           <span className="text-sm text-muted">
-                            {row.budgetMinor === null ? money(row.spentMinor, currency) : `${money(row.spentMinor, currency)} of ${money(row.budgetMinor, currency)}`}
+                            {`${money(row.spentMinor, currency)} of ${money(row.budgetMinor!, currency)}`}
                             {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
                           </span>
-                          {editable && managing && (
+                          {editable && (
                             <ActionsMenu
                               items={[
-                                { label: row.budgetMinor === null ? 'Set a budget' : 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
-                                ...(row.budgetMinor === null
-                                  ? []
-                                  : [
-                                      {
-                                        label: 'Remove the budget',
-                                        separated: true,
-                                        onSelect: () =>
-                                          void action.run(async () => {
-                                            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(row.category)}`, { method: 'DELETE' });
-                                            summary.reload();
-                                            return `Removed the ${categoryName(row.category).toLowerCase()} budget.`;
-                                          }, 'Could not remove the budget'),
-                                      },
-                                    ]),
+                                { label: 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
+                                {
+                                  label: 'Remove the budget',
+                                  separated: true,
+                                  onSelect: () =>
+                                    void action.run(async () => {
+                                      await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(row.category)}`, { method: 'DELETE' });
+                                      summary.reload();
+                                      return `Removed the ${categoryName(row.category).toLowerCase()} budget.`;
+                                    }, 'Could not remove the budget'),
+                                },
                               ]}
                               name={categoryName(row.category)}
                             />
                           )}
                         </span>
                       </span>
-                      {row.budgetMinor !== null && <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
+                      <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />
                     </li>
                   ))}
                 </ul>
@@ -539,6 +578,43 @@ export function SpendingPage() {
         <CategoriesEditor categories={categories.data} onClose={() => setDialog(undefined)} onSaved={() => (categories.reload(), reload())} spaceId={spaceId} />
       )}
     </Page>
+  );
+}
+
+function CategoryChart({ colourOf, currency, rows }: { colourOf: (category: string) => string; currency: string; rows: SpendingMonth['categories'] }) {
+  const spent = rows.filter((row) => row.spentMinor > 0).sort((a, b) => b.spentMinor - a.spentMinor);
+  const total = spent.reduce((sum, row) => sum + row.spentMinor, 0);
+  const rest = spent.slice(chartedCount);
+  const parts = [
+    ...spent.slice(0, chartedCount).map((row) => ({ key: row.category, label: categoryName(row.category), colour: colourOf(row.category), spentMinor: row.spentMinor })),
+    ...(rest.length ? [{ key: 'rest', label: `${rest.length} more`, colour: 'gray', spentMinor: rest.reduce((sum, row) => sum + row.spentMinor, 0) }] : []),
+  ];
+  const share = (minor: number) => `${Math.round((minor / total) * 100)}%`;
+
+  return (
+    <div className="grid gap-4">
+      <div aria-hidden="true" className="flex h-4 gap-0.5 overflow-hidden rounded">
+        {parts.map((part) => (
+          <span
+            className={`tag-${part.colour} min-w-1`}
+            key={part.key}
+            style={{ flex: `${part.spentMinor} 1 0%`, background: 'var(--tag-color)' }}
+            title={`${part.label}: ${money(part.spentMinor, currency)} (${share(part.spentMinor)})`}
+          />
+        ))}
+      </div>
+      <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {parts.map((part) => (
+          <li className="flex items-center gap-2 text-sm" key={part.key}>
+            <span aria-hidden="true" className={`swatch-dot tag-${part.colour}`} />
+            <span className="min-w-0 flex-1 truncate text-ink">{part.label}</span>
+            <span className="shrink-0 text-muted">
+              {money(part.spentMinor, currency)} · {share(part.spentMinor)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
