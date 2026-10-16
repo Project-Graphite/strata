@@ -68,6 +68,15 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(204);
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(400);
     expect((await owner.call('GET', `/spaces/${home.id}/captures`)).body).toEqual([]);
+
+    expect((await viewer.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([{ digits: '1234', accountId: bank.id }]);
+    expect((await withToken(token, 'GET', `/spaces/${home.id}/cards`)).status).toBe(403);
+    expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '5555', accountId: null })).body).toMatchObject({ cardDigits: '5555' });
+    expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '55' })).status).toBe(400);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([
+      { digits: '5555', accountId: null },
+      { digits: '1234', accountId: bank.id },
+    ]);
   });
 
   it('renames, categorises and drops messages by merchant rules', async () => {

@@ -364,6 +364,7 @@ export class SpendingService {
               paymentLabel: input.paymentLabel === undefined ? undefined : input.paymentLabel || null,
               note: input.note,
               merchant: input.merchant === undefined ? undefined : input.merchant || null,
+              cardDigits: input.cardDigits,
               ...movement,
             },
           },

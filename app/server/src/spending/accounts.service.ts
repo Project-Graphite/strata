@@ -41,6 +41,22 @@ export class AccountsService {
     return this.balances(await this.prisma.moneyAccount.findMany({ where: { spaceId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }));
   }
 
+  async cards(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    const [accounts, paid] = await Promise.all([
+      this.prisma.moneyAccount.findMany({ where: { spaceId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true, cardDigits: true } }),
+      this.prisma.expense.findMany({
+        where: { cardDigits: { not: null }, item: { spaceId, trashedAt: null } },
+        distinct: ['cardDigits'],
+        orderBy: { item: { createdAt: 'desc' } },
+        select: { cardDigits: true, accountId: true },
+      }),
+    ]);
+    const cards = new Map(paid.map((expense) => [expense.cardDigits!, expense.accountId]));
+    for (const account of accounts) for (const digits of account.cardDigits) cards.set(digits, account.id);
+    return [...cards].map(([digits, accountId]) => ({ digits, accountId }));
+  }
+
   async create(userId: string, spaceId: string, input: CreateAccountDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     const account = await this.prisma.moneyAccount.create({

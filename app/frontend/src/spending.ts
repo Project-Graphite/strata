@@ -48,6 +48,20 @@ export interface MoneyAccount {
   missing: string[];
 }
 
+export interface KnownCard {
+  digits: string;
+  accountId: string | null;
+}
+
+export const paymentMethods: [string, string][] = [
+  ['PayPal', 'Online'],
+  ['Apple Pay', 'Online'],
+  ['Google Pay', 'Online'],
+  ['InstaPay', 'Online'],
+  ['Vodafone Cash', 'Wallet'],
+  ['Cash', 'In person'],
+];
+
 export interface Expense {
   id: string;
   spaceId: string;
