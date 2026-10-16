@@ -265,7 +265,9 @@ export function SpendingPage() {
 
           {tab === 'accounts' && (
             <Section action={editable && <Button label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
-              {!accounts.data?.length ? (
+              {accounts.error ? (
+                <LoadError compact error={accounts.error} onRetry={accounts.reload} />
+              ) : !accounts.data?.length ? (
                 <Hint>No accounts yet.</Hint>
               ) : (
                 <ul className="panel-rows">
@@ -305,7 +307,9 @@ export function SpendingPage() {
 
           {tab === 'accounts' && (
             <Section action={editable && <Button label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
-              {!installments.data?.length ? (
+              {installments.error ? (
+                <LoadError compact error={installments.error} onRetry={installments.reload} />
+              ) : !installments.data?.length ? (
                 <Hint>No installment plans.</Hint>
               ) : (
                 <ul className="panel-rows">

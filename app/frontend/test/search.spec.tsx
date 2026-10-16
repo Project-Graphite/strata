@@ -109,4 +109,49 @@ describe('Search palette', () => {
     );
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/notes', expect.objectContaining({ method: 'POST', body: '{}' }));
   });
+
+  it('says so when a search or a new page fails instead of looking empty', async () => {
+    const home = { ...flat, id: 'home', name: 'Home', kind: 'personal', role: 'owner' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        const path = input.replace('/api/v1', '');
+        if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
+        if (path === '/spaces') return Promise.resolve(json([home]));
+        if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+        if (path === '/search?q=zzz') return Promise.resolve(json({ statusCode: 429, message: 'Too many searches. Wait a minute.' }, 429));
+        if (path === '/spaces/home/notes') return Promise.resolve(json({ statusCode: 403, message: 'You can only view this space.' }, 403));
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }),
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/']}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+
+    const input = container.querySelector<HTMLInputElement>('input[role="combobox"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'zzz');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    expect(container.textContent).toContain('Too many searches. Wait a minute.');
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () =>
+      [...container.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'New page')!.click(),
+    );
+    await vi.waitFor(() => expect(document.body.textContent).toContain('You can only view this space.'));
+  });
 });

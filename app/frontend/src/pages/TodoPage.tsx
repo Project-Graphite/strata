@@ -34,11 +34,10 @@ export function TodoPage() {
   const link = taskLink('/todo', listId, completed);
 
   const failed = [tasks, lists, spaces].find((resource) => resource.error);
-  if (failed) return <LoadError error={failed.error} onRetry={failed.reload} />;
-  if (!tasks.data || !lists.data || !spaces.data) {
+  if (failed || !tasks.data || !lists.data || !spaces.data) {
     return (
       <Page title="To-do">
-        <ListSkeleton label="Loading your to-do list" rows={5} />
+        {failed ? <LoadError error={failed.error} onRetry={failed.reload} /> : <ListSkeleton label="Loading your to-do list" rows={5} />}
       </Page>
     );
   }

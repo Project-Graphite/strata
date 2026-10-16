@@ -9,6 +9,7 @@ import { PollOptions, type PollAnswer, type PollOption } from '../components/Dat
 import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { useDocumentTitle } from '../components/Page';
+import { LoadError } from '../components/LoadError';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
 import { noteTitle } from '../notes';
@@ -71,9 +72,19 @@ export function RsvpPage() {
   useDocumentTitle(invitation.data?.event.title);
 
   if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
-  if (!invitation.data) {
+  if (invitation.status === 404) {
     return (
       <Empty title="This invitation is no longer open">Ask the person who invited you for a new link.</Empty>
+    );
+  }
+  if (!invitation.data) {
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">Your invitation</h1>
+        <div className="mt-8">
+          <LoadError error={invitation.error} onRetry={invitation.reload} />
+        </div>
+      </section>
     );
   }
   const { event, guest } = invitation.data;
@@ -142,8 +153,16 @@ export function SharePage() {
   useDocumentTitle(shared.data && noteTitle(shared.data.item));
 
   if (shared.loading) return <FormPanelSkeleton label="Loading" />;
+  if (shared.status === 404) return <ClosedShareLink />;
   if (!shared.data) {
-    return <ClosedShareLink />;
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">Shared with you</h1>
+        <div className="mt-8">
+          <LoadError error={shared.error} onRetry={shared.reload} />
+        </div>
+      </section>
+    );
   }
   if (!shared.data.event) {
     const { access, content, item } = shared.data;

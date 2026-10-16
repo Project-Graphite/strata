@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readableDay } from '../src/recurrence/dates';
 import { occurrences } from '../src/recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../src/recurrence/rule';
 
@@ -85,5 +86,12 @@ describe('Repetition rules', () => {
     expect(formatRule(parseRule('rrule:freq=monthly;interval=2;byday=mo,-1fr;bysetpos=1;until=20271231T000000Z;wkst=su'))).toBe(
       'FREQ=MONTHLY;INTERVAL=2;BYDAY=MO,-1FR;BYSETPOS=1;UNTIL=20271231T000000Z;WKST=SU',
     );
+  });
+});
+
+describe('readableDay', () => {
+  it('names the calendar day the way people read it, whatever the server clock', () => {
+    expect(readableDay('2026-10-20')).toBe('Tue 20 Oct');
+    expect(readableDay('2027-01-01')).toBe('Fri 1 Jan');
   });
 });

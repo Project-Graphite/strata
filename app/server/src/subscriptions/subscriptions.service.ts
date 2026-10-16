@@ -7,7 +7,7 @@ import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
+import { dateText, dateValue, dayMs, localDate, readableDay } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { CreateSubscriptionDto, ListSubscriptionsDto, UpdateSubscriptionDto } from './dto/subscriptions.dto';
@@ -420,8 +420,8 @@ export class SubscriptionsService implements OnModuleInit {
         kind: 'subscription_due',
         title:
           payload.on === 'trial'
-            ? `The free trial of ${item.title} ends on ${payload.date}, then it costs ${amount}`
-            : `${item.title} renews on ${payload.date} for ${amount}`,
+            ? `The free trial of ${item.title} ends on ${readableDay(payload.date)}, then it costs ${amount}`
+            : `${item.title} renews on ${readableDay(payload.date)} for ${amount}`,
         link: `/spaces/${item.spaceId}/recurring`,
       },
     ]);

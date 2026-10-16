@@ -2,6 +2,7 @@ import { SpaceRole } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { JobsService } from '../../src/jobs/jobs.service';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
+import { readableDay } from '../../src/recurrence/dates';
 import { integrationApp } from './harness';
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -114,7 +115,7 @@ describe('Subscriptions against Postgres', () => {
     await jobs.runDue(new Date(reminders[0]!.runAt.getTime() + 1_000));
     expect((await owner.call('GET', '/me/inbox')).body.results[0]).toMatchObject({
       kind: 'subscription_due',
-      title: `The free trial of Video ends on ${utcDate(5)}, then it costs £12.99`,
+      title: `The free trial of Video ends on ${readableDay(utcDate(5))}, then it costs £12.99`,
     });
   });
 

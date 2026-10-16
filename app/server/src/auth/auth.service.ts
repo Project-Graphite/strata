@@ -174,7 +174,7 @@ export class AuthService implements OnModuleInit {
       record.purpose === TokenPurpose.RESET_PASSWORD ||
       record.expiresAt <= new Date()
     ) {
-      throw new UnauthorizedException('Verification token is invalid or expired');
+      throw new UnauthorizedException('This link has expired or was already used.');
     }
     try {
       await this.prisma.$transaction([
@@ -350,7 +350,7 @@ export class AuthService implements OnModuleInit {
       record.purpose !== TokenPurpose.RESET_PASSWORD ||
       record.expiresAt <= new Date()
     ) {
-      throw new UnauthorizedException('Reset link is invalid or expired');
+      throw new UnauthorizedException('This reset link has expired or was already used.');
     }
     await this.passwords.assertNotBreached(password);
     const now = new Date();

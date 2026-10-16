@@ -10,7 +10,7 @@ import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { NotesService } from '../notes/notes.service';
 import { blocksDocument, type Block } from '../notes/templates';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateValue, dayMs, localDate } from '../recurrence/dates';
+import { dateValue, dayMs, localDate, readableDay } from '../recurrence/dates';
 import { zonedInstant } from '../recurrence/occurrences';
 
 const reminderKind = 'weekly-review.reminder';
@@ -81,7 +81,6 @@ export class WeeklyReviewService implements OnModuleInit {
       this.habits.mine(userId),
       this.prisma.space.findFirstOrThrow({ where: { personalOwnerId: userId }, select: { id: true } }),
     ]);
-    const day = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const dayAndTime = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone });
     const labels = { event: '', external: '', task: 'due: ', renewal: 'renews: ', birthday: '', payment: 'pay: ' };
     const blocks: Block[] = [
@@ -90,7 +89,7 @@ export class WeeklyReviewService implements OnModuleInit {
       ...section(
         'Coming up',
         coming.slice(0, 30).map((entry) => {
-          const when = entry.allDay ? day.format(dateValue(entry.start)) : dayAndTime.format(new Date(entry.start));
+          const when = entry.allDay ? readableDay(entry.start) : dayAndTime.format(new Date(entry.start));
           return `${when} · ${labels[entry.kind]}${entry.title}${'calendar' in entry ? ` (${entry.calendar})` : ''}`;
         }),
         'Nothing in the next seven days.',

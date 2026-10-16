@@ -163,9 +163,11 @@ function event(block: Property[], index: number, fallbackZone: string): ReadEven
   };
 }
 
+export class NotCalendarError extends Error {}
+
 export function readCalendar(text: string, since: Date) {
   const lines = properties(text);
-  if (lines[0]?.name !== 'BEGIN' || lines[0].value.toUpperCase() !== 'VCALENDAR') throw new Error('That address is not an iCalendar file');
+  if (lines[0]?.name !== 'BEGIN' || lines[0].value.toUpperCase() !== 'VCALENDAR') throw new NotCalendarError('That address is not an iCalendar file');
   const fallbackZone = validZone(lines.find((property) => property.name === 'X-WR-TIMEZONE')?.value) ?? 'Etc/UTC';
   const events: ReadEvent[] = [];
   let block: Property[] | null = null;

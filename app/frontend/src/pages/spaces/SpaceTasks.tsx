@@ -54,7 +54,8 @@ export function SpaceTasks() {
     lists.reload();
   }
 
-  if (tasks.error) return <LoadError error={tasks.error} onRetry={tasks.reload} />;
+  const failed = [tasks, lists].find((resource) => resource.error);
+  if (failed) return <LoadError error={failed.error} onRetry={failed.reload} />;
   if (!tasks.data || !lists.data) return <ListSkeleton label="Loading the tasks in this space" rows={5} />;
   const shownList = lists.data.find((list) => list.id === listId);
 

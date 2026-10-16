@@ -7,7 +7,7 @@ import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
+import { dateText, dateValue, dayMs, localDate, readableDay } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { birthdaysBetween } from '../people/birthdays';
@@ -356,7 +356,7 @@ export class EventsService implements OnModuleInit {
         text: [
           `Hi ${input.name},`,
           '',
-          `You are invited to "${current.title}" on ${dateText(current.event.startsOn)}${current.event.startTime ? ` at ${current.event.startTime} (${current.event.timeZone})` : ''}.`,
+          `You are invited to "${current.title}" on ${readableDay(dateText(current.event.startsOn))}${current.event.startTime ? ` at ${current.event.startTime} (${current.event.timeZone})` : ''}.`,
           '',
           'Say whether you can come, with no account needed:',
           '',

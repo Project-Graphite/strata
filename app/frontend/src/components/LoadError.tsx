@@ -9,7 +9,7 @@ export function LoadError({ compact = false, error, onRetry }: { compact?: boole
         </span>
         <span className="min-w-0 flex-1 text-muted">{error}</span>
         <button className="text-button shrink-0 text-sm" onClick={onRetry} type="button">
-          Retry
+          Try again
         </button>
       </div>
     );

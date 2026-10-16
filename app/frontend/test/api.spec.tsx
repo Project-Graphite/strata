@@ -64,4 +64,24 @@ describe('apiRequest', () => {
 
     await expect(apiRequest('/auth/refresh', { method: 'POST' })).rejects.toMatchObject({ status: 429, retryAfter: 42 });
   });
+
+  it('reads several validation problems as sentences', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ statusCode: 400, message: ['Enter a valid email address.', 'title must be a string'] }), { status: 400 }),
+      ),
+    );
+
+    await expect(apiRequest('/auth/register')).rejects.toMatchObject({ message: 'Enter a valid email address. title must be a string.' });
+  });
+
+  it('never shows the server’s internal error text', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ statusCode: 500, message: 'Internal server error' }), { status: 500 })),
+    );
+
+    await expect(apiRequest('/me')).rejects.toMatchObject({ status: 500, message: 'Something went wrong on our side. Try again in a moment.' });
+  });
 });

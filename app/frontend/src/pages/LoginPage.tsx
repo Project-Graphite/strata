@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { CodeInput, errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
+import { CodeInput, errorMessage, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { useDocumentTitle } from '../components/Page';
@@ -13,11 +13,12 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
   const auth = useAuth();
   const form = useFormErrors();
   const [recovery, setRecovery] = useState(false);
-  const show = useSnackbar();
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
     if (!form.check(event.currentTarget, { code: [required(recovery ? 'Enter a recovery code.' : 'Enter the code.')] })) {
       return;
     }
@@ -25,7 +26,7 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
     try {
       await auth.completeTwoStep(challenge, String(new FormData(event.currentTarget).get('code')).trim());
     } catch (reason) {
-      show({ message: errorMessage(reason, 'Sign in failed'), tone: 'error' });
+      setError(errorMessage(reason, 'Sign in failed'));
       setBusy(false);
     }
   }
@@ -50,6 +51,11 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
         ) : (
           <CodeInput autoFocus label="Six-digit code" {...form.field('code')} />
         )}
+        {error && (
+          <p className="error-message m-0" role="alert">
+            {error}
+          </p>
+        )}
         <Button disabled={busy} label={busy ? 'Checking…' : 'Sign in'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
@@ -69,7 +75,6 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
 export function LoginPage() {
   const auth = useAuth();
   const form = useFormErrors();
-  const show = useSnackbar();
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -99,7 +104,6 @@ export function LoginPage() {
       }
     } catch (reason) {
       setError(errorMessage(reason, 'Sign in failed'));
-      show({ message: errorMessage(reason, 'Sign in failed'), tone: 'error' });
       setBusy(false);
     }
   }
@@ -114,6 +118,11 @@ export function LoginPage() {
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
+        {error && (
+          <p className="error-message m-0" role="alert">
+            {error}
+          </p>
+        )}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       {error === unverified && <ResendVerification email={email} key={email} />}

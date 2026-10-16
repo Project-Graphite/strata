@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Dialog } from '@project-graphite/ui';
+import { Dialog, useSnackbar } from '@project-graphite/ui';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Hint } from './Hint';
 
 export function Copyable({ label, value }: { label?: string; value: string }) {
   const [copied, setCopied] = useState(false);
+  const show = useSnackbar();
   return (
     <div className="grid gap-1">
       {label && <span className="text-sm text-muted">{label}</span>}
@@ -15,10 +16,13 @@ export function Copyable({ label, value }: { label?: string; value: string }) {
           icon={copied ? 'check-mark' : undefined}
           label={copied ? 'Copied' : 'Copy'}
           onClick={() =>
-            void navigator.clipboard.writeText(value).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 2000);
-            })
+            void navigator.clipboard.writeText(value).then(
+              () => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 2000);
+              },
+              () => show({ message: 'Could not copy. Select the text and copy it yourself.', tone: 'error' }),
+            )
           }
         />
       </div>

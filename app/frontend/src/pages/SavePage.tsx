@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { FormPanelSkeleton, Select, TextField } from '@project-graphite/ui';
+import { LinesSkeleton, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
@@ -10,6 +10,7 @@ import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { useDocumentTitle } from '../components/Page';
+import { LoadError } from '../components/LoadError';
 
 interface Shared {
   title: string;
@@ -62,7 +63,16 @@ export function SavePage() {
     void readShare().then(setShared);
   }, []);
 
-  if (shared === undefined || !spaces.data) return <FormPanelSkeleton label="Opening what you shared" />;
+  if (shared === undefined || !spaces.data) {
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">Save what you shared</h1>
+        <div className="mt-8">
+          {spaces.error ? <LoadError error={spaces.error} onRetry={spaces.reload} /> : <LinesSkeleton label="Opening what you shared" lines={4} />}
+        </div>
+      </section>
+    );
+  }
   if (!shared) {
     return (
       <Empty title="Nothing to save">

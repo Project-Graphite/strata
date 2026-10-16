@@ -5,7 +5,7 @@ import { fractionDigits } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, localDate } from '../recurrence/dates';
+import { dateText, dateValue, localDate, readableDay } from '../recurrence/dates';
 import { AccountsService } from './accounts.service';
 import { CreateInstallmentDto, UpdateInstallmentDto } from './dto/installments.dto';
 import { daysBetween } from './periods';
@@ -110,11 +110,11 @@ export class InstallmentsService implements OnModuleInit {
       const days = daysBetween(today, due);
       const amount = this.format(plan.monthlyMinor, plan.currency);
       if (days >= 0 && days <= plan.reminderDays && dateText(plan.remindedOn) !== due) {
-        notes.push({ spaceId: plan.spaceId, title: `${plan.name} is due ${days === 0 ? 'today' : `on ${due}`}`, body: `${amount}, payment ${plan.paidCount + 1} of ${plan.count}` });
+        notes.push({ spaceId: plan.spaceId, title: `${plan.name} is due ${days === 0 ? 'today' : `on ${readableDay(due)}`}`, body: `${amount}, payment ${plan.paidCount + 1} of ${plan.count}` });
         await this.prisma.installmentPlan.update({ where: { id: plan.id }, data: { remindedOn: dateValue(due) } });
       }
       if (days < 0 && dateText(plan.missedOn) !== due) {
-        notes.push({ spaceId: plan.spaceId, title: `Missed payment: ${plan.name}`, body: `${amount} was due on ${due}` });
+        notes.push({ spaceId: plan.spaceId, title: `Missed payment: ${plan.name}`, body: `${amount} was due on ${readableDay(due)}` });
         await this.prisma.installmentPlan.update({ where: { id: plan.id }, data: { missedOn: dateValue(due) } });
       }
     }
@@ -122,7 +122,7 @@ export class InstallmentsService implements OnModuleInit {
       const account = cards.find((candidate) => candidate.id === card.id)!;
       const due = nextCardDue(today, account.dueDay!);
       if (card.balanceMinor >= 0 || daysBetween(today, due) > cardReminderDays || dateText(account.dueRemindedOn) === due) continue;
-      notes.push({ spaceId: card.spaceId, title: `${card.name} is due ${due === today ? 'today' : `on ${due}`}`, body: `${this.format(-card.balanceMinor, card.currency)} owed` });
+      notes.push({ spaceId: card.spaceId, title: `${card.name} is due ${due === today ? 'today' : `on ${readableDay(due)}`}`, body: `${this.format(-card.balanceMinor, card.currency)} owed` });
       await this.prisma.moneyAccount.update({ where: { id: card.id }, data: { dueRemindedOn: dateValue(due) } });
     }
     if (notes.length === 0) return;

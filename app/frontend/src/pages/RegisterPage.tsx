@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { errorMessage, FormPanelSkeleton, TextField, useSnackbar } from '@project-graphite/ui';
+import { errorMessage, FormPanelSkeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { useDocumentTitle } from '../components/Page';
@@ -12,7 +12,7 @@ import { atLeast, atMost, emailAddress, password, required, useFormErrors } from
 export function RegisterPage() {
   const auth = useAuth();
   const form = useFormErrors();
-  const show = useSnackbar();
+  const [error, setError] = useState('');
   const [createdEmail, setCreatedEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [params] = useSearchParams();
@@ -23,6 +23,7 @@ export function RegisterPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
     if (
       !form.check(event.currentTarget, {
         displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')],
@@ -54,7 +55,7 @@ export function RegisterPage() {
       });
       setCreatedEmail(email);
     } catch (reason) {
-      show({ message: errorMessage(reason, 'Registration failed'), tone: 'error' });
+      setError(errorMessage(reason, 'Registration failed'));
     } finally {
       setBusy(false);
     }
@@ -123,6 +124,11 @@ export function RegisterPage() {
           type="password"
           {...form.field('password')}
         />
+        {error && (
+          <p className="error-message m-0" role="alert">
+            {error}
+          </p>
+        )}
         <Button disabled={busy} label={busy ? 'Creating…' : 'Create account'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">

@@ -14,8 +14,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
   function start(chosen: File[]) {
     void importing.run(async () => {
       const { importPages } = await import('../page-import');
-      const { imported, tooLong } = await importPages(auth.request, spaceId, chosen);
-      onDone();
+      const { imported, tooLong } = await importPages(auth.request, spaceId, chosen).finally(onDone);
       onClose();
       return [
         imported === 1 ? 'Imported 1 page.' : imported ? `Imported ${imported} pages.` : tooLong ? '' : 'No Markdown files were found.',

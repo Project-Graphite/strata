@@ -5,6 +5,16 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 
 export class UnsafeUrlError extends Error {}
 
+export class FetchError extends Error {
+  constructor(
+    message: string,
+    readonly reason: 'unreachable' | 'timeout' | 'status' | 'too-large' | 'certificate',
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
 const networkErrors: Record<string, string> = {
   ENOTFOUND: 'That address could not be found',
   EAI_AGAIN: 'That address could not be found',
@@ -17,8 +27,10 @@ const networkErrors: Record<string, string> = {
 
 function plainError(error: NodeJS.ErrnoException) {
   if (!error.code) return error;
-  if (networkErrors[error.code]) return new Error(networkErrors[error.code]);
-  return new Error(/CERT|TLS|SSL/.test(error.code) ? 'That address has an invalid security certificate' : 'Could not connect to that address');
+  if (networkErrors[error.code]) return new FetchError(networkErrors[error.code]!, error.code === 'ETIMEDOUT' ? 'timeout' : 'unreachable');
+  return /CERT|TLS|SSL/.test(error.code)
+    ? new FetchError('That address has an invalid security certificate', 'certificate')
+    : new FetchError('Could not connect to that address', 'unreachable');
 }
 
 const blocked = new BlockList();
@@ -92,9 +104,9 @@ const guardedLookup: LookupFunction = (hostname, options, callback) => {
 };
 
 function guard(outgoing: ClientRequest, timeoutMs: number, reject: (error: Error) => void) {
-  const deadline = setTimeout(() => outgoing.destroy(new Error('That address took too long to answer')), timeoutMs);
+  const deadline = setTimeout(() => outgoing.destroy(new FetchError('That address took too long to answer', 'timeout')), timeoutMs);
   outgoing.on('close', () => clearTimeout(deadline));
-  outgoing.on('timeout', () => outgoing.destroy(new Error('That address took too long to answer')));
+  outgoing.on('timeout', () => outgoing.destroy(new FetchError('That address took too long to answer', 'timeout')));
   outgoing.on('error', (error: NodeJS.ErrnoException) => reject(plainError(error)));
   return outgoing;
 }
@@ -130,12 +142,12 @@ export async function fetchPublic(text: string, options: SafeFetchOptions): Prom
         }
         if (status !== 200) {
           response.resume();
-          reject(new Error(`The address answered with status ${status}`));
+          reject(new FetchError(`The address answered with status ${status}`, 'status', status));
           return;
         }
         if (Number(response.headers['content-length'] ?? 0) > options.maxBytes) {
           response.destroy();
-          reject(new Error('That address returned too much data'));
+          reject(new FetchError('That address returned too much data', 'too-large'));
           return;
         }
         const chunks: Buffer[] = [];
@@ -144,7 +156,7 @@ export async function fetchPublic(text: string, options: SafeFetchOptions): Prom
           size += chunk.length;
           if (size > options.maxBytes) {
             response.destroy();
-            reject(new Error('That address returned too much data'));
+            reject(new FetchError('That address returned too much data', 'too-large'));
             return;
           }
           chunks.push(chunk);

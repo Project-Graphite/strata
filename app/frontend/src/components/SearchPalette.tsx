@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CommandPalette, isAbortError, type CommandItem } from '@project-graphite/ui';
+import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { enabledFeatures } from '../features';
 import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
+import { useAction } from '../useAction';
 
 interface SearchResults {
   items: { id: string; spaceId: string; spaceName: string; kind: string; title: string; archived: boolean }[];
@@ -33,9 +34,10 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const { request, user } = useAuth();
   const spaces = useSpaces();
   const navigate = useNavigate();
+  const creating = useAction();
   const personal = spaces.data?.find((space) => space.kind === 'personal');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResults>();
+  const [results, setResults] = useState<SearchResults & { error?: string }>();
   const text = query.trim();
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       request<SearchResults>(`/search?q=${encodeURIComponent(text)}`, { signal: controller.signal }).then(
         setResults,
         (reason: unknown) => {
-          if (!isAbortError(reason)) setResults({ items: [], tags: [] });
+          if (!isAbortError(reason)) setResults({ items: [], tags: [], error: errorMessage(reason, 'Search failed') });
         },
       );
     }, 200);
@@ -67,9 +69,11 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           id: 'new-page',
           label: 'New page',
           onSelect: () =>
-            void request<{ id: string }>(`/spaces/${personal.id}/notes`, { method: 'POST', body: JSON.stringify({}) }).then((created) =>
-              navigate(`/notes/${created.id}`),
-            ),
+            void creating.run(async () => {
+              const created = await request<{ id: string }>(`/spaces/${personal.id}/notes`, { method: 'POST', body: JSON.stringify({}) });
+              navigate(`/notes/${created.id}`);
+              return '';
+            }, 'Could not create the page'),
         },
         { group: 'Create', href: `/spaces/${personal.id}/tasks`, id: 'new-task', label: 'New task' },
       ]
@@ -104,7 +108,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
   return (
     <CommandPalette
-      emptyLabel={text ? 'Nothing matches' : 'Type to search'}
+      emptyLabel={results?.error ?? (text ? 'Nothing matches' : 'Type to search')}
       items={items}
       onClose={onClose}
       onQueryChange={setQuery}

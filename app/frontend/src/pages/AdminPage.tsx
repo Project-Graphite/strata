@@ -37,8 +37,9 @@ export function AdminPage() {
   const quota = useAction();
 
   if (!admin) return <NotFoundPage />;
-  if (site.error) return <LoadError error={site.error} onRetry={site.reload} />;
-  if (!site.data) return <FormSkeleton fields={1} />;
+  if (!site.data) {
+    return <Page title="Admin">{site.error ? <LoadError error={site.error} onRetry={site.reload} /> : <FormSkeleton fields={1} />}</Page>;
+  }
 
   return (
     <Page title="Admin">

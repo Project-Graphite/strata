@@ -35,14 +35,17 @@ describe('Installments and card due dates against Postgres', () => {
     const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
     await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
     const installments = strata.service(InstallmentsService);
+    const remindedFrom = new Date();
     for (const at of ['2027-03-29', '2027-03-30', '2027-04-02', '2027-04-03', '2027-04-18']) await installments.remind(new Date(`${at}T09:00:00Z`));
-    const notes = (
-      await strata.prisma.inboxNotification.findMany({ where: { userId: viewer.id, kind: 'payment_due' }, orderBy: { createdAt: 'asc' }, select: { title: true, body: true } })
-    ).filter((note) => `${note.title} ${note.body}`.includes('2027'));
+    const notes = await strata.prisma.inboxNotification.findMany({
+      where: { userId: viewer.id, kind: 'payment_due', createdAt: { gte: remindedFrom } },
+      orderBy: { createdAt: 'asc' },
+      select: { title: true, body: true },
+    });
     expect(notes).toEqual([
-      { title: 'valU phone is due on 2027-03-31', body: expect.stringMatching(/^EGP\s1,000\.00, payment 3 of 6$/) },
-      { title: 'Missed payment: valU phone', body: expect.stringMatching(/^EGP\s1,000\.00 was due on 2027-03-31$/) },
-      { title: 'CIB Visa is due on 2027-04-20', body: expect.stringMatching(/^EGP\s2,500\.00 owed$/) },
+      { title: 'valU phone is due on Wed 31 Mar', body: expect.stringMatching(/^EGP\s1,000\.00, payment 3 of 6$/) },
+      { title: 'Missed payment: valU phone', body: expect.stringMatching(/^EGP\s1,000\.00 was due on Wed 31 Mar$/) },
+      { title: 'CIB Visa is due on Tue 20 Apr', body: expect.stringMatching(/^EGP\s2,500\.00 owed$/) },
     ]);
 
     const agenda = (await owner.call('GET', '/agenda?from=2027-03-01&to=2027-05-01')).body;

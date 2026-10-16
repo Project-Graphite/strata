@@ -46,6 +46,7 @@ const statusMessages: Record<number, string> = {
   409: 'Someone changed this at the same time. Reload and try again.',
   413: 'That is too large.',
   429: 'Too many attempts. Wait a minute, then try again.',
+  500: 'Something went wrong on our side. Try again in a moment.',
 };
 
 export const readBlob = (response: Response) => response.blob();
@@ -85,9 +86,12 @@ export async function apiRequest<T>(
       reportOutage();
       throw new OutageError();
     }
-    const message = Array.isArray(body?.message)
-      ? body.message.join(', ')
-      : body?.message;
+    const message =
+      response.status === 500
+        ? undefined
+        : Array.isArray(body?.message)
+          ? body.message.map((part) => (/[.!?]$/.test(part) ? part : `${part}.`)).join(' ')
+          : body?.message;
     throw new ApiError(
       message ?? statusMessages[response.status] ?? `Something went wrong (error ${response.status}). Try again.`,
       response.status,

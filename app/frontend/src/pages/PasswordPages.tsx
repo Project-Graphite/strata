@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { errorMessage, TextField, useSnackbar } from '@project-graphite/ui';
+import { errorMessage, TextField } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
 import { Button, ButtonLink } from '../components/Button';
@@ -10,12 +10,13 @@ import { useDocumentTitle } from '../components/Page';
 export function ForgotPasswordPage() {
   const form = useFormErrors();
   const [sentTo, setSentTo] = useState('');
-  const show = useSnackbar();
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useDocumentTitle('Reset your password');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
     if (!form.check(event.currentTarget, { email: [required('Enter your email address.'), emailAddress] })) {
       return;
     }
@@ -28,7 +29,7 @@ export function ForgotPasswordPage() {
       });
       setSentTo(email);
     } catch (reason) {
-      show({ message: errorMessage(reason, 'Could not send the reset link'), tone: 'error' });
+      setError(errorMessage(reason, 'Could not send the reset link'));
     } finally {
       setBusy(false);
     }
@@ -44,6 +45,11 @@ export function ForgotPasswordPage() {
       ) : (
         <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
           <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
+          {error && (
+            <p className="error-message m-0" role="alert">
+              {error}
+            </p>
+          )}
           <Button disabled={busy} label={busy ? 'Sending…' : 'Send reset link'} large primary submit />
         </form>
       )}
@@ -56,9 +62,9 @@ export function ForgotPasswordPage() {
 
 export function ResetPasswordPage() {
   const [parameters] = useSearchParams();
+  const token = parameters.get('token');
   const form = useFormErrors();
   const [done, setDone] = useState(false);
-  const show = useSnackbar();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useDocumentTitle('Choose a new password');
@@ -72,14 +78,13 @@ export function ResetPasswordPage() {
       await apiRequest('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify({
-          token: parameters.get('token') ?? '',
+          token,
           password: String(new FormData(event.currentTarget).get('password')),
         }),
       });
       setDone(true);
     } catch (reason) {
       setError(errorMessage(reason, 'Could not reset the password'));
-      show({ message: errorMessage(reason, 'Could not reset the password'), tone: 'error' });
     } finally {
       setBusy(false);
     }
@@ -97,6 +102,18 @@ export function ResetPasswordPage() {
     );
   }
 
+  if (!token) {
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">This link is incomplete</h1>
+        <p className="mt-5 text-muted">Open the whole link from the email, or request a new one.</p>
+        <div className="mt-7">
+          <ButtonLink label="Request a new link" large primary to="/forgot-password" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="form-panel page-enter">
       <h1 className="page-heading">Choose a new password</h1>
@@ -109,9 +126,14 @@ export function ResetPasswordPage() {
           {...form.field('password')}
         />
         {error && (
-          <Hint>
-            <Link className="rule-link" to="/forgot-password">Request a new link</Link>
-          </Hint>
+          <>
+            <p className="error-message m-0" role="alert">
+              {error}
+            </p>
+            <Hint>
+              <Link className="rule-link" to="/forgot-password">Request a new link</Link>
+            </Hint>
+          </>
         )}
         <Button disabled={busy} label={busy ? 'Saving…' : 'Save password'} large primary submit />
       </form>

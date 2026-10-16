@@ -63,6 +63,8 @@ describe('the feed address guard', () => {
 
   it('explains in plain words when an address cannot be found', async () => {
     await expect(postPublic('https://strata-webhook.invalid/in', '{}', {}, 5_000)).rejects.toThrow(/^That address could not be found$/);
-    await expect(fetchPublic('https://strata-feed.invalid/feed', { accept: '*/*', maxBytes: 1024, timeoutMs: 5_000 })).rejects.toThrow(/^That address could not be found$/);
+    const failure = fetchPublic('https://strata-feed.invalid/feed', { accept: '*/*', maxBytes: 1024, timeoutMs: 5_000 });
+    await expect(failure).rejects.toThrow(/^That address could not be found$/);
+    await expect(failure).rejects.toMatchObject({ reason: 'unreachable' });
   });
 });

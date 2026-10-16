@@ -10,6 +10,12 @@ export function dateValue(text: string) {
   return new Date(`${text}T00:00:00Z`);
 }
 
+const dayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+export function readableDay(day: string) {
+  return dayFormat.format(dateValue(day));
+}
+
 export function localDate(timeZone: string, at = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
 }

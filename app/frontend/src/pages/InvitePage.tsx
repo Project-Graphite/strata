@@ -8,6 +8,7 @@ import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { useDocumentTitle } from '../components/Page';
+import { LoadError } from '../components/LoadError';
 
 export function InvitePage() {
   const { code = '' } = useParams();
@@ -20,11 +21,21 @@ export function InvitePage() {
   useDocumentTitle('Invitation');
 
   if (!auth.ready || invite.loading) return <FormPanelSkeleton label="Loading this invite" />;
-  if (!invite.data) {
+  if (invite.status === 404) {
     return (
       <Empty title="This invite cannot be used">
         {invite.error} Ask the person who invited you for a new link.
       </Empty>
+    );
+  }
+  if (!invite.data) {
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">Your invite</h1>
+        <div className="mt-8">
+          <LoadError error={invite.error} onRetry={invite.reload} />
+        </div>
+      </section>
     );
   }
 

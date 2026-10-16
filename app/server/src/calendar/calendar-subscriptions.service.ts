@@ -5,8 +5,8 @@ import { SecretBox } from '../crypto/secret-box.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs } from '../recurrence/dates';
-import { checkedUrl, fetchPublic, UnsafeUrlError } from '../widgets/safe-fetch';
-import { readCalendar } from './ical-reader';
+import { checkedUrl, FetchError, fetchPublic, UnsafeUrlError } from '../widgets/safe-fetch';
+import { NotCalendarError, readCalendar } from './ical-reader';
 
 const maxPerSpace = 10;
 const refreshAfterMs = 15 * 60 * 1000;
@@ -23,6 +23,23 @@ const subscriptionFields = {
   createdAt: true,
   _count: { select: { events: true } },
 } satisfies Prisma.CalendarSubscriptionSelect;
+
+const fetchProblems: Record<FetchError['reason'], string> = {
+  unreachable: 'The calendar’s server could not be reached. Check the link, or try again later.',
+  timeout: 'The calendar’s server took too long to answer. Try again later.',
+  status: 'The calendar’s server could not send the calendar. Try again later.',
+  'too-large': 'This calendar is too large to follow. Strata reads calendars up to 1 MB.',
+  certificate: 'The calendar’s server has an invalid security certificate, so Strata cannot read it safely.',
+};
+
+function readProblem(error: unknown) {
+  if (error instanceof UnsafeUrlError) return error.message;
+  if (error instanceof NotCalendarError) return 'This link is not a calendar file. Copy the iCal (.ics) link from your calendar app.';
+  if (!(error instanceof FetchError)) return 'This calendar could not be read. Try again later.';
+  if (error.status === 401 || error.status === 403) return 'This calendar needs a private link that allows access. Copy the secret iCal address from your calendar app.';
+  if (error.status === 404 || error.status === 410) return 'This calendar link no longer exists. Copy a fresh link from your calendar app.';
+  return fetchProblems[error.reason];
+}
 
 function present({ _count, ...subscription }: Prisma.CalendarSubscriptionGetPayload<{ select: typeof subscriptionFields }>) {
   return { ...subscription, events: _count.events };
@@ -61,7 +78,8 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     const host = this.checked(url).host;
     const now = new Date();
     const read = await this.read(url, now).catch((error: Error) => {
-      throw new BadRequestException(`Could not read that calendar: ${error.message}`);
+      this.logger.warn(`Calendar at ${host} could not be read: ${error.message}`);
+      throw new BadRequestException(readProblem(error));
     });
     const created = await this.prisma.calendarSubscription.create({
       data: {
@@ -149,9 +167,8 @@ export class CalendarSubscriptionsService implements OnModuleInit {
         this.prisma.calendarSubscription.update({ where: { id }, data: { lastFetchedAt: now, lastError: null } }),
       ]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Calendar ${id} could not be refreshed: ${message}`);
-      await this.prisma.calendarSubscription.update({ where: { id }, data: { lastFetchedAt: now, lastError: message.slice(0, 200) } });
+      this.logger.warn(`Calendar ${id} could not be refreshed: ${error instanceof Error ? error.message : String(error)}`);
+      await this.prisma.calendarSubscription.update({ where: { id }, data: { lastFetchedAt: now, lastError: readProblem(error) } });
     }
   }
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Toggle } from '@project-graphite/ui';
+import { errorMessage, Toggle } from '@project-graphite/ui';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { LoadError } from './LoadError';
 import { allPushKinds, pushGroups, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -17,6 +18,8 @@ export function DevicePush() {
   const key = useResource<{ publicKey: string | null }>('/push/key', true);
   const acting = useAction();
   const [device, setDevice] = useState<Device | null>();
+  const [checkError, setCheckError] = useState('');
+  const [checks, setChecks] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -33,8 +36,8 @@ export function DevicePush() {
           )
         : null;
       setDevice({ registration, subscription, kinds });
-    })();
-  }, [request]);
+    })().catch((reason: unknown) => setCheckError(errorMessage(reason, 'Could not check this device')));
+  }, [request, checks]);
 
   const note = (text: string) => (
     <div className="panel-rows">
@@ -44,6 +47,22 @@ export function DevicePush() {
       </div>
     </div>
   );
+  if (key.error || checkError) {
+    return (
+      <LoadError
+        compact
+        error={key.error || checkError}
+        onRetry={
+          key.error
+            ? key.reload
+            : () => {
+                setCheckError('');
+                setChecks((current) => current + 1);
+              }
+        }
+      />
+    );
+  }
   if (key.data?.publicKey === null) return note('Not set up on this server yet.');
   if (device === null) return note('This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.');
   if (!device || !key.data) return null;
