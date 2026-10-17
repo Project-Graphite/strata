@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { ConfirmDialog, formatDay, isAbortError } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, isAbortError, useSnackbar } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Empty } from '../components/Empty';
+import { Hint } from '../components/Hint';
 import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
 import { Button } from '../components/Button';
-import { Section } from '../components/Page';
+import { Section, Subheading } from '../components/Page';
 
 interface FileHandle {
   kind: 'file';
@@ -101,6 +102,7 @@ export function FolderScan() {
   const [report, setReport] = useState<Report>();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
+  const show = useSnackbar();
 
   if (!picker) {
     return (
@@ -117,12 +119,12 @@ export function FolderScan() {
   );
 
   return (
-    <div className="grid gap-10">
+    <>
       <div className="grid gap-3">
-        <p className="m-0 text-muted">
+        <Hint>
           Strata looks through a folder on this computer for duplicate, large and old files. Nothing is uploaded, and the results are gone when you
           leave this page.
-        </p>
+        </Hint>
         <Button
           disabled={scanning.busy}
           label={scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
@@ -162,10 +164,10 @@ export function FolderScan() {
               title="Duplicate files"
             >
               {report.duplicates.map((group) => (
-                <div className="mt-4" key={group[0]!.path}>
-                  <p className="mono-sm m-0 text-faint">
+                <div className="grid gap-2" key={group[0]!.path}>
+                  <Subheading>
                     {group.length} copies of {fileSize(group[0]!.size)}
-                  </p>
+                  </Subheading>
                   <ul className="panel-rows">
                     {group.map((file) => choice(file, `changed ${formatDay(dayKey(new Date(file.modified)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
                   </ul>
@@ -217,8 +219,9 @@ export function FolderScan() {
               setReport((current) => current && without(current, removed));
               setSelected((current) => new Set([...current].filter((path) => !removed.has(path))));
             }
+            show({ message: `Deleted ${removed.size} file${removed.size === 1 ? '' : 's'}.` });
           }}
-          title="Delete these files for good?"
+          title={`Delete ${chosen.length === 1 ? 'this file' : 'these files'}?`}
           tone="danger"
         >
           <p className="m-0">They skip the recycle bin and can’t be brought back, not even from Strata’s undo history.</p>
@@ -236,6 +239,6 @@ export function FolderScan() {
           </ul>
         </ConfirmDialog>
       )}
-    </div>
+    </>
   );
 }

@@ -31,12 +31,12 @@ export function TrashPage() {
       ) : !trash.data ? (
         <ListSkeleton label="Loading the trash" rows={4} />
       ) : trash.data.results.length === 0 ? (
-        <Empty title="The trash is empty" />
+        <Empty title="The trash is empty">Anything you move to the trash waits here until you restore it.</Empty>
       ) : (
         <>
           <ItemList
             actions={(item) => (
-              <>
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
                   disabled={action.busy}
                   label="Restore"
@@ -49,8 +49,8 @@ export function TrashPage() {
                     }, 'Could not restore that')
                   }
                 />
-                <ActionsMenu items={[{ label: 'Delete', onSelect: () => setDeleting(item) }]} name={item.title || 'Untitled'} />
-              </>
+                <ActionsMenu items={[{ label: 'Delete for good', onSelect: () => setDeleting(item) }]} name={item.title || 'Untitled'} />
+              </div>
             )}
             detail={(item) => `${spaceName(item)} · trashed ${timeAgo(item.trashedAt!)}`}
             items={trash.data.results}
@@ -68,11 +68,12 @@ export function TrashPage() {
           onConfirm={async () => {
             await auth.request(`/items/${deleting.id}`, { method: 'DELETE' });
             trash.reload();
+            action.report(`Deleted ${deleting.title || 'Untitled'}.`);
           }}
           title={`Delete ${deleting.title || 'Untitled'} for good?`}
           tone="danger"
         >
-          It is removed for everyone in {spaceName(deleting)}. This cannot be undone.
+          It’s removed for everyone in {spaceName(deleting)}, and this can’t be undone.
         </ConfirmDialog>
       )}
     </Page>

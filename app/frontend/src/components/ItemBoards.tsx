@@ -22,7 +22,26 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
   if (!links.data || (boards.length === 0 && !editable)) return null;
 
   return (
-    <Section title="Boards">
+    <Section
+      action={
+        editable && (
+          <Button
+            disabled={adding.busy}
+            icon="plus"
+            label="New board"
+            onClick={() =>
+              void adding.run(async () => {
+                const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
+                await auth.request(`/items/${itemId}/links`, { method: 'POST', body: JSON.stringify({ targetId: board.id, kind: 'reference' }) });
+                links.reload();
+                return `Added ${title} board.`;
+              }, 'Could not add a board')
+            }
+          />
+        )
+      }
+      title="Boards"
+    >
       {boards.length === 0 && <Hint>No boards yet.</Hint>}
       {boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
@@ -32,21 +51,6 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
           </Link>
         </div>
       ))}
-      {editable && (
-        <Button
-          disabled={adding.busy}
-          icon="plus"
-          label="Add a board"
-          onClick={() =>
-            void adding.run(async () => {
-              const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
-              await auth.request(`/items/${itemId}/links`, { method: 'POST', body: JSON.stringify({ targetId: board.id, kind: 'reference' }) });
-              links.reload();
-              return '';
-            }, 'Could not add a board')
-          }
-        />
-      )}
     </Section>
   );
 }

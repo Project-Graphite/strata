@@ -6,7 +6,7 @@ export function Stats({ children }: { children: ReactNode }) {
 
 export function Stat({ children, detail, label, value }: { children?: ReactNode; detail?: ReactNode; label: ReactNode; value: ReactNode }) {
   return (
-    <div className="grid content-start gap-2 rounded-xl border border-line p-4">
+    <div className="grid content-start gap-2 rounded-panel border border-line bg-surface p-4">
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="m-0 grid gap-2 text-lg text-ink">
         {value}

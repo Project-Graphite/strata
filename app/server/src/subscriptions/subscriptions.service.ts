@@ -425,7 +425,7 @@ export class SubscriptionsService implements OnModuleInit {
           payload.on === 'trial'
             ? `The free trial of ${item.title} ends on ${readableDay(payload.date)}, then it costs ${amount}`
             : `${item.title} renews on ${readableDay(payload.date)} for ${amount}`,
-        link: `/spaces/${item.spaceId}/recurring`,
+        link: `/spending/recurring?subscription=${payload.itemId}`,
       },
     ]);
   }

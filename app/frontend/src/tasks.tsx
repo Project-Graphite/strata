@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Avatar, formatDay, Icon, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
+import type { useAuth } from './auth';
+import { FilterChips } from './components/Page';
 import { clockTime } from './time';
 
 export interface Task {
@@ -89,6 +91,21 @@ export function repeatLabel(rule: string | null) {
   return repeatPresets.find(([value]) => value === rule)?.[1].toLowerCase() ?? 'repeats';
 }
 
+export async function completeTask(request: ReturnType<typeof useAuth>['request'], task: Task, onChange: (completed?: Task) => void) {
+  const updated = await request<Task>(`/tasks/${task.id}/complete`, { method: 'POST' });
+  onChange(updated);
+  return updated.completedAt
+    ? {
+        message: `Completed ${task.title}.`,
+        undo: async () => {
+          await request(`/tasks/${task.id}/reopen`, { method: 'POST' });
+          onChange();
+          return '';
+        },
+      }
+    : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
+}
+
 export function TaskRow({
   actions,
   disabled,
@@ -155,32 +172,43 @@ export function taskLink(base: string, listId: string | null, completed: boolean
 
 export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLink; listId: string | null; lists: TaskList[]; onNewList?: () => void }) {
   return (
-    <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
-      <Link aria-current={!listId ? 'page' : undefined} className="filter-chip" to={link({ list: null, page: 1 })}>
-        All tasks
-      </Link>
-      {lists.map((list) => (
-        <Link aria-current={listId === list.id ? 'page' : undefined} className="filter-chip" key={list.id} to={link({ list: list.id, page: 1 })}>
-          {list.title}
-          <span className="text-faint">{list.openTasks}</span>
-        </Link>
-      ))}
+    <FilterChips
+      items={[
+        { active: !listId, href: link({ list: null, page: 1 }), label: 'All tasks' },
+        ...lists.map((list) => ({ active: listId === list.id, count: list.openTasks, href: link({ list: list.id, page: 1 }), label: list.title })),
+      ]}
+      label="Lists"
+    >
       {onNewList && (
         <button className="filter-chip" onClick={onNewList} type="button">
           <Icon name="plus" size={14} />
           New list
         </button>
       )}
-    </nav>
+    </FilterChips>
   );
 }
 
-export function TaskListFooter({ completed, link, tasks }: { completed: boolean; link: TaskLink; tasks: ResultPage<Task> }) {
+export function TaskStatusChips({ completed, link }: { completed: boolean; link: TaskLink }) {
+  return (
+    <FilterChips
+      items={[
+        { active: !completed, href: link({ completed: false, page: 1 }), label: 'Open' },
+        { active: completed, href: link({ completed: true, page: 1 }), label: 'Finished' },
+      ]}
+      label="Status"
+    />
+  );
+}
+
+export function TaskListFooter({ completed, link, tasks }: { completed?: boolean; link: TaskLink; tasks: ResultPage<Task> }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
-      <Link className="text-button text-sm" to={link({ completed: !completed, page: 1 })}>
-        {completed ? 'Show open' : 'Show finished'}
-      </Link>
+      {completed !== undefined && (
+        <Link className="text-button text-sm" to={link({ completed: !completed, page: 1 })}>
+          {completed ? 'Show open' : 'Show finished'}
+        </Link>
+      )}
       <Pagination page={tasks.page} pageHref={(next) => link({ page: next })} totalPages={tasks.totalPages} />
     </div>
   );

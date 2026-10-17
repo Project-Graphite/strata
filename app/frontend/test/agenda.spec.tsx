@@ -99,7 +99,7 @@ describe('Agenda and RSVP', () => {
       }
       return undefined;
     });
-    await render('/agenda');
+    await render('/agenda/list');
 
     expect(container.textContent).toContain('Book the hall · all day · due');
     expect(container.textContent).toContain('Hall hire · all day · renews');
@@ -149,7 +149,7 @@ describe('Agenda and RSVP', () => {
       }
       return undefined;
     });
-    await render(`/agenda?view=day&date=${today}`);
+    await render(`/agenda/day?date=${today}`);
 
     expect(container.querySelector('.agenda-chip')?.textContent).toBe('Offsite');
     const blocks = [...container.querySelectorAll<HTMLElement>('.agenda-block')];
@@ -286,7 +286,7 @@ describe('Agenda and RSVP', () => {
     });
     await render('/events/party');
 
-    const add = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Add a board'))!;
+    const add = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('New board'))!;
     await act(async () => add.click());
     await act(async () => {});
     expect(sent).toEqual([

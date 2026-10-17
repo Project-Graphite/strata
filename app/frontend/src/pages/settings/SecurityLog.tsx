@@ -2,6 +2,7 @@ import { ListSkeleton, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
 import { Section } from '../../components/Page';
+import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 
 interface AuditEvent {
@@ -37,9 +38,11 @@ export function SecurityLog() {
   return (
     <Section title="Security log">
       {log.error ? (
-        <LoadError error={log.error} onRetry={log.reload} />
+        <LoadError compact error={log.error} onRetry={log.reload} />
       ) : !log.data ? (
         <ListSkeleton label="Loading your security log" rows={4} />
+      ) : log.data.results.length === 0 ? (
+        <Hint>Nothing in the log yet.</Hint>
       ) : (
         <ul className="panel-rows">
           {log.data.results.map((event) => (
@@ -47,7 +50,7 @@ export function SecurityLog() {
               <span className={`min-w-0 text-ink ${event.action === 'sign_in_failed' ? 'font-medium' : ''}`}>
                 {actions[event.action] ?? event.action}
                 {(event.data.device || event.data.reason || event.data.name) && (
-                  <span className="mono-sm text-faint">
+                  <span className="text-sm text-muted">
                     {' · '}
                     {[event.data.reason && reasons[event.data.reason], event.data.device, event.data.name]
                       .filter(Boolean)

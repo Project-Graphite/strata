@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router';
+import { Link, useLocation, type Location } from 'react-router';
 import { Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Section } from '../../components/Page';
@@ -10,7 +10,8 @@ export function FeaturesSettings() {
   const auth = useAuth();
   const saving = useAction();
   const location = useLocation();
-  const asked = featureCatalogue.find((feature) => feature.key === (location.state as { feature?: string } | null)?.feature);
+  const state = location.state as { feature: string; from: Location } | null;
+  const asked = featureCatalogue.find((feature) => feature.key === state?.feature);
   const chosen = (auth.user?.features ?? []).filter((key) => featureCatalogue.some((feature) => feature.key === key));
 
   function change(key: string, on: boolean) {
@@ -18,16 +19,20 @@ export function FeaturesSettings() {
     void saving.run(async () => {
       const saved = await auth.request<{ features: string[] }>('/me', { method: 'PATCH', body: JSON.stringify({ features }) });
       auth.updateUser({ features: saved.features });
-      return '';
+      return `Turned ${on ? 'on' : 'off'} ${featureCatalogue.find((feature) => feature.key === key)!.label}.`;
     }, 'Could not change your features');
   }
 
   return (
-    <Section
-      description="The ones you turn on appear in your menu. Turning one off hides it and keeps everything in it."
-      title="Features"
-    >
-      {asked && !chosen.includes(asked.key) && <p className="notice m-0">Turn on {asked.label} to open it.</p>}
+    <Section description="The ones you turn on appear in your menu. Turning one off hides it and keeps everything in it." title="Features">
+      {asked &&
+        (chosen.includes(asked.key) ? (
+          <p className="notice m-0">
+            <Link to={`${state!.from.pathname}${state!.from.search}`}>Open {asked.label}</Link>
+          </p>
+        ) : (
+          <p className="notice m-0">Turn on {asked.label} to open it.</p>
+        ))}
       <SettingsRows>
         {featureCatalogue.map((feature) => (
           <Toggle

@@ -107,13 +107,14 @@ describe('Save to Strata', () => {
     expect(shared.delete).toHaveBeenCalledWith('strata-share');
   });
 
-  it('saves a shared link as a bookmark to read later, or as a task when chosen', async () => {
+  it('saves a shared link as a bookmark to read later and opens it, or as a task when chosen', async () => {
     const shared = fakeCaches({ '/share-target/text': json({ title: 'Slow bread', text: 'Worth a read https://bread.example/slow', url: '' }) });
     vi.stubGlobal('caches', shared);
     const bookmark = { id: 'b1', spaceId: 'club', title: 'bread.example', url: 'https://bread.example/slow', siteName: null, description: null, readAt: null, createdAt: '2026-10-11T08:00:00Z', updatedAt: '2026-10-11T08:00:00Z', article: null };
     const fetchMock = serve((path, init) => {
       if (path === '/spaces/club/bookmarks' && init?.method === 'POST') return json({ bookmark, html: null, fetchError: 'That address took too long to answer' }, 201);
       if (path === '/me/bookmarks?status=unread') return json([bookmark]);
+      if (path === '/bookmarks/b1') return json(bookmark);
       return undefined;
     });
     await render();
@@ -133,7 +134,8 @@ describe('Save to Strata', () => {
     );
     expect(fetchMock.mock.calls.some(([path]) => String(path).includes('/tasks'))).toBe(false);
     expect(shared.delete).toHaveBeenCalledWith('strata-share');
-    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('Bookmarks'));
+    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('bread.example'));
+    expect(container.querySelector('a.back-link')?.getAttribute('href')).toBe('/bookmarks');
   });
 
   it('asks for a task title when only text was shared, and can discard it', async () => {

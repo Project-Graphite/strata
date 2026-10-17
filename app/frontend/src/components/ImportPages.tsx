@@ -5,6 +5,8 @@ import { spaceOptions, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { Hint } from './Hint';
 import { FileButton } from './FileButton';
+import { Button } from './Button';
+import { DialogActions } from './DialogActions';
 
 export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
   const auth = useAuth();
@@ -27,7 +29,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
 
   return (
     <Dialog onClose={onClose} title="Import pages">
-      <div className="grid gap-4">
+      <div className="mt-5 grid gap-4">
         <Hint>
           Markdown files become pages. For a Notion export, unzip it and choose the folder: pages keep their nesting and their images come along.
         </Hint>
@@ -43,6 +45,9 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
             Importing…
           </p>
         )}
+        <DialogActions>
+          <Button disabled={importing.busy} label="Done" large onClick={onClose} />
+        </DialogActions>
       </div>
     </Dialog>
   );

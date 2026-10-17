@@ -8,6 +8,7 @@ import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
 import { RowText } from '../components/RowText';
+import { SettingsRows } from './settings/SettingsLayout';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -44,24 +45,26 @@ export function AdminPage() {
   return (
     <Page title="Admin">
       <Section title="Site settings">
-        <Toggle
-          checked={site.data.inviteOnly}
-          description="New accounts need an invite while this is on. People who already have an account are not affected."
-          disabled={saving.busy}
-          label="Invite-only sign-up"
-          onChange={(inviteOnly) =>
-            void saving.run(async () => {
-              const saved = await auth.request<SiteSettings>('/admin/site', {
-                method: 'PATCH',
-                body: JSON.stringify({ inviteOnly }),
-              });
-              site.mutate(() => saved);
-              return saved.inviteOnly ? 'Sign-up now needs an invite.' : 'Anyone can sign up again.';
-            }, 'Could not save the setting')
-          }
-        />
+        <SettingsRows>
+          <Toggle
+            checked={site.data.inviteOnly}
+            description="New accounts need an invite while this is on. People who already have an account aren’t affected."
+            disabled={saving.busy}
+            label="Invite-only sign-up"
+            onChange={(inviteOnly) =>
+              void saving.run(async () => {
+                const saved = await auth.request<SiteSettings>('/admin/site', {
+                  method: 'PATCH',
+                  body: JSON.stringify({ inviteOnly }),
+                });
+                site.mutate(() => saved);
+                return saved.inviteOnly ? 'Sign-up now needs an invite.' : 'Anyone can sign up again.';
+              }, 'Could not save the setting')
+            }
+          />
+        </SettingsRows>
         <form
-          className="grid max-w-sm gap-4"
+          className="grid max-w-3xl gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -76,22 +79,24 @@ export function AdminPage() {
             }, 'Could not save the storage limit');
           }}
         >
-          <TextField
-            defaultValue={site.data.fileQuotaMb}
-            hint="Counted from the files each person uploads. Files can be at most 25 MB each."
-            inputMode="numeric"
-            label="File storage per person (MB)"
-            max={10240}
-            min={1}
-            name="fileQuotaMb"
-            type="number"
-          />
-          <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save limit'} primary submit />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              defaultValue={site.data.fileQuotaMb}
+              hint="Counted from the files each person uploads. Files can be at most 25 MB each."
+              inputMode="numeric"
+              label="File storage per person (MB)"
+              max={10240}
+              min={1}
+              name="fileQuotaMb"
+              type="number"
+            />
+          </div>
+          <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save'} primary submit />
         </form>
       </Section>
       <Section description={accounts.data && (accounts.data.length === 1 ? '1 account' : `${accounts.data.length} accounts`)} title="People">
         {accounts.error ? (
-          <LoadError error={accounts.error} onRetry={accounts.reload} />
+          <LoadError compact error={accounts.error} onRetry={accounts.reload} />
         ) : !accounts.data ? (
           <ListSkeleton label="Loading the accounts" rows={4} />
         ) : (
@@ -101,15 +106,15 @@ export function AdminPage() {
                 <Avatar name={account.displayName} />
                 <RowText
                   detail={[
-                      account.email,
-                      `@${account.handle}`,
-                      `joined ${timeAgo(account.createdAt)}`,
-                      `${fileSize(account.usedBytes)} stored`,
-                      !account.verified && 'not verified',
-                      !account.isActive && 'deactivated',
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
+                    account.email,
+                    `@${account.handle}`,
+                    `joined ${timeAgo(account.createdAt)}`,
+                    `${fileSize(account.usedBytes)} stored`,
+                    !account.verified && 'not verified',
+                    !account.isActive && 'deactivated',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                   title={[account.displayName, roleNames[account.role]].filter(Boolean).join(' · ')}
                 />
               </li>

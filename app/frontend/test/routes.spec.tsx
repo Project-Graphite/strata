@@ -62,7 +62,7 @@ describe('App routes', () => {
     expect(document.title).toBe('Sign in · Strata');
   });
 
-  it('reaches every area on a phone through the More tab', async () => {
+  it('reaches every area on a phone through the More tab, from an old address too', async () => {
     const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const user = { id: 'me', email: 'amr@example.com', handle: 'amr', displayName: 'Amr', role: 'member', timeZone: 'Etc/UTC' };
     vi.stubGlobal(
@@ -78,17 +78,18 @@ describe('App routes', () => {
 
     await render('/todo');
     expect([...container.querySelectorAll('nav[aria-label="Main"] a')].map((tab) => tab.textContent)).toEqual(['Home', 'Spending', 'Agenda', 'Spaces', 'More']);
-    const more = container.querySelector('nav[aria-label="Main"] a[href="/menu"]')!;
+    const more = container.querySelector('nav[aria-label="Main"] a[href="/more"]')!;
     expect(more.textContent).toBe('More');
     expect(more.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('a[href="/inbox"]')?.getAttribute('aria-label')).toBe('Inbox, 3 unread');
 
     await act(async () => more.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     const main = container.querySelector('main')!;
-    expect(main.querySelector('h1')?.textContent).toBe('Menu');
+    expect(main.querySelector('h1')?.textContent).toBe('More');
     expect(main.querySelector('h1')?.className).toBe('sr-only');
     const links = [...main.querySelectorAll('a')].map((link) => link.getAttribute('href'));
-    expect(links).toEqual(expect.arrayContaining(['/todo', '/spending', '/spaces/club', '/inbox', '/invitations', '/trash', '/settings']));
+    expect(links).toEqual(expect.arrayContaining(['/tasks', '/pages', '/boards', '/bookmarks', '/journal', '/files', '/trash', '/privacy', '/terms']));
     expect(links).not.toContain('/tidy');
-    expect(main.querySelector('a[href="/inbox"]')?.textContent).toContain('3');
+    expect(links).not.toContain('/spending');
   });
 });

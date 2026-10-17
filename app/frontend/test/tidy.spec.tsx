@@ -90,10 +90,10 @@ describe('Tidy', () => {
     expect(container.textContent).toContain('2 copies of 3 MB');
     await act(async () => button('Select the extra copies').click());
     expect(container.textContent).toContain('1 item selected');
-    await act(async () => button('Move to the trash').click());
+    await act(async () => button('Move to trash').click());
 
     expect(document.querySelector('dialog')?.textContent).toContain('1 item will move to the trash, which keeps items for 30 days');
-    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Move to the trash')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Move to trash')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/tidy/apply', expect.objectContaining({ method: 'POST' }));
     expect(container.textContent).toContain('Moved 1 item to the trash.');
@@ -108,7 +108,7 @@ describe('Tidy', () => {
       if (path === '/tidy/history/batch/undo') return json({ restored: 1, skipped: [{ id: 'x', title: 'March receipt', reason: 'No longer has this tag' }] });
       return undefined;
     });
-    await render('/tidy?view=history');
+    await render('/tidy/history');
 
     expect(container.textContent).toContain('Tagged 2 items Finance');
     expect(container.textContent).toContain('by the rule “receipt”');
@@ -144,7 +144,8 @@ describe('Tidy', () => {
     });
     expect(container.textContent).toContain('New items with “receipt” in the title will be tagged Finance.');
 
-    await act(async () => button('Tag existing items').click());
+    await act(async () => [...container.querySelectorAll<HTMLElement>('button[aria-haspopup="menu"]')].find((candidate) => candidate.getAttribute('aria-label')?.includes('receipt'))!.click());
+    await act(async () => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((candidate) => candidate.textContent === 'Tag existing items')!.click());
     expect(document.querySelector('dialog')?.textContent).toContain('May receipt');
     await act(async () => [...document.querySelectorAll('dialog button')].find((candidate) => candidate.textContent === 'Add the tag')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/tidy/apply', expect.objectContaining({ method: 'POST' }));
@@ -186,7 +187,7 @@ describe('Tidy', () => {
 
   it('finds duplicate files in a local folder without uploading them and deletes the chosen copy', async () => {
     const fetchMock = serve(() => undefined);
-    await render('/tidy?view=folder');
+    await render('/tidy/folder');
     expect(container.textContent).toContain('Use Chrome or Edge on a computer');
 
     const file = (name: string, text: string, lastModified = Date.now()) => ({
@@ -208,7 +209,7 @@ describe('Tidy', () => {
     vi.stubGlobal('showDirectoryPicker', vi.fn(() => Promise.resolve(documents)));
     act(() => root.unmount());
     root = createRoot(container);
-    await render('/tidy?view=folder');
+    await render('/tidy/folder');
 
     await act(async () => button('Choose a folder').click());
     await vi.waitFor(async () => {

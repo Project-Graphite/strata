@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { Avatar, DatePicker, formatDay, ListSkeleton, Select, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
@@ -8,11 +8,11 @@ import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
 import { addDays, dayKey, entryDay, entryTime, useAgenda, useTodaySchedule } from '../agenda';
-import type { InboxNotification } from '../inbox';
+import { useInbox, type InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
 import { spaceOptions, useSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
-import { TaskRow, type Task, type TaskList } from '../tasks';
+import { completeTask, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
@@ -20,13 +20,14 @@ import { BoardPreview } from '../components/BoardPreview';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
+import { OpenTask } from '../components/TaskEditor';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
 import { PageLinks, type SettingsProps, type WidgetProps } from './widget-parts';
-import { timeOptions } from '../time';
-import { Button } from '../components/Button';
+import { clockTime } from '../time';
+import { Button, TextButton } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
@@ -59,11 +60,10 @@ function Clock({ settings }: WidgetProps) {
     return () => window.clearInterval(timer);
   }, []);
   const zones = Array.isArray(settings.zones) ? (settings.zones as string[]) : [];
-  const time = (timeZone?: string) => now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...timeOptions() });
   return (
     <div className="grid gap-3">
       <div>
-        <p className="m-0 text-3xl text-ink">{time()}</p>
+        <p className="m-0 text-3xl text-ink">{clockTime(now)}</p>
         <p className="mono-sm m-0 mt-1 text-faint">
           {formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
@@ -73,7 +73,7 @@ function Clock({ settings }: WidgetProps) {
           {zones.map((zone) => (
             <li className="flex justify-between gap-3 text-sm" key={zone}>
               <span className="truncate text-muted">{zone.split('/').pop()!.replaceAll('_', ' ')}</span>
-              <span className="text-ink">{time(zone)}</span>
+              <span className="text-ink">{clockTime(now, zone)}</span>
             </li>
           ))}
         </ul>
@@ -115,10 +115,10 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
 
 function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; listId?: string }; path: string; quiet?: boolean }) {
   const auth = useAuth();
-  const navigate = useNavigate();
   const spaces = useSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
   const action = useAction();
+  const [opened, setOpened] = useState<Task>();
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data) return <ListSkeleton label="Loading tasks" rows={3} />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
@@ -132,28 +132,14 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
             <TaskRow
               disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
               key={task.id}
-              onEdit={() => navigate(`/spaces/${task.spaceId}/tasks`)}
-              onToggle={() =>
-                void action.run(async () => {
-                  const updated = await auth.request<Task>(`/tasks/${task.id}/complete`, { method: 'POST' });
-                  tasks.reload();
-                  return updated.completedAt
-                    ? {
-                        message: `Done: ${task.title}.`,
-                        undo: async () => {
-                          await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
-                          tasks.reload();
-                          return '';
-                        },
-                      }
-                    : '';
-                }, 'Could not update the task')
-              }
+              onEdit={() => setOpened(task)}
+              onToggle={() => void action.run(() => completeTask(auth.request, task, tasks.reload), 'Could not update the task')}
               task={task}
             />
           ))}
         </ul>
       )}
+      {opened && <OpenTask onChanged={tasks.reload} onClose={() => setOpened(undefined)} task={opened} />}
     </div>
   );
 }
@@ -231,7 +217,7 @@ function Shortcuts({ settings }: WidgetProps) {
       {links.map((link) => (
         <li key={`${link.label}-${link.url}`}>
           <a
-            className="grid justify-items-center gap-2 rounded-lg p-2 text-center text-sm text-ink no-underline hover:bg-surface"
+            className="grid justify-items-center gap-2 rounded-field p-2 text-center text-sm text-ink no-underline hover:bg-line-soft"
             href={link.url}
             rel="noopener noreferrer"
             target="_blank"
@@ -259,13 +245,7 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
             <span className="min-w-0 truncate text-ink">
               {link.label} <span className="text-faint">{link.url}</span>
             </span>
-            <button
-              className="text-button text-sm"
-              onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })}
-              type="button"
-            >
-              Remove
-            </button>
+            <TextButton label="Remove" onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })} />
           </li>
         ))}
       </ul>
@@ -299,7 +279,7 @@ function Recurring() {
   if (summary.data.totals.length === 0) {
     return (
       <Hint>
-        No subscriptions yet. <Link to="/recurring">Add some</Link>
+        No subscriptions yet. <Link to="/spending/recurring">Add some</Link>
       </Hint>
     );
   }
@@ -312,9 +292,11 @@ function Recurring() {
       ))}
       <ul className="m-0 grid list-none gap-1 p-0">
         {summary.data.upcoming.slice(0, 3).map((subscription) => (
-          <li className="flex justify-between gap-3 text-sm" key={subscription.id}>
-            <span className="truncate text-ink">{subscription.name}</span>
-            <span className="mono-sm shrink-0 text-faint">{shortDate(subscription.nextRenewal)}</span>
+          <li key={subscription.id}>
+            <Link className="flex justify-between gap-3 text-sm text-ink no-underline hover:underline" to={`/spending/recurring?subscription=${subscription.id}`}>
+              <span className="truncate">{subscription.name}</span>
+              <span className="mono-sm shrink-0 text-faint">{shortDate(subscription.nextRenewal)}</span>
+            </Link>
           </li>
         ))}
       </ul>
@@ -323,6 +305,9 @@ function Recurring() {
 }
 
 function Inbox() {
+  const auth = useAuth();
+  const inbox = useInbox();
+  const action = useAction();
   const notifications = useResource<Page<InboxNotification>>('/me/inbox?page=1', true, { live: ['inbox'] });
   if (notifications.error) return <LoadError compact error={notifications.error} onRetry={notifications.reload} />;
   if (!notifications.data) return <ListSkeleton label="Loading your inbox" rows={3} />;
@@ -332,7 +317,17 @@ function Inbox() {
     <ul className="m-0 grid list-none gap-2 p-0">
       {unread.map((notification) => (
         <li className="text-sm" key={notification.id}>
-          <Link className="text-ink no-underline hover:underline" to={notification.link ?? '/inbox'}>
+          <Link
+            className="text-ink no-underline hover:underline"
+            onClick={() =>
+              void action.run(async () => {
+                await auth.request(`/me/inbox/${notification.id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) });
+                inbox.reload();
+                return '';
+              }, 'Could not update that notification')
+            }
+            to={notification.link ?? '/inbox'}
+          >
             {notification.title}
           </Link>
           <span className="mono-sm block text-faint">{timeAgo(notification.createdAt)}</span>
@@ -435,7 +430,7 @@ function Focus({ settings }: WidgetProps) {
         <p className="m-0 text-3xl text-ink" role="timer">
           {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
         </p>
-        <p className="mono-sm m-0 mt-1 text-faint">{phase === 'focus' ? 'Focus' : 'Break'}</p>
+        <p className="m-0 mt-1 text-sm text-muted">{phase === 'focus' ? 'Focus' : 'Break'}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button label={endsAt === undefined ? 'Start' : 'Pause'} onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} />
@@ -520,7 +515,13 @@ function Pages() {
   if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
   if (!pages.data) return <ListSkeleton label="Loading your pages" rows={4} />;
   const { pinned, recent } = pages.data;
-  if (pinned.length === 0 && recent.length === 0) return <Hint>No pages yet. Write one in a space’s Notes tab.</Hint>;
+  if (pinned.length === 0 && recent.length === 0) {
+    return (
+      <Hint>
+        No pages yet. <Link to="/pages">Write one</Link>
+      </Hint>
+    );
+  }
   return (
     <div className="grid gap-3">
       {pinned.length > 0 && <PageLinks heading="Pinned" pages={pinned} />}
@@ -533,7 +534,13 @@ function ReadLater() {
   const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true, { live: ['items'] });
   if (bookmarks.error) return <LoadError compact error={bookmarks.error} onRetry={bookmarks.reload} />;
   if (!bookmarks.data) return <ListSkeleton label="Loading your reading list" rows={3} />;
-  if (bookmarks.data.length === 0) return <Hint>Nothing to read later. Save links on the Bookmarks page.</Hint>;
+  if (bookmarks.data.length === 0) {
+    return (
+      <Hint>
+        Nothing to read later. <Link to="/bookmarks">Add a bookmark</Link>
+      </Hint>
+    );
+  }
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {bookmarks.data.slice(0, 5).map((bookmark) => (
@@ -604,7 +611,7 @@ export const widgetKinds: Record<
 > = {
   clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
   today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", size: 'medium', settings: {}, View: Today },
-  tasks: { title: 'To-do list', group: 'Your day', description: 'Tasks to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
+  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
   shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
   recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', size: 'small', settings: {}, View: Recurring },
   inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', size: 'medium', settings: {}, View: Inbox },

@@ -1,30 +1,32 @@
-import { useSearchParams, Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useState } from 'react';
-import { ListSkeleton, Select, Tabs, TextField, timeAgo } from '@project-graphite/ui';
+import { ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
+import { FilterChips, Page } from '../components/Page';
+import { RowText } from '../components/RowText';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors, webAddress } from '../validation';
 
 const filters = [
-  ['unread', 'Read later'],
-  ['read', 'Read'],
-  ['all', 'All'],
+  { value: 'unread', label: 'Read later', empty: 'Nothing to read later', hint: 'Links you save stay here until you’ve read them.' },
+  { value: 'read', label: 'Read', empty: 'No read bookmarks yet', hint: 'Bookmarks you’ve opened or marked read show up here.' },
+  { value: 'all', label: 'All', empty: 'No bookmarks yet', hint: 'Save links to read later, from here or by sharing them to Strata from another app.' },
 ] as const;
 
 export function BookmarksPage() {
   const auth = useAuth();
   const spaces = useSpaces();
   const [params] = useSearchParams();
-  const status = filters.find(([value]) => value === params.get('status'))?.[0] ?? 'unread';
-  const listed = useResource<Bookmark[]>(`/me/bookmarks${status === 'all' ? '' : `?status=${status}`}`, true);
+  const status = filters.find((filter) => filter.value === params.get('status')) ?? filters[0];
+  const listed = useResource<Bookmark[]>(`/me/bookmarks${status.value === 'all' ? '' : `?status=${status.value}`}`, true);
   const saving = useAction();
   const marking = useAction();
   const form = useFormErrors();
@@ -37,7 +39,7 @@ export function BookmarksPage() {
       await auth.request(`/bookmarks/${bookmark.id}`, { method: 'PATCH', body: JSON.stringify({ read }) });
       listed.reload();
       return {
-        message: read ? 'Marked as read.' : 'Back on your read-later list.',
+        message: read ? `Marked ${bookmark.title} as read.` : `Moved ${bookmark.title} back to read later.`,
         undo: async () => {
           await auth.request(`/bookmarks/${bookmark.id}`, { method: 'PATCH', body: JSON.stringify({ read: !read }) });
           listed.reload();
@@ -48,25 +50,34 @@ export function BookmarksPage() {
   }
 
   return (
-    <Page actions={writable.length > 0 && <Button icon="plus" label="Save a link" onClick={() => setAdding(true)} primary />} title="Bookmarks">
+    <Page
+      actions={writable.length > 0 && <Button icon="plus" label="New bookmark" onClick={() => setAdding(true)} primary />}
+      title="Bookmarks"
+      toolbar={
+        <FilterChips
+          items={filters.map((filter) => ({ active: status.value === filter.value, href: `/bookmarks?status=${filter.value}`, label: filter.label }))}
+          label="Show"
+        />
+      }
+    >
       {adding && (
         <FormDialog
           busy={saving.busy}
-          busyLabel="Saving…"
+          busyLabel="Adding…"
           onClose={() => setAdding(false)}
           onSubmit={(target) => {
             if (!form.check(target, { url: [required('Enter a web address.'), webAddress] })) return;
             const values = new FormData(target);
             void saving
               .run(async () => {
-                const { fetchError } = await saveBookmark(auth.request, String(values.get('spaceId')), String(values.get('url')).trim());
+                const { bookmark, fetchError } = await saveBookmark(auth.request, String(values.get('spaceId')), String(values.get('url')).trim());
                 listed.reload();
-                return fetchError ? `Saved, but the page could not be read: ${fetchError}` : 'Saved to read later.';
-              }, 'Could not save the link')
+                return fetchError ? `Added ${bookmark.title}, but the page couldn’t be read: ${fetchError}` : `Added ${bookmark.title}.`;
+              }, 'Could not add the bookmark')
               .then((saved) => saved && setAdding(false));
           }}
-          submitLabel="Save"
-          title="Save a link"
+          submitLabel="Add bookmark"
+          title="New bookmark"
         >
           <TextField autoFocus inputMode="url" label="Link" placeholder="https://" type="url" {...form.field('url')} />
           {writable.length > 1 ? (
@@ -76,34 +87,29 @@ export function BookmarksPage() {
           )}
         </FormDialog>
       )}
-      <Tabs items={filters.map(([value, label]) => ({ active: status === value, href: `/bookmarks?status=${value}`, label }))} label="Bookmarks" />
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
         <ListSkeleton label="Loading your bookmarks" rows={4} />
       ) : listed.data.length === 0 ? (
-        <Empty title={status === 'unread' ? 'Nothing to read later' : 'No bookmarks here'} />
+        <Empty title={status.empty}>{status.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {listed.data.map((bookmark) => (
-            <li className="panel-row flex items-start gap-3" key={bookmark.id}>
-              <div className="grid min-w-0 flex-1 gap-1">
-                <Link className="truncate text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
-                  {bookmark.title}
-                </Link>
-                {bookmark.description && <p className="m-0 line-clamp-2 text-sm text-muted">{bookmark.description}</p>}
-                <span className="mono-sm text-faint">
-                  <a className="text-faint" href={bookmark.url} rel="noopener noreferrer nofollow" target="_blank">
-                    {siteLabel(bookmark)}
-                  </a>
-                  {' · '}
-                  {[spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
-                </span>
-              </div>
+            <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={bookmark.id}>
+              <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/bookmarks/${bookmark.id}`}>
+                <RowText
+                  detail={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
+                  title={bookmark.title}
+                >
+                  {bookmark.description && <span className="line-clamp-2 text-sm text-muted">{bookmark.description}</span>}
+                </RowText>
+              </Link>
               {editable(bookmark) && (
-                <button className="text-button shrink-0 text-sm" disabled={marking.busy} onClick={() => markRead(bookmark, !bookmark.readAt)} type="button">
-                  {bookmark.readAt ? 'Read later' : 'Mark read'}
-                </button>
+                <ActionsMenu
+                  items={[{ label: bookmark.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => markRead(bookmark, !bookmark.readAt) }]}
+                  name={bookmark.title}
+                />
               )}
             </li>
           ))}

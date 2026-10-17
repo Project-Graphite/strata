@@ -29,7 +29,7 @@ export function VerifyPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Your email address is confirmed</h1>
-        <div className="mt-7">{next}</div>
+        <div className="mt-8">{next}</div>
       </section>
     );
   }
@@ -37,16 +37,16 @@ export function VerifyPage() {
   if (!token || error) {
     return (
       <section className="form-panel page-enter">
-        <h1 className="page-heading">{token ? 'Your email was not verified' : 'This link is incomplete'}</h1>
+        <h1 className="page-heading">{token ? 'Your email wasn’t verified' : 'This link is incomplete'}</h1>
         {error ? (
-          <p className="error-message mt-5 mb-0" role="alert">
+          <p className="error-message mt-4 mb-0" role="alert">
             {error}
           </p>
         ) : (
-          <p className="mt-5 text-muted">Open the whole link from the email.</p>
+          <p className="mt-4 text-muted">Open the whole link from the email.</p>
         )}
         <p className="mt-3 text-muted">{auth.user ? 'Change your email in settings to get a new link.' : 'Sign in to get a new link.'}</p>
-        <div className="mt-7">{next}</div>
+        <div className="mt-8">{next}</div>
       </section>
     );
   }
@@ -54,7 +54,7 @@ export function VerifyPage() {
   return (
     <section className="form-panel page-enter">
       <h1 className="page-heading">Verify your email</h1>
-      <p className="mt-5 text-muted" role="status">
+      <p className="mt-4 text-muted" role="status">
         Confirming your email address…
       </p>
     </section>

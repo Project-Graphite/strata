@@ -155,7 +155,7 @@ describe('Spending', () => {
     expect(container.textContent).not.toContain('Eating out');
     expect([...container.querySelectorAll('[role="progressbar"]')].map((meter) => meter.getAttribute('aria-valuenow'))).toEqual(['18']);
 
-    await act(async () => button('Add expense').click());
+    await act(async () => button('New expense').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Bread';
     form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '3,5';
@@ -180,7 +180,7 @@ describe('Spending', () => {
     });
     await render('/spending?month=2026-10');
     const add = async (pick: (form: HTMLFormElement) => Promise<void>) => {
-      await act(async () => button('Add expense').click());
+      await act(async () => button('New expense').click());
       const form = container.querySelector('dialog form') as HTMLFormElement;
       form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Bread';
       form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '3.50';
@@ -213,18 +213,18 @@ describe('Spending', () => {
       if (path === '/spaces/home/budgets/groceries' && init?.method === 'DELETE') return new Response(null, { status: 204 });
       return undefined;
     });
-    await render('/spending?month=2026-10&tab=budgets');
+    await render('/spending/budgets?month=2026-10');
 
-    await act(async () => button('Set a budget').click());
+    await act(async () => button('New budget').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
     await pickChip(form, 'Eating out');
     form.querySelector<HTMLInputElement>('input[name="amount"]')!.value = '80';
     await submit(form);
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/eating%20out', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ amountMinor: 8000, currency: 'EUR' }) }));
-    expect(container.textContent).toContain('The eating out budget is €80.00 a month.');
+    expect(container.textContent).toContain('Added the eating out budget.');
 
-    await chooseFromMenu(container, 'Actions for Groceries', 'Remove the budget');
-    await act(async () => button('Remove budget').click());
+    await chooseFromMenu(container, 'Actions for Groceries', 'Delete');
+    await act(async () => button('Delete budget').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/spaces/home/budgets/groceries', expect.objectContaining({ method: 'DELETE' }));
   });
 
@@ -267,7 +267,7 @@ describe('Spending', () => {
 
     await openTab('Transactions');
     await choose(container, 'Card', '•••• 9876');
-    const titles = () => [...container.querySelectorAll('li button span:first-child')].map((title) => title.textContent);
+    const titles = () => [...container.querySelectorAll('li button > span:first-child > span:first-child')].map((title) => title.textContent);
     expect(titles()).toEqual(['Diner']);
     await choose(container, 'Card', 'All cards');
     expect(titles()).toEqual(['Corner shop', 'Diner', 'Bakery', 'Market']);
@@ -280,16 +280,16 @@ describe('Spending', () => {
       if (path === '/accounts/bank' && init?.method === 'DELETE') return new Response(null, { status: 204 });
       return undefined;
     });
-    await render('/spending?month=2026-10&tab=accounts');
+    await render('/spending/accounts?month=2026-10');
 
-    await chooseFromMenu(container, 'Actions for CIB', 'Remove');
+    await chooseFromMenu(container, 'Actions for CIB', 'Delete');
     expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/accounts/bank', expect.objectContaining({ method: 'DELETE' }));
     const dialog = container.querySelector('dialog')!;
-    expect(dialog.textContent).toContain('Remove CIB?');
+    expect(dialog.textContent).toContain('Delete CIB?');
     expect(dialog.textContent).toContain('Transfers show “Removed account” instead.');
-    expect(button('Remove account').className).toBe('danger-button');
+    expect(button('Delete account').className).toBe('danger-button');
 
-    await act(async () => button('Remove account').click());
+    await act(async () => button('Delete account').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/accounts/bank', expect.objectContaining({ method: 'DELETE' }));
     expect(container.querySelector('dialog')).toBeNull();
   });
@@ -304,7 +304,7 @@ describe('Spending', () => {
       if (path === '/accounts/card' && init?.method === 'PATCH') return json(accounts[1]);
       return undefined;
     });
-    await render('/spending?month=2026-10&tab=accounts');
+    await render('/spending/accounts?month=2026-10');
 
     expect(container.textContent).toContain('€1,200.00');
     expect(container.textContent).toContain('€45.00 owed');
@@ -314,7 +314,7 @@ describe('Spending', () => {
     expect(container.textContent).toContain('CIB → Visa');
     expect(container.textContent).toContain('+€3,000.00');
 
-    await act(async () => button('Add expense').click());
+    await act(async () => button('New expense').click());
     let form = container.querySelector('dialog form') as HTMLFormElement;
     await choose(form, 'Type', 'Transfer between accounts');
     form.querySelector<HTMLInputElement>('input[name="title"]')!.value = 'Top up';
@@ -329,7 +329,7 @@ describe('Spending', () => {
     expect(body).toMatchObject({ title: 'Top up', amountMinor: 5000, direction: 'transfer', accountId: 'bank', toAccountId: 'card' });
 
     await openTab('Accounts');
-    await chooseFromMenu(container, 'Actions for Visa', 'Edit');
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>('li button')].find((row) => row.textContent?.startsWith('Visa'))!.click());
     form = container.querySelector('dialog form') as HTMLFormElement;
     expect(form.querySelector<HTMLInputElement>('input[name="balance"]')!.value).toBe('45.00');
     form.querySelector<HTMLInputElement>('input[name="cardDigits"]')!.value = '4321, 99';
@@ -373,8 +373,7 @@ describe('Spending', () => {
     const rule = JSON.parse(String(fetchMock.mock.calls.find(([path, init]) => path === '/api/v1/spaces/home/merchant-rules' && init?.method === 'POST')![1]!.body));
     expect(rule).toEqual({ match: 'carrefour maadi', rename: 'CARREFOUR MAADI', category: 'groceries' });
 
-    const odd = [...container.querySelectorAll('li')].find((row) => row.textContent?.includes('Something odd'))!;
-    await act(async () => [...odd.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Ignore')!.click());
+    await chooseFromMenu(container, 'Actions for Promo', 'Ignore');
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/captures/c2/ignore', expect.objectContaining({ method: 'POST' }));
   });
 
@@ -405,7 +404,7 @@ describe('Spending', () => {
       if (path === '/merchant-rules/r1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
       return undefined;
     });
-    await render('/spending?month=2026-10&tab=budgets');
+    await render('/spending/budgets?month=2026-10');
 
     expect(container.textContent).toContain('Uber ride · Transport');
     await chooseFromMenu(container, 'Actions for spending', 'Edit categories');
@@ -427,9 +426,8 @@ describe('Spending', () => {
       { name: 'other', colour: 'gray', previous: 'other' },
     ]);
 
-    const row = [...container.querySelectorAll('li')].find((item) => item.textContent?.includes('Uber ride'))!;
-    await act(async () => [...row.querySelectorAll('button')].find((candidate) => candidate.textContent === 'Remove')!.click());
-    await act(async () => button('Remove rule').click());
+    await chooseFromMenu(container, 'Actions for uber', 'Delete');
+    await act(async () => button('Delete rule').click());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/merchant-rules/r1', expect.objectContaining({ method: 'DELETE' }));
   });
 
@@ -479,14 +477,14 @@ describe('Spending', () => {
       if (path === '/spaces/home/installments' && init?.method === 'POST') return json({ ...plan, id: 'p2', name: 'Laptop' }, 201);
       return undefined;
     });
-    await render('/spending?month=2026-10&tab=accounts');
+    await render('/spending/accounts?month=2026-10');
 
     expect(container.textContent).toContain('Next: €100.00 on Oct 31 · €500.00 left');
     expect(container.textContent).toContain('1 of 6');
     await chooseFromMenu(container, 'Actions for valU phone', 'Mark next payment paid');
     expect(container.textContent).toContain('2 of 6');
 
-    await act(async () => button('Add plan').click());
+    await act(async () => button('New plan').click());
     const form = container.querySelector('dialog form') as HTMLFormElement;
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Laptop';
     form.querySelector<HTMLInputElement>('input[name="monthly"]')!.value = '250';
@@ -596,7 +594,7 @@ describe('Spending', () => {
     expect([...container.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['€16,000.00', '€5,000.00', '€12,000.00', '€1,000.00']);
     expect(container.textContent).toContain('Carby Jun 1, 2027€2,500.00 of €10,000.00');
 
-    await act(async () => button('Add an asset').click());
+    await act(async () => button('New asset').click());
     let form = container.querySelector('dialog form') as HTMLFormElement;
     await choose(form, 'Kind', 'Certificate or deposit');
     form.querySelector<HTMLInputElement>('input[name="name"]')!.value = 'Bank certificate';

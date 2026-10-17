@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { PageSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, IconButton } from '../components/Button';
+import { IconButton } from '../components/Button';
 import { Hint } from '../components/Hint';
-import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { DetailState, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
 import { recipeFacts, type Recipe } from '../recipes';
 import { useSpaces } from '../spaces';
@@ -23,8 +21,8 @@ export function RecipePage() {
   const action = useAction();
   const [dialog, setDialog] = useState<'edit' | 'plan'>();
 
-  if (recipe.error) return <LoadError error={recipe.error} onRetry={recipe.reload} />;
-  if (!recipe.data) return <PageSkeleton label="Loading the recipe" />;
+  const back = { to: '/recipes', label: 'Recipes' };
+  if (!recipe.data) return <DetailState back={back} resource={recipe} thing="Recipe" />;
   const shown = recipe.data;
   const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
@@ -34,14 +32,13 @@ export function RecipePage() {
       actions={
         editable && (
           <>
-            <Button icon="calendar" label="Plan it" onClick={() => setDialog('plan')} />
+            <IconButton icon="calendar" label="Plan a meal" onClick={() => setDialog('plan')} />
             <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
             <ActionsMenu
               items={[
-                ...(shown.sourceUrl ? [{ label: 'Open the original', href: shown.sourceUrl }] : []),
                 {
                   label: 'Move to trash',
-                  separated: Boolean(shown.sourceUrl),
+                  separated: true,
                   onSelect: () =>
                     void action.run(async () => {
                       await auth.request(`/items/${shown.id}/trash`, { method: 'POST' });
@@ -62,8 +59,8 @@ export function RecipePage() {
           </>
         )
       }
-      description={recipeFacts(shown) || undefined}
-      eyebrow={shown.spaceName}
+      back={back}
+      description={[shown.spaceName, recipeFacts(shown)].filter(Boolean).join(' · ')}
       title={shown.title}
     >
       <Section title="Ingredients">
@@ -85,8 +82,10 @@ export function RecipePage() {
         ) : (
           <ol className="m-0 grid list-none gap-4 p-0">
             {shown.steps.map((step, index) => (
-              <li className="flex gap-4" key={index}>
-                <span aria-hidden="true" className="tag-mark tag-gray shrink-0" data-initial={String(index + 1)} />
+              <li className="flex items-baseline gap-4" key={index}>
+                <span aria-hidden="true" className="mono-sm w-5 shrink-0 text-right text-faint">
+                  {index + 1}
+                </span>
                 <span className="text-ink">{step}</span>
               </li>
             ))}

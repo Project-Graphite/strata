@@ -31,20 +31,22 @@ export function SpaceHabits() {
   const space = useSpace();
   const habits = useResource<Habit[]>(`/spaces/${space.id}/habits`, true);
   const saving = useAction();
+  const { report } = saving;
   const habitForm = useFormErrors();
   const [editing, setEditing] = useState<Habit | 'new'>();
   const [deleting, setDeleting] = useState<Habit>();
   const editable = space.role !== 'viewer';
   const replace = (next: Habit) => habits.mutate((current) => current.map((habit) => (habit.id === next.id ? next : habit)));
 
-  if (habits.error) return <LoadError error={habits.error} onRetry={habits.reload} />;
-  if (!habits.data) return <ListSkeleton label="Loading the habits in this space" rows={3} />;
-
   return (
     <>
-      <Toolbar actions={editable && <Button icon="plus" label="New habit" onClick={() => setEditing('new')} primary />} />
-      {habits.data.length === 0 ? (
-        <Empty title="No habits yet" />
+      {editable && <Toolbar actions={<Button icon="plus" label="New habit" onClick={() => setEditing('new')} />} />}
+      {habits.error ? (
+        <LoadError error={habits.error} onRetry={habits.reload} />
+      ) : !habits.data ? (
+        <ListSkeleton label="Loading the habits in this space" rows={3} />
+      ) : habits.data.length === 0 ? (
+        <Empty title="No habits yet">Habits you keep in this space show up here, with a check for each day.</Empty>
       ) : (
         <ul className="panel-rows">
           {habits.data.map((habit) => (
@@ -69,7 +71,7 @@ export function SpaceHabits() {
       {editing && (
         <FormDialog
           busy={saving.busy}
-          busyLabel="Saving…"
+          busyLabel={editing === 'new' ? 'Adding…' : 'Saving…'}
           onClose={() => setEditing(undefined)}
           onSubmit={(form) => {
             if (!habitForm.check(form, { name: nameRules })) return;
@@ -80,10 +82,11 @@ export function SpaceHabits() {
                 if (editing === 'new') {
                   const created = await auth.request<Habit>(`/spaces/${space.id}/habits`, { method: 'POST', body });
                   habits.mutate((current) => [...current, created]);
-                } else {
-                  replace(await auth.request<Habit>(`/habits/${editing.id}`, { method: 'PATCH', body }));
+                  return `Added ${created.name}.`;
                 }
-                return '';
+                const updated = await auth.request<Habit>(`/habits/${editing.id}`, { method: 'PATCH', body });
+                replace(updated);
+                return `Saved ${updated.name}.`;
               }, editing === 'new' ? 'Could not add the habit' : 'Could not save the habit')
               .then((saved) => saved && setEditing(undefined));
           }}
@@ -104,9 +107,9 @@ export function SpaceHabits() {
           onConfirm={async () => {
             await auth.request(`/habits/${deleting.id}`, { method: 'DELETE' });
             habits.mutate((current) => current.filter((habit) => habit.id !== deleting.id));
-            setDeleting(undefined);
+            report(`Deleted ${deleting.name}.`);
           }}
-          title={`Delete “${deleting.name}”?`}
+          title={`Delete ${deleting.name}?`}
           tone="danger"
         >
           Everyone’s check-ins for it are deleted too.

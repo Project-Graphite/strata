@@ -26,7 +26,7 @@ describe('The / block menu', () => {
     });
   }
 
-  const options = () => [...document.querySelectorAll('.suggestion-menu [role="option"]')].map((option) => option.textContent);
+  const options = () => [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((option) => option.textContent);
 
   async function open(onImages = vi.fn(), onBoard = vi.fn()) {
     function Page() {
@@ -52,22 +52,22 @@ describe('The / block menu', () => {
 
     await typeIn('todo');
     expect(options()).toEqual(['Checklist[]']);
-    await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('[role="listbox"] [role="option"]')!.click());
 
     expect(editor!.getJSON().content?.[0]?.type).toBe('taskList');
     expect(editor!.getText()).not.toContain('/todo');
-    expect(document.querySelector('.suggestion-menu')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
   });
 
   it('starts a page link and asks for images through the editor', async () => {
     const { onImages, onBoard } = await open();
     await typeIn('/link');
-    await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('[role="listbox"] [role="option"]')!.click());
     expect(editor!.getText()).toBe('@');
 
     const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
     await typeIn(' /image');
-    await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('[role="listbox"] [role="option"]')!.click());
     expect(click).toHaveBeenCalledTimes(1);
     const picker = click.mock.contexts[0] as HTMLInputElement;
     expect(picker.accept).toBe('image/*');
@@ -76,7 +76,7 @@ describe('The / block menu', () => {
     click.mockRestore();
 
     await typeIn(' /whiteboard');
-    await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('[role="listbox"] [role="option"]')!.click());
     expect(onBoard).toHaveBeenCalledWith(editor);
   });
 
@@ -89,7 +89,7 @@ describe('The / block menu', () => {
     await open();
     const pick = async (query: string) => {
       await typeIn(`/${query}`);
-      await act(async () => document.querySelector<HTMLButtonElement>('.suggestion-menu [role="option"]')!.click());
+      await act(async () => document.querySelector<HTMLButtonElement>('[role="listbox"] [role="option"]')!.click());
     };
     await pick('callout');
     await typeIn('Bring a coat');

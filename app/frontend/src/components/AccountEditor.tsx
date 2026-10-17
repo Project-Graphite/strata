@@ -42,7 +42,7 @@ export function AccountEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={account ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (
@@ -72,7 +72,7 @@ export function AccountEditor({
           .run(async () => {
             await auth.request(account ? `/accounts/${account.id}` : `/spaces/${spaceId}/accounts`, { method: account ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
-            return account ? '' : `Added ${body.name}.`;
+            return `${account ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the account')
           .then((saved) => saved && onClose());
       }}

@@ -174,7 +174,7 @@ describe('Invitations', () => {
       if (path === '/spaces/choir' && accepted) return json({ ...choir, role: 'editor' });
       return undefined;
     });
-    await render('/invitations');
+    await render('/spaces/invitations');
 
     expect(container.textContent).toContain('from Sara · as editor');
     const accept = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Accept')!;

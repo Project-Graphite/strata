@@ -62,7 +62,7 @@ export function ProfileSettings() {
               });
               me.mutate(() => next);
               auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone, timeFormat: next.timeFormat });
-              return 'Saved.';
+              return 'Saved your profile.';
             }, 'Could not save your profile');
           }}
         >
@@ -111,39 +111,37 @@ export function ProfileSettings() {
       </Section>
 
       <Section title="Notifications">
-        <div className="grid gap-6">
-          <SettingsRows>
-            {auth.user?.features.includes('tidy') && (
-              <Toggle
-                checked={current.tidySummary}
-                description={`Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}
-                disabled={notifications.busy}
-                label="Weekly Tidy summary"
-                onChange={(tidySummary) =>
-                  void notifications.run(async () => {
-                    const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
-                    me.mutate(() => next);
-                    return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
-                  }, 'Could not change the setting')
-                }
-              />
-            )}
+        <SettingsRows>
+          {auth.user?.features.includes('tidy') && (
             <Toggle
-              checked={current.weeklyReview}
-              description={`Sundays at ${clockTime('18:00')}, with a link that writes the review page for you.`}
+              checked={current.tidySummary}
+              description={`Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}
               disabled={notifications.busy}
-              label="Weekly review reminder"
-              onChange={(weeklyReview) =>
+              label="Weekly Tidy summary"
+              onChange={(tidySummary) =>
                 void notifications.run(async () => {
-                  const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ weeklyReview }) });
+                  const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ tidySummary }) });
                   me.mutate(() => next);
-                  return weeklyReview ? 'You will be reminded on Sundays.' : 'Weekly review reminders are off.';
+                  return tidySummary ? 'You will get a Tidy summary on Mondays.' : 'Weekly Tidy summaries are off.';
                 }, 'Could not change the setting')
               }
             />
-          </SettingsRows>
-          <DevicePush />
-        </div>
+          )}
+          <Toggle
+            checked={current.weeklyReview}
+            description={`Sundays at ${clockTime('18:00')}, with a link that writes the review page for you.`}
+            disabled={notifications.busy}
+            label="Weekly review reminder"
+            onChange={(weeklyReview) =>
+              void notifications.run(async () => {
+                const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ weeklyReview }) });
+                me.mutate(() => next);
+                return weeklyReview ? 'You will be reminded on Sundays.' : 'Weekly review reminders are off.';
+              }, 'Could not change the setting')
+            }
+          />
+        </SettingsRows>
+        <DevicePush />
       </Section>
 
       {changingEmail && (

@@ -139,7 +139,7 @@ describe('Home dashboard', () => {
     await act(async () => button('Edit').click());
     await chooseFromMenu(container, 'Actions for Clock', 'Wider');
     await chooseFromMenu(container, 'Actions for Quote of the day', 'Fit height to content');
-    await chooseFromMenu(container, 'Actions for Clock', 'Customize card');
+    await chooseFromMenu(container, 'Actions for Clock', 'Customise card');
     const dialog = document.querySelector('dialog')!;
     const title = dialog.querySelector<HTMLInputElement>('input')!;
     await act(async () => {
@@ -493,7 +493,7 @@ describe('Home dashboard', () => {
       ['Buy milk', '/notes/milk'],
       ['Untitled', '/notes/keys'],
       ['Gym times', '/notes/gym'],
-      ['All notes', '/pages?tab=notes'],
+      ['All quick notes', '/pages/quick-notes'],
     ]);
     await act(async () => widget.querySelector<HTMLButtonElement>('[role="combobox"]')!.click());
     expect([...widget.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual(['Mine', 'Flat']);
@@ -629,7 +629,7 @@ describe('Home dashboard', () => {
     );
     await act(async () => {});
 
-    expect(document.body.classList).toContain('dashboard-backdrop-colour');
+    expect(document.body.classList).toContain('dashboard-backdrop-color');
     expect(document.body.classList).toContain('tag-green');
     act(() => root.unmount());
     expect(document.body.classList).not.toContain('tag-green');

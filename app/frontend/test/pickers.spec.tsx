@@ -86,7 +86,7 @@ describe('Pickers', () => {
     expect(headings()).toEqual(['Your day', 'Money', 'Notes and links', 'Around you']);
     await type(document.querySelector<HTMLInputElement>('dialog input[aria-label="Search widgets"]')!, 'budget');
     expect(headings()).toEqual(['Money']);
-    await act(async () => document.querySelector<HTMLButtonElement>('dialog .widget-choice')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('dialog .choice-card')!.click());
     expect(added).toHaveBeenCalledWith('spending');
   });
 });

@@ -8,6 +8,7 @@ import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
+import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
@@ -94,7 +95,7 @@ export function SavePage() {
     <section className="form-panel page-enter">
       <h1 className="page-heading">Save what you shared</h1>
       <form
-        className="mt-8 grid gap-5"
+        className="mt-8 grid gap-4"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -105,22 +106,20 @@ export function SavePage() {
           const spaceId = String(values.get('spaceId'));
           if (asBookmark) {
             void saving.run(async () => {
-              const { fetchError } = await saveBookmark(auth.request, spaceId, link);
+              const { bookmark, fetchError } = await saveBookmark(auth.request, spaceId, link);
               await caches.delete(shareCache);
-              navigate('/bookmarks');
-              return fetchError ? `Saved, but the page could not be read: ${fetchError}` : 'Saved to read later.';
+              navigate(`/bookmarks/${bookmark.id}`);
+              return fetchError ? `Added ${bookmark.title}, but the page couldn’t be read: ${fetchError}` : `Added ${bookmark.title} to read later.`;
             }, 'Could not save the link');
             return;
           }
           if (!form.check(target, { title: shared.files.length ? [length] : [required('Enter a title for the task.'), length] })) return;
           void saving.run(async () => {
-            if (taskTitle) {
-              await auth.request(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title: taskTitle }) });
-            }
+            const task = taskTitle ? await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title: taskTitle }) }) : null;
             const uploaded = shared.files.length ? await uploadFiles(auth.request, spaceId, shared.files) : '';
             await caches.delete(shareCache);
-            navigate(shared.files.length ? `/spaces/${spaceId}` : `/spaces/${spaceId}/tasks`);
-            return uploaded;
+            navigate(shared.files.length || !task ? '/files' : `/tasks?task=${task.id}`);
+            return [task && `Added ${taskTitle}.`, uploaded].filter(Boolean).join(' ');
           }, 'Could not save what you shared');
         }}
       >
@@ -131,7 +130,7 @@ export function SavePage() {
         )}
         {link && (
           <fieldset className="grid gap-2">
-            <legend className="field-label">Save as</legend>
+            <legend className="field-label mb-2">Save as</legend>
             <label className="flex items-center gap-2 text-sm text-ink">
               <input checked={!asTask} name="saveAs" onChange={() => setAsTask(false)} type="radio" />
               Bookmark to read later
@@ -159,10 +158,10 @@ export function SavePage() {
             </ul>
           </div>
         )}
-        <div className="flex flex-wrap gap-3">
-          <Button disabled={saving.busy || editable.length === 0} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
+        <DialogActions>
           <Button disabled={saving.busy} label="Discard" large onClick={() => void discard()} />
-        </div>
+          <Button disabled={saving.busy || editable.length === 0} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
+        </DialogActions>
       </form>
     </section>
   );

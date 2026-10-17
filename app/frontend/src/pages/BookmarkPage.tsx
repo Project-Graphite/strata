@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { PageSkeleton } from '@project-graphite/ui';
+import { useNavigate, useParams } from 'react-router';
+import { Icon } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type FetchedPage, type Inline } from '../bookmarks';
-import { Empty, NotFoundState } from '../components/Empty';
-import { LoadError } from '../components/LoadError';
-import { useDocumentTitle } from '../components/Page';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { Empty } from '../components/Empty';
+import { DetailState, Page } from '../components/Page';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -24,7 +24,7 @@ function Inlines({ parts }: { parts: Inline[] }) {
 
 function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
   return (
-    <div className="note-content min-w-0">
+    <div className="note-content min-w-0 max-w-3xl">
       {blocks.map((block, index) => {
         if (block.type === 'heading') {
           const Heading = `h${block.level}` as const;
@@ -74,6 +74,8 @@ function readingMinutes(blocks: ArticleBlock[]) {
   return Math.max(1, Math.round(words / 220));
 }
 
+const back = { to: '/bookmarks', label: 'Bookmarks' };
+
 export function BookmarkPage() {
   const { id = '' } = useParams();
   const auth = useAuth();
@@ -81,118 +83,91 @@ export function BookmarkPage() {
   const navigate = useNavigate();
   const bookmark = useResource<BookmarkDetails>(`/bookmarks/${id}`, true);
   const { mutate } = bookmark;
-  const acting = useAction();
   const { run } = useAction();
   const markedRead = useRef('');
   const details = bookmark.data;
   const editable = !!details && !!spaces.data?.some((space) => space.id === details.spaceId && space.role !== 'viewer');
-  useDocumentTitle(details?.title);
+
+  function setRead(current: BookmarkDetails, read: boolean) {
+    void run(async () => {
+      const saved = await auth.request<BookmarkDetails>(`/bookmarks/${current.id}`, { method: 'PATCH', body: JSON.stringify({ read }) });
+      mutate((shown) => ({ ...shown, readAt: saved.readAt }));
+      return {
+        message: read ? `Marked ${current.title} as read.` : `Moved ${current.title} back to read later.`,
+        undo: async () => {
+          const restored = await auth.request<BookmarkDetails>(`/bookmarks/${current.id}`, { method: 'PATCH', body: JSON.stringify({ read: !read }) });
+          mutate((shown) => ({ ...shown, readAt: restored.readAt }));
+          return '';
+        },
+      };
+    }, 'Could not change the bookmark');
+  }
 
   useEffect(() => {
     if (!details || !editable || details.readAt || markedRead.current === details.id) return;
     markedRead.current = details.id;
-    void run(async () => {
-      const saved = await auth.request<BookmarkDetails>(`/bookmarks/${details.id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) });
-      mutate((current) => ({ ...current, readAt: saved.readAt }));
-      return '';
-    }, 'Could not mark the bookmark as read');
-  }, [auth, details, editable, mutate, run]);
+    setRead(details, true);
+  });
 
-  if (bookmark.status === 404) {
-    return (
-      <NotFoundState thing="Bookmark" />
-    );
-  }
-  if (bookmark.error) return <LoadError error={bookmark.error} onRetry={bookmark.reload} />;
-  if (!details) return <PageSkeleton label="Opening the bookmark" />;
+  if (!details) return <DetailState back={back} resource={bookmark} thing="Bookmark" />;
   const blocks = details.article?.blocks ?? [];
 
-  function fetchAgain(current: BookmarkDetails) {
-    void acting.run(async () => {
-      const page = await auth.request<FetchedPage>(`/bookmarks/${current.id}/fetch`, { method: 'POST' });
-      if (!page.html) throw new Error(`The page could not be read: ${page.fetchError}`);
-      const saved = await keepArticle(auth.request, current, page.html);
-      mutate(() => saved);
-      return 'Fetched the page again.';
-    }, 'Could not fetch the page');
-  }
-
   return (
-    <article className="page-enter grid max-w-3xl gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link className="text-sm text-muted no-underline hover:text-ink" to="/bookmarks">
-          Bookmarks
-        </Link>
-        <div className="flex flex-wrap items-center gap-4">
-          <a className="text-button text-sm" href={details.url} rel="noopener noreferrer nofollow" target="_blank">
-            Open original
+    <Page
+      actions={
+        <>
+          <a aria-label="Open original" className="icon-button" href={details.url} rel="noopener noreferrer" target="_blank" title="Open original">
+            <Icon name="external" size={18} />
           </a>
           {editable && (
-            <>
-              <button
-                className="text-button text-sm"
-                disabled={acting.busy}
-                onClick={() =>
-                  void acting.run(async () => {
-                    const saved = await auth.request<BookmarkDetails>(`/bookmarks/${details.id}`, { method: 'PATCH', body: JSON.stringify({ read: !details.readAt }) });
-                    mutate(() => saved);
-                    return {
-                      message: details.readAt ? 'Back on your read-later list.' : 'Marked as read.',
-                      undo: async () => {
-                        const restored = await auth.request<BookmarkDetails>(`/bookmarks/${details.id}`, { method: 'PATCH', body: JSON.stringify({ read: Boolean(details.readAt) }) });
-                        mutate(() => restored);
-                        return '';
-                      },
-                    };
-                  }, 'Could not change the bookmark')
-                }
-                type="button"
-              >
-                {details.readAt ? 'Read later' : 'Mark read'}
-              </button>
-              <button className="text-button text-sm" disabled={acting.busy} onClick={() => fetchAgain(details)} type="button">
-                Fetch again
-              </button>
-              <button
-                className="text-button text-sm"
-                disabled={acting.busy}
-                onClick={() =>
-                  void acting.run(async () => {
-                    await auth.request(`/items/${details.id}/trash`, { method: 'POST' });
-                    navigate('/bookmarks');
-                    return {
-                      message: 'Moved to the trash.',
-                      undo: async () => {
-                        await auth.request(`/items/${details.id}/restore`, { method: 'POST' });
-                        navigate(`/bookmarks/${details.id}`);
-                        return '';
-                      },
-                    };
-                  }, 'Could not move the bookmark to the trash')
-                }
-                type="button"
-              >
-                Move to trash
-              </button>
-            </>
+            <ActionsMenu
+              items={[
+                { label: details.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => setRead(details, !details.readAt) },
+                {
+                  label: 'Fetch again',
+                  onSelect: () =>
+                    void run(async () => {
+                      const page = await auth.request<FetchedPage>(`/bookmarks/${details.id}/fetch`, { method: 'POST' });
+                      if (!page.html) throw new Error(`The page couldn’t be read: ${page.fetchError}`);
+                      const saved = await keepArticle(auth.request, details, page.html);
+                      mutate(() => saved);
+                      return `Fetched ${saved.title} again.`;
+                    }, 'Could not fetch the page'),
+                },
+                {
+                  label: 'Move to trash',
+                  separated: true,
+                  onSelect: () =>
+                    void run(async () => {
+                      await auth.request(`/items/${details.id}/trash`, { method: 'POST' });
+                      navigate(back.to);
+                      return {
+                        message: `Moved ${details.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${details.id}/restore`, { method: 'POST' });
+                          navigate(`/bookmarks/${details.id}`);
+                          return '';
+                        },
+                      };
+                    }, 'Could not move the bookmark to the trash'),
+                },
+              ]}
+              name={details.title}
+            />
           )}
-        </div>
-      </div>
-      <header className="grid gap-2">
-        <h1 className="note-title m-0">{details.title}</h1>
-        <p className="mono-sm m-0 text-faint">
-          {[siteLabel(details), details.article?.byline, blocks.length ? `${readingMinutes(blocks)} min read` : '']
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-      </header>
+        </>
+      }
+      back={back}
+      description={[siteLabel(details), details.article?.byline, blocks.length ? `${readingMinutes(blocks)} min read` : ''].filter(Boolean).join(' · ')}
+      title={details.title}
+    >
       {blocks.length ? (
         <ArticleBody blocks={blocks} />
       ) : (
         <Empty title="No article saved">
-          {details.description ?? 'The page could not be read, or it has no article text.'} You can open the original, or fetch the page again.
+          {details.description ?? 'The page couldn’t be read, or it has no article text.'} You can open the original, or fetch the page again.
         </Empty>
       )}
-    </article>
+    </Page>
   );
 }

@@ -7,6 +7,7 @@ import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
+import { TextButton } from './Button';
 import { FormDialog } from './FormDialog';
 import { CategoryChips } from './CategoryChips';
 import { CurrencyField } from './CurrencyField';
@@ -79,7 +80,7 @@ export function ExpenseEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={expense ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (
@@ -123,14 +124,40 @@ export function ExpenseEditor({
               });
             }
             onSaved(saved);
-            return expense ? '' : `Added the ${words.noun}.`;
+            return `${expense ? 'Saved' : 'Added'} ${body.title}.`;
           }, `Could not save the ${words.noun}`)
           .then((saved) => saved && onClose());
       }}
+      start={
+        expense &&
+        onTrashed && (
+          <TextButton
+            danger
+            disabled={saving.busy}
+            label="Move to trash"
+            onClick={() =>
+              void saving
+                .run(async () => {
+                  await auth.request(`/items/${expense.id}/trash`, { method: 'POST' });
+                  onTrashed();
+                  return {
+                    message: `Moved ${expense.title} to the trash.`,
+                    undo: async () => {
+                      await auth.request(`/items/${expense.id}/restore`, { method: 'POST' });
+                      onRestored?.();
+                      return '';
+                    },
+                  };
+                }, `Could not move the ${words.noun} to the trash`)
+                .then((done) => done && onClose())
+            }
+          />
+        )
+      }
       submitLabel={expense ? 'Save' : `Add ${words.noun}`}
-      title={expense ? `Edit ${words.noun}` : capture ? 'Add from message' : `New ${words.noun}`}
+      title={expense ? `Edit ${words.noun}` : `New ${words.noun}`}
     >
-      {capture && <blockquote className="m-0 rounded-lg border border-line p-3 text-sm text-muted">{capture.text}</blockquote>}
+      {capture && <blockquote className="m-0 rounded-field border border-line p-3 text-sm text-muted">{capture.text}</blockquote>}
       <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
       <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">
@@ -164,31 +191,6 @@ export function ExpenseEditor({
         </div>
       )}
       <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
-      {expense && onTrashed && (
-        <button
-          className="text-button w-fit text-sm"
-          disabled={saving.busy}
-          onClick={() =>
-            void saving
-              .run(async () => {
-                await auth.request(`/items/${expense.id}/trash`, { method: 'POST' });
-                onTrashed();
-                return {
-                  message: `Moved ${expense.title} to the trash.`,
-                  undo: async () => {
-                    await auth.request(`/items/${expense.id}/restore`, { method: 'POST' });
-                    onRestored?.();
-                    return '';
-                  },
-                };
-              }, `Could not move the ${words.noun} to the trash`)
-              .then((done) => done && onClose())
-          }
-          type="button"
-        >
-          Move to trash
-        </button>
-      )}
     </FormDialog>
   );
 }

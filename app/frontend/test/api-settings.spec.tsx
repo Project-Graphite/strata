@@ -35,6 +35,8 @@ describe('API and webhooks settings', () => {
       if (path === '/auth/refresh') return Promise.resolve(json({ accessToken: 'token', user }));
       if (path === '/spaces') return Promise.resolve(json([mine]));
       if (path === '/me/inbox/summary') return Promise.resolve(json({ unread: 0 }));
+      if (path === '/me/tokens') return Promise.resolve(json([]));
+      if (path === '/me/two-step') return Promise.resolve(json({ enabled: false, recoveryCodesLeft: 0 }));
       return Promise.resolve(route(path, init) ?? new Response(null, { status: 404 }));
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -75,7 +77,7 @@ describe('API and webhooks settings', () => {
       if (path === '/me/webhooks/hook/ping') return json({ status: 204, error: null });
       return undefined;
     });
-    await render('/settings/api');
+    await render('/settings/developer');
 
     expect(container.textContent).toContain('/api/v1');
     expect([...container.querySelectorAll('summary')].map((summary) => summary.textContent)).toEqual([

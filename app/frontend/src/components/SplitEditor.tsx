@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import type { CostSplit } from '../subscriptions';
 import { useAction } from '../useAction';
+import { TextButton } from './Button';
 import { FormDialog } from './FormDialog';
 
 export function SplitEditor({
@@ -32,19 +33,37 @@ export function SplitEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={current ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={() =>
         void saving
           .run(async () => {
             if (shares.length < 2) throw new Error('Split between at least two members.');
             onSaved(await auth.request<CostSplit>(`/${kind}/${item.id}/split`, { method: 'PUT', body: JSON.stringify({ payerId, shares }) }));
-            return `${item.name} is split between ${shares.length} members.`;
+            return `Split ${item.name} between ${shares.length} members.`;
           }, 'Could not save the split')
           .then((saved) => saved && onClose())
       }
-      submitLabel="Save split"
-      title={`Split ${item.name}`}
+      start={
+        current && (
+          <TextButton
+            danger
+            disabled={saving.busy}
+            label="Stop splitting"
+            onClick={() =>
+              void saving
+                .run(async () => {
+                  await auth.request(`/${kind}/${item.id}/split`, { method: 'DELETE' });
+                  onSaved(null);
+                  return `Stopped splitting ${item.name}.`;
+                }, 'Could not change the split')
+                .then((done) => done && onClose())
+            }
+          />
+        )
+      }
+      submitLabel={current ? 'Save' : 'Add split'}
+      title={current ? 'Edit split' : 'New split'}
     >
       <Select
         label="Paid by"
@@ -53,7 +72,7 @@ export function SplitEditor({
         value={payerId}
       />
       <fieldset className="m-0 grid gap-2 border-0 p-0">
-        <legend className="field-label mb-1.5 p-0">Shared by</legend>
+        <legend className="field-label mb-2 p-0">Shared by</legend>
         {members.map((member) => {
           const weight = weights[member.userId];
           return (
@@ -87,24 +106,6 @@ export function SplitEditor({
           );
         })}
       </fieldset>
-      {current && (
-        <button
-          className="text-button w-fit text-sm"
-          disabled={saving.busy}
-          onClick={() =>
-            void saving
-              .run(async () => {
-                await auth.request(`/${kind}/${item.id}/split`, { method: 'DELETE' });
-                onSaved(null);
-                return `${item.name} is no longer split.`;
-              }, 'Could not change the split')
-              .then((done) => done && onClose())
-          }
-          type="button"
-        >
-          Stop splitting
-        </button>
-      )}
     </FormDialog>
   );
 }

@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { DatePicker, Dialog, Select, TextField } from '@project-graphite/ui';
+import { useEffect, useState } from 'react';
+import { DatePicker, Dialog, Select, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { describeQuickTask, parseQuickTask } from '../quick-add';
-import type { Tag } from '../spaces';
+import { useSpaces, type Tag } from '../spaces';
 import { reminderOptions, repeatOptions, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
+import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { TimeField, zoneLabel } from '../time';
-import { Button } from './Button';
+import { Button, TextButton } from './Button';
 import { DialogActions } from './DialogActions';
 
 interface Member {
@@ -87,7 +88,7 @@ export function TaskEditor({
               const tagIds = tags.filter((tag) => quick?.tagNames.includes(tag.name)).map((tag) => tag.id);
               if (tagIds.length) await auth.request(`/items/${saved.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
               onSaved(saved);
-              return task ? '' : 'Added the task.';
+              return `${task ? 'Saved' : 'Added'} ${saved.title}.`;
             }, 'Could not save the task')
             .then((saved) => saved && onClose());
         }}
@@ -137,32 +138,35 @@ export function TaskEditor({
           </div>
         </fieldset>
         {zone && <p className="mono-sm m-0 text-faint">Times are in {zone}.</p>}
-        <DialogActions>
-          {task && editable && onTrashed && (
-            <button
-              className="text-button mr-auto text-sm"
-              disabled={saving.busy}
-              onClick={() =>
-                void saving
-                  .run(async () => {
-                    await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
-                    onTrashed();
-                    return {
-                      message: 'Moved the task to the trash.',
-                      undo: async () => {
-                        await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
-                        onRestored?.();
-                        return '';
-                      },
-                    };
-                  }, 'Could not move the task to the trash')
-                  .then((trashed) => trashed && onClose())
-              }
-              type="button"
-            >
-              Move to trash
-            </button>
-          )}
+        <DialogActions
+          start={
+            task &&
+            editable &&
+            onTrashed && (
+              <TextButton
+                danger
+                disabled={saving.busy}
+                label="Move to trash"
+                onClick={() =>
+                  void saving
+                    .run(async () => {
+                      await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
+                      onTrashed();
+                      return {
+                        message: `Moved ${task.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
+                          onRestored?.();
+                          return '';
+                        },
+                      };
+                    }, 'Could not move the task to the trash')
+                    .then((trashed) => trashed && onClose())
+                }
+              />
+            )
+          }
+        >
           <Button label={editable ? 'Cancel' : 'Close'} large onClick={onClose} />
           {editable && (
             <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : task ? 'Save' : 'Add task'} large primary submit />
@@ -170,5 +174,53 @@ export function TaskEditor({
         </DialogActions>
       </form>
     </Dialog>
+  );
+}
+
+export function OpenTask({
+  listId,
+  onChanged,
+  onClose,
+  spaceId: newIn,
+  task: given,
+  taskId,
+}: {
+  listId?: string;
+  onChanged: () => void;
+  onClose: () => void;
+  spaceId?: string;
+  task?: Task;
+  taskId?: string;
+}) {
+  const spaces = useSpaces();
+  const fetched = useResource<Task>(taskId && !given ? `/tasks/${taskId}` : null, true);
+  const task = given ?? fetched.data;
+  const spaceId = task?.spaceId ?? newIn;
+  const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
+  const members = useResource<Member[]>(spaceId ? `/spaces/${spaceId}/members` : null, true);
+  const tags = useResource<Tag[]>(spaceId ? `/spaces/${spaceId}/tags` : null, true);
+  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
+  const show = useSnackbar();
+  const missing = fetched.error;
+  useEffect(() => {
+    if (!missing) return;
+    show({ message: fetched.status === 404 ? 'That task is no longer here. It may have been deleted.' : missing, tone: 'error' });
+    onClose();
+  }, [fetched.status, missing, onClose, show]);
+  if ((taskId && !task) || !space || !lists.data) return null;
+  return (
+    <TaskEditor
+      defaultListId={listId}
+      editable={space.role !== 'viewer'}
+      lists={lists.data}
+      members={members.data ?? []}
+      onClose={onClose}
+      onRestored={onChanged}
+      onSaved={onChanged}
+      onTrashed={onChanged}
+      spaceId={space.id}
+      tags={tags.data ?? []}
+      task={task}
+    />
   );
 }

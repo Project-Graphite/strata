@@ -56,7 +56,7 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
             {error}
           </p>
         )}
-        <Button disabled={busy} label={busy ? 'Checking…' : 'Sign in'} large primary submit />
+        <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
         <button className="text-button rule-link" onClick={() => setRecovery((current) => !current)} type="button">

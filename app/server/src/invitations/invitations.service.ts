@@ -198,13 +198,13 @@ export class InvitationsService {
             kind: 'invitation',
             title: `${inviter.displayName} invited you to ${space.name}`,
             body: input.note || undefined,
-            link: '/invitations',
+            link: '/spaces/invitations',
           },
         ]);
       }
       return created;
     });
-    const link = this.mail.link(invitee ? '/invitations' : `/invite/${token}`);
+    const link = this.mail.link(invitee ? '/spaces/invitations' : `/invite/${token}`);
     const emailed = await this.mail.trySend({
       to: invitee?.email ?? input.email!,
       subject: 'You are invited to a space on Strata',

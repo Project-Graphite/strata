@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
@@ -7,7 +7,6 @@ import {
   Sidebar,
   Skeleton,
   SnackbarProvider,
-  type ShellTab,
   useCommandShortcut,
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
@@ -15,7 +14,7 @@ import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
 import { InboxContext, unreadBadge } from '../inbox';
 import { enabledFeatures } from '../features';
-import { areaSections, moreAreas } from '../navigation';
+import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
@@ -48,9 +47,9 @@ function rememberSession(signedIn: boolean) {
   }
 }
 
-function SiteFooter({ signedIn }: { signedIn: boolean }) {
+function SiteFooter() {
   return (
-    <footer className={`shell mt-16 border-t border-line-soft py-8 ${signedIn ? 'hidden md:block' : ''}`}>
+    <footer className="shell mt-16 border-t border-line-soft py-8">
       <AboutLinks className="justify-end" />
     </footer>
   );
@@ -72,6 +71,9 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const unread = inbox.data?.unread ?? 0;
   const [searching, setSearching] = useState(false);
   const [expectSession] = useState(hadSession);
+  const [areaOverride, setArea] = useState<string | null>(null);
+  const areaContext = useMemo(() => ({ setArea }), []);
+  const active = areaOverride ?? areaOf(pathname);
   const signedIn = Boolean(auth.user);
   const openSearch = useCallback(() => signedIn && setSearching(true), [signedIn]);
   useCommandShortcut(openSearch);
@@ -82,17 +84,6 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
 
   useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
-  const tabs: ShellTab[] = [
-    { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
-    ...(auth.user
-      ? [
-          { href: '/spending', label: 'Spending', icon: 'wallet' as const, active: pathname.startsWith('/spending') || pathname === '/recurring' },
-          { href: '/agenda', label: 'Agenda', icon: 'calendar' as const, active: pathname === '/agenda' || pathname === '/today' || pathname.startsWith('/agenda/') || pathname.startsWith('/events/') },
-          { href: '/spaces', label: 'Spaces', icon: 'folder' as const, active: pathname.startsWith('/spaces') },
-          { href: '/menu', label: 'More', icon: 'more' as const, active: moreAreas.some((area) => pathname === area || pathname.startsWith(`${area}/`)) },
-        ]
-      : [{ href: '/login', label: 'Sign in', icon: 'user' as const, active: pathname === '/login', loading: !auth.ready }]),
-  ];
   const showSidebar = auth.user || (!auth.ready && expectSession);
 
   return (
@@ -128,7 +119,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
           )
         }
         brand={{ href: '/', mark: <StrataMark />, name: 'Strata' }}
-        footer={<SiteFooter signedIn={signedIn} />}
+        footer={auth.ready && !signedIn && <SiteFooter />}
         nav={[]}
         sidebar={
           showSidebar && (
@@ -136,11 +127,18 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={areaSections(pathname, spaces.data, unread, enabledFeatures(auth.user?.features))}
+              sections={sidebarSections(active, spaces.data, enabledFeatures(auth.user?.features))}
             />
           )
         }
-        tabs={tabs}
+        tabs={
+          auth.user
+            ? phoneTabBar(active)
+            : [
+                { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
+                { href: '/login', label: 'Sign in', icon: 'user', active: pathname === '/login', loading: !auth.ready },
+              ]
+        }
       >
         <OutageGate healthUrl="/api/v1/health" offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={onOutage}>
           {auth.restoreError ? (
@@ -148,9 +146,11 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               {auth.restoreError}
             </ErrorState>
           ) : (
-            <CrashBoundary key={pathname}>
-              <Outlet />
-            </CrashBoundary>
+            <AreaContext.Provider value={areaContext}>
+              <CrashBoundary key={pathname}>
+                <Outlet />
+              </CrashBoundary>
+            </AreaContext.Provider>
           )}
         </OutageGate>
       </AppShell>

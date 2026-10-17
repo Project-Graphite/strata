@@ -12,7 +12,7 @@ import { PropertiesDialog } from './PropertiesDialog';
 import { PropertyField, propertyDisplay } from './PropertyField';
 import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
-import { Button } from '../Button';
+import { Button, TextButton } from '../Button';
 import { ActionsMenu } from '../ActionsMenu';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
@@ -36,7 +36,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   const group = selects.find((property) => property.id === data.groupBy) ?? selects[0];
   const dateProperty = dates.find((property) => property.id === data.dateBy) ?? dates[0];
 
-  function saveSchema(next: Partial<Omit<NoteDatabase, 'rows'>>) {
+  function saveSchema(next: Partial<Omit<NoteDatabase, 'rows'>>, done = '') {
     if (!editable) {
       database.mutate((current) => ({ ...current, ...next }));
       return Promise.resolve(true);
@@ -45,7 +45,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       const body = { properties: data.properties, view: data.view, groupBy: data.groupBy, dateBy: data.dateBy, ...next };
       const saved = await auth.request<NoteDatabase>(`/notes/${noteId}/database`, { method: 'PUT', body: JSON.stringify(body) });
       database.mutate(() => saved);
-      return '';
+      return done;
     }, 'Could not change the database');
   }
 
@@ -73,7 +73,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       .filter(([, display]) => !blank(display))
       .slice(0, 3)
       .map(([property, display]) => (
-        <span className="inline-flex flex-wrap items-center gap-1 text-xs text-muted" key={property.id}>
+        <span className="inline-flex flex-wrap items-center gap-1 text-sm text-muted" key={property.id}>
           {display}
         </span>
       ));
@@ -178,7 +178,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
             <PeriodNav onShift={shift} title={formatDay(dayKey(shown), { month: 'long', year: 'numeric' })} unit="month" />
             {chooser('Dates from', dates, dateProperty, 'dateBy')}
           </div>
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
+          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
             {Array.from({ length: 7 }, (_, index) => addDays(from, index)).map((day) => (
               <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
                 {formatDay(day, { weekday: 'short' })}
@@ -195,12 +195,12 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                   <span className={`mono-sm ${day === today ? 'font-medium text-ink' : 'text-faint'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
                   {editable && (
                     <button aria-label="Add a page on this day" className="text-button text-faint" disabled={adding.busy} onClick={() => addRow({ [dateProperty.id]: day })} type="button">
-                      <Icon name="plus" size={12} />
+                      <Icon name="plus" size={14} />
                     </button>
                   )}
                 </div>
                 {(byDay.get(day) ?? []).map((row) => (
-                  <span className="block truncate text-xs" key={row.id}>
+                  <span className="block truncate text-sm" key={row.id}>
                     {title(row)}
                   </span>
                 ))}
@@ -279,9 +279,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
         </div>
         {editable && (
           <div className="flex items-center gap-4">
-            <button className="text-button text-sm" onClick={() => setEditing(true)} type="button">
-              Properties
-            </button>
+            <TextButton label="Edit properties" onClick={() => setEditing(true)} />
             <Button disabled={adding.busy} icon="plus" label="New page" onClick={() => addRow()} />
           </div>
         )}
@@ -292,11 +290,14 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
           busy={saving.busy}
           onClose={() => setEditing(false)}
           onSave={(properties) =>
-            void saveSchema({
-              properties,
-              groupBy: properties.some((property) => property.id === data.groupBy && property.type === 'select') ? data.groupBy : null,
-              dateBy: properties.some((property) => property.id === data.dateBy && property.type === 'date') ? data.dateBy : null,
-            }).then((saved) => saved && setEditing(false))
+            void saveSchema(
+              {
+                properties,
+                groupBy: properties.some((property) => property.id === data.groupBy && property.type === 'select') ? data.groupBy : null,
+                dateBy: properties.some((property) => property.id === data.dateBy && property.type === 'date') ? data.dateBy : null,
+              },
+              'Saved the properties.',
+            ).then((saved) => saved && setEditing(false))
           }
           properties={data.properties}
         />

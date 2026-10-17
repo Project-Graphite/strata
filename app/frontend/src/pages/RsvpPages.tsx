@@ -134,7 +134,7 @@ export function RsvpPage() {
         )}
         <ResponseFields current={guest.response} missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        <Button disabled={answering.busy} label={answering.busy ? 'Saving…' : 'Send answer'} large primary submit />
+        <Button disabled={answering.busy} label={answering.busy ? 'Sending…' : 'Send answer'} large primary submit />
       </form>
     </section>
   );
@@ -167,9 +167,9 @@ export function SharePage() {
   if (!shared.data.event) {
     const { access, content, item } = shared.data;
     return (
-      <section className={`page-enter mx-auto grid w-full gap-6 ${content?.kind === 'board' ? 'max-w-6xl' : 'max-w-3xl'}`}>
+      <section className={`page-enter grid w-full gap-6 ${content?.kind === 'board' ? 'max-w-6xl' : 'max-w-3xl'}`}>
         <div>
-          <p className="m-0 text-sm text-faint">
+          <p className="page-header-eyebrow">
             Shared {item.kind === 'note' ? 'page' : item.kind}
             {access === 'edit' && ' · Anyone with this link can edit'}
           </p>
@@ -218,7 +218,7 @@ export function SharePage() {
         <TextField label="Your name" maxLength={80} {...form.field('name')} />
         <ResponseFields missing={unanswered} onChoose={() => setUnanswered(false)} />
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
-        <Button disabled={answering.busy} label={answering.busy ? 'Saving…' : 'Send answer'} large primary submit />
+        <Button disabled={answering.busy} label={answering.busy ? 'Sending…' : 'Send answer'} large primary submit />
       </form>
     </section>
   );

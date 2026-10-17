@@ -1,20 +1,19 @@
 import { useState } from 'react';
-import { ConfirmDialog, formatDay, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../../agenda';
 import { useAuth } from '../../auth';
-import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
-import { LoadError } from '../../components/LoadError';
+import { Hint } from '../../components/Hint';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { useAction } from '../../useAction';
-import { useResource } from '../../useResource';
+import type { Resource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { SecretDialog } from '../../components/Copyable';
 
-interface AccessToken {
+export interface AccessToken {
   id: string;
   name: string;
   scopes: string[];
@@ -30,10 +29,8 @@ const scopes = [
   ['spending:capture', 'Send bank text messages to Spending'],
 ] as const;
 
-export function TokensSettings() {
+export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessToken[]>; twoStep: TwoStepStatus }) {
   const auth = useAuth();
-  const tokens = useResource<AccessToken[]>('/me/tokens', true);
-  const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
   const creating = useAction();
   const form = useFormErrors();
   const [open, setOpen] = useState(false);
@@ -41,9 +38,6 @@ export function TokensSettings() {
   const [revoking, setRevoking] = useState<AccessToken>();
   const [noScope, setNoScope] = useState(false);
 
-  if (tokens.error) return <LoadError error={tokens.error} onRetry={tokens.reload} />;
-  if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
-  if (!tokens.data || !twoStep.data) return <FormSkeleton fields={2} />;
   const close = () => {
     setOpen(false);
     setCreated('');
@@ -58,13 +52,11 @@ export function TokensSettings() {
         }
         title="Access tokens"
       >
-        {tokens.data.length === 0 ? (
-          <Empty level={3} title="No tokens">
-            A token lets your own scripts use Strata as you, with only the permissions you give it.
-          </Empty>
+        {tokens.data!.length === 0 ? (
+          <Hint>No tokens yet. A token lets your own scripts use Strata as you, with only the permissions you give it.</Hint>
         ) : (
           <SettingsRows>
-            {tokens.data.map((token) => (
+            {tokens.data!.map((token) => (
               <SettingsRow
                 action={
                   <Button label="Revoke" onClick={() => setRevoking(token)} />
@@ -100,7 +92,7 @@ export function TokensSettings() {
               !form.check(target, {
                 name: [required('Name the token.'), atMost(60, 'Use at most 60 characters.')],
                 password: [required('Enter your password to confirm.')],
-                ...(twoStep.data?.enabled ? { code: [required('Enter a code to confirm.')] } : {}),
+                ...(twoStep.enabled ? { code: [required('Enter a code to confirm.')] } : {}),
               })
             ) {
               return;
@@ -152,19 +144,20 @@ export function TokensSettings() {
               { value: '365', label: '1 year' },
             ]}
           />
-          <ProofFields form={form} twoStep={twoStep.data.enabled} />
+          <ProofFields form={form} twoStep={twoStep.enabled} />
         </FormDialog>
       )}
 
       {revoking && (
         <ConfirmDialog
           busyLabel="Revoking…"
-          confirmLabel="Revoke"
+          confirmLabel="Revoke token"
           errorFallback="Could not revoke the token"
           onClose={() => setRevoking(undefined)}
           onConfirm={async () => {
             await auth.request(`/me/tokens/${revoking.id}`, { method: 'DELETE' });
             tokens.mutate((current) => current.filter((token) => token.id !== revoking.id));
+            creating.report(`Revoked ${revoking.name}.`);
           }}
           title={`Revoke ${revoking.name}?`}
           tone="danger"

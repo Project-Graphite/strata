@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Dialog, ListSkeleton, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
-import { addJoinedSpace, SpaceMark, useSpaces } from '../spaces';
+import { addJoinedSpace, SpaceMark, spacesTabs, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { emailAddress, required, useFormErrors } from '../validation';
+import { emailAddress, useFormErrors } from '../validation';
+import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
 import { DialogActions } from '../components/DialogActions';
@@ -14,6 +15,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { NewSpace } from './spaces/SpacesPage';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
   pending: 'waiting',
@@ -28,7 +30,7 @@ export function InvitationsPage() {
   const received = useResource<ReceivedInvitation[]>('/me/invitations', true);
   const sent = useResource<SentInvitation[]>('/invitations', true);
   const answering = useAction();
-  const [creating, setCreating] = useState<'email' | 'link' | null>(null);
+  const [creating, setCreating] = useState(false);
   const [link, setLink] = useState('');
 
   function answer(invitation: ReceivedInvitation, accept: boolean) {
@@ -36,67 +38,55 @@ export function InvitationsPage() {
       await auth.request(`/invitations/${invitation.id}/${accept ? 'accept' : 'decline'}`, { method: 'POST' });
       if (accept) await addJoinedSpace(auth.request, spaces, invitation.space.id);
       received.mutate((current) => current.filter((shown) => shown.id !== invitation.id));
-      return accept ? `You joined ${invitation.space.name}.` : 'Invite declined.';
+      return accept ? `You joined ${invitation.space.name}.` : `Declined the invite to ${invitation.space.name}.`;
     }, 'Could not answer that invite');
   }
 
   return (
-    <Page
-      actions={
-        <>
-          <Button icon="link" label="Create invite link" onClick={() => setCreating('link')} />
-          <Button icon="mail" label="Invite by email" onClick={() => setCreating('email')} primary />
-        </>
-      }
-      title="Invitations"
-    >
+    <Page actions={<NewSpace />} tabs={spacesTabs('invitations')} title="Spaces">
       <Section title="For you">
         {received.error ? (
-          <LoadError error={received.error} onRetry={received.reload} />
+          <LoadError compact error={received.error} onRetry={received.reload} />
         ) : !received.data ? (
           <ListSkeleton label="Loading your invitations" rows={2} />
         ) : received.data.length === 0 ? (
-          <Hint>No one has invited you to a space right now.</Hint>
+          <Hint>No invitations for you yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {received.data.map((invitation) => (
-              <li className="panel-row flex flex-wrap items-center justify-between gap-4" key={invitation.id}>
-                <div className="flex min-w-0 items-start gap-3">
-                  <SpaceMark space={invitation.space} />
-                  <RowText
-                    detail={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>}
-                    title={invitation.space.name}
-                  >
-                    {invitation.note && <span className="text-sm text-muted">“{invitation.note}”</span>}
-                  </RowText>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button disabled={answering.busy} label="Decline" onClick={() => answer(invitation, false)} />
-                  <Button disabled={answering.busy} label="Accept" onClick={() => answer(invitation, true)} primary />
-                </div>
+              <li className="flex items-center gap-3 panel-row" key={invitation.id}>
+                <SpaceMark space={invitation.space} />
+                <RowText detail={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>} title={invitation.space.name}>
+                  {invitation.note && <span className="text-sm text-muted">“{invitation.note}”</span>}
+                </RowText>
+                <Button disabled={answering.busy} label="Accept" onClick={() => answer(invitation, true)} />
+                <ActionsMenu items={[{ label: 'Decline', onSelect: () => answer(invitation, false) }]} name={invitation.space.name} />
               </li>
             ))}
           </ul>
         )}
       </Section>
 
-      <Section title="Sent">
+      <Section action={<Button icon="plus" label="New invitation" onClick={() => setCreating(true)} />} title="Sent">
         {sent.error ? (
-          <LoadError error={sent.error} onRetry={sent.reload} />
+          <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
           <ListSkeleton label="Loading the invites you sent" rows={2} />
         ) : sent.data.length === 0 ? (
-          <Hint>You have not invited anyone yet.</Hint>
+          <Hint>No sent invitations yet.</Hint>
         ) : (
           <ul className="panel-rows">
             {sent.data.map((invitation) => (
               <li className="panel-row" key={invitation.id}>
-                <p className="m-0 text-ink">{invitation.email ?? 'Invite link'}</p>
-                <p className="m-0 mt-0.5 text-sm text-muted">
-                  {statusLabels[invitation.status]}
-                  {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created{' '}
-                  {timeAgo(invitation.createdAt)}
-                </p>
+                <RowText
+                  detail={
+                    <>
+                      {statusLabels[invitation.status]}
+                      {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created {timeAgo(invitation.createdAt)}
+                    </>
+                  }
+                  title={invitation.email ?? 'Invite link'}
+                />
               </li>
             ))}
           </ul>
@@ -105,11 +95,10 @@ export function InvitationsPage() {
 
       {creating && (
         <InviteDialog
-          mode={creating}
-          onClose={() => setCreating(null)}
+          onClose={() => setCreating(false)}
           onCreated={(invitation, created) => {
             sent.mutate((current) => [invitation, ...current]);
-            setCreating(null);
+            setCreating(false);
             if (created) setLink(created);
           }}
         />
@@ -118,7 +107,7 @@ export function InvitationsPage() {
       {link && (
         <Dialog onClose={() => setLink('')} title="Invite link ready">
           <div className="mt-4 grid gap-4">
-            <Hint>Send this link to the person you are inviting. It works once, for 14 days.</Hint>
+            <Hint>Send this link to the person you’re inviting. It works once, for 14 days.</Hint>
             <Copyable value={link} />
             <DialogActions>
               <Button label="Done" large onClick={() => setLink('')} primary />
@@ -130,15 +119,7 @@ export function InvitationsPage() {
   );
 }
 
-function InviteDialog({
-  mode,
-  onClose,
-  onCreated,
-}: {
-  mode: 'email' | 'link';
-  onClose: () => void;
-  onCreated: (invitation: SentInvitation, link: string | null) => void;
-}) {
+function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (invitation: SentInvitation, link: string | null) => void }) {
   const auth = useAuth();
   const inviting = useAction();
   const form = useFormErrors();
@@ -149,9 +130,9 @@ function InviteDialog({
       busyLabel="Creating…"
       onClose={onClose}
       onSubmit={(target) => {
-        if (!form.check(target, { ...(mode === 'email' ? { email: [required('Enter their email address.'), emailAddress] } : {}), note: noteChecks })) return;
         const values = new FormData(target);
-        const email = mode === 'email' ? String(values.get('email')).trim() : '';
+        const email = String(values.get('email')).trim();
+        if (!form.check(target, { ...(email ? { email: [emailAddress] } : {}), note: noteChecks })) return;
         const note = String(values.get('note')).trim();
         void inviting.run(async () => {
           const created = await auth.request<{ invitation: SentInvitation; link: string; emailed: boolean }>('/invitations', {
@@ -159,13 +140,21 @@ function InviteDialog({
             body: JSON.stringify({ ...(email ? { email } : {}), ...(note ? { note } : {}) }),
           });
           onCreated(created.invitation, created.emailed ? null : created.link);
-          return created.emailed ? `Invite sent to ${email}.` : email ? 'Email is not set up here, so send them the link yourself.' : '';
-        }, 'Could not create the invite');
+          return created.emailed ? `Invite sent to ${email}.` : email ? 'Email isn’t set up here, so send them the link yourself.' : '';
+        }, 'Could not create the invitation');
       }}
-      submitLabel={mode === 'email' ? 'Send invite' : 'Create link'}
-      title={mode === 'email' ? 'Invite by email' : 'Create an invite link'}
+      submitLabel="Create invitation"
+      title="New invitation"
     >
-      {mode === 'email' && <TextField autoComplete="off" autoFocus inputMode="email" label="Email" type="email" {...form.field('email')} />}
+      <TextField
+        autoComplete="off"
+        autoFocus
+        hint="Leave it empty to get a link you can send yourself."
+        inputMode="email"
+        label="Email (optional)"
+        type="email"
+        {...form.field('email')}
+      />
       <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
     </FormDialog>
   );

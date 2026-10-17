@@ -33,7 +33,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={goal ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (
@@ -62,7 +62,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
                 body: JSON.stringify(body),
               }),
             );
-            return goal ? '' : 'Goal added.';
+            return `${goal ? 'Saved' : 'Added'} ${body.title}.`;
           }, 'Could not save the goal')
           .then((saved) => saved && onClose());
       }}

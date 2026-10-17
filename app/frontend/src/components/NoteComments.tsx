@@ -4,8 +4,8 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
-import { Button } from './Button';
-import { Subheading } from './Page';
+import { Button, TextButton } from './Button';
+import { Section } from './Page';
 
 interface NoteComment {
   id: string;
@@ -128,27 +128,18 @@ export function NoteComments({
       setReplying(undefined);
       if (blockId) onQuoteDone();
       return '';
-    }, 'The comment could not be saved.');
+    }, 'Could not save the comment');
   const edit = (id: string, body: string) =>
     action.run(async () => {
       replace(await auth.request<NoteComment>(`/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ body }) }));
       setEditing(undefined);
       return '';
-    }, 'The comment could not be changed.');
-  async function deleteComment(id: string) {
-    await auth.request(`/comments/${id}`, { method: 'DELETE' });
-    comments.mutate((current) => current.filter((comment) => comment.id !== id && comment.parentId !== id));
-  }
-  const remove = (id: string) =>
-    action.run(async () => {
-      await deleteComment(id);
-      return 'Comment deleted.';
-    }, 'The comment could not be deleted.');
+    }, 'Could not change the comment');
   const resolve = (id: string, done: boolean) =>
     action.run(async () => {
       replace(await auth.request<NoteComment>(`/comments/${id}/resolved`, { method: done ? 'PUT' : 'DELETE' }));
       return '';
-    }, 'The comment could not be changed.');
+    }, 'Could not change the comment');
 
   function renderComment(comment: NoteComment) {
     const mine = comment.author?.id === auth.user?.id;
@@ -187,11 +178,7 @@ export function NoteComments({
             <button
               className="text-button"
               disabled={action.busy}
-              onClick={() => {
-                const replies = all.filter((reply) => reply.parentId === comment.id).length;
-                if (replies) setDeleting({ id: comment.id, replies });
-                else void remove(comment.id);
-              }}
+              onClick={() => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length })}
               type="button"
             >
               Delete
@@ -203,45 +190,47 @@ export function NoteComments({
   }
 
   return (
-    <section aria-label="Comments" className="grid gap-4 border-t border-line-soft pt-6">
-      <div className="flex items-center gap-3">
-        <Subheading level={2}>Comments</Subheading>
-        {resolved > 0 && (
-          <button className="text-button text-sm" onClick={() => setShowResolved(!showResolved)} type="button">
-            {showResolved ? 'Hide resolved' : `Show ${resolved} resolved`}
-          </button>
-        )}
-      </div>
-      {shown.map((thread) => (
-        <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} data-block-id={thread.blockId ?? undefined} key={thread.id}>
-          {renderComment(thread)}
-          <div className="grid gap-3 border-l border-line pl-4">
-            {all.filter((comment) => comment.parentId === thread.id).map(renderComment)}
-            {replying === thread.id && <CommentForm label="Reply" onCancel={() => setReplying(undefined)} onSave={(body) => add(body, thread.id)} />}
+    <section aria-label="Comments">
+      <Section action={resolved > 0 && <TextButton label={showResolved ? 'Hide resolved' : `Show ${resolved} resolved`} onClick={() => setShowResolved(!showResolved)} />} title="Comments">
+        {shown.map((thread) => (
+          <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} data-block-id={thread.blockId ?? undefined} key={thread.id}>
+            {renderComment(thread)}
+            <div className="grid gap-3 border-l border-line pl-4">
+              {all.filter((comment) => comment.parentId === thread.id).map(renderComment)}
+              {replying === thread.id && <CommentForm label="Reply" onCancel={() => setReplying(undefined)} onSave={(body) => add(body, thread.id)} />}
+            </div>
+          </article>
+        ))}
+        {quoting ? (
+          <div className="grid gap-2">
+            <p className="comment-block-quote m-0">{quoting.excerpt || `An empty ${anchors.noun}`}</p>
+            <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
           </div>
-        </article>
-      ))}
-      {quoting ? (
-        <div className="grid gap-2">
-          <p className="comment-block-quote m-0">{quoting.excerpt || `An empty ${anchors.noun}`}</p>
-          <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
-        </div>
-      ) : (
-        <CommentForm label="Comment" onSave={(body) => add(body)} />
-      )}
-      {deleting && (
-        <ConfirmDialog
-          busyLabel="Deleting…"
-          confirmLabel="Delete comment"
-          errorFallback="The comment could not be deleted."
-          onClose={() => setDeleting(undefined)}
-          onConfirm={() => deleteComment(deleting.id)}
-          title="Delete this comment?"
-          tone="danger"
-        >
-          {deleting.replies === 1 ? 'Its reply is deleted too.' : `Its ${deleting.replies} replies are deleted too.`}
-        </ConfirmDialog>
-      )}
+        ) : (
+          <CommentForm label="Comment" onSave={(body) => add(body)} />
+        )}
+        {deleting && (
+          <ConfirmDialog
+            busyLabel="Deleting…"
+            confirmLabel="Delete comment"
+            errorFallback="Could not delete the comment"
+            onClose={() => setDeleting(undefined)}
+            onConfirm={async () => {
+              await auth.request(`/comments/${deleting.id}`, { method: 'DELETE' });
+              comments.mutate((current) => current.filter((comment) => comment.id !== deleting.id && comment.parentId !== deleting.id));
+              action.report('Deleted the comment.');
+            }}
+            title="Delete this comment?"
+            tone="danger"
+          >
+            {deleting.replies === 0
+              ? 'It’s removed for everyone.'
+              : deleting.replies === 1
+                ? 'Its reply is deleted too.'
+                : `Its ${deleting.replies} replies are deleted too.`}
+          </ConfirmDialog>
+        )}
+      </Section>
     </section>
   );
 }

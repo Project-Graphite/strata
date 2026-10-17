@@ -122,7 +122,7 @@ export function BrainstormBar({
         )}
       </div>
       {session.results && (
-        <section aria-label="Vote results" className="grid gap-1 rounded-lg border border-line-soft px-3 py-2">
+        <section aria-label="Vote results" className="grid gap-1 rounded-panel border border-line-soft px-3 py-2">
           <Subheading>Vote results</Subheading>
           {session.results.length === 0 ? (
             <Hint>No dots landed on a shape.</Hint>

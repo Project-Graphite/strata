@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton, Tabs, timeAgo } from '@project-graphite/ui';
+import { formatDay, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -14,7 +13,8 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { Page, Section, Subheading } from '../components/Page';
+import { RowText } from '../components/RowText';
 import { Button } from '../components/Button';
 
 interface FileEntry {
@@ -57,7 +57,6 @@ function TidySuggestions() {
   const undoing = useAction();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [request, setRequest] = useState<TidyRequest>();
-  const [applied, setApplied] = useState<TidyBatch | null>();
 
   if (scan.error) return <LoadError error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={5} />;
@@ -87,28 +86,9 @@ function TidySuggestions() {
   );
 
   return (
-    <div className="grid gap-10">
-      {applied !== undefined && (
-        <div className="flex flex-wrap items-center gap-3" role="status">
-          <p className="m-0 text-ink">{applied ? `${batchSummary(applied)}.` : 'Nothing needed changing after all.'}</p>
-          {applied && (
-            <Button
-              disabled={undoing.busy}
-              label="Undo"
-              onClick={() =>
-                void undoing.run(async () => {
-                  const result = await auth.request<UndoResult>(`/tidy/history/${applied.id}/undo`, { method: 'POST' });
-                  setApplied(undefined);
-                  scan.reload();
-                  return undoSummary(result);
-                }, 'Could not undo')
-              }
-            />
-          )}
-        </div>
-      )}
+    <>
       {empty ? (
-        <Empty title="Nothing to tidy" />
+        <Empty title="Nothing to tidy">There are no duplicate, large or old uploads, and no subscriptions that look unused.</Empty>
       ) : (
         saving > 0 && (
           <Stats>
@@ -126,10 +106,10 @@ function TidySuggestions() {
           title="Duplicate uploads"
         >
           {files.duplicates.map((group) => (
-            <div className="mt-4" key={group.items[0]?.id}>
-              <p className="mono-sm m-0 text-faint">
+            <div className="grid gap-2" key={group.items[0]?.id}>
+              <Subheading>
                 {group.items.length} copies of {fileSize(group.sizeBytes)}
-              </p>
+              </Subheading>
               <ul className="panel-rows">
                 {group.items.map((file) => fileChoice(file, `${spaceName(file.spaceId)} · added ${timeAgo(file.createdAt)}`))}
               </ul>
@@ -177,10 +157,10 @@ function TidySuggestions() {
       {subscriptions.overlapping.length > 0 && (
         <Section title="Overlapping subscriptions">
           {subscriptions.overlapping.map((group) => (
-            <div className="mt-4" key={group.category}>
-              <p className="mono-sm m-0 text-faint">
+            <div className="grid gap-2" key={group.category}>
+              <Subheading>
                 {group.items.length} in {categoryLabel(group.category)}
-              </p>
+              </Subheading>
               <ul className="panel-rows">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
             </div>
           ))}
@@ -190,7 +170,7 @@ function TidySuggestions() {
       {selected.size > 0 && (
         <SelectionBar label={`${itemsText(selected.size)} selected`} onClear={() => setSelected(new Set())}>
           <Button label="Archive" onClick={() => open('archive')} />
-          <Button label="Move to the trash" onClick={() => open('trash')} />
+          <Button label="Move to trash" onClick={() => open('trash')} />
           {[...selected].some((id) => subscriptionIds.has(id)) && <Button label="Cancel subscriptions" onClick={() => open('cancel')} />}
         </SelectionBar>
       )}
@@ -200,14 +180,25 @@ function TidySuggestions() {
           onApplied={(batch) => {
             setRequest(undefined);
             setSelected(new Set());
-            setApplied(batch);
             scan.reload();
+            undoing.report(
+              batch
+                ? {
+                    message: `${batchSummary(batch)}.`,
+                    undo: async () => {
+                      const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
+                      scan.reload();
+                      return undoSummary(result);
+                    },
+                  }
+                : 'Nothing needed changing after all.',
+            );
           }}
           onClose={() => setRequest(undefined)}
           request={request}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -219,62 +210,52 @@ function TidyHistory() {
   if (history.error) return <LoadError error={history.error} onRetry={history.reload} />;
   if (!history.data) return <ListSkeleton label="Loading your undo history" rows={4} />;
 
-  return (
-    <div className="grid gap-4">
-      {history.data.length === 0 ? (
-        <Empty title="Nothing tidied yet">
-          Changes stay here for 90 days, so you can undo them.
-        </Empty>
-      ) : (
-        <ul className="panel-rows">
-          {history.data.map((batch) => (
-            <li className="flex items-center justify-between gap-4 panel-row" key={batch.id}>
-              <div className="min-w-0">
-                <p className="m-0 text-ink">{batchSummary(batch)}</p>
-                <p className="mono-sm mt-1 mb-0 text-faint">
-                  {timeAgo(batch.createdAt)}
-                  {batch.rule && ` · by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`}
-                  {batch.undoneAt
-                    ? ' · undone'
-                    : batch.remaining < batch.itemCount && ` · ${itemsText(batch.itemCount - batch.remaining)} since deleted`}
-                </p>
-              </div>
-              {!batch.undoneAt && batch.remaining > 0 && (
-                <Button
-                  disabled={undoing.busy}
-                  label="Undo"
-                  onClick={() =>
-                    void undoing.run(async () => {
-                      const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
-                      history.reload();
-                      return undoSummary(result);
-                    }, 'Could not undo')
-                  }
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+  return history.data.length === 0 ? (
+    <Empty title="Nothing tidied yet">Changes stay here for 90 days, so you can undo them.</Empty>
+  ) : (
+    <ul className="panel-rows">
+      {history.data.map((batch) => (
+        <li className="panel-row flex items-center gap-3" key={batch.id}>
+          <RowText
+            detail={[
+              timeAgo(batch.createdAt),
+              batch.rule && `by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`,
+              batch.undoneAt ? 'undone' : batch.remaining < batch.itemCount && `${itemsText(batch.itemCount - batch.remaining)} since deleted`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            title={batchSummary(batch)}
+          />
+          {!batch.undoneAt && batch.remaining > 0 && (
+            <Button
+              disabled={undoing.busy}
+              label="Undo"
+              onClick={() =>
+                void undoing.run(async () => {
+                  const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
+                  history.reload();
+                  return undoSummary(result);
+                }, 'Could not undo')
+              }
+            />
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-export function TidyPage() {
-  const [params] = useSearchParams();
-  const view = params.get('view');
-
+export function TidyPage({ section }: { section: 'suggestions' | 'folder' | 'history' }) {
   return (
-    <Page title="Tidy">
-      <Tabs
-        items={[
-          { active: view !== 'history' && view !== 'folder', href: '/tidy', label: 'Suggestions' },
-          { active: view === 'folder', href: '/tidy?view=folder', label: 'Folder on this computer' },
-          { active: view === 'history', href: '/tidy?view=history', label: 'Undo history' },
-        ]}
-        label="Tidy view"
-      />
-      {view === 'history' ? <TidyHistory /> : view === 'folder' ? <FolderScan /> : <TidySuggestions />}
+    <Page
+      tabs={[
+        { active: section === 'suggestions', href: '/tidy', label: 'Suggestions' },
+        { active: section === 'folder', href: '/tidy/folder', label: 'This computer' },
+        { active: section === 'history', href: '/tidy/history', label: 'History' },
+      ]}
+      title="Tidy"
+    >
+      {section === 'history' ? <TidyHistory /> : section === 'folder' ? <FolderScan /> : <TidySuggestions />}
     </Page>
   );
 }

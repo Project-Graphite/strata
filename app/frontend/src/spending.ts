@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import type { TagColor } from '@project-graphite/ui';
 import type { CostSplit } from './subscriptions';
 import { useResource } from './useResource';
@@ -194,31 +195,54 @@ export interface SpendingMonth {
 
 export type SpendingTab = 'overview' | 'transactions' | 'accounts' | 'budgets' | 'recurring' | 'insights' | 'net-worth';
 
-const spendingTabList: [SpendingTab, string, string][] = [
-  ['overview', 'Overview', '/spending'],
-  ['transactions', 'Transactions', '/spending?tab=transactions'],
-  ['accounts', 'Accounts', '/spending?tab=accounts'],
-  ['budgets', 'Budgets', '/spending?tab=budgets'],
-  ['recurring', 'Recurring', '/recurring'],
-  ['insights', 'Insights', '/spending/insights'],
-  ['net-worth', 'Net worth', '/spending/net-worth'],
+const spendingTabList: [SpendingTab, string][] = [
+  ['overview', 'Overview'],
+  ['transactions', 'Transactions'],
+  ['accounts', 'Accounts'],
+  ['budgets', 'Budgets'],
+  ['recurring', 'Recurring'],
+  ['insights', 'Insights'],
+  ['net-worth', 'Net worth'],
 ];
 
-export type SpendingPageTab = 'overview' | 'transactions' | 'accounts' | 'budgets';
+export const spendingHref = (tab: SpendingTab, params?: URLSearchParams) => {
+  const kept = new URLSearchParams([...(params ?? [])].filter(([key]) => key === 'space' || key === 'month')).toString();
+  return `/spending${tab === 'overview' ? '' : `/${tab}`}${kept ? `?${kept}` : ''}`;
+};
 
-const pageTabs: SpendingTab[] = ['overview', 'transactions', 'accounts', 'budgets'];
+export const spendingTabs = (active: SpendingTab, params: URLSearchParams) =>
+  spendingTabList.map(([key, label]) => ({ active: key === active, href: spendingHref(key, params), label }));
 
-export const spendingTabs = (active: SpendingTab, space?: string | null, pageLink?: (tab: SpendingPageTab) => string) =>
-  spendingTabList.map(([key, label, href]) => ({
-    active: key === active,
-    href:
-      pageLink && pageTabs.includes(key)
-        ? pageLink(key as SpendingPageTab)
-        : space && key !== 'recurring'
-          ? `${href}${href.includes('?') ? '&' : '?'}space=${space}`
-          : href,
-    label,
-  }));
+const byCategoryKey = 'strata-spending-by-category';
+const byCategoryListeners = new Set<() => void>();
+let byCategoryShown = (() => {
+  try {
+    return localStorage.getItem(byCategoryKey) !== 'hidden';
+  } catch {
+    return true;
+  }
+})();
+
+const showByCategory = (shown: boolean) => {
+  byCategoryShown = shown;
+  try {
+    localStorage.setItem(byCategoryKey, shown ? 'shown' : 'hidden');
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+  }
+  byCategoryListeners.forEach((listener) => listener());
+};
+
+export function useByCategory() {
+  const shown = useSyncExternalStore(
+    (listener) => {
+      byCategoryListeners.add(listener);
+      return () => byCategoryListeners.delete(listener);
+    },
+    () => byCategoryShown,
+  );
+  return [shown, showByCategory] as const;
+}
 
 export function useCategories(spaceId: string | null | undefined) {
   return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true);

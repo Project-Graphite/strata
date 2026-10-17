@@ -72,3 +72,24 @@ export function IconLink({ children, icon, label, to }: { children?: ReactNode; 
     </Link>
   );
 }
+
+export function TextButton({
+  danger = false,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  danger?: boolean;
+  disabled?: boolean;
+  icon?: IconName;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className={`text-button inline-flex items-center gap-1.5 text-sm ${danger ? 'text-danger' : ''}`} disabled={disabled} onClick={onClick} type="button">
+      {icon && <Icon name={icon} size={14} />}
+      {label}
+    </button>
+  );
+}

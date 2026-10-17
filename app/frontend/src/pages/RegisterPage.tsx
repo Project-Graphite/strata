@@ -65,7 +65,7 @@ export function RegisterPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Check your inbox</h1>
-        <p className="mt-5 text-muted">
+        <p className="mt-4 text-muted">
           We sent an email to {createdEmail}. Open the verification link in it within 24 hours to
           finish setting up your account. If that address already has an account, the email explains
           how to sign in instead.
@@ -83,7 +83,7 @@ export function RegisterPage() {
     return (
       <section className="form-panel page-enter">
         <h1 className="page-heading">Sign-up is closed for now</h1>
-        <p className="mt-5 text-muted">
+        <p className="mt-4 text-muted">
           {invite.error || 'Strata is taking new accounts by invitation only at the moment.'} Ask someone who
           uses Strata to invite you, then open the link in their invite.
         </p>
@@ -103,7 +103,7 @@ export function RegisterPage() {
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />
         <TextField
           autoCapitalize="none"
-          hint="How people find you to share spaces. It cannot be changed later."
+          hint="How people find you to share spaces. It can’t be changed later."
           label="Handle"
           maxLength={32}
           spellCheck={false}

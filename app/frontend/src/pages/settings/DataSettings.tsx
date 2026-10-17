@@ -81,6 +81,7 @@ export function DataSettings() {
               }, 'Could not delete your account')
               .then((deleted) => deleted && navigate('/'));
           }}
+          danger
           submitLabel="Delete account"
           title="Delete your account?"
         >

@@ -1,31 +1,28 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { readBlob } from '../api';
-import { ConfirmDialog, formatDay, ListSkeleton, Meter, Select, Tabs, TextField, Toggle } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, ListSkeleton, Meter, Select, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button } from '../components/Button';
-import { CategoriesEditor } from '../components/CategoriesEditor';
+import { Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ExpenseEditor } from '../components/ExpenseEditor';
-import { ExpenseImport } from '../components/ExpenseImport';
 import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { Page, Section, Toolbar } from '../components/Page';
+import { MoneyRow } from '../components/MoneyRow';
+import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { PhoneSetup } from '../components/PhoneSetup';
-import { saveBlob } from '../files';
-import { RowText } from '../components/RowText';
+import { SpendingFrame } from '../components/SpendingFrame';
 import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
   categoryName,
-  spendingTabs,
+  spendingHref,
+  useByCategory,
   useCategories,
   type CapturedMessage,
   type Expense,
@@ -36,7 +33,7 @@ import {
   type SpendingMonth,
   type SpendingPlan,
 } from '../spending';
-import { SpaceChooser, useChosenSpace, type Member } from '../spaces';
+import { useChosenSpace, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -49,23 +46,12 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 const chartedCount = 7;
-const byCategoryKey = 'strata-spending-by-category';
 
-const byCategoryStored = (() => {
-  try {
-    return localStorage.getItem(byCategoryKey) !== 'hidden';
-  } catch {
-    return true;
-  }
-})();
-
-export function SpendingPage() {
+export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
   const auth = useAuth();
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
-  const tab = (['transactions', 'accounts', 'budgets'] as const).find((option) => option === params.get('tab')) ?? 'overview';
-  const managing = tab === 'budgets';
   const { spaceId, space, editable } = useChosenSpace();
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true);
   const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
@@ -76,10 +62,6 @@ export function SpendingPage() {
   const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true);
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
-    | 'new'
-    | 'import'
-    | 'phone'
-    | 'categories'
     | 'plan'
     | { budget: string | null }
     | { expense: Expense }
@@ -88,21 +70,12 @@ export function SpendingPage() {
     | { capture: CapturedMessage }
     | { installment: InstallmentPlan | null }
     | { ignoreMerchant: CapturedMessage }
-    | { removeAccount: MoneyAccount }
-    | { removePlan: InstallmentPlan }
-    | { removeBudget: string }
-    | { removeRule: MerchantRule }
+    | { deleteAccount: MoneyAccount }
+    | { deletePlan: InstallmentPlan }
+    | { deleteBudget: string }
+    | { deleteRule: MerchantRule }
   >();
-  const [byCategory, setByCategory] = useState(byCategoryStored);
-  const showByCategory = (shown: boolean) => {
-    setByCategory(shown);
-    try {
-      localStorage.setItem(byCategoryKey, shown ? 'shown' : 'hidden');
-    } catch (error) {
-      if (!(error instanceof DOMException)) throw error;
-    }
-  };
-  const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
+  const [byCategory, showByCategory] = useByCategory();
   const shown = summary.data;
   const currency = shown?.currency ?? 'EUR';
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
@@ -126,95 +99,93 @@ export function SpendingPage() {
     captures.reload();
     rules.reload();
   };
+  const expenseRows = (expenses: Expense[]) => (
+    <ul className="panel-rows">
+      {expenses.map((expense) => (
+        <MoneyRow
+          amount={<Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />}
+          detail={[
+            formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
+            expense.direction === 'transfer'
+              ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
+              : expense.direction === 'received'
+                ? 'Received'
+                : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
+            expense.direction !== 'transfer' && (expense.cardDigits ? cardName(expense.cardDigits, expense.accountId) : accountName(expense.accountId)),
+            expense.split && 'split',
+            expense.paymentLabel,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          key={expense.id}
+          onOpen={editable ? () => setDialog({ expense }) : undefined}
+          title={expense.title}
+        >
+          {editable && space?.kind === 'shared' && members.data && (
+            <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
+          )}
+        </MoneyRow>
+      ))}
+    </ul>
+  );
 
   return (
-    <Page
-      actions={
-        <>
-          {spaceId && (
-            <ActionsMenu
-              items={[
-                ...(editable
-                  ? [
-                      { label: 'Import a statement', onSelect: () => setDialog('import') },
-                      { label: 'Connect your phone', onSelect: () => setDialog('phone') },
-                      { label: 'Edit categories', onSelect: () => setDialog('categories') },
-                    ]
-                  : []),
-                { label: byCategory ? 'Hide spending by category' : 'Show spending by category', onSelect: () => showByCategory(!byCategory) },
-                {
-                  label: 'Export CSV',
-                  onSelect: () =>
-                    void action.run(async () => {
-                      saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export`, {}, readBlob), 'transactions.csv');
-                      return '';
-                    }, 'Could not export the transactions'),
-                },
-              ]}
-              name="spending"
-            />
-          )}
-          {editable && <Button icon="plus" label="Add expense" onClick={() => setDialog('new')} primary />}
-        </>
-      }
-      beside={
+    <SpendingFrame
+      accounts={accounts.data}
+      categories={categories.data}
+      currency={currency}
+      onChanged={() => {
+        categories.reload();
+        reload();
+      }}
+      tab={tab}
+      toolbar={
         tab !== 'accounts' && (
-          <PeriodNav
-            current={{
-              label: 'This month',
-              onSelect: () =>
-                setParams((current) => {
-                  const next = new URLSearchParams(current);
-                  next.delete('month');
-                  return next;
-                }),
-            }}
-            disabled={!shown}
-            onShift={(step) => go({ month: shiftMonth(shown!.month, step) })}
-            title={
-              shown &&
-              (shown.plan.startDay === 1
-                ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-                : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`)
-            }
-            unit="month"
-          />
+          <>
+            <PeriodNav
+              current={{
+                label: 'This month',
+                onSelect: () =>
+                  setParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.delete('month');
+                    return next;
+                  }),
+              }}
+              disabled={!shown}
+              onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
+              title={
+                shown &&
+                (shown.plan.startDay === 1
+                  ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+                  : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`)
+              }
+              unit="month"
+            />
+            {tab === 'transactions' && (cards.length > 0 || card) && (
+              <Select
+                aria-label="Card"
+                onChange={(next: string) =>
+                  setParams((current) => {
+                    const query = new URLSearchParams(current);
+                    if (next) query.set('card', next);
+                    else query.delete('card');
+                    return query;
+                  })
+                }
+                options={[
+                  { value: '', label: 'All cards' },
+                  ...cards.map(([digits, label]) => ({ value: digits, label })),
+                  ...(card && !cards.some(([digits]) => digits === card) ? [{ value: card, label: `•••• ${card}` }] : []),
+                ]}
+                size="small"
+                value={card ?? ''}
+              />
+            )}
+          </>
         )
       }
-      title="Spending"
     >
-      <Tabs
-        items={spendingTabs(tab, params.get('space'), (next) => {
-          const query = new URLSearchParams(params);
-          if (next === 'overview') query.delete('tab');
-          else query.set('tab', next);
-          return `/spending${query.size ? `?${query}` : ''}`;
-        })}
-        label="Spending"
-      />
-      <Toolbar actions={<SpaceChooser />}>
-        {tab === 'transactions' && (cards.length > 0 || card) && (
-          <Select
-            aria-label="Card"
-            onChange={(next: string) =>
-              setParams((current) => {
-                const query = new URLSearchParams(current);
-                if (next) query.set('card', next);
-                else query.delete('card');
-                return query;
-              })
-            }
-            options={[
-              { value: '', label: 'All cards' },
-              ...cards.map(([digits, label]) => ({ value: digits, label })),
-              ...(card && !cards.some(([digits]) => digits === card) ? [{ value: card, label: `•••• ${card}` }] : []),
-            ]}
-            size="small"
-            value={card ?? ''}
-          />
-        )}
-      </Toolbar>
-
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !shown ? (
@@ -223,25 +194,27 @@ export function SpendingPage() {
         <>
           {tab === 'overview' && (
             <Stats>
-              <Stat label="Spent" value={money(shown.spentMinor, currency)} />
+              <Stat label="Spent" value={<Amount currency={currency} minor={shown.spentMinor} />} />
               {shown.budgetMinor !== null && (
                 <>
                   <Stat
                     label="Left to spend"
                     value={
                       shown.spentMinor > shown.budgetMinor ? (
-                        <span className="text-danger">{money(shown.spentMinor - shown.budgetMinor, currency)} over</span>
+                        <Amount currency={currency} danger minor={shown.spentMinor - shown.budgetMinor}>
+                          {' over'}
+                        </Amount>
                       ) : (
-                        money(shown.budgetMinor - shown.spentMinor, currency)
+                        <Amount currency={currency} minor={shown.budgetMinor - shown.spentMinor} />
                       )
                     }
                   >
                     <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
                   </Stat>
-                  <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : money(shown.safeDailyMinor, currency)} />
+                  <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : <Amount currency={currency} minor={shown.safeDailyMinor} />} />
                 </>
               )}
-              <Stat label="Received" value={money(shown.receivedMinor, currency)} />
+              <Stat label="Received" value={<Amount currency={currency} minor={shown.receivedMinor} />} />
             </Stats>
           )}
           <MissingRates currencies={shown.missing} />
@@ -250,7 +223,7 @@ export function SpendingPage() {
             <Section title="By card">
               <Stats>
                 {cardTotals.map((total) => (
-                  <Stat key={total.key} label={total.label} value={money(total.spentMinor, total.currency)} />
+                  <Stat key={total.key} label={total.label} value={<Amount currency={total.currency} minor={total.spentMinor} />} />
                 ))}
               </Stats>
             </Section>
@@ -260,76 +233,72 @@ export function SpendingPage() {
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
                 {captures.data!.map((message) => (
-                  <li className="panel-row flex flex-wrap items-center gap-x-3 gap-y-2" key={message.id}>
-                    <span className="grid min-w-0 flex-1 basis-56">
-                      <span className="truncate text-ink">{message.suggestion.merchant ?? message.sender}</span>
-                      <span className="truncate text-sm text-muted" dir="auto">{message.text}</span>
-                    </span>
-                    {message.suggestion.cardDigits && <span className="shrink-0 text-sm text-muted">•••• {message.suggestion.cardDigits}</span>}
-                    {message.suggestion.amountMinor !== null && message.suggestion.currency && (
-                      <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />
-                    )}
+                  <MoneyRow
+                    amount={
+                      message.suggestion.amountMinor !== null &&
+                      message.suggestion.currency && <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />
+                    }
+                    detail={
+                      <>
+                        {message.suggestion.cardDigits && `•••• ${message.suggestion.cardDigits} · `}
+                        <span dir="auto">{message.text}</span>
+                      </>
+                    }
+                    key={message.id}
+                    title={message.suggestion.merchant ?? message.sender}
+                  >
                     {editable && (
                       <>
                         <Button label="Add" onClick={() => setDialog({ capture: message })} />
-                        <button
-                          className="text-button text-sm"
-                          disabled={action.busy}
-                          onClick={() =>
-                            void action.run(async () => {
-                              await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
-                              captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
-                              return '';
-                            }, 'Could not ignore the message')
-                          }
-                          type="button"
-                        >
-                          Ignore
-                        </button>
-                        {message.suggestion.merchant && (
-                          <button className="text-button text-sm" disabled={action.busy} onClick={() => setDialog({ ignoreMerchant: message })} type="button">
-                            Always ignore
-                          </button>
-                        )}
+                        <ActionsMenu
+                          items={[
+                            {
+                              label: 'Ignore',
+                              onSelect: () =>
+                                void action.run(async () => {
+                                  await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                                  captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
+                                  return `Ignored the message from ${message.suggestion.merchant ?? message.sender}.`;
+                                }, 'Could not ignore the message'),
+                            },
+                            ...(message.suggestion.merchant ? [{ label: 'Always ignore', onSelect: () => setDialog({ ignoreMerchant: message }) }] : []),
+                          ]}
+                          name={message.suggestion.merchant ?? message.sender}
+                        />
                       </>
                     )}
-                  </li>
+                  </MoneyRow>
                 ))}
               </ul>
             </Section>
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <Button label="Add account" onClick={() => setDialog({ account: null })} />} title="Accounts">
+            <Section action={editable && <Button icon="plus" label="New account" onClick={() => setDialog({ account: null })} />} title="Accounts">
               {accounts.error ? (
                 <LoadError compact error={accounts.error} onRetry={accounts.reload} />
-              ) : !accounts.data?.length ? (
-                <Hint>No accounts yet.</Hint>
+              ) : !accounts.data ? (
+                <ListSkeleton label="Loading the accounts" rows={2} />
+              ) : accounts.data.length === 0 ? (
+                <Empty level={3} title="No accounts yet">
+                  Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.
+                </Empty>
               ) : (
                 <ul className="panel-rows">
                   {accounts.data.map((account) => (
-                    <li className="panel-row flex items-center gap-3" key={account.id}>
-                      <RowText
-                        detail={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
-                        title={account.name}
-                      />
-                      <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
-                        {account.kind === 'credit' && ' owed'}
-                      </Amount>
-                      {editable && (
-                        <ActionsMenu
-                          items={[
-                            { label: 'Edit', onSelect: () => setDialog({ account }) },
-                            {
-                              label: 'Remove',
-                              separated: true,
-                              onSelect: () => setDialog({ removeAccount: account }),
-                            },
-                          ]}
-                          name={account.name}
-                        />
-                      )}
-                    </li>
+                    <MoneyRow
+                      amount={
+                        <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+                          {account.kind === 'credit' && ' owed'}
+                        </Amount>
+                      }
+                      detail={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
+                      key={account.id}
+                      onOpen={editable ? () => setDialog({ account }) : undefined}
+                      title={account.name}
+                    >
+                      {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
+                    </MoneyRow>
                   ))}
                 </ul>
               )}
@@ -337,55 +306,54 @@ export function SpendingPage() {
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <Button label="Add plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+            <Section action={editable && <Button icon="plus" label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
               {installments.error ? (
                 <LoadError compact error={installments.error} onRetry={installments.reload} />
               ) : !installments.data?.length ? (
-                <Hint>No installment plans.</Hint>
+                <Hint>No installment plans yet.</Hint>
               ) : (
                 <ul className="panel-rows">
                   {installments.data.map((plan) => (
-                    <li className="panel-row grid gap-2" key={plan.id}>
-                      <span className="flex items-center gap-3">
-                        <RowText title={plan.name}>
-                          <span className={plan.status === 'missed' ? 'text-sm text-danger' : 'text-sm text-muted'}>
-                            {plan.status === 'done'
-                              ? 'Paid off'
-                              : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
-                          </span>
-                        </RowText>
-                        <span className="shrink-0 text-sm text-muted">
+                    <MoneyRow
+                      amount={
+                        <span className="mono-sm shrink-0 text-faint">
                           {plan.paidCount} of {plan.count}
                         </span>
-                        {editable && (
-                          <ActionsMenu
-                            items={[
-                              ...(plan.status === 'done'
-                                ? []
-                                : [
-                                    {
-                                      label: 'Mark next payment paid',
-                                      onSelect: () =>
-                                        void action.run(async () => {
-                                          const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
-                                          installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
-                                          return '';
-                                        }, 'Could not mark the payment'),
-                                    },
-                                  ]),
-                              { label: 'Edit', onSelect: () => setDialog({ installment: plan }) },
-                              {
-                                label: 'Remove',
-                                separated: true,
-                                onSelect: () => setDialog({ removePlan: plan }),
-                              },
-                            ]}
-                            name={plan.name}
-                          />
-                        )}
-                      </span>
-                      <Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />
-                    </li>
+                      }
+                      detail={
+                        <span className={plan.status === 'missed' ? 'text-danger' : undefined}>
+                          {plan.status === 'done'
+                            ? 'Paid off'
+                            : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
+                        </span>
+                      }
+                      key={plan.id}
+                      meter={<Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />}
+                      onOpen={editable ? () => setDialog({ installment: plan }) : undefined}
+                      title={plan.name}
+                    >
+                      {editable && (
+                        <ActionsMenu
+                          items={[
+                            ...(plan.status === 'done'
+                              ? []
+                              : [
+                                  {
+                                    label: 'Mark next payment paid',
+                                    onSelect: () =>
+                                      void action.run(async () => {
+                                        const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
+                                        installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
+                                        return `Marked a ${plan.name} payment paid.`;
+                                      }, 'Could not mark the payment'),
+                                  },
+                                ]),
+                            { label: 'Delete', separated: true, onSelect: () => setDialog({ deletePlan: plan }) },
+                          ]}
+                          name={plan.name}
+                        />
+                      )}
+                    </MoneyRow>
                   ))}
                 </ul>
               )}
@@ -393,14 +361,7 @@ export function SpendingPage() {
           )}
 
           {tab === 'overview' && byCategory && (
-            <Section
-              action={
-                <button className="text-button text-sm" onClick={() => showByCategory(false)} type="button">
-                  Hide
-                </button>
-              }
-              title="By category"
-            >
+            <Section action={<TextButton label="Hide" onClick={() => showByCategory(false)} />} title="By category">
               {shown.categories.some((row) => row.spentMinor > 0) ? (
                 <CategoryChart colourOf={colourOf} currency={currency} rows={shown.categories} />
               ) : (
@@ -409,126 +370,85 @@ export function SpendingPage() {
             </Section>
           )}
 
-          {managing && (
+          {tab === 'budgets' && (
             <Section
               action={
                 editable && (
                   <span className="flex flex-wrap gap-2">
                     <Button label="Budget settings" onClick={() => setDialog('plan')} />
-                    <Button label="Set a budget" onClick={() => setDialog({ budget: null })} primary />
+                    <Button icon="plus" label="New budget" onClick={() => setDialog({ budget: null })} />
                   </span>
                 )
               }
               title="Budgets"
             >
               {!shown.budgets.length && shown.plan.budgetMinor === null ? (
-                <Empty title="No budgets yet">
-                  Budgets are optional. Give a category or the whole month a limit to see what is left and what you can spend each day.
+                <Empty level={3} title="No budgets yet">
+                  Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.
                 </Empty>
               ) : !shown.categories.some((row) => row.budgetMinor !== null) ? (
                 <Hint>No category has its own budget.</Hint>
               ) : (
                 <ul className="panel-rows">
-                  {shown.categories.filter((row) => row.budgetMinor !== null).map((row) => (
-                    <li className="panel-row grid gap-2" key={row.category}>
-                      <span className="flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-2 text-ink">
-                          <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
-                          {categoryName(row.category)}
-                        </span>
-                        <span className="flex items-center gap-2">
+                  {shown.categories
+                    .filter((row) => row.budgetMinor !== null)
+                    .map((row) => (
+                      <MoneyRow
+                        amount={
                           <Amount currency={currency} danger={row.spentMinor > row.budgetMinor!} minor={row.spentMinor}>
                             {` of ${money(row.budgetMinor!, currency)}`}
                             {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
                           </Amount>
-                          {editable && (
-                            <ActionsMenu
-                              items={[
-                                { label: 'Change the budget', onSelect: () => setDialog({ budget: row.category }) },
-                                { label: 'Remove the budget', separated: true, onSelect: () => setDialog({ removeBudget: row.category }) },
-                              ]}
-                              name={categoryName(row.category)}
-                            />
-                          )}
-                        </span>
-                      </span>
-                      <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />
-                    </li>
-                  ))}
+                        }
+                        key={row.category}
+                        meter={<Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
+                        onOpen={editable ? () => setDialog({ budget: row.category }) : undefined}
+                        title={
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
+                            {categoryName(row.category)}
+                          </span>
+                        }
+                      >
+                        {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteBudget: row.category }) }]} name={categoryName(row.category)} />}
+                      </MoneyRow>
+                    ))}
                 </ul>
               )}
             </Section>
           )}
 
-          {managing && Boolean(rules.data?.length) && (
+          {tab === 'budgets' && Boolean(rules.data?.length) && (
             <Section title="Merchant rules">
               <ul className="panel-rows">
                 {rules.data!.map((rule) => (
-                  <li className="panel-row flex items-center gap-3" key={rule.id}>
-                    <RowText
-                      detail={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
-                      title={rule.match}
-                    />
-                    {editable && (
-                      <button className="text-button text-sm" onClick={() => setDialog({ removeRule: rule })} type="button">
-                        Remove
-                      </button>
-                    )}
-                  </li>
+                  <MoneyRow
+                    detail={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
+                    key={rule.id}
+                    title={rule.match}
+                  >
+                    {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteRule: rule }) }]} name={rule.match} />}
+                  </MoneyRow>
                 ))}
               </ul>
             </Section>
           )}
 
-          {(tab === 'overview' || tab === 'transactions') && (
-            <Section
-              action={tab === 'overview' && shown.expenses.length > recentCount && <Button label="All transactions" onClick={() => go({ tab: 'transactions' })} />}
-              title={tab === 'overview' ? 'Recent' : 'Transactions'}
-            >
-              {listed.length === 0 ? (
-                <Empty level={3} title="Nothing this month" />
-              ) : (
-                <ul className="panel-rows">
-                  {(tab === 'overview' ? listed.slice(0, recentCount) : listed).map((expense) => (
-                    <li className="panel-row flex items-center gap-3" key={expense.id}>
-                      <button
-                        className="grid min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-                        disabled={!editable}
-                        onClick={() => setDialog({ expense })}
-                        type="button"
-                      >
-                        <span className="truncate text-ink">{expense.title}</span>
-                        <span className="truncate text-sm text-muted">
-                          {[
-                            formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
-                            expense.direction === 'transfer'
-                              ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
-                              : expense.direction === 'received'
-                                ? 'Received'
-                                : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
-                            expense.direction !== 'transfer' && (expense.cardDigits ? cardName(expense.cardDigits, expense.accountId) : accountName(expense.accountId)),
-                            expense.split && 'split',
-                            expense.paymentLabel,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                      </button>
-                      <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
-                      {editable && space?.kind === 'shared' && members.data && (
-                        <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {tab === 'overview' && (
+            <Section action={shown.expenses.length > recentCount && <ButtonLink label="All transactions" to={spendingHref('transactions', params)} />} title="Recent">
+              {shown.expenses.length === 0 ? <Hint>No transactions this month yet.</Hint> : expenseRows(shown.expenses.slice(0, recentCount))}
             </Section>
           )}
+
+          {tab === 'transactions' &&
+            (listed.length === 0 ? (
+              <Empty title="No transactions this month">Add an expense, import a statement or connect your phone to see this month’s spending here.</Empty>
+            ) : (
+              expenseRows(listed)
+            ))}
         </>
       )}
 
-      {spaceId && dialog === 'new' && <ExpenseEditor accounts={accounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />}
-      {spaceId && dialog === 'import' && <ExpenseImport currency={currency} onAdded={() => summary.reload()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
       {spaceId && typeof dialog === 'object' && 'expense' in dialog && (
         <ExpenseEditor
           accounts={accounts.data ?? []}
@@ -553,7 +473,6 @@ export function SpendingPage() {
       {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
         <ExpenseEditor accounts={accounts.data ?? []} capture={dialog.capture} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}
-      {spaceId && space && dialog === 'phone' && <PhoneSetup onClose={() => setDialog(undefined)} spaceId={spaceId} spaceName={space.name} />}
       {spaceId && typeof dialog === 'object' && 'account' in dialog && (
         <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}
@@ -579,12 +498,9 @@ export function SpendingPage() {
         />
       )}
       {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
-      {spaceId && categories.data && dialog === 'categories' && (
-        <CategoriesEditor categories={categories.data} onClose={() => setDialog(undefined)} onSaved={() => (categories.reload(), reload())} spaceId={spaceId} />
-      )}
       {typeof dialog === 'object' && 'ignoreMerchant' in dialog && (
         <ConfirmDialog
-          busyLabel="Saving…"
+          busyLabel="Ignoring…"
           confirmLabel="Always ignore"
           errorFallback="Could not ignore the merchant"
           onClose={() => setDialog(undefined)}
@@ -595,77 +511,83 @@ export function SpendingPage() {
             });
             await auth.request(`/captures/${dialog.ignoreMerchant.id}/ignore`, { method: 'POST' });
             reload();
+            action.report(`Ignored ${dialog.ignoreMerchant.suggestion.merchant} from now on.`);
           }}
           title={`Always ignore ${dialog.ignoreMerchant.suggestion.merchant}?`}
+          tone="danger"
         >
-          This message and every later one from {dialog.ignoreMerchant.suggestion.merchant} are skipped. You can remove the rule under Budgets.
+          This message and every later one from {dialog.ignoreMerchant.suggestion.merchant} are skipped. You can delete the rule under Budgets.
         </ConfirmDialog>
       )}
-      {typeof dialog === 'object' && 'removeAccount' in dialog && (
+      {typeof dialog === 'object' && 'deleteAccount' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove account"
-          errorFallback="Could not remove the account"
+          busyLabel="Deleting…"
+          confirmLabel="Delete account"
+          errorFallback="Could not delete the account"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/accounts/${dialog.removeAccount.id}`, { method: 'DELETE' });
+            await auth.request(`/accounts/${dialog.deleteAccount.id}`, { method: 'DELETE' });
             reload();
+            action.report(`Deleted ${dialog.deleteAccount.name}.`);
           }}
-          title={`Remove ${dialog.removeAccount.name}?`}
+          title={`Delete ${dialog.deleteAccount.name}?`}
           tone="danger"
         >
           Its transactions stay, but no longer belong to an account. Transfers show “Removed account” instead.
         </ConfirmDialog>
       )}
-      {typeof dialog === 'object' && 'removePlan' in dialog && (
+      {typeof dialog === 'object' && 'deletePlan' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove plan"
-          errorFallback="Could not remove the plan"
+          busyLabel="Deleting…"
+          confirmLabel="Delete plan"
+          errorFallback="Could not delete the plan"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/installments/${dialog.removePlan.id}`, { method: 'DELETE' });
-            installments.mutate((current) => current.filter((shown) => shown.id !== dialog.removePlan.id));
+            await auth.request(`/installments/${dialog.deletePlan.id}`, { method: 'DELETE' });
+            installments.mutate((current) => current.filter((shown) => shown.id !== dialog.deletePlan.id));
+            action.report(`Deleted ${dialog.deletePlan.name}.`);
           }}
-          title={`Remove ${dialog.removePlan.name}?`}
+          title={`Delete ${dialog.deletePlan.name}?`}
           tone="danger"
         >
           Its reminders stop and the payments marked so far are forgotten.
         </ConfirmDialog>
       )}
-      {typeof dialog === 'object' && 'removeBudget' in dialog && (
+      {typeof dialog === 'object' && 'deleteBudget' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove budget"
-          errorFallback="Could not remove the budget"
+          busyLabel="Deleting…"
+          confirmLabel="Delete budget"
+          errorFallback="Could not delete the budget"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(dialog.removeBudget)}`, { method: 'DELETE' });
+            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(dialog.deleteBudget)}`, { method: 'DELETE' });
             summary.reload();
+            action.report(`Deleted the ${categoryName(dialog.deleteBudget).toLowerCase()} budget.`);
           }}
-          title={`Remove the ${categoryName(dialog.removeBudget).toLowerCase()} budget?`}
+          title={`Delete the ${categoryName(dialog.deleteBudget).toLowerCase()} budget?`}
           tone="danger"
         >
           Spending in this category is still tracked, without a limit.
         </ConfirmDialog>
       )}
-      {typeof dialog === 'object' && 'removeRule' in dialog && (
+      {typeof dialog === 'object' && 'deleteRule' in dialog && (
         <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove rule"
-          errorFallback="Could not remove the rule"
+          busyLabel="Deleting…"
+          confirmLabel="Delete rule"
+          errorFallback="Could not delete the rule"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/merchant-rules/${dialog.removeRule.id}`, { method: 'DELETE' });
-            rules.mutate((current) => current.filter((shown) => shown.id !== dialog.removeRule.id));
+            await auth.request(`/merchant-rules/${dialog.deleteRule.id}`, { method: 'DELETE' });
+            rules.mutate((current) => current.filter((shown) => shown.id !== dialog.deleteRule.id));
+            action.report(`Deleted the rule for ${dialog.deleteRule.match}.`);
           }}
-          title={`Remove the rule for ${dialog.removeRule.match}?`}
+          title={`Delete the rule for ${dialog.deleteRule.match}?`}
           tone="danger"
         >
           Transactions it has already changed stay as they are.
         </ConfirmDialog>
       )}
-    </Page>
+    </SpendingFrame>
   );
 }
 
@@ -681,7 +603,7 @@ function CategoryChart({ colourOf, currency, rows }: { colourOf: (category: stri
 
   return (
     <div className="grid gap-4">
-      <div aria-hidden="true" className="flex h-4 gap-0.5 overflow-hidden rounded">
+      <div aria-hidden="true" className="flex h-4 gap-0.5 overflow-hidden rounded-field">
         {parts.map((part) => (
           <span
             className={`tag-${part.colour} min-w-1`}
@@ -733,7 +655,7 @@ function BudgetDialog({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={category ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (!form.check(target, { amount: [required('Enter the monthly amount.'), moneyAmount] })) return;
@@ -742,16 +664,23 @@ function BudgetDialog({
           .run(async () => {
             await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(chosen)}`, { method: 'PUT', body: JSON.stringify({ amountMinor, currency: chosenCurrency }) });
             onSaved();
-            return `The ${categoryName(chosen).toLowerCase()} budget is ${money(amountMinor, chosenCurrency)} a month.`;
+            return `${category ? 'Saved' : 'Added'} the ${categoryName(chosen).toLowerCase()} budget.`;
           }, 'Could not save the budget')
           .then((done) => done && onClose());
       }}
-      submitLabel="Save budget"
-      title={category ? `${categoryName(category)} budget` : 'Set a budget'}
+      submitLabel={category ? 'Save' : 'Add budget'}
+      title={category ? 'Edit budget' : 'New budget'}
     >
       {!category && <CategoryChips categories={categories} onChange={setChosen} value={chosen} />}
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField autoFocus defaultValue={existing ? fromMinor(existing.amountMinor, existing.currency) : ''} inputMode="decimal" key={chosen} label="Each month" {...form.field('amount')} />
+        <TextField
+          autoFocus
+          defaultValue={existing ? fromMinor(existing.amountMinor, existing.currency) : ''}
+          inputMode="decimal"
+          key={chosen}
+          label={category ? `${categoryName(category)} each month` : 'Each month'}
+          {...form.field('amount')}
+        />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
     </FormDialog>
@@ -783,7 +712,7 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
           .run(async () => {
             await auth.request(`/spaces/${spaceId}/spending-plan`, { method: 'PUT', body: JSON.stringify(body) });
             onSaved();
-            return 'Budget settings saved.';
+            return 'Saved the budget settings.';
           }, 'Could not save the budget settings')
           .then((done) => done && onClose());
       }}
@@ -802,7 +731,7 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
       <DayOfMonthField defaultValue={plan.startDay === 1 ? '' : String(plan.startDay)} emptyLabel="The 1st (calendar month)" label="Months start on" last={28} name="startDay" />
-      <Toggle checked={rollover} label="Carry what is left into next month" onChange={setRollover} />
+      <Toggle checked={rollover} label="Carry what’s left into next month" onChange={setRollover} />
     </FormDialog>
   );
 }

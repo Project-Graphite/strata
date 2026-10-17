@@ -4,12 +4,15 @@ import { DashboardHome } from '../dashboard/Dashboard';
 import { ButtonLink } from '../components/Button';
 
 const areas: [IconName, string, string][] = [
-  ['check-mark', 'To-do', 'Lists, repeats, reminders and a Today view.'],
-  ['calendar', 'Agenda', 'Events, RSVPs, due tasks and renewals together.'],
+  ['check-mark', 'Tasks', 'Lists, due dates, repeats and reminders.'],
+  ['calendar', 'Agenda', 'Today at a glance, with events, RSVPs, due tasks and renewals.'],
   ['file', 'Pages', 'Notes, checklists, tables and anything you write.'],
-  ['pencil', 'Journal', 'A mood for each day and a weekly review.'],
-  ['wallet', 'Spending', 'Expenses, budgets and what each subscription costs.'],
+  ['board', 'Boards', 'Whiteboards for sketches, plans and ideas.'],
   ['bookmark', 'Bookmarks', 'Links and articles saved to read later.'],
+  ['pencil', 'Journal', 'A mood for each day and a weekly review.'],
+  ['library', 'Files', 'Documents, photos and anything else you upload.'],
+  ['wallet', 'Spending', 'Expenses and budgets, plus recurring subscriptions and bills.'],
+  ['folder', 'Spaces', 'Share tasks, pages and boards with people you choose.'],
 ];
 
 export function HomePage() {
@@ -22,7 +25,7 @@ export function HomePage() {
   }
   return (
     <section className="page-enter">
-      <h1 className="page-heading max-w-3xl">Tasks, events, subscriptions and files in one place.</h1>
+      <h1 className="page-heading max-w-3xl">Tasks, agenda, pages, spending and files in one place</h1>
       <p className="mt-5 max-w-2xl text-lg text-muted">Free and open source, from Project Graphite.</p>
       <div className="mt-8 flex flex-wrap gap-3">
         <ButtonLink label="Create account" large primary to="/register" />
@@ -30,7 +33,7 @@ export function HomePage() {
       </div>
       <ul className="mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map(([icon, name, description]) => (
-          <li className="rounded-xl border border-line bg-surface p-5" key={name}>
+          <li className="rounded-panel border border-line bg-surface p-4" key={name}>
             <h2 className="m-0 flex items-center gap-2 text-lg font-medium">
               <Icon name={icon} size={18} />
               {name}

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { Tabs } from '@project-graphite/ui';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import type { TimeFormat } from '../../time';
@@ -49,14 +48,12 @@ export function SettingsRow({ action, children, label }: { action?: ReactNode; c
 
 export function SettingsLayout() {
   const { pathname } = useLocation();
-  const tab = tabs.find(([href]) => href === pathname);
   return (
-    <Page documentTitle={tab && `${tab[1]} · Settings`} title="Settings">
-      <Tabs items={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} label="Settings" />
-      <div className="fade-in grid max-w-3xl gap-10">
+    <Page tabs={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} title="Settings">
+      <div className="grid max-w-3xl gap-8">
         <Outlet />
-        <AboutLinks className="md:hidden" />
       </div>
+      <AboutLinks />
     </Page>
   );
 }

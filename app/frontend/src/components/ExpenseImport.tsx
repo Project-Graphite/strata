@@ -25,7 +25,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
   const chosen = statement.charges.filter((_, index) => !skipped.has(String(index)));
 
   return (
-    <Dialog onClose={onClose} title="Import spending from a statement">
+    <Dialog onClose={onClose} title="Import expenses from a statement">
       <div className="mt-5 grid gap-4">
         <Hint>Choose a CSV export from your bank or card. It is read on this device, and only the charges you keep are saved.</Hint>
         {statement.picker}
@@ -37,7 +37,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             </div>
             <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={category} />
             <Hint>
-              {statement.charges.length} charge{statement.charges.length === 1 ? '' : 's'} read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you do not want.
+              {statement.charges.length} charge{statement.charges.length === 1 ? '' : 's'} read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you don’t want.
             </Hint>
             {statement.charges.length > 0 && (
               <ul className="panel-rows max-h-72 overflow-y-auto">
@@ -55,7 +55,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
           </>
         )}
         <DialogActions>
-          <Button label="Cancel" large onClick={onClose} />
+          <Button disabled={adding.busy} label="Cancel" large onClick={onClose} />
           <Button
             disabled={chosen.length === 0 || adding.busy}
             label={adding.busy ? 'Adding…' : `Add ${chosen.length} expense${chosen.length === 1 ? '' : 's'}`}

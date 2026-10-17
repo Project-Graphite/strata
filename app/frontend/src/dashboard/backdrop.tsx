@@ -70,7 +70,7 @@ export function useBackdrop(background?: Background) {
   }, [background?.imageId, request]);
 
   return {
-    className: background?.colour ? `dashboard-backdrop-colour tag-${background.colour}` : image ? 'dashboard-backdrop-image' : '',
+    className: background?.colour ? `dashboard-backdrop-color tag-${background.colour}` : image ? 'dashboard-backdrop-image' : '',
     image: image && `url(${image})`,
   };
 }

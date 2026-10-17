@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { ConfirmDialog, FormSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
-import { LoadError } from '../../components/LoadError';
+import { ActionsMenu } from '../../components/ActionsMenu';
+import { Hint } from '../../components/Hint';
 import { spaceOptions, useSpaces } from '../../spaces';
 import { useAction } from '../../useAction';
-import { useResource } from '../../useResource';
+import type { Resource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { SecretDialog } from '../../components/Copyable';
 
-interface ApiReference {
+export interface ApiReference {
   basePath: string;
   scopes: { scope: string; routes: { method: string; path: string }[] }[];
 }
 
-interface Webhook {
+export interface Webhook {
   id: string;
   spaceId: string | null;
   host: string;
@@ -43,20 +44,15 @@ function deliveryText(webhook: Webhook) {
   return `${last.error ? `failed (${last.error})` : `answered ${last.status}`} ${timeAgo(last.createdAt)}`;
 }
 
-export function ApiSettings() {
+export function ApiSettings({ reference, webhooks }: { reference: ApiReference; webhooks: Resource<Webhook[]> }) {
   const auth = useAuth();
   const spaces = useSpaces();
-  const reference = useResource<ApiReference>('/me/api-reference', true);
-  const webhooks = useResource<Webhook[]>('/me/webhooks', true);
   const action = useAction();
   const form = useFormErrors();
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState('');
   const [removing, setRemoving] = useState<Webhook>();
 
-  if (reference.error) return <LoadError error={reference.error} onRetry={reference.reload} />;
-  if (webhooks.error) return <LoadError error={webhooks.error} onRetry={webhooks.reload} />;
-  if (!reference.data || !webhooks.data) return <FormSkeleton fields={2} />;
   const replace = (saved: Webhook) => webhooks.mutate((current) => current.map((webhook) => (webhook.id === saved.id ? saved : webhook)));
 
   return (
@@ -64,11 +60,11 @@ export function ApiSettings() {
       <Section title="Personal API">
         <div className="grid gap-3 text-sm text-muted">
           <p className="m-0">
-            Send requests to <code className="mono-sm text-ink">{`${window.location.origin}${reference.data.basePath}`}</code> with the header{' '}
+            Send requests to <code className="mono-sm text-ink">{`${window.location.origin}${reference.basePath}`}</code> with the header{' '}
             <code className="mono-sm text-ink">Authorization: Bearer strata_pat_…</code>. Create a token above; each permission opens these endpoints.
           </p>
-          {reference.data.scopes.map(({ scope, routes }) => (
-            <details className="rounded-lg border border-line p-3" key={scope}>
+          {reference.scopes.map(({ scope, routes }) => (
+            <details className="rounded-panel border border-line p-3" key={scope}>
               <summary className="text-ink">
                 <span>
                   <span className="mono-sm">{scope}</span> · {routes.length} endpoint{routes.length === 1 ? '' : 's'}
@@ -93,41 +89,40 @@ export function ApiSettings() {
         }
         title="Webhooks"
       >
-        <p className="mt-0 mb-3 text-sm text-muted">
+        <p className="m-0 text-sm text-muted">
           Strata posts JSON to your address when something happens in your spaces, signed with your webhook’s secret in <code className="mono-sm">X-Strata-Signature</code>{' '}
           (HMAC-SHA256 of the timestamp, a dot and the body). Failed deliveries are retried 5 times.
         </p>
-        {webhooks.data.length > 0 && (
+        {webhooks.data!.length === 0 ? (
+          <Hint>No webhooks yet.</Hint>
+        ) : (
           <SettingsRows>
-            {webhooks.data.map((webhook) => (
+            {webhooks.data!.map((webhook) => (
               <SettingsRow
                 action={
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      disabled={action.busy}
-                      label="Send a test"
-                      onClick={() =>
-                        void action.run(async () => {
-                          const sent = await auth.request<{ status: number | null; error: string | null }>(`/me/webhooks/${webhook.id}/ping`, { method: 'POST' });
-                          webhooks.reload();
-                          return sent.error ? `The test failed: ${sent.error}` : `The test was delivered (${sent.status}).`;
-                        }, 'Could not send the test')
-                      }
-                    />
-                    <Button
-                      disabled={action.busy}
-                      label={webhook.active ? 'Pause' : 'Resume'}
-                      onClick={() =>
-                        void action.run(async () => {
-                          replace(await auth.request<Webhook>(`/me/webhooks/${webhook.id}`, { method: 'PATCH', body: JSON.stringify({ active: !webhook.active }) }));
-                          return '';
-                        }, 'Could not change the webhook')
-                      }
-                    />
-                    <button className="text-button text-sm" onClick={() => setRemoving(webhook)} type="button">
-                      Delete
-                    </button>
-                  </div>
+                  <ActionsMenu
+                    items={[
+                      {
+                        label: 'Send a test',
+                        onSelect: () =>
+                          void action.run(async () => {
+                            const sent = await auth.request<{ status: number | null; error: string | null }>(`/me/webhooks/${webhook.id}/ping`, { method: 'POST' });
+                            webhooks.reload();
+                            return sent.error ? `The test failed: ${sent.error}` : `The test was delivered (${sent.status}).`;
+                          }, 'Could not send the test'),
+                      },
+                      {
+                        label: webhook.active ? 'Pause' : 'Resume',
+                        onSelect: () =>
+                          void action.run(async () => {
+                            replace(await auth.request<Webhook>(`/me/webhooks/${webhook.id}`, { method: 'PATCH', body: JSON.stringify({ active: !webhook.active }) }));
+                            return webhook.active ? `Paused the webhook to ${webhook.host}.` : `Resumed the webhook to ${webhook.host}.`;
+                          }, 'Could not change the webhook'),
+                      },
+                      { label: 'Delete', onSelect: () => setRemoving(webhook), separated: true },
+                    ]}
+                    name={`the webhook to ${webhook.host}`}
+                  />
                 }
                 key={webhook.id}
                 label={`${webhook.host}${webhook.active ? '' : ' (paused)'}`}
@@ -197,13 +192,14 @@ export function ApiSettings() {
 
       {removing && (
         <ConfirmDialog
-          confirmLabel="Delete"
+          busyLabel="Deleting…"
+          confirmLabel="Delete webhook"
           errorFallback="Could not delete the webhook"
           onClose={() => setRemoving(undefined)}
           onConfirm={async () => {
             await auth.request(`/me/webhooks/${removing.id}`, { method: 'DELETE' });
             webhooks.mutate((current) => current.filter((webhook) => webhook.id !== removing.id));
-            setRemoving(undefined);
+            action.report(`Deleted the webhook to ${removing.host}.`);
           }}
           title={`Delete the webhook to ${removing.host}?`}
           tone="danger"

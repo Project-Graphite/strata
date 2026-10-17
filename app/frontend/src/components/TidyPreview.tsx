@@ -6,6 +6,7 @@ import { useAction } from '../useAction';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
+import { RowText } from './RowText';
 
 export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
 
@@ -37,11 +38,11 @@ interface Preview {
   skipped: Skipped[];
 }
 
-const confirmLabels: Record<TidyAction, string> = {
-  archive: 'Archive',
-  trash: 'Move to the trash',
-  tag: 'Add the tag',
-  cancel: 'Cancel them',
+const confirmLabels: Record<TidyAction, { label: string; busy: string }> = {
+  archive: { label: 'Archive', busy: 'Archiving…' },
+  trash: { label: 'Move to trash', busy: 'Moving…' },
+  tag: { label: 'Add the tag', busy: 'Adding…' },
+  cancel: { label: 'Cancel them', busy: 'Cancelling…' },
 };
 
 export const itemsText = (count: number) => `${count} item${count === 1 ? '' : 's'}`;
@@ -93,61 +94,63 @@ export function TidyPreview({
 
   return (
     <Dialog onClose={onClose} title="Check before you tidy">
-      {error ? (
-        <p className="error-message mt-5">{error}</p>
-      ) : !preview ? (
-        <ListSkeleton label="Checking the items" rows={3} />
-      ) : (
-        <div className="mt-5 grid gap-6">
-          {preview.changes.length > 0 ? (
-            <section className="grid gap-2">
-              <Subheading>{changeHeading(request.action, preview.changes.length)}</Subheading>
-              <ul className="panel-rows max-h-60 overflow-y-auto">
-                {preview.changes.map((change) => (
-                  <li className="truncate panel-row text-ink" key={change.id}>
-                    {change.title || 'Untitled'}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : (
-            <p className="m-0 text-muted">Nothing here will change.</p>
-          )}
-          {preview.skipped.length > 0 && (
-            <section className="grid gap-2">
-              <Subheading>{itemsText(preview.skipped.length)} will be left alone</Subheading>
-              <ul className="panel-rows max-h-40 overflow-y-auto">
-                {preview.skipped.map((entry) => (
-                  <li className="truncate panel-row text-ink" key={entry.id}>
-                    {entry.title || 'An item you cannot open'} <span className="mono-sm text-faint">· {entry.reason}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          <DialogActions>
-            <Button label="Close" large onClick={onClose} />
-            {preview.changes.length > 0 && (
-              <Button
-                disabled={applying.busy}
-                label={applying.busy ? 'Working…' : confirmLabels[request.action]}
-                large
-                onClick={() =>
-                  void applying.run(async () => {
-                    const applied = await send<{ batch: TidyBatch | null }>('/tidy/apply', {
-                      method: 'POST',
-                      body: JSON.stringify(request),
-                    });
-                    onApplied(applied.batch);
-                    return '';
-                  }, 'Could not tidy these items')
-                }
-                primary
-              />
+      <div className="mt-5 grid gap-6">
+        {error ? (
+          <p className="error-message m-0">{error}</p>
+        ) : !preview ? (
+          <ListSkeleton label="Checking the items" rows={3} />
+        ) : (
+          <>
+            {preview.changes.length > 0 ? (
+              <section className="grid gap-2">
+                <Subheading>{changeHeading(request.action, preview.changes.length)}</Subheading>
+                <ul className="panel-rows max-h-60 overflow-y-auto">
+                  {preview.changes.map((change) => (
+                    <li className="panel-row" key={change.id}>
+                      <RowText title={change.title || 'Untitled'} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : (
+              <p className="m-0 text-muted">Nothing here will change.</p>
             )}
-          </DialogActions>
-        </div>
-      )}
+            {preview.skipped.length > 0 && (
+              <section className="grid gap-2">
+                <Subheading>{itemsText(preview.skipped.length)} will be left alone</Subheading>
+                <ul className="panel-rows max-h-40 overflow-y-auto">
+                  {preview.skipped.map((entry) => (
+                    <li className="panel-row" key={entry.id}>
+                      <RowText detail={entry.reason} title={entry.title || 'An item you can’t open'} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
+        <DialogActions>
+          <Button disabled={applying.busy} label="Cancel" large onClick={onClose} />
+          {preview && preview.changes.length > 0 && (
+            <Button
+              disabled={applying.busy}
+              label={applying.busy ? confirmLabels[request.action].busy : confirmLabels[request.action].label}
+              large
+              onClick={() =>
+                void applying.run(async () => {
+                  const applied = await send<{ batch: TidyBatch | null }>('/tidy/apply', {
+                    method: 'POST',
+                    body: JSON.stringify(request),
+                  });
+                  onApplied(applied.batch);
+                  return '';
+                }, 'Could not tidy these items')
+              }
+              primary
+            />
+          )}
+        </DialogActions>
+      </div>
     </Dialog>
   );
 }

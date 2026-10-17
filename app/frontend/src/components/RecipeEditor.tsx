@@ -35,7 +35,7 @@ export function RecipeEditor({
   return (
     <FormDialog
       busy={saving.busy}
-      busyLabel="Saving…"
+      busyLabel={recipe ? 'Saving…' : 'Adding…'}
       onClose={onClose}
       onSubmit={(target) => {
         if (
@@ -67,12 +67,12 @@ export function RecipeEditor({
                 body: JSON.stringify(body),
               }),
             );
-            return recipe ? '' : `Added ${body.title}.`;
+            return `${recipe ? 'Saved' : 'Added'} ${body.title}.`;
           }, 'Could not save the recipe')
           .then((saved) => saved && onClose());
       }}
       submitLabel={recipe ? 'Save' : 'Add recipe'}
-      title={recipe ? `Edit ${recipe.title}` : 'New recipe'}
+      title={recipe ? 'Edit recipe' : 'New recipe'}
     >
       <TextField autoFocus defaultValue={start?.title} label="Name" maxLength={200} {...form.field('title')} />
       {!recipe && spaces.length > 1 && <Select defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id} label="Space" name="spaceId" options={spaceOptions(spaces)} />}

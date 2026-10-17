@@ -5,7 +5,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { timeOptions } from '../time';
-import { Empty } from './Empty';
+import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 
@@ -30,7 +30,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
         ) : !versions.data ? (
           <ListSkeleton label="Loading the history" rows={3} />
         ) : versions.data.length === 0 ? (
-          <Empty level={3} title="No earlier versions yet" />
+          <Hint>No earlier versions yet.</Hint>
         ) : (
           <>
             <ul className="panel-rows max-h-56 overflow-y-auto">
@@ -43,7 +43,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                     type="button"
                   >
                     <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...timeOptions() })}</span>
-                    <span className="mono-sm text-faint">
+                    <span className="text-faint">
                       {version.createdBy ?? 'Someone'} · {timeAgo(version.createdAt)}
                     </span>
                   </button>
@@ -56,31 +56,31 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
               ) : !preview.data || preview.data.id !== chosen ? (
                 <ListSkeleton label="Loading this version" rows={2} />
               ) : (
-                <div className="max-h-56 overflow-y-auto rounded-lg border border-line p-4 text-sm whitespace-pre-wrap break-words text-ink">
+                <div className="max-h-56 overflow-y-auto rounded-field border border-line p-4 text-sm whitespace-pre-wrap break-words text-ink">
                   {preview.data.text || 'This version is empty.'}
                 </div>
               ))}
-            <DialogActions>
-              <Button label="Close" large onClick={onClose} />
-              {editable && (
-                <Button
-                  disabled={!chosen || restoring.busy}
-                  label={restoring.busy ? 'Restoring…' : 'Restore this version'}
-                  large
-                  onClick={() =>
-                    void restoring
-                      .run(async () => {
-                        await auth.request(`/notes/${noteId}/versions/${chosen}/restore`, { method: 'POST' });
-                        return 'Restored. The page as it was just before is kept in the history.';
-                      }, 'Could not restore that version')
-                      .then((done) => done && onClose())
-                  }
-                  primary
-                />
-              )}
-            </DialogActions>
           </>
         )}
+        <DialogActions>
+          <Button label="Done" large onClick={onClose} />
+          {editable && (
+            <Button
+              disabled={!chosen || restoring.busy}
+              label={restoring.busy ? 'Restoring…' : 'Restore this version'}
+              large
+              onClick={() =>
+                void restoring
+                  .run(async () => {
+                    await auth.request(`/notes/${noteId}/versions/${chosen}/restore`, { method: 'POST' });
+                    return 'Restored. The page as it was just before is kept in the history.';
+                  }, 'Could not restore that version')
+                  .then((done) => done && onClose())
+              }
+              primary
+            />
+          )}
+        </DialogActions>
       </div>
     </Dialog>
   );

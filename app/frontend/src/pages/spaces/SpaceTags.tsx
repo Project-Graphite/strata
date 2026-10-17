@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { ConfirmDialog, ListSkeleton, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
@@ -23,46 +24,48 @@ export function SpaceTags() {
   const space = useSpace();
   const tags = useResource<Tag[]>(`/spaces/${space.id}/tags`, true);
   const saving = useAction();
+  const { report } = saving;
   const form = useFormErrors();
   const [editing, setEditing] = useState<Tag | 'new'>();
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
 
-  if (tags.error) return <LoadError error={tags.error} onRetry={tags.reload} />;
-  if (!tags.data) return <ListSkeleton label="Loading the tags in this space" rows={3} />;
-
   return (
     <>
-      <div className="grid gap-4">
-        <Toolbar actions={editable && <Button icon="plus" label="New tag" onClick={() => setEditing('new')} primary />} />
-        {tags.data.length === 0 ? (
-          <Empty title="No tags yet" />
-        ) : (
-          <ul className="panel-rows">
-            {tags.data.map((tag) => (
-              <li className="panel-row flex items-center justify-between gap-4" key={tag.id}>
+      {editable && <Toolbar actions={<Button icon="plus" label="New tag" onClick={() => setEditing('new')} />} />}
+      {tags.error ? (
+        <LoadError error={tags.error} onRetry={tags.reload} />
+      ) : !tags.data ? (
+        <ListSkeleton label="Loading the tags in this space" rows={3} />
+      ) : tags.data.length === 0 ? (
+        <Empty title="No tags yet">Tags you make here can be added to anything in this space.</Empty>
+      ) : (
+        <ul className="panel-rows">
+          {tags.data.map((tag) => (
+            <li className="flex items-center pe-2 hover:bg-line-soft" key={tag.id}>
+              <Link aria-label={`Items tagged ${tag.name}`} className="flex min-w-0 flex-1 items-center panel-row no-underline" to={`/spaces/${space.id}?tag=${tag.id}`}>
                 <TagChip color={tag.color} label={tag.name} />
-                {editable && (
-                  <ActionsMenu
-                    items={[
-                      { label: 'Edit', onSelect: () => setEditing(tag) },
-                      { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
-                    ]}
-                    name={tag.name}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              </Link>
+              {editable && (
+                <ActionsMenu
+                  items={[
+                    { label: 'Edit', onSelect: () => setEditing(tag) },
+                    { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
+                  ]}
+                  name={tag.name}
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
+      {tags.data && auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
 
       {editing && (
         <FormDialog
           busy={saving.busy}
-          busyLabel="Saving…"
+          busyLabel={editing === 'new' ? 'Adding…' : 'Saving…'}
           onClose={() => setEditing(undefined)}
           onSubmit={(target) => {
             if (!form.check(target, { name: tagNameChecks })) return;
@@ -75,12 +78,12 @@ export function SpaceTags() {
                 }
                 const updated = await auth.request<Tag>(`/tags/${editing.id}`, { method: 'PATCH', body: JSON.stringify(nameAndColorFrom(target)) });
                 tags.mutate((current) => current.map((tag) => (tag.id === updated.id ? updated : tag)).sort(byName));
-                return '';
+                return `Saved ${updated.name}.`;
               }, editing === 'new' ? 'Could not add the tag' : 'Could not save the tag')
               .then((saved) => saved && setEditing(undefined));
           }}
           submitLabel={editing === 'new' ? 'Add tag' : 'Save'}
-          title={editing === 'new' ? 'New tag' : `Edit ${editing.name}`}
+          title={editing === 'new' ? 'New tag' : 'Edit tag'}
         >
           <NameAndColorFields
             color={editing === 'new' ? undefined : editing.color}
@@ -100,11 +103,12 @@ export function SpaceTags() {
           onConfirm={async () => {
             await auth.request(`/tags/${deleting.id}`, { method: 'DELETE' });
             tags.mutate((current) => current.filter((tag) => tag.id !== deleting.id));
+            report(`Deleted ${deleting.name}.`);
           }}
           title={`Delete ${deleting.name}?`}
           tone="danger"
         >
-          The tag is removed from every item in this space. The items themselves stay.
+          It comes off every item in this space, and the items themselves stay.
         </ConfirmDialog>
       )}
     </>

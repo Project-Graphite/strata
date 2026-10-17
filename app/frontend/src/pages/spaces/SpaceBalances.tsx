@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { formatDay, ListSkeleton } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, ListSkeleton } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
+import { Section } from '../../components/Page';
+import { RowText } from '../../components/RowText';
 import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -26,6 +29,7 @@ interface Balances {
   settlements: (Debt & { id: string })[];
 }
 
+const payment = (debt: Debt) => `${money(debt.amountMinor, debt.currency)} from ${debt.fromName} to ${debt.toName}`;
 
 export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const auth = useAuth();
@@ -33,33 +37,33 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const [month, setMonth] = useState(() => dayKey(new Date()).slice(0, 7));
   const balances = useResource<Balances>(`/spaces/${spaceId}/balances?month=${month}`, true);
   const action = useAction();
+  const [deleting, setDeleting] = useState<Balances['settlements'][number]>();
 
   function settle(debt: Debt) {
     void action.run(async () => {
-      await auth.request(`/spaces/${spaceId}/settlements`, {
+      const { id } = await auth.request<{ id: string }>(`/spaces/${spaceId}/settlements`, {
         method: 'POST',
         body: JSON.stringify({ fromUserId: debt.fromUserId, toUserId: debt.toUserId, amountMinor: debt.amountMinor, currency: debt.currency, month }),
       });
       balances.reload();
-      return `Recorded ${money(debt.amountMinor, debt.currency)} from ${debt.fromName} to ${debt.toName}.`;
+      return {
+        message: `Recorded ${payment(debt)}.`,
+        undo: async () => {
+          await auth.request(`/settlements/${id}`, { method: 'DELETE' });
+          balances.reload();
+          return '';
+        },
+      };
     }, 'Could not record the payment');
   }
 
-  function undo(id: string) {
-    void action.run(async () => {
-      await auth.request(`/settlements/${id}`, { method: 'DELETE' });
-      balances.reload();
-      return 'The payment was removed.';
-    }, 'Could not remove the payment');
-  }
-
-  const label = formatDay(`${month}-01`, { month: 'long', year: 'numeric' });
-
   return (
-    <section aria-label="Split costs" className="grid gap-3 rounded-xl border border-line bg-surface p-5">
-      <PeriodNav onShift={(step) => setMonth(shiftMonth(month, step))} title={`Split costs · ${label}`} unit="month" />
+    <Section
+      action={<PeriodNav onShift={(step) => setMonth(shiftMonth(month, step))} title={formatDay(`${month}-01`, { month: 'long', year: 'numeric' })} unit="month" />}
+      title="Split costs"
+    >
       {balances.error ? (
-        <LoadError error={balances.error} onRetry={balances.reload} />
+        <LoadError compact error={balances.error} onRetry={balances.reload} />
       ) : !balances.data ? (
         <ListSkeleton label="Adding up who owes what" rows={2} />
       ) : balances.data.charges.length === 0 && balances.data.settlements.length === 0 ? (
@@ -67,33 +71,27 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
       ) : (
         <>
           {balances.data.debts.length === 0 ? (
-            <p className="m-0 text-ink">Everyone is square.</p>
+            <Hint>Everyone is square.</Hint>
           ) : (
-            <ul className="m-0 grid list-none gap-2 p-0">
+            <ul className="panel-rows">
               {balances.data.debts.map((debt) => (
-                <li className="flex flex-wrap items-center justify-between gap-3" key={`${debt.fromUserId}-${debt.toUserId}-${debt.currency}`}>
-                  <span className="text-ink">
-                    {debt.fromName} owes {debt.toName} {money(debt.amountMinor, debt.currency)}
-                  </span>
-                  {me === debt.toUserId && (
-                    <Button disabled={action.busy} label="Mark as paid" onClick={() => settle(debt)} />
-                  )}
+                <li className="panel-row flex items-center gap-3" key={`${debt.fromUserId}-${debt.toUserId}-${debt.currency}`}>
+                  <RowText title={`${debt.fromName} owes ${debt.toName} ${money(debt.amountMinor, debt.currency)}`} />
+                  {me === debt.toUserId && <Button disabled={action.busy} label="Mark as paid" onClick={() => settle(debt)} />}
                 </li>
               ))}
             </ul>
           )}
-          <p className="mono-sm m-0 text-faint">
-            {balances.data.charges.map((charge) => `${charge.name} ${money(charge.amountMinor, charge.currency)}, paid by ${charge.payerName}`).join(' · ')}
-          </p>
+          {balances.data.charges.length > 0 && (
+            <Hint>{balances.data.charges.map((charge) => `${charge.name} ${money(charge.amountMinor, charge.currency)}, paid by ${charge.payerName}`).join(' · ')}</Hint>
+          )}
           {balances.data.settlements.length > 0 && (
-            <ul className="m-0 grid list-none gap-1 p-0 text-sm text-muted">
-              {balances.data.settlements.map((payment) => (
-                <li className="flex flex-wrap items-center gap-2" key={payment.id}>
-                  {payment.fromName} paid {payment.toName} {money(payment.amountMinor, payment.currency)}
-                  {(me === payment.fromUserId || me === payment.toUserId) && (
-                    <button className="text-button text-sm" disabled={action.busy} onClick={() => undo(payment.id)} type="button">
-                      Undo
-                    </button>
+            <ul className="panel-rows">
+              {balances.data.settlements.map((settlement) => (
+                <li className="panel-row flex items-center gap-3" key={settlement.id}>
+                  <RowText title={`${settlement.fromName} paid ${settlement.toName} ${money(settlement.amountMinor, settlement.currency)}`} />
+                  {(me === settlement.fromUserId || me === settlement.toUserId) && (
+                    <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDeleting(settlement) }]} name={`${settlement.fromName} paid ${settlement.toName}`} />
                   )}
                 </li>
               ))}
@@ -101,6 +99,23 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
           )}
         </>
       )}
-    </section>
+      {deleting && (
+        <ConfirmDialog
+          busyLabel="Deleting…"
+          confirmLabel="Delete payment"
+          errorFallback="Could not delete the payment"
+          onClose={() => setDeleting(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/settlements/${deleting.id}`, { method: 'DELETE' });
+            balances.reload();
+            action.report(`Deleted the payment of ${payment(deleting)}.`);
+          }}
+          title="Delete this payment?"
+          tone="danger"
+        >
+          What {deleting.fromName} owes {deleting.toName} for this month comes back.
+        </ConfirmDialog>
+      )}
+    </Section>
   );
 }

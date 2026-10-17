@@ -19,7 +19,7 @@ export interface Person {
 
 export const editorFormat = 4;
 
-const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb3c4', '#6b8fe5', '#a07be5', '#e57bb5'];
+const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb8b0', '#6a9eea', '#a388e8', '#e07fb5'];
 
 export function colorFor(id: string) {
   let hash = 0;

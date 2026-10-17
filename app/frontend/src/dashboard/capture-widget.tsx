@@ -69,8 +69,8 @@ export function Capture() {
       ) : (
         <PageLinks heading="Recent notes" pages={notes.data.slice(0, 3)} />
       )}
-      <Link className="w-fit text-sm text-ink" to="/pages?tab=notes">
-        All notes
+      <Link className="w-fit text-sm text-ink" to="/pages/quick-notes">
+        All quick notes
       </Link>
     </div>
   );

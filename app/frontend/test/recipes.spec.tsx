@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { AuthProvider } from '../src/auth';
+import { chooseFromMenu } from './controls';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -83,7 +84,7 @@ describe('Recipes and meals', () => {
     await render('/recipes');
 
     expect(container.textContent).toContain('No recipes yet');
-    await act(async () => button('Add from a link').click());
+    await chooseFromMenu(container, 'Actions for Recipes', 'Add from a link');
     const link = container.querySelector('dialog form') as HTMLFormElement;
     link.querySelector<HTMLInputElement>('input[name="url"]')!.value = 'https://food.example/soup';
     await submit(link);

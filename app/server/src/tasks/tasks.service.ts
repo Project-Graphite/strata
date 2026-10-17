@@ -381,7 +381,7 @@ export class TasksService implements OnModuleInit {
     }
     if (task.assigneeId && task.assigneeId !== previousAssignee && task.assigneeId !== actorId) {
       await this.inbox.notify(client, [
-        { userId: task.assigneeId, kind: 'task_assigned', title: `You were given “${item.title}”`, link: `/spaces/${item.spaceId}/tasks` },
+        { userId: task.assigneeId, kind: 'task_assigned', title: `You were given “${item.title}”`, link: `/tasks?task=${itemId}` },
       ]);
     }
   }
@@ -406,7 +406,7 @@ export class TasksService implements OnModuleInit {
         userId: recipient,
         kind: 'task_due',
         title: `“${item.title}” is due ${task.dueTime ? `at ${task.dueTime}` : 'today'}`,
-        link: `/spaces/${item.spaceId}/tasks`,
+        link: `/tasks?task=${payload.itemId}`,
       },
     ]);
   }

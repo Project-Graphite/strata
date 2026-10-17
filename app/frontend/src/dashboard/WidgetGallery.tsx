@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Dialog, TextField } from '@project-graphite/ui';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
+import { Button } from '../components/Button';
+import { DialogActions } from '../components/DialogActions';
 import { Hint } from '../components/Hint';
 import { Subheading } from '../components/Page';
 
@@ -22,7 +24,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
                 <Subheading>{group}</Subheading>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {inGroup.map((type) => (
-                    <button className="widget-choice" key={type} onClick={() => onAdd(type)} type="button">
+                    <button className="choice-card grid gap-1 text-left" key={type} onClick={() => onAdd(type)} type="button">
                       <span className="text-ink">{widgetKinds[type].title}</span>
                       <span className="text-sm text-muted">{widgetKinds[type].description}</span>
                     </button>
@@ -32,6 +34,9 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
             )
           );
         })}
+        <DialogActions>
+          <Button label="Cancel" large onClick={onClose} />
+        </DialogActions>
       </div>
     </Dialog>
   );

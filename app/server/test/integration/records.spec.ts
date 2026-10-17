@@ -18,7 +18,7 @@ describe('Activity, the security log, the inbox and background work against Post
 
     const invite = await owner.call('POST', `/spaces/${space.id}/invitations`, { handle: joiner.handle, role: 'editor' });
     const [invited] = (await joiner.call('GET', '/me/inbox')).body.results;
-    expect(invited).toMatchObject({ kind: 'invitation', title: 'keeper invited you to Allotment', link: '/invitations', read: false });
+    expect(invited).toMatchObject({ kind: 'invitation', title: 'keeper invited you to Allotment', link: '/spaces/invitations', read: false });
     await joiner.call('POST', `/invitations/${invite.body.invitation.id}/accept`);
     expect((await owner.call('GET', '/me/inbox')).body.results[0]).toMatchObject({
       kind: 'member_joined',

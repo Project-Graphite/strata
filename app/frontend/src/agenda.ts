@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { formatDay } from '@project-graphite/ui';
+import { formatDay, type TagColor } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, timeOptions, zoneLabel } from './time';
+import { clockTime, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -34,8 +34,8 @@ export interface CalendarEvent {
   calendar: { id: string; spaceId: string; name: string; host: string };
 }
 
-const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, string> = { event: '#82aaff', task: '#d7a54a', renewal: '#46b97a', birthday: '#e88fb8', payment: '#e0795f' };
-const calendarColours = ['#c792ea', '#5fc4c4', '#f2a09a', '#a6d189', '#ffb86c', '#89b4fa'];
+const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, TagColor> = { event: 'blue', task: 'yellow', renewal: 'green', birthday: 'pink', payment: 'orange' };
+const calendarColours: TagColor[] = ['purple', 'teal', 'red', 'green', 'orange', 'blue'];
 
 export function useAgenda(from: string, to: string) {
   const { request } = useAuth();
@@ -45,7 +45,7 @@ export function useAgenda(from: string, to: string) {
   useEffect(() => {
     void request<{ refreshed: number }>('/me/calendars/refresh', { method: 'POST' }).then(({ refreshed }) => refreshed > 0 && reload());
   }, [request, reload]);
-  const colourOf = (entry: AgendaEntry) =>
+  const colourOf = (entry: AgendaEntry): TagColor =>
     entry.kind === 'external'
       ? calendarColours[Math.max(0, calendars.data?.findIndex((calendar) => calendar.id === entry.calendarId) ?? 0) % calendarColours.length]!
       : kindColours[entry.kind];
@@ -116,11 +116,15 @@ export function entryDay(entry: AgendaEntry) {
   return entry.allDay ? entry.start : dayKey(new Date(entry.start));
 }
 
-export const clock = (at: string) => new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', ...timeOptions() });
+export function dayRange(from: string, to: string) {
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(new Date(`${from}T00:00:00`), new Date(`${to}T00:00:00`));
+}
+
+export const entryClock = (at: string) => clockTime(new Date(at));
 
 export function entryTime(entry: AgendaEntry) {
   if (entry.allDay) return 'all day';
-  return entry.end && entry.end !== entry.start ? `${clock(entry.start)}–${clock(entry.end)}` : clock(entry.start);
+  return entry.end && entry.end !== entry.start ? `${entryClock(entry.start)}–${entryClock(entry.end)}` : entryClock(entry.start);
 }
 
 export function entryWhen(entry: AgendaEntry) {
@@ -130,7 +134,7 @@ export function entryWhen(entry: AgendaEntry) {
     return entry.end && entry.end !== entry.start ? `${start} to ${day(new Date(`${entry.end}T00:00:00`))}` : `${start}, all day`;
   }
   if (entry.end && dayKey(new Date(entry.end)) !== dayKey(new Date(entry.start))) {
-    return `${day(new Date(entry.start))}, ${clock(entry.start)} to ${day(new Date(entry.end))}, ${clock(entry.end)}`;
+    return `${day(new Date(entry.start))}, ${entryClock(entry.start)} to ${day(new Date(entry.end))}, ${entryClock(entry.end)}`;
   }
   return `${day(new Date(entry.start))}, ${entryTime(entry)}`;
 }
@@ -149,8 +153,8 @@ export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event',
 
 export function entryLink(entry: AgendaEntry) {
   if (entry.kind === 'event') return `/events/${entry.itemId}`;
-  if (entry.kind === 'task') return `/spaces/${entry.spaceId}/tasks`;
+  if (entry.kind === 'task') return `/tasks?task=${entry.itemId}`;
   if (entry.kind === 'birthday') return `/people/${entry.itemId}`;
-  if (entry.kind === 'payment') return `/spending?space=${entry.spaceId}`;
-  return `/recurring?subscription=${entry.itemId}`;
+  if (entry.kind === 'payment') return `/spending/accounts?space=${entry.spaceId}`;
+  return `/spending/recurring?subscription=${entry.itemId}`;
 }

@@ -22,11 +22,27 @@ export function nestedUnder(pages: Note[], parentId: string | null) {
   return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
 }
 
-export const pagesTabs = (tab: string | null) => [
-  { active: tab !== 'notes' && tab !== 'journal', href: '/pages', label: 'Pages' },
-  { active: tab === 'notes', href: '/pages?tab=notes', label: 'Notes' },
-  { active: tab === 'journal', href: '/pages?tab=journal', label: 'Journal entries' },
+export type PagesSection = 'pages' | 'quick-notes' | 'journal';
+
+export const pagesTabs = (active: PagesSection) => [
+  { active: active === 'pages', href: '/pages', label: 'Pages' },
+  { active: active === 'quick-notes', href: '/pages/quick-notes', label: 'Quick notes' },
+  { active: active === 'journal', href: '/pages/journal', label: 'Journal entries' },
 ];
+
+export const pageIndent = (depth: number) => ({ paddingInlineStart: `${1 + depth * 1.25}rem` });
+
+export const noteArea =(note: Pick<Note, 'kind' | 'quick' | 'journal'>) =>
+  note.kind === 'board' ? '/boards' : note.journal ? '/journal' : '/pages';
+
+export const noteParent = (note: Pick<Note, 'kind' | 'quick' | 'journal'>) =>
+  note.kind === 'board'
+    ? { to: '/boards', label: 'Boards' }
+    : note.journal
+      ? { to: '/journal', label: 'Journal' }
+      : note.quick
+        ? { to: '/pages/quick-notes', label: 'Quick notes' }
+        : { to: '/pages', label: 'Pages' };
 
 export interface NoteDetails extends Note {
   editable: boolean;

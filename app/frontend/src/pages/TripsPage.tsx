@@ -32,7 +32,7 @@ export function TripsPage() {
       ) : !trips.data ? (
         <ListSkeleton label="Loading your trips" rows={3} />
       ) : trips.data.length === 0 ? (
-        <Empty title="No trips yet" />
+        <Empty title="No trips yet">Plan a trip to keep its itinerary, packing list, documents and spending in one place.</Empty>
       ) : (
         groups
           .filter(([, shown]) => shown.length > 0)
