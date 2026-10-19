@@ -46,7 +46,7 @@ export function Capture() {
   return (
     <div className="grid gap-2">
       <TextAreaField
-        aria-label="Quick note"
+        label="Quick note"
         maxLength={10_000}
         onChange={(event) => setText(event.currentTarget.value)}
         placeholder="Write it down…"

@@ -39,11 +39,10 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
       <div className="flex items-center gap-2">
         <TextField
           aria-describedby={understood ? hintId : undefined}
-          aria-label="Add a task"
           className="min-w-0 flex-1"
+          label="Add a task"
           maxLength={300}
           onChange={(event) => setText(event.currentTarget.value)}
-          placeholder="Add a task"
           value={text}
         />
         <Button disabled={!quick.title || adding.busy} label="Add" submit />
