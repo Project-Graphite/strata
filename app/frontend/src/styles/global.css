@@ -6,10 +6,6 @@
   --color-highlight: #d7b24a;
 }
 
-body {
-  padding-right: 0 !important;
-}
-
 .note-title {
   width: 100%;
   border: 0;

@@ -259,13 +259,14 @@ export function DashboardHome() {
             <Button
               disabled={history.length === 0}
               label="Undo"
+              large
               onClick={() => {
                 setDraft(history.at(-1));
                 setHistory((past) => past.slice(0, -1));
               }}
             />
-            <Button label="Cancel" onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
-            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
+            <Button label="Cancel" large onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
+            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} large onClick={() => finish(true)} primary />
           </>
         ) : (
           <>
