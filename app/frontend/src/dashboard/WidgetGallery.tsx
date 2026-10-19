@@ -16,7 +16,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
   return (
     <Dialog onClose={onClose} title="Add a widget">
       <div className="mt-5 grid gap-5">
-        <TextField autoComplete="off" autoFocus label="Search widgets" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
+        <TextField aria-label="Search widgets" autoComplete="off" autoFocus onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search widgets" value={query} />
         {kinds.length === 0 && <Hint>No widget matches “{query}”.</Hint>}
         {widgetGroups.map((group) => {
           const inGroup = kinds.filter((type) => widgetKinds[type].group === group);
