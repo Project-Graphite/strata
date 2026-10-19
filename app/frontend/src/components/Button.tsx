@@ -1,8 +1,10 @@
+import MuiIconButton from '@mui/material/IconButton';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
-import { Icon, type IconName } from '@project-graphite/ui';
+import { Icon, Button as UiButton, IconButton as UiIconButton, type IconName } from '@project-graphite/ui';
 
 export const buttonClass = (primary = false) => `${primary ? 'primary-button' : 'secondary-button'} w-fit shrink-0 px-3 py-2 text-sm`;
+
+const look = (large: boolean, primary: boolean) => ({ size: large ? 'medium' : 'small', variant: primary ? 'primary' : 'secondary' }) as const;
 
 export function Button({
   disabled,
@@ -24,52 +26,46 @@ export function Button({
   submit?: boolean;
 }) {
   return (
-    <button
+    <UiButton
+      {...look(large, primary)}
       aria-pressed={pressed}
-      className={large ? (primary ? 'primary-button' : 'secondary-button') : buttonClass(primary)}
+      className="shrink-0"
       disabled={disabled}
+      icon={icon}
       onClick={onClick}
       type={submit ? 'submit' : 'button'}
     >
-      {icon && <Icon name={icon} size={16} />}
       {label}
-    </button>
+    </UiButton>
   );
 }
 
-const linkClass = (large: boolean, primary: boolean) => `${large ? `${primary ? 'primary-button' : 'secondary-button'} w-fit` : buttonClass(primary)} no-underline`;
-
 export function ButtonLink({ icon, label, large = false, primary = false, state, to }: { icon?: IconName; label: string; large?: boolean; primary?: boolean; state?: unknown; to: string }) {
   return (
-    <Link className={linkClass(large, primary)} state={state} to={to}>
-      {icon && <Icon name={icon} size={16} />}
+    <UiButton {...look(large, primary)} {...{ state }} className="shrink-0" href={to} icon={icon}>
       {label}
-    </Link>
+    </UiButton>
   );
 }
 
 export function ButtonAnchor({ href, label, large = false, primary = false }: { href: string; label: string; large?: boolean; primary?: boolean }) {
   return (
-    <a className={linkClass(large, primary)} href={href} rel="noopener noreferrer" target="_blank">
+    <UiButton {...look(large, primary)} {...{ rel: 'noopener noreferrer', target: '_blank' }} className="shrink-0" href={href} LinkComponent="a">
       {label}
-    </a>
+    </UiButton>
   );
 }
 
 export function IconButton({ disabled, icon, label, onClick }: { disabled?: boolean; icon: IconName; label: string; onClick: () => void }) {
-  return (
-    <button aria-label={label} className="icon-button" disabled={disabled} onClick={onClick} title={label} type="button">
-      <Icon name={icon} size={18} />
-    </button>
-  );
+  return <UiIconButton disabled={disabled} icon={icon} label={label} onClick={onClick} />;
 }
 
 export function IconLink({ children, icon, label, to }: { children?: ReactNode; icon: IconName; label: string; to: string }) {
   return (
-    <Link aria-label={label} className="icon-button" title={label} to={to}>
+    <MuiIconButton aria-label={label} href={to} title={label}>
       <Icon name={icon} size={18} />
       {children}
-    </Link>
+    </MuiIconButton>
   );
 }
 
@@ -87,9 +83,8 @@ export function TextButton({
   onClick: () => void;
 }) {
   return (
-    <button className={`text-button inline-flex items-center gap-1.5 text-sm ${danger ? 'text-danger' : ''}`} disabled={disabled} onClick={onClick} type="button">
-      {icon && <Icon name={icon} size={14} />}
+    <UiButton className={danger ? 'text-danger' : undefined} disabled={disabled} icon={icon} onClick={onClick} size="small" variant="text">
       {label}
-    </button>
+    </UiButton>
   );
 }
