@@ -125,6 +125,7 @@ export function MealPlanPage() {
                     {editable && (
                       <UiButton
                         aria-label={`Add ${label.toLowerCase()} on ${formatDay(day)}`}
+                        className="w-fit"
                         icon="plus"
                         onClick={() => setAdding({ day, meal: value })}
                         size="small"

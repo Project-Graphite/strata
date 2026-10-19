@@ -29,7 +29,7 @@ export function Button({
     <UiButton
       {...look(large, primary)}
       aria-pressed={pressed}
-      className="shrink-0"
+      className="w-fit shrink-0"
       disabled={disabled}
       icon={icon}
       onClick={onClick}
@@ -42,7 +42,7 @@ export function Button({
 
 export function ButtonLink({ icon, label, large = false, primary = false, state, to }: { icon?: IconName; label: string; large?: boolean; primary?: boolean; state?: unknown; to: string }) {
   return (
-    <UiButton {...look(large, primary)} {...{ state }} className="shrink-0" href={to} icon={icon}>
+    <UiButton {...look(large, primary)} {...{ state }} className="w-fit shrink-0" href={to} icon={icon}>
       {label}
     </UiButton>
   );
@@ -50,7 +50,7 @@ export function ButtonLink({ icon, label, large = false, primary = false, state,
 
 export function ButtonAnchor({ href, label, large = false, primary = false }: { href: string; label: string; large?: boolean; primary?: boolean }) {
   return (
-    <UiButton {...look(large, primary)} {...{ rel: 'noopener noreferrer', target: '_blank' }} className="shrink-0" href={href} LinkComponent="a">
+    <UiButton {...look(large, primary)} {...{ rel: 'noopener noreferrer', target: '_blank' }} className="w-fit shrink-0" href={href} LinkComponent="a">
       {label}
     </UiButton>
   );
@@ -83,7 +83,7 @@ export function TextButton({
   onClick: () => void;
 }) {
   return (
-    <UiButton className={danger ? 'text-danger' : undefined} disabled={disabled} icon={icon} onClick={onClick} size="small" variant="text">
+    <UiButton className={`w-fit ${danger ? 'text-danger' : ''}`} disabled={disabled} icon={icon} onClick={onClick} size="small" variant="text">
       {label}
     </UiButton>
   );

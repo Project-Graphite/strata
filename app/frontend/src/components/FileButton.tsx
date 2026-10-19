@@ -20,7 +20,7 @@ export function FileButton({
   primary?: boolean;
 }) {
   return (
-    <Button className="shrink-0" component="label" disabled={busy} icon="upload" size="small" variant={primary ? 'primary' : 'secondary'}>
+    <Button className="w-fit shrink-0" component="label" disabled={busy} icon="upload" size="small" variant={primary ? 'primary' : 'secondary'}>
       {label}
       <input
         accept={accept}
