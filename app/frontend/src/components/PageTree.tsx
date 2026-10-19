@@ -1,3 +1,5 @@
+import ButtonBase from '@mui/material/ButtonBase';
+import MuiIconButton from '@mui/material/IconButton';
 import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell } from '@project-graphite/ui';
@@ -132,23 +134,23 @@ export function PageTree() {
             }}
             style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
           >
-            <button
+            <MuiIconButton
               aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`}
               className="page-tree-toggle"
               disabled={nested.length === 0}
               onClick={() => toggle(note.id)}
-              type="button"
+              size="small"
             >
               {nested.length > 0 && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
-            </button>
+            </MuiIconButton>
             <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} to={`/notes/${note.id}`}>
               <NoteMark note={note} />
               <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
             </Link>
             {nests && writable && (
-              <button aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(spaceId, note.id)} type="button">
+              <MuiIconButton aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(spaceId, note.id)} size="small">
                 <Icon name="plus" size={14} />
-              </button>
+              </MuiIconButton>
             )}
           </div>
           {expanded && branch(spaceId, note.id, depth + 1, writable)}
@@ -179,17 +181,17 @@ export function PageTree() {
                 if (dragged) drop(dragged, null, 'inside', space.id);
               }}
             >
-              <button aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} type="button">
+              <MuiIconButton aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} size="small">
                 <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
-              </button>
-              <button className="page-tree-link" onClick={() => toggle(key)} type="button">
+              </MuiIconButton>
+              <ButtonBase className="page-tree-link justify-start" onClick={() => toggle(key)}>
                 <SpaceMark space={space} />
                 <span className="min-w-0 flex-1 truncate text-left">{space.name}</span>
-              </button>
+              </ButtonBase>
               {writable && (
-                <button aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(space.id, null)} type="button">
+                <MuiIconButton aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(space.id, null)} size="small">
                   <Icon name="plus" size={14} />
-                </button>
+                </MuiIconButton>
               )}
             </div>
             {expanded && branch(space.id, null, 1, writable)}

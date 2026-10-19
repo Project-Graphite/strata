@@ -32,34 +32,6 @@
   gap: 0.25rem;
 }
 
-.note-tool {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  min-height: 2rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-field);
-  padding: 0.3rem 0.5rem;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.note-tool:hover,
-.note-tool[aria-pressed='true'] {
-  border-color: var(--color-line);
-  background: var(--color-line-soft);
-  color: var(--color-ink);
-}
-
-@media (pointer: coarse) {
-  .note-tool {
-    min-width: 2.5rem;
-    min-height: 2.5rem;
-  }
-}
-
 .note-content {
   min-height: 45vh;
   color: var(--color-ink);
@@ -676,17 +648,6 @@ button.habit-day::before {
   padding: 0.5rem;
 }
 
-.icon-picker-choice {
-  border-radius: var(--radius-field);
-  padding: 0.3rem;
-  font-size: 1.3rem;
-}
-
-.icon-picker-choice:hover,
-.icon-picker-choice[aria-pressed='true'] {
-  background: var(--color-line-soft);
-}
-
 .note-content .has-comments {
   box-shadow: inset 3px 0 0 var(--color-highlight);
   padding-left: 0.6rem;
@@ -735,39 +696,6 @@ button.habit-day::before {
 
 .back-link:hover {
   color: var(--color-ink);
-}
-
-.filter-chip {
-  display: inline-flex;
-  min-height: 2rem;
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: transparent;
-  padding: 0.25rem 0.8rem;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-  text-decoration: none;
-  transition:
-    border-color 140ms ease,
-    color 140ms ease;
-}
-
-.filter-chip:hover {
-  border-color: var(--color-muted);
-  color: var(--color-ink);
-}
-
-.filter-chip[aria-current='page'] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-paper);
-}
-
-.filter-chip[aria-current='page'] .text-faint {
-  color: inherit;
-  opacity: 0.6;
 }
 
 .agenda-card,
@@ -1036,29 +964,3 @@ header.backdrop-blur-md {
   }
 }
 
-.category-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-ink);
-  cursor: pointer;
-  font-size: 0.875rem;
-  padding: 0.35rem 0.75rem 0.35rem 0.45rem;
-}
-
-.category-chip .swatch-dot {
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-.category-chip:hover {
-  border-color: var(--color-muted);
-}
-
-.category-chip-chosen {
-  border-color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
-}

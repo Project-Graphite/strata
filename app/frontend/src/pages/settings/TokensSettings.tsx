@@ -1,5 +1,7 @@
+import FormLabel from '@mui/material/FormLabel';
+import Alert from '@mui/material/Alert';
 import { useState } from 'react';
-import { ConfirmDialog, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Checkbox, ConfirmDialog, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../../agenda';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
@@ -118,19 +120,24 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
         >
           <TextField autoFocus label="Name" maxLength={60} placeholder="Backup script" {...form.field('name')} />
           <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="field-label mb-2">Permissions</legend>
+            <FormLabel className="mb-2" component="legend">Permissions</FormLabel>
             {scopes.map(([scope, description]) => (
-              <label className="flex items-start gap-2 text-sm text-ink" key={scope}>
-                <input defaultChecked={scope === 'spaces:read' || scope === 'items:read'} name="scopes" type="checkbox" value={scope} />
-                <span>
-                  {description} <span className="mono-sm text-faint">{scope}</span>
-                </span>
-              </label>
+              <Checkbox
+                defaultChecked={scope === 'spaces:read' || scope === 'items:read'}
+                key={scope}
+                label={
+                  <span>
+                    {description} <span className="mono-sm text-faint">{scope}</span>
+                  </span>
+                }
+                name="scopes"
+                value={scope}
+              />
             ))}
             {noScope && (
-              <p className="error-message m-0" role="alert">
+              <Alert className="m-0" severity="error">
                 Choose at least one permission.
-              </p>
+              </Alert>
             )}
           </fieldset>
           <Select

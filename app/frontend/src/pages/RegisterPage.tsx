@@ -1,3 +1,5 @@
+import Alert from '@mui/material/Alert';
+import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { errorMessage, FormPanelSkeleton, TextField } from '@project-graphite/ui';
@@ -88,7 +90,7 @@ export function RegisterPage() {
           uses Strata to invite you, then open the link in their invite.
         </p>
         <p className="mt-6 text-sm text-muted">
-          Already registered? <Link className="rule-link" to="/login">Sign in</Link>
+          Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
         </p>
       </section>
     );
@@ -98,7 +100,7 @@ export function RegisterPage() {
     <section className="form-panel page-enter">
       <h1 className="page-heading">Create your account</h1>
       {invite.data && <p className="mt-4 mb-0 text-muted">{invitedLine(invite.data)}.</p>}
-      {invite.error && <p className="error-message mt-4 mb-0">{invite.error}</p>}
+      {invite.error && <Alert className="mt-4 mb-0" severity="error">{invite.error}</Alert>}
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />
         <TextField
@@ -125,14 +127,14 @@ export function RegisterPage() {
           {...form.field('password')}
         />
         {error && (
-          <p className="error-message m-0" role="alert">
+          <Alert className="m-0" severity="error">
             {error}
-          </p>
+          </Alert>
         )}
         <Button disabled={busy} label={busy ? 'Creating…' : 'Create account'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
-        Already registered? <Link className="rule-link" to="/login">Sign in</Link>
+        Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
       </p>
     </section>
   );

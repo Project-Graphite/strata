@@ -1,5 +1,7 @@
+import FormLabel from '@mui/material/FormLabel';
+import MuiTextField from '@mui/material/TextField';
 import { useState } from 'react';
-import { Avatar, Select } from '@project-graphite/ui';
+import { Avatar, Checkbox, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import type { CostSplit } from '../subscriptions';
@@ -72,30 +74,27 @@ export function SplitEditor({
         value={payerId}
       />
       <fieldset className="m-0 grid gap-2 border-0 p-0">
-        <legend className="field-label mb-2 p-0">Shared by</legend>
+        <FormLabel className="mb-2" component="legend">Shared by</FormLabel>
         {members.map((member) => {
           const weight = weights[member.userId];
           return (
             <div className="flex items-center gap-3" key={member.userId}>
-              <label className="flex flex-1 items-center gap-2 text-sm">
-                <input
-                  checked={weight !== undefined}
-                  onChange={(event) => {
-                    const { [member.userId]: _removed, ...rest } = weights;
-                    setWeights(event.currentTarget.checked ? { ...rest, [member.userId]: 1 } : rest);
-                  }}
-                  type="checkbox"
-                />
-                {member.displayName}
-              </label>
+              <Checkbox
+                checked={weight !== undefined}
+                className="flex-1"
+                label={member.displayName}
+                onChange={(event) => {
+                  const { [member.userId]: _removed, ...rest } = weights;
+                  setWeights(event.currentTarget.checked ? { ...rest, [member.userId]: 1 } : rest);
+                }}
+              />
               {weight !== undefined && (
                 <>
-                  <input
-                    aria-label={`Shares for ${member.displayName}`}
-                    className="w-16 text-sm"
-                    max={100}
-                    min={1}
+                  <MuiTextField
+                    className="w-20"
                     onChange={(event) => setWeights({ ...weights, [member.userId]: Math.min(100, Math.max(1, Number(event.currentTarget.value) || 1)) })}
+                    size="small"
+                    slotProps={{ htmlInput: { 'aria-label': `Shares for ${member.displayName}`, max: 100, min: 1 } }}
                     type="number"
                     value={weight}
                   />

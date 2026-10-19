@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { errorMessage } from '@project-graphite/ui';
@@ -39,9 +40,9 @@ export function VerifyPage() {
       <section className="form-panel page-enter">
         <h1 className="page-heading">{token ? 'Your email wasn’t verified' : 'This link is incomplete'}</h1>
         {error ? (
-          <p className="error-message mt-4 mb-0" role="alert">
+          <Alert className="mt-4 mb-0" severity="error">
             {error}
-          </p>
+          </Alert>
         ) : (
           <p className="mt-4 text-muted">Open the whole link from the email.</p>
         )}

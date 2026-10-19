@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, Meter, TextField, type MenuItem } from '@project-graphite/ui';
+import { formatDay, Icon, IconButton, type MenuItem, Meter, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FileButton } from '../components/FileButton';

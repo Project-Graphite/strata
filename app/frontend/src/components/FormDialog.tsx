@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Dialog } from '@project-graphite/ui';
+import { Dialog, Button as UiButton } from '@project-graphite/ui';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 
@@ -40,9 +40,9 @@ export function FormDialog({
         <DialogActions start={start}>
           <Button disabled={busy} label="Cancel" large onClick={onClose} />
           {danger ? (
-            <button className="danger-button" disabled={busy || submitDisabled} type="submit">
+            <UiButton disabled={busy || submitDisabled} type="submit" variant="danger">
               {busy ? busyLabel : submitLabel}
-            </button>
+            </UiButton>
           ) : (
             <Button disabled={busy || submitDisabled} label={busy ? busyLabel : submitLabel} large primary submit />
           )}

@@ -1,9 +1,10 @@
+import Alert from '@mui/material/Alert';
 import { useState } from 'react';
-import { ConfirmDialog, Select, tagColors, TextField, type TagColor } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, Select, type TagColor, tagColors, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { categoryName, type SpendingCategory } from '../spending';
 import { useAction } from '../useAction';
-import { Button, IconButton } from './Button';
+import { Button } from './Button';
 import { FormDialog } from './FormDialog';
 
 interface Row extends SpendingCategory {
@@ -104,9 +105,9 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
       </ul>
       <Button disabled={rows.length >= 40} label="Add a category" onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])} />
       {error && (
-        <p className="error-message m-0" role="alert">
+        <Alert className="m-0" severity="error">
           {error}
-        </p>
+        </Alert>
       )}
     </FormDialog>
   );

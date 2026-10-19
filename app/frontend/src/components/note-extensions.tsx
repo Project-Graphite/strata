@@ -1,3 +1,5 @@
+import ListItemButton from '@mui/material/ListItemButton';
+import Paper from '@mui/material/Paper';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
@@ -59,26 +61,27 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
     },
   }));
   return (
-    <div className="popover-panel listbox-options grid max-h-72 w-[min(22rem,calc(100vw-2rem))]" role="listbox">
+    <Paper className="grid max-h-72 w-[min(22rem,calc(100vw-2rem))] overflow-y-auto py-1" elevation={8} role="listbox">
       {items.length === 0 ? (
         <p className="m-0 px-3 py-2 text-sm text-muted">Nothing matches</p>
       ) : (
         items.map((item, index) => (
-          <button
-            className="listbox-option w-full justify-between text-left"
-            data-active={index === active}
+          <ListItemButton
+            aria-selected={index === active}
+            className="justify-between gap-3"
+            dense
             key={item.id}
             onClick={() => command(item)}
             onMouseEnter={() => setActive(index)}
             role="option"
-            type="button"
+            selected={index === active}
           >
             <span className="min-w-0 truncate">{item.label}</span>
             <span className="mono-sm shrink-0 text-faint">{item.hint}</span>
-          </button>
+          </ListItemButton>
         ))
       )}
-    </div>
+    </Paper>
   );
 });
 

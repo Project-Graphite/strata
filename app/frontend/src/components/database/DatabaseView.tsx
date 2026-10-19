@@ -1,6 +1,8 @@
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, Icon, ListSkeleton, Select } from '@project-graphite/ui';
+import { formatDay, IconButton, ListSkeleton, Select } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -143,15 +145,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                     </article>
                   ))}
                   {editable && (
-                    <button
-                      className="text-button inline-flex w-fit items-center gap-1.5 text-sm"
-                      disabled={adding.busy}
-                      onClick={() => addRow(column.id ? { [group.id]: column.id } : {})}
-                      type="button"
-                    >
-                      <Icon name="plus" size={14} />
-                      New
-                    </button>
+                    <TextButton disabled={adding.busy} icon="plus" label="New" onClick={() => addRow(column.id ? { [group.id]: column.id } : {})} />
                   )}
                 </section>
               );
@@ -194,9 +188,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                 <div className="flex items-center justify-between">
                   <span className={`mono-sm ${day === today ? 'font-medium text-ink' : 'text-faint'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
                   {editable && (
-                    <button aria-label="Add a page on this day" className="text-button text-faint" disabled={adding.busy} onClick={() => addRow({ [dateProperty.id]: day })} type="button">
-                      <Icon name="plus" size={14} />
-                    </button>
+                    <IconButton disabled={adding.busy} icon="plus" label="Add a page on this day" onClick={() => addRow({ [dateProperty.id]: day })} size="small" />
                   )}
                 </div>
                 {(byDay.get(day) ?? []).map((row) => (
@@ -270,13 +262,19 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   return (
     <section aria-label="Database" className="grid gap-4 border-t border-line-soft pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div aria-label="Database view" className="flex gap-4" role="group">
+        <ToggleButtonGroup
+          aria-label="Database view"
+          exclusive
+          onChange={(_, view: typeof data.view | null) => view && void saveSchema({ view })}
+          size="small"
+          value={data.view}
+        >
           {databaseViews.map(([view, label]) => (
-            <button aria-pressed={data.view === view} className={`tab-link ${data.view === view ? 'active' : ''}`} key={view} onClick={() => void saveSchema({ view })} type="button">
+            <ToggleButton key={view} value={view}>
               {label}
-            </button>
+            </ToggleButton>
           ))}
-        </div>
+        </ToggleButtonGroup>
         {editable && (
           <div className="flex items-center gap-4">
             <TextButton label="Edit properties" onClick={() => setEditing(true)} />

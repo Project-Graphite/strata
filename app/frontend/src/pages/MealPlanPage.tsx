@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { DatePicker, formatDay, Icon, ListSkeleton, Select, TextField, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, formatDay, IconButton, ListSkeleton, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
@@ -123,15 +123,16 @@ export function MealPlanPage() {
                       </span>
                     ))}
                     {editable && (
-                      <button
+                      <UiButton
                         aria-label={`Add ${label.toLowerCase()} on ${formatDay(day)}`}
-                        className="text-button inline-flex w-fit items-center gap-1 text-sm"
+                        className="w-fit"
+                        icon="plus"
                         onClick={() => setAdding({ day, meal: value })}
-                        type="button"
+                        size="small"
+                        variant="text"
                       >
-                        <Icon name="plus" size={14} />
                         Add
-                      </button>
+                      </UiButton>
                     )}
                   </div>
                 );

@@ -1,3 +1,4 @@
+import ListItemButton from '@mui/material/ListItemButton';
 import { useState } from 'react';
 import { Dialog, ListSkeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -36,17 +37,17 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
             <ul className="panel-rows max-h-56 overflow-y-auto">
               {versions.data.map((version) => (
                 <li key={version.id}>
-                  <button
+                  <ListItemButton
                     aria-pressed={chosen === version.id}
-                    className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm ${chosen === version.id ? 'bg-line-soft text-ink' : 'text-muted hover:text-ink'}`}
+                    className="justify-between gap-3 text-sm"
                     onClick={() => setChosen(version.id)}
-                    type="button"
+                    selected={chosen === version.id}
                   >
                     <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...timeOptions() })}</span>
                     <span className="text-faint">
                       {version.createdBy ?? 'Someone'} · {timeAgo(version.createdAt)}
                     </span>
-                  </button>
+                  </ListItemButton>
                 </li>
               ))}
             </ul>

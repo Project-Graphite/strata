@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Checkbox } from '@project-graphite/ui';
 import { Button } from './Button';
 import { RowText } from './RowText';
 
@@ -6,7 +7,7 @@ export function Choice({ checked, detail, disabled, label, onToggle }: { checked
   return (
     <li>
       <label className="panel-row flex cursor-pointer items-center gap-3">
-        <input checked={checked} disabled={disabled} onChange={onToggle} type="checkbox" />
+        <Checkbox checked={checked} disabled={disabled} onChange={onToggle} />
         <RowText detail={detail} title={label || 'Untitled'} />
       </label>
     </li>

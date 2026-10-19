@@ -1,3 +1,4 @@
+import Chip from '@mui/material/Chip';
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Icon, LinesSkeleton, PageHeader, Skeleton, Tabs, type TabItem } from '@project-graphite/ui';
@@ -107,10 +108,20 @@ export function FilterChips({ children, items, label }: { children?: ReactNode; 
   return (
     <nav aria-label={label} className="flex flex-wrap items-center gap-2">
       {items.map((item) => (
-        <Link aria-current={item.active ? 'page' : undefined} className="filter-chip" key={item.href} to={item.href}>
-          {item.label}
-          {item.count !== undefined && <span className="text-faint">{item.count}</span>}
-        </Link>
+        <Chip
+          aria-current={item.active ? 'page' : undefined}
+          clickable
+          component={Link}
+          key={item.href}
+          label={
+            <>
+              {item.label}
+              {item.count !== undefined && <span className="ml-1.5 text-faint">{item.count}</span>}
+            </>
+          }
+          to={item.href}
+          variant={item.active ? 'filled' : 'outlined'}
+        />
       ))}
       {children}
     </nav>

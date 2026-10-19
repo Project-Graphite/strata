@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, Icon, Select, tagColors } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
+import { TextButton } from '../Button';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
 import { colorOptions } from '../../spaces';
@@ -75,9 +76,9 @@ export function PropertiesDialog({
         {draft.map((property) => (
           <li className="grid gap-2" key={property.id}>
             <div className="flex items-center gap-2">
-              <input
-                aria-label="Property name"
+              <TextField
                 className="min-w-0 flex-1"
+                label="Property name"
                 maxLength={60}
                 onChange={(event) => change(property.id, { name: event.currentTarget.value })}
                 value={property.name}
@@ -89,22 +90,20 @@ export function PropertiesDialog({
                 options={propertyTypes.map(([value, label]) => ({ value, label }))}
                 value={property.type}
               />
-              <button
-                aria-label={`Remove ${property.name || 'property'}`}
-                className="text-button"
+              <IconButton
+                icon="x"
+                label={`Remove ${property.name || 'property'}`}
                 onClick={() => setDraft((current) => current.filter((candidate) => candidate.id !== property.id))}
-                type="button"
-              >
-                <Icon name="x" size={14} />
-              </button>
+                size="small"
+              />
             </div>
             {hasOptions(property.type) && (
               <div className="ml-4 grid gap-1.5">
                 {(property.options ?? []).map((option) => (
                   <div className="flex items-center gap-2" key={option.id}>
-                    <input
-                      aria-label="Option name"
-                      className="min-w-0 flex-1 text-sm"
+                    <TextField
+                      className="min-w-0 flex-1"
+                      label="Option name"
                       maxLength={60}
                       onChange={(event) =>
                         change(property.id, {
@@ -122,42 +121,29 @@ export function PropertiesDialog({
                         })
                       }
                       options={colorOptions}
-                      size="small"
                       value={option.color}
                     />
-                    <button
-                      aria-label={`Remove ${option.name || 'option'}`}
-                      className="text-button"
+                    <IconButton
+                      icon="x"
+                      label={`Remove ${option.name || 'option'}`}
                       onClick={() => change(property.id, { options: property.options?.filter((candidate) => candidate.id !== option.id) })}
-                      type="button"
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
+                      size="small"
+                    />
                   </div>
                 ))}
-                <button
-                  className="text-button w-fit text-sm"
+                <TextButton
+                  label="Add an option"
                   onClick={() =>
                     change(property.id, { options: [...(property.options ?? []), { id: crypto.randomUUID(), name: '', color: tagColors[(property.options?.length ?? 0) % tagColors.length]! }] })
                   }
-                  type="button"
-                >
-                  Add an option
-                </button>
+                />
               </div>
             )}
           </li>
         ))}
       </ul>
       {draft.length < 30 && (
-        <button
-          className="text-button inline-flex w-fit items-center gap-1.5 text-sm"
-          onClick={() => setDraft((current) => [...current, { id: crypto.randomUUID(), name: '', type: 'text' }])}
-          type="button"
-        >
-          <Icon name="plus" size={14} />
-          Add a property
-        </button>
+        <TextButton icon="plus" label="Add a property" onClick={() => setDraft((current) => [...current, { id: crypto.randomUUID(), name: '', type: 'text' }])} />
       )}
     </FormDialog>
   );

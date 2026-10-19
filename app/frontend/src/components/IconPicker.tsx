@@ -1,4 +1,6 @@
+import ToggleButton from '@mui/material/ToggleButton';
 import { Popover } from '@project-graphite/ui';
+import { TextButton } from './Button';
 
 const icons = ['📝', '📌', '💡', '✅', '📅', '🎯', '📚', '🧠', '🏠', '✈️', '🍳', '💰', '🎉', '🛒', '💪', '🌱', '🎵', '🎨', '🧳', '❤️', '⭐', '🔥', '🚀', '🗂️'];
 
@@ -16,32 +18,30 @@ export function IconPicker({ icon, onPick }: { icon: string | null; onPick: (ico
         <div className="grid gap-2">
           <div className="grid grid-cols-6 gap-1">
             {icons.map((choice) => (
-              <button
+              <ToggleButton
                 aria-label={`Use ${choice}`}
-                aria-pressed={choice === icon}
-                className="icon-picker-choice"
+                className="border-0 text-lg"
                 key={choice}
-                onClick={() => {
+                onChange={() => {
                   close();
                   onPick(choice);
                 }}
-                type="button"
+                selected={choice === icon}
+                size="small"
+                value={choice}
               >
                 {choice}
-              </button>
+              </ToggleButton>
             ))}
           </div>
           {icon && (
-            <button
-              className="text-button w-fit text-sm"
+            <TextButton
+              label="Remove the icon"
               onClick={() => {
                 close();
                 onPick(null);
               }}
-              type="button"
-            >
-              Remove the icon
-            </button>
+            />
           )}
         </div>
       )}

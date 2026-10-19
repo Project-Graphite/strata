@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router';
 import { Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { Button, buttonClass } from '../../components/Button';
+import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
@@ -58,13 +58,13 @@ export function SpaceNotes() {
                 ]}
                 label="Templates"
                 trigger={
-                  <>
+                  <span className="inline-flex items-center gap-2">
                     From a template
-                    <Icon name="chevron-down" size={16} />
-                  </>
+                    <Icon name="chevron-down" size={18} />
+                  </span>
                 }
-                triggerClassName={buttonClass()}
                 triggerLabel="Start a page from a template"
+                triggerVariant="secondary"
               />
               <Button disabled={creating.busy} icon="plus" label="New board" onClick={() => create({ board: true })} />
               <Button disabled={creating.busy} icon="plus" label="New page" onClick={() => create({})} />

@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router';
-import { ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { IconButton, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
@@ -9,7 +9,6 @@ import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { IconButton } from '../components/Button';
 import { RowText } from '../components/RowText';
 
 export function InboxPage() {

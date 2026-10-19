@@ -1,6 +1,6 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { Dialog, Icon } from '@project-graphite/ui';
-import { Button, buttonClass, IconButton, TextButton } from './components/Button';
+import { useRef, useState, type KeyboardEvent } from 'react';
+import { Dialog, IconButton, PickerField, Button as UiButton } from '@project-graphite/ui';
+import { Button, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
@@ -92,16 +92,16 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
           {twelve && (
             <div aria-label="Morning or afternoon" className="ml-2 grid gap-1" role="radiogroup">
               {(['AM', 'PM'] as const).map((half) => (
-                <button
+                <UiButton
                   aria-checked={(half === 'PM') === afternoon}
-                  className={buttonClass((half === 'PM') === afternoon)}
                   key={half}
                   onClick={() => setHours((hours % 12) + (half === 'PM' ? 12 : 0))}
                   role="radio"
-                  type="button"
+                  size="small"
+                  variant={(half === 'PM') === afternoon ? 'primary' : 'secondary'}
                 >
                   {half}
-                </button>
+                </UiButton>
               ))}
             </div>
           )}
@@ -136,29 +136,23 @@ export function TimeField({
   optional?: boolean;
   value?: string;
 }) {
-  const id = useId();
   const [own, setOwn] = useState(defaultValue ?? '');
   const [open, setOpen] = useState(false);
   const current = value ?? own;
 
   return (
-    <div className={label ? 'field-label' : ''}>
-      {label && <span id={`${id}-label`}>{label}</span>}
-      <button
-        aria-label={ariaLabel ? `${ariaLabel}: ${current ? clockTime(current) : emptyLabel}` : undefined}
-        aria-labelledby={ariaLabel ? undefined : `${id}-label ${id}-value`}
-        className="select-trigger field-control"
+    <>
+      <PickerField
+        aria-label={ariaLabel}
         disabled={disabled}
-        onClick={() => setOpen(true)}
-        type="button"
-      >
-        <span className={`flex min-w-0 items-center gap-2 truncate ${current ? '' : 'text-faint'}`} id={`${id}-value`}>
-          <Icon name="clock" size={16} />
-          {current ? clockTime(current) : emptyLabel}
-        </span>
-      </button>
+        haspopup="dialog"
+        icon="clock"
+        label={label}
+        onOpen={() => setOpen(true)}
+        open={open}
+        value={current ? clockTime(current) : emptyLabel}
+      />
       <input name={name} type="hidden" value={current} />
-      {label && <span aria-hidden="true" className="field-slot" />}
       {open && (
         <ClockDialog
           initial={current}
@@ -172,6 +166,6 @@ export function TimeField({
           title={label ?? ariaLabel ?? 'Time'}
         />
       )}
-    </div>
+    </>
   );
 }

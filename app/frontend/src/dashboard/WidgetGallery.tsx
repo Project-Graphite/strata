@@ -1,3 +1,5 @@
+import Card from '@mui/material/Card';
+import CardActionArea from '@mui/material/CardActionArea';
 import { useState } from 'react';
 import { Dialog, TextField } from '@project-graphite/ui';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
@@ -14,7 +16,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
   return (
     <Dialog onClose={onClose} title="Add a widget">
       <div className="mt-5 grid gap-5">
-        <TextField aria-label="Search widgets" autoComplete="off" autoFocus label="" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search widgets" value={query} />
+        <TextField autoComplete="off" autoFocus label="Search widgets" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
         {kinds.length === 0 && <Hint>No widget matches “{query}”.</Hint>}
         {widgetGroups.map((group) => {
           const inGroup = kinds.filter((type) => widgetKinds[type].group === group);
@@ -24,10 +26,12 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
                 <Subheading>{group}</Subheading>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {inGroup.map((type) => (
-                    <button className="choice-card grid gap-1 text-left" key={type} onClick={() => onAdd(type)} type="button">
-                      <span className="text-ink">{widgetKinds[type].title}</span>
-                      <span className="text-sm text-muted">{widgetKinds[type].description}</span>
-                    </button>
+                    <Card key={type} variant="outlined">
+                      <CardActionArea className="grid h-full content-start gap-1 p-3 text-left" onClick={() => onAdd(type)}>
+                        <span className="text-ink">{widgetKinds[type].title}</span>
+                        <span className="text-sm text-muted">{widgetKinds[type].description}</span>
+                      </CardActionArea>
+                    </Card>
                   ))}
                 </div>
               </section>

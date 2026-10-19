@@ -1,5 +1,6 @@
+import InputBase from '@mui/material/InputBase';
 import type { ReactNode } from 'react';
-import { DatePicker, formatDay, Popover, Select, TagChip } from '@project-graphite/ui';
+import { Checkbox, DatePicker, formatDay, Popover, Select, TagChip } from '@project-graphite/ui';
 import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
 import { Hint } from '../Hint';
@@ -59,24 +60,24 @@ export function PropertyField({
     case 'number':
     case 'link':
       return (
-        <input
-          aria-label={label}
-          className="property-input"
+        <InputBase
           defaultValue={asText(value)}
+          fullWidth
           key={asText(value)}
           onBlur={(event) => {
             const next = event.currentTarget.value.trim();
             if (next === asText(value)) return;
             onChange(next === '' ? null : property.type === 'number' ? Number(next) : next);
           }}
-          onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+          onKeyDown={(event) => event.key === 'Enter' && (event.target as HTMLInputElement).blur()}
+          slotProps={{ input: { 'aria-label': label, className: 'property-input' } }}
           type={property.type === 'number' ? 'number' : property.type === 'link' ? 'url' : 'text'}
         />
       );
     case 'date':
       return <DatePicker aria-label={label} onChange={(day) => onChange(day || null)} placeholder="—" quiet size="small" value={asText(value)} />;
     case 'checkbox':
-      return <input aria-label={label} checked={value === true} onChange={(event) => onChange(event.currentTarget.checked)} type="checkbox" />;
+      return <Checkbox aria-label={label} checked={value === true} onChange={(event) => onChange(event.currentTarget.checked)} />;
     case 'select':
     case 'person':
       return (
@@ -107,14 +108,12 @@ export function PropertyField({
             <div className="grid gap-1 p-2">
               {property.options?.length ? (
                 property.options.map((option) => (
-                  <label className="flex items-center gap-2 text-sm" key={option.id}>
-                    <input
-                      checked={chosen.includes(option.id)}
-                      onChange={(event) => onChange(event.currentTarget.checked ? [...chosen, option.id] : chosen.filter((id) => id !== option.id))}
-                      type="checkbox"
-                    />
-                    {option.name}
-                  </label>
+                  <Checkbox
+                    checked={chosen.includes(option.id)}
+                    key={option.id}
+                    label={option.name}
+                    onChange={(event) => onChange(event.currentTarget.checked ? [...chosen, option.id] : chosen.filter((id) => id !== option.id))}
+                  />
                 ))
               ) : (
                 <Hint>Add options to this property first.</Hint>

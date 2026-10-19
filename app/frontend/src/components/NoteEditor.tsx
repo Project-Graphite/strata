@@ -1,5 +1,6 @@
+import ToggleButton from '@mui/material/ToggleButton';
 import { useEffect, useState } from 'react';
-import { Avatar, Icon, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
+import { Avatar, Icon, IconButton, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
@@ -86,7 +87,7 @@ function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActi
     },
     equalityFn: (a, b) => a?.node === b?.node && a?.pos === b?.pos,
   });
-  return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerClassName="note-tool" triggerLabel="Change this block" />;
+  return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerLabel="Change this block" triggerVariant="text" />;
 }
 
 function Toolbar({ actions, editor, onComment, quick }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void; quick: boolean }) {
@@ -122,16 +123,12 @@ function Toolbar({ actions, editor, onComment, quick }: { actions: BlockActions;
   ];
   return (
     <div aria-label="Formatting" className="note-toolbar" role="toolbar">
-      <button aria-label="Undo" className="note-tool" onClick={() => editor.chain().focus().undo().run()} title="Undo" type="button">
-        <Icon name="undo" size={16} />
-      </button>
-      <button aria-label="Redo" className="note-tool" onClick={() => editor.chain().focus().redo().run()} title="Redo" type="button">
-        <Icon name="redo" size={16} />
-      </button>
+      <IconButton icon="undo" label="Undo" onClick={() => editor.chain().focus().undo().run()} size="small" />
+      <IconButton icon="redo" label="Redo" onClick={() => editor.chain().focus().redo().run()} size="small" />
       {(quick ? tools.filter(([, label]) => quickTools.has(label)) : tools).map(([icon, label, active, run]) => (
-        <button aria-label={label} aria-pressed={active} className="note-tool" key={label} onClick={run} title={label} type="button">
+        <ToggleButton aria-label={label} className="border-0" key={label} onChange={run} selected={active} size="small" title={label} value={label}>
           <Icon name={icon} size={16} />
-        </button>
+        </ToggleButton>
       ))}
       {window.matchMedia('(hover: none)').matches && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
       {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}

@@ -1,5 +1,6 @@
+import ButtonBase from '@mui/material/ButtonBase';
 import { useEffect, useState } from 'react';
-import { ConfirmDialog, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, TextAreaField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -69,13 +70,11 @@ function CommentForm({
         });
       }}
     >
-      <textarea aria-label={label} autoFocus={autoFocus} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
+      <TextAreaField autoFocus={autoFocus} label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} rows={2} value={body} />
       <div className="flex gap-2">
         <Button disabled={!body.trim() || busy} label={label} submit />
         {onCancel && (
-          <button className="text-button text-sm" onClick={onCancel} type="button">
-            Cancel
-          </button>
+          <TextButton label="Cancel" onClick={onCancel} />
         )}
       </div>
     </form>
@@ -153,36 +152,25 @@ export function NoteComments({
           {comment.editedAt ? ' · edited' : ''}
         </p>
         {comment.blockId && (
-          <button className="comment-block-quote" onClick={() => anchors.show(comment.blockId!)} type="button">
+          <ButtonBase className="comment-block-quote justify-start text-left" onClick={() => anchors.show(comment.blockId!)}>
             {anchors.label(comment.blockId)}
-          </button>
+          </ButtonBase>
         )}
         <p className="m-0 whitespace-pre-wrap break-words text-sm text-ink">{comment.body}</p>
         <div className="flex flex-wrap gap-3 text-sm">
           {!comment.parentId && !comment.resolvedAt && (
-            <button className="text-button" onClick={() => setReplying(comment.id)} type="button">
-              Reply
-            </button>
+            <TextButton label="Reply" onClick={() => setReplying(comment.id)} />
           )}
           {!comment.parentId && editable && (
-            <button className="text-button" disabled={action.busy} onClick={() => void resolve(comment.id, !comment.resolvedAt)} type="button">
-              {comment.resolvedAt ? 'Reopen' : 'Resolve'}
-            </button>
+            <TextButton disabled={action.busy} label={comment.resolvedAt ? 'Reopen' : 'Resolve'} onClick={() => void resolve(comment.id, !comment.resolvedAt)} />
           )}
-          {mine && (
-            <button className="text-button" onClick={() => setEditing(comment.id)} type="button">
-              Edit
-            </button>
-          )}
+          {mine && <TextButton label="Edit" onClick={() => setEditing(comment.id)} />}
           {(mine || owner) && (
-            <button
-              className="text-button"
+            <TextButton
               disabled={action.busy}
+              label="Delete"
               onClick={() => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length })}
-              type="button"
-            >
-              Delete
-            </button>
+            />
           )}
         </div>
       </div>

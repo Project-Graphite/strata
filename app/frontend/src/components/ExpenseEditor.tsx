@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
+import { Checkbox, DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { directionOptions, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
@@ -176,10 +176,7 @@ export function ExpenseEditor({
       </div>
       {direction !== 'received' && !transfer && <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={chosenCategory} />}
       {suggested?.merchant && (
-        <label className="flex items-center gap-2 text-sm text-ink">
-          <input defaultChecked name="remember" type="checkbox" />
-          Always do this for {suggested.merchant}
-        </label>
+        <Checkbox defaultChecked label={`Always do this for ${suggested.merchant}`} name="remember" />
       )}
       {!transfer && (
         <div className="grid gap-4 sm:grid-cols-2">

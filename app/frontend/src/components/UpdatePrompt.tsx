@@ -1,3 +1,5 @@
+import Button from '@mui/material/Button';
+import SnackbarContent from '@mui/material/SnackbarContent';
 import { useEffect, useRef, useState } from 'react';
 
 export function UpdatePrompt() {
@@ -25,19 +27,23 @@ export function UpdatePrompt() {
   if (!waiting) return null;
   return (
     <div className="snackbar-region" role="status">
-      <div className="snackbar">
-        <p className="m-0 min-w-0 flex-1 text-sm text-ink">A new version of Strata is ready.</p>
-        <button
-          className="rule-link mono-sm shrink-0"
-          onClick={() => {
-            reloading.current = true;
-            waiting.postMessage('activate');
-          }}
-          type="button"
-        >
-          Reload
-        </button>
-      </div>
+      <SnackbarContent
+        action={
+          <Button
+            color="inherit"
+            onClick={() => {
+              reloading.current = true;
+              waiting.postMessage('activate');
+            }}
+            size="small"
+          >
+            Reload
+          </Button>
+        }
+        className="pointer-events-auto"
+        message="A new version of Strata is ready."
+        role="none"
+      />
     </div>
   );
 }
