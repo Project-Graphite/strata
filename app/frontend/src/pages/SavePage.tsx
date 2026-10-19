@@ -1,6 +1,8 @@
+import FormLabel from '@mui/material/FormLabel';
+import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { LinesSkeleton, Select, TextField } from '@project-graphite/ui';
+import { LinesSkeleton, Radio, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
@@ -124,21 +126,15 @@ export function SavePage() {
         }}
       >
         {editable.length === 0 ? (
-          <p className="error-message m-0">You can only view your spaces, so there is nowhere to save this.</p>
+          <Alert className="m-0" severity="error">You can only view your spaces, so there is nowhere to save this.</Alert>
         ) : (
           <Select defaultValue={editable[0]!.id} label="Space" name="spaceId" options={spaceOptions(editable)} />
         )}
         {link && (
           <fieldset className="grid gap-2">
-            <legend className="field-label mb-2">Save as</legend>
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input checked={!asTask} name="saveAs" onChange={() => setAsTask(false)} type="radio" />
-              Bookmark to read later
-            </label>
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input checked={asTask} name="saveAs" onChange={() => setAsTask(true)} type="radio" />
-              Task
-            </label>
+            <FormLabel className="mb-2" component="legend">Save as</FormLabel>
+            <Radio checked={!asTask} label="Bookmark to read later" name="saveAs" onChange={() => setAsTask(false)} />
+            <Radio checked={asTask} label="Task" name="saveAs" onChange={() => setAsTask(true)} />
           </fieldset>
         )}
         {link && !asTask && <p className="m-0 truncate text-sm text-muted">{link}</p>}
@@ -147,7 +143,7 @@ export function SavePage() {
         )}
         {shared.files.length > 0 && (
           <div className="grid gap-2">
-            <p className="field-label m-0">Files</p>
+            <FormLabel className="m-0" component="p">Files</FormLabel>
             <ul className="panel-rows">
               {shared.files.map((file, index) => (
                 <li className="flex justify-between gap-4 panel-row" key={index}>

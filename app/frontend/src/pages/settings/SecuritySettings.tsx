@@ -1,3 +1,4 @@
+import MuiLink from '@mui/material/Link';
 import { useState } from 'react';
 import { CodeInput, Dialog, FormSkeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
@@ -103,9 +104,9 @@ function EnableTwoStep({ onClose, onDone }: { onClose: () => void; onDone: () =>
       <div className="flex flex-wrap items-center gap-5">
         <QrCode label="QR code to add Strata to your authenticator app" value={pending.uri} />
         <div className="grid min-w-0 flex-1 gap-2">
-          <a className="rule-link w-fit text-sm" href={pending.uri}>
+          <MuiLink className="w-fit text-sm" href={pending.uri} underline="always">
             Open in authenticator app
-          </a>
+          </MuiLink>
           <Hint>Or enter this key:</Hint>
           <code className="mono-sm break-all text-ink">{pending.secret.match(/.{1,4}/g)?.join(' ')}</code>
         </div>

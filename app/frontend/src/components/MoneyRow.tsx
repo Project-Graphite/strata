@@ -1,3 +1,4 @@
+import ButtonBase from '@mui/material/ButtonBase';
 import type { ReactNode } from 'react';
 import { RowText } from './RowText';
 
@@ -19,10 +20,10 @@ export function MoneyRow({
   const line = (
     <>
       {onOpen ? (
-        <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left" onClick={onOpen} type="button">
+        <ButtonBase className="flex min-w-0 flex-1 items-center justify-start gap-3 text-left" onClick={onOpen}>
           <RowText detail={detail} title={title} />
           {amount}
-        </button>
+        </ButtonBase>
       ) : (
         <>
           <RowText detail={detail} title={title} />

@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
   ErrorState,
+  IconButton,
   OutageGate,
   Sidebar,
   Skeleton,
@@ -12,7 +13,7 @@ import {
 import { onOutage } from '../api';
 import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
-import { InboxContext, unreadBadge } from '../inbox';
+import { InboxContext } from '../inbox';
 import { enabledFeatures } from '../features';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
@@ -20,7 +21,7 @@ import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AboutLinks } from './AboutLinks';
 import { AccountMenu } from './AccountMenu';
-import { ButtonLink, IconButton, IconLink } from './Button';
+import { ButtonLink, IconLink } from './Button';
 import { CrashBoundary } from './CrashBoundary';
 import { PageTree } from './PageTree';
 import { SearchPalette } from './SearchPalette';
@@ -96,9 +97,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
           ) : auth.user ? (
             <>
               <IconButton icon="search" label="Search (Ctrl+K)" onClick={openSearch} />
-              <IconLink icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox">
-                {unread > 0 && <span className="count-badge">{unreadBadge(unread)}</span>}
-              </IconLink>
+              <IconLink badge={unread} icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox" />
               <AccountMenu
                 onSignOut={() =>
                   void signingOut.run(async () => {

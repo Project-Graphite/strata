@@ -1,3 +1,5 @@
+import Alert from '@mui/material/Alert';
+import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { CodeInput, errorMessage, TextField } from '@project-graphite/ui';
@@ -52,21 +54,21 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
           <CodeInput autoFocus label="Six-digit code" {...form.field('code')} />
         )}
         {error && (
-          <p className="error-message m-0" role="alert">
+          <Alert className="m-0" severity="error">
             {error}
-          </p>
+          </Alert>
         )}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       <p className="mt-6 text-sm text-muted">
-        <button className="text-button rule-link" onClick={() => setRecovery((current) => !current)} type="button">
+        <MuiLink component="button" onClick={() => setRecovery((current) => !current)} type="button" underline="always">
           {recovery ? 'Use the authenticator app instead' : 'Use a recovery code instead'}
-        </button>
+        </MuiLink>
       </p>
       <p className="mt-2 text-sm text-muted">
-        <button className="text-button rule-link" onClick={onRestart} type="button">
+        <MuiLink component="button" onClick={onRestart} type="button" underline="always">
           Start again
-        </button>
+        </MuiLink>
       </p>
     </section>
   );
@@ -119,18 +121,18 @@ export function LoginPage() {
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
         {error && (
-          <p className="error-message m-0" role="alert">
+          <Alert className="m-0" severity="error">
             {error}
-          </p>
+          </Alert>
         )}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       {error === unverified && <ResendVerification email={email} key={email} />}
       <p className="mt-6 text-sm text-muted">
-        <Link className="rule-link" to="/forgot-password">Forgot your password?</Link>
+        <MuiLink component={Link} to="/forgot-password" underline="always">Forgot your password?</MuiLink>
       </p>
       <p className="mt-2 text-sm text-muted">
-        New here? <Link className="rule-link" to="/register">Create account</Link>
+        New here? <MuiLink component={Link} to="/register" underline="always">Create account</MuiLink>
       </p>
     </section>
   );

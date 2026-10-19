@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, TextField } from '@project-graphite/ui';
+import { Checkbox, formatDay, IconButton, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
@@ -166,7 +166,7 @@ export function PersonPage() {
             {shown.giftIdeas.map((idea) => (
               <li className="panel-row flex items-center gap-3" key={idea.id}>
                 <label className="flex min-w-0 flex-1 items-center gap-3">
-                  <input
+                  <Checkbox
                     checked={idea.done}
                     disabled={!editable || action.busy}
                     onChange={() =>
@@ -175,7 +175,6 @@ export function PersonPage() {
                         return '';
                       }, 'Could not save the gift idea')
                     }
-                    type="checkbox"
                   />
                   <span className={`truncate ${idea.done ? 'text-faint line-through' : 'text-ink'}`}>{idea.text}</span>
                 </label>

@@ -1,6 +1,8 @@
+import FormLabel from '@mui/material/FormLabel';
+import Alert from '@mui/material/Alert';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { FormPanelSkeleton, LinesSkeleton, TextAreaField, TextField } from '@project-graphite/ui';
+import { FormPanelSkeleton, LinesSkeleton, Radio, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
 import { Button } from '../components/Button';
@@ -43,17 +45,22 @@ function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boo
 function ResponseFields({ current, missing, onChoose }: { current?: Guest['response']; missing: boolean; onChoose: () => void }) {
   return (
     <fieldset aria-invalid={missing || undefined} className="m-0 flex flex-wrap gap-4 border-0 p-0">
-      <legend className="field-label mb-2">Can you come?</legend>
+      <FormLabel className="mb-2" component="legend">Can you come?</FormLabel>
       {(['yes', 'maybe', 'no'] as const).map((response) => (
-        <label className="flex items-center gap-2 text-ink" key={response}>
-          <input defaultChecked={current === response} name="response" onChange={onChoose} required type="radio" value={response} />
-          {response === 'yes' ? 'Yes' : response === 'no' ? 'No' : 'Maybe'}
-        </label>
+        <Radio
+          defaultChecked={current === response}
+          key={response}
+          label={response === 'yes' ? 'Yes' : response === 'no' ? 'No' : 'Maybe'}
+          name="response"
+          onChange={onChoose}
+          required
+          value={response}
+        />
       ))}
       {missing && (
-        <p className="error-message m-0 w-full" role="alert">
+        <Alert className="m-0 w-full" severity="error">
           Choose yes, maybe or no.
-        </p>
+        </Alert>
       )}
     </fieldset>
   );
@@ -115,7 +122,7 @@ export function RsvpPage() {
         <p className="m-0 text-ink">Hi {guest.name}.</p>
         {poll.data && poll.data.options.length > 0 && (
           <div className="grid gap-2">
-            <p className="field-label m-0">The date isn’t fixed yet. Which of these work for you?</p>
+            <FormLabel className="m-0" component="p">The date isn’t fixed yet. Which of these work for you?</FormLabel>
             <PollOptions
               busy={voting.busy}
               onVote={(optionId: string, answer: PollAnswer) =>

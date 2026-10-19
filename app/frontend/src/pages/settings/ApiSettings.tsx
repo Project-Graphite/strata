@@ -1,5 +1,6 @@
+import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
-import { ConfirmDialog, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Checkbox, ConfirmDialog, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { ActionsMenu } from '../../components/ActionsMenu';
@@ -176,14 +177,19 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
         >
           <TextField autoFocus inputMode="url" label="Send to (https://)" {...form.field('url')} />
           <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="field-label mb-2">When</legend>
+            <FormLabel className="mb-2" component="legend">When</FormLabel>
             {webhookEvents.map(([event, description]) => (
-              <label className="flex items-start gap-2 text-sm text-ink" key={event}>
-                <input defaultChecked={event === 'item.created'} name="events" type="checkbox" value={event} />
-                <span>
-                  {description} <span className="mono-sm text-faint">{event}</span>
-                </span>
-              </label>
+              <Checkbox
+                defaultChecked={event === 'item.created'}
+                key={event}
+                label={
+                  <span>
+                    {description} <span className="mono-sm text-faint">{event}</span>
+                  </span>
+                }
+                name="events"
+                value={event}
+              />
             ))}
           </fieldset>
           <Select defaultValue="" label="In" name="spaceId" options={[{ value: '', label: 'All my spaces' }, ...spaceOptions(spaces.data ?? [])]} />

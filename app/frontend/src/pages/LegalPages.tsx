@@ -1,3 +1,4 @@
+import MuiLink from '@mui/material/Link';
 import type { ReactNode } from 'react';
 import { Page, Section } from '../components/Page';
 
@@ -14,9 +15,9 @@ function LegalPage({ children, title }: { children: ReactNode; title: string }) 
 
 function External({ children, href }: { children: ReactNode; href: string }) {
   return (
-    <a className="rule-link" href={href} rel="noreferrer" target="_blank">
+    <MuiLink href={href} rel="noreferrer" target="_blank" underline="always">
       {children}
-    </a>
+    </MuiLink>
   );
 }
 

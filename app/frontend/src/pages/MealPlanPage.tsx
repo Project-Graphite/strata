@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { DatePicker, formatDay, ListSkeleton, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, formatDay, IconButton, ListSkeleton, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';

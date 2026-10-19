@@ -1,11 +1,12 @@
+import FormLabel from '@mui/material/FormLabel';
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, Dialog, formatDay, PageSkeleton, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Dialog, formatDay, IconButton, PageSkeleton, Radio, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, ButtonLink, IconButton, IconLink, TextButton } from '../components/Button';
+import { Button, ButtonLink, IconLink, TextButton } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
@@ -397,7 +398,7 @@ export function DashboardHome() {
           <div className="mt-5 grid gap-5">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
             <fieldset className="m-0 grid gap-3 border-0 p-0">
-              <legend className="field-label mb-2">Opens by itself</legend>
+              <FormLabel className="mb-2" component="legend">Opens by itself</FormLabel>
               <div className="grid gap-4 sm:grid-cols-3">
                 <TimeField emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
                 <TimeField emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
@@ -413,24 +414,8 @@ export function DashboardHome() {
                 />
               </div>
             </fieldset>
-            <fieldset className="m-0 grid gap-3 border-0 p-0">
-              <legend className="field-label mb-2">Background</legend>
-              <div className="swatches">
-                {colorOptions.map(({ value: colour, label }) => (
-                  <label className="swatch" key={colour} title={label}>
-                    <input
-                      aria-label={label}
-                      checked={layout.background?.colour === colour}
-                      className="sr-only"
-                      name="background"
-                      onChange={() => change({ background: { colour } })}
-                      type="radio"
-                      value={colour}
-                    />
-                    <span aria-hidden="true" className={`swatch-dot tag-${colour}`} />
-                  </label>
-                ))}
-              </div>
+            <div className="grid gap-3">
+              <ColorSwatches label="Background" name="background" onChange={(colour) => change({ background: { colour } })} value={layout.background?.colour ?? null} />
               <div className="flex flex-wrap items-center gap-3">
                 {layout.background?.imageId && <BackgroundPreview background={layout.background} />}
                 {personal && (
@@ -450,7 +435,7 @@ export function DashboardHome() {
                 )}
                 {layout.background && <TextButton label="No background" onClick={() => change({ background: undefined })} />}
               </div>
-            </fieldset>
+            </div>
             <DialogActions
               start={
                 dashboards.data.length > 1 && (
@@ -496,24 +481,25 @@ export function DashboardHome() {
         >
           <TextField autoFocus defaultValue="Morning briefing" label="Name" maxLength={40} {...addForm.field('name')} />
           <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <legend className="field-label mb-2">Start from</legend>
+            <FormLabel className="mb-2" component="legend">Start from</FormLabel>
             {templates.map(([value, label, contents]) => (
-              <label className="choice-card" key={label}>
-                <input
-                  defaultChecked={value === 'morning'}
-                  name="template"
-                  onChange={(event) => {
-                    const field = event.currentTarget.form?.elements.namedItem('name');
-                    if (field instanceof HTMLInputElement && templates.some(([, known]) => known === field.value)) field.value = label;
-                  }}
-                  type="radio"
-                  value={value}
-                />
-                <span className="grid gap-0.5">
-                  <span className="text-ink">{label}</span>
-                  <span className="text-sm text-muted">{contents}</span>
-                </span>
-              </label>
+              <Radio
+                className="choice-card m-0"
+                defaultChecked={value === 'morning'}
+                key={label}
+                label={
+                  <span className="grid gap-0.5">
+                    <span className="text-ink">{label}</span>
+                    <span className="text-sm text-muted">{contents}</span>
+                  </span>
+                }
+                name="template"
+                onChange={(event) => {
+                  const field = event.currentTarget.form?.elements.namedItem('name');
+                  if (field instanceof HTMLInputElement && templates.some(([, known]) => known === field.value)) field.value = label;
+                }}
+                value={value}
+              />
             ))}
           </fieldset>
         </FormDialog>

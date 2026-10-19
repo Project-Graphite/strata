@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { IconButton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { IconButton } from '../components/Button';
 import { Hint } from '../components/Hint';
 import { DetailState, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';

@@ -1,5 +1,7 @@
+import ButtonBase from '@mui/material/ButtonBase';
+import Chip from '@mui/material/Chip';
 import type { ReactNode } from 'react';
-import { Avatar, Button, formatDay, Icon, Pagination } from '@project-graphite/ui';
+import { Avatar, Button, Checkbox, formatDay, Icon, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
 import type { useAuth } from './auth';
 import { FilterChips } from './components/Page';
@@ -130,16 +132,14 @@ export function TaskRow({
   return (
     <li className="flex min-w-0 items-center gap-3 panel-row">
       <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
-        <input
+        <Checkbox
           aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
           checked={done}
-          className="h-5 w-5"
           disabled={disabled}
           onChange={onToggle}
-          type="checkbox"
         />
       </label>
-      <button className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left" onClick={onEdit} type="button">
+      <ButtonBase className="min-w-0 flex-1 flex-col items-stretch text-left" onClick={onEdit}>
         <span className={`block truncate ${done ? 'text-faint line-through' : 'text-ink'}`}>
           {task.parentId && <span className="text-faint">↳ </span>}
           {task.title}
@@ -149,7 +149,7 @@ export function TaskRow({
             {details.join(' · ')}
           </span>
         )}
-      </button>
+      </ButtonBase>
       {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
       {actions}
     </li>
@@ -179,10 +179,16 @@ export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLi
       label="Lists"
     >
       {onNewList && (
-        <button className="filter-chip" onClick={onNewList} type="button">
-          <Icon name="plus" size={14} />
-          New list
-        </button>
+        <Chip
+          icon={
+            <span className="inline-flex">
+              <Icon name="plus" size={14} />
+            </span>
+          }
+          label="New list"
+          onClick={onNewList}
+          variant="outlined"
+        />
       )}
     </FilterChips>
   );

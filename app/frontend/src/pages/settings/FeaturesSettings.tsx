@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import { Link, useLocation, type Location } from 'react-router';
 import { Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
@@ -27,11 +28,11 @@ export function FeaturesSettings() {
     <Section description="The ones you turn on appear in your menu. Turning one off hides it and keeps everything in it." title="Features">
       {asked &&
         (chosen.includes(asked.key) ? (
-          <p className="notice m-0">
+          <Alert className="m-0" severity="info">
             <Link to={`${state!.from.pathname}${state!.from.search}`}>Open {asked.label}</Link>
-          </p>
+          </Alert>
         ) : (
-          <p className="notice m-0">Turn on {asked.label} to open it.</p>
+          <Alert className="m-0" severity="info">Turn on {asked.label} to open it.</Alert>
         ))}
       <SettingsRows>
         {featureCatalogue.map((feature) => (

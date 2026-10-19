@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import type { ReactNode } from 'react';
 
 export function Stats({ children }: { children: ReactNode }) {
@@ -18,5 +19,5 @@ export function Stat({ children, detail, label, value }: { children?: ReactNode;
 }
 
 export function MissingRates({ currencies }: { currencies: string[] }) {
-  return currencies.length > 0 ? <p className="notice m-0">There is no exchange rate for {currencies.join(', ')} yet, so those amounts are left out of the totals.</p> : null;
+  return currencies.length > 0 ? <Alert className="m-0" severity="info">There is no exchange rate for {currencies.join(', ')} yet, so those amounts are left out of the totals.</Alert> : null;
 }

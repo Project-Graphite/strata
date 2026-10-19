@@ -1,9 +1,11 @@
+import ButtonBase from '@mui/material/ButtonBase';
+import InputBase from '@mui/material/InputBase';
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, LinesSkeleton, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, LinesSkeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
 import { Hint } from '../components/Hint';
@@ -161,13 +163,11 @@ export function NotePage() {
             {(details.editable || details.icon) &&
               !details.quick &&
               (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
-            <input
-              aria-label={details.quick ? 'Note title' : 'Page title'}
+            <InputBase
               autoFocus={details.editable && !details.title}
-              className="note-title"
               defaultValue={details.title}
+              fullWidth
               key={details.id}
-              maxLength={200}
               onBlur={(event) => {
                 const title = event.currentTarget.value.trim();
                 if (details.editable && title !== details.title) save({ title }, () => '', `Could not rename the ${pageNoun(details)}`);
@@ -180,6 +180,7 @@ export function NotePage() {
               }}
               placeholder="Untitled"
               readOnly={!details.editable}
+              slotProps={{ input: { 'aria-label': details.quick ? 'Note title' : 'Page title', className: 'note-title', maxLength: 200 } }}
             />
           </div>
         </div>
@@ -279,9 +280,9 @@ export function NotePage() {
               return (
                 <li key={linkId}>
                   {item.kind === 'task' ? (
-                    <button className={linkRow} onClick={() => setOpenTask(item.id)} type="button">
+                    <ButtonBase className={`${linkRow} justify-start`} onClick={() => setOpenTask(item.id)}>
                       {text}
-                    </button>
+                    </ButtonBase>
                   ) : (
                     <Link className={linkRow} to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
                       {text}

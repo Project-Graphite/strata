@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
+import { Icon, IconButton, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, buttonClass, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
@@ -30,13 +30,13 @@ function CreateButton({ busy, label, onCreate, primary = false, spaces }: { busy
       items={spaces.map((space) => ({ label: `In ${space.name}`, onSelect: () => onCreate(space.id) }))}
       label="Spaces"
       trigger={
-        <>
-          <Icon name="plus" size={16} />
+        <span className="inline-flex items-center gap-2">
+          <Icon name="plus" size={18} />
           {label}
-        </>
+        </span>
       }
-      triggerClassName={buttonClass(primary)}
       triggerLabel={`${label}: choose a space`}
+      triggerVariant={primary ? 'primary' : 'secondary'}
     />
   );
 }

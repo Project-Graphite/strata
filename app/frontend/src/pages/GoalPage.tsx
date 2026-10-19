@@ -1,9 +1,10 @@
+import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Meter, TextField, type MenuItem } from '@project-graphite/ui';
+import { Checkbox, IconButton, type MenuItem, Meter, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
@@ -296,12 +297,9 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
         <Hint>{goal.spaceName} has no habits yet.</Hint>
       ) : (
         <fieldset className="m-0 grid gap-3 border-0 p-0">
-          <legend className="field-label mb-2 p-0">Follow these habits</legend>
+          <FormLabel className="mb-2" component="legend">Follow these habits</FormLabel>
           {(habits.data ?? []).map((habit) => (
-            <label className="flex items-center gap-3 text-ink" key={habit.id}>
-              <input defaultChecked={goal.habits.some((followed) => followed.id === habit.id)} name="habitId" type="checkbox" value={habit.id} />
-              {habit.name}
-            </label>
+            <Checkbox defaultChecked={goal.habits.some((followed) => followed.id === habit.id)} key={habit.id} label={habit.name} name="habitId" value={habit.id} />
           ))}
         </fieldset>
       )}

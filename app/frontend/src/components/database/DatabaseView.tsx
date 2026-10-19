@@ -1,3 +1,5 @@
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { formatDay, IconButton, ListSkeleton, Select } from '@project-graphite/ui';
@@ -260,13 +262,19 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   return (
     <section aria-label="Database" className="grid gap-4 border-t border-line-soft pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div aria-label="Database view" className="flex gap-4" role="group">
+        <ToggleButtonGroup
+          aria-label="Database view"
+          exclusive
+          onChange={(_, view: typeof data.view | null) => view && void saveSchema({ view })}
+          size="small"
+          value={data.view}
+        >
           {databaseViews.map(([view, label]) => (
-            <button aria-pressed={data.view === view} className={`tab-link ${data.view === view ? 'active' : ''}`} key={view} onClick={() => void saveSchema({ view })} type="button">
+            <ToggleButton key={view} value={view}>
               {label}
-            </button>
+            </ToggleButton>
           ))}
-        </div>
+        </ToggleButtonGroup>
         {editable && (
           <div className="flex items-center gap-4">
             <TextButton label="Edit properties" onClick={() => setEditing(true)} />

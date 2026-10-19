@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
 import { Dialog, ListSkeleton, errorMessage, isAbortError } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -96,7 +97,7 @@ export function TidyPreview({
     <Dialog onClose={onClose} title="Check before you tidy">
       <div className="mt-5 grid gap-6">
         {error ? (
-          <p className="error-message m-0">{error}</p>
+          <Alert className="m-0" severity="error">{error}</Alert>
         ) : !preview ? (
           <ListSkeleton label="Checking the items" rows={3} />
         ) : (

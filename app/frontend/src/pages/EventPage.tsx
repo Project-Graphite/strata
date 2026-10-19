@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, IconButton, TextButton } from '../components/Button';
+import { Button, TextButton } from '../components/Button';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { Copyable } from '../components/Copyable';
 import { EventEditor } from '../components/EventEditor';

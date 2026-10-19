@@ -1,8 +1,6 @@
+import Badge from '@mui/material/Badge';
 import MuiIconButton from '@mui/material/IconButton';
-import type { ReactNode } from 'react';
-import { Icon, Button as UiButton, IconButton as UiIconButton, type IconName } from '@project-graphite/ui';
-
-export const buttonClass = (primary = false) => `${primary ? 'primary-button' : 'secondary-button'} w-fit shrink-0 px-3 py-2 text-sm`;
+import { Icon, Button as UiButton, type IconName } from '@project-graphite/ui';
 
 const look = (large: boolean, primary: boolean) => ({ size: large ? 'medium' : 'small', variant: primary ? 'primary' : 'secondary' }) as const;
 
@@ -56,15 +54,12 @@ export function ButtonAnchor({ href, label, large = false, primary = false }: { 
   );
 }
 
-export function IconButton({ disabled, icon, label, onClick }: { disabled?: boolean; icon: IconName; label: string; onClick: () => void }) {
-  return <UiIconButton disabled={disabled} icon={icon} label={label} onClick={onClick} />;
-}
-
-export function IconLink({ children, icon, label, to }: { children?: ReactNode; icon: IconName; label: string; to: string }) {
+export function IconLink({ badge, icon, label, to }: { badge?: number; icon: IconName; label: string; to: string }) {
   return (
     <MuiIconButton aria-label={label} href={to} title={label}>
-      <Icon name={icon} size={18} />
-      {children}
+      <Badge badgeContent={badge} color="primary" max={99}>
+        <Icon name={icon} size={18} />
+      </Badge>
     </MuiIconButton>
   );
 }

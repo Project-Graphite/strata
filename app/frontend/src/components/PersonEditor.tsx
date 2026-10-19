@@ -1,3 +1,4 @@
+import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
 import { Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -60,7 +61,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
       {!person && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" placeholder="Friend, sister, colleague" />
       <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
-        <legend className="field-label mb-2 p-0">Birthday (optional)</legend>
+        <FormLabel className="mb-2" component="legend">Birthday (optional)</FormLabel>
         <Select error={birthdayError} label="Day" onChange={setDay} options={[{ value: '', label: 'None' }, ...dayOptions]} value={day} />
         <Select label="Month" onChange={setMonth} options={[{ value: '', label: 'None' }, ...monthOptions]} value={month} />
         <TextField defaultValue={person?.birthYear ?? ''} inputMode="numeric" label="Year, if known" maxLength={4} {...form.field('birthYear')} />

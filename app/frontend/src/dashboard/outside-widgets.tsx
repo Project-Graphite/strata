@@ -1,3 +1,5 @@
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
 import { useEffect, useState } from 'react';
 import { errorMessage, formatDay, ListSkeleton, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -134,24 +136,21 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
         )}
       </div>
       {found && (
-        <ul className="m-0 grid list-none gap-1 p-0">
+        <List dense disablePadding>
           {found.length === 0 && <li className="text-sm text-muted">No places match.</li>}
           {found.map((option) => (
-            <li key={`${option.latitude},${option.longitude}`}>
-              <button
-                className="text-button text-left text-sm"
-                onClick={() => {
-                  onChange({ ...settings, place: option });
-                  setFound(undefined);
-                  setQuery('');
-                }}
-                type="button"
-              >
-                {option.name}
-              </button>
-            </li>
+            <ListItemButton
+              key={`${option.latitude},${option.longitude}`}
+              onClick={() => {
+                onChange({ ...settings, place: option });
+                setFound(undefined);
+                setQuery('');
+              }}
+            >
+              {option.name}
+            </ListItemButton>
           ))}
-        </ul>
+        </List>
       )}
       {problem && <p className="m-0 text-sm text-danger">{problem}</p>}
       <Select
