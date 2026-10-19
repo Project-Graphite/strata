@@ -240,6 +240,7 @@ export function NotePage() {
                 disabled={adding.busy}
                 icon="plus"
                 label="New page"
+                large
                 onClick={() =>
                   void adding.run(async () => {
                     const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {

@@ -86,7 +86,7 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
 
       <Section
         action={
-          <Button icon="plus" label="New webhook" onClick={() => setAdding(true)} />
+          <Button icon="plus" label="New webhook" large onClick={() => setAdding(true)} />
         }
         title="Webhooks"
       >

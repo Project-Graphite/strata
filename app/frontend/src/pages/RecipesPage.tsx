@@ -24,7 +24,7 @@ export function RecipesArea({ children, tab, toolbar, toolbarEnd }: { children: 
         writable.length > 0 && (
           <>
             <ActionsMenu items={[{ label: 'Add from a link', onSelect: () => setDialog('import') }]} name="Recipes" />
-            <Button icon="plus" label="New recipe" onClick={() => setDialog({})} primary />
+            <Button icon="plus" label="New recipe" large onClick={() => setDialog({})} primary />
           </>
         )
       }

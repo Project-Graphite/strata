@@ -50,7 +50,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
     <>
       <Section
         action={
-          <Button icon="plus" label="New token" onClick={() => setOpen(true)} />
+          <Button icon="plus" label="New token" large onClick={() => setOpen(true)} />
         }
         title="Access tokens"
       >

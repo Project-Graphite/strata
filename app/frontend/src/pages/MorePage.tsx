@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { AboutLinks } from '../components/AboutLinks';
 import { Page, Subheading } from '../components/Page';
-import { enabledFeatures } from '../features';
+import { enabledApps } from '../apps';
 import { areaOf, moreSections } from '../navigation';
 
 export function MorePage() {
@@ -12,8 +12,8 @@ export function MorePage() {
 
   return (
     <Page title="More" titleHidden>
-      {moreSections(areaOf(pathname), enabledFeatures(auth.user?.features)).map((section, index) => (
-        <nav aria-label={section.label ?? (index ? 'Trash' : 'Areas')} className="grid gap-2" key={section.label ?? index}>
+      {moreSections(areaOf(pathname), enabledApps(auth.user?.features)).map((section, index) => (
+        <nav aria-label={section.label ?? 'Areas'} className="grid gap-2" key={section.label ?? index}>
           {section.label && <Subheading level={2}>{section.label}</Subheading>}
           <ul className="panel-rows">
             {section.items.map((item) => (

@@ -57,7 +57,7 @@ export function TasksPage() {
   const failed = [tasks, lists, spaces].find((resource) => resource.error);
   return (
     <Page
-      actions={addTo && addTo.role !== 'viewer' && <Button icon="plus" label="New task" onClick={() => setOpened('new')} primary />}
+      actions={addTo && addTo.role !== 'viewer' && <Button icon="plus" label="New task" large onClick={() => setOpened('new')} primary />}
       title="Tasks"
       toolbar={lists.data && <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />}
       toolbarEnd={<TaskStatusChips completed={completed} link={link} />}

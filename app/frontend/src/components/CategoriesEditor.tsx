@@ -103,7 +103,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
           </li>
         ))}
       </ul>
-      <Button disabled={rows.length >= 40} label="Add a category" onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])} />
+      <Button disabled={rows.length >= 40} label="Add a category" large onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])} />
       {error && (
         <Alert className="m-0" severity="error">
           {error}

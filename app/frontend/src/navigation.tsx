@@ -1,32 +1,19 @@
 import { createContext, useContext, useEffect } from 'react';
 import type { IconName, ShellTab, SidebarSection } from '@project-graphite/ui';
-import { featureCatalogue, type Feature } from './features';
+import { appCatalogue, type AppEntry } from './apps';
 import { SpaceMark, type Space } from './spaces';
 
-export interface Area {
+interface Area {
   href: string;
   label: string;
   icon: IconName;
-  within?: string[];
 }
 
-export const mainAreas: Area[] = [
-  { href: '/', label: 'Home', icon: 'home' },
-  { href: '/tasks', label: 'Tasks', icon: 'check-mark' },
-  { href: '/agenda', label: 'Agenda', icon: 'calendar', within: ['/events'] },
-  { href: '/pages', label: 'Pages', icon: 'file', within: ['/notes'] },
-  { href: '/boards', label: 'Boards', icon: 'board' },
-  { href: '/bookmarks', label: 'Bookmarks', icon: 'bookmark' },
-  { href: '/journal', label: 'Journal', icon: 'pencil' },
-  { href: '/files', label: 'Files', icon: 'library' },
-  { href: '/spending', label: 'Spending', icon: 'wallet' },
-];
-
-const trash: Area = { href: '/trash', label: 'Trash', icon: 'trash' };
+const home: Area = { href: '/', label: 'Home', icon: 'home' };
 
 const otherAreas = ['/spaces', '/inbox', '/settings', '/admin', '/save', '/more'];
 
-const phoneTabs = ['/', '/spending', '/agenda', '/spaces'];
+const phoneApps = (apps: AppEntry[]) => apps.filter((app) => app.phoneTab);
 
 const inside = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -34,10 +21,8 @@ export function areaOf(pathname: string) {
   const space = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname);
   if (space) return `/spaces/${space[1]}`;
   if (pathname === '/') return '/';
-  const area = ([...mainAreas, ...featureCatalogue, trash] as Area[]).find(
-    (candidate) => candidate.href !== '/' && [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)),
-  );
-  return area?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
+  const app = appCatalogue.find((candidate) => [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)));
+  return app?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
 }
 
 export const AreaContext = createContext<{ setArea: (area: string | null) => void }>({ setArea: () => {} });
@@ -52,10 +37,9 @@ export function useInArea(area: string | null) {
 
 const toItem = (area: Area, active: string | null) => ({ active: area.href === active, href: area.href, icon: area.icon, label: area.label });
 
-export function sidebarSections(active: string | null, spaces: Space[] | undefined, features: Feature[]): SidebarSection[] {
+export function sidebarSections(active: string | null, spaces: Space[] | undefined, apps: AppEntry[]): SidebarSection[] {
   return [
-    { items: mainAreas.map((area) => toItem(area, active)) },
-    ...(features.length ? [{ label: 'Features', items: features.map((feature) => toItem(feature, active)) }] : []),
+    { items: [home, ...apps].map((area) => toItem(area, active)) },
     {
       label: 'Spaces',
       items: [
@@ -63,47 +47,49 @@ export function sidebarSections(active: string | null, spaces: Space[] | undefin
         { active: active === '/spaces', href: '/spaces', icon: 'folder' as const, label: 'All spaces' },
       ],
     },
-    { items: [toItem(trash, active)] },
   ];
 }
 
-export function moreSections(active: string | null, features: Feature[]): SidebarSection[] {
-  return [
-    { items: mainAreas.filter((area) => !phoneTabs.includes(area.href)).map((area) => toItem(area, active)) },
-    ...(features.length ? [{ label: 'Features', items: features.map((feature) => toItem(feature, active)) }] : []),
-    { items: [toItem(trash, active)] },
-  ];
+export function moreSections(active: string | null, apps: AppEntry[]): SidebarSection[] {
+  const tabbed = phoneApps(apps);
+  return [{ items: apps.filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) }];
 }
 
-export function phoneTabBar(active: string | null): ShellTab[] {
+export function phoneTabBar(active: string | null, apps: AppEntry[]): ShellTab[] {
   const tab = (href: string, label: string, icon: IconName, current: boolean): ShellTab => ({ active: current, href, icon, label });
+  const tabbed = phoneApps(apps);
   return [
-    tab('/', 'Home', 'home', active === '/'),
-    tab('/spending', 'Spending', 'wallet', active === '/spending'),
-    tab('/agenda', 'Agenda', 'calendar', active === '/agenda'),
+    tab(home.href, home.label, home.icon, active === home.href),
+    ...tabbed.map((app) => tab(app.href, app.label, app.icon, active === app.href)),
     tab('/spaces', 'Spaces', 'folder', Boolean(active?.startsWith('/spaces'))),
-    tab('/more', 'More', 'more', active !== null && !active.startsWith('/spaces') && !phoneTabs.includes(active)),
+    tab(
+      '/more',
+      'More',
+      'more',
+      active !== null && active !== home.href && !active.startsWith('/spaces') && !tabbed.some((app) => app.href === active),
+    ),
   ];
 }
 
-export function searchableAreas(features: Feature[], admin: boolean): { href: string; label: string; hint?: string }[] {
+export function searchableAreas(apps: AppEntry[], admin: boolean): { href: string; label: string; hint?: string }[] {
   return [
-    ...mainAreas.map((area) => ({ href: area.href, label: area.label })),
-    { href: '/agenda/calendars', label: 'Calendars', hint: 'Agenda' },
-    { href: '/pages/quick-notes', label: 'Quick notes', hint: 'Pages' },
-    { href: '/spending/recurring', label: 'Recurring', hint: 'Spending' },
-    { href: '/spending/budgets', label: 'Budgets', hint: 'Spending' },
-    { href: '/spending/net-worth', label: 'Net worth', hint: 'Spending' },
-    ...features.map((feature) => ({ href: feature.href, label: feature.label })),
+    ...[home, ...apps].map((area) => ({ href: area.href, label: area.label })),
+    ...[
+      { app: 'agenda', href: '/agenda/calendars', label: 'Calendars', hint: 'Agenda' },
+      { app: 'pages', href: '/pages/quick-notes', label: 'Quick notes', hint: 'Pages' },
+      { app: 'spending', href: '/spending/recurring', label: 'Recurring', hint: 'Spending' },
+      { app: 'spending', href: '/spending/budgets', label: 'Budgets', hint: 'Spending' },
+      { app: 'spending', href: '/spending/net-worth', label: 'Net worth', hint: 'Spending' },
+    ].filter((place) => apps.some((app) => app.key === place.app)),
     { href: '/spaces', label: 'Spaces' },
     { href: '/spaces/invitations', label: 'Invitations', hint: 'Spaces' },
     { href: '/inbox', label: 'Inbox' },
-    { href: '/trash', label: 'Trash' },
     { href: '/settings', label: 'Settings' },
-    { href: '/settings/features', label: 'Features', hint: 'Settings' },
+    { href: '/settings/apps', label: 'Apps', hint: 'Settings' },
     { href: '/settings/security', label: 'Security', hint: 'Settings' },
     { href: '/settings/developer', label: 'Developer', hint: 'Settings' },
     { href: '/settings/data', label: 'Your data', hint: 'Settings' },
+    { href: '/settings/trash', label: 'Trash', hint: 'Settings' },
     ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 }

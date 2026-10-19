@@ -120,7 +120,7 @@ export function TripPage() {
       description={[shown.spaceName, shown.destination, tripDates(shown)].filter(Boolean).join(' · ')}
       title={shown.title}
     >
-      <Section action={editable && <Button icon="plus" label="New event" onClick={() => setDialog('event')} />} title="Itinerary">
+      <Section action={editable && <Button icon="plus" label="New event" large onClick={() => setDialog('event')} />} title="Itinerary">
         {days.length === 0 ? (
           <Hint>No events yet.</Hint>
         ) : (
@@ -151,7 +151,7 @@ export function TripPage() {
 
       {shown.packing && (
         <Section
-          action={editable && <Button icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
+          action={editable && <Button icon="plus" label="Add item" large onClick={() => setDialog('pack')} />}
           description={shown.packing.tasks.length ? `${packed} of ${shown.packing.tasks.length} packed` : undefined}
           title="Packing"
         >
@@ -179,7 +179,7 @@ export function TripPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New expense" onClick={() => setDialog('expense')} />} title="Spending">
+      <Section action={editable && <Button icon="plus" label="New expense" large onClick={() => setDialog('expense')} />} title="Spending">
         <div className="grid gap-2">
           <p className="m-0 text-ink">
             {money(shown.spending.spentMinor, shown.spending.currency)} spent
@@ -262,6 +262,7 @@ export function TripPage() {
             <Button
               icon="plus"
               label="New page"
+              large
               onClick={() =>
                 void action.run(async () => {
                   const page = await auth.request<{ id: string }>(`/spaces/${shown.spaceId}/notes`, { method: 'POST', body: JSON.stringify({ title: `${shown.title} notes` }) });

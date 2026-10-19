@@ -36,7 +36,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
         }, 'Could not add the task');
       }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-stretch gap-2">
         <TextField
           aria-describedby={understood ? hintId : undefined}
           className="min-w-0 flex-1"
@@ -45,7 +45,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
           onChange={(event) => setText(event.currentTarget.value)}
           value={text}
         />
-        <Button disabled={!quick.title || adding.busy} label="Add" submit />
+        <Button disabled={!quick.title || adding.busy} label="Add" large submit />
       </div>
       {understood && (
         <p className="mono-sm m-0 text-faint" id={hintId} role="status">

@@ -1,1 +1,15 @@
-export const featureKeys = ['goals', 'people', 'recipes', 'tidy', 'trips'] as const;
+export const featureKeys = [
+  'tasks',
+  'agenda',
+  'pages',
+  'boards',
+  'bookmarks',
+  'journal',
+  'files',
+  'spending',
+  'goals',
+  'people',
+  'recipes',
+  'tidy',
+  'trips',
+] as const;

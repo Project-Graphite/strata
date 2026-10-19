@@ -139,7 +139,6 @@ export function SpaceLayout() {
   const spaces = useSpaces();
   const [invited, setInvited] = useState(0);
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
-  const back = { to: '/spaces', label: 'Spaces' };
   const base = `/spaces/${id}`;
   const tabs = (
     [
@@ -154,10 +153,10 @@ export function SpaceLayout() {
     ] as const
   ).map(([href, label]) => ({ active: pathname === href, href, label }));
 
-  if (spaces.error) return <DetailState back={back} resource={spaces} thing="Space" />;
+  if (spaces.error) return <DetailState resource={spaces} thing="Space" />;
   if (!spaces.data) {
     return (
-      <Page back={back} documentTitle="Space" tabs={tabs} title={<Skeleton className="block h-9 w-72 max-w-full" />}>
+      <Page documentTitle="Space" tabs={tabs} title={<Skeleton className="block h-9 w-72 max-w-full" />}>
         <ListSkeleton label="Loading this space" rows={4} />
       </Page>
     );
@@ -165,7 +164,7 @@ export function SpaceLayout() {
   const space = spaces.data.find((candidate) => candidate.id === id);
   if (!space) {
     return (
-      <Page back={back} title="Space not found">
+      <Page title="Space not found">
         <Hint>It may have been deleted, or you’re no longer a member.</Hint>
       </Page>
     );
@@ -174,7 +173,6 @@ export function SpaceLayout() {
   return (
     <Page
       actions={<ActionsMenu items={actions.items(space)} name={space.name} />}
-      back={back}
       description={spaceDescription(space)}
       documentTitle={space.name}
       tabs={tabs}

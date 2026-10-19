@@ -114,7 +114,7 @@ export function RecurringPage() {
             action={
               editable.length > 0 && (
                 <span className="flex items-center gap-2">
-                  <Button icon="plus" label="New subscription" onClick={() => setEditing('new')} />
+                  <Button icon="plus" label="New subscription" large onClick={() => setEditing('new')} />
                   <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
                 </span>
               )

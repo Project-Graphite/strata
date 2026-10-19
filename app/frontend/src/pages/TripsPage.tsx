@@ -26,7 +26,7 @@ export function TripsPage() {
   ] as const;
 
   return (
-    <Page actions={writable.length > 0 && <Button icon="plus" label="New trip" onClick={() => setAdding(true)} primary />} title="Trips">
+    <Page actions={writable.length > 0 && <Button icon="plus" label="New trip" large onClick={() => setAdding(true)} primary />} title="Trips">
       {trips.error ? (
         <LoadError error={trips.error} onRetry={trips.reload} />
       ) : !trips.data ? (

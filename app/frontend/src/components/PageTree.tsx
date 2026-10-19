@@ -36,7 +36,7 @@ export function PageTree() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>(collapsed ? null : '/me/notes', true);
+  const listed = useResource<Note[]>('/me/notes', true);
   const action = useAction();
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
@@ -49,7 +49,7 @@ export function PageTree() {
 
   useEffect(() => onPagesChanged(reload), [reload]);
 
-  if (collapsed || !listed.data || !spaces.data) return null;
+  if (!listed.data || !spaces.data) return null;
   const pages = listed.data.filter((note) => !note.template);
   const childrenOf = (spaceId: string, parentId: string | null) =>
     nestedUnder(pages, parentId)
@@ -160,7 +160,7 @@ export function PageTree() {
   }
 
   return (
-    <section aria-label="Page tree" className="page-tree">
+    <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
       <p className="sidebar-section-label">Pages</p>
       {spaces.data.map((space) => {
         const key = `space:${space.id}`;

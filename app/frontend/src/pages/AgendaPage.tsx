@@ -188,7 +188,7 @@ export function AgendaPage({ view }: { view: View | 'today' }) {
       actions={
         <>
           <IconLink icon="calendar" label="Calendars" to="/agenda/calendars" />
-          <Button disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" onClick={() => setCreating(true)} primary />
+          <Button disabled={!spaces.data?.some((space) => space.role !== 'viewer')} icon="plus" label="New event" large onClick={() => setCreating(true)} primary />
         </>
       }
       tabs={[

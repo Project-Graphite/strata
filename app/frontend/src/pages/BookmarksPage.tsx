@@ -51,7 +51,7 @@ export function BookmarksPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New bookmark" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="New bookmark" large onClick={() => setAdding(true)} primary />}
       title="Bookmarks"
       toolbar={
         <FilterChips

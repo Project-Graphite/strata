@@ -29,6 +29,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
             disabled={adding.busy}
             icon="plus"
             label="New board"
+            large
             onClick={() =>
               void adding.run(async () => {
                 const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });

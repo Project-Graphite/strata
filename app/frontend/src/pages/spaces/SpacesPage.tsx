@@ -23,7 +23,7 @@ export function NewSpace() {
 
   return (
     <>
-      <Button icon="plus" label="New space" onClick={() => setOpen(true)} primary />
+      <Button icon="plus" label="New space" large onClick={() => setOpen(true)} primary />
       {open && (
         <FormDialog
           busy={creating.busy}

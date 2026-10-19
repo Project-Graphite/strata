@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
-import { enabledFeatures } from '../features';
+import { enabledApps } from '../apps';
 import { searchableAreas } from '../navigation';
 import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
@@ -78,7 +78,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(spaces.data ?? [])
       .filter((space) => matches(space.name))
       .map((space) => ({ group: 'Spaces', href: `/spaces/${space.id}`, id: `space-${space.id}`, label: space.name })),
-    ...searchableAreas(enabledFeatures(user?.features), isAdmin(user))
+    ...searchableAreas(enabledApps(user?.features), isAdmin(user))
       .filter((area) => matches(area.label) || (area.hint && matches(area.hint)))
       .map((area) => ({ group: 'Go to', hint: area.hint, href: area.href, id: `page-${area.href}`, label: area.label })),
   ];
