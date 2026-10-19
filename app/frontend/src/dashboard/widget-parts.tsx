@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { timeAgo } from '@project-graphite/ui';
+import { Skeleton, timeAgo } from '@project-graphite/ui';
 import type { Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { Subheading } from '../components/Page';
@@ -10,6 +11,77 @@ export interface WidgetProps {
 
 export interface SettingsProps extends WidgetProps {
   onChange: (settings: Record<string, unknown>) => void;
+}
+
+const rowsOf = (count: number) => Array.from({ length: count }, (_, index) => index);
+
+export function SkeletonLine({ className = '', width }: { className?: string; width: string }) {
+  return (
+    <span aria-hidden="true" className={`flex h-[1lh] items-center ${className}`}>
+      <Skeleton className={`h-[0.7em] ${width}`} />
+    </span>
+  );
+}
+
+export function TaskRowsSkeleton({ rows }: { rows: number }) {
+  return (
+    <ul aria-hidden="true" className="panel-rows">
+      {rowsOf(rows).map((row) => (
+        <li className="flex items-center gap-3 panel-row" key={row}>
+          <Skeleton className="size-[1.125rem] shrink-0 rounded-full" />
+          <SkeletonLine className="flex-1" width={row % 2 ? 'w-1/2' : 'w-3/4'} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function AgendaCardsSkeleton({ rows }: { rows: number }) {
+  return (
+    <div aria-hidden="true" className="grid gap-1.5">
+      {rowsOf(rows).map((row) => (
+        <div className="agenda-card text-sm" key={row} style={{ '--entry-color': 'var(--color-line)' } as CSSProperties}>
+          <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-2/3'} />
+          <SkeletonLine className="mono-sm" width="w-24" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function LinkRowsSkeleton({ className, rows }: { className: string; rows: number }) {
+  return (
+    <div aria-hidden="true" className={`grid ${className}`}>
+      {rowsOf(rows).map((row) => (
+        <div className="text-sm" key={row}>
+          <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-4/5'} />
+          <SkeletonLine className="mono-sm" width="w-24" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PageLinksSkeleton({ rows }: { rows: number }) {
+  return (
+    <div aria-hidden="true" className="grid gap-1">
+      <SkeletonLine className="text-sm" width="w-24" />
+      <LinkRowsSkeleton className="gap-1.5" rows={rows} />
+    </div>
+  );
+}
+
+export function SplitRowsSkeleton({ className = '', rows }: { className?: string; rows: number }) {
+  return (
+    <div aria-hidden="true" className={`grid ${className}`}>
+      {rowsOf(rows).map((row) => (
+        <div className="flex justify-between gap-3 text-sm" key={row}>
+          <SkeletonLine className="flex-1" width={row % 2 ? 'w-1/2' : 'w-2/3'} />
+          <SkeletonLine width="w-12" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {

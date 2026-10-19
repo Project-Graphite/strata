@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Avatar, DatePicker, formatDay, ListSkeleton, Select, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
+import { Avatar, DatePicker, formatDay, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -25,7 +25,17 @@ import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
 import { quoteFor } from './quotes';
-import { PageLinks, type SettingsProps, type WidgetProps } from './widget-parts';
+import {
+  AgendaCardsSkeleton,
+  LinkRowsSkeleton,
+  PageLinks,
+  PageLinksSkeleton,
+  SkeletonLine,
+  SplitRowsSkeleton,
+  TaskRowsSkeleton,
+  type SettingsProps,
+  type WidgetProps,
+} from './widget-parts';
 import { clockTime } from '../time';
 import { Button, TextButton } from '../components/Button';
 
@@ -113,6 +123,15 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
   );
 }
 
+function TasksSkeleton({ adding }: { adding: boolean }) {
+  return (
+    <Placeholder className="grid gap-2" label="Loading tasks">
+      {adding && <Skeleton className="h-12 rounded-lg" />}
+      <TaskRowsSkeleton rows={3} />
+    </Placeholder>
+  );
+}
+
 function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; listId?: string }; path: string; quiet?: boolean }) {
   const auth = useAuth();
   const spaces = useSpaces();
@@ -120,10 +139,10 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
   const action = useAction();
   const [opened, setOpened] = useState<Task>();
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
-  if (!tasks.data) return <ListSkeleton label="Loading tasks" rows={3} />;
+  if (!tasks.data) return <TasksSkeleton adding={Boolean(add)} />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
   return (
-    <div className="grid gap-2">
+    <div className="fade-in grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
       {list.length === 0 && !quiet && <Hint>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Hint>}
       {list.length > 0 && (
@@ -147,7 +166,14 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
 function Today() {
   const schedule = useTodaySchedule();
   if (schedule.error) return <LoadError compact error={schedule.error} onRetry={schedule.reload} />;
-  if (!schedule.data) return <ListSkeleton label="Loading today" rows={3} />;
+  if (!schedule.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Loading today">
+        <AgendaCardsSkeleton rows={2} />
+        <TaskRowsSkeleton rows={2} />
+      </Placeholder>
+    );
+  }
   return (
     <div className="grid gap-3">
       {schedule.data.length > 0 && (
@@ -174,7 +200,7 @@ function Tasks({ settings }: WidgetProps) {
   const spaceId = useTodoSpaceId(settings);
   const listId = typeof settings.listId === 'string' ? settings.listId : undefined;
   const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  if (!spaceId) return <ListSkeleton label="Loading tasks" rows={3} />;
+  if (!spaceId) return <TasksSkeleton adding />;
   return (
     <TaskWidget
       add={space && space.role !== 'viewer' ? { spaceId, listId } : undefined}
@@ -275,7 +301,14 @@ function Recurring() {
     { live: ['subscriptions', 'items'] },
   );
   if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
-  if (!summary.data) return <ListSkeleton label="Adding up your subscriptions" rows={3} />;
+  if (!summary.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Adding up your subscriptions">
+        <SkeletonLine className="text-xl" width="w-36" />
+        <SplitRowsSkeleton className="gap-1" rows={3} />
+      </Placeholder>
+    );
+  }
   if (summary.data.totals.length === 0) {
     return (
       <Hint>
@@ -310,7 +343,13 @@ function Inbox() {
   const action = useAction();
   const notifications = useResource<Page<InboxNotification>>('/me/inbox?page=1', true, { live: ['inbox'] });
   if (notifications.error) return <LoadError compact error={notifications.error} onRetry={notifications.reload} />;
-  if (!notifications.data) return <ListSkeleton label="Loading your inbox" rows={3} />;
+  if (!notifications.data) {
+    return (
+      <Placeholder label="Loading your inbox">
+        <LinkRowsSkeleton className="gap-2" rows={3} />
+      </Placeholder>
+    );
+  }
   const unread = notifications.data.results.filter((notification) => !notification.read).slice(0, 5);
   if (unread.length === 0) return <Hint>You are all caught up.</Hint>;
   return (
@@ -341,7 +380,13 @@ function Agenda() {
   const today = dayKey(new Date());
   const agenda = useAgenda(today, addDays(today, 7));
   if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;
-  if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={3} />;
+  if (!agenda.data) {
+    return (
+      <Placeholder label="Loading your agenda">
+        <AgendaCardsSkeleton rows={3} />
+      </Placeholder>
+    );
+  }
   if (agenda.data.length === 0) return <Hint>Nothing in the next seven days.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
@@ -473,7 +518,26 @@ interface TidyScanSummary {
 function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
-  if (!habits.data) return <ListSkeleton label="Loading your habits" rows={3} />;
+  if (!habits.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Loading your habits">
+        {[0, 1, 2].map((row) => (
+          <div aria-hidden="true" className="flex items-center gap-3" key={row}>
+            <Skeleton className="habit-check rounded-full" />
+            <div className="min-w-0 flex-1">
+              <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-2/3'} />
+              <SkeletonLine className="mono-sm mt-0.5" width="w-28" />
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                <span className="habit-day" key={day} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </Placeholder>
+    );
+  }
   if (habits.data.length === 0) return <Hint>No habits yet. Add them in a space’s Habits tab.</Hint>;
   return (
     <ul className="m-0 grid list-none gap-3 p-0">
@@ -513,7 +577,13 @@ function BoardSettings({ onChange, settings }: SettingsProps) {
 function Pages() {
   const pages = useResource<{ pinned: Note[]; recent: Note[] }>('/me/pages', true, { live: ['items', 'pages'] });
   if (pages.error) return <LoadError compact error={pages.error} onRetry={pages.reload} />;
-  if (!pages.data) return <ListSkeleton label="Loading your pages" rows={4} />;
+  if (!pages.data) {
+    return (
+      <Placeholder label="Loading your pages">
+        <PageLinksSkeleton rows={4} />
+      </Placeholder>
+    );
+  }
   const { pinned, recent } = pages.data;
   if (pinned.length === 0 && recent.length === 0) {
     return (
@@ -533,7 +603,13 @@ function Pages() {
 function ReadLater() {
   const bookmarks = useResource<Bookmark[]>('/me/bookmarks?status=unread', true, { live: ['items'] });
   if (bookmarks.error) return <LoadError compact error={bookmarks.error} onRetry={bookmarks.reload} />;
-  if (!bookmarks.data) return <ListSkeleton label="Loading your reading list" rows={3} />;
+  if (!bookmarks.data) {
+    return (
+      <Placeholder label="Loading your reading list">
+        <LinkRowsSkeleton className="gap-1.5" rows={3} />
+      </Placeholder>
+    );
+  }
   if (bookmarks.data.length === 0) {
     return (
       <Hint>
@@ -561,7 +637,18 @@ function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true, { live: ['items', 'subscriptions'] });
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true, { live: ['items', 'subscriptions'] });
   if (scan.error) return <LoadError compact error={scan.error} onRetry={scan.reload} />;
-  if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={2} />;
+  if (!scan.data) {
+    return (
+      <Placeholder className="grid gap-2 text-sm" label="Looking for clutter">
+        <div className="grid gap-1">
+          <SkeletonLine width="w-3/4" />
+          <SkeletonLine width="w-1/2" />
+        </div>
+        <SkeletonLine className="mono-sm" width="w-28" />
+        <SkeletonLine width="w-16" />
+      </Placeholder>
+    );
+  }
   const { files, subscriptions } = scan.data;
   const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
   const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
