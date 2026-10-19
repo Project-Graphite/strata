@@ -12,7 +12,7 @@ import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { Page, Subheading, Toolbar } from '../components/Page';
+import { Page, Subheading } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -138,7 +138,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
   }, [dashboard.id, navigate]);
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto bg-paper p-6 sm:p-10 ${backdrop.className}`} style={backdrop.image ? ({ '--backdrop-image': backdrop.image } as CSSProperties) : undefined}>
+    <div className={`fixed inset-0 z-50 overflow-y-auto bg-paper [scrollbar-gutter:stable] p-6 sm:p-10 ${backdrop.className}`} style={backdrop.image ? ({ '--backdrop-image': backdrop.image } as CSSProperties) : undefined}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Hint>{dashboard.name}</Hint>
@@ -161,6 +161,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
               </>
             );
           }}
+          dashboard={dashboard.id}
           label={cardTitle}
           widgets={placed(dashboard.layout.widgets)}
         />
@@ -253,16 +254,19 @@ export function DashboardHome() {
       actions={
         editing ? (
           <>
+            <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
+            <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
             <Button
               disabled={history.length === 0}
               label="Undo"
+              large
               onClick={() => {
                 setDraft(history.at(-1));
                 setHistory((past) => past.slice(0, -1));
               }}
             />
-            <Button label="Cancel" onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
-            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} onClick={() => finish(true)} primary />
+            <Button label="Cancel" large onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
+            <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} large onClick={() => finish(true)} primary />
           </>
         ) : (
           <>
@@ -288,16 +292,6 @@ export function DashboardHome() {
           label="Dashboards"
         />
       )}
-      {editing && (
-        <Toolbar
-          actions={
-            <>
-              <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-              <Button icon="plus" label="Add widget" onClick={() => setPicking(true)} />
-            </>
-          }
-        />
-      )}
       {widgets.length === 0 ? (
         <Empty title="This dashboard is empty">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</Empty>
       ) : (
@@ -305,28 +299,29 @@ export function DashboardHome() {
           card={(widget) => {
             const kind = widgetKinds[widget.type];
             const index = inOrder(widgets).findIndex((shown) => shown.id === widget.id);
+            const menu = editing && (
+              <ActionsMenu
+                items={[
+                  ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
+                  { label: 'Customise card', onSelect: () => setCustomizing(widget.id) },
+                  ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
+                  ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
+                  ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
+                  ...(wide && widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                  ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
+                  { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
+                ]}
+                name={cardTitle(widget)}
+              />
+            );
             return (
               <>
-                {(editing || !widget.hideTitle) && (
+                {widget.hideTitle ? (
+                  menu && <div className="absolute top-2 right-2 z-1 rounded-field bg-surface">{menu}</div>
+                ) : (
                   <header className="flex min-h-8 items-center justify-between gap-2">
-                    <Subheading level={2}>
-                      <span className={widget.hideTitle ? 'text-faint line-through' : undefined}>{cardTitle(widget)}</span>
-                    </Subheading>
-                    {editing && (
-                      <ActionsMenu
-                        items={[
-                          ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
-                          { label: 'Customise card', onSelect: () => setCustomizing(widget.id) },
-                          ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
-                          ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
-                          ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
-                          ...(wide && widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
-                          ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
-                          { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
-                        ]}
-                        name={cardTitle(widget)}
-                      />
-                    )}
+                    <Subheading level={2}>{cardTitle(widget)}</Subheading>
+                    {menu}
                   </header>
                 )}
                 {editing && settingsOpen === widget.id && kind.Settings && (
@@ -340,7 +335,9 @@ export function DashboardHome() {
               </>
             );
           }}
+          dashboard={current.id}
           editing={editing}
+          key={current.id}
           label={cardTitle}
           onChange={(next) => change({ widgets: next })}
           widgets={widgets}

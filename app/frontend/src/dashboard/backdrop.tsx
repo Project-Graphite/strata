@@ -75,10 +75,10 @@ export function useBackdrop(background?: Background) {
   };
 }
 
-const BackdropContext = createContext<(background: Background | null) => void>(() => {});
+const BackdropContext = createContext<(background?: Background | null) => void>(() => {});
 
 export function SiteBackdrop({ children }: { children: ReactNode }) {
-  const dashboards = useResource<Choice[]>('/me/dashboards', true);
+  const dashboards = useResource<Choice[]>('/me/dashboards', true, { live: ['dashboards'] });
   const [shown, setShown] = useState<Background | null>();
   const chosen =
     dashboards.data &&
@@ -102,6 +102,9 @@ export function SiteBackdrop({ children }: { children: ReactNode }) {
 
 export function ShowBackdrop({ background }: { background?: Background }) {
   const show = useContext(BackdropContext);
-  useEffect(() => show(background ?? null), [background, show]);
+  useEffect(() => {
+    show(background ?? null);
+    return () => show(undefined);
+  }, [background, show]);
   return null;
 }

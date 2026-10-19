@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { formatDay, ListSkeleton, Meter } from '@project-graphite/ui';
+import { formatDay, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
@@ -8,6 +8,7 @@ import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
+import { SkeletonLine, SplitRowsSkeleton } from './widget-parts';
 
 function usePersonalSpace() {
   return useSpaces().data?.find((space) => space.kind === 'personal')?.id;
@@ -26,7 +27,17 @@ export function SpendingWidget() {
   const spaceId = usePersonalSpace();
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending` : null, true, { live: ['spending', 'items'] });
   if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
-  if (!summary.data) return <ListSkeleton label="Adding up the month" rows={3} />;
+  if (!summary.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Adding up the month">
+        <SkeletonLine className="text-xl" width="w-48" />
+        <Skeleton className="h-1.5 rounded-full" />
+        <SkeletonLine className="text-sm" width="w-52" />
+        <SplitRowsSkeleton className="gap-1" rows={4} />
+        <SkeletonLine className="text-sm" width="w-24" />
+      </Placeholder>
+    );
+  }
   const { budgetMinor, currency, expenses, safeDailyMinor, spentMinor } = summary.data;
   return (
     <div className="grid gap-3">
@@ -56,7 +67,13 @@ export function PaymentsWidget() {
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, { live: ['spending', 'items'] });
   const failed = installments.error ?? accounts.error;
   if (failed) return <LoadError compact error={failed} onRetry={installments.error ? installments.reload : accounts.reload} />;
-  if (!installments.data || !accounts.data) return <ListSkeleton label="Looking for payments" rows={3} />;
+  if (!installments.data || !accounts.data) {
+    return (
+      <Placeholder label="Looking for payments">
+        <SplitRowsSkeleton className="gap-1.5" rows={3} />
+      </Placeholder>
+    );
+  }
   const payments = [
     ...installments.data.flatMap((plan) => (plan.nextDueOn ? [{ key: plan.id, name: plan.name, on: plan.nextDueOn, amountMinor: plan.monthlyMinor, currency: plan.currency, missed: plan.status === 'missed' }] : [])),
     ...accounts.data.flatMap((account) =>
@@ -86,7 +103,18 @@ export function SavingsWidget() {
   const spaceId = usePersonalSpace();
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true, { live: ['spending', 'items'] });
   if (goals.error) return <LoadError compact error={goals.error} onRetry={goals.reload} />;
-  if (!goals.data) return <ListSkeleton label="Looking at your goals" rows={3} />;
+  if (!goals.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Looking at your goals">
+        {[0, 1, 2].map((row) => (
+          <div aria-hidden="true" className="grid gap-1" key={row}>
+            <SplitRowsSkeleton rows={1} />
+            <Skeleton className="h-1.5 rounded-full" />
+          </div>
+        ))}
+      </Placeholder>
+    );
+  }
   if (goals.data.length === 0) {
     return (
       <Hint>

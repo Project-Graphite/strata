@@ -1,12 +1,12 @@
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import { useEffect, useState } from 'react';
-import { errorMessage, formatDay, ListSkeleton, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { errorMessage, formatDay, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useLiveRefresh, useResource } from '../useResource';
-import { type SettingsProps, type WidgetProps } from './widget-parts';
+import { LinkRowsSkeleton, SkeletonLine, type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
 
 const outsideRefresh = { every: 15 * 60_000 };
@@ -58,7 +58,25 @@ export function Weather({ settings }: WidgetProps) {
 
   if (!place) return <Hint>Choose a place in this widget's settings.</Hint>;
   if (forecast.error) return <LoadError compact error={forecast.error} onRetry={forecast.reload} />;
-  if (!forecast.data) return <ListSkeleton label="Loading the weather" rows={2} />;
+  if (!forecast.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Loading the weather">
+        <div>
+          <SkeletonLine className="text-3xl" width="w-20" />
+          <SkeletonLine className="mono-sm mt-1" width="w-48" />
+        </div>
+        <div aria-hidden="true" className="grid grid-cols-7 gap-1 text-sm">
+          {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+            <div className="grid gap-0.5" key={day}>
+              <SkeletonLine className="justify-center" width="w-3" />
+              <SkeletonLine className="justify-center" width="w-6" />
+              <SkeletonLine className="justify-center" width="w-6" />
+            </div>
+          ))}
+        </div>
+      </Placeholder>
+    );
+  }
   const { current, daily } = forecast.data;
   return (
     <div className="grid gap-3">
@@ -224,7 +242,13 @@ export function News({ settings }: WidgetProps) {
   }, [key, request, version]);
 
   if (feeds.length === 0) return <Hint>Add feed addresses in this widget's settings.</Hint>;
-  if (loaded?.key !== key) return <ListSkeleton label="Loading the news" rows={3} />;
+  if (loaded?.key !== key) {
+    return (
+      <Placeholder label="Loading the news">
+        <LinkRowsSkeleton className="gap-2" rows={3} />
+      </Placeholder>
+    );
+  }
   return (
     <div className="grid gap-2">
       {loaded.stories.length === 0 && loaded.failed === 0 && <Hint>No stories yet.</Hint>}
