@@ -1,9 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
-const contentSecurityPolicy = [
+const contentSecurityPolicy = (nonce: string) => [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self'",
+  `style-src 'self' 'nonce-${nonce}'`,
   "img-src 'self' data: blob:",
   "connect-src 'self'",
   "font-src 'self'",
@@ -16,8 +17,9 @@ const contentSecurityPolicy = [
 ].join('; ');
 
 export function securityHeaders(request: Request, response: Response, next: NextFunction) {
+  response.locals.cspNonce = randomBytes(16).toString('base64');
   response.set({
-    'Content-Security-Policy': contentSecurityPolicy,
+    'Content-Security-Policy': contentSecurityPolicy(response.locals.cspNonce),
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Resource-Policy': 'same-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',

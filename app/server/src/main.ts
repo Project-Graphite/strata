@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -38,14 +39,18 @@ async function bootstrap() {
     immutable: true,
     maxAge: '1y',
   });
-  app.useStaticAssets(frontendRoot);
+  app.useStaticAssets(frontendRoot, { index: false });
   await app.init();
   app
     .getHttpAdapter()
     .getInstance()
-    .get(/^(?!\/api(?:\/|$)).*/, (_request: unknown, response: Response) =>
-      response.sendFile(join(frontendRoot, 'index.html')),
-    );
+    .get(/^(?!\/api(?:\/|$)).*/, async (_request: unknown, response: Response) => {
+      const page = await readFile(join(frontendRoot, 'index.html'), 'utf8');
+      response
+        .set('Cache-Control', 'no-cache')
+        .type('html')
+        .send(page.replace('<head>', `<head><meta name="csp-nonce" content="${response.locals.cspNonce}" />`));
+    });
   await app.listen(Number(process.env.PORT ?? 3000), '0.0.0.0');
 }
 
