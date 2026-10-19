@@ -88,10 +88,9 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
   return (
     <div className="grid gap-2">
       <Select
-        aria-label="World clocks"
         disabled={zones.length >= 8}
-        fullWidth
         hint={zones.length >= 8 ? 'Up to 8 clocks.' : undefined}
+        label="World clocks"
         onChange={(zone) => onChange({ zones: [...zones, zone] })}
         options={options.filter((option) => !zones.includes(option.value))}
         placeholder="Add a city"
@@ -501,8 +500,7 @@ function BoardSettings({ onChange, settings }: SettingsProps) {
   const boards = useResource<Note[]>('/me/notes?kind=board', true);
   return (
     <Select
-      aria-label="Board"
-      fullWidth
+      label="Board"
       onChange={(boardId) => onChange({ boardId })}
       options={(boards.data ?? []).map((board) => ({ value: board.id, label: noteTitle(board) }))}
       placeholder="Choose a board"

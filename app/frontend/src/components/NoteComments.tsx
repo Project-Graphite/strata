@@ -70,7 +70,7 @@ function CommentForm({
         });
       }}
     >
-      <TextAreaField aria-label={label} autoFocus={autoFocus} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
+      <TextAreaField autoFocus={autoFocus} label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} rows={2} value={body} />
       <div className="flex gap-2">
         <Button disabled={!body.trim() || busy} label={label} submit />
         {onCancel && (

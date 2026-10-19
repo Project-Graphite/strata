@@ -27,7 +27,7 @@ export function LinkItemDialog({
         <Hint>{empty}</Hint>
       ) : (
         <Select
-          aria-label={noun === 'task' ? 'Task' : 'Event'}
+          label={noun === 'task' ? 'Task' : 'Event'}
           onChange={setChosen}
           options={choices ?? []}
           placeholder={choices ? `Choose ${noun === 'task' ? 'a task' : 'an event'}` : `Loading ${noun}s…`}
