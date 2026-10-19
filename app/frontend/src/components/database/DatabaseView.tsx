@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, Icon, ListSkeleton, Select } from '@project-graphite/ui';
+import { formatDay, IconButton, ListSkeleton, Select } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -143,15 +143,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                     </article>
                   ))}
                   {editable && (
-                    <button
-                      className="text-button inline-flex w-fit items-center gap-1.5 text-sm"
-                      disabled={adding.busy}
-                      onClick={() => addRow(column.id ? { [group.id]: column.id } : {})}
-                      type="button"
-                    >
-                      <Icon name="plus" size={14} />
-                      New
-                    </button>
+                    <TextButton disabled={adding.busy} icon="plus" label="New" onClick={() => addRow(column.id ? { [group.id]: column.id } : {})} />
                   )}
                 </section>
               );
@@ -194,9 +186,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                 <div className="flex items-center justify-between">
                   <span className={`mono-sm ${day === today ? 'font-medium text-ink' : 'text-faint'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
                   {editable && (
-                    <button aria-label="Add a page on this day" className="text-button text-faint" disabled={adding.busy} onClick={() => addRow({ [dateProperty.id]: day })} type="button">
-                      <Icon name="plus" size={14} />
-                    </button>
+                    <IconButton disabled={adding.busy} icon="plus" label="Add a page on this day" onClick={() => addRow({ [dateProperty.id]: day })} size="small" />
                   )}
                 </div>
                 {(byDay.get(day) ?? []).map((row) => (

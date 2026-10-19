@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { Dialog, Icon } from '@project-graphite/ui';
-import { Button, buttonClass, IconButton, TextButton } from './components/Button';
+import { Dialog, Icon, Button as UiButton } from '@project-graphite/ui';
+import { Button, IconButton, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
 export type TimeFormat = 'auto' | '12h' | '24h';
@@ -92,16 +92,16 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
           {twelve && (
             <div aria-label="Morning or afternoon" className="ml-2 grid gap-1" role="radiogroup">
               {(['AM', 'PM'] as const).map((half) => (
-                <button
+                <UiButton
                   aria-checked={(half === 'PM') === afternoon}
-                  className={buttonClass((half === 'PM') === afternoon)}
                   key={half}
                   onClick={() => setHours((hours % 12) + (half === 'PM' ? 12 : 0))}
                   role="radio"
-                  type="button"
+                  size="small"
+                  variant={(half === 'PM') === afternoon ? 'primary' : 'secondary'}
                 >
                   {half}
-                </button>
+                </UiButton>
               ))}
             </div>
           )}

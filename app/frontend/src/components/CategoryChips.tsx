@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { categoryName, type SpendingCategory } from '../spending';
+import { TextButton } from './Button';
 
 const shownFirst = 6;
 
@@ -25,9 +26,7 @@ export function CategoryChips({ categories, label = 'Category', onChange, value 
           </button>
         ))}
         {categories.length > shown.length && (
-          <button className="text-button text-sm" onClick={() => setAll(true)} type="button">
-            More…
-          </button>
+          <TextButton label="More…" onClick={() => setAll(true)} />
         )}
       </div>
     </fieldset>

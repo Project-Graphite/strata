@@ -1,6 +1,5 @@
 import { Component, type ReactNode } from 'react';
-import { ErrorState } from '@project-graphite/ui';
-import { buttonClass } from './Button';
+import { Button, ErrorState } from '@project-graphite/ui';
 
 export class CrashBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -14,9 +13,9 @@ export class CrashBoundary extends Component<{ children: ReactNode }, { failed: 
     return (
       <ErrorState
         action={
-          <a className={`${buttonClass()} no-underline`} href="/">
+          <Button href="/" LinkComponent="a" size="small">
             Go home
-          </a>
+          </Button>
         }
         onRetry={() => window.location.reload()}
         title="This page hit a problem"

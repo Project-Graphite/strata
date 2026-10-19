@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
-import { Avatar, formatDay, Icon, Pagination } from '@project-graphite/ui';
+import { Avatar, Button, formatDay, Icon, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
 import type { useAuth } from './auth';
 import { FilterChips } from './components/Page';
@@ -205,9 +204,9 @@ export function TaskListFooter({ completed, link, tasks }: { completed?: boolean
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       {completed !== undefined && (
-        <Link className="text-button text-sm" to={link({ completed: !completed, page: 1 })}>
+        <Button href={link({ completed: !completed, page: 1 })} size="small" variant="text">
           {completed ? 'Show open' : 'Show finished'}
-        </Link>
+        </Button>
       )}
       <Pagination page={tasks.page} pageHref={(next) => link({ page: next })} totalPages={tasks.totalPages} />
     </div>

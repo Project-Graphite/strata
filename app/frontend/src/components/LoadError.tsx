@@ -1,4 +1,5 @@
 import { ErrorState, Icon } from '@project-graphite/ui';
+import { TextButton } from './Button';
 
 export function LoadError({ compact = false, error, onRetry }: { compact?: boolean; error: string; onRetry: () => void }) {
   if (compact) {
@@ -8,9 +9,7 @@ export function LoadError({ compact = false, error, onRetry }: { compact?: boole
           <Icon name="alert" size={16} />
         </span>
         <span className="min-w-0 flex-1 text-muted">{error}</span>
-        <button className="text-button shrink-0 text-sm" onClick={onRetry} type="button">
-          Try again
-        </button>
+        <TextButton label="Try again" onClick={onRetry} />
       </div>
     );
   }

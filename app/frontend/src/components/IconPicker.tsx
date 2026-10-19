@@ -1,4 +1,5 @@
 import { Popover } from '@project-graphite/ui';
+import { TextButton } from './Button';
 
 const icons = ['📝', '📌', '💡', '✅', '📅', '🎯', '📚', '🧠', '🏠', '✈️', '🍳', '💰', '🎉', '🛒', '💪', '🌱', '🎵', '🎨', '🧳', '❤️', '⭐', '🔥', '🚀', '🗂️'];
 
@@ -32,16 +33,13 @@ export function IconPicker({ icon, onPick }: { icon: string | null; onPick: (ico
             ))}
           </div>
           {icon && (
-            <button
-              className="text-button w-fit text-sm"
+            <TextButton
+              label="Remove the icon"
               onClick={() => {
                 close();
                 onPick(null);
               }}
-              type="button"
-            >
-              Remove the icon
-            </button>
+            />
           )}
         </div>
       )}

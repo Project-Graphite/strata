@@ -1,5 +1,4 @@
-import { Icon } from '@project-graphite/ui';
-import { buttonClass } from './Button';
+import { Button } from '@project-graphite/ui';
 
 export function FileButton({
   accept,
@@ -21,8 +20,7 @@ export function FileButton({
   primary?: boolean;
 }) {
   return (
-    <label className={`${buttonClass(primary)} ${busy ? 'pointer-events-none opacity-60' : ''}`}>
-      <Icon name="upload" size={16} />
+    <Button className="shrink-0" component="label" disabled={busy} icon="upload" size="small" variant={primary ? 'primary' : 'secondary'}>
       {label}
       <input
         accept={accept}
@@ -38,6 +36,6 @@ export function FileButton({
         type="file"
         {...(folder ? { webkitdirectory: '' } : {})}
       />
-    </label>
+    </Button>
   );
 }
