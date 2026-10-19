@@ -82,7 +82,7 @@ model User {
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
-  features            String[]               @default([])
+  features            String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
   calendarFeedHash    String?                @unique @map("calendar_feed_hash")
   isActive            Boolean                @default(true) @map("is_active")
   role                UserRole               @default(MEMBER)

@@ -9,7 +9,7 @@ describe('Goals against Postgres', () => {
   it('turns features on per person and keeps the choice in the session', async () => {
     const person = await member('chooser');
 
-    expect((await person.call('GET', '/me')).body.features).toEqual([]);
+    expect((await person.call('GET', '/me')).body.features).toEqual(['tasks', 'agenda', 'pages', 'boards', 'bookmarks', 'journal', 'files', 'spending']);
     expect((await person.call('PATCH', '/me', { features: ['rockets'] })).status).toBe(400);
     expect((await person.call('PATCH', '/me', { features: ['goals', 'goals'] })).status).toBe(400);
     expect((await person.call('PATCH', '/me', { features: ['goals'] })).body.features).toEqual(['goals']);

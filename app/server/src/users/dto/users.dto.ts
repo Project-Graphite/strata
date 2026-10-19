@@ -37,6 +37,6 @@ export class UpdateProfileDto {
   @IsOptionalNotNull()
   @IsArray()
   @ArrayUnique()
-  @IsIn(featureKeys, { each: true, message: 'Choose features from the list.' })
+  @IsIn(featureKeys, { each: true, message: 'Choose apps from the list.' })
   features?: string[];
 }
