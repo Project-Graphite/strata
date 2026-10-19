@@ -102,14 +102,15 @@ export function PropertiesDialog({
                 {(property.options ?? []).map((option) => (
                   <div className="flex items-center gap-2" key={option.id}>
                     <TextField
+                      aria-label="Option name"
                       className="min-w-0 flex-1"
-                      label="Option name"
                       maxLength={60}
                       onChange={(event) =>
                         change(property.id, {
                           options: property.options?.map((candidate) => (candidate.id === option.id ? { ...candidate, name: event.currentTarget.value } : candidate)),
                         })
                       }
+                      placeholder="Option name"
                       value={option.name}
                     />
                     <Select

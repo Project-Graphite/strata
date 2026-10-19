@@ -117,8 +117,8 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
       <Hint>{place ? `Showing ${place.name}.` : 'No place chosen yet.'}</Hint>
       <div className="flex flex-wrap items-center gap-2">
         <TextField
+          aria-label="Search for a place"
           className="min-w-0 grow basis-40"
-          label="Search for a place"
           maxLength={80}
           onChange={(event) => setQuery(event.currentTarget.value)}
           onKeyDown={(event) => {
