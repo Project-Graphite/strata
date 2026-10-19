@@ -121,8 +121,8 @@ export function GoalPage() {
         action={
           editable && (
             <div className="flex flex-wrap gap-2">
-              <Button icon="link" label="Link a task" onClick={() => setDialog('link')} />
-              <Button icon="plus" label="New task" onClick={() => setTaskEditing('new')} />
+              <Button icon="link" label="Link a task" large onClick={() => setDialog('link')} />
+              <Button icon="plus" label="New task" large onClick={() => setTaskEditing('new')} />
             </div>
           )
         }

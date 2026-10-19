@@ -27,7 +27,7 @@ export function GoalsPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New goal" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="New goal" large onClick={() => setAdding(true)} primary />}
       title="Goals"
       toolbar={
         <FilterChips

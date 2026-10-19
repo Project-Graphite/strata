@@ -39,7 +39,7 @@ export function PeoplePage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New person" onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <Button icon="plus" label="New person" large onClick={() => setAdding(true)} primary />}
       title="People"
     >
       {people.error ? (

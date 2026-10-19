@@ -158,7 +158,7 @@ export function PersonPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New gift idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
+      <Section action={editable && <Button icon="plus" label="New gift idea" large onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
           <Hint>No gift ideas yet.</Hint>
         ) : (

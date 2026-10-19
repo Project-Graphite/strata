@@ -274,7 +274,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <Button icon="plus" label="New account" onClick={() => setDialog({ account: null })} />} title="Accounts">
+            <Section action={editable && <Button icon="plus" label="New account" large onClick={() => setDialog({ account: null })} />} title="Accounts">
               {accounts.error ? (
                 <LoadError compact error={accounts.error} onRetry={accounts.reload} />
               ) : !accounts.data ? (
@@ -306,7 +306,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           )}
 
           {tab === 'accounts' && (
-            <Section action={editable && <Button icon="plus" label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+            <Section action={editable && <Button icon="plus" label="New plan" large onClick={() => setDialog({ installment: null })} />} title="Installments">
               {installments.error ? (
                 <LoadError compact error={installments.error} onRetry={installments.reload} />
               ) : !installments.data?.length ? (
@@ -375,8 +375,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               action={
                 editable && (
                   <span className="flex flex-wrap gap-2">
-                    <Button label="Budget settings" onClick={() => setDialog('plan')} />
-                    <Button icon="plus" label="New budget" onClick={() => setDialog({ budget: null })} />
+                    <Button label="Budget settings" large onClick={() => setDialog('plan')} />
+                    <Button icon="plus" label="New budget" large onClick={() => setDialog({ budget: null })} />
                   </span>
                 )
               }

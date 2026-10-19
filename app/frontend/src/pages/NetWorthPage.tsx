@@ -55,7 +55,7 @@ export function NetWorthPage() {
           </Stats>
           <MissingRates currencies={worth.data.missing} />
 
-          <Section action={editable && <Button icon="plus" label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
+          <Section action={editable && <Button icon="plus" label="New savings goal" large onClick={() => setDialog({ goal: null })} />} title="Savings goals">
             {goals.data.length === 0 ? (
               <Hint>No savings goals yet.</Hint>
             ) : (
@@ -96,7 +96,7 @@ export function NetWorthPage() {
             )}
           </Section>
 
-          <Section action={editable && <Button icon="plus" label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
+          <Section action={editable && <Button icon="plus" label="New asset" large onClick={() => setDialog({ asset: null })} />} title="Assets">
             {worth.data.assets.length === 0 ? (
               <Hint>No assets yet.</Hint>
             ) : (

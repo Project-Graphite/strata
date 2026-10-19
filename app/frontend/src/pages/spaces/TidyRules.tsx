@@ -76,7 +76,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
 
   return (
     <Section
-      action={editable && tags.length > 0 && <Button icon="plus" label="New rule" onClick={() => setAdding(true)} />}
+      action={editable && tags.length > 0 && <Button icon="plus" label="New rule" large onClick={() => setAdding(true)} />}
       description="Tag new items in this space by words in their title, by file type, or both."
       title="Tagging rules"
     >

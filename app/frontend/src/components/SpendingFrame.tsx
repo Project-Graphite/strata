@@ -69,7 +69,7 @@ export function SpendingFrame({
               ]}
               name="spending"
             />
-            {editable && <Button icon="plus" label="New expense" onClick={() => setDialog('new')} primary />}
+            {editable && <Button icon="plus" label="New expense" large onClick={() => setDialog('new')} primary />}
           </>
         )
       }

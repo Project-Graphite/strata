@@ -67,7 +67,7 @@ export function InvitationsPage() {
         )}
       </Section>
 
-      <Section action={<Button icon="plus" label="New invitation" onClick={() => setCreating(true)} />} title="Sent">
+      <Section action={<Button icon="plus" label="New invitation" large onClick={() => setCreating(true)} />} title="Sent">
         {sent.error ? (
           <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
