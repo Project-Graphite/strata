@@ -24,10 +24,11 @@ export interface TwoStepStatus {
 
 const tabs = [
   ['/settings', 'Profile'],
-  ['/settings/features', 'Features'],
+  ['/settings/apps', 'Apps'],
   ['/settings/security', 'Security'],
   ['/settings/developer', 'Developer'],
   ['/settings/data', 'Your data'],
+  ['/settings/trash', 'Trash'],
 ] as const;
 
 export function SettingsRows({ children }: { children: ReactNode }) {

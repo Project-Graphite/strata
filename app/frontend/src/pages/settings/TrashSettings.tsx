@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ConfirmDialog, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
-import type { Page as ResultPage } from '../api';
-import { useAuth } from '../auth';
-import { announcePagesChanged } from '../notes';
-import { useSpaces, type Item } from '../spaces';
-import { useAction } from '../useAction';
-import { useResource } from '../useResource';
-import { ItemList } from './spaces/ItemList';
-import { ActionsMenu } from '../components/ActionsMenu';
-import { Empty } from '../components/Empty';
-import { LoadError } from '../components/LoadError';
-import { Page } from '../components/Page';
-import { Button } from '../components/Button';
+import type { Page as ResultPage } from '../../api';
+import { useAuth } from '../../auth';
+import { announcePagesChanged } from '../../notes';
+import { useSpaces, type Item } from '../../spaces';
+import { useAction } from '../../useAction';
+import { useResource } from '../../useResource';
+import { ItemList } from '../spaces/ItemList';
+import { ActionsMenu } from '../../components/ActionsMenu';
+import { Empty } from '../../components/Empty';
+import { LoadError } from '../../components/LoadError';
+import { Section } from '../../components/Page';
+import { Button } from '../../components/Button';
 
-export function TrashPage() {
+export function TrashSettings() {
   const auth = useAuth();
   const spaces = useSpaces();
   const [params] = useSearchParams();
@@ -25,7 +25,7 @@ export function TrashPage() {
   const spaceName = (item: Item) => spaces.data?.find((space) => space.id === item.spaceId)?.name ?? 'a space';
 
   return (
-    <Page description="Items here are deleted for good after 30 days." title="Trash">
+    <Section description="Items here are deleted for good after 30 days." title="Trash">
       {trash.error ? (
         <LoadError error={trash.error} onRetry={trash.reload} />
       ) : !trash.data ? (
@@ -55,7 +55,7 @@ export function TrashPage() {
             detail={(item) => `${spaceName(item)} · trashed ${timeAgo(item.trashedAt!)}`}
             items={trash.data.results}
           />
-          <Pagination page={trash.data.page} pageHref={(next) => `/trash?page=${next}`} totalPages={trash.data.totalPages} />
+          <Pagination page={trash.data.page} pageHref={(next) => `/settings/trash?page=${next}`} totalPages={trash.data.totalPages} />
         </>
       )}
 
@@ -76,6 +76,6 @@ export function TrashPage() {
           It’s removed for everyone in {spaceName(deleting)}, and this can’t be undone.
         </ConfirmDialog>
       )}
-    </Page>
+    </Section>
   );
 }

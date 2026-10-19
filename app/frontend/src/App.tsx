@@ -39,10 +39,11 @@ import { RsvpPage, SharePage } from './pages/RsvpPages';
 import { SavePage } from './pages/SavePage';
 import { DataSettings } from './pages/settings/DataSettings';
 import { DeveloperSettings } from './pages/settings/DeveloperSettings';
-import { FeaturesSettings } from './pages/settings/FeaturesSettings';
+import { AppsSettings } from './pages/settings/AppsSettings';
 import { ProfileSettings } from './pages/settings/ProfileSettings';
 import { SecuritySettings } from './pages/settings/SecuritySettings';
 import { SettingsLayout } from './pages/settings/SettingsLayout';
+import { TrashSettings } from './pages/settings/TrashSettings';
 import { SpaceActivity } from './pages/spaces/SpaceActivity';
 import { SpaceItems } from './pages/spaces/SpaceItems';
 import { SpaceLayout } from './pages/spaces/SpaceLayout';
@@ -55,7 +56,6 @@ import { SpaceTags } from './pages/spaces/SpaceTags';
 import { SpaceTasks } from './pages/spaces/SpaceTasks';
 import { TasksPage } from './pages/TasksPage';
 import { TidyPage } from './pages/TidyPage';
-import { TrashPage } from './pages/TrashPage';
 import { VerifyPage } from './pages/VerifyPage';
 
 function Protected() {
@@ -67,10 +67,10 @@ function Protected() {
   return auth.user ? <Outlet /> : <Navigate replace state={{ from: location }} to="/login" />;
 }
 
-function FeatureRoute({ feature }: { feature: string }) {
+function AppRoute({ app }: { app: string }) {
   const auth = useAuth();
   const location = useLocation();
-  return auth.user?.features.includes(feature) ? <Outlet /> : <Navigate replace state={{ feature, from: location }} to="/settings/features" />;
+  return auth.user?.features.includes(app) ? <Outlet /> : <Navigate replace state={{ app, from: location }} to="/settings/apps" />;
 }
 
 function SignedOutLogin() {
@@ -96,6 +96,7 @@ const legacyRoutes = [
   ['review', '/journal'],
   ['invitations', '/spaces/invitations'],
   ['menu', '/more'],
+  ['trash', '/settings/trash'],
 ] as const;
 
 function RouterLink({ href, ...props }: UiLinkProps) {
@@ -122,35 +123,51 @@ export function App() {
             <Route element={<Moved to={to} />} key={path} path={path} />
           ))}
           <Route element={<Protected />}>
-            <Route path="tasks" element={<TasksPage />} />
-            <Route path="agenda">
-              <Route index element={<AgendaPage key="today" view="today" />} />
-              <Route path="list" element={<AgendaPage key="list" view="list" />} />
-              <Route path="day" element={<AgendaPage key="day" view="day" />} />
-              <Route path="week" element={<AgendaPage key="week" view="week" />} />
-              <Route path="month" element={<AgendaPage key="month" view="month" />} />
-              <Route path="calendars" element={<CalendarsPage />} />
+            <Route element={<AppRoute app="tasks" />}>
+              <Route path="tasks" element={<TasksPage />} />
+            </Route>
+            <Route element={<AppRoute app="agenda" />}>
+              <Route path="agenda">
+                <Route index element={<AgendaPage key="today" view="today" />} />
+                <Route path="list" element={<AgendaPage key="list" view="list" />} />
+                <Route path="day" element={<AgendaPage key="day" view="day" />} />
+                <Route path="week" element={<AgendaPage key="week" view="week" />} />
+                <Route path="month" element={<AgendaPage key="month" view="month" />} />
+                <Route path="calendars" element={<CalendarsPage />} />
+              </Route>
             </Route>
             <Route path="events/:id" element={<EventPage />} />
-            <Route path="pages">
-              <Route index element={<PagesIndex key="pages" section="pages" />} />
-              <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
-              <Route path="journal" element={<PagesIndex key="journal" section="journal" />} />
+            <Route element={<AppRoute app="pages" />}>
+              <Route path="pages">
+                <Route index element={<PagesIndex key="pages" section="pages" />} />
+                <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
+                <Route path="journal" element={<PagesIndex key="journal" section="journal" />} />
+              </Route>
             </Route>
-            <Route path="boards" element={<PagesIndex key="boards" section="boards" />} />
+            <Route element={<AppRoute app="boards" />}>
+              <Route path="boards" element={<PagesIndex key="boards" section="boards" />} />
+            </Route>
             <Route path="notes/:id" element={<NotePage />} />
-            <Route path="bookmarks" element={<BookmarksPage />} />
-            <Route path="bookmarks/:id" element={<BookmarkPage />} />
-            <Route path="journal" element={<JournalPage />} />
-            <Route path="files" element={<FilesPage />} />
-            <Route path="spending">
-              <Route index element={<SpendingPage key="overview" tab="overview" />} />
-              <Route path="transactions" element={<SpendingPage key="transactions" tab="transactions" />} />
-              <Route path="accounts" element={<SpendingPage key="accounts" tab="accounts" />} />
-              <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
-              <Route path="recurring" element={<RecurringPage />} />
-              <Route path="insights" element={<SpendingInsightsPage />} />
-              <Route path="net-worth" element={<NetWorthPage />} />
+            <Route element={<AppRoute app="bookmarks" />}>
+              <Route path="bookmarks" element={<BookmarksPage />} />
+              <Route path="bookmarks/:id" element={<BookmarkPage />} />
+            </Route>
+            <Route element={<AppRoute app="journal" />}>
+              <Route path="journal" element={<JournalPage />} />
+            </Route>
+            <Route element={<AppRoute app="files" />}>
+              <Route path="files" element={<FilesPage />} />
+            </Route>
+            <Route element={<AppRoute app="spending" />}>
+              <Route path="spending">
+                <Route index element={<SpendingPage key="overview" tab="overview" />} />
+                <Route path="transactions" element={<SpendingPage key="transactions" tab="transactions" />} />
+                <Route path="accounts" element={<SpendingPage key="accounts" tab="accounts" />} />
+                <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
+                <Route path="recurring" element={<RecurringPage />} />
+                <Route path="insights" element={<SpendingInsightsPage />} />
+                <Route path="net-worth" element={<NetWorthPage />} />
+              </Route>
             </Route>
             <Route path="spaces">
               <Route index element={<SpacesPage />} />
@@ -166,39 +183,39 @@ export function App() {
                 <Route path="activity" element={<SpaceActivity />} />
               </Route>
             </Route>
-            <Route element={<FeatureRoute feature="goals" />}>
+            <Route element={<AppRoute app="goals" />}>
               <Route path="goals" element={<GoalsPage />} />
               <Route path="goals/:id" element={<GoalPage />} />
             </Route>
-            <Route element={<FeatureRoute feature="people" />}>
+            <Route element={<AppRoute app="people" />}>
               <Route path="people" element={<PeoplePage />} />
               <Route path="people/:id" element={<PersonPage />} />
             </Route>
-            <Route element={<FeatureRoute feature="recipes" />}>
+            <Route element={<AppRoute app="recipes" />}>
               <Route path="recipes" element={<RecipesPage />} />
               <Route path="recipes/plan" element={<MealPlanPage />} />
               <Route path="recipes/:id" element={<RecipePage />} />
             </Route>
-            <Route element={<FeatureRoute feature="tidy" />}>
+            <Route element={<AppRoute app="tidy" />}>
               <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
               <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
               <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
             </Route>
-            <Route element={<FeatureRoute feature="trips" />}>
+            <Route element={<AppRoute app="trips" />}>
               <Route path="trips" element={<TripsPage />} />
               <Route path="trips/:id" element={<TripPage />} />
             </Route>
             <Route path="inbox" element={<InboxPage />} />
-            <Route path="trash" element={<TrashPage />} />
             <Route path="more" element={<MorePage />} />
             <Route path="save" element={<SavePage />} />
             <Route path="admin" element={<AdminPage />} />
             <Route path="settings" element={<SettingsLayout />}>
               <Route index element={<ProfileSettings />} />
-              <Route path="features" element={<FeaturesSettings />} />
+              <Route path="apps" element={<AppsSettings />} />
               <Route path="security" element={<SecuritySettings />} />
               <Route path="developer" element={<DeveloperSettings />} />
               <Route path="data" element={<DataSettings />} />
+              <Route path="trash" element={<TrashSettings />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />

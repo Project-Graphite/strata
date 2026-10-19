@@ -82,7 +82,7 @@ export function FilesPage() {
               {shown.trashedBytes > 0 && (
                 <>
                   {' '}
-                  {fileSize(shown.trashedBytes)} is in the <Link to="/trash">trash</Link> and still counts until it’s emptied.
+                  {fileSize(shown.trashedBytes)} is in the <Link to="/settings/trash">trash</Link> and still counts until it’s emptied.
                 </>
               )}
             </Hint>

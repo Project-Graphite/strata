@@ -14,7 +14,7 @@ import { onOutage } from '../api';
 import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
-import { enabledFeatures } from '../features';
+import { enabledApps } from '../apps';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
 import { useAction } from '../useAction';
@@ -76,6 +76,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const areaContext = useMemo(() => ({ setArea }), []);
   const active = areaOverride ?? areaOf(pathname);
   const signedIn = Boolean(auth.user);
+  const apps = enabledApps(auth.user?.features);
   const openSearch = useCallback(() => signedIn && setSearching(true), [signedIn]);
   useCommandShortcut(openSearch);
 
@@ -126,13 +127,13 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={sidebarSections(active, spaces.data, enabledFeatures(auth.user?.features))}
+              sections={sidebarSections(active, spaces.data, apps)}
             />
           )
         }
         tabs={
           auth.user
-            ? phoneTabBar(active)
+            ? phoneTabBar(active, apps)
             : [
                 { href: '/', label: 'Home', icon: 'home', active: pathname === '/' },
                 { href: '/login', label: 'Sign in', icon: 'user', active: pathname === '/login', loading: !auth.ready },
