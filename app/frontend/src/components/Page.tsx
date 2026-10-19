@@ -73,7 +73,7 @@ export function Page({
   );
 }
 
-export function DetailState({ back, resource, thing }: { back: Back; resource: { error: string; status?: number; reload: () => void }; thing: string }) {
+export function DetailState({ back, resource, thing }: { back?: Back; resource: { error: string; status?: number; reload: () => void }; thing: string }) {
   if (resource.status === 404) {
     return (
       <Page back={back} title={`${thing} not found`}>
