@@ -255,7 +255,7 @@ export function DashboardHome() {
         editing ? (
           <>
             <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-            <Button icon="plus" label="Add widget" onClick={() => setPicking(true)} />
+            <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
             <Button
               disabled={history.length === 0}
               label="Undo"

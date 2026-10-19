@@ -276,12 +276,13 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
         ))}
       </ul>
       {links.length < 24 && (
-        <div className="grid items-center gap-2 sm:grid-cols-[1fr_2fr_auto]">
+        <div className="grid items-stretch gap-2 sm:grid-cols-[1fr_2fr_auto]">
           <TextField label="Shortcut name" maxLength={40} onChange={(event) => setLabel(event.currentTarget.value)} value={label} />
           <TextField inputMode="url" label="Shortcut link" onChange={(event) => setUrl(event.currentTarget.value)} value={url} />
           <Button
             disabled={!valid}
             label="Add"
+            large
             onClick={() => {
               onChange({ links: [...links, { label: label.trim(), url: address }] });
               setLabel('');
