@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { describeQuickTask, parseQuickTask } from '../quick-add';
 import type { Tag } from '../spaces';
@@ -35,14 +36,13 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
         }, 'Could not add the task');
       }}
     >
-      <div className="flex gap-2">
-        <input
+      <div className="flex items-center gap-2">
+        <TextField
           aria-describedby={understood ? hintId : undefined}
-          aria-label="Add a task"
           className="min-w-0 flex-1"
+          label="Add a task"
           maxLength={300}
           onChange={(event) => setText(event.currentTarget.value)}
-          placeholder="Add a task"
           value={text}
         />
         <Button disabled={!quick.title || adding.busy} label="Add" submit />

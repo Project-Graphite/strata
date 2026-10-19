@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ListSkeleton, Select } from '@project-graphite/ui';
+import { ListSkeleton, Select, TextAreaField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Note } from '../notes';
 import { spaceOptions, useSpaces } from '../spaces';
@@ -45,8 +45,8 @@ export function Capture() {
 
   return (
     <div className="grid gap-2">
-      <textarea
-        aria-label="Quick note"
+      <TextAreaField
+        label="Quick note"
         maxLength={10_000}
         onChange={(event) => setText(event.currentTarget.value)}
         placeholder="Write it down…"

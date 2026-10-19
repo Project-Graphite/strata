@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, formatDay, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
+import { errorMessage, formatDay, ListSkeleton, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -113,10 +113,10 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
   return (
     <div className="grid gap-3">
       <Hint>{place ? `Showing ${place.name}.` : 'No place chosen yet.'}</Hint>
-      <div className="flex flex-wrap gap-2">
-        <input
-          aria-label="Search for a place"
+      <div className="flex flex-wrap items-center gap-2">
+        <TextField
           className="min-w-0 flex-1"
+          label="Search for a place"
           maxLength={80}
           onChange={(event) => setQuery(event.currentTarget.value)}
           onKeyDown={(event) => {
@@ -176,24 +176,22 @@ function stringsOf(value: unknown) {
 function AddressLines({ label, max, onChange, placeholder, values }: { label: string; max: number; onChange: (values: string[]) => void; placeholder: string; values: string[] }) {
   const [text, setText] = useState(values.join('\n'));
   return (
-    <label className="field-label">
-      {label}
-      <textarea
-        onChange={(event) => {
-          setText(event.currentTarget.value);
-          onChange(
-            event.currentTarget.value
-              .split('\n')
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .slice(0, max),
-          );
-        }}
-        placeholder={placeholder}
-        rows={4}
-        value={text}
-      />
-    </label>
+    <TextAreaField
+      label={label}
+      onChange={(event) => {
+        setText(event.currentTarget.value);
+        onChange(
+          event.currentTarget.value
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .slice(0, max),
+        );
+      }}
+      placeholder={placeholder}
+      rows={4}
+      value={text}
+    />
   );
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ConfirmDialog, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, TextAreaField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -69,7 +69,7 @@ function CommentForm({
         });
       }}
     >
-      <textarea aria-label={label} autoFocus={autoFocus} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} placeholder={label} rows={2} value={body} />
+      <TextAreaField autoFocus={autoFocus} label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} rows={2} value={body} />
       <div className="flex gap-2">
         <Button disabled={!body.trim() || busy} label={label} submit />
         {onCancel && (

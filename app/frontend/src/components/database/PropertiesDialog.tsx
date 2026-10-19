@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, IconButton, Select, tagColors } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
 import { TextButton } from '../Button';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
@@ -76,9 +76,9 @@ export function PropertiesDialog({
         {draft.map((property) => (
           <li className="grid gap-2" key={property.id}>
             <div className="flex items-center gap-2">
-              <input
-                aria-label="Property name"
+              <TextField
                 className="min-w-0 flex-1"
+                label="Property name"
                 maxLength={60}
                 onChange={(event) => change(property.id, { name: event.currentTarget.value })}
                 value={property.name}
@@ -101,9 +101,9 @@ export function PropertiesDialog({
               <div className="ml-4 grid gap-1.5">
                 {(property.options ?? []).map((option) => (
                   <div className="flex items-center gap-2" key={option.id}>
-                    <input
-                      aria-label="Option name"
-                      className="min-w-0 flex-1 text-sm"
+                    <TextField
+                      className="min-w-0 flex-1"
+                      label="Option name"
                       maxLength={60}
                       onChange={(event) =>
                         change(property.id, {
@@ -121,7 +121,6 @@ export function PropertiesDialog({
                         })
                       }
                       options={colorOptions}
-                      size="small"
                       value={option.color}
                     />
                     <IconButton
