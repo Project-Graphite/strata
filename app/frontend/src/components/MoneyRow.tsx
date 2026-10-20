@@ -40,6 +40,6 @@ export function MoneyRow({
       {meter}
     </li>
   ) : (
-    <li className={`panel-row flex items-center gap-3 ${hover}`}>{line}</li>
+    <li className={`panel-row flex flex-wrap items-center justify-end gap-3 ${hover}`}>{line}</li>
   );
 }
