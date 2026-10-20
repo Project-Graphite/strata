@@ -1351,3 +1351,7 @@ header.backdrop-blur-md {
   }
 }
 
+.page-header {
+  min-height: 2.28125rem;
+}
+

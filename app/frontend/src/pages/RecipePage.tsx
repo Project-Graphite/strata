@@ -6,6 +6,7 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { Hint } from '../components/Hint';
 import { DetailState, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
+import { HintSkeleton, RowsSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { recipeFacts, type Recipe } from '../recipes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -21,11 +22,38 @@ export function RecipePage() {
   const action = useAction();
   const [dialog, setDialog] = useState<'edit' | 'plan'>();
 
-  const back = { to: '/recipes', label: 'Recipes' };
-  if (!recipe.data) return <DetailState back={back} resource={recipe} thing="Recipe" />;
-  const shown = recipe.data;
-  const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
+  const space = spaces.data?.find((candidate) => candidate.id === recipe.data?.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
+  const [wasEditable, ingredientRows, stepRows, sourced] = useRememberedShape(
+    `recipe-${id}`,
+    recipe.data && spaces.data && [Number(editable), recipe.data.ingredients.length, recipe.data.steps.length, Number(Boolean(recipe.data.sourceUrl))],
+    [1, 4, 3, 0],
+  );
+
+  const back = { to: '/recipes', label: 'Recipes' };
+  if (!recipe.data) {
+    return (
+      <DetailState actions={wasEditable ? 3 : 0} back={back} resource={recipe} thing="Recipe">
+        <Section title="Ingredients">{ingredientRows ? <RowsSkeleton detail={false} rows={ingredientRows} /> : <HintSkeleton />}</Section>
+        <Section title="Steps">
+          {stepRows ? (
+            <ol aria-hidden="true" className="m-0 grid list-none gap-4 p-0">
+              {rowsOf(stepRows).map((step) => (
+                <li className="flex gap-4" key={step}>
+                  <span className="w-5 shrink-0" />
+                  <SkeletonLine className="flex-1" width={step % 2 ? 'w-3/5' : 'w-4/5'} />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+        {sourced > 0 && <HintSkeleton />}
+      </DetailState>
+    );
+  }
+  const shown = recipe.data;
 
   return (
     <Page

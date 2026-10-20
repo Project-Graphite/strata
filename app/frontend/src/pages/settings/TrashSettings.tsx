@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Pagination, Placeholder, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { announcePagesChanged } from '../../notes';
 import { useSpaces, type Item } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
-import { ItemList } from '../spaces/ItemList';
+import { ItemList, ItemRowsSkeleton, itemsShape } from '../spaces/ItemList';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { Button } from '../../components/Button';
+import { useRememberedShape } from '../../components/Skeletons';
+
+const empty = { title: 'The trash is empty', hint: 'Anything you move to the trash waits here until you restore it.' };
 
 export function TrashSettings() {
   const auth = useAuth();
@@ -23,15 +26,24 @@ export function TrashSettings() {
   const action = useAction();
   const [deleting, setDeleting] = useState<Item>();
   const spaceName = (item: Item) => spaces.data?.find((space) => space.id === item.spaceId)?.name ?? 'a space';
+  const shape = useRememberedShape('settings-trash', trash.data && itemsShape(trash.data.results), [4, 0, 0]);
 
   return (
     <Section description="Items here are deleted for good after 30 days." title="Trash">
       {trash.error ? (
         <LoadError error={trash.error} onRetry={trash.reload} />
       ) : !trash.data ? (
-        <ListSkeleton label="Loading the trash" rows={4} />
+        <Placeholder label="Loading the trash">
+          {shape[0] ? (
+            <ItemRowsSkeleton shape={shape} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : trash.data.results.length === 0 ? (
-        <Empty title="The trash is empty">Anything you move to the trash waits here until you restore it.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <>
           <ItemList

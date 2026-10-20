@@ -1,7 +1,7 @@
 import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, IconButton, type MenuItem, Meter, TextField } from '@project-graphite/ui';
+import { Checkbox, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -10,12 +10,13 @@ import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section } from '../components/Page';
+import { ButtonSkeleton, HabitRowSkeleton, HintSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { TaskEditor } from '../components/TaskEditor';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
 import { HabitRow, type Habit } from '../habits';
 import { useSpaces, type Tag } from '../spaces';
-import { dueLabel, TaskRow, type Task, type TaskList } from '../tasks';
+import { dueLabel, taskDetails, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useFormErrors, type Check } from '../validation';
@@ -39,11 +40,72 @@ export function GoalPage() {
   const [dialog, setDialog] = useState<'progress' | 'link' | 'habits'>();
   const openTasks = useResource<ResultPage<Task>>(dialog === 'link' && spaceId ? `/spaces/${spaceId}/tasks?page=1` : null, true);
 
-  const back = { to: '/goals', label: 'Goals' };
-  if (!goal.data) return <DetailState back={back} resource={goal} thing="Goal" />;
-  const shown = goal.data;
-  const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
+  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
+  const [wasEditable, whyLines, metered, targeted, taskRows, detailedTasks, habitRows] = useRememberedShape(
+    `goal-${id}`,
+    goal.data &&
+      spaces.data && [
+        Number(editable),
+        goal.data.why ? goal.data.why.split('\n').length : 0,
+        Number(goal.data.progress !== null),
+        Number(goal.data.target !== null),
+        goal.data.taskList.length,
+        goal.data.taskList.filter((task) => taskDetails(task).length > 0).length,
+        goal.data.habits.length,
+      ],
+    [1, 0, 1, 1, 3, 3, 0],
+  );
+
+  const back = { to: '/goals', label: 'Goals' };
+  if (!goal.data) {
+    return (
+      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={goal} thing="Goal">
+        {whyLines > 0 && (
+          <Section title="Why it matters">
+            <p aria-hidden="true" className="m-0">
+              {rowsOf(whyLines).map((line) => (
+                <SkeletonLine key={line} width={line === whyLines - 1 ? 'w-2/5' : 'w-full'} />
+              ))}
+            </p>
+          </Section>
+        )}
+        <Section action={wasEditable > 0 && targeted > 0 && <ButtonSkeleton width="w-32" />} title="Progress">
+          <div className="grid gap-2">
+            {metered > 0 && <Skeleton className="h-1.5 rounded-full" />}
+            <HintSkeleton />
+          </div>
+        </Section>
+        <Section
+          action={
+            wasEditable > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <ButtonSkeleton large width="w-32" />
+                <ButtonSkeleton large width="w-28" />
+              </div>
+            )
+          }
+          title="Tasks"
+        >
+          {taskRows ? <TaskRowsSkeleton detailed={detailedTasks} rows={taskRows} /> : <HintSkeleton />}
+        </Section>
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Habits">
+          {habitRows ? (
+            <ul aria-hidden="true" className="panel-rows">
+              {rowsOf(habitRows).map((row) => (
+                <li className="panel-row" key={row}>
+                  <HabitRowSkeleton row={row} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+      </DetailState>
+    );
+  }
+  const shown = goal.data;
 
   function patch(body: object, done: string) {
     return action.run(async () => {

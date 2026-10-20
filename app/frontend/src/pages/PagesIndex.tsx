@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, IconButton, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
+import { Icon, IconButton, Menu, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -11,6 +11,7 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, nestedUnder, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
 import { useSpaces, type Space } from '../spaces';
 import { useAction } from '../useAction';
@@ -53,6 +54,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
   const pages = listed.data?.filter((note) => note.journal === (section === 'journal')) ?? [];
   const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
   const empty = emptyStates[section];
+  const [pageRows] = useRememberedShape(`pages-${section}`, listed.data && [pages.length], [4]);
 
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);
@@ -95,7 +97,11 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
       title={section === 'boards' ? 'Boards' : 'Pages'}
       toolbarEnd={
         section === 'quick-notes' &&
-        writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaces={writable} />
+        (!spaces.data ? (
+          <ButtonSkeleton width="w-40" />
+        ) : (
+          writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaces={writable} />
+        ))
       }
     >
       {importing && (
@@ -111,7 +117,15 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
-        <ListSkeleton label={`Loading your ${section === 'boards' ? 'boards' : 'pages'}`} rows={4} />
+        <Placeholder label={`Loading your ${section === 'boards' ? 'boards' : 'pages'}`}>
+          {pageRows ? (
+            <RowsSkeleton lead={<IconSkeleton />} rows={pageRows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : pages.length === 0 ? (
         <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (

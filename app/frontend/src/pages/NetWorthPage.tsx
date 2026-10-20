@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, DatePicker, formatDay, ListSkeleton, Meter, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, formatDay, Meter, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
@@ -9,6 +9,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
+import { ButtonSkeleton, HintSkeleton, MoneyRowsSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { useChosenSpace } from '../spaces';
@@ -22,7 +23,7 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 export function NetWorthPage() {
   const auth = useAuth();
   const action = useAction();
-  const { spaceId, editable } = useChosenSpace();
+  const { spaceId, space, editable } = useChosenSpace();
   const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
@@ -30,6 +31,19 @@ export function NetWorthPage() {
     { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { deleteGoal: SavingsGoal } | { deleteAsset: Asset }
   >();
   const failed = worth.error ?? goals.error;
+  const goalDetail = (goal: SavingsGoal) =>
+    [
+      goal.savedMinor === null && 'No exchange rate yet',
+      goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
+      goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  const [goalRows, detailedGoals, assetRows] = useRememberedShape(
+    'net-worth',
+    worth.data && goals.data && [goals.data.length, goals.data.filter(goalDetail).length, worth.data.assets.length],
+    [1, 1, 2],
+  );
 
   return (
     <SpendingFrame
@@ -44,7 +58,15 @@ export function NetWorthPage() {
       {failed ? (
         <LoadError error={failed} onRetry={worth.error ? worth.reload : goals.reload} />
       ) : !worth.data || !goals.data ? (
-        <ListSkeleton label="Adding up what you own" rows={5} />
+        <Placeholder className="grid gap-8" label="Adding up what you own">
+          <StatsSkeleton count={4} detail={false} />
+          <Section action={(!space || editable) && <ButtonSkeleton large width="w-44" />} title="Savings goals">
+            {goalRows ? <MoneyRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} /> : <HintSkeleton />}
+          </Section>
+          <Section action={(!space || editable) && <ButtonSkeleton large />} title="Assets">
+            {assetRows ? <MoneyRowsSkeleton rows={assetRows} /> : <HintSkeleton />}
+          </Section>
+        </Placeholder>
       ) : (
         <>
           <Stats>
@@ -69,13 +91,7 @@ export function NetWorthPage() {
                         </Amount>
                       )
                     }
-                    detail={[
-                      goal.savedMinor === null && 'No exchange rate yet',
-                      goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-                      goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
+                    detail={goalDetail(goal)}
                     key={goal.id}
                     meter={<Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />}
                     onOpen={editable ? () => setDialog({ goal }) : undefined}

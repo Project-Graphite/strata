@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { formatDay, ListSkeleton } from '@project-graphite/ui';
+import { formatDay, Placeholder } from '@project-graphite/ui';
 import { addDays, dayKey, dayRange, entryClock, entryDay, monthDays, useAgenda, useTodaySchedule, type AgendaEntry } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
@@ -10,10 +10,11 @@ import { EventEditor } from '../components/EventEditor';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
+import { AgendaCardsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
 import { DayNumber, TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
-import { completeTask, TaskRow, type Task } from '../tasks';
+import { completeTask, taskDetails, TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -24,6 +25,8 @@ const views: Record<View, string> = { list: 'List', day: 'Day', week: 'Week', mo
 type ViewLink = (next: { view?: View; date?: string }) => string;
 
 const entryKey = (entry: AgendaEntry) => `${entry.kind}-${entry.itemId}-${entry.start}`;
+const emptyToday = { title: 'Nothing today', hint: 'Today’s events, due tasks and renewals show up here.' };
+const emptyPeriod = { title: 'Nothing in this period', hint: 'Events, due tasks, renewals and birthdays in these 30 days show up here.' };
 
 function range(view: View, anchor: string) {
   if (view === 'list') return { from: anchor, to: addDays(anchor, 30), days: 30 };
@@ -44,10 +47,35 @@ function Today() {
   const action = useAction();
   const [opened, setOpened] = useState<Task>();
   const spaceOf = (task: Task) => spaces.data?.find((space) => space.id === task.spaceId);
+  const [scheduleRows, dueRows, detailedRows] = useRememberedShape(
+    'agenda-today',
+    tasks.data && schedule.data && spaces.data && [schedule.data.length, tasks.data.length, tasks.data.filter((task) => taskDetails(task, spaceOf(task)?.name).length > 0).length],
+    [2, 2, 2],
+  );
 
   if (tasks.error || schedule.error) return <LoadError error={tasks.error || schedule.error} onRetry={tasks.error ? tasks.reload : schedule.reload} />;
-  if (!tasks.data || !schedule.data) return <ListSkeleton label="Loading today" rows={4} />;
-  if (tasks.data.length === 0 && schedule.data.length === 0) return <Empty title="Nothing today">Today’s events, due tasks and renewals show up here.</Empty>;
+  if (!tasks.data || !schedule.data) {
+    return (
+      <Placeholder className="grid gap-8" label="Loading today">
+        {scheduleRows > 0 && (
+          <Section title="Schedule">
+            <AgendaCardsSkeleton rows={scheduleRows} />
+          </Section>
+        )}
+        {dueRows > 0 && (
+          <Section title="Due">
+            <TaskRowsSkeleton detailed={detailedRows} rows={dueRows} />
+          </Section>
+        )}
+        {!scheduleRows && !dueRows && (
+          <Empty loading title={emptyToday.title}>
+            {emptyToday.hint}
+          </Empty>
+        )}
+      </Placeholder>
+    );
+  }
+  if (tasks.data.length === 0 && schedule.data.length === 0) return <Empty title={emptyToday.title}>{emptyToday.hint}</Empty>;
   return (
     <>
       {schedule.data.length > 0 && (
@@ -96,11 +124,29 @@ function Period({ anchor, link, period: { days, from, to }, today, view }: { anc
     for (const day of spanned) byDay.set(day, [...(byDay.get(day) ?? []), entry]);
   }
   const month = new Date(`${anchor}T00:00:00`).getMonth();
+  const listShape = useRememberedShape('agenda-list', agenda.data && view === 'list' ? allDays.flatMap((day) => byDay.get(day)?.length ?? []) : undefined, [2, 1, 3]);
 
   if (agenda.error) return <LoadError error={agenda.error} onRetry={agenda.reload} />;
-  if (!agenda.data) return <ListSkeleton label="Loading your agenda" rows={6} />;
   if (view === 'list') {
-    if (agenda.data.length === 0) return <Empty title="Nothing in this period">Events, due tasks, renewals and birthdays in these 30 days show up here.</Empty>;
+    if (!agenda.data) {
+      return (
+        <Placeholder className="grid gap-8" label="Loading your agenda">
+          {listShape.length > 0 ? (
+            listShape.map((rows, group) => (
+              <div className="grid gap-2" key={group}>
+                <SkeletonLine className="text-sm" width="w-48" />
+                <AgendaCardsSkeleton rows={rows} />
+              </div>
+            ))
+          ) : (
+            <Empty loading title={emptyPeriod.title}>
+              {emptyPeriod.hint}
+            </Empty>
+          )}
+        </Placeholder>
+      );
+    }
+    if (agenda.data.length === 0) return <Empty title={emptyPeriod.title}>{emptyPeriod.hint}</Empty>;
     return allDays
       .filter((day) => byDay.has(day))
       .map((day) => (
@@ -128,8 +174,8 @@ function Period({ anchor, link, period: { days, from, to }, today, view }: { anc
         </section>
       ));
   }
-  if (view === 'month') {
-    return (
+  const grid =
+    view === 'month' ? (
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
         {allDays.slice(0, 7).map((day) => (
           <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
@@ -165,9 +211,10 @@ function Period({ anchor, link, period: { days, from, to }, today, view }: { anc
           );
         })}
       </div>
+    ) : (
+      <TimeGrid colourOf={agenda.colourOf} dayHref={(day) => link({ view: 'day', date: day })} days={allDays} entries={agenda.data ?? []} today={today} />
     );
-  }
-  return <TimeGrid colourOf={agenda.colourOf} dayHref={(day) => link({ view: 'day', date: day })} days={allDays} entries={agenda.data} today={today} />;
+  return agenda.data ? grid : <Placeholder label="Loading your agenda">{grid}</Placeholder>;
 }
 
 export function AgendaPage({ view }: { view: View | 'today' }) {

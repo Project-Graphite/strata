@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListSkeleton, Select, TagChip, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
@@ -15,6 +15,7 @@ import { RowText } from '../../components/RowText';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
+import { ButtonSkeleton, HintSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 interface Rule {
   id: string;
@@ -44,7 +45,7 @@ function ruleText(rule: Rule) {
   return `Title contains “${rule.titleContains}”${rule.kind ? `, ${kindNames[rule.kind]} only` : ''}`;
 }
 
-export function TidyRules({ tags }: { tags: Tag[] }) {
+export function TidyRules({ tags }: { tags?: Tag[] }) {
   const auth = useAuth();
   const space = useSpace();
   const rules = useResource<Rule[]>(`/spaces/${space.id}/tidy-rules`, true);
@@ -56,6 +57,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
   const [request, setRequest] = useState<TidyRequest>();
   const [adding, setAdding] = useState(false);
   const editable = space.role !== 'viewer';
+  const [ruleRows] = useRememberedShape(`tidy-rules-${space.id}`, rules.data && [rules.data.length], [0]);
 
   function findMatches(rule: Rule) {
     void changing.run(async () => {
@@ -76,16 +78,16 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
 
   return (
     <Section
-      action={editable && tags.length > 0 && <Button icon="plus" label="New rule" large onClick={() => setAdding(true)} />}
+      action={editable && (tags ? tags.length > 0 && <Button icon="plus" label="New rule" large onClick={() => setAdding(true)} /> : <ButtonSkeleton large width="w-32" />)}
       description="Tag new items in this space by words in their title, by file type, or both."
       title="Tagging rules"
     >
       {rules.error ? (
         <LoadError compact error={rules.error} onRetry={rules.reload} />
       ) : !rules.data ? (
-        <ListSkeleton label="Loading the tagging rules" rows={2} />
+        <Placeholder label="Loading the tagging rules">{ruleRows ? <RowsSkeleton rows={ruleRows} /> : <HintSkeleton />}</Placeholder>
       ) : rules.data.length === 0 ? (
-        <Hint>{editable && tags.length === 0 ? 'Add a tag first, then make a rule for it.' : 'No rules yet.'}</Hint>
+        <Hint>{editable && tags?.length === 0 ? 'Add a tag first, then make a rule for it.' : 'No rules yet.'}</Hint>
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (
@@ -113,7 +115,7 @@ export function TidyRules({ tags }: { tags: Tag[] }) {
         </ul>
       )}
 
-      {adding && (
+      {adding && tags && (
         <FormDialog
           busy={creating.busy}
           busyLabel="Adding…"

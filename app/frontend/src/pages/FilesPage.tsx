@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { formatDay, Icon, ListSkeleton, Meter, Select } from '@project-graphite/ui';
+import { formatDay, Icon, Meter, Placeholder, Select, Skeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -15,6 +15,9 @@ import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RowText } from '../components/RowText';
+import { HintSkeleton, IconButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+
+const empty = { title: 'No files yet', hint: 'Files you upload to any of your spaces show up here.' };
 
 interface StoredFile {
   id: string;
@@ -42,6 +45,7 @@ export function FilesPage() {
   const target = chosen ?? writable.find((space) => space.kind === 'personal')?.id ?? writable[0]?.id;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name;
   const shown = storage.data;
+  const [fileRows] = useRememberedShape('files', shown && [shown.files.length], [4]);
 
   return (
     <Page
@@ -69,7 +73,20 @@ export function FilesPage() {
       {storage.error ? (
         <LoadError error={storage.error} onRetry={storage.reload} />
       ) : !shown ? (
-        <ListSkeleton label="Adding up your files" rows={4} />
+        <Placeholder className="grid gap-8" label="Adding up your files">
+          <div className="grid gap-2 rounded-panel border border-line bg-surface p-4">
+            <SkeletonLine className="text-lg" width="w-48" />
+            <Skeleton className="h-1.5 rounded-full" />
+            <HintSkeleton />
+          </div>
+          {fileRows ? (
+            <RowsSkeleton lead={<IconSkeleton />} rows={fileRows} trail={<IconButtonSkeleton />} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : (
         <>
           <div className="grid gap-2 rounded-panel border border-line bg-surface p-4">
@@ -88,7 +105,7 @@ export function FilesPage() {
             </Hint>
           </div>
           {shown.files.length === 0 ? (
-            <Empty title="No files yet">Files you upload to any of your spaces show up here.</Empty>
+            <Empty title={empty.title}>{empty.hint}</Empty>
           ) : (
             <ul className="panel-rows">
               {shown.files.map((file) => (

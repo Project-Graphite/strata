@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ListSkeleton, Meter } from '@project-graphite/ui';
+import { Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
 import { FilterChips, Page, Section } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { periodLabel, progressText, statusLabels, type Goal } from '../goals';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
@@ -24,6 +25,14 @@ export function GoalsPage() {
     const label = periodLabel(goal.period, goal.startsOn);
     groups.set(label, [...(groups.get(label) ?? []), goal]);
   }
+  const shape = useRememberedShape(
+    `goals${finished ? '-finished' : ''}`,
+    goals.data && [...groups.values()].flatMap((shown) => [shown.length, shown.filter((goal) => goal.progress !== null).length]),
+    [3, 3],
+  );
+  const empty = finished
+    ? { title: 'Nothing finished yet', hint: 'Goals you mark as done or drop are kept here.' }
+    : { title: 'No goals yet', hint: 'Set a goal for the year, quarter or month, and track it with a number or with linked tasks.' };
 
   return (
     <Page
@@ -42,13 +51,27 @@ export function GoalsPage() {
       {goals.error ? (
         <LoadError error={goals.error} onRetry={goals.reload} />
       ) : !goals.data ? (
-        <ListSkeleton label="Loading your goals" rows={3} />
+        <Placeholder className="grid gap-8" label="Loading your goals">
+          {shape.length > 0 ? (
+            rowsOf(shape.length / 2).map((group) => (
+              <div aria-hidden="true" className="grid gap-3" key={group}>
+                <SkeletonLine className="text-lg" width="w-32" />
+                <RowsSkeleton
+                  below={<Skeleton className="h-1.5 rounded-full" />}
+                  belowRows={shape[group * 2 + 1]}
+                  rows={shape[group * 2]!}
+                  trail={<SkeletonLine className="mono-sm shrink-0" width="w-8" />}
+                />
+              </div>
+            ))
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : goals.data.length === 0 ? (
-        finished ? (
-          <Empty title="Nothing finished yet">Goals you mark as done or drop are kept here.</Empty>
-        ) : (
-          <Empty title="No goals yet">Set a goal for the year, quarter or month, and track it with a number or with linked tasks.</Empty>
-        )
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         [...groups].map(([label, shown]) => (
           <Section key={label} title={label}>

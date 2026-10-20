@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { Icon, ListSkeleton, Menu, timeAgo } from '@project-graphite/ui';
+import { Icon, Menu, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
@@ -7,10 +7,13 @@ import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
 import { Section, Toolbar } from '../../components/Page';
 import { RowText } from '../../components/RowText';
+import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { builtInTemplates, flattenTree, noteTitle, pageIndent, type Note } from '../../notes';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+
+const empty = { title: 'No pages yet', hint: 'Pages and boards you add to this space show up here.' };
 
 function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
   return (
@@ -36,6 +39,7 @@ export function SpaceNotes() {
   const pages = notes.data?.filter((note) => !note.template) ?? [];
   const templates = notes.data?.filter((note) => note.template) ?? [];
   const branches = flattenTree(pages);
+  const [pageRows, templateRows] = useRememberedShape(`space-pages-${space.id}`, notes.data && [branches.length, templates.length], [4, 0]);
 
   function create(body: Record<string, string | boolean>) {
     void creating.run(async () => {
@@ -75,9 +79,22 @@ export function SpaceNotes() {
       {notes.error ? (
         <LoadError error={notes.error} onRetry={notes.reload} />
       ) : !notes.data ? (
-        <ListSkeleton label="Loading the pages in this space" rows={4} />
+        <Placeholder className="grid gap-8" label="Loading the pages in this space">
+          {pageRows ? (
+            <RowsSkeleton lead={<IconSkeleton />} rows={pageRows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+          {templateRows > 0 && (
+            <Section title="Templates">
+              <RowsSkeleton lead={<IconSkeleton />} rows={templateRows} />
+            </Section>
+          )}
+        </Placeholder>
       ) : branches.length === 0 ? (
-        <Empty title="No pages yet">Pages and boards you add to this space show up here.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {branches.map(({ note, depth }) => (

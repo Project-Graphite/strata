@@ -1,9 +1,10 @@
 import Chip from '@mui/material/Chip';
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Icon, LinesSkeleton, PageHeader, Skeleton, Tabs, type TabItem } from '@project-graphite/ui';
+import { Icon, PageHeader, Placeholder, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
+import { IconButtonSkeleton, rowsOf, SkeletonLine } from './Skeletons';
 
 export interface Back {
   to: string;
@@ -73,7 +74,21 @@ export function Page({
   );
 }
 
-export function DetailState({ back, resource, thing }: { back?: Back; resource: { error: string; status?: number; reload: () => void }; thing: string }) {
+export function DetailState({
+  actions = 0,
+  back,
+  children,
+  description = <SkeletonLine width="w-80 max-w-full" />,
+  resource,
+  thing,
+}: {
+  actions?: number;
+  back?: Back;
+  children?: ReactNode;
+  description?: ReactNode;
+  resource: { error: string; status?: number; reload: () => void };
+  thing: string;
+}) {
   if (resource.status === 404) {
     return (
       <Page back={back} title={`${thing} not found`}>
@@ -89,8 +104,16 @@ export function DetailState({ back, resource, thing }: { back?: Back; resource: 
     );
   }
   return (
-    <Page back={back} documentTitle={thing} title={<Skeleton className="block h-9 w-72 max-w-full" />}>
-      <LinesSkeleton label={`Loading the ${thing.toLowerCase()}`} />
+    <Page
+      actions={actions > 0 && rowsOf(actions).map((action) => <IconButtonSkeleton key={action} />)}
+      back={back}
+      description={description}
+      documentTitle={thing}
+      title={<SkeletonLine width="w-72 max-w-full" />}
+    >
+      <Placeholder className="grid gap-8" label={`Loading the ${thing.toLowerCase()}`}>
+        {children}
+      </Placeholder>
     </Page>
   );
 }

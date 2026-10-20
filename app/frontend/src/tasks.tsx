@@ -107,6 +107,10 @@ export async function completeTask(request: ReturnType<typeof useAuth>['request'
     : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
 }
 
+export function taskDetails(task: Task, where?: string) {
+  return [where, dueLabel(task), repeatLabel(task.repeatRule), priorityLabels[task.priority] && `${priorityLabels[task.priority]} priority`].filter(Boolean);
+}
+
 export function TaskRow({
   actions,
   disabled,
@@ -123,12 +127,7 @@ export function TaskRow({
   where?: string;
 }) {
   const done = Boolean(task.completedAt);
-  const details = [
-    where,
-    dueLabel(task),
-    repeatLabel(task.repeatRule),
-    priorityLabels[task.priority] && `${priorityLabels[task.priority]} priority`,
-  ].filter(Boolean);
+  const details = taskDetails(task, where);
   return (
     <li className="flex min-w-0 items-center gap-3 panel-row">
       <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
@@ -207,6 +206,7 @@ export function TaskStatusChips({ completed, link }: { completed: boolean; link:
 }
 
 export function TaskListFooter({ completed, link, tasks }: { completed?: boolean; link: TaskLink; tasks: ResultPage<Task> }) {
+  if (completed === undefined && tasks.totalPages <= 1) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       {completed !== undefined && (

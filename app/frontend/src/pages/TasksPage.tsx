@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ListSkeleton, Select, TextField } from '@project-graphite/ui';
+import { Placeholder, Select, Skeleton, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
@@ -9,9 +9,10 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { QuickAddTask } from '../components/QuickAddTask';
+import { ChipsSkeleton, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
 import { spaceOptions, useSpaces } from '../spaces';
-import { completeTask, TaskListChips, TaskListFooter, taskLink, TaskRow, TaskStatusChips, type Task, type TaskList } from '../tasks';
+import { completeTask, taskDetails, TaskListChips, TaskListFooter, taskLink, TaskRow, TaskStatusChips, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -55,27 +56,54 @@ export function TasksPage() {
   };
 
   const failed = [tasks, lists, spaces].find((resource) => resource.error);
+  const whereOf = (task: Task) =>
+    [(spaces.data?.length ?? 0) > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ');
+  const [taskRows, detailedRows] = useRememberedShape(
+    `tasks${filters}`,
+    tasks.data && lists.data && spaces.data && [tasks.data.results.length, tasks.data.results.filter((task) => taskDetails(task, whereOf(task)).length > 0).length],
+    [5, 5],
+  );
+  const [listCount] = useRememberedShape('task-lists', lists.data && [lists.data.length], [1]);
+  const empty = completed
+    ? { title: 'Nothing finished yet', hint: 'Tasks you tick off in any space show up here.' }
+    : { title: 'Nothing to do', hint: 'Tasks from all your spaces show up here, so add one above.' };
   return (
     <Page
       actions={addTo && addTo.role !== 'viewer' && <Button icon="plus" label="New task" large onClick={() => setOpened('new')} primary />}
       title="Tasks"
-      toolbar={lists.data && <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />}
+      toolbar={
+        lists.data ? (
+          <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
+        ) : (
+          <ChipsSkeleton count={listCount + 2} />
+        )
+      }
       toolbarEnd={<TaskStatusChips completed={completed} link={link} />}
     >
       {failed ? (
         <LoadError error={failed.error} onRetry={failed.reload} />
       ) : !tasks.data || !lists.data || !spaces.data ? (
-        <ListSkeleton label="Loading your tasks" rows={5} />
+        <Placeholder className="grid gap-8" label="Loading your tasks">
+          {!completed && (
+            <div className="flex gap-2">
+              <Skeleton className="h-14 flex-1 rounded-lg" />
+              <Skeleton className="h-14 w-16 rounded-lg" />
+            </div>
+          )}
+          {taskRows ? (
+            <TaskRowsSkeleton detailed={detailedRows} rows={taskRows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : (
         <>
           {!completed && addTo && addTo.role !== 'viewer' && <QuickAddTask key={`${addTo.id}/${shownList?.id ?? ''}`} listId={shownList?.id} onAdded={reload} spaceId={addTo.id} />}
 
           {tasks.data.results.length === 0 ? (
-            completed ? (
-              <Empty title="Nothing finished yet">Tasks you tick off in any space show up here.</Empty>
-            ) : (
-              <Empty title="Nothing to do">Tasks from all your spaces show up here, so add one above.</Empty>
-            )
+            <Empty title={empty.title}>{empty.hint}</Empty>
           ) : (
             <ul className="panel-rows">
               {tasks.data.results.map((task) => (
@@ -92,7 +120,7 @@ export function TasksPage() {
                     }, 'Could not update the task')
                   }
                   task={task}
-                  where={[spaces.data!.length > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ')}
+                  where={whereOf(task)}
                 />
               ))}
             </ul>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ConfirmDialog, ListSkeleton, TagChip } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, Skeleton, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -14,8 +14,10 @@ import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
+import { rowsOf, useRememberedShape } from '../../components/Skeletons';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
+const empty = { title: 'No tags yet', hint: 'Tags you make here can be added to anything in this space.' };
 
 const byName = (a: Tag, b: Tag) => a.name.localeCompare(b.name);
 
@@ -29,6 +31,7 @@ export function SpaceTags() {
   const [editing, setEditing] = useState<Tag | 'new'>();
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
+  const [rows] = useRememberedShape(`space-tags-${space.id}`, tags.data && [tags.data.length], [3]);
 
   return (
     <>
@@ -36,9 +39,25 @@ export function SpaceTags() {
       {tags.error ? (
         <LoadError error={tags.error} onRetry={tags.reload} />
       ) : !tags.data ? (
-        <ListSkeleton label="Loading the tags in this space" rows={3} />
+        <Placeholder label="Loading the tags in this space">
+          {rows ? (
+            <ul aria-hidden="true" className="panel-rows">
+              {rowsOf(rows).map((row) => (
+                <li className="flex items-center pe-2" key={row}>
+                  <span className="flex min-w-0 flex-1 items-center panel-row">
+                    <Skeleton className={`h-6 rounded-full ${row % 2 ? 'w-16' : 'w-24'}`} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : tags.data.length === 0 ? (
-        <Empty title="No tags yet">Tags you make here can be added to anything in this space.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {tags.data.map((tag) => (
@@ -60,7 +79,7 @@ export function SpaceTags() {
         </ul>
       )}
 
-      {tags.data && auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
+      {!tags.error && auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
 
       {editing && (
         <FormDialog

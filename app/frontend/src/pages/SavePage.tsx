@@ -2,7 +2,7 @@ import FormLabel from '@mui/material/FormLabel';
 import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { LinesSkeleton, Radio, Select, TextField } from '@project-graphite/ui';
+import { Placeholder, Radio, Select, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
@@ -14,6 +14,7 @@ import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
+import { ButtonSkeleton, FieldSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 
 interface Shared {
   title: string;
@@ -71,7 +72,27 @@ export function SavePage() {
       <section className="form-panel page-enter">
         <h1 className="page-heading">Save what you shared</h1>
         <div className="mt-8">
-          {spaces.error ? <LoadError error={spaces.error} onRetry={spaces.reload} /> : <LinesSkeleton label="Opening what you shared" lines={4} />}
+          {spaces.error ? (
+            <LoadError error={spaces.error} onRetry={spaces.reload} />
+          ) : (
+            <Placeholder className="grid gap-4" label="Opening what you shared">
+              <FieldSkeleton />
+              <div className="grid gap-2">
+                <SkeletonLine className="mb-2 leading-[1.4375]" width="w-16" />
+                {rowsOf(2).map((choice) => (
+                  <span className="flex h-9.5 items-center gap-2" key={choice}>
+                    <Skeleton className="size-5 rounded-full" />
+                    <SkeletonLine width={choice ? 'w-10' : 'w-48'} />
+                  </span>
+                ))}
+              </div>
+              <SkeletonLine className="text-sm" width="w-3/4" />
+              <DialogActions>
+                <ButtonSkeleton large width="w-24" />
+                <ButtonSkeleton large width="w-20" />
+              </DialogActions>
+            </Placeholder>
+          )}
         </div>
       </section>
     );

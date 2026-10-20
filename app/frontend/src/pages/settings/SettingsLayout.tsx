@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
+import { SkeletonLine } from '../../components/Skeletons';
 import type { TimeFormat } from '../../time';
 
 export interface Me {
@@ -44,6 +45,14 @@ export function SettingsRow({ action, children, label }: { action?: ReactNode; c
       </div>
       {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
     </div>
+  );
+}
+
+export function SettingsRowSkeleton({ action, detail = true, row = 0 }: { action?: ReactNode; detail?: boolean; row?: number }) {
+  return (
+    <SettingsRow action={action} label={<SkeletonLine width={row % 2 ? 'w-24' : 'w-32'} />}>
+      {detail && <SkeletonLine width={row % 2 ? 'w-56 max-w-full' : 'w-72 max-w-full'} />}
+    </SettingsRow>
   );
 }
 

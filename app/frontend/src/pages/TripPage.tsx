@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, IconButton, type MenuItem, Meter, TextField } from '@project-graphite/ui';
+import { formatDay, Icon, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -13,6 +13,7 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, HintSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { MissingRates } from '../components/Stats';
 import { OpenTask } from '../components/TaskEditor';
 import { TripEditor } from '../components/TripEditor';
@@ -20,7 +21,7 @@ import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { categoryName, type MoneyAccount } from '../spending';
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
-import { TaskRow, type Task } from '../tasks';
+import { taskDetails, TaskRow, type Task } from '../tasks';
 import { tripDates, type TripDetail } from '../trips';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -38,11 +39,67 @@ export function TripPage() {
   const [openTask, setOpenTask] = useState<Task>();
   const accounts = useResource<MoneyAccount[]>(trip.data ? `/spaces/${trip.data.spaceId}/accounts` : null, true);
 
-  const back = { to: '/trips', label: 'Trips' };
-  if (!trip.data) return <DetailState back={back} resource={trip} thing="Trip" />;
-  const shown = trip.data;
-  const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
+  const space = spaces.data?.find((candidate) => candidate.id === trip.data?.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
+  const itinerary = trip.data?.itinerary ?? [];
+  const days = [...new Set(itinerary.map((entry) => entry.startsOn))];
+  const [wasEditable, packing, packRows, detailedPacks, budgeted, expenseRows, documentRows, pageRows, ...dayRows] = useRememberedShape(
+    `trip-${id}`,
+    trip.data &&
+      spaces.data && [
+        Number(editable),
+        Number(trip.data.packing !== null),
+        trip.data.packing?.tasks.length ?? 0,
+        trip.data.packing?.tasks.filter((task) => taskDetails(task).length > 0).length ?? 0,
+        Number(trip.data.budgetMinor !== null),
+        trip.data.expenses.length,
+        trip.data.documents.length,
+        trip.data.pages.length,
+        ...days.map((day) => itinerary.filter((entry) => entry.startsOn === day).length),
+      ],
+    [1, 0, 0, 0, 0, 0, 0, 0, 2],
+  );
+
+  const back = { to: '/trips', label: 'Trips' };
+  if (!trip.data) {
+    return (
+      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={trip} thing="Trip">
+        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-32" />} title="Itinerary">
+          {dayRows.length ? (
+            <div className="grid gap-4">
+              {dayRows.map((rows, day) => (
+                <div className="grid gap-2" key={day}>
+                  <SkeletonLine className="text-sm" width="w-40" />
+                  <RowsSkeleton rows={rows} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+        {packing > 0 && (
+          <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-28" />} description={packRows > 0 && <SkeletonLine width="w-24" />} title="Packing">
+            {packRows ? <TaskRowsSkeleton detailed={detailedPacks} rows={packRows} /> : <HintSkeleton />}
+          </Section>
+        )}
+        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-36" />} title="Spending">
+          <div className="grid gap-2">
+            <SkeletonLine width="w-40" />
+            {budgeted > 0 && <Skeleton className="h-1.5 rounded-full" />}
+          </div>
+          {expenseRows > 0 && <RowsSkeleton rows={expenseRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} />}
+        </Section>
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-24" />} title="Documents">
+          {documentRows ? <RowsSkeleton lead={<IconSkeleton />} rows={documentRows} /> : <HintSkeleton />}
+        </Section>
+        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-32" />} title="Pages">
+          {pageRows ? <RowsSkeleton detail={false} lead={<IconSkeleton />} rows={pageRows} /> : <HintSkeleton />}
+        </Section>
+      </DetailState>
+    );
+  }
+  const shown = trip.data;
 
   async function link(targetId: string) {
     await auth.request(`/items/${shown.id}/links`, { method: 'POST', body: JSON.stringify({ targetId, kind: 'reference' }) });
@@ -81,7 +138,6 @@ export function TripPage() {
       />
     );
 
-  const days = [...new Set(shown.itinerary.map((entry) => entry.startsOn))];
   const packed = shown.packing?.tasks.filter((task) => task.completedAt).length ?? 0;
   const budgetCurrency = shown.currency ?? shown.spending.currency;
 
@@ -129,7 +185,7 @@ export function TripPage() {
               <div className="grid gap-2" key={day}>
                 <Subheading>{formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}</Subheading>
                 <ul className="panel-rows">
-                  {shown.itinerary
+                  {itinerary
                     .filter((entry) => entry.startsOn === day)
                     .map((entry) => (
                       <li className="flex items-center pe-2 hover:bg-line-soft" key={entry.linkId}>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, Toggle } from '@project-graphite/ui';
+import { errorMessage, Placeholder, Toggle } from '@project-graphite/ui';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
 import { RowText } from './RowText';
+import { rowsOf, RowTextSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
 import { allPushKinds, pushGroups, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -14,6 +15,23 @@ interface Device {
   kinds: string[] | null;
 }
 
+const useDevicePushShape = (shape?: [number]) => useRememberedShape('device-push', shape, [1]);
+
+export function DevicePushSkeleton() {
+  const [toggleRows] = useDevicePushShape();
+  return (
+    <div aria-hidden="true" className="panel-rows">
+      {toggleRows ? (
+        rowsOf(toggleRows).map((row) => <ToggleSkeleton description={!row} key={row} />)
+      ) : (
+        <div className="panel-row">
+          <RowTextSkeleton />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DevicePush() {
   const { request } = useAuth();
   const key = useResource<{ publicKey: string | null }>('/push/key', true);
@@ -21,6 +39,7 @@ export function DevicePush() {
   const [device, setDevice] = useState<Device | null>();
   const [checkError, setCheckError] = useState('');
   const [checks, setChecks] = useState(0);
+  useDevicePushShape(key.data && device !== undefined ? [key.data.publicKey === null || device === null ? 0 : device.kinds === null ? 1 : 1 + pushGroups.length] : undefined);
 
   useEffect(() => {
     void (async () => {
@@ -63,9 +82,15 @@ export function DevicePush() {
       />
     );
   }
-  if (key.data?.publicKey === null) return note('Not set up on this server yet.');
+  if (device === undefined || !key.data) {
+    return (
+      <Placeholder label="Checking notifications on this device">
+        <DevicePushSkeleton />
+      </Placeholder>
+    );
+  }
+  if (key.data.publicKey === null) return note('Not set up on this server yet.');
   if (device === null) return note('This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.');
-  if (!device || !key.data) return null;
   const { registration, subscription, kinds } = device;
   const publicKey = key.data.publicKey;
 

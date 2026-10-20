@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
@@ -8,6 +8,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
 import { RowText } from '../../components/RowText';
+import { RowsSkeleton, SpaceMarkSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, spacesTabs, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
@@ -51,13 +52,16 @@ export function NewSpace() {
 export function SpacesPage() {
   const spaces = useSpaces();
   const actions = useSpaceActions();
+  const [rows] = useRememberedShape('spaces', spaces.data && [spaces.data.length], [2]);
 
   return (
     <Page actions={<NewSpace />} tabs={spacesTabs('spaces')} title="Spaces">
       {spaces.error ? (
         <LoadError error={spaces.error} onRetry={spaces.reload} />
       ) : !spaces.data ? (
-        <ListSkeleton label="Loading your spaces" rows={3} />
+        <Placeholder label="Loading your spaces">
+          <RowsSkeleton lead={<SpaceMarkSkeleton />} rows={rows} />
+        </Placeholder>
       ) : (
         <ul className="panel-rows">
           {spaces.data.map((space) => (

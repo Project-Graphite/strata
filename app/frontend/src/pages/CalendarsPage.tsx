@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -13,6 +13,7 @@ import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 interface FollowedCalendar {
   id: string;
@@ -32,9 +33,24 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
   const form = useFormErrors();
   const [stopping, setStopping] = useState<FollowedCalendar>();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
+  const [rows, failedRows] = useRememberedShape(
+    'followed-calendars',
+    calendars.data && [calendars.data.length, calendars.data.filter((calendar) => calendar.lastError).length],
+    [0, 0],
+  );
 
   if (calendars.error) return <LoadError compact error={calendars.error} onRetry={calendars.reload} />;
-  if (!calendars.data) return <ListSkeleton label="Loading followed calendars" rows={2} />;
+  if (!calendars.data) {
+    return (
+      <Placeholder label="Loading followed calendars">
+        {rows ? (
+          <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-3/5" />} belowRows={failedRows} rows={rows} trail={editable.length > 0 && <IconButtonSkeleton />} />
+        ) : (
+          <HintSkeleton />
+        )}
+      </Placeholder>
+    );
+  }
   const replace = (saved: FollowedCalendar) => calendars.mutate((current) => current.map((calendar) => (calendar.id === saved.id ? saved : calendar)));
 
   return (
@@ -142,6 +158,7 @@ export function CalendarsPage() {
   const [url, setUrl] = useState('');
   const [resetting, setResetting] = useState(false);
   const [turningOff, setTurningOff] = useState(false);
+  const [feedEnabled] = useRememberedShape('calendar-feed', feed.data && [Number(feed.data.enabled)], [0]);
 
   return (
     <Page
@@ -156,7 +173,16 @@ export function CalendarsPage() {
         {feed.error ? (
           <LoadError compact error={feed.error} onRetry={feed.reload} />
         ) : !feed.data ? (
-          <ListSkeleton label="Loading your calendar link" rows={1} />
+          <Placeholder className="flex flex-wrap gap-2" label="Loading your calendar link">
+            {feedEnabled ? (
+              <>
+                <ButtonSkeleton width="w-36" />
+                <ButtonSkeleton width="w-36" />
+              </>
+            ) : (
+              <ButtonSkeleton width="w-48" />
+            )}
+          </Placeholder>
         ) : url ? (
           <div className="grid gap-2">
             <Copyable value={url} />

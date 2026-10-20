@@ -1,19 +1,20 @@
 import Chip from '@mui/material/Chip';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, ListSkeleton, Pagination, timeAgo, type MenuItem } from '@project-graphite/ui';
+import { Icon, Pagination, Placeholder, timeAgo, type MenuItem } from '@project-graphite/ui';
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { fileSize, saveBlob, uploadFiles } from '../../files';
 import type { Item, Tag } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
-import { ItemList } from './ItemList';
+import { ItemList, ItemRowsSkeleton, itemsShape } from './ItemList';
 import { useSpace } from './SpaceLayout';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Empty } from '../../components/Empty';
 import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
 import { FilterChips, Toolbar } from '../../components/Page';
+import { useRememberedShape } from '../../components/Skeletons';
 
 export function SpaceItems() {
   const auth = useAuth();
@@ -31,6 +32,10 @@ export function SpaceItems() {
   const base = `/spaces/${space.id}`;
   const editable = space.role !== 'viewer';
   const tagName = tags.data?.find((shown) => shown.id === tag)?.name ?? 'Tag';
+  const shape = useRememberedShape(`space-items-${space.id}${filters}`, items.data && itemsShape(items.data.results), [4, 0, 0]);
+  const empty = archived
+    ? { title: 'Nothing archived yet', hint: 'Things you archive in this space wait here.' }
+    : { title: 'Nothing here yet', hint: 'Pages, tasks, files and everything else you add to this space show up here.' };
   const link = (next: { archived?: boolean; tag?: null; page?: number }) => {
     const query = new URLSearchParams();
     if (next.archived ?? archived) query.set('archived', 'true');
@@ -113,13 +118,17 @@ export function SpaceItems() {
       {items.error ? (
         <LoadError error={items.error} onRetry={items.reload} />
       ) : !items.data ? (
-        <ListSkeleton label="Loading the items in this space" rows={4} />
+        <Placeholder label="Loading the items in this space">
+          {shape[0] ? (
+            <ItemRowsSkeleton shape={shape} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : items.data.results.length === 0 ? (
-        archived ? (
-          <Empty title="Nothing archived yet">Things you archive in this space wait here.</Empty>
-        ) : (
-          <Empty title="Nothing here yet">Pages, tasks, files and everything else you add to this space show up here.</Empty>
-        )
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <>
           <ItemList

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, ListSkeleton, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { Dialog, Placeholder, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
 import { addJoinedSpace, SpaceMark, spacesTabs, useSpaces } from '../spaces';
@@ -15,6 +15,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton, useRememberedShape } from '../components/Skeletons';
 import { NewSpace } from './spaces/SpacesPage';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
@@ -32,6 +33,12 @@ export function InvitationsPage() {
   const answering = useAction();
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState('');
+  const [receivedRows, notedRows] = useRememberedShape(
+    'invitations-received',
+    received.data && [received.data.length, received.data.filter((invitation) => invitation.note).length],
+    [0, 0],
+  );
+  const [sentRows] = useRememberedShape('invitations-sent', sent.data && [sent.data.length], [0]);
 
   function answer(invitation: ReceivedInvitation, accept: boolean) {
     void answering.run(async () => {
@@ -48,7 +55,24 @@ export function InvitationsPage() {
         {received.error ? (
           <LoadError compact error={received.error} onRetry={received.reload} />
         ) : !received.data ? (
-          <ListSkeleton label="Loading your invitations" rows={2} />
+          <Placeholder label="Loading your invitations">
+            {receivedRows ? (
+              <RowsSkeleton
+                below={<SkeletonLine className="text-sm" width="w-3/5" />}
+                belowRows={notedRows}
+                lead={<SpaceMarkSkeleton />}
+                rows={receivedRows}
+                trail={
+                  <>
+                    <ButtonSkeleton width="w-20" />
+                    <IconButtonSkeleton />
+                  </>
+                }
+              />
+            ) : (
+              <HintSkeleton />
+            )}
+          </Placeholder>
         ) : received.data.length === 0 ? (
           <Hint>No invitations for you yet.</Hint>
         ) : (
@@ -71,7 +95,7 @@ export function InvitationsPage() {
         {sent.error ? (
           <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
-          <ListSkeleton label="Loading the invites you sent" rows={2} />
+          <Placeholder label="Loading the invites you sent">{sentRows ? <RowsSkeleton rows={sentRows} /> : <HintSkeleton />}</Placeholder>
         ) : sent.data.length === 0 ? (
           <Hint>No sent invitations yet.</Hint>
         ) : (

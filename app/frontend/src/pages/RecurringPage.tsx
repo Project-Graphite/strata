@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
 import { useSpaces } from '../spaces';
@@ -15,6 +15,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
+import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, MoneyRowsSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates, Stat, Stats } from '../components/Stats';
@@ -35,6 +36,9 @@ interface Summary {
   stillWorthIt: Subscription[];
 }
 
+const empty = { title: 'No subscriptions yet', hint: 'Add the subscriptions and bills you pay regularly to see what they cost each month and when they renew.' };
+const unusedDescription = 'Nobody has marked these as used in two months.';
+
 export function RecurringPage() {
   const auth = useAuth();
   const spaces = useSpaces();
@@ -48,6 +52,17 @@ export function RecurringPage() {
   const linked = useResource<Subscription>(params.get('subscription') ? `/subscriptions/${params.get('subscription')}` : null, true);
   const opened = editing ?? (linked.data && opener(linked.data) ? linked.data : undefined);
   const currency = summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR';
+  const [statCount, trialRows, renewalRows, categoryRows, unusedRows] = useRememberedShape(
+    'recurring',
+    summary.data && [
+      summary.data.totals.length + (summary.data.home && summary.data.totals.length > 1 ? 1 : 0),
+      summary.data.trials.length,
+      summary.data.upcoming.length,
+      summary.data.categories.length,
+      summary.data.stillWorthIt.length,
+    ],
+    [1, 0, 4, 0, 0],
+  );
   const close = () => {
     setEditing(undefined);
     setParams((current) => {
@@ -71,7 +86,45 @@ export function RecurringPage() {
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !summary.data ? (
-        <ListSkeleton label="Adding up your subscriptions" rows={4} />
+        <Placeholder className="grid gap-8" label="Adding up your subscriptions">
+          {statCount > 0 && <StatsSkeleton count={statCount} />}
+          {trialRows > 0 && (
+            <Section title="Trials ending soon">
+              <MoneyRowsSkeleton rows={trialRows} />
+            </Section>
+          )}
+          <Section
+            action={
+              (!spaces.data || editable.length > 0) && (
+                <span className="flex items-center gap-2">
+                  <ButtonSkeleton large width="w-44" />
+                  <IconButtonSkeleton />
+                </span>
+              )
+            }
+            title="Next renewals"
+          >
+            {!statCount ? (
+              <Empty loading title={empty.title}>
+                {empty.hint}
+              </Empty>
+            ) : renewalRows ? (
+              <MoneyRowsSkeleton rows={renewalRows} />
+            ) : (
+              <HintSkeleton />
+            )}
+          </Section>
+          {categoryRows > 0 && (
+            <Section title="By category">
+              <MoneyRowsSkeleton detailed={0} rows={categoryRows} />
+            </Section>
+          )}
+          {unusedRows > 0 && (
+            <Section description={unusedDescription} title="Still worth it?">
+              <MoneyRowsSkeleton detailed={0} rows={unusedRows} trail={<ButtonSkeleton width="w-24" />} />
+            </Section>
+          )}
+        </Placeholder>
       ) : (
         <>
           {summary.data.totals.length > 0 && (
@@ -122,8 +175,8 @@ export function RecurringPage() {
             title="Next renewals"
           >
             {summary.data.totals.length === 0 ? (
-              <Empty level={3} title="No subscriptions yet">
-                Add the subscriptions and bills you pay regularly to see what they cost each month and when they renew.
+              <Empty level={3} title={empty.title}>
+                {empty.hint}
               </Empty>
             ) : summary.data.upcoming.length === 0 ? (
               <Hint>No renewals coming up.</Hint>
@@ -149,7 +202,7 @@ export function RecurringPage() {
             </Section>
           )}
           {summary.data.stillWorthIt.length > 0 && (
-            <Section description="Nobody has marked these as used in two months." title="Still worth it?">
+            <Section description={unusedDescription} title="Still worth it?">
               <ul className="panel-rows">
                 {summary.data.stillWorthIt.map((subscription) => (
                   <MoneyRow

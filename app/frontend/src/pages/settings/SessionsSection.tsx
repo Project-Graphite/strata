@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -8,6 +8,7 @@ import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 import { Button } from '../../components/Button';
 import { RowText } from '../../components/RowText';
+import { ButtonSkeleton, RowTextSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
 
 interface Session {
   id: string;
@@ -22,17 +23,31 @@ export function SessionsSection() {
   const sessions = useResource<Session[]>('/me/sessions', true);
   const { report } = useAction();
   const [signingOut, setSigningOut] = useState<Session | 'others'>();
+  const [rows] = useRememberedShape('settings-sessions', sessions.data && [sessions.data.length], [2]);
 
   return (
     <>
       <Section
-        action={sessions.data?.some((session) => !session.current) && <Button label="Sign out all others" onClick={() => setSigningOut('others')} />}
+        action={
+          sessions.data
+            ? sessions.data.some((session) => !session.current) && <Button label="Sign out all others" onClick={() => setSigningOut('others')} />
+            : !sessions.error && rows > 1 && <ButtonSkeleton width="w-36" />
+        }
         title="Signed-in devices"
       >
         {sessions.error ? (
           <LoadError compact error={sessions.error} onRetry={sessions.reload} />
         ) : !sessions.data ? (
-          <ListSkeleton label="Loading your sessions" rows={3} />
+          <Placeholder label="Loading your sessions">
+            <ul aria-hidden="true" className="panel-rows">
+              {rowsOf(rows).map((row) => (
+                <li className="flex items-center gap-3 panel-row" key={row}>
+                  <RowTextSkeleton row={row} />
+                  {row > 0 && <ButtonSkeleton width="w-18" />}
+                </li>
+              ))}
+            </ul>
+          </Placeholder>
         ) : (
           <ul className="panel-rows">
             {sessions.data.map((session) => (

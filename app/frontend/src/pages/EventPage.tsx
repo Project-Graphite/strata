@@ -16,6 +16,7 @@ import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { DetailState, Page, Section } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, FieldSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -41,11 +42,110 @@ export function EventPage() {
   const [personalLink, setPersonalLink] = useState('');
   const [openLink, setOpenLink] = useState('');
 
-  if (!event.data) return <DetailState back={back} resource={event} thing="Event" />;
-  const details = event.data;
-  const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
+  const space = spaces.data?.find((candidate) => candidate.id === event.data?.spaceId);
   const editable = space ? space.role !== 'viewer' : false;
   const options = poll.data?.options ?? [];
+  const [wasEditable, located, meeting, descriptionLines, polled, pollRows, votedRows, guestRows] = useRememberedShape(
+    `event-${id}`,
+    event.data &&
+      spaces.data &&
+      poll.data && [
+        Number(editable),
+        Number(Boolean(event.data.location)),
+        Number(Boolean(event.data.meetingUrl)),
+        event.data.description ? event.data.description.split('\n').length : 0,
+        Number(options.length > 0 || (editable && !event.data.repeatRule)),
+        options.length,
+        options.filter((option) => option.voters && option.voters.length > 0).length,
+        event.data.guests.length,
+      ],
+    [1, 0, 0, 0, 1, 0, 0, 2],
+  );
+
+  if (!event.data) {
+    return (
+      <DetailState
+        actions={wasEditable ? 2 : 0}
+        back={back}
+        description={
+          <>
+            <SkeletonLine width="w-80 max-w-full" />
+            {located > 0 && <SkeletonLine className="mt-1" width="w-48" />}
+            {meeting > 0 && <SkeletonLine className="mt-1" width="w-24" />}
+          </>
+        }
+        resource={event}
+        thing="Event"
+      >
+        {descriptionLines > 0 && (
+          <p aria-hidden="true" className="m-0">
+            {rowsOf(descriptionLines).map((line) => (
+              <SkeletonLine key={line} width={line === descriptionLines - 1 ? 'w-2/5' : 'w-full'} />
+            ))}
+          </p>
+        )}
+        {polled > 0 && (
+          <Section title="Date poll">
+            {pollRows ? (
+              <>
+                <ul aria-hidden="true" className="panel-rows">
+                  {rowsOf(pollRows).map((row) => (
+                    <li className="grid gap-2 panel-row" key={row}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <SkeletonLine width="w-40" />
+                          <SkeletonLine className="mono-sm mt-0.5" width="w-28" />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {rowsOf(3).map((answer) => (
+                            <ButtonSkeleton key={answer} width="w-14" />
+                          ))}
+                        </div>
+                      </div>
+                      {row < votedRows && <HintSkeleton />}
+                    </li>
+                  ))}
+                </ul>
+                {wasEditable > 0 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ButtonSkeleton width="w-28" />
+                    <ButtonSkeleton width="w-28" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <ButtonSkeleton width="w-28" />
+            )}
+          </Section>
+        )}
+        {wasEditable > 0 && (
+          <Section action={<ButtonSkeleton large width="w-32" />} title="Boards">
+            <HintSkeleton />
+          </Section>
+        )}
+        <Section description={<SkeletonLine width="w-72 max-w-full" />} title="Guests">
+          {guestRows ? <RowsSkeleton rows={guestRows} trail={wasEditable > 0 && <IconButtonSkeleton />} /> : <HintSkeleton />}
+        </Section>
+        {wasEditable > 0 && (
+          <>
+            <Section title="Invite a guest">
+              <div className="grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FieldSkeleton />
+                  <FieldSkeleton />
+                </div>
+                <ButtonSkeleton width="w-16" />
+              </div>
+            </Section>
+            <Section description="Anyone with this link can answer with their name for 60 days. They see only this event." title="Open invitation link">
+              <ButtonSkeleton width="w-24" />
+            </Section>
+          </>
+        )}
+      </DetailState>
+    );
+  }
+  const details = event.data;
 
   function vote(optionId: string, answer: PollAnswer) {
     void voting.run(async () => {
