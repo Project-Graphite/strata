@@ -109,4 +109,4 @@ export const appCatalogue: AppEntry[] = [
 ];
 
 export const enabledApps = (keys: string[] | undefined) =>
-  (keys ?? []).flatMap((key) => appCatalogue.filter((app) => app.key === key));
+  [...new Set(keys)].flatMap((key) => appCatalogue.filter((app) => app.key === key));
