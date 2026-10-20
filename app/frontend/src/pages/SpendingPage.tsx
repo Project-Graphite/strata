@@ -194,27 +194,27 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         <>
           {tab === 'overview' && (
             <Stats>
-              <Stat label="Spent" value={<Amount currency={currency} minor={shown.spentMinor} />} />
+              <Stat label="Spent" value={<Amount currency={currency} minor={shown.spentMinor} tween />} />
               {shown.budgetMinor !== null && (
                 <>
                   <Stat
                     label="Left to spend"
                     value={
                       shown.spentMinor > shown.budgetMinor ? (
-                        <Amount currency={currency} danger minor={shown.spentMinor - shown.budgetMinor}>
+                        <Amount currency={currency} danger minor={shown.spentMinor - shown.budgetMinor} tween>
                           {' over'}
                         </Amount>
                       ) : (
-                        <Amount currency={currency} minor={shown.budgetMinor - shown.spentMinor} />
+                        <Amount currency={currency} minor={shown.budgetMinor - shown.spentMinor} tween />
                       )
                     }
                   >
                     <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
                   </Stat>
-                  <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : <Amount currency={currency} minor={shown.safeDailyMinor} />} />
+                  <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : <Amount currency={currency} minor={shown.safeDailyMinor} tween />} />
                 </>
               )}
-              <Stat label="Received" value={<Amount currency={currency} minor={shown.receivedMinor} />} />
+              <Stat label="Received" value={<Amount currency={currency} minor={shown.receivedMinor} tween />} />
             </Stats>
           )}
           <MissingRates currencies={shown.missing} />
@@ -223,7 +223,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             <Section title="By card">
               <Stats>
                 {cardTotals.map((total) => (
-                  <Stat key={total.key} label={total.label} value={<Amount currency={total.currency} minor={total.spentMinor} />} />
+                  <Stat key={total.key} label={total.label} value={<Amount currency={total.currency} minor={total.spentMinor} tween />} />
                 ))}
               </Stats>
             </Section>

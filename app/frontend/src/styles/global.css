@@ -483,6 +483,47 @@ button.habit-day::before {
   background: var(--color-ink);
 }
 
+.task-title {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0 1px;
+}
+
+.task-title.is-done {
+  background-size: 100% 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .task-title {
+    transition: background-size 320ms var(--ease-settle);
+  }
+
+  .habit-check,
+  .habit-day,
+  .app-tile-check {
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      color 200ms ease;
+  }
+
+  .habit-check.is-done[data-pressed] {
+    animation: check-ring 520ms ease-out;
+  }
+
+  .habit-check.is-done[data-pressed] > span {
+    animation: check-pop 280ms var(--ease-settle);
+  }
+}
+
+@keyframes check-ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ink) 40%, transparent);
+  }
+
+  to {
+    box-shadow: 0 0 0 0.6rem transparent;
+  }
+}
+
 .journal-year {
   display: grid;
   grid-auto-flow: column;

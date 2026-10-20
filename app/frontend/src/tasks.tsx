@@ -140,9 +140,9 @@ export function TaskRow({
         />
       </label>
       <ButtonBase className="min-w-0 flex-1 flex-col items-stretch text-left" onClick={onEdit}>
-        <span className={`block truncate ${done ? 'text-faint line-through' : 'text-ink'}`}>
+        <span className={`block truncate transition-colors ${done ? 'text-faint' : 'text-ink'}`}>
           {task.parentId && <span className="text-faint">↳ </span>}
-          {task.title}
+          <span className={`task-title ${done ? 'is-done' : ''}`}>{task.title}</span>
         </span>
         {details.length > 0 && (
           <span className={`mono-sm mt-0.5 block truncate ${isOverdue(task) ? 'text-danger' : 'text-faint'}`}>

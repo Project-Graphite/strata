@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatDay } from '@project-graphite/ui';
 import { addDays } from './agenda';
 import { useAuth } from './auth';
@@ -27,9 +28,11 @@ function progressText(habit: Habit) {
 export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit; onChange: (habit: Habit) => void; showSpace?: boolean }) {
   const auth = useAuth();
   const saving = useAction();
+  const [pressed, setPressed] = useState(false);
   const days = Array.from({ length: 7 }, (_, index) => addDays(habit.today, index - 6));
 
   function toggle(day: string) {
+    setPressed(true);
     void saving.run(async () => {
       onChange(await auth.request<Habit>(`/habits/${habit.id}/check-ins/${day}`, { method: habit.recent.includes(day) ? 'DELETE' : 'PUT' }));
       return '';
@@ -42,6 +45,7 @@ export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit;
         aria-label={`${habit.name} today`}
         aria-pressed={habit.checkedToday}
         className={`habit-check ${habit.checkedToday ? 'is-done' : ''}`}
+        data-pressed={pressed || undefined}
         disabled={saving.busy}
         onClick={() => toggle(habit.today)}
         type="button"
