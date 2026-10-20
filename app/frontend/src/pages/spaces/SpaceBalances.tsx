@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ConfirmDialog, formatDay, ListSkeleton } from '@project-graphite/ui';
+import { useState, type ReactNode } from 'react';
+import { ConfirmDialog, formatDay, Placeholder } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
@@ -7,6 +7,7 @@ import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { RowText } from '../../components/RowText';
+import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowTextSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -31,6 +32,19 @@ interface Balances {
 
 const payment = (debt: Debt) => `${money(debt.amountMinor, debt.currency)} from ${debt.fromName} to ${debt.toName}`;
 
+function BalanceRowsSkeleton({ action, rows, withAction }: { action: ReactNode; rows: number; withAction: number }) {
+  return (
+    <ul aria-hidden="true" className="panel-rows">
+      {rowsOf(rows).map((row) => (
+        <li className="panel-row flex items-center gap-3" key={row}>
+          <RowTextSkeleton detail={false} row={row} />
+          {row < withAction && action}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const auth = useAuth();
   const me = auth.user?.id;
@@ -38,6 +52,17 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
   const balances = useResource<Balances>(`/spaces/${spaceId}/balances?month=${month}`, true);
   const action = useAction();
   const [deleting, setDeleting] = useState<Balances['settlements'][number]>();
+  const [debts, payable, charges, settlements, mine] = useRememberedShape(
+    `space-balances-${spaceId}`,
+    balances.data && [
+      balances.data.debts.length,
+      balances.data.debts.filter((debt) => debt.toUserId === me).length,
+      balances.data.charges.length,
+      balances.data.settlements.length,
+      balances.data.settlements.filter((settlement) => settlement.fromUserId === me || settlement.toUserId === me).length,
+    ],
+    [0, 0, 0, 0, 0],
+  );
 
   function settle(debt: Debt) {
     void action.run(async () => {
@@ -65,7 +90,17 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
       {balances.error ? (
         <LoadError compact error={balances.error} onRetry={balances.reload} />
       ) : !balances.data ? (
-        <ListSkeleton label="Adding up who owes what" rows={2} />
+        <Placeholder className="grid gap-3" label="Adding up who owes what">
+          {charges || settlements ? (
+            <>
+              {debts ? <BalanceRowsSkeleton action={<ButtonSkeleton width="w-28" />} rows={debts} withAction={payable} /> : <HintSkeleton />}
+              {charges > 0 && <HintSkeleton />}
+              {settlements > 0 && <BalanceRowsSkeleton action={<IconButtonSkeleton />} rows={settlements} withAction={mine} />}
+            </>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Placeholder>
       ) : balances.data.charges.length === 0 && balances.data.settlements.length === 0 ? (
         <Hint>No split subscriptions renew this month.</Hint>
       ) : (

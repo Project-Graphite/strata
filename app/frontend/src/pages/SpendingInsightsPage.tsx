@@ -1,8 +1,9 @@
-import { formatDay, ListSkeleton } from '@project-graphite/ui';
+import { formatDay, Placeholder, Skeleton } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
+import { HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { categoryName, type SpendingInsights } from '../spending';
 import { useChosenSpace } from '../spaces';
@@ -13,22 +14,83 @@ import { MissingRates } from '../components/Stats';
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
 const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 78)}%, var(--color-surface))`;
+const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 export function SpendingInsightsPage() {
   const { spaceId } = useChosenSpace();
   const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true);
   const shown = insights.data;
+  const [periodRows, categoryRows, merchantRows, leadCells, dayCells] = useRememberedShape(
+    'spending-insights',
+    shown && [
+      shown.periods.length,
+      new Set(shown.periods.slice(-2).flatMap((period) => period.categories.map((row) => row.category))).size,
+      shown.merchants.length,
+      leadOf(shown.days),
+      shown.days.length,
+    ],
+    [6, 4, 5, 3, 31],
+  );
 
   return (
     <SpendingFrame currency={shown?.currency} onChanged={insights.reload} tab="insights">
       {insights.error ? (
         <LoadError error={insights.error} onRetry={insights.reload} />
       ) : !shown ? (
-        <ListSkeleton label="Looking back over your spending" rows={5} />
+        <Placeholder className="grid items-start gap-8 lg:grid-cols-2" label="Looking back over your spending">
+          <Section title="Spent each month">
+            <div className="grid gap-1">
+              <Skeleton className="h-36" />
+              <SkeletonLine className="mono-sm" width="w-full" />
+            </div>
+            <TableSkeleton columns={3} rows={periodRows} />
+          </Section>
+          <Section title="Compared with the month before">{categoryRows ? <TableSkeleton columns={4} rows={categoryRows} /> : <HintSkeleton />}</Section>
+          <Section title="Where it went">{merchantRows ? <RowsSkeleton rows={merchantRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} /> : <HintSkeleton />}</Section>
+          <Section title="Day by day">
+            <div className="grid grid-cols-7 gap-0.5 text-xs">
+              {weekdays.map((weekday) => (
+                <SkeletonLine className="justify-center" key={weekday} width="w-6" />
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {rowsOf(leadCells).map((cell) => (
+                <span key={`lead-${cell}`} />
+              ))}
+              {rowsOf(dayCells).map((cell) => (
+                <Skeleton className="aspect-square h-auto rounded-field" key={cell} />
+              ))}
+            </div>
+          </Section>
+        </Placeholder>
       ) : (
         <Insights insights={shown} />
       )}
     </SpendingFrame>
+  );
+}
+
+function TableSkeleton({ columns, rows }: { columns: number; rows: number }) {
+  const cells = (Cell: 'th' | 'td') =>
+    rowsOf(columns).map((column) => (
+      <Cell key={column}>
+        <SkeletonLine className={column ? 'justify-end' : ''} width={column ? 'w-14' : 'w-24'} />
+      </Cell>
+    ));
+  return (
+    <div className="overflow-x-auto">
+      <table className="insights-table">
+        <thead>
+          <tr>{cells('th')}</tr>
+        </thead>
+        <tbody>
+          {rowsOf(rows).map((row) => (
+            <tr key={row}>{cells('td')}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -42,7 +104,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
     return { category, now, before, change: now - before };
   });
   const busiest = Math.max(1, ...days.map((day) => day.spentMinor));
-  const lead = (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const lead = leadOf(days);
 
   return (
     <>
@@ -142,7 +204,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
         <Section title="Day by day">
           <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-faint">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((weekday) => (
+            {weekdays.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}
           </div>

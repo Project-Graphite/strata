@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router';
-import { IconButton, ListSkeleton, Pagination, timeAgo } from '@project-graphite/ui';
+import { IconButton, Pagination, Placeholder, timeAgo } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
@@ -10,6 +10,9 @@ import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { RowText } from '../components/RowText';
+import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+
+const empty = { title: 'Nothing new', hint: 'Comments, invitations and changes in your shared spaces show up here.' };
 
 export function InboxPage() {
   const auth = useAuth();
@@ -18,6 +21,7 @@ export function InboxPage() {
   const page = Number(params.get('page')) || 1;
   const notifications = useResource<ResultPage<InboxNotification>>(`/me/inbox?page=${page}`, true);
   const action = useAction();
+  const [rows] = useRememberedShape('inbox', notifications.data && [notifications.data.results.length], [4]);
 
   function setRead(notification: InboxNotification, read: boolean) {
     void action.run(async () => {
@@ -58,9 +62,17 @@ export function InboxPage() {
       {notifications.error ? (
         <LoadError error={notifications.error} onRetry={notifications.reload} />
       ) : !notifications.data ? (
-        <ListSkeleton label="Loading your inbox" rows={4} />
+        <Placeholder label="Loading your inbox">
+          {rows ? (
+            <RowsSkeleton below={<SkeletonLine className="mono-sm" width="w-16" />} lead={<span className="size-2 shrink-0" />} rows={rows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : notifications.data.results.length === 0 ? (
-        <Empty title="Nothing new">Comments, invitations and changes in your shared spaces show up here.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <>
           <ul className="panel-rows">

@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router';
 import { useState } from 'react';
-import { ListSkeleton, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Placeholder, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -10,6 +10,7 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { FilterChips, Page } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { spaceOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -31,6 +32,7 @@ export function BookmarksPage() {
   const marking = useAction();
   const form = useFormErrors();
   const [adding, setAdding] = useState(false);
+  const [rows] = useRememberedShape(`bookmarks-${status.value}`, listed.data && [listed.data.length], [4]);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const editable = (bookmark: Bookmark) => writable.some((space) => space.id === bookmark.spaceId);
 
@@ -90,7 +92,15 @@ export function BookmarksPage() {
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
-        <ListSkeleton label="Loading your bookmarks" rows={4} />
+        <Placeholder label="Loading your bookmarks">
+          {rows ? (
+            <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-4/5" />} rows={rows} />
+          ) : (
+            <Empty loading title={status.empty}>
+              {status.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : listed.data.length === 0 ? (
         <Empty title={status.empty}>{status.hint}</Empty>
       ) : (

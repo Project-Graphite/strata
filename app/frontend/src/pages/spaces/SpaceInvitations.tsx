@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { noteChecks, type SentInvitation } from '../../invitations';
 import { roleOptions, type Space } from '../../spaces';
@@ -11,6 +11,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { RowText } from '../../components/RowText';
+import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const invitee = (invitation: SentInvitation) => (invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : (invitation.email ?? 'Invite link'));
 
@@ -19,7 +20,17 @@ export function SpaceInvitations({ space }: { space: Space }) {
   const pending = useResource<SentInvitation[]>(`/spaces/${space.id}/invitations`, true);
   const { report } = useAction();
   const [withdrawing, setWithdrawing] = useState<SentInvitation>();
+  const [rows] = useRememberedShape(`space-invitations-${space.id}`, pending.data && [pending.data.length], [0]);
 
+  if (!pending.error && !pending.data && rows) {
+    return (
+      <Placeholder label="Loading the invites waiting for an answer">
+        <Section title="Waiting for an answer">
+          <RowsSkeleton rows={rows} trail={<IconButtonSkeleton />} />
+        </Section>
+      </Placeholder>
+    );
+  }
   if (!pending.error && !pending.data?.length) return null;
 
   return (

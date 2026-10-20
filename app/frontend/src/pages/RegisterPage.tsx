@@ -2,11 +2,12 @@ import Alert from '@mui/material/Alert';
 import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { errorMessage, FormPanelSkeleton, TextField } from '@project-graphite/ui';
+import { errorMessage, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { useDocumentTitle } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
+import { ButtonSkeleton, FieldSkeleton, SkeletonLine } from '../components/Skeletons';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { useResource } from '../useResource';
 import { atLeast, atMost, emailAddress, password, required, useFormErrors } from '../validation';
@@ -78,7 +79,22 @@ export function RegisterPage() {
   }
 
   if (invite.loading || (!code && site.loading)) {
-    return <FormPanelSkeleton label="Loading sign-up" />;
+    return (
+      <section className="form-panel page-enter">
+        <h1 className="page-heading">Create your account</h1>
+        <Placeholder label="Loading sign-up">
+          {code && <SkeletonLine className="mt-4" width="w-3/4" />}
+          <div className="mt-8 grid gap-5">
+            <FieldSkeleton />
+            <FieldSkeleton hint />
+            <FieldSkeleton />
+            <FieldSkeleton hint />
+            <ButtonSkeleton large width="w-40" />
+          </div>
+          <SkeletonLine className="mt-6 text-sm" width="w-48" />
+        </Placeholder>
+      </section>
+    );
   }
 
   if (!invite.data && site.data?.inviteOnly) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { DatePicker, formatDay, IconButton, ListSkeleton, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
 import { Button } from '../components/Button';
@@ -12,9 +12,20 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesArea } from './RecipesPage';
 import { PeriodNav } from '../components/PeriodNav';
+import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 const weekRange = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const dayRow = 'panel-row grid grid-cols-3 gap-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]';
+
+function DayLabel({ day, today }: { day: string; today: string }) {
+  return (
+    <p className={`m-0 text-sm max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
+      {formatDay(day, { weekday: 'long', day: 'numeric', month: 'short' })}
+      {day === today && <span className="block text-muted">Today</span>}
+    </p>
+  );
+}
 
 export function MealPlanPage() {
   const auth = useAuth();
@@ -28,6 +39,11 @@ export function MealPlanPage() {
   const [adding, setAdding] = useState<{ day: string; meal: Meal }>();
   const days = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
+  const planned = useRememberedShape(
+    'meal-plan',
+    plan.data && days.flatMap((day) => meals.map(({ value }) => plan.data!.filter((entry) => entry.day === day && entry.meal === value).length)),
+    [],
+  );
 
   function remove(entry: PlannedMeal) {
     void action.run(async () => {
@@ -89,15 +105,32 @@ export function MealPlanPage() {
       {plan.error ? (
         <LoadError error={plan.error} onRetry={plan.reload} />
       ) : !plan.data ? (
-        <ListSkeleton label="Loading the meal plan" rows={7} />
+        <Placeholder label="Loading the meal plan">
+          <ul aria-hidden="true" className="panel-rows">
+            {days.map((day, row) => (
+              <li className={dayRow} key={day}>
+                <DayLabel day={day} today={today} />
+                {meals.map(({ value, label }, column) => (
+                  <div className="grid content-start gap-1" key={value}>
+                    <span className="text-sm text-faint">{label}</span>
+                    {rowsOf(planned[row * meals.length + column] ?? 0).map((entry) => (
+                      <span className="flex min-w-0 items-center gap-1" key={entry}>
+                        <SkeletonLine className="min-w-0 flex-1 text-sm" width="w-3/4" />
+                        {(!space || editable) && <IconButtonSkeleton />}
+                      </span>
+                    ))}
+                    {(!space || editable) && <ButtonSkeleton width="w-16" />}
+                  </div>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </Placeholder>
       ) : (
         <ul className="panel-rows">
           {days.map((day) => (
-            <li className="panel-row grid grid-cols-3 gap-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]" key={day}>
-              <p className={`m-0 text-sm max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
-                {formatDay(day, { weekday: 'long', day: 'numeric', month: 'short' })}
-                {day === today && <span className="block text-muted">Today</span>}
-              </p>
+            <li className={dayRow} key={day}>
+              <DayLabel day={day} today={today} />
               {meals.map(({ value, label }) => {
                 const planned = plan.data!.filter((entry) => entry.day === day && entry.meal === value);
                 return (

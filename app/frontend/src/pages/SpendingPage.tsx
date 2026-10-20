@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, formatDay, ListSkeleton, Meter, Select, TextField, Toggle } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, Meter, Placeholder, Select, Skeleton, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -16,6 +16,7 @@ import { LoadError } from '../components/LoadError';
 import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
+import { ButtonSkeleton, HintSkeleton, MoneyRowsSkeleton, rowsOf, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { SplitEditor } from '../components/SplitEditor';
 import {
@@ -46,6 +47,9 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 const chartedCount = 7;
+const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.' };
+const emptyBudgets = { title: 'No budgets yet', hint: 'Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.' };
+const emptyTransactions = { title: 'No transactions this month', hint: 'Add an expense, import a statement or connect your phone to see this month’s spending here.' };
 
 export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
   const auth = useAuth();
@@ -93,6 +97,29 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
       }, new Map<string, { key: string; label: string; currency: string; spentMinor: number }>())
       .values(),
   ];
+  const shape = useRememberedShape(
+    `spending-${tab}${tab === 'transactions' && card ? '-card' : ''}`,
+    shown &&
+      (tab === 'overview'
+        ? [
+            shown.budgetMinor === null ? 0 : 1,
+            cardTotals.length,
+            captures.data?.length ?? 0,
+            Math.min(shown.categories.filter((row) => row.spentMinor > 0).length, chartedCount + 1),
+            Math.min(shown.expenses.length, recentCount + 1),
+          ]
+        : tab === 'transactions'
+          ? [listed.length, cards.length]
+          : tab === 'budgets'
+            ? [
+                shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0,
+                shown.categories.filter((row) => row.budgetMinor !== null).length,
+                rules.data?.length ?? 0,
+                rules.data?.filter((rule) => rule.ignore || rule.rename || rule.category).length ?? 0,
+              ]
+            : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
+    tab === 'overview' ? [0, 0, 0, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3, 0, 0] : [2, 0],
+  );
   const reload = () => {
     summary.reload();
     accounts.reload();
@@ -155,14 +182,18 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               disabled={!shown}
               onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
               title={
-                shown &&
-                (shown.plan.startDay === 1
-                  ? monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-                  : `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`)
+                !shown ? (
+                  <SkeletonLine width="w-28" />
+                ) : shown.plan.startDay === 1 ? (
+                  monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+                ) : (
+                  `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
+                )
               }
               unit="month"
             />
-            {tab === 'transactions' && (cards.length > 0 || card) && (
+            {tab === 'transactions' && !shown && (card || shape[1]! > 0) && <Skeleton className="h-10 w-36 rounded-lg" />}
+            {tab === 'transactions' && shown && (cards.length > 0 || card) && (
               <Select
                 aria-label="Card"
                 onChange={(next: string) =>
@@ -188,8 +219,10 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
     >
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
-      ) : !shown ? (
-        <ListSkeleton label="Adding up the month" rows={5} />
+      ) : !shown || (tab === 'accounts' && [accounts, installments].some((resource) => !resource.data && !resource.error)) ? (
+        <Placeholder className="grid gap-8" label="Adding up the month">
+          <SpendingSkeleton byCategory={byCategory} editable={!space || editable} shape={shape} tab={tab} />
+        </Placeholder>
       ) : (
         <>
           {tab === 'overview' && (
@@ -275,13 +308,11 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
 
           {tab === 'accounts' && (
             <Section action={editable && <Button icon="plus" label="New account" large onClick={() => setDialog({ account: null })} />} title="Accounts">
-              {accounts.error ? (
+              {!accounts.data ? (
                 <LoadError compact error={accounts.error} onRetry={accounts.reload} />
-              ) : !accounts.data ? (
-                <ListSkeleton label="Loading the accounts" rows={2} />
               ) : accounts.data.length === 0 ? (
-                <Empty level={3} title="No accounts yet">
-                  Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.
+                <Empty level={3} title={emptyAccounts.title}>
+                  {emptyAccounts.hint}
                 </Empty>
               ) : (
                 <ul className="panel-rows">
@@ -383,8 +414,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               title="Budgets"
             >
               {!shown.budgets.length && shown.plan.budgetMinor === null ? (
-                <Empty level={3} title="No budgets yet">
-                  Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.
+                <Empty level={3} title={emptyBudgets.title}>
+                  {emptyBudgets.hint}
                 </Empty>
               ) : !shown.categories.some((row) => row.budgetMinor !== null) ? (
                 <Hint>No category has its own budget.</Hint>
@@ -442,7 +473,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
 
           {tab === 'transactions' &&
             (listed.length === 0 ? (
-              <Empty title="No transactions this month">Add an expense, import a statement or connect your phone to see this month’s spending here.</Empty>
+              <Empty title={emptyTransactions.title}>{emptyTransactions.hint}</Empty>
             ) : (
               expenseRows(listed)
             ))}
@@ -588,6 +619,114 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         </ConfirmDialog>
       )}
     </SpendingFrame>
+  );
+}
+
+function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: boolean; editable: boolean; shape: number[]; tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
+  if (tab === 'transactions') {
+    const [rows = 0] = shape;
+    return rows ? (
+      <MoneyRowsSkeleton rows={rows} />
+    ) : (
+      <Empty loading title={emptyTransactions.title}>
+        {emptyTransactions.hint}
+      </Empty>
+    );
+  }
+  if (tab === 'accounts') {
+    const [accountRows = 0, planRows = 0] = shape;
+    return (
+      <>
+        <Section action={editable && <ButtonSkeleton large width="w-36" />} title="Accounts">
+          {accountRows ? (
+            <MoneyRowsSkeleton rows={accountRows} />
+          ) : (
+            <Empty loading title={emptyAccounts.title}>
+              {emptyAccounts.hint}
+            </Empty>
+          )}
+        </Section>
+        <Section action={editable && <ButtonSkeleton large />} title="Installments">
+          {planRows ? <MoneyRowsSkeleton metered={planRows} rows={planRows} /> : <HintSkeleton />}
+        </Section>
+      </>
+    );
+  }
+  if (tab === 'budgets') {
+    const [budgeted = 0, budgetRows = 0, ruleRows = 0, detailedRules = 0] = shape;
+    return (
+      <>
+        <Section
+          action={
+            editable && (
+              <span className="flex flex-wrap gap-2">
+                <ButtonSkeleton large width="w-36" />
+                <ButtonSkeleton large width="w-32" />
+              </span>
+            )
+          }
+          title="Budgets"
+        >
+          {!budgeted ? (
+            <Empty loading title={emptyBudgets.title}>
+              {emptyBudgets.hint}
+            </Empty>
+          ) : budgetRows ? (
+            <MoneyRowsSkeleton detailed={0} metered={budgetRows} rows={budgetRows} />
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+        {ruleRows > 0 && (
+          <Section title="Merchant rules">
+            <MoneyRowsSkeleton detailed={detailedRules} rows={ruleRows} />
+          </Section>
+        )}
+      </>
+    );
+  }
+  const [budgeted = 0, cardStats = 0, reviewRows = 0, chartParts = 0, recentRows = 0] = shape;
+  return (
+    <>
+      <Stats>
+        {rowsOf(budgeted ? 4 : 2).map((stat) => (
+          <Stat key={stat} label={<SkeletonLine width="w-24" />} value={<SkeletonLine width="w-32" />}>
+            {budgeted > 0 && stat === 1 && <Skeleton className="h-1.5 rounded-full" />}
+          </Stat>
+        ))}
+      </Stats>
+      {cardStats > 0 && (
+        <Section title="By card">
+          <StatsSkeleton count={cardStats} detail={false} />
+        </Section>
+      )}
+      {reviewRows > 0 && (
+        <Section title={`To review (${reviewRows})`}>
+          <MoneyRowsSkeleton rows={reviewRows} trail={editable && <ButtonSkeleton width="w-14" />} />
+        </Section>
+      )}
+      {byCategory && (
+        <Section action={<ButtonSkeleton width="w-12" />} title="By category">
+          {chartParts ? (
+            <div className="grid gap-4">
+              <Skeleton className="h-4 rounded-field" />
+              <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                {rowsOf(chartParts).map((part) => (
+                  <li className="flex items-center gap-2 text-sm" key={part}>
+                    <SkeletonLine className="flex-1" width={part % 2 ? 'w-1/2' : 'w-2/3'} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+      )}
+      <Section action={recentRows > recentCount && <ButtonSkeleton width="w-32" />} title="Recent">
+        {recentRows ? <MoneyRowsSkeleton rows={Math.min(recentRows, recentCount)} /> : <HintSkeleton />}
+      </Section>
+    </>
   );
 }
 

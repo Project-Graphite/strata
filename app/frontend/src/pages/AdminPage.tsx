@@ -1,4 +1,4 @@
-import { Avatar, FormSkeleton, ListSkeleton, TextField, timeAgo, Toggle } from '@project-graphite/ui';
+import { Avatar, Placeholder, TextField, timeAgo, Toggle } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -8,6 +8,7 @@ import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
 import { RowText } from '../components/RowText';
+import { AvatarSkeleton, ButtonSkeleton, FieldSkeleton, RowsSkeleton, SkeletonLine, ToggleSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SettingsRows } from './settings/SettingsLayout';
 
 interface SiteSettings {
@@ -36,69 +37,95 @@ export function AdminPage() {
   const accounts = useResource<Account[]>(admin ? '/admin/users' : null, true);
   const saving = useAction();
   const quota = useAction();
+  const [accountRows] = useRememberedShape('admin-accounts', accounts.data && [accounts.data.length], [4]);
 
   if (!admin) return <NotFoundPage />;
-  if (!site.data) {
-    return <Page title="Admin">{site.error ? <LoadError error={site.error} onRetry={site.reload} /> : <FormSkeleton fields={1} />}</Page>;
+  if (site.error) {
+    return (
+      <Page title="Admin">
+        <LoadError error={site.error} onRetry={site.reload} />
+      </Page>
+    );
   }
 
   return (
     <Page title="Admin">
-      <Section title="Site settings">
-        <SettingsRows>
-          <Toggle
-            checked={site.data.inviteOnly}
-            description="New accounts need an invite while this is on. People who already have an account aren’t affected."
-            disabled={saving.busy}
-            label="Invite-only sign-up"
-            onChange={(inviteOnly) =>
-              void saving.run(async () => {
+      {site.data ? (
+        <Section title="Site settings">
+          <SettingsRows>
+            <Toggle
+              checked={site.data.inviteOnly}
+              description="New accounts need an invite while this is on. People who already have an account aren’t affected."
+              disabled={saving.busy}
+              label="Invite-only sign-up"
+              onChange={(inviteOnly) =>
+                void saving.run(async () => {
+                  const saved = await auth.request<SiteSettings>('/admin/site', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ inviteOnly }),
+                  });
+                  site.mutate(() => saved);
+                  return saved.inviteOnly ? 'Sign-up now needs an invite.' : 'Anyone can sign up again.';
+                }, 'Could not save the setting')
+              }
+            />
+          </SettingsRows>
+          <form
+            className="grid max-w-3xl gap-4"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              const fileQuotaMb = Number(new FormData(event.currentTarget).get('fileQuotaMb'));
+              void quota.run(async () => {
                 const saved = await auth.request<SiteSettings>('/admin/site', {
                   method: 'PATCH',
-                  body: JSON.stringify({ inviteOnly }),
+                  body: JSON.stringify({ fileQuotaMb }),
                 });
                 site.mutate(() => saved);
-                return saved.inviteOnly ? 'Sign-up now needs an invite.' : 'Anyone can sign up again.';
-              }, 'Could not save the setting')
-            }
-          />
-        </SettingsRows>
-        <form
-          className="grid max-w-3xl gap-4"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            const fileQuotaMb = Number(new FormData(event.currentTarget).get('fileQuotaMb'));
-            void quota.run(async () => {
-              const saved = await auth.request<SiteSettings>('/admin/site', {
-                method: 'PATCH',
-                body: JSON.stringify({ fileQuotaMb }),
-              });
-              site.mutate(() => saved);
-              return `Everyone can now store up to ${saved.fileQuotaMb} MB.`;
-            }, 'Could not save the storage limit');
-          }}
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              defaultValue={site.data.fileQuotaMb}
-              hint="Counted from the files each person uploads. Files can be at most 25 MB each."
-              inputMode="numeric"
-              label="File storage per person (MB)"
-              max={10240}
-              min={1}
-              name="fileQuotaMb"
-              type="number"
-            />
-          </div>
-          <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save'} primary submit />
-        </form>
-      </Section>
-      <Section description={accounts.data && (accounts.data.length === 1 ? '1 account' : `${accounts.data.length} accounts`)} title="People">
+                return `Everyone can now store up to ${saved.fileQuotaMb} MB.`;
+              }, 'Could not save the storage limit');
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                defaultValue={site.data.fileQuotaMb}
+                hint="Counted from the files each person uploads. Files can be at most 25 MB each."
+                inputMode="numeric"
+                label="File storage per person (MB)"
+                max={10240}
+                min={1}
+                name="fileQuotaMb"
+                type="number"
+              />
+            </div>
+            <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save'} primary submit />
+          </form>
+        </Section>
+      ) : (
+        <Placeholder label="Loading the site settings">
+          <Section title="Site settings">
+            <SettingsRows>
+              <ToggleSkeleton description />
+            </SettingsRows>
+            <div className="grid max-w-3xl gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldSkeleton hint />
+              </div>
+              <ButtonSkeleton width="w-16" />
+            </div>
+          </Section>
+        </Placeholder>
+      )}
+      <Section
+        description={accounts.data ? (accounts.data.length === 1 ? '1 account' : `${accounts.data.length} accounts`) : !accounts.error && <SkeletonLine width="w-20" />}
+        title="People"
+      >
         {accounts.error ? (
           <LoadError compact error={accounts.error} onRetry={accounts.reload} />
         ) : !accounts.data ? (
-          <ListSkeleton label="Loading the accounts" rows={4} />
+          <Placeholder label="Loading the accounts">
+            <RowsSkeleton lead={<AvatarSkeleton />} rows={accountRows} />
+          </Placeholder>
         ) : (
           <ul className="panel-rows">
             {accounts.data.map((account) => (

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { FormSkeleton, Select, TextField, Toggle } from '@project-graphite/ui';
+import { Placeholder, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
-import { DevicePush } from '../../components/DevicePush';
+import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
@@ -12,7 +12,8 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
-import { SettingsRow, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
+import { ButtonSkeleton, FieldSkeleton, ToggleSkeleton } from '../../components/Skeletons';
+import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
 import { CurrencyField } from '../../components/CurrencyField';
 import { Button } from '../../components/Button';
 
@@ -30,7 +31,36 @@ export function ProfileSettings() {
 
   if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
-  if (!me.data || !twoStep.data) return <FormSkeleton fields={3} />;
+  if (!me.data || !twoStep.data) {
+    return (
+      <Placeholder className="grid gap-8" label="Loading your profile">
+        <Section title="Profile">
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FieldSkeleton />
+              <FieldSkeleton />
+              <FieldSkeleton />
+              <FieldSkeleton hint />
+            </div>
+            <ButtonSkeleton width="w-16" />
+          </div>
+        </Section>
+        <Section title="Account">
+          <SettingsRows>
+            <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} />
+            <SettingsRowSkeleton row={1} />
+          </SettingsRows>
+        </Section>
+        <Section title="Notifications">
+          <SettingsRows>
+            {auth.user?.features.includes('tidy') && <ToggleSkeleton description />}
+            <ToggleSkeleton description />
+          </SettingsRows>
+          <DevicePushSkeleton />
+        </Section>
+      </Placeholder>
+    );
+  }
   const current = me.data;
 
   return (

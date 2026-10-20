@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { formatDay, Placeholder, Skeleton } from '@project-graphite/ui';
+import { formatDay, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
+import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 
@@ -58,7 +59,7 @@ export function JournalPage() {
   return (
     <Page
       actions={
-        data && (
+        data ? (
           <>
             <ActionsMenu items={[{ label: 'Write a weekly review', onSelect: () => open('/me/weekly-review', 'Could not write the weekly review') }]} name="Journal" />
             {todayPage ? (
@@ -67,11 +68,18 @@ export function JournalPage() {
               <Button disabled={opening.busy} icon="pencil" label="Write today’s page" onClick={() => writeDay(data.today)} primary />
             )}
           </>
+        ) : (
+          !journal.error && (
+            <>
+              <IconButtonSkeleton />
+              <ButtonSkeleton width="w-40" />
+            </>
+          )
         )
       }
       title="Journal"
       toolbar={
-        data && (
+        data ? (
           <PeriodNav
             current={data.year < thisYear ? { label: 'This year', onSelect: () => navigate('/journal') } : undefined}
             last={data.year >= thisYear}
@@ -79,6 +87,14 @@ export function JournalPage() {
             title={data.year}
             unit="year"
           />
+        ) : (
+          !journal.error && (
+            <div aria-hidden="true" className="flex flex-wrap items-center gap-2">
+              <IconButtonSkeleton />
+              <IconButtonSkeleton />
+              <SkeletonLine className="ml-2 text-lg" width="w-12" />
+            </div>
+          )
         )
       }
     >
@@ -86,11 +102,21 @@ export function JournalPage() {
         <LoadError error={journal.error} onRetry={journal.reload} />
       ) : !data ? (
         <Placeholder className="grid gap-8" label="Loading your journal">
-          <div className="grid gap-3">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-9 w-full max-w-md" />
+          <Section title="How was today?">
+            <div className="flex flex-wrap gap-2">
+              {moods.map((label) => (
+                <ButtonSkeleton key={label} width="w-16" />
+              ))}
+            </div>
+          </Section>
+          <div aria-hidden="true" className="grid gap-3">
+            <div className="journal-year">
+              {rowsOf(371).map((day) => (
+                <span className="journal-day" key={day} />
+              ))}
+            </div>
+            <SkeletonLine className="text-sm" width="w-72 max-w-full" />
           </div>
-          <Skeleton className="h-36 w-full rounded-panel" />
         </Placeholder>
       ) : (
         <JournalMoods busy={opening.busy} journal={data} mutate={journal.mutate} onWrite={writeDay} />

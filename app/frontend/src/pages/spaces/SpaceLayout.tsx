@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
-import { ConfirmDialog, ListSkeleton, Skeleton, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -9,6 +9,7 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { DetailState, Page } from '../../components/Page';
+import { IconButtonSkeleton, SkeletonLine, SpaceMarkSkeleton } from '../../components/Skeletons';
 import { InviteToSpaceDialog } from './SpaceInvitations';
 
 interface SpaceOutlet {
@@ -156,8 +157,19 @@ export function SpaceLayout() {
   if (spaces.error) return <DetailState resource={spaces} thing="Space" />;
   if (!spaces.data) {
     return (
-      <Page documentTitle="Space" tabs={tabs} title={<Skeleton className="block h-9 w-72 max-w-full" />}>
-        <ListSkeleton label="Loading this space" rows={4} />
+      <Page
+        actions={<IconButtonSkeleton />}
+        description={<SkeletonLine width="w-48" />}
+        documentTitle="Space"
+        tabs={tabs}
+        title={
+          <span className="inline-flex items-center gap-3">
+            <SpaceMarkSkeleton large />
+            <SkeletonLine width="w-56" />
+          </span>
+        }
+      >
+        <Placeholder label="Loading this space">{null}</Placeholder>
       </Page>
     );
   }

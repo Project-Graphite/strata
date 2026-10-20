@@ -7,6 +7,7 @@ import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type F
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Empty } from '../components/Empty';
 import { DetailState, Page } from '../components/Page';
+import { rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -88,6 +89,7 @@ export function BookmarkPage() {
   const markedRead = useRef('');
   const details = bookmark.data;
   const editable = !!details && !!spaces.data?.some((space) => space.id === details.spaceId && space.role !== 'viewer');
+  const [wasEditable, articled] = useRememberedShape(`bookmark-${id}`, details && spaces.data && [Number(editable), Number(Boolean(details.article?.blocks.length))], [1, 1]);
 
   function setRead(current: BookmarkDetails, read: boolean) {
     void run(async () => {
@@ -110,7 +112,27 @@ export function BookmarkPage() {
     setRead(details, true);
   });
 
-  if (!details) return <DetailState back={back} resource={bookmark} thing="Bookmark" />;
+  if (!details) {
+    return (
+      <DetailState actions={1 + wasEditable} back={back} resource={bookmark} thing="Bookmark">
+        {articled ? (
+          <div aria-hidden="true" className="note-content min-w-0 max-w-3xl">
+            {rowsOf(2).map((paragraph) => (
+              <p key={paragraph}>
+                <SkeletonLine width="w-full" />
+                <SkeletonLine width="w-full" />
+                <SkeletonLine width={paragraph ? 'w-1/3' : 'w-2/3'} />
+              </p>
+            ))}
+          </div>
+        ) : (
+          <Empty loading title="No article saved">
+            The page couldn’t be read, or it has no article text. You can open the original, or fetch the page again.
+          </Empty>
+        )}
+      </DetailState>
+    );
+  }
   const blocks = details.article?.blocks ?? [];
 
   return (

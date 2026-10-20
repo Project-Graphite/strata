@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Avatar, ListSkeleton } from '@project-graphite/ui';
+import { Avatar, Placeholder } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
@@ -11,8 +11,10 @@ import { nextBirthdayText, type Person } from '../people';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
 import { RowText } from '../components/RowText';
+import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 
 const soonDays = 60;
+const empty = { title: 'No people yet', hint: 'Add the people you care about to keep their birthdays on your agenda, gift ideas and the events you shared.' };
 
 function PersonRow({ detail, person }: { detail: string | null; person: Person }) {
   return (
@@ -36,6 +38,7 @@ export function PeoplePage() {
   const soon = (people.data ?? [])
     .filter((person) => person.nextBirthday && person.nextBirthday <= horizon)
     .sort((a, b) => a.nextBirthday!.localeCompare(b.nextBirthday!));
+  const [soonRows, everyoneRows] = useRememberedShape('people', people.data && [soon.length, people.data.length], [0, 4]);
 
   return (
     <Page
@@ -45,9 +48,26 @@ export function PeoplePage() {
       {people.error ? (
         <LoadError error={people.error} onRetry={people.reload} />
       ) : !people.data ? (
-        <ListSkeleton label="Loading people" rows={4} />
+        <Placeholder className="grid gap-8" label="Loading people">
+          {everyoneRows ? (
+            <>
+              {soonRows > 0 && (
+                <Section title="Birthdays coming up">
+                  <RowsSkeleton lead={<AvatarSkeleton />} rows={soonRows} />
+                </Section>
+              )}
+              <Section title="Everyone">
+                <RowsSkeleton lead={<AvatarSkeleton />} rows={everyoneRows} />
+              </Section>
+            </>
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : people.data.length === 0 ? (
-        <Empty title="No people yet">Add the people you care about to keep their birthdays on your agenda, gift ideas and the events you shared.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <>
           {soon.length > 0 && (

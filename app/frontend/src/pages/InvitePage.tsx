@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { FormPanelSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { addJoinedSpace, useSpaces } from '../spaces';
@@ -9,6 +9,7 @@ import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
+import { ButtonSkeleton, SkeletonLine } from '../components/Skeletons';
 
 export function InvitePage() {
   const { code = '' } = useParams();
@@ -20,7 +21,20 @@ export function InvitePage() {
   const joining = useAction();
   useDocumentTitle('Invitation');
 
-  if (!auth.ready || invite.loading) return <FormPanelSkeleton label="Loading this invite" />;
+  if (!auth.ready || invite.loading) {
+    return (
+      <section className="form-panel page-enter">
+        <Placeholder label="Loading this invite">
+          <SkeletonLine className="page-heading" width="w-4/5" />
+          <SkeletonLine className="mt-4" width="w-full" />
+          <div className="mt-8 flex flex-wrap gap-3">
+            <ButtonSkeleton large width="w-36" />
+            <ButtonSkeleton large width="w-24" />
+          </div>
+        </Placeholder>
+      </section>
+    );
+  }
   if (invite.status === 404) {
     return (
       <Empty title="This invite can’t be used">

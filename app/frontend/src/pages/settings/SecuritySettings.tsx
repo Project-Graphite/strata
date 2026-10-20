@@ -1,6 +1,6 @@
 import MuiLink from '@mui/material/Link';
 import { useState } from 'react';
-import { CodeInput, Dialog, FormSkeleton, TextField } from '@project-graphite/ui';
+import { CodeInput, Dialog, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
@@ -13,7 +13,8 @@ import { useResource } from '../../useResource';
 import { password as newPasswordChecks, required, useFormErrors } from '../../validation';
 import { SessionsSection } from './SessionsSection';
 import { Section } from '../../components/Page';
-import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
+import { ButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { SettingsRow, SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { saveBlob } from '../../files';
 
@@ -162,9 +163,36 @@ export function SecuritySettings() {
   const passwordForm = useFormErrors();
   const disableForm = useFormErrors();
   const [opened, setOpened] = useState<Opened>();
+  const [twoStepOn] = useRememberedShape('settings-two-step', twoStep.data && [Number(twoStep.data.enabled)], [0]);
 
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
-  if (!twoStep.data) return <FormSkeleton fields={2} />;
+  if (!twoStep.data) {
+    return (
+      <>
+        <Section title="Sign-in">
+          <Placeholder label="Loading your sign-in settings">
+            <SettingsRows>
+              <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} detail={false} />
+              <SettingsRowSkeleton
+                action={
+                  twoStepOn ? (
+                    <>
+                      <ButtonSkeleton width="w-36" />
+                      <ButtonSkeleton width="w-18" />
+                    </>
+                  ) : (
+                    <ButtonSkeleton width="w-18" />
+                  )
+                }
+                row={1}
+              />
+            </SettingsRows>
+          </Placeholder>
+        </Section>
+        <SessionsSection />
+      </>
+    );
+  }
   const status = twoStep.data;
   const close = () => setOpened(undefined);
   const button = (label: string, next: Opened) => (
@@ -193,6 +221,7 @@ export function SecuritySettings() {
           </SettingsRow>
         </SettingsRows>
       </Section>
+      <SessionsSection />
 
       {opened === 'password' && (
         <FormDialog
@@ -274,7 +303,6 @@ export function SecuritySettings() {
           <ProofFields form={disableForm} twoStep />
         </FormDialog>
       )}
-      <SessionsSection />
     </>
   );
 }

@@ -2,7 +2,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import InputBase from '@mui/material/InputBase';
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, IconButton, LinesSkeleton, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, LinesSkeleton, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -17,6 +17,7 @@ import { NoteMark } from '../components/NoteMark';
 import { BackLink, DetailState, Section, useDocumentTitle } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { ShareLinks } from '../components/ShareLinks';
+import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
 import { useInArea } from '../navigation';
 import { announcePagesChanged, noteArea, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
@@ -73,7 +74,30 @@ export function NotePage() {
   useInArea(note.data ? noteArea(note.data) : null);
   useDocumentTitle(note.data && noteTitle(note.data));
 
-  if (!note.data) return <DetailState back={back} resource={note} thing="Page" />;
+  if (note.error) return <DetailState back={back} resource={note} thing="Page" />;
+  if (!note.data) {
+    return (
+      <article className={`page-enter grid gap-8 ${wide ? 'max-w-none' : 'max-w-3xl'}`}>
+        <header className="page-header">
+          <div className="min-w-0 flex-1">
+            <p className="page-header-eyebrow">
+              <BackLink back={back} />
+            </p>
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-11 shrink-0 rounded-field" />
+              <SkeletonLine className="note-title" width="w-72 max-w-full" />
+            </div>
+          </div>
+          <div className="page-header-actions">
+            {rowsOf(3).map((action) => (
+              <IconButtonSkeleton key={action} />
+            ))}
+          </div>
+        </header>
+        <LinesSkeleton label="Loading the page" lines={6} />
+      </article>
+    );
+  }
   const details = note.data;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = (pages.data ?? []).filter((page) => page.parentId === details.id);

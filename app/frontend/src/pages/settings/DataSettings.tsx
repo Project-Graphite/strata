@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { FormSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
@@ -10,7 +10,8 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
-import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
+import { ButtonSkeleton } from '../../components/Skeletons';
+import { SettingsRow, SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { saveBlob } from '../../files';
 
@@ -24,7 +25,18 @@ export function DataSettings() {
   const [removing, setRemoving] = useState(false);
 
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
-  if (!twoStep.data) return <FormSkeleton fields={1} />;
+  if (!twoStep.data) {
+    return (
+      <Placeholder label="Loading your data settings">
+        <Section title="Your data">
+          <SettingsRows>
+            <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} />
+            <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} row={1} />
+          </SettingsRows>
+        </Section>
+      </Placeholder>
+    );
+  }
   const enabled = twoStep.data.enabled;
 
   return (

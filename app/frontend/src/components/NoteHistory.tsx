@@ -1,6 +1,6 @@
 import ListItemButton from '@mui/material/ListItemButton';
 import { useState } from 'react';
-import { Dialog, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { Dialog, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -9,6 +9,7 @@ import { timeOptions } from '../time';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
 
 interface Version {
   id: string;
@@ -22,6 +23,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
   const [chosen, setChosen] = useState<string>();
   const preview = useResource<{ id: string; text: string }>(chosen ? `/notes/${noteId}/versions/${chosen}` : null, true);
   const restoring = useAction();
+  const [rows] = useRememberedShape('note-history', versions.data && [versions.data.length], [3]);
 
   return (
     <Dialog onClose={onClose} title="Page history">
@@ -29,7 +31,20 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
         {versions.error ? (
           <LoadError error={versions.error} onRetry={versions.reload} />
         ) : !versions.data ? (
-          <ListSkeleton label="Loading the history" rows={3} />
+          <Placeholder label="Loading the history">
+            {rows ? (
+              <ul aria-hidden="true" className="panel-rows max-h-56 overflow-hidden">
+                {rowsOf(rows).map((row) => (
+                  <li className="flex justify-between gap-3 px-4 py-2 text-sm" key={row}>
+                    <SkeletonLine width={row % 2 ? 'w-32' : 'w-36'} />
+                    <SkeletonLine width="w-28" />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <HintSkeleton />
+            )}
+          </Placeholder>
         ) : versions.data.length === 0 ? (
           <Hint>No earlier versions yet.</Hint>
         ) : (
@@ -55,7 +70,11 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
               (preview.error ? (
                 <LoadError compact error={preview.error} onRetry={preview.reload} />
               ) : !preview.data || preview.data.id !== chosen ? (
-                <ListSkeleton label="Loading this version" rows={2} />
+                <Placeholder className="rounded-field border border-line p-4 text-sm" label="Loading this version">
+                  <SkeletonLine width="w-full" />
+                  <SkeletonLine width="w-full" />
+                  <SkeletonLine width="w-1/2" />
+                </Placeholder>
               ) : (
                 <div className="max-h-56 overflow-y-auto rounded-field border border-line p-4 text-sm whitespace-pre-wrap break-words text-ink">
                   {preview.data.text || 'This version is empty.'}

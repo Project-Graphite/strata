@@ -12,6 +12,7 @@ import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
 import { RowText } from '../components/RowText';
+import { ButtonSkeleton, HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
@@ -33,14 +34,82 @@ export function PersonPage() {
   const [dialog, setDialog] = useState<'idea' | 'event'>();
   const events = useResource<ResultPage<Item>>(dialog === 'event' && person.data ? `/spaces/${person.data.spaceId}/items?kind=event` : null, true);
 
-  const back = { to: '/people', label: 'People' };
-  if (!person.data) return <DetailState back={back} resource={person} thing="Person" />;
-  const shown = person.data;
-  const space = spaces.data?.find((candidate) => candidate.id === shown.spaceId);
+  const space = spaces.data?.find((candidate) => candidate.id === person.data?.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
   const today = dayKey(new Date());
-  const upcoming = shown.events.filter((event) => event.startsOn >= today).reverse();
-  const earlier = shown.events.filter((event) => event.startsOn < today);
+  const upcoming = (person.data?.events ?? []).filter((event) => event.startsOn >= today).reverse();
+  const earlier = (person.data?.events ?? []).filter((event) => event.startsOn < today);
+  const [wasEditable, birthday, contactRows, notesLines, ideaRows, upcomingRows, earlierRows] = useRememberedShape(
+    `person-${id}`,
+    person.data &&
+      spaces.data && [
+        Number(editable),
+        Number(Boolean(birthdayText(person.data))),
+        [person.data.email, person.data.phone].filter(Boolean).length,
+        person.data.notes ? person.data.notes.split('\n').length : 0,
+        person.data.giftIdeas.length,
+        upcoming.length,
+        earlier.length,
+      ],
+    [1, 1, 0, 0, 0, 0, 0],
+  );
+
+  const back = { to: '/people', label: 'People' };
+  if (!person.data) {
+    return (
+      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={person} thing="Person">
+        {birthday + contactRows + notesLines > 0 && (
+          <Section title="Details">
+            {birthday + contactRows > 0 && (
+              <div aria-hidden="true" className="panel-rows">
+                {birthday > 0 && (
+                  <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1">
+                    <SkeletonLine className="text-sm" width="w-16" />
+                    <span className="grid sm:justify-items-end">
+                      <SkeletonLine width="w-32" />
+                      <SkeletonLine className="text-sm" width="w-24" />
+                    </span>
+                  </div>
+                )}
+                {rowsOf(contactRows).map((row) => (
+                  <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1" key={row}>
+                    <SkeletonLine className="text-sm" width="w-12" />
+                    <SkeletonLine width="w-40" />
+                  </div>
+                ))}
+              </div>
+            )}
+            {notesLines > 0 && (
+              <p aria-hidden="true" className="m-0">
+                {rowsOf(notesLines).map((line) => (
+                  <SkeletonLine key={line} width={line === notesLines - 1 ? 'w-2/5' : 'w-full'} />
+                ))}
+              </p>
+            )}
+          </Section>
+        )}
+        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-36" />} title="Gift ideas">
+          {ideaRows ? <TaskRowsSkeleton detailed={0} rows={ideaRows} /> : <HintSkeleton />}
+        </Section>
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Events together">
+          {upcomingRows || earlierRows ? (
+            <div className="grid gap-4">
+              {upcomingRows > 0 && <RowsSkeleton rows={upcomingRows} />}
+              {earlierRows > 0 && (
+                <div className="grid gap-2">
+                  <Subheading>Earlier</Subheading>
+                  <RowsSkeleton rows={earlierRows} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <HintSkeleton />
+          )}
+        </Section>
+      </DetailState>
+    );
+  }
+  const shown = person.data;
 
   async function saveIdeas(giftIdeas: GiftIdea[]) {
     const saved = await auth.request<PersonDetail>(`/people/${shown.id}`, { method: 'PATCH', body: JSON.stringify({ giftIdeas }) });

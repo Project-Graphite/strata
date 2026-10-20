@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { RowsSkeleton, useRememberedShape } from '../components/Skeletons';
+
+const empty = { title: 'No recipes yet', hint: 'Write down the recipes you cook, or paste a link to read one from a recipe site.' };
 import { ImportRecipe, RecipeEditor } from '../components/RecipeEditor';
 import { recipeFacts, type Recipe, type RecipeDraft } from '../recipes';
 import { useSpaces } from '../spaces';
@@ -47,15 +50,24 @@ export function RecipesArea({ children, tab, toolbar, toolbarEnd }: { children: 
 
 export function RecipesPage() {
   const recipes = useResource<Recipe[]>('/me/recipes', true);
+  const [rows] = useRememberedShape('recipes', recipes.data && [recipes.data.length], [4]);
 
   return (
     <RecipesArea tab="recipes">
       {recipes.error ? (
         <LoadError error={recipes.error} onRetry={recipes.reload} />
       ) : !recipes.data ? (
-        <ListSkeleton label="Loading your recipes" rows={4} />
+        <Placeholder label="Loading your recipes">
+          {rows ? (
+            <RowsSkeleton rows={rows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : recipes.data.length === 0 ? (
-        <Empty title="No recipes yet">Write down the recipes you cook, or paste a link to read one from a recipe site.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {recipes.data.map((recipe) => (

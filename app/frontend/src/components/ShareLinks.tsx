@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, formatDay, LinesSkeleton, Select } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, formatDay, Placeholder, Select } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
@@ -10,6 +10,7 @@ import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
+import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
 
 type Access = 'view' | 'edit';
 
@@ -40,6 +41,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: bo
   const [access, setAccess] = useState<Access>('view');
   const [days, setDays] = useState('30');
   const [turningOff, setTurningOff] = useState<ShareLink>();
+  const [linkRows, shownLinks] = useRememberedShape('share-links', links.data && [links.data.length, links.data.filter((link) => link.link).length], [0, 0]);
 
   if (turningOff) {
     return (
@@ -88,7 +90,32 @@ export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: bo
         {links.error ? (
           <LoadError compact error={links.error} onRetry={links.reload} />
         ) : links.loading ? (
-          <LinesSkeleton label="Loading links" lines={2} />
+          <Placeholder label="Loading links">
+            {linkRows ? (
+              <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0">
+                {rowsOf(linkRows).map((row) => (
+                  <li className="grid gap-2 rounded-panel border border-line p-3" key={row}>
+                    <div className="flex items-center justify-between gap-3">
+                      <SkeletonLine className="text-sm" width="w-40" />
+                      <ButtonSkeleton width="w-20" />
+                    </div>
+                    {row < shownLinks ? (
+                      <div className="flex items-start gap-2">
+                        <div className="mono-sm min-w-0 flex-1 rounded-field border border-line p-3">
+                          <SkeletonLine width="w-full" />
+                        </div>
+                        <ButtonSkeleton width="w-16" />
+                      </div>
+                    ) : (
+                      <HintSkeleton />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <HintSkeleton />
+            )}
+          </Placeholder>
         ) : links.data?.length ? (
           <ul className="m-0 grid list-none gap-3 p-0">
             {links.data.map((link) => (

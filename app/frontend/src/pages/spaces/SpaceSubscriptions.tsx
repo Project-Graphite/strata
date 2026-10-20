@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListSkeleton } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Amount } from '../../components/Amount';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { MoneyRow } from '../../components/MoneyRow';
+import { ButtonSkeleton, IconButtonSkeleton, MoneyRowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
 import type { Member } from '../../spaces';
@@ -38,6 +39,10 @@ export function SpaceSubscriptions() {
   const splitVersion = (subscriptions.data ?? []).map((subscription) => JSON.stringify(subscription.split ?? null)).join();
   const linked = editable ? subscriptions.data?.find((subscription) => subscription.id === params.get('subscription')) : undefined;
   const opened = editing ?? linked;
+  const [rows] = useRememberedShape(`space-subscriptions-${space.id}${cancelled ? '-cancelled' : ''}`, subscriptions.data && [subscriptions.data.length], [4]);
+  const empty = cancelled
+    ? { title: 'No cancelled subscriptions', hint: 'Subscriptions you mark cancelled show up here, ready to resume.' }
+    : { title: 'No subscriptions yet', hint: 'Add the subscriptions and bills this space pays to see each renewal coming.' };
   const close = () => {
     setEditing(undefined);
     setParams((current) => {
@@ -83,13 +88,17 @@ export function SpaceSubscriptions() {
       {subscriptions.error ? (
         <LoadError error={subscriptions.error} onRetry={subscriptions.reload} />
       ) : !subscriptions.data ? (
-        <ListSkeleton label="Loading the subscriptions in this space" rows={4} />
+        <Placeholder label="Loading the subscriptions in this space">
+          {rows ? (
+            <MoneyRowsSkeleton rows={rows} trail={editable && (cancelled ? <ButtonSkeleton width="w-20" /> : <IconButtonSkeleton />)} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : subscriptions.data.length === 0 ? (
-        cancelled ? (
-          <Empty title="No cancelled subscriptions">Subscriptions you mark cancelled show up here, ready to resume.</Empty>
-        ) : (
-          <Empty title="No subscriptions yet">Add the subscriptions and bills this space pays to see each renewal coming.</Empty>
-        )
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {subscriptions.data.map((subscription) => (

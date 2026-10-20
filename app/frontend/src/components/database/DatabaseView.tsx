@@ -2,7 +2,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, IconButton, ListSkeleton, Select } from '@project-graphite/ui';
+import { formatDay, IconButton, Placeholder, Select, Skeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -16,6 +16,7 @@ import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
 import { Button, TextButton } from '../Button';
 import { ActionsMenu } from '../ActionsMenu';
+import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../Skeletons';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -28,9 +29,44 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   const adding = useAction();
   const [editing, setEditing] = useState(false);
   const [month, setMonth] = useState(() => dayKey(new Date()));
+  const [rows, columns] = useRememberedShape(`database-${noteId}`, database.data && [database.data.rows.length, database.data.properties.length], [3, 2]);
 
   if (database.error) return <LoadError error={database.error} onRetry={database.reload} />;
-  if (!database.data) return <ListSkeleton label="Loading the database" rows={4} />;
+  if (!database.data) {
+    return (
+      <Placeholder className="grid gap-4 border-t border-line-soft pt-6" label="Loading the database">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-[2.421875rem] w-64 rounded-lg" />
+          {editable && (
+            <div className="flex items-center gap-4">
+              <ButtonSkeleton width="w-28" />
+              <ButtonSkeleton width="w-24" />
+            </div>
+          )}
+        </div>
+        {rows ? (
+          <table aria-hidden="true" className="database-table">
+            <tbody>
+              {rowsOf(rows + 1).map((row) => (
+                <tr key={row}>
+                  <th>
+                    <SkeletonLine width={row ? 'w-32' : 'w-12'} />
+                  </th>
+                  {rowsOf(columns).map((column) => (
+                    <td key={column}>
+                      <SkeletonLine width={column % 2 ? 'w-20' : 'w-16'} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <HintSkeleton />
+        )}
+      </Placeholder>
+    );
+  }
   const data = database.data;
   const people = members.data;
   const selects = data.properties.filter((property) => property.type === 'select');

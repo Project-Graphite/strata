@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListSkeleton, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
@@ -7,6 +7,7 @@ import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { Toolbar } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
+import { HabitRowSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
 import { goalText, HabitRow, type Habit } from '../../habits';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -25,6 +26,7 @@ function GoalSelect({ defaultValue = 7 }: { defaultValue?: number }) {
 }
 
 const nameRules = [required('Name the habit.'), atMost(80, 'Use at most 80 characters.')];
+const empty = { title: 'No habits yet', hint: 'Habits you keep in this space show up here, with a check for each day.' };
 
 export function SpaceHabits() {
   const auth = useAuth();
@@ -37,6 +39,7 @@ export function SpaceHabits() {
   const [deleting, setDeleting] = useState<Habit>();
   const editable = space.role !== 'viewer';
   const replace = (next: Habit) => habits.mutate((current) => current.map((habit) => (habit.id === next.id ? next : habit)));
+  const [rows] = useRememberedShape(`space-habits-${space.id}`, habits.data && [habits.data.length], [3]);
 
   return (
     <>
@@ -44,9 +47,25 @@ export function SpaceHabits() {
       {habits.error ? (
         <LoadError error={habits.error} onRetry={habits.reload} />
       ) : !habits.data ? (
-        <ListSkeleton label="Loading the habits in this space" rows={3} />
+        <Placeholder label="Loading the habits in this space">
+          {rows ? (
+            <ul aria-hidden="true" className="panel-rows">
+              {rowsOf(rows).map((row) => (
+                <li className="panel-row flex items-center gap-3" key={row}>
+                  <div className="min-w-0 flex-1">
+                    <HabitRowSkeleton row={row} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : habits.data.length === 0 ? (
-        <Empty title="No habits yet">Habits you keep in this space show up here, with a check for each day.</Empty>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {habits.data.map((habit) => (

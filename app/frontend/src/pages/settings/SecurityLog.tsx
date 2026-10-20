@@ -1,9 +1,10 @@
-import { ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { Placeholder, timeAgo } from '@project-graphite/ui';
 import type { Page } from '../../api';
 import { useResource } from '../../useResource';
 import { Section } from '../../components/Page';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
+import { HintSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
 
 interface AuditEvent {
   id: string;
@@ -34,13 +35,16 @@ const reasons: Record<string, string> = { password: 'wrong password', code: 'wro
 
 export function SecurityLog() {
   const log = useResource<Page<AuditEvent>>('/me/audit?page=1', true);
+  const [rows] = useRememberedShape('settings-security-log', log.data && [log.data.results.length], [4]);
 
   return (
     <Section title="Security log">
       {log.error ? (
         <LoadError compact error={log.error} onRetry={log.reload} />
       ) : !log.data ? (
-        <ListSkeleton label="Loading your security log" rows={4} />
+        <Placeholder label="Loading your security log">
+          {rows ? <RowsSkeleton detail={false} rows={rows} trail={<SkeletonLine className="mono-sm shrink-0" width="w-16" />} /> : <HintSkeleton />}
+        </Placeholder>
       ) : log.data.results.length === 0 ? (
         <Hint>Nothing in the log yet.</Hint>
       ) : (

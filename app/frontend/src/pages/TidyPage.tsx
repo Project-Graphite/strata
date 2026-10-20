@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDay, ListSkeleton, timeAgo } from '@project-graphite/ui';
+import { formatDay, Placeholder, Skeleton, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -16,6 +16,20 @@ import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { Button } from '../components/Button';
+import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+
+const emptySuggestions = { title: 'Nothing to tidy', hint: 'There are no duplicate, large or old uploads, and no subscriptions that look unused.' };
+const emptyHistory = { title: 'Nothing tidied yet', hint: 'Changes stay here for 90 days, so you can undo them.' };
+const duplicateUploads = { title: 'Duplicate uploads', description: 'The same file, uploaded more than once. Keep the first copy and move the rest to the trash.' };
+const largeUploads = { title: 'Large uploads', description: 'Uploads of 5 MB or more, biggest first.' };
+const oldUploads = { title: 'Old uploads', description: 'Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way.' };
+const unusedSubscriptions = { title: 'Unused subscriptions', description: 'Nobody has marked these as used in two months.' };
+const duplicateSubscriptions = { title: 'Duplicate subscriptions', description: 'Subscriptions with the same name, perhaps paid twice.' };
+const choiceLead = (
+  <span className="grid size-9.5 shrink-0 place-items-center">
+    <Skeleton className="size-4 rounded-sm" />
+  </span>
+);
 
 interface FileEntry {
   id: string;
@@ -57,9 +71,75 @@ function TidySuggestions() {
   const undoing = useAction();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [request, setRequest] = useState<TidyRequest>();
+  const found = scan.data;
+  const [extraCopies, largeRows, oldRows, unusedRows] = useRememberedShape(
+    'tidy-suggestions',
+    found && [
+      found.files.duplicates.some((group) => group.savingBytes > 0) ? 1 : 0,
+      found.files.large.length,
+      found.files.old.length,
+      found.subscriptions.unused.length,
+    ],
+    [0, 2, 2, 0],
+  );
+  const copyGroups = useRememberedShape('tidy-duplicate-files', found?.files.duplicates.map((group) => group.items.length), []);
+  const twinGroups = useRememberedShape('tidy-duplicate-subscriptions', found?.subscriptions.duplicates.map((group) => group.items.length), []);
+  const overlapGroups = useRememberedShape('tidy-overlapping-subscriptions', found?.subscriptions.overlapping.map((group) => group.items.length), []);
 
   if (scan.error) return <LoadError error={scan.error} onRetry={scan.reload} />;
-  if (!scan.data) return <ListSkeleton label="Looking for clutter" rows={5} />;
+  if (!scan.data) {
+    return (
+      <Placeholder className="grid gap-8" label="Looking for clutter">
+        {extraCopies > 0 && <StatsSkeleton />}
+        {copyGroups.length > 0 && (
+          <Section action={<ButtonSkeleton width="w-44" />} {...duplicateUploads}>
+            {copyGroups.map((rows, group) => (
+              <div className="grid gap-2" key={group}>
+                <SkeletonLine className="text-sm" width="w-32" />
+                <RowsSkeleton lead={choiceLead} rows={rows} />
+              </div>
+            ))}
+          </Section>
+        )}
+        {(
+          [
+            [largeRows, largeUploads],
+            [oldRows, oldUploads],
+            [unusedRows, unusedSubscriptions],
+          ] as const
+        ).map(
+          ([rows, section]) =>
+            rows > 0 && (
+              <Section {...section} key={section.title}>
+                <RowsSkeleton lead={choiceLead} rows={rows} />
+              </Section>
+            ),
+        )}
+        {twinGroups.length > 0 && (
+          <Section {...duplicateSubscriptions}>
+            {twinGroups.map((rows, group) => (
+              <RowsSkeleton key={group} lead={choiceLead} rows={rows} />
+            ))}
+          </Section>
+        )}
+        {overlapGroups.length > 0 && (
+          <Section title="Overlapping subscriptions">
+            {overlapGroups.map((rows, group) => (
+              <div className="grid gap-2" key={group}>
+                <SkeletonLine className="text-sm" width="w-32" />
+                <RowsSkeleton lead={choiceLead} rows={rows} />
+              </div>
+            ))}
+          </Section>
+        )}
+        {!largeRows && !oldRows && !unusedRows && !copyGroups.length && !twinGroups.length && !overlapGroups.length && (
+          <Empty loading title={emptySuggestions.title}>
+            {emptySuggestions.hint}
+          </Empty>
+        )}
+      </Placeholder>
+    );
+  }
   const { files, subscriptions } = scan.data;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name ?? 'a space';
   const toggle = (id: string) => setSelected((current) => toggled(current, id));
@@ -88,7 +168,7 @@ function TidySuggestions() {
   return (
     <>
       {empty ? (
-        <Empty title="Nothing to tidy">There are no duplicate, large or old uploads, and no subscriptions that look unused.</Empty>
+        <Empty title={emptySuggestions.title}>{emptySuggestions.hint}</Empty>
       ) : (
         saving > 0 && (
           <Stats>
@@ -102,8 +182,7 @@ function TidySuggestions() {
           action={
             <Button label="Select the extra copies" onClick={() => setSelected(new Set([...selected, ...files.duplicates.flatMap((group) => group.items.slice(1).map((file) => file.id))]))} />
           }
-          description="The same file, uploaded more than once. Keep the first copy and move the rest to the trash."
-          title="Duplicate uploads"
+          {...duplicateUploads}
         >
           {files.duplicates.map((group) => (
             <div className="grid gap-2" key={group.items[0]?.id}>
@@ -119,7 +198,7 @@ function TidySuggestions() {
       )}
 
       {files.large.length > 0 && (
-        <Section description="Uploads of 5 MB or more, biggest first." title="Large uploads">
+        <Section {...largeUploads}>
           <ul className="panel-rows">
             {files.large.map((file) => fileChoice(file, `${fileSize(file.sizeBytes)} · ${spaceName(file.spaceId)}`))}
           </ul>
@@ -127,7 +206,7 @@ function TidySuggestions() {
       )}
 
       {files.old.length > 0 && (
-        <Section description="Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way." title="Old uploads">
+        <Section {...oldUploads}>
           <ul className="panel-rows">
             {files.old.map((file) => fileChoice(file, `unchanged since ${formatDay(dayKey(new Date(file.updatedAt)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
           </ul>
@@ -135,7 +214,7 @@ function TidySuggestions() {
       )}
 
       {subscriptions.unused.length > 0 && (
-        <Section description="Nobody has marked these as used in two months." title="Unused subscriptions">
+        <Section {...unusedSubscriptions}>
           <ul className="panel-rows">
             {subscriptions.unused.map((entry) =>
               subscriptionChoice(entry, entry.lastUsedOn ? `last used ${shortDate(entry.lastUsedOn)}` : 'never marked as used'),
@@ -145,7 +224,7 @@ function TidySuggestions() {
       )}
 
       {subscriptions.duplicates.length > 0 && (
-        <Section description="Subscriptions with the same name, perhaps paid twice." title="Duplicate subscriptions">
+        <Section {...duplicateSubscriptions}>
           {subscriptions.duplicates.map((group) => (
             <ul className="panel-rows" key={group.name}>
               {group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}
@@ -206,12 +285,25 @@ function TidyHistory() {
   const auth = useAuth();
   const history = useResource<TidyBatch[]>('/tidy/history', true);
   const undoing = useAction();
+  const [batchRows] = useRememberedShape('tidy-history', history.data && [history.data.length], [4]);
 
   if (history.error) return <LoadError error={history.error} onRetry={history.reload} />;
-  if (!history.data) return <ListSkeleton label="Loading your undo history" rows={4} />;
+  if (!history.data) {
+    return (
+      <Placeholder label="Loading your undo history">
+        {batchRows ? (
+          <RowsSkeleton rows={batchRows} />
+        ) : (
+          <Empty loading title={emptyHistory.title}>
+            {emptyHistory.hint}
+          </Empty>
+        )}
+      </Placeholder>
+    );
+  }
 
   return history.data.length === 0 ? (
-    <Empty title="Nothing tidied yet">Changes stay here for 90 days, so you can undo them.</Empty>
+    <Empty title={emptyHistory.title}>{emptyHistory.hint}</Empty>
   ) : (
     <ul className="panel-rows">
       {history.data.map((batch) => (

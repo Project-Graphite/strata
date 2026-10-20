@@ -1,17 +1,23 @@
 import MuiLink from '@mui/material/Link';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Dialog, LinesSkeleton, type TagColor } from '@project-graphite/ui';
+import { Dialog, Placeholder, type TagColor } from '@project-graphite/ui';
 import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Button, ButtonAnchor } from './Button';
 import { DialogActions } from './DialogActions';
+import { ButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
 
 function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: () => void }) {
   const details = useResource<CalendarEvent>(`/calendars/${entry.calendarId}/event?uid=${encodeURIComponent(entry.uid!)}`, true);
   const repeats = details.data?.repeatRule ? repeatLabel(details.data.repeatRule) : '';
+  const [detailRows, meeting, described] = useRememberedShape(
+    'calendar-event',
+    details.data && [[repeats, details.data.location, details.data.organizer].filter(Boolean).length, Number(Boolean(details.data.meetingUrl)), Number(Boolean(details.data.description))],
+    [1, 0, 0],
+  );
 
   return (
     <Dialog eyebrow={entry.calendar} onClose={onClose} title={entry.title}>
@@ -21,9 +27,26 @@ function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: 
           <LoadError compact error={details.error} onRetry={details.reload} />
         </div>
       ) : !details.data ? (
-        <div className="mt-4">
-          <LinesSkeleton label="Loading the event" lines={3} />
-        </div>
+        <Placeholder className="mt-4 grid gap-4" label="Loading the event">
+          {detailRows > 0 && (
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              {rowsOf(detailRows).map((row) => (
+                <Fragment key={row}>
+                  <SkeletonLine width="w-16" />
+                  <SkeletonLine width={row % 2 ? 'w-32' : 'w-48'} />
+                </Fragment>
+              ))}
+            </div>
+          )}
+          {meeting > 0 && <ButtonSkeleton large width="w-36" />}
+          {described > 0 && (
+            <div className="rounded-field border border-line p-3 text-sm">
+              <SkeletonLine width="w-full" />
+              <SkeletonLine width="w-2/3" />
+            </div>
+          )}
+          <SkeletonLine className="text-sm" width="w-64 max-w-full" />
+        </Placeholder>
       ) : (
         <div className="mt-4 grid gap-4">
           {(repeats || details.data.location || details.data.organizer) && (

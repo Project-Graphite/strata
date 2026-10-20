@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, ConfirmDialog, ListSkeleton, Select, timeAgo } from '@project-graphite/ui';
+import { Avatar, ConfirmDialog, Placeholder, Select, Skeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { roleOptions, useSpaces, type SpaceRole } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -11,6 +11,7 @@ import { Button } from '../../components/Button';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
 import { RowText } from '../../components/RowText';
+import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 interface Member {
   userId: string;
@@ -32,6 +33,7 @@ export function SpaceMembers() {
   const [removing, setRemoving] = useState<Member>();
   const manages = space.role === 'owner' && space.kind === 'shared';
   const self = auth.user?.id;
+  const [rows] = useRememberedShape(`space-members-${space.id}`, members.data && [members.data.length], [space.kind === 'shared' ? 2 : 1]);
 
   function changeRole(member: Member, role: SpaceRole) {
     void action.run(async () => {
@@ -53,7 +55,9 @@ export function SpaceMembers() {
       {members.error ? (
         <LoadError error={members.error} onRetry={members.reload} />
       ) : !members.data ? (
-        <ListSkeleton label="Loading the members of this space" rows={3} />
+        <Placeholder label="Loading the members of this space">
+          <RowsSkeleton lead={<AvatarSkeleton />} rows={rows} trail={manages && <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />} />
+        </Placeholder>
       ) : (
         <ul className="panel-rows">
           {members.data.map((member) => (

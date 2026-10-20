@@ -2,7 +2,7 @@ import FormLabel from '@mui/material/FormLabel';
 import Alert from '@mui/material/Alert';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { FormPanelSkeleton, LinesSkeleton, Radio, TextAreaField, TextField } from '@project-graphite/ui';
+import { LinesSkeleton, Placeholder, Radio, Skeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
 import { Button } from '../components/Button';
@@ -12,6 +12,7 @@ import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
+import { ButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
 import { noteChecks } from '../invitations';
 import { noteTitle } from '../notes';
@@ -66,6 +67,33 @@ function ResponseFields({ current, missing, onChoose }: { current?: Guest['respo
   );
 }
 
+function RsvpSkeleton() {
+  return (
+    <section className="form-panel page-enter">
+      <Placeholder label="Loading your invitation">
+        <SkeletonLine className="page-heading" width="w-3/4" />
+        <SkeletonLine className="mt-4" width="w-1/2" />
+        <div className="mt-8 grid gap-5">
+          <SkeletonLine width="w-28" />
+          <div>
+            <SkeletonLine className="mb-2 leading-[1.4375]" width="w-28" />
+            <div className="flex flex-wrap gap-4">
+              {rowsOf(3).map((choice) => (
+                <span className="flex h-9.5 items-center gap-2" key={choice}>
+                  <Skeleton className="size-5 rounded-full" />
+                  <SkeletonLine width="w-10" />
+                </span>
+              ))}
+            </div>
+          </div>
+          <Skeleton className="h-[4.9375rem] rounded-lg" />
+          <ButtonSkeleton large width="w-32" />
+        </div>
+      </Placeholder>
+    </section>
+  );
+}
+
 export function RsvpPage() {
   const { code = '' } = useParams();
   const invitation = useResource<{ event: PublicEvent; guest: { name: string; response: Guest['response']; note: string | null } }>(
@@ -78,7 +106,7 @@ export function RsvpPage() {
   const [unanswered, setUnanswered] = useState(false);
   useDocumentTitle(invitation.data?.event.title);
 
-  if (invitation.loading) return <FormPanelSkeleton label="Loading your invitation" />;
+  if (invitation.loading) return <RsvpSkeleton />;
   if (invitation.status === 404) {
     return (
       <Empty title="This invitation is no longer open">Ask the person who invited you for a new link.</Empty>
@@ -159,7 +187,17 @@ export function SharePage() {
   const [unanswered, setUnanswered] = useState(false);
   useDocumentTitle(shared.data && noteTitle(shared.data.item));
 
-  if (shared.loading) return <FormPanelSkeleton label="Loading" />;
+  if (shared.loading) {
+    return (
+      <section className="page-enter grid w-full max-w-3xl gap-6">
+        <div>
+          <SkeletonLine className="page-header-eyebrow" width="w-28" />
+          <SkeletonLine className="page-heading" width="w-72 max-w-full" />
+        </div>
+        <LinesSkeleton label="Loading what was shared" lines={6} />
+      </section>
+    );
+  }
   if (shared.status === 404) return <ClosedShareLink />;
   if (!shared.data) {
     return (

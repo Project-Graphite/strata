@@ -1,6 +1,6 @@
 import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
-import { Dialog, ListSkeleton, errorMessage, isAbortError } from '@project-graphite/ui';
+import { Dialog, errorMessage, isAbortError, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Tag } from '../spaces';
 import { useAction } from '../useAction';
@@ -8,6 +8,7 @@ import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
 import { RowText } from './RowText';
+import { ButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from './Skeletons';
 
 export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
 
@@ -82,6 +83,7 @@ export function TidyPreview({
   const [preview, setPreview] = useState<Preview>();
   const [error, setError] = useState('');
   const applying = useAction();
+  const [changeRows, skippedRows] = useRememberedShape('tidy-preview', preview && [preview.changes.length, preview.skipped.length], [3, 0]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -99,7 +101,26 @@ export function TidyPreview({
         {error ? (
           <Alert className="m-0" severity="error">{error}</Alert>
         ) : !preview ? (
-          <ListSkeleton label="Checking the items" rows={3} />
+          <Placeholder className="grid gap-6" label="Checking the items">
+            {changeRows ? (
+              <div className="grid gap-2">
+                <SkeletonLine className="text-sm" width="w-56" />
+                <div className="max-h-60 overflow-hidden rounded-panel">
+                  <RowsSkeleton detail={false} rows={changeRows} />
+                </div>
+              </div>
+            ) : (
+              <SkeletonLine width="w-48" />
+            )}
+            {skippedRows > 0 && (
+              <div className="grid gap-2">
+                <SkeletonLine className="text-sm" width="w-48" />
+                <div className="max-h-40 overflow-hidden rounded-panel">
+                  <RowsSkeleton rows={skippedRows} />
+                </div>
+              </div>
+            )}
+          </Placeholder>
         ) : (
           <>
             {preview.changes.length > 0 ? (
@@ -132,6 +153,7 @@ export function TidyPreview({
         )}
         <DialogActions>
           <Button disabled={applying.busy} label="Cancel" large onClick={onClose} />
+          {!preview && !error && changeRows > 0 && <ButtonSkeleton large width="w-32" />}
           {preview && preview.changes.length > 0 && (
             <Button
               disabled={applying.busy}
