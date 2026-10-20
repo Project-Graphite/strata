@@ -23,6 +23,7 @@ describe('Dashboards against Postgres', () => {
         { id: 'e', type: 'tidy', size: 'small', settings: {} },
         { id: 'f', type: 'weather', size: 'small', settings: { place: { name: 'Lisbon, Portugal', latitude: 38.72, longitude: -9.13 }, unit: 'celsius' } },
         { id: 'g', type: 'news', size: 'medium', settings: { feeds: ['https://example.com/feed.xml'], count: 5 } },
+        ...['calendar', 'progress', 'journal', 'goals', 'trip', 'birthdays', 'files'].map((type) => ({ id: type, type, size: 'small', settings: {} })),
       ],
     };
     const saved = await owner.call('PATCH', `/me/dashboards/${home.id}`, { name: 'Mornings', layout });

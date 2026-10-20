@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { compact, gapPixels, gridColumns, inOrder, minRows, rowPixels, rowsFor, type Cell } from './grid';
-import type { PlacedWidget } from './widgets';
+import { useEffect, useEffectEvent, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react';
+import { compact, gapPixels, gridColumns, inOrder, organized, rowPixels, rowsFor, stretched, type Cell } from './grid';
+import { widgetKinds, type PlacedWidget } from './widgets';
 
 const paddings = { compact: 'p-3', normal: 'p-4', roomy: 'p-6' };
 const unmeasuredRows = 8;
@@ -15,6 +15,10 @@ interface Gesture {
 }
 
 type Preview = Partial<Cell> & { id: string; fixed?: boolean };
+
+export interface GridHandle {
+  organize: () => void;
+}
 
 export function useWide() {
   const query = '(min-width: 64rem)';
@@ -36,19 +40,27 @@ function rememberedRows(dashboard: string): Record<string, number> {
   }
 }
 
+const sameLayout = (a: PlacedWidget[], b: PlacedWidget[]) =>
+  a.every((widget) => {
+    const other = b.find((candidate) => candidate.id === widget.id);
+    return other && other.x === widget.x && other.y === widget.y && other.w === widget.w && (other.h ?? null) === (widget.h ?? null);
+  });
+
 export function DashboardGrid({
   card,
   dashboard,
   editing = false,
   label,
   onChange,
+  ref,
   widgets,
 }: {
   card: (widget: PlacedWidget) => ReactNode;
   dashboard: string;
   editing?: boolean;
   label: (widget: PlacedWidget) => string;
-  onChange?: (next: PlacedWidget[]) => void;
+  onChange?: (next: PlacedWidget[], replace?: boolean) => void;
+  ref?: Ref<GridHandle>;
   widgets: PlacedWidget[];
 }) {
   const wide = useWide();
@@ -56,6 +68,7 @@ export function DashboardGrid({
   const [measured, setMeasured] = useState(() => rememberedRows(dashboard));
   const [gesture, setGesture] = useState<Gesture>();
   const [preview, setPreview] = useState<Preview>();
+  const [settling, setSettling] = useState(false);
   const observer = useMemo(
     () =>
       new ResizeObserver((entries) =>
@@ -81,8 +94,30 @@ export function DashboardGrid({
     }
   }, [dashboard, editing, measured]);
 
+  const contentRows = (widget: PlacedWidget) => Math.max(measured[widget.id] ?? unmeasuredRows, widgetKinds[widget.type].minH);
+  const settle = useEffectEvent(() => {
+    const next = stretched(widgets, contentRows);
+    if (!sameLayout(next, widgets)) onChange?.(next, true);
+  });
+  useEffect(() => {
+    if (!settling) return;
+    const timer = window.setTimeout(() => {
+      setSettling(false);
+      settle();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [measured, settling]);
+  useImperativeHandle(ref, () => ({
+    organize() {
+      const next = organized(widgets, contentRows);
+      if (sameLayout(next, widgets)) return;
+      onChange?.(next);
+      setSettling(true);
+    },
+  }));
+
   const shown = widgets.map((widget) => (preview?.id === widget.id ? { ...widget, ...preview, h: preview.fixed ? preview.h : widget.h } : widget));
-  const rowsOf = (widget: PlacedWidget) => widget.h ?? measured[widget.id] ?? unmeasuredRows;
+  const rowsOf = (widget: PlacedWidget) => widget.h ?? contentRows(widget);
   const cells = compact(
     shown.map((widget) => ({ id: widget.id, x: widget.x, y: widget.y, w: widget.w, h: rowsOf(widget) })),
     preview?.id,
@@ -108,7 +143,8 @@ export function DashboardGrid({
     if (gesture.mode === 'move') {
       setPreview({ id: cell.id, x: Math.min(Math.max(cell.x + columns, 0), gridColumns - cell.w), y: Math.max(cell.y + rows, 0) });
     } else {
-      setPreview({ id: cell.id, w: Math.min(Math.max(cell.w + columns, 1), gridColumns - cell.x), h: Math.max(cell.h + rows, minRows), fixed: rows !== 0 });
+      const { minH, minW } = widgetKinds[widgets.find((widget) => widget.id === cell.id)!.type];
+      setPreview({ id: cell.id, w: Math.min(Math.max(cell.w + columns, minW), gridColumns - cell.x), h: Math.max(cell.h + rows, minH), fixed: rows !== 0 });
     }
   }
 

@@ -1,26 +1,27 @@
 import FormLabel from '@mui/material/FormLabel';
-import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, formatDay, IconButton, PageSkeleton, Radio, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { ColorSwatches, ConfirmDialog, Dialog, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
+import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, ButtonLink, IconLink, TextButton } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
-import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { Page, Subheading } from '../components/Page';
+import { Page } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
-import { DashboardGrid, useWide } from './DashboardGrid';
+import { DashboardGrid, useWide, type GridHandle } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
+import { WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
 import { clockTime, TimeField } from '../time';
@@ -82,8 +83,59 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 
   render() {
-    return this.state.failed ? <Hint>This widget stopped working. Reload the page to try again.</Hint> : this.props.children;
+    return this.state.failed ? (
+      <WidgetEmpty icon="alert" title="This widget stopped working">
+        Reload the page to try again.
+      </WidgetEmpty>
+    ) : (
+      this.props.children
+    );
   }
+}
+
+function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Partial<PlacedWidget>) => void; onClose: () => void; widget: PlacedWidget }) {
+  const { minH, Settings, title } = widgetKinds[widget.type];
+  return (
+    <Dialog onClose={onClose} title={`${cardTitle(widget)} settings`}>
+      <div className="mt-5 grid gap-6">
+        {Settings && <Settings onChange={(settings) => onChange({ settings })} settings={widget.settings} />}
+        <fieldset className="m-0 grid gap-4 border-0 p-0">
+          <FormLabel className="mb-2" component="legend">
+            Card
+          </FormLabel>
+          <TextField
+            label="Title"
+            maxLength={40}
+            onChange={(event) => onChange({ title: event.currentTarget.value.trim() ? event.currentTarget.value : undefined })}
+            placeholder={title}
+            value={widget.title ?? ''}
+          />
+          <Toggle checked={!widget.hideTitle} label="Show the title" onChange={(shown) => onChange({ hideTitle: shown ? undefined : true })} />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Select
+              label="Accent"
+              onChange={(accent: string) => onChange({ accent: (accent || undefined) as TagColor | undefined })}
+              options={[{ value: '', label: 'None' }, ...colorOptions]}
+              value={widget.accent ?? ''}
+            />
+            <Select label="Padding" onChange={(padding: CardPadding) => onChange({ padding })} options={paddingOptions} value={widget.padding ?? 'normal'} />
+            <Select
+              label="Height"
+              onChange={(rows: string) => onChange({ h: rows ? Number(rows) : null })}
+              options={[
+                ...heights.filter(([value]) => !value || Number(value) >= minH).map(([value, label]) => ({ value, label })),
+                ...(widget.h && !heights.some(([value]) => value === String(widget.h)) ? [{ value: String(widget.h), label: 'Custom' }] : []),
+              ]}
+              value={widget.h ? String(widget.h) : ''}
+            />
+          </div>
+        </fieldset>
+        <DialogActions>
+          <Button label="Done" large onClick={onClose} primary />
+        </DialogActions>
+      </div>
+    </Dialog>
+  );
 }
 
 function swapWithNeighbour(widgets: PlacedWidget[], id: string, step: -1 | 1) {
@@ -154,7 +206,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
             const kind = widgetKinds[widget.type];
             return (
               <>
-                {!widget.hideTitle && <Subheading level={2}>{cardTitle(widget)}</Subheading>}
+                {!widget.hideTitle && <WidgetHeading icon={kind.icon} title={cardTitle(widget)} />}
                 <WidgetBoundary>
                   <kind.View settings={widget.settings} />
                 </WidgetBoundary>
@@ -181,7 +233,7 @@ export function DashboardHome() {
   const [draft, setDraft] = useState<Layout>();
   const [history, setHistory] = useState<Layout[]>([]);
   const [settingsOpen, setSettingsOpen] = useState<string>();
-  const [customizing, setCustomizing] = useState<string>();
+  const grid = useRef<GridHandle>(null);
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
@@ -211,9 +263,16 @@ export function DashboardHome() {
     schedule.from !== fieldTime(current.showFrom) ||
     schedule.until !== fieldTime(current.showUntil) ||
     schedule.on !== current.showOn;
-  const customized = widgets.find((widget) => widget.id === customizing);
+  const configured = widgets.find((widget) => widget.id === settingsOpen);
   const personal = spaces.data?.find((space) => space.kind === 'personal');
+  const features = auth.user?.features ?? [];
   if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
+
+  function startEditing() {
+    setName(current.name);
+    setSchedule({ from: fieldTime(current.showFrom), until: fieldTime(current.showUntil), on: current.showOn });
+    setDraft(layoutOf(current));
+  }
 
   function change(next: Partial<Layout>) {
     setHistory((past) => [...past, layout]);
@@ -256,6 +315,7 @@ export function DashboardHome() {
           <>
             <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
             <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
+            {wide && widgets.length > 1 && <Button icon="sparkles" label="Organise" large onClick={() => grid.current?.organize()} />}
             <Button
               disabled={history.length === 0}
               label="Undo"
@@ -271,15 +331,7 @@ export function DashboardHome() {
         ) : (
           <>
             <IconLink icon="monitor" label="Wall display" to={`/?d=${current.id}&display=wall`} />
-            <IconButton
-              icon="pencil"
-              label="Edit"
-              onClick={() => {
-                setName(current.name);
-                setSchedule({ from: fieldTime(current.showFrom), until: fieldTime(current.showUntil), on: current.showOn });
-                setDraft(layoutOf(current));
-              }}
-            />
+            <IconButton icon="pencil" label="Edit" onClick={startEditing} />
             <IconButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} />
           </>
         )
@@ -293,44 +345,70 @@ export function DashboardHome() {
         />
       )}
       {widgets.length === 0 ? (
-        <Empty title="This dashboard is empty">{editing ? 'Add a widget to start.' : 'Choose Edit to add widgets.'}</Empty>
+        <div className="dashboard-empty">
+          <div aria-hidden="true" className="dashboard-empty-art">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <h2 className="m-0 text-xl font-medium text-ink">Make this dashboard yours</h2>
+          <p className="m-0 max-w-md text-sm text-muted">Pick widgets for your day, your money, your notes and the world around you.</p>
+          <div className="mt-3">
+            <Button
+              icon="plus"
+              label="Add widgets"
+              large
+              onClick={() => {
+                if (!editing) startEditing();
+                setPicking(true);
+              }}
+              primary
+            />
+          </div>
+        </div>
       ) : (
         <DashboardGrid
           card={(widget) => {
             const kind = widgetKinds[widget.type];
             const index = inOrder(widgets).findIndex((shown) => shown.id === widget.id);
+            const app = appCatalogue.find((entry) => entry.key === kind.app);
             const menu = editing && (
               <ActionsMenu
                 items={[
-                  ...(kind.Settings ? [{ label: settingsOpen === widget.id ? 'Close settings' : 'Settings', onSelect: () => setSettingsOpen(settingsOpen === widget.id ? undefined : widget.id) }] : []),
-                  { label: 'Customise card', onSelect: () => setCustomizing(widget.id) },
+                  { label: 'Settings', onSelect: () => setSettingsOpen(widget.id) },
                   ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
                   ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
                   ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
-                  ...(wide && widget.w > 1 ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                  ...(wide && widget.w > kind.minW ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
                   ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
                   { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
                 ]}
                 name={cardTitle(widget)}
               />
             );
+            const open = !editing && kind.href && (!kind.app || features.includes(kind.app)) && (
+              <Link aria-label={`Open ${app?.label ?? kind.title}`} className="widget-open" title={`Open ${app?.label ?? kind.title}`} to={kind.href}>
+                <Icon name="chevron-right" size={16} />
+              </Link>
+            );
             return (
               <>
                 {widget.hideTitle ? (
                   menu && <div className="absolute top-2 right-2 z-1 rounded-field bg-surface">{menu}</div>
                 ) : (
-                  <header className="flex min-h-8 items-center justify-between gap-2">
-                    <Subheading level={2}>{cardTitle(widget)}</Subheading>
-                    {menu}
-                  </header>
-                )}
-                {editing && settingsOpen === widget.id && kind.Settings && (
-                  <div className="rounded-field border border-line-soft p-3">
-                    <kind.Settings onChange={(settings) => update(widget.id, { settings })} settings={widget.settings} />
-                  </div>
+                  <WidgetHeading icon={kind.icon} title={cardTitle(widget)}>
+                    {menu || open}
+                  </WidgetHeading>
                 )}
                 <WidgetBoundary>
-                  <kind.View settings={widget.settings} />
+                  <kind.View
+                    configure={() => {
+                      if (!editing) startEditing();
+                      setSettingsOpen(widget.id);
+                    }}
+                    settings={widget.settings}
+                  />
                 </WidgetBoundary>
               </>
             );
@@ -339,45 +417,18 @@ export function DashboardHome() {
           editing={editing}
           key={current.id}
           label={cardTitle}
-          onChange={(next) => change({ widgets: next })}
+          onChange={(next, replace) => (replace ? setDraft({ ...layout, widgets: next }) : change({ widgets: next }))}
+          ref={grid}
           widgets={widgets}
         />
       )}
       <ShowBackdrop background={layout.background} />
-      {customized && (
-        <Dialog onClose={() => setCustomizing(undefined)} title="Customise card">
-          <div className="mt-5 grid gap-4">
-            <TextField
-              label="Title"
-              maxLength={40}
-              onChange={(event) => update(customized.id, { title: event.currentTarget.value.trim() ? event.currentTarget.value : undefined })}
-              placeholder={widgetKinds[customized.type].title}
-              value={customized.title ?? ''}
-            />
-            <Toggle checked={!customized.hideTitle} label="Show the title" onChange={(shown) => update(customized.id, { hideTitle: shown ? undefined : true })} />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Select
-                label="Accent"
-                onChange={(accent: string) => update(customized.id, { accent: (accent || undefined) as TagColor | undefined })}
-                options={[{ value: '', label: 'None' }, ...colorOptions]}
-                value={customized.accent ?? ''}
-              />
-              <Select label="Padding" onChange={(padding: CardPadding) => update(customized.id, { padding })} options={paddingOptions} value={customized.padding ?? 'normal'} />
-              <Select
-                label="Height"
-                onChange={(rows: string) => update(customized.id, { h: rows ? Number(rows) : null })}
-                options={[
-                  ...heights.map(([value, label]) => ({ value, label })),
-                  ...(customized.h && !heights.some(([value]) => value === String(customized.h)) ? [{ value: String(customized.h), label: 'Custom' }] : []),
-                ]}
-                value={customized.h ? String(customized.h) : ''}
-              />
-            </div>
-            <DialogActions>
-              <Button label="Done" large onClick={() => setCustomizing(undefined)} primary />
-            </DialogActions>
-          </div>
-        </Dialog>
+      {configured && (
+        <WidgetSettings
+          onChange={(fields) => update(configured.id, fields)}
+          onClose={() => setSettingsOpen(undefined)}
+          widget={configured}
+        />
       )}
       {picking && (
         <WidgetGallery

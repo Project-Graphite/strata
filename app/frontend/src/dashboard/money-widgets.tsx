@@ -1,14 +1,14 @@
-import { Link } from 'react-router';
 import { formatDay, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Amount } from '../components/Amount';
+import { ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '../spending';
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { SkeletonLine, SplitRowsSkeleton } from './widget-parts';
+import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 function usePersonalSpace() {
   return useSpaces().data?.find((space) => space.kind === 'personal')?.id;
@@ -30,33 +30,31 @@ export function SpendingWidget() {
   if (!summary.data) {
     return (
       <Placeholder className="grid gap-3" label="Adding up the month">
-        <SkeletonLine className="text-xl" width="w-48" />
+        <SkeletonLine className="text-2xl" width="w-48" />
         <Skeleton className="h-1.5 rounded-full" />
         <SkeletonLine className="text-sm" width="w-52" />
-        <SplitRowsSkeleton className="gap-1" rows={4} />
-        <SkeletonLine className="text-sm" width="w-24" />
+        <SplitRowsSkeleton className="gap-1.5" rows={4} />
       </Placeholder>
     );
   }
   const { budgetMinor, currency, expenses, safeDailyMinor, spentMinor } = summary.data;
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-xl text-ink">
+      <p className="m-0 text-2xl text-ink tabular-nums">
         {money(spentMinor, currency)} <span className="text-sm text-muted">{budgetMinor === null ? 'spent' : `of ${money(budgetMinor, currency)}`}</span>
       </p>
       {budgetMinor !== null && <Meter label="Spent of the budget" value={budgetMinor ? spentMinor / budgetMinor : 1} />}
       {safeDailyMinor !== null && <Hint>{money(safeDailyMinor, currency)} a day to stay on budget</Hint>}
-      <ul className="m-0 grid list-none gap-1 p-0">
-        {expenses.slice(0, 4).map((expense) => (
-          <li className="flex justify-between gap-3 text-sm" key={expense.id}>
-            <span className="truncate text-ink">{expense.title}</span>
-            <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
-          </li>
-        ))}
-      </ul>
-      <Link className="text-sm" to="/spending">
-        Open spending
-      </Link>
+      {expenses.length > 0 && (
+        <ul className="widget-list">
+          {expenses.slice(0, 4).map((expense) => (
+            <li className="flex justify-between gap-3 text-sm" key={expense.id}>
+              <span className="truncate text-ink">{expense.title}</span>
+              <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -82,7 +80,7 @@ export function PaymentsWidget() {
         : [],
     ),
   ].sort((a, b) => a.on.localeCompare(b.on));
-  if (payments.length === 0) return <Hint>No payments coming up.</Hint>;
+  if (payments.length === 0) return <WidgetEmpty icon="check" title="No payments due" />;
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {payments.slice(0, 5).map((payment) => (
@@ -115,13 +113,7 @@ export function SavingsWidget() {
       </Placeholder>
     );
   }
-  if (goals.data.length === 0) {
-    return (
-      <Hint>
-        No savings goals yet. <Link to="/spending/net-worth">Add one</Link>
-      </Hint>
-    );
-  }
+  if (goals.data.length === 0) return <WidgetEmpty action={<ButtonLink label="Add a goal" to="/spending/net-worth" />} icon="shield" title="No savings goals yet" />;
   return (
     <ul className="m-0 grid list-none gap-3 p-0">
       {goals.data.slice(0, 4).map((goal) => (
