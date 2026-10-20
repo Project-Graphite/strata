@@ -6,7 +6,7 @@ import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useLiveRefresh, useResource } from '../useResource';
-import { LinkRowsSkeleton, SkeletonLine, type SettingsProps, type WidgetProps } from './widget-parts';
+import { LinkRowsSkeleton, SkeletonLine, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
 
 const outsideRefresh = { every: 15 * 60_000 };
@@ -51,18 +51,18 @@ function placeOf(settings: Record<string, unknown>) {
   return place && typeof place.latitude === 'number' && typeof place.longitude === 'number' ? place : undefined;
 }
 
-export function Weather({ settings }: WidgetProps) {
+export function Weather({ configure, settings }: WidgetProps) {
   const place = placeOf(settings);
   const unit = settings.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
   const forecast = useResource<Forecast>(place ? `/widgets/weather?latitude=${place.latitude}&longitude=${place.longitude}&unit=${unit}` : null, true, outsideRefresh);
 
-  if (!place) return <Hint>Choose a place in this widget's settings.</Hint>;
+  if (!place) return <WidgetEmpty action={configure && <Button label="Choose a place" onClick={configure} />} icon="compass" title="No place chosen" />;
   if (forecast.error) return <LoadError compact error={forecast.error} onRetry={forecast.reload} />;
   if (!forecast.data) {
     return (
       <Placeholder className="grid gap-3" label="Loading the weather">
         <div>
-          <SkeletonLine className="text-3xl" width="w-20" />
+          <SkeletonLine className="widget-figure" width="w-20" />
           <SkeletonLine className="mono-sm mt-1" width="w-48" />
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 gap-1 text-sm">
@@ -81,7 +81,7 @@ export function Weather({ settings }: WidgetProps) {
   return (
     <div className="grid gap-3">
       <div>
-        <p className="m-0 text-3xl text-ink">
+        <p className="widget-figure">
           {current.temperature}°{unit === 'fahrenheit' ? 'F' : 'C'}
         </p>
         <p className="mono-sm m-0 mt-1 text-faint">
@@ -212,7 +212,7 @@ function AddressLines({ label, max, onChange, placeholder, values }: { label: st
   );
 }
 
-export function News({ settings }: WidgetProps) {
+export function News({ configure, settings }: WidgetProps) {
   const { request } = useAuth();
   const feeds = stringsOf(settings.feeds);
   const count = typeof settings.count === 'number' ? settings.count : 5;
@@ -241,7 +241,7 @@ export function News({ settings }: WidgetProps) {
     return () => controller.abort();
   }, [key, request, version]);
 
-  if (feeds.length === 0) return <Hint>Add feed addresses in this widget's settings.</Hint>;
+  if (feeds.length === 0) return <WidgetEmpty action={configure && <Button label="Add feeds" onClick={configure} />} icon="mail" title="No news feeds yet" />;
   if (loaded?.key !== key) {
     return (
       <Placeholder label="Loading the news">
@@ -251,7 +251,7 @@ export function News({ settings }: WidgetProps) {
   }
   return (
     <div className="grid gap-2">
-      {loaded.stories.length === 0 && loaded.failed === 0 && <Hint>No stories yet.</Hint>}
+      {loaded.stories.length === 0 && loaded.failed === 0 && <WidgetEmpty icon="mail" title="No stories yet" />}
       <ul className="m-0 grid list-none gap-2 p-0">
         {loaded.stories.slice(0, count).map((story) => (
           <li className="text-sm" key={story.link}>

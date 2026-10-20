@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Placeholder, Select, TextAreaField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Note } from '../notes';
@@ -9,7 +8,7 @@ import { useResource } from '../useResource';
 import { Hint } from '../components/Hint';
 import { Button } from '../components/Button';
 import { LoadError } from '../components/LoadError';
-import { PageLinks, PageLinksSkeleton } from './widget-parts';
+import { PageLinks, PageLinksSkeleton, WidgetEmpty } from './widget-parts';
 
 export function Capture() {
   const auth = useAuth();
@@ -21,7 +20,13 @@ export function Capture() {
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const target = spaceId || editable[0]?.id;
 
-  if (spaces.data && editable.length === 0) return <Hint>You can only view your spaces, so there is nowhere to save.</Hint>;
+  if (spaces.data && editable.length === 0) {
+    return (
+      <WidgetEmpty icon="lock" title="Nowhere to save">
+        You can only view your spaces.
+      </WidgetEmpty>
+    );
+  }
 
   function save(kind: 'note' | 'task') {
     const content = text.trim();
@@ -67,11 +72,8 @@ export function Capture() {
           <PageLinksSkeleton rows={3} />
         </Placeholder>
       ) : (
-        <div className="fade-in">{notes.data.length === 0 ? <Hint>No notes yet.</Hint> : <PageLinks heading="Recent notes" pages={notes.data.slice(0, 3)} />}</div>
+        <div className="fade-in">{notes.data.length === 0 ? <Hint>No quick notes yet.</Hint> : <PageLinks heading="Recent notes" pages={notes.data.slice(0, 3)} />}</div>
       )}
-      <Link className="w-fit text-sm text-ink" to="/pages/quick-notes">
-        All quick notes
-      </Link>
     </div>
   );
 }

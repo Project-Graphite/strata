@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Avatar, DatePicker, formatDay, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type TagColor } from '@project-graphite/ui';
+import { Avatar, DatePicker, formatDay, Meter, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type IconName, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -17,14 +17,15 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
-import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { OpenTask } from '../components/TaskEditor';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
+import { Birthdays, Goals, Journal, NextTrip } from './plans-widgets';
 import { quoteFor } from './quotes';
+import { CalendarWidget, DayProgress } from './time-widgets';
 import {
   AgendaCardsSkeleton,
   LinkRowsSkeleton,
@@ -33,13 +34,14 @@ import {
   SkeletonLine,
   SplitRowsSkeleton,
   TaskRowsSkeleton,
+  WidgetEmpty,
   type SettingsProps,
   type WidgetProps,
 } from './widget-parts';
 import { clockTime } from '../time';
-import { Button, TextButton } from '../components/Button';
+import { Button, ButtonLink, TextButton } from '../components/Button';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'countdown' | 'focus' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'pages' | 'board' | 'bookmarks' | 'quote' | 'spending' | 'payments' | 'savings';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
 export type WidgetGroup = (typeof widgetGroups)[number];
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
@@ -73,17 +75,17 @@ function Clock({ settings }: WidgetProps) {
   return (
     <div className="grid gap-3">
       <div>
-        <p className="m-0 text-3xl text-ink">{clockTime(now)}</p>
+        <p className="widget-figure">{clockTime(now)}</p>
         <p className="mono-sm m-0 mt-1 text-faint">
           {formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
       {zones.length > 0 && (
-        <ul className="m-0 grid list-none gap-1 p-0">
+        <ul className="widget-list">
           {zones.map((zone) => (
-            <li className="flex justify-between gap-3 text-sm" key={zone}>
+            <li className="flex items-baseline justify-between gap-3 text-sm" key={zone}>
               <span className="truncate text-muted">{zone.split('/').pop()!.replaceAll('_', ' ')}</span>
-              <span className="text-ink">{clockTime(now, zone)}</span>
+              <span className="shrink-0 text-ink tabular-nums">{clockTime(now, zone)}</span>
             </li>
           ))}
         </ul>
@@ -132,7 +134,7 @@ function TasksSkeleton({ adding }: { adding: boolean }) {
   );
 }
 
-function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; listId?: string }; path: string; quiet?: boolean }) {
+function TaskWidget({ add, empty, path }: { add?: { spaceId: string; listId?: string }; empty?: ReactNode; path: string }) {
   const auth = useAuth();
   const spaces = useSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
@@ -144,7 +146,7 @@ function TaskWidget({ add, path, quiet = false }: { add?: { spaceId: string; lis
   return (
     <div className="fade-in grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
-      {list.length === 0 && !quiet && <Hint>{add ? 'Nothing to do.' : 'Nothing due. Enjoy it.'}</Hint>}
+      {list.length === 0 && empty}
       {list.length > 0 && (
         <ul className="panel-rows">
           {list.slice(0, 8).map((task) => (
@@ -185,7 +187,16 @@ function Today() {
           ))}
         </ul>
       )}
-      <TaskWidget path="/tasks/today" quiet={schedule.data.length > 0} />
+      <TaskWidget
+        empty={
+          schedule.data.length === 0 && (
+            <WidgetEmpty icon="sparkles" title="A clear day">
+              Nothing scheduled and nothing due.
+            </WidgetEmpty>
+          )
+        }
+        path="/tasks/today"
+      />
     </div>
   );
 }
@@ -204,6 +215,7 @@ function Tasks({ settings }: WidgetProps) {
   return (
     <TaskWidget
       add={space && space.role !== 'viewer' ? { spaceId, listId } : undefined}
+      empty={<WidgetEmpty icon="check-mark" title="All done" />}
       key={`${spaceId}/${listId ?? ''}`}
       path={`/spaces/${spaceId}/tasks?page=1${listId ? `&listId=${listId}` : ''}`}
     />
@@ -235,19 +247,16 @@ interface Shortcut {
   url: string;
 }
 
-function Shortcuts({ settings }: WidgetProps) {
+function Shortcuts({ configure, settings }: WidgetProps) {
   const links = Array.isArray(settings.links) ? (settings.links as Shortcut[]) : [];
-  if (links.length === 0) return <Hint>Add links in this widget's settings.</Hint>;
+  if (links.length === 0) {
+    return <WidgetEmpty action={configure && <Button label="Add shortcuts" onClick={configure} />} icon="link" title="No shortcuts yet" />;
+  }
   return (
-    <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3 p-0">
+    <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2 p-0">
       {links.map((link) => (
         <li key={`${link.label}-${link.url}`}>
-          <a
-            className="grid justify-items-center gap-2 rounded-field p-2 text-center text-sm text-ink no-underline hover:bg-line-soft"
-            href={link.url}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
+          <a className="widget-shortcut" href={link.url} rel="noopener noreferrer" target="_blank">
             <Avatar name={link.label} />
             <span className="w-full truncate">{link.label}</span>
           </a>
@@ -305,26 +314,22 @@ function Recurring() {
   if (!summary.data) {
     return (
       <Placeholder className="grid gap-3" label="Adding up your subscriptions">
-        <SkeletonLine className="text-xl" width="w-36" />
-        <SplitRowsSkeleton className="gap-1" rows={3} />
+        <SkeletonLine className="text-2xl" width="w-36" />
+        <SplitRowsSkeleton className="gap-1.5" rows={3} />
       </Placeholder>
     );
   }
   if (summary.data.totals.length === 0) {
-    return (
-      <Hint>
-        No subscriptions yet. <Link to="/spending/recurring">Add some</Link>
-      </Hint>
-    );
+    return <WidgetEmpty action={<ButtonLink label="Add a subscription" to="/spending/recurring" />} icon="repeat" title="No subscriptions yet" />;
   }
   return (
     <div className="grid gap-3">
       {summary.data.totals.map((total) => (
-        <p className="m-0 text-xl text-ink" key={total.currency}>
+        <p className="m-0 text-2xl text-ink tabular-nums" key={total.currency}>
           {money(total.monthlyMinor, total.currency)} <span className="text-sm text-muted">a month</span>
         </p>
       ))}
-      <ul className="m-0 grid list-none gap-1 p-0">
+      <ul className="widget-list">
         {summary.data.upcoming.slice(0, 3).map((subscription) => (
           <li key={subscription.id}>
             <Link className="flex justify-between gap-3 text-sm text-ink no-underline hover:underline" to={`/spending/recurring?subscription=${subscription.id}`}>
@@ -352,25 +357,28 @@ function Inbox() {
     );
   }
   const unread = notifications.data.results.filter((notification) => !notification.read).slice(0, 5);
-  if (unread.length === 0) return <Hint>You are all caught up.</Hint>;
+  if (unread.length === 0) return <WidgetEmpty icon="check" title="You’re all caught up" />;
   return (
     <ul className="m-0 grid list-none gap-2 p-0">
       {unread.map((notification) => (
-        <li className="text-sm" key={notification.id}>
-          <Link
-            className="text-ink no-underline hover:underline"
-            onClick={() =>
-              void action.run(async () => {
-                await auth.request(`/me/inbox/${notification.id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) });
-                inbox.reload();
-                return '';
-              }, 'Could not update that notification')
-            }
-            to={notification.link ?? '/inbox'}
-          >
-            {notification.title}
-          </Link>
-          <span className="mono-sm block text-faint">{timeAgo(notification.createdAt)}</span>
+        <li className="flex gap-2.5 text-sm" key={notification.id}>
+          <span aria-hidden="true" className="unread-dot mt-2" />
+          <span className="min-w-0">
+            <Link
+              className="text-ink no-underline hover:underline"
+              onClick={() =>
+                void action.run(async () => {
+                  await auth.request(`/me/inbox/${notification.id}`, { method: 'PATCH', body: JSON.stringify({ read: true }) });
+                  inbox.reload();
+                  return '';
+                }, 'Could not update that notification')
+              }
+              to={notification.link ?? '/inbox'}
+            >
+              {notification.title}
+            </Link>
+            <span className="mono-sm block text-faint">{timeAgo(notification.createdAt)}</span>
+          </span>
         </li>
       ))}
     </ul>
@@ -388,7 +396,13 @@ function Agenda() {
       </Placeholder>
     );
   }
-  if (agenda.data.length === 0) return <Hint>Nothing in the next seven days.</Hint>;
+  if (agenda.data.length === 0) {
+    return (
+      <WidgetEmpty action={<ButtonLink label="Open agenda" to="/agenda/week" />} icon="calendar" title="A free week">
+        Nothing in the next seven days.
+      </WidgetEmpty>
+    );
+  }
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
       {agenda.data.slice(0, 6).map((entry) => (
@@ -408,22 +422,28 @@ function Agenda() {
 function Quote() {
   const [text, author] = quoteFor(dayKey(new Date()));
   return (
-    <figure className="m-0 grid gap-2">
-      <blockquote className="m-0 text-lg text-ink">“{text}”</blockquote>
+    <figure className="widget-quote">
+      <blockquote className="m-0 text-lg leading-snug text-ink">{text}</blockquote>
       <figcaption className="mono-sm text-faint">{author}</figcaption>
     </figure>
   );
 }
 
-function Countdown({ settings }: WidgetProps) {
+function Countdown({ configure, settings }: WidgetProps) {
   const label = typeof settings.label === 'string' && settings.label ? settings.label : 'the day';
-  if (typeof settings.date !== 'string') return <Hint>Choose a date in this widget's settings.</Hint>;
+  if (typeof settings.date !== 'string') {
+    return <WidgetEmpty action={configure && <Button label="Choose a date" onClick={configure} />} icon="gift" title="Count down to a day" />;
+  }
   const days = Math.round((new Date(`${settings.date}T00:00:00`).getTime() - new Date(`${dayKey(new Date())}T00:00:00`).getTime()) / 86_400_000);
   return (
     <div>
-      <p className="m-0 text-3xl text-ink">{days === 0 ? 'Today' : `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`}</p>
-      <p className="mono-sm m-0 mt-1 text-faint">
-        {days === 0 ? `${label} is today` : days > 0 ? `until ${label}` : `since ${label}`} · {shortDate(settings.date)}
+      <p className="widget-figure">
+        {days === 0 ? 'Today' : Math.abs(days)}
+        {days !== 0 && <span className="widget-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>}
+      </p>
+      <p className="m-0 mt-1 text-sm text-muted">
+        {days === 0 ? `${label} is today` : days > 0 ? `until ${label}` : `since ${label}`}
+        <span className="mono-sm text-faint"> · {shortDate(settings.date)}</span>
       </p>
     </div>
   );
@@ -473,13 +493,14 @@ function Focus({ settings }: WidgetProps) {
   return (
     <div className="grid gap-3">
       <div>
-        <p className="m-0 text-3xl text-ink" role="timer">
+        <p className="widget-figure" role="timer">
           {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
         </p>
         <p className="m-0 mt-1 text-sm text-muted">{phase === 'focus' ? 'Focus' : 'Break'}</p>
       </div>
+      <Meter label={`${phase === 'focus' ? 'Focus' : 'Break'} done`} value={1 - left / duration} />
       <div className="flex flex-wrap gap-2">
-        <Button label={endsAt === undefined ? 'Start' : 'Pause'} onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} />
+        <Button label={endsAt === undefined ? 'Start' : 'Pause'} onClick={() => setEndsAt(endsAt === undefined ? Date.now() + left : undefined)} primary={endsAt === undefined} />
         <Button
           label="Reset"
           onClick={() => {
@@ -518,6 +539,7 @@ interface TidyScanSummary {
 
 function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
+  const personal = useSpaces().data?.find((space) => space.kind === 'personal');
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) {
     return (
@@ -539,7 +561,9 @@ function Habits() {
       </Placeholder>
     );
   }
-  if (habits.data.length === 0) return <Hint>No habits yet. Add them in a space’s Habits tab.</Hint>;
+  if (habits.data.length === 0) {
+    return <WidgetEmpty action={personal && <ButtonLink label="Add a habit" to={`/spaces/${personal.id}/habits`} />} icon="checklist" title="No habits yet" />;
+  }
   return (
     <ul className="m-0 grid list-none gap-3 p-0">
       {habits.data.map((habit) => (
@@ -551,9 +575,9 @@ function Habits() {
   );
 }
 
-function Board({ settings }: WidgetProps) {
+function Board({ configure, settings }: WidgetProps) {
   const boardId = typeof settings.boardId === 'string' ? settings.boardId : null;
-  if (!boardId) return <Hint>Choose a board in this widget's settings.</Hint>;
+  if (!boardId) return <WidgetEmpty action={configure && <Button label="Choose a board" onClick={configure} />} icon="board" title="No board chosen" />;
   return (
     <Link className="block no-underline" to={`/notes/${boardId}`}>
       <BoardPreview boardId={boardId} key={boardId} label="Board preview" live />
@@ -587,11 +611,7 @@ function Pages() {
   }
   const { pinned, recent } = pages.data;
   if (pinned.length === 0 && recent.length === 0) {
-    return (
-      <Hint>
-        No pages yet. <Link to="/pages">Write one</Link>
-      </Hint>
-    );
+    return <WidgetEmpty action={<ButtonLink label="Write a page" to="/pages" />} icon="file" title="No pages yet" />;
   }
   return (
     <div className="grid gap-3">
@@ -612,11 +632,7 @@ function ReadLater() {
     );
   }
   if (bookmarks.data.length === 0) {
-    return (
-      <Hint>
-        Nothing to read later. <Link to="/bookmarks">Add a bookmark</Link>
-      </Hint>
-    );
+    return <WidgetEmpty action={<ButtonLink label="Open bookmarks" to="/bookmarks" />} icon="bookmark" title="Nothing to read later" />;
   }
   return (
     <ul className="m-0 grid list-none gap-1.5 p-0">
@@ -634,6 +650,49 @@ function ReadLater() {
   );
 }
 
+interface StoredFile {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+function RecentFiles() {
+  const storage = useResource<{ quotaBytes: number; usedBytes: number; files: StoredFile[] }>('/me/storage', true, { live: ['items'] });
+  if (storage.error) return <LoadError compact error={storage.error} onRetry={storage.reload} />;
+  if (!storage.data) {
+    return (
+      <Placeholder className="grid gap-3" label="Loading your files">
+        <SkeletonLine className="text-sm" width="w-40" />
+        <Skeleton className="h-1.5 rounded-full" />
+        <SplitRowsSkeleton className="gap-1.5" rows={3} />
+      </Placeholder>
+    );
+  }
+  const { files, quotaBytes, usedBytes } = storage.data;
+  if (files.length === 0) return <WidgetEmpty action={<ButtonLink label="Upload files" to="/files" />} icon="library" title="No files yet" />;
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-1.5">
+        <p className="m-0 text-sm text-muted">
+          <span className="text-ink">{fileSize(usedBytes)}</span> of {fileSize(quotaBytes)} used
+        </p>
+        <Meter label="Storage used" value={quotaBytes ? usedBytes / quotaBytes : 1} />
+      </div>
+      <ul className="widget-list">
+        {files.slice(0, 4).map((file) => (
+          <li className="flex justify-between gap-3 text-sm" key={file.id}>
+            <Link className="min-w-0 truncate text-ink no-underline hover:underline" to="/files">
+              {file.name}
+            </Link>
+            <span className="mono-sm shrink-0 text-faint">{timeAgo(file.createdAt)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Tidy() {
   const scan = useResource<TidyScanSummary>('/tidy/scan', true, { live: ['items', 'subscriptions'] });
   const history = useResource<{ createdAt: string }[]>('/tidy/history', true, { live: ['items', 'subscriptions'] });
@@ -646,7 +705,6 @@ function Tidy() {
           <SkeletonLine width="w-1/2" />
         </div>
         <SkeletonLine className="mono-sm" width="w-28" />
-        <SkeletonLine width="w-16" />
       </Placeholder>
     );
   }
@@ -664,23 +722,24 @@ function Tidy() {
     toCheck ? `${toCheck} subscription${toCheck === 1 ? '' : 's'} to check` : '',
   ].filter(Boolean);
   const last = history.data?.[0];
+  const tidied = last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet';
+  if (findings.length === 0) {
+    return (
+      <WidgetEmpty icon="sparkles" title="All tidy">
+        {tidied}
+      </WidgetEmpty>
+    );
+  }
   return (
     <div className="grid gap-2 text-sm">
-      {findings.length ? (
-        <ul className="m-0 grid list-none gap-1 p-0">
-          {findings.map((finding) => (
-            <li className="text-ink" key={finding}>
-              {finding}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Hint>Nothing to tidy.</Hint>
-      )}
-      <p className="mono-sm m-0 text-faint">{last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet'}</p>
-      <Link className="w-fit text-ink" to="/tidy">
-        Open Tidy
-      </Link>
+      <ul className="widget-list">
+        {findings.map((finding) => (
+          <li className="text-ink" key={finding}>
+            {finding}
+          </li>
+        ))}
+      </ul>
+      <p className="mono-sm m-0 text-faint">{tidied}</p>
     </div>
   );
 }
@@ -691,31 +750,44 @@ export const widgetKinds: Record<
     title: string;
     group: WidgetGroup;
     description: string;
+    icon: IconName;
     size: WidgetSize;
+    minW: number;
+    maxW: number;
+    minH: number;
+    app?: string;
+    href?: string;
     settings: Record<string, unknown>;
     View: (props: WidgetProps) => ReactNode;
     Settings?: (props: SettingsProps) => ReactNode;
   }
 > = {
-  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
-  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", size: 'medium', settings: {}, View: Today },
-  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', size: 'medium', settings: {}, View: Tasks, Settings: TasksSettings },
-  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
-  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', size: 'small', settings: {}, View: Recurring },
-  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', size: 'medium', settings: {}, View: Inbox },
-  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', size: 'medium', settings: {}, View: Agenda },
-  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
-  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
-  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', size: 'small', settings: {}, View: Tidy },
-  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
-  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', size: 'medium', settings: {}, View: Capture },
-  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", size: 'medium', settings: {}, View: Habits },
-  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', size: 'medium', settings: {}, View: Pages },
-  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', size: 'wide', settings: {}, View: Board, Settings: BoardSettings },
-  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', size: 'medium', settings: {}, View: ReadLater },
-  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', size: 'medium', settings: {}, View: Quote },
-  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', size: 'medium', settings: {}, View: SpendingWidget },
-  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', size: 'small', settings: {}, View: PaymentsWidget },
-  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', size: 'small', settings: {}, View: SavingsWidget },
+  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', icon: 'clock', size: 'small', minW: 3, maxW: 6, minH: 6, settings: {}, View: Clock, Settings: ClockSettings },
+  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", icon: 'home', size: 'medium', minW: 4, maxW: 12, minH: 8, settings: {}, View: Today },
+  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', icon: 'check-mark', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'tasks', href: '/tasks', settings: {}, View: Tasks, Settings: TasksSettings },
+  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', icon: 'list', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'agenda', href: '/agenda/week', settings: {}, View: Agenda },
+  calendar: { title: 'Calendar', group: 'Your day', description: 'The month at a glance, with busy days marked.', icon: 'calendar', size: 'small', minW: 3, maxW: 6, minH: 13, app: 'agenda', href: '/agenda/month', settings: {}, View: CalendarWidget },
+  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", icon: 'checklist', size: 'medium', minW: 4, maxW: 12, minH: 8, app: 'tasks', settings: {}, View: Habits },
+  journal: { title: 'Journal', group: 'Your day', description: "Today's mood, your last two weeks and today's page.", icon: 'pencil', size: 'small', minW: 3, maxW: 6, minH: 10, app: 'journal', href: '/journal', settings: {}, View: Journal },
+  goals: { title: 'Goals', group: 'Your day', description: 'Your active goals and how far along they are.', icon: 'target', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'goals', href: '/goals', settings: {}, View: Goals },
+  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', icon: 'gift', size: 'small', minW: 3, maxW: 6, minH: 6, settings: {}, View: Countdown, Settings: CountdownSettings },
+  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', icon: 'target', size: 'small', minW: 3, maxW: 6, minH: 8, settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
+  progress: { title: 'Day progress', group: 'Your day', description: 'How much of the day, week, month and year has gone.', icon: 'clock', size: 'small', minW: 3, maxW: 6, minH: 8, settings: {}, View: DayProgress },
+  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', icon: 'repeat', size: 'small', minW: 3, maxW: 6, minH: 8, app: 'spending', href: '/spending/recurring', settings: {}, View: Recurring },
+  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', icon: 'wallet', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'spending', href: '/spending', settings: {}, View: SpendingWidget },
+  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', icon: 'wallet', size: 'small', minW: 3, maxW: 8, minH: 6, app: 'spending', href: '/spending/accounts', settings: {}, View: PaymentsWidget },
+  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', icon: 'shield', size: 'small', minW: 3, maxW: 8, minH: 6, app: 'spending', href: '/spending/net-worth', settings: {}, View: SavingsWidget },
+  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', icon: 'link', size: 'wide', minW: 3, maxW: 12, minH: 6, settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
+  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', icon: 'bell', size: 'medium', minW: 3, maxW: 12, minH: 8, href: '/inbox', settings: {}, View: Inbox },
+  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', icon: 'plus', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'pages', href: '/pages/quick-notes', settings: {}, View: Capture },
+  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', icon: 'file', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'pages', href: '/pages', settings: {}, View: Pages },
+  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', icon: 'board', size: 'wide', minW: 4, maxW: 12, minH: 10, app: 'boards', settings: {}, View: Board, Settings: BoardSettings },
+  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', icon: 'bookmark', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'bookmarks', href: '/bookmarks', settings: {}, View: ReadLater },
+  files: { title: 'Recent files', group: 'Notes and links', description: 'Your latest uploads and the storage they use.', icon: 'library', size: 'small', minW: 3, maxW: 8, minH: 8, app: 'files', href: '/files', settings: {}, View: RecentFiles },
+  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
+  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', minW: 3, maxW: 8, minH: 8, settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
+  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', minW: 4, maxW: 12, minH: 8, settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
+  trip: { title: 'Next trip', group: 'Around you', description: 'Your next trip and how long until you leave.', icon: 'plane', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'trips', href: '/trips', settings: {}, View: NextTrip },
+  birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'people', href: '/people', settings: {}, View: Birthdays },
+  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', minW: 3, maxW: 9, minH: 6, settings: {}, View: Quote },
 };
