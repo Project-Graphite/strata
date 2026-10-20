@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
   ErrorState,
   IconButton,
   OutageGate,
+  PageTransition,
   Sidebar,
   Skeleton,
   SnackbarProvider,
@@ -58,7 +59,7 @@ function SiteFooter() {
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [pathname]);
   return null;
@@ -147,9 +148,11 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             </ErrorState>
           ) : (
             <AreaContext.Provider value={areaContext}>
-              <CrashBoundary key={pathname}>
-                <Outlet />
-              </CrashBoundary>
+              <PageTransition page={pathname}>
+                <CrashBoundary>
+                  <Outlet />
+                </CrashBoundary>
+              </PageTransition>
             </AreaContext.Provider>
           )}
         </OutageGate>
