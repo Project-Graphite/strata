@@ -6,14 +6,15 @@ import type { RedisClientType } from 'redis';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
-export type Topic = 'items' | 'tasks' | 'subscriptions' | 'spaces' | 'inbox' | 'spending' | 'habits' | 'journal' | 'dashboards' | 'pages';
+export type Topic = 'items' | 'tasks' | 'subscriptions' | 'spaces' | 'inbox' | 'spending' | 'habits' | 'journal' | 'dashboards' | 'pages' | 'page-details' | 'page-comments' | 'page-databases';
 
 export interface Change {
   spaceId?: string;
+  itemId?: string;
   topic: Topic;
 }
 
-type Nudge = { topic: Topic } & ({ spaceId: string } | { userId: string });
+type Nudge = { topic: Topic; itemId?: string } & ({ spaceId: string } | { userId: string });
 
 interface Batch {
   nudges: Nudge[];
@@ -40,7 +41,7 @@ export class ChangesService implements OnApplicationBootstrap {
     });
   }
 
-  notify(topic: Topic, audience: { spaceId: string } | { userId: string }) {
+  notify(topic: Topic, audience: ({ spaceId: string } | { userId: string }) & { itemId?: string }) {
     const nudge = { topic, ...audience };
     const batch = this.pending.getStore();
     if (batch && !batch.sent) batch.nudges.push(nudge);
@@ -84,12 +85,18 @@ export class ChangesService implements OnApplicationBootstrap {
     try {
       for (const key of new Set(nudges.map((nudge) => JSON.stringify(nudge)))) {
         const nudge = JSON.parse(key) as Nudge;
+        if ('spaceId' in nudge && nudge.itemId && ['page-details', 'page-comments', 'page-databases', 'pages'].includes(nudge.topic)) {
+          const recipients = await this.prisma.pageGrant.findMany({ where: { itemId: nudge.itemId, item: { kind: { in: ['NOTE', 'BOARD'] }, trashedAt: null, archivedAt: null } }, select: { userId: true } });
+          const message = JSON.stringify({ userIds: recipients.map((recipient) => recipient.userId), change: { topic: nudge.topic, itemId: nudge.itemId } });
+          const published = await this.redis.run((client) => client.publish(changesChannel, message));
+          if (published === undefined || !this.subscriber?.isReady) this.deliver(message);
+        }
         const message = JSON.stringify(
           'userId' in nudge
-            ? { userIds: [nudge.userId], change: { topic: nudge.topic } }
+            ? { userIds: [nudge.userId], change: { topic: nudge.topic, ...(nudge.itemId ? { itemId: nudge.itemId } : {}) } }
             : {
                 userIds: (await this.prisma.spaceMember.findMany({ where: { spaceId: nudge.spaceId }, select: { userId: true } })).map((member) => member.userId),
-                change: { spaceId: nudge.spaceId, topic: nudge.topic },
+                change: { spaceId: nudge.spaceId, topic: nudge.topic, ...(nudge.itemId ? { itemId: nudge.itemId } : {}) },
               },
         );
         const published = await this.redis.run((client) => client.publish(changesChannel, message));

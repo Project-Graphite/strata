@@ -46,6 +46,7 @@ export const noteParent = (note: Pick<Note, 'kind' | 'quick' | 'journal'>) =>
 
 export interface NoteDetails extends Note {
   editable: boolean;
+  permissions: { edit: boolean; comment: boolean; share: boolean; organize: boolean; history: boolean; spaceRole: string | null; pageRole: string | null };
   path: { id: string; title: string }[];
   row: { properties: Property[]; values: PropertyValues } | null;
 }
@@ -72,6 +73,7 @@ export interface DatabaseRow extends Note {
 }
 
 export interface NoteDatabase {
+  revision: string;
   properties: Property[];
   view: DatabaseView;
   groupBy: string | null;

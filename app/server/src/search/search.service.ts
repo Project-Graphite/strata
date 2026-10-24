@@ -24,7 +24,8 @@ export class SearchService {
         SELECT "d"."item_id" AS "id"
         FROM "search_documents" AS "d"
         JOIN "items" AS "i" ON "i"."id" = "d"."item_id"
-        WHERE "d"."space_id" IN (SELECT "space_id" FROM "space_members" WHERE "user_id" = ${userId}::uuid)
+        WHERE ("d"."space_id" IN (SELECT "space_id" FROM "space_members" WHERE "user_id" = ${userId}::uuid)
+          OR ("i"."kind" IN ('note', 'board') AND "i"."archived_at" IS NULL AND EXISTS (SELECT 1 FROM "page_grants" AS "g" WHERE "g"."item_id" = "i"."id" AND "g"."user_id" = ${userId}::uuid)))
           AND "i"."trashed_at" IS NULL
           AND to_tsvector('english', "d"."title" || ' ' || "d"."body_text") @@ to_tsquery('english', ${query})
         ORDER BY ts_rank(to_tsvector('english', "d"."title" || ' ' || "d"."body_text"), to_tsquery('english', ${query})) DESC,
@@ -39,7 +40,7 @@ export class SearchService {
     ]);
     const items = await this.prisma.item.findMany({
       where: { id: { in: matches.map((match) => match.id) } },
-      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true } }, note: { select: { quick: true } } },
+      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true, members: { where: { userId }, select: { userId: true } } } }, note: { select: { quick: true } } },
     });
     const byId = new Map(items.map((item) => [item.id, item]));
     return {
@@ -50,7 +51,7 @@ export class SearchService {
               {
                 id: item.id,
                 spaceId: item.spaceId,
-                spaceName: item.space.name,
+                spaceName: item.space.members.length ? item.space.name : 'Shared page',
                 kind: item.kind.toLowerCase(),
                 quick: item.note?.quick ?? false,
                 title: item.title,

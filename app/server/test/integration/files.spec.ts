@@ -31,6 +31,25 @@ describe('The file store against Postgres', () => {
 
   afterAll(() => strata.prisma.siteSettings.deleteMany({ where: { id: 1 } }));
 
+  it('lets page recipients read only files attached to that page and stops access after revocation', async () => {
+    const owner = await member('page-file-owner');
+    const recipient = await member('page-file-reader');
+    const attached = await (await upload(owner, owner.personalSpaceId, 'attached.png', png('attached'))).json();
+    const privateFile = await (await upload(owner, owner.personalSpaceId, 'private.png', png('private'))).json();
+    const page = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Shared with image' })).body;
+    await owner.call('POST', `/items/${page.id}/links`, { targetId: attached.id, kind: 'attachment' });
+    await owner.call('PUT', `/notes/${page.id}/people`, { email: recipient.email, role: 'view' });
+    const read = (path: string) => fetch(`${strata.base}${path}`, { headers: { Authorization: `Bearer ${recipient.token}` } });
+    expect((await read(`/files/${attached.id}`)).status).toBe(404);
+    const image = await read(`/notes/${page.id}/files/${attached.id}`);
+    expect(image.status).toBe(200);
+    expect(image.headers.get('content-type')).toBe('image/png');
+    expect(Buffer.from(await image.arrayBuffer())).toEqual(Buffer.from(await (await download(owner, attached.id)).arrayBuffer()));
+    expect((await read(`/notes/${page.id}/files/${privateFile.id}`)).status).toBe(404);
+    await owner.call('DELETE', `/notes/${page.id}/people/${recipient.id}`);
+    expect((await read(`/notes/${page.id}/files/${attached.id}`)).status).toBe(404);
+  });
+
   function download(as: Member, itemId: string) {
     return fetch(`${strata.base}/files/${itemId}`, { headers: { Authorization: `Bearer ${as.token}` } });
   }

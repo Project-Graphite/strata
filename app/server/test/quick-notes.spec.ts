@@ -11,20 +11,22 @@ const messages = async (type: new () => object, value: object) =>
   (await validate(plainToInstance(type, value))).flatMap((error) => Object.values(error.constraints ?? {}));
 
 function setup(quick: boolean) {
-  const prisma = {
+  const transaction = {
+    $queryRaw: async () => [],
     item: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null),
       findUniqueOrThrow: vi.fn().mockResolvedValue({ kind: ItemKind.NOTE, note: { quick } }),
     },
   };
+  const prisma = { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) };
   const access = {
     assertSpace: vi.fn(),
     assertItem: vi.fn().mockResolvedValue({ id: 'jot', spaceId: 'home', title: 'Jot', trashedAt: null, role: 'EDITOR' }),
     spacesOf: vi.fn().mockReturnValue({ members: { some: { userId: 'me' } } }),
   };
-  const notes = new NotesService(prisma as never, access as never, {} as never, { notify: vi.fn() } as never, {} as never);
-  return { prisma, notes, databases: new NoteDatabasesService(prisma as never, notes) };
+  const notes = new NotesService(prisma as never, access as never, {} as never, { notify: vi.fn() } as never, {} as never, { pagesOf: () => ({ kind: { in: [ItemKind.NOTE, ItemKind.BOARD] }, space: access.spacesOf() }), assertPage: async () => ({ ...await access.assertItem(), kind: ItemKind.NOTE, quick, permissions: { organize: true } }) } as never);
+  return { prisma, notes, databases: new NoteDatabasesService(prisma as never, notes, { notify: vi.fn() } as never, {} as never) };
 }
 
 describe('Notes alongside pages', () => {

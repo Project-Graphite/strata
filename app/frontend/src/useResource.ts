@@ -16,10 +16,14 @@ interface ResourceState<T> {
 export interface LiveOptions {
   live?: Topic[];
   every?: number;
+  spaceId?: string;
+  itemIds?: string[];
 }
 
-export function useLiveRefresh(refresh: () => void, { every, live }: LiveOptions = {}) {
-  const watches = useEffectEvent((change?: Change) => !change || Boolean(live?.includes(change.topic)));
+export function useLiveRefresh(refresh: () => void, { every, live, spaceId, itemIds }: LiveOptions = {}) {
+  const watches = useEffectEvent((change?: Change) => !change || Boolean(
+    live?.includes(change.topic) && (!spaceId || !change.spaceId || spaceId === change.spaceId) && (!itemIds || !change.itemId || itemIds.includes(change.itemId)),
+  ));
   const run = useEffectEvent(refresh);
   const watching = live !== undefined;
 
@@ -59,24 +63,34 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const [state, setState] = useState<ResourceState<T>>({ key: null, error: '' });
   const [version, setVersion] = useState(0);
   const inFlight = useRef<AbortController>(undefined);
+  const refreshPending = useRef(false);
 
   useEffect(() => {
     if (!key || !path) return;
     const controller = new AbortController();
     inFlight.current = controller;
     void request<T>(path, { signal: controller.signal })
-      .then((data) => setState({ key, data, error: '' }))
+      .then((data) => {
+        if (!controller.signal.aborted) setState({ key, data, error: '' });
+      })
       .catch((reason: unknown) => {
-        if (!isAbortError(reason)) {
-          setState({
+        if (!controller.signal.aborted && !isAbortError(reason)) {
+          setState((current) => ({
             key,
+            data: current.key === key && (!(reason instanceof ApiError) || reason.status >= 500) ? current.data : undefined,
             error: errorMessage(reason, 'Could not load this page'),
             status: reason instanceof ApiError ? reason.status : undefined,
-          });
+          }));
         }
       })
       .finally(() => {
-        if (inFlight.current === controller) inFlight.current = undefined;
+        if (inFlight.current === controller) {
+          inFlight.current = undefined;
+          if (refreshPending.current) {
+            refreshPending.current = false;
+            setVersion((current) => current + 1);
+          }
+        }
       });
     return () => controller.abort();
   }, [key, path, request, version]);
@@ -84,13 +98,14 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const mutate = useCallback(
     (update: (data: T) => T) =>
       setState((current) =>
-        current.data === undefined ? current : { ...current, data: update(current.data) },
+        current.key !== key || current.data === undefined ? current : { ...current, data: update(current.data) },
       ),
-    [],
+    [key],
   );
   const reload = useCallback(() => setVersion((current) => current + 1), []);
   useLiveRefresh(() => {
-    if (!inFlight.current) reload();
+    if (inFlight.current) refreshPending.current = true;
+    else reload();
   }, live);
 
   const current = key && state.key === key ? state : undefined;
@@ -98,7 +113,8 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const data = useSettled(current ? current.data : key && sameViewer ? state.data : undefined);
   return {
     data,
-    error: current?.error ?? '',
+    error: current?.data === undefined ? current?.error ?? '' : '',
+    refreshError: current?.data === undefined ? '' : current.error,
     status: current?.status,
     loading: Boolean(key) && !current?.error && current?.data === undefined,
     mutate,

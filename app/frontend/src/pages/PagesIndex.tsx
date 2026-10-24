@@ -46,7 +46,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>(`/me/notes?kind=${section === 'boards' ? 'board' : section === 'quick-notes' ? 'quick' : 'note'}`, true);
+  const listed = useResource<Note[]>(`/me/notes?kind=${section === 'boards' ? 'board' : section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const creating = useAction();
   const [importing, setImporting] = useState(false);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');

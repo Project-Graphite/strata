@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ItemsController } from './items.controller';
 import { ItemsService } from './items.service';
+import { PageAccessModule } from '../notes/page-access.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, PageAccessModule],
   controllers: [ItemsController],
   providers: [ItemsService],
   exports: [ItemsService],

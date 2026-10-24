@@ -694,11 +694,6 @@ button.habit-day::before {
   padding-left: 0.6rem;
 }
 
-.note-content .is-flashing {
-  background: var(--color-line-soft);
-  transition: background 400ms ease;
-}
-
 .comment-block-quote {
   width: fit-content;
   max-width: 100%;

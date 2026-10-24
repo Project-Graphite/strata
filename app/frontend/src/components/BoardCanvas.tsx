@@ -4,7 +4,7 @@ import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw, exportToB
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, ExcalidrawTextElement, FileId } from '@excalidraw/excalidraw/element/types';
 import type { AppState, Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
-import { Avatar, LinesSkeleton, useSnackbar } from '@project-graphite/ui';
+import { LinesSkeleton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { maxUploadBytes, uploadFile } from '../files';
 import { boardImage } from './board-files';
@@ -12,6 +12,8 @@ import { BrainstormBar, countVotes, useBoardSession, votesBy } from './board-ses
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
+import { LiveDocumentStatus } from './LiveDocumentStatus';
+import { downloadPageDraft } from '../page-draft';
 import type { CommentAnchors, QuotedBlock } from './NoteComments';
 
 const boardElementsKey = 'board';
@@ -67,7 +69,7 @@ function pinsFor(scene: readonly ExcalidrawElement[], ids: string[], { scrollX, 
 
 interface BoardComments {
   commentedBlocks: string[];
-  onComment: (block: QuotedBlock) => void;
+  onComment?: (block: QuotedBlock) => void;
   onAnchors: (anchors: CommentAnchors) => void;
 }
 
@@ -79,7 +81,8 @@ interface BoardMember {
 export function LiveBoard({ boardId, connection, editable, member }: { boardId: string; connection: Connection; editable: boolean; member?: BoardMember }) {
   const auth = useAuth();
   const show = useSnackbar();
-  const { label, people, outdated } = useLiveStatus(connection, editable);
+  const status = useLiveStatus(connection, editable);
+  const { blocked } = status;
   const [api, setApi] = useState<ExcalidrawImperativeAPI>();
   const [picked, setPicked] = useState<string[]>([]);
   const [making, setMaking] = useState(false);
@@ -302,22 +305,11 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <BrainstormBar controls={Boolean(member) && editable && !outdated} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
-        <div className="flex items-center gap-3">
-          {people.length > 0 && (
-            <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
-              {people.slice(0, 5).map((person) => (
-                <Avatar key={person.clientId} name={person.name} present />
-              ))}
-            </div>
-          )}
-          <span className="mono-sm text-faint" role="status">
-            {label}
-          </span>
-        </div>
+        <BrainstormBar controls={Boolean(member) && editable && !blocked} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
+        <LiveDocumentStatus onDownloadDraft={() => downloadPageDraft(connection.document, 'board', boardId)} status={status} />
       </div>
       <div aria-label="Board" className="board-canvas" role="region">
-        {editable && !outdated && loaded && empty && (
+        {editable && !blocked && loaded && empty && (
           <div aria-label="Templates" className="board-templates" role="group">
             <span className="text-sm text-muted">Start from a template</span>
             {boardTemplates.map((template) => (
@@ -339,10 +331,10 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
         ))}
         <Excalidraw
           excalidrawAPI={setApi}
-          generateIdForFile={member && ((file) => upload(member.spaceId, file))}
+          generateIdForFile={member?.spaceId ? ((file) => upload(member.spaceId, file)) : undefined}
           isCollaborating
           onChange={(scene, appState) => {
-            if (editable && !outdated && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
+            if (editable && !blocked && pending.current === undefined) pending.current = window.setTimeout(sendChanges, syncEveryMs);
             const texts = selectedTexts(scene, appState.selectedElementIds);
             const nothing = !scene.some((element) => !element.isDeleted);
             setEmpty((current) => (current === nothing ? current : nothing));
@@ -354,10 +346,10 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
             setMyVotes(round ? votesBy(scene, round, user.id) : 0);
           }}
           renderTopRightUI={() =>
-            member && editable && !outdated ? (
+            member?.spaceId && editable && !blocked ? (
               <div className="flex gap-2">
-                {single && (
-                  <button className="board-action" onClick={() => api && member.comments.onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
+                {single && member.comments.onComment && (
+                  <button className="board-action" onClick={() => api && member.comments.onComment?.({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
                     Comment
                   </button>
                 )}
@@ -376,8 +368,8 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
           }
           onPointerUpdate={({ pointer, button }) => connection.provider.setAwarenessField('pointer', { ...pointer, button })}
           theme="light"
-          UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false }, tools: { image: Boolean(member) } }}
-          viewModeEnabled={!editable || outdated}
+          UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false }, tools: { image: Boolean(member?.spaceId) } }}
+          viewModeEnabled={!editable || blocked}
         >
           <MainMenu>
             <MainMenu.DefaultItems.SaveAsImage />
@@ -394,7 +386,7 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
 }
 
 export default function BoardCanvas({ editable, noteId, spaceId, ...comments }: { editable: boolean; noteId: string; spaceId: string } & BoardComments) {
-  const connection = useLiveDocument(noteId);
+  const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
   return <LiveBoard boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;
 }

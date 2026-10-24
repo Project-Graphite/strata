@@ -4,7 +4,6 @@ import {
   Get,
   Headers,
   Param,
-  PayloadTooLargeException,
   Post,
   Req,
   Res,
@@ -17,13 +16,10 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
+import { readBody } from '../http/read-body';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { fileHeaders, FilesService, maxFileBytes } from './files.service';
 import { UploadQueue } from './upload-queue';
-
-function tooLarge() {
-  return new PayloadTooLargeException('Files can be at most 25 MB');
-}
 
 function badName() {
   return new BadRequestException('Give the file a name of 1 to 200 characters');
@@ -43,26 +39,6 @@ function fileName(encoded: string | undefined) {
     throw badName();
   }
   return cleaned;
-}
-
-async function readBody(request: Request) {
-  if (Number(request.headers['content-length'] ?? 0) > maxFileBytes) {
-    throw tooLarge();
-  }
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += (chunk as Buffer).length;
-    if (size > maxFileBytes) {
-      request.destroy();
-      throw tooLarge();
-    }
-    chunks.push(chunk as Buffer);
-  }
-  if (size === 0) {
-    throw new BadRequestException('The file is empty');
-  }
-  return Buffer.concat(chunks);
 }
 
 @Controller()
@@ -86,7 +62,7 @@ export class FilesController {
       throw new BadRequestException('Send the file itself as the request body');
     }
     const cleanedName = fileName(name);
-    return this.uploads.run(user.id, async () => this.files.upload(user.id, spaceId, cleanedName, await readBody(request)));
+    return this.uploads.run(user.id, async () => this.files.upload(user.id, spaceId, cleanedName, await readBody(request, maxFileBytes, 'Files can be at most 25 MB')));
   }
 
   @Get('me/storage')

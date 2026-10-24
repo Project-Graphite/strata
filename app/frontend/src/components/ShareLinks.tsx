@@ -10,6 +10,7 @@ import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
+import { PagePeople } from './PagePeople';
 import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
 
 type Access = 'view' | 'edit';
@@ -34,7 +35,7 @@ const durationOptions = [
   { value: '365', label: '1 year' },
 ];
 
-export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void }) {
+export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void; page?: boolean }) {
   const auth = useAuth();
   const links = useResource<ShareLink[]>(`/items/${itemId}/share-links`, true);
   const action = useAction();
@@ -66,7 +67,11 @@ export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: bo
   return (
     <Dialog onClose={onClose} title={`Share this ${noun}`}>
       <div className="mt-5 grid gap-4">
+        {page && <PagePeople itemId={itemId} />}
         <Hint>Anyone with a link can open this {noun} without an account, until the link ends or you turn it off.</Hint>
+        {editLinks && <Hint>Changes appear live. Edit links let guests change the content, without access to the rest of your space.</Hint>}
+        {editLinks && <Hint>Subpages and database rows are not included. Embedded boards need their own share link.</Hint>}
+        <Hint>{page ? 'Space owners, space editors and page managers can manage these links.' : 'Space owners and editors can manage these links.'}</Hint>
         <div className={`grid gap-3 ${editLinks ? 'sm:grid-cols-2' : ''}`}>
           {editLinks && <Select label="People with the link" onChange={setAccess} options={accessOptions} value={access} />}
           <Select label="Link works for" onChange={setDays} options={durationOptions} value={days} />
@@ -139,7 +144,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose }: { editLinks: bo
             ))}
           </ul>
         ) : (
-          <Hint>No links yet. Only members of this space can open this {noun}.</Hint>
+          <Hint>No public links yet.</Hint>
         )}
         <DialogActions>
           <Button label="Done" large onClick={onClose} />

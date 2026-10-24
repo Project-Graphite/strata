@@ -18,6 +18,7 @@ import { InboxContext } from '../inbox';
 import { enabledApps } from '../apps';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
 import { SpacesContext, type Space } from '../spaces';
+import { PageNavigationProvider } from '../page-navigation';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AboutLinks } from './AboutLinks';
@@ -70,6 +71,8 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
+  const pageRoute = /^\/(?:(?:notes|share)\/[^/]+|pages)\/?$/.test(pathname);
+  const subscribeToOutage = useCallback((listener: () => void) => pageRoute ? () => {} : onOutage(listener), [pageRoute]);
   const unread = inbox.data?.unread ?? 0;
   const [searching, setSearching] = useState(false);
   const [expectSession] = useState(hadSession);
@@ -141,7 +144,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               ]
         }
       >
-        <OutageGate healthUrl="/api/v1/health" offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={onOutage}>
+        <OutageGate healthUrl="/api/v1/health" key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
           {auth.restoreError ? (
             <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
               {auth.restoreError}
@@ -164,6 +167,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
 }
 
 export function Shell() {
+  const auth = useAuth();
   const spaces = useResource<Space[]>('/spaces', true);
   const inbox = useResource<{ unread: number }>('/me/inbox/summary', true, { live: ['inbox'] });
 
@@ -172,7 +176,7 @@ export function Shell() {
       <InboxContext.Provider value={inbox}>
         <SnackbarProvider>
           <SiteBackdrop>
-            <ShellFrame inbox={inbox} spaces={spaces} />
+            <PageNavigationProvider key={auth.user?.id}><ShellFrame inbox={inbox} spaces={spaces} /></PageNavigationProvider>
           </SiteBackdrop>
         </SnackbarProvider>
       </InboxContext.Provider>

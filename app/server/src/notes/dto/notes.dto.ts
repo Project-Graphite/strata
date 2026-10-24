@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
 import { IsColor } from '../../validation/color.decorator';
@@ -44,6 +44,19 @@ export class CreateNoteDto {
 }
 
 export class UpdateNoteDto {
+  @IsOptionalNotNull()
+  @IsUUID('all')
+  relativeTo?: string;
+
+  @IsOptionalNotNull()
+  @IsIn(['before', 'after'])
+  placement?: 'before' | 'after';
+
+  @IsOptionalNotNull()
+  @IsString()
+  @MaxLength(200)
+  expectedTitle?: string;
+
   @IsOptionalNotNull()
   @Trimmed()
   @IsString()
@@ -114,6 +127,11 @@ export class PropertyDto {
 }
 
 export class SaveDatabaseDto {
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsDateString()
+  expectedRevision?: string | null;
+
   @IsArray()
   @ArrayMaxSize(30, { message: 'A database can have at most 30 properties.' })
   @ValidateNested({ each: true })
@@ -135,6 +153,10 @@ export class SaveDatabaseDto {
 }
 
 export class SetPropertiesDto {
+  @IsOptionalNotNull()
+  @IsObject()
+  expectedValues?: Record<string, unknown>;
+
   @IsObject()
   values!: Record<string, unknown>;
 }
@@ -165,4 +187,14 @@ export class PageKindQueryDto {
   @IsOptional()
   @IsIn(['note', 'board', 'quick'], { message: 'Choose note, board or quick.' })
   kind?: 'note' | 'board' | 'quick';
+}
+
+export class PageChildrenQueryDto {
+  @IsOptionalNotNull()
+  @IsUUID('all')
+  parentId?: string;
+
+  @IsOptionalNotNull()
+  @IsUUID('all')
+  cursor?: string;
 }

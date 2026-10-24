@@ -33,7 +33,7 @@ export function SpaceNotes() {
   const auth = useAuth();
   const space = useSpace();
   const navigate = useNavigate();
-  const notes = useResource<Note[]>(`/spaces/${space.id}/notes`, true);
+  const notes = useResource<Note[]>(`/spaces/${space.id}/notes`, true, { live: ['page-details', 'pages', 'items'], spaceId: space.id });
   const creating = useAction();
   const editable = space.role !== 'viewer';
   const pages = notes.data?.filter((note) => !note.template) ?? [];

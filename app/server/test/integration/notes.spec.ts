@@ -1,5 +1,6 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import { ItemKind, SpaceRole } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import * as Y from 'yjs';
@@ -39,6 +40,159 @@ describe('Notes and real-time editing against Postgres', () => {
 
   afterEach(() => {
     for (const provider of providers.splice(0)) provider.destroy();
+  });
+
+  it('recovers large formatted page and board drafts into new authorized items', async () => {
+    const owner = await member('draft-recovery');
+    const outsider = await member('draft-outsider');
+    const original = new Y.Doc();
+    const heading = new Y.XmlElement('heading');
+    heading.setAttribute('id', 'recovered-heading');
+    heading.setAttribute('level', 2 as never);
+    heading.insert(0, [new Y.XmlText('Recovered heading')]);
+    const paragraph = new Y.XmlElement('paragraph');
+    paragraph.insert(0, [new Y.XmlText('Large draft '.repeat(250_000))]);
+    original.getXmlFragment('default').push([heading, paragraph]);
+    const draft = { type: 'strata-page', version: 1, format: editorFormat, kind: 'note', title: 'Recovered title', state: Buffer.from(Y.encodeStateAsUpdate(original)).toString('base64') };
+    const recover = async (as: Member, content: unknown, type = 'application/octet-stream') => {
+      const response = await fetch(`${strata.base}/spaces/${owner.personalSpaceId}/page-drafts`, { method: 'POST', headers: { Authorization: `Bearer ${as.token}`, 'Content-Type': type }, body: JSON.stringify(content) });
+      return { status: response.status, body: await response.json() };
+    };
+    const recovered = await recover(owner, draft);
+    expect(recovered.status).toBe(201);
+    expect(recovered.body).toMatchObject({ title: 'Recovered title', kind: 'note' });
+    const copy = new Y.Doc();
+    Y.applyUpdate(copy, new Uint8Array((await strata.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: recovered.body.id } })).state));
+    expect(textOf(copy)).toBe(textOf(original));
+    expect((await recover(outsider, draft)).status).toBe(404);
+    expect((await recover(owner, { ...draft, state: 'broken' })).status).toBe(400);
+    expect((await recover(owner, { ...draft, format: editorFormat + 1 })).status).toBe(400);
+    expect((await recover(owner, { ...draft, state: '' }, 'application/json')).status).toBe(400);
+    original.getMap('board').set('shape', { id: 'shape', type: 'rectangle', x: 10, y: 20, version: 1 });
+    const board = await recover(owner, { ...draft, kind: 'board', state: Buffer.from(Y.encodeStateAsUpdate(original)).toString('base64') });
+    expect(board.status).toBe(201);
+    expect(board.body.kind).toBe('board');
+    expect((await owner.call('GET', `/notes/${board.body.id}/board`)).body.elements).toEqual([{ id: 'shape', type: 'rectangle', x: 10, y: 20, version: 1 }]);
+    expect(board.body.id).not.toBe(recovered.body.id);
+    original.destroy();
+    copy.destroy();
+  });
+
+  it('deduplicates concurrent recovery retries and keeps existing pages unchanged', async () => {
+    const owner = await member('recovery-retries');
+    const stranger = await member('recovery-retries-stranger');
+    const document = new Y.Doc();
+    write(document, 'Original recovered content');
+    const draft = { type: 'strata-page', version: 1, format: editorFormat, kind: 'note', title: 'Recovered once', state: Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64') };
+    const id = randomUUID();
+    const recover = async (as: Member, recoveryId: string, content = draft) => {
+      const response = await fetch(`${strata.base}/spaces/${owner.personalSpaceId}/page-drafts`, { method: 'POST', headers: { Authorization: `Bearer ${as.token}`, 'Content-Type': 'application/octet-stream', 'X-Recovery-Id': recoveryId }, body: JSON.stringify(content) });
+      return { status: response.status, body: await response.json() };
+    };
+    const replies = await Promise.all([recover(owner, id), recover(owner, id)]);
+    expect(replies.map((reply) => reply.status)).toEqual([201, 201]);
+    expect(replies.map((reply) => reply.body.id)).toEqual([id, id]);
+    expect(await strata.prisma.item.count({ where: { spaceId: owner.personalSpaceId, kind: ItemKind.NOTE } })).toBe(1);
+    const before = await strata.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: id } });
+    write(document, 'Do not overwrite a recovered page on retry');
+    const picture = await strata.item(owner.personalSpaceId, 'retry.png', ItemKind.FILE);
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', picture.id);
+    document.getXmlFragment('default').push([image]);
+    expect((await recover(owner, id, { ...draft, title: 'Changed file', state: Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64') })).body.title).toBe('Recovered once');
+    expect(Buffer.compare(Buffer.from((await strata.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: id } })).state), Buffer.from(before.state))).toBe(0);
+    expect(await strata.prisma.itemLink.count({ where: { sourceItemId: id } })).toBe(0);
+    expect((await recover(owner, 'invalid')).status).toBe(400);
+    expect((await recover(stranger, id)).status).toBe(404);
+    await strata.join(owner.personalSpaceId, stranger, SpaceRole.EDITOR);
+    expect((await recover(stranger, id)).status).toBe(409);
+    const elsewhere = (await owner.call('POST', '/spaces', { name: 'Other recovery space' })).body;
+    const otherPage = (await owner.call('POST', `/spaces/${elsewhere.id}/notes`, { title: 'Other page' })).body;
+    expect((await recover(owner, otherPage.id)).status).toBe(409);
+    document.destroy();
+  });
+
+  it('serializes reciprocal moves and calculates sibling placement against committed data', async () => {
+    const owner = await member('tree-moves');
+    const first = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'First' })).body;
+    const second = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Second' })).body;
+    const moved = await Promise.all([
+      owner.call('PATCH', `/notes/${first.id}`, { parentId: second.id }),
+      owner.call('PATCH', `/notes/${second.id}`, { parentId: first.id }),
+    ]);
+    expect(moved.map((reply) => reply.status).sort()).toEqual([200, 400]);
+    const rows = await strata.prisma.note.findMany({ where: { itemId: { in: [first.id, second.id] } } });
+    expect(rows.filter((row) => row.parentId === null)).toHaveLength(1);
+    expect((await owner.call('PATCH', `/notes/${first.id}`, { parentId: null })).status).toBe(200);
+    expect((await owner.call('PATCH', `/notes/${second.id}`, { parentId: null })).status).toBe(200);
+    expect((await owner.call('PATCH', `/notes/${second.id}`, { relativeTo: first.id, placement: 'before' })).status).toBe(200);
+    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children`)).body.pages.map((page: { id: string }) => page.id)).toEqual([second.id, first.id]);
+    const renamedAndMoved = await Promise.all([
+      owner.call('PATCH', `/notes/${first.id}`, { title: 'Renamed', expectedTitle: 'First' }),
+      owner.call('PATCH', `/notes/${second.id}`, { relativeTo: first.id, placement: 'after' }),
+    ]);
+    expect(renamedAndMoved.map((reply) => reply.status)).toEqual([200, 200]);
+  });
+
+  it('surfaces children of hidden parents and keeps navigation, moves and cycle checks consistent', async () => {
+    const owner = await member('hidden-page-parent');
+    const root = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Root page' })).body;
+    const parent = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Hidden parent' })).body;
+    const first = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'First child', parentId: parent.id })).body;
+    const second = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Second child', parentId: parent.id })).body;
+    const nested = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Nested child', parentId: first.id })).body;
+    const roots = async () => (await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children`)).body.pages.map((page: { id: string }) => page.id);
+    expect((await owner.call('POST', `/items/${parent.id}/trash`)).status).toBe(204);
+    expect(await roots()).toEqual(expect.arrayContaining([root.id, first.id, second.id]));
+    expect(await roots()).not.toContain(parent.id);
+    expect((await owner.call('GET', `/notes/${first.id}`)).body.path).toEqual([]);
+    expect((await owner.call('GET', `/notes/${nested.id}`)).body.path).toEqual([{ id: first.id, title: 'First child' }]);
+    await strata.prisma.note.update({ where: { itemId: second.id }, data: { position: 1_000 } });
+    const appended = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Appended after visible roots' })).body;
+    expect((await roots()).at(-1)).toBe(appended.id);
+    expect((await owner.call('PATCH', `/notes/${first.id}`, { relativeTo: root.id, placement: 'before' })).body.parentId).toBeNull();
+    expect((await owner.call('PATCH', `/notes/${root.id}`, { relativeTo: second.id, placement: 'after' })).body.parentId).toBeNull();
+    expect((await owner.call('POST', `/items/${parent.id}/restore`)).status).toBe(204);
+    expect(await roots()).not.toContain(second.id);
+    expect((await owner.call('GET', `/notes/${second.id}`)).body.path).toEqual([{ id: parent.id, title: 'Hidden parent' }]);
+    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children?parentId=${parent.id}`)).body.pages.map((page: { id: string }) => page.id)).toEqual([second.id]);
+    expect((await owner.call('PATCH', `/notes/${parent.id}`, { template: true })).status).toBe(200);
+    expect(await roots()).toContain(second.id);
+    expect((await owner.call('GET', `/notes/${second.id}`)).body.path).toEqual([]);
+    expect((await owner.call('PATCH', `/notes/${parent.id}`, { parentId: second.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/notes/${root.id}`, { relativeTo: second.id, placement: 'before' })).body.parentId).toBeNull();
+    expect((await owner.call('PATCH', `/notes/${parent.id}`, { template: false })).status).toBe(200);
+    await strata.prisma.item.update({ where: { id: parent.id }, data: { archivedAt: new Date() } });
+    expect(await roots()).toContain(second.id);
+    expect((await owner.call('GET', `/notes/${second.id}`)).body.path).toEqual([]);
+    await strata.prisma.item.update({ where: { id: parent.id }, data: { archivedAt: null } });
+    expect(await roots()).not.toContain(second.id);
+  });
+
+  it('paginates more than five hundred roots and retrieves old children without flattening them', async () => {
+    const owner = await member('large-page-tree');
+    const ids = Array.from({ length: 602 }, () => randomUUID());
+    await strata.prisma.item.createMany({ data: ids.map((id, index) => ({ id, kind: ItemKind.NOTE, title: `Page ${index}`, spaceId: owner.personalSpaceId, createdById: owner.id, updatedAt: new Date(1_000 + index) })) });
+    await strata.prisma.note.createMany({ data: ids.map((itemId, index) => ({ itemId, position: index, parentId: index === 601 ? ids[0] : null })) });
+    const listed: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const response = await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children${cursor ? `?cursor=${cursor}` : ''}`);
+      expect(response.status).toBe(200);
+      expect(response.body.nextPage?.id ?? null).toBe(listed.length + 100 < 601 ? ids[listed.length + 100] : null);
+      listed.push(...response.body.pages.map((page: { id: string }) => page.id));
+      cursor = response.body.nextCursor;
+    } while (cursor);
+    expect(listed).toEqual(ids.slice(0, 601));
+    expect((await owner.call('PATCH', `/notes/${ids[99]}`, { relativeTo: ids[100], placement: 'after' })).status).toBe(200);
+    const moved = (await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children`)).body;
+    expect(moved.pages.at(-1).id).toBe(ids[100]);
+    expect(moved.nextPage.id).toBe(ids[99]);
+    expect((await owner.call('PATCH', `/notes/${ids[99]}`, { relativeTo: ids[100], placement: 'before' })).status).toBe(200);
+    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children?cursor=${ids[99]}`)).body.pages[0].id).toBe(ids[100]);
+    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/page-children?parentId=${ids[0]}`)).body.pages.map((page: { id: string }) => page.id)).toEqual([ids[601]]);
+    const outsider = await member('tree-outsider');
+    expect((await outsider.call('GET', `/spaces/${owner.personalSpaceId}/page-children`)).status).toBe(404);
   });
 
   function open(as: Member | string, name: string, format = editorFormat) {
@@ -355,7 +509,7 @@ describe('Notes and real-time editing against Postgres', () => {
     const guestToken = (link: { link: string }) => `${guestTokenPrefix}${link.link.split('/share/')[1]}`;
     const viewLink = await share(board.id, 'view');
     const editLink = await share(board.id, 'edit');
-    expect((await owner.call('POST', `/items/${page.id}/share-links`, { access: 'edit' })).status).toBe(400);
+    expect((await owner.call('POST', `/items/${page.id}/share-links`, { access: 'edit' })).status).toBe(201);
 
     const host = await open(owner, board.id);
     const watcher = await open(guestToken(viewLink), board.id);
@@ -463,6 +617,73 @@ describe('Notes and real-time editing against Postgres', () => {
 
     const elsewhere = await member('borrower');
     expect((await elsewhere.call('POST', `/spaces/${elsewhere.personalSpaceId}/notes`, { fromNoteId: captured.id })).status).toBe(400);
+  });
+
+  it('keeps direct page access separate from parents, children, space membership and unrelated resources', async () => {
+    const owner = await member('grant-owner');
+    const recipient = await member('grant-recipient');
+    const parent = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private parent' })).body;
+    const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Sharedquartz', parentId: parent.id })).body;
+    const child = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private child', parentId: note.id })).body;
+    const task = await strata.item(owner.personalSpaceId, 'Private task', ItemKind.TASK);
+    expect((await owner.call('POST', `/items/${parent.id}/links`, { targetId: note.id, kind: 'mention' })).status).toBe(201);
+    expect((await recipient.call('GET', `/notes/${note.id}`)).status).toBe(404);
+    expect((await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'view' })).status).toBe(200);
+    expect((await recipient.call('GET', `/notes/${note.id}`)).body).toMatchObject({ parentId: null, path: [], editable: false, row: null, permissions: { comment: false, share: false, organize: false, history: false, pageRole: 'view', spaceRole: null } });
+    for (const path of [`/notes/${parent.id}`, `/notes/${child.id}`, `/spaces/${owner.personalSpaceId}/notes`, `/spaces/${owner.personalSpaceId}/page-children`, `/spaces/${owner.personalSpaceId}/members`, `/items/${task.id}`, `/notes/${note.id}/people`]) expect((await recipient.call('GET', path)).status).toBe(path.endsWith('/people') ? 403 : 404);
+    expect((await recipient.call('GET', `/items/${note.id}/links`)).body.backlinks).toEqual([]);
+    expect((await recipient.call('GET', '/search?q=sharedquartz')).body.items).toEqual([expect.objectContaining({ id: note.id, spaceName: 'Shared page' })]);
+    expect((await recipient.call('GET', '/me/notes')).body).toEqual([expect.objectContaining({ id: note.id, parentId: null })]);
+    expect((await recipient.call('POST', `/notes/${note.id}/comments`, { body: 'Denied' })).status).toBe(403);
+    expect((await recipient.call('PATCH', `/notes/${note.id}`, { title: 'Denied' })).status).toBe(403);
+    expect((await recipient.call('GET', `/notes/${note.id}/versions`)).status).toBe(403);
+    expect((await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'comment' })).status).toBe(200);
+    expect((await recipient.call('POST', `/notes/${note.id}/comments`, { body: 'Allowed comment' })).status).toBe(201);
+    expect((await recipient.call('PATCH', `/notes/${note.id}`, { title: 'Denied' })).status).toBe(403);
+    expect((await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'edit' })).status).toBe(200);
+    expect((await recipient.call('PATCH', `/notes/${note.id}`, { title: 'Sharedquartz updated' })).status).toBe(200);
+    expect((await recipient.call('PATCH', `/notes/${note.id}`, { parentId: null })).status).toBe(403);
+    expect((await recipient.call('PUT', `/notes/${note.id}/database`, { properties: [], view: 'table' })).status).toBe(403);
+    expect((await recipient.call('POST', `/items/${note.id}/share-links`, { access: 'view' })).status).toBe(403);
+    expect((await recipient.call('POST', `/items/${note.id}/trash`)).status).toBe(404);
+    expect((await recipient.call('GET', `/notes/${note.id}/versions`)).status).toBe(200);
+    expect((await owner.call('PUT', `/notes/${task.id}/people`, { email: recipient.email, role: 'manage' })).status).toBe(404);
+    expect((await owner.call('DELETE', `/notes/${note.id}/people/${recipient.id}`)).status).toBe(204);
+    expect((await recipient.call('GET', `/notes/${note.id}`)).status).toBe(404);
+    expect((await recipient.call('GET', '/search?q=sharedquartz')).body.items).toEqual([]);
+  });
+
+  it('closes changed grant sessions, supports page managers and filters database rows by their own access', async () => {
+    const owner = await member('grant-live-owner');
+    const recipient = await member('grant-live-recipient');
+    const other = await member('grant-live-other');
+    const note = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Live shared page' })).body;
+    const child = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private row', parentId: note.id })).body;
+    await owner.call('PUT', `/notes/${note.id}/database`, { properties: [], view: 'table' });
+    await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'edit' });
+    expect((await recipient.call('GET', `/notes/${note.id}/database`)).body.rows).toEqual([]);
+    const editor = await open(recipient, note.id);
+    write(editor.document, 'Written by a direct recipient');
+    const realtime = strata.service(RealtimeService);
+    expect(await until(async () => textOf(realtime.hocuspocus.documents.get(note.id)!), (text) => text.includes('direct recipient'))).toContain('direct recipient');
+    const closed: string[] = [];
+    editor.provider.on('close', ({ event }: { event: { reason: string } }) => closed.push(event.reason));
+    await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'view' });
+    expect(await until(async () => closed, (reasons) => reasons.includes('Access changed'))).toContain('Access changed');
+    editor.provider.destroy();
+    const viewer = await open(recipient, note.id);
+    write(viewer.document, 'Must not persist');
+    await settle();
+    expect(textOf(realtime.hocuspocus.documents.get(note.id)!)).not.toContain('Must not persist');
+    viewer.provider.destroy();
+    await owner.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'manage' });
+    expect((await recipient.call('POST', `/items/${note.id}/share-links`, { access: 'edit' })).status).toBe(201);
+    expect((await recipient.call('PUT', `/notes/${note.id}/people`, { email: other.email, role: 'comment' })).status).toBe(200);
+    expect((await recipient.call('PUT', `/notes/${note.id}/people`, { email: recipient.email, role: 'edit' })).status).toBe(400);
+    await owner.call('PUT', `/notes/${child.id}/people`, { email: recipient.email, role: 'view' });
+    expect((await recipient.call('GET', `/notes/${note.id}/database`)).body.rows.map((row: { id: string }) => row.id)).toEqual([child.id]);
+    expect((await recipient.call('GET', `/notes/${child.id}`)).body.parentId).toBe(note.id);
+    expect((await recipient.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Denied' })).status).toBe(404);
   });
 
   it('creates an imported page from its document, indexes it and links its images', async () => {

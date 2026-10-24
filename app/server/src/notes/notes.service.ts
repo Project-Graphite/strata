@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ItemKind, Prisma, SpaceRole } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ItemKind, Prisma } from '@prisma/client';
 import * as Y from 'yjs';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
@@ -8,8 +8,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { valueMap } from './database';
 import { boardElementsKey, documentText, pageKinds } from './document-text';
-import { CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
+import { CreateNoteDto, PageChildrenQueryDto, UpdateNoteDto } from './dto/notes.dto';
 import { importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
+import { readPageDraft } from './page-draft';
+import { PageAccessService, type PageAccess } from './page-access.service';
 
 export const noteFields = {
   id: true,
@@ -24,6 +26,12 @@ export const noteFields = {
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
+
+const visibleParent = { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } satisfies Prisma.ItemWhereInput;
+
+function siblingsOf(parentId: string | null): Prisma.NoteWhereInput {
+  return parentId ? { parentId } : { OR: [{ parentId: null }, { parent: { isNot: visibleParent } }] };
+}
 
 export function present(row: NoteRow) {
   return {
@@ -52,6 +60,7 @@ export class NotesService {
     private readonly activity: ActivityService,
     private readonly changes: ChangesService,
     private readonly realtime: RealtimeService,
+    private readonly pages: PageAccessService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -70,18 +79,32 @@ export class NotesService {
         kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' || kind === 'quick' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
-        space: this.access.spacesOf(userId),
+        AND: this.pages.pagesOf(userId),
         note: { template: false, quick: kind === 'quick' },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
       take: 500,
       select: noteFields,
     });
-    return rows.map(present);
+    return this.visibleRows(userId, rows);
+  }
+
+  async children(userId: string, spaceId: string, query: PageChildrenQueryDto) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    if (query.parentId) await this.parentIn(spaceId, query.parentId);
+    const rows = await this.prisma.item.findMany({
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
+      orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
+      cursor: query.cursor ? { id: query.cursor } : undefined,
+      skip: query.cursor ? 1 : 0,
+      take: 101,
+      select: noteFields,
+    });
+    return { pages: rows.slice(0, 100).map(present), nextCursor: rows.length > 100 ? rows[99]!.id : null, nextPage: rows[100] ? present(rows[100]) : null };
   }
 
   async mine(userId: string) {
-    const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, space: this.access.spacesOf(userId) };
+    const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, AND: this.pages.pagesOf(userId) };
     const [pinned, recent] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...where, note: { template: false, quick: false, pinnedAt: { not: null } } },
@@ -96,22 +119,31 @@ export class NotesService {
         select: noteFields,
       }),
     ]);
-    return { pinned: pinned.map(present), recent: recent.map(present) };
+    return { pinned: await this.visibleRows(userId, pinned), recent: await this.visibleRows(userId, recent) };
   }
 
-  async create(userId: string, spaceId: string, input: CreateNoteDto, document?: Y.Doc) {
+  async create(userId: string, spaceId: string, input: CreateNoteDto, document?: Y.Doc, recoveryId?: string) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if (input.quick && input.board) throw new BadRequestException('A board cannot be a note');
     if (input.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
-    if (input.parentId) await this.parentIn(spaceId, input.parentId);
     const initial = document ?? (await this.initialState(spaceId, input));
-    const last = await this.prisma.note.aggregate({
-      where: { parentId: input.parentId ?? null, item: { spaceId, trashedAt: null } },
-      _max: { position: true },
-    });
-    const created = await this.prisma.$transaction(async (transaction) => {
+    const result = await this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT 1 FROM "spaces" WHERE "id" = ${spaceId}::uuid FOR NO KEY UPDATE`;
+      if (recoveryId) {
+        const existing = await transaction.item.findUnique({ where: { id: recoveryId }, select: { ...noteFields, createdById: true, trashedAt: true, archivedAt: true } });
+        if (existing) {
+          if (existing.spaceId !== spaceId || existing.createdById !== userId || existing.kind !== (input.board ? ItemKind.BOARD : ItemKind.NOTE) || existing.trashedAt || existing.archivedAt) throw new ConflictException('That recovery ID is already in use. Start a new recovery.');
+          return { item: existing, created: false };
+        }
+      }
+      if (input.parentId) await this.parentIn(spaceId, input.parentId, transaction);
+      const last = await transaction.note.aggregate({
+        where: { ...siblingsOf(input.parentId ?? null), item: { spaceId, trashedAt: null, archivedAt: null } },
+        _max: { position: true },
+      });
       const item = await transaction.item.create({
         data: {
+          id: recoveryId,
           spaceId,
           kind: input.board ? ItemKind.BOARD : ItemKind.NOTE,
           title: input.title ?? '',
@@ -126,21 +158,37 @@ export class NotesService {
         await transaction.noteDocument.create({ data: { itemId: item.id, state: Buffer.from(Y.encodeStateAsUpdate(initial)) } });
         await transaction.searchDocument.updateMany({ where: { itemId: item.id }, data: { bodyText: documentText(initial) } });
       }
-      return item;
+      return { item, created: true };
     });
-    if (input.state && initial) await this.realtime.syncLinks(created.id, initial, userId);
-    return present(created);
+    if (result.created && input.state && initial) await this.realtime.syncLinks(result.item.id, initial, userId);
+    this.changes.notify('page-details', { spaceId, itemId: input.parentId });
+    return present(result.item);
+  }
+
+  async recover(userId: string, spaceId: string, bytes: Buffer, recoveryId?: string) {
+    await this.access.assertSpace(userId, spaceId, 'edit');
+    const draft = readPageDraft(bytes);
+    try {
+      return await this.create(userId, spaceId, { title: draft.title, board: draft.board, state: draft.state }, draft.document, recoveryId);
+    } finally {
+      draft.document.destroy();
+    }
   }
 
   async get(userId: string, noteId: string) {
     const found = await this.note(userId, noteId, 'read');
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: noteFields });
     const parentId = row.note?.parentId ?? null;
-    const database = parentId ? await this.prisma.databaseSchema.findUnique({ where: { itemId: parentId }, select: { properties: true } }) : null;
+    const parentReadable = parentId && await this.prisma.item.findFirst({ where: { id: parentId, AND: this.pages.pagesOf(userId) }, select: { id: true } });
+    const database = parentReadable ? await this.prisma.databaseSchema.findUnique({ where: { itemId: parentId! }, select: { properties: true } }) : null;
+    const path = await this.ancestors(parentId);
+    const readable = new Set((await this.prisma.item.findMany({ where: { id: { in: path.map((ancestor) => ancestor.id) }, AND: this.pages.pagesOf(userId) }, select: { id: true } })).map((ancestor) => ancestor.id));
     return {
       ...present(row),
-      editable: found.role !== SpaceRole.VIEWER,
-      path: await this.ancestors(parentId),
+      parentId: parentReadable ? parentId : null,
+      editable: found.permissions.edit,
+      permissions: found.permissions,
+      path: path.slice(path.findLastIndex((ancestor) => !ancestor.visible || !readable.has(ancestor.id)) + 1).map(({ id, title }) => ({ id, title })),
       row: database
         ? { properties: database.properties, values: valueMap(await this.prisma.noteProperty.findMany({ where: { itemId: noteId } })) }
         : null,
@@ -158,38 +206,76 @@ export class NotesService {
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {
     const found = await this.note(userId, noteId, 'edit');
+    if (!found.permissions.organize && (input.parentId !== undefined || input.position !== undefined || input.relativeTo !== undefined || input.template !== undefined || input.quick !== undefined || input.pinned !== undefined)) throw new ForbiddenException('Space editing access is required to organize pages');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
+    if (input.expectedTitle !== undefined && input.title === undefined) throw new BadRequestException('Include a title when checking its previous value');
     if (input.template && found.kind === ItemKind.BOARD) throw new BadRequestException('A board cannot be a template');
     if (found.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
     if (found.quick && input.template) throw new BadRequestException('A note cannot be a template');
     if (found.quick && input.icon) throw new BadRequestException('A note cannot have an icon');
-    if (input.parentId) {
-      await this.parentIn(found.spaceId, input.parentId);
-      if (input.parentId === noteId || (await this.ancestors(input.parentId)).some((ancestor) => ancestor.id === noteId)) {
-        throw new BadRequestException('A page cannot move inside itself');
-      }
+    if (Boolean(input.relativeTo) !== Boolean(input.placement) || (input.relativeTo && (input.parentId !== undefined || input.position !== undefined))) {
+      throw new BadRequestException('Choose either a destination page or a sibling placement');
     }
-    const moved = input.parentId !== undefined && input.position === undefined;
-    const last = moved
-      ? await this.prisma.note.aggregate({
-          where: { parentId: input.parentId, itemId: { not: noteId }, item: { spaceId: found.spaceId, trashedAt: null } },
-          _max: { position: true },
-        })
-      : null;
-    const position = last ? (last._max.position ?? 0) + 1 : input.position;
     const updated = await this.prisma.$transaction(async (transaction) => {
+      if (input.parentId !== undefined || input.position !== undefined || input.relativeTo) {
+        await transaction.$queryRaw`SELECT 1 FROM "spaces" WHERE "id" = ${found.spaceId}::uuid FOR NO KEY UPDATE`;
+      }
+      await transaction.$queryRaw`SELECT 1 FROM "items" WHERE "id" = ${noteId}::uuid FOR UPDATE`;
+      await this.pages.assertPage(userId, noteId, 'edit', transaction);
+      let parentId = input.parentId;
+      let position = input.position;
+      if (input.relativeTo) {
+        if (input.relativeTo === noteId || found.quick) throw new BadRequestException('Choose a different page to move beside');
+        const anchor = await transaction.note.findFirst({
+          where: { itemId: input.relativeTo, quick: false, template: false, item: { spaceId: found.spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null } },
+          select: { parentId: true },
+        });
+        if (!anchor) throw new BadRequestException('Choose a page from this space');
+        parentId = anchor.parentId;
+        if (parentId && !(await transaction.item.findFirst({ where: { id: parentId, spaceId: found.spaceId, ...visibleParent }, select: { id: true } }))) parentId = null;
+        const siblings = await transaction.note.findMany({
+          where: { ...siblingsOf(parentId), quick: false, template: false, itemId: { not: noteId }, item: { spaceId: found.spaceId, trashedAt: null, archivedAt: null } },
+          orderBy: [{ position: 'asc' }, { item: { createdAt: 'asc' } }, { itemId: 'asc' }],
+          select: { itemId: true, position: true },
+        });
+        if (siblings.some((sibling, index) => !Number.isFinite(sibling.position) || (index > 0 && sibling.position - siblings[index - 1]!.position < 0.000001))) {
+          for (const [index, sibling] of siblings.entries()) {
+            sibling.position = index + 1;
+            await transaction.note.update({ where: { itemId: sibling.itemId }, data: { position: sibling.position } });
+          }
+        }
+        const index = siblings.findIndex((sibling) => sibling.itemId === input.relativeTo);
+        if (index < 0) throw new ConflictException('The page tree changed. Try the move again.');
+        const target = siblings[index]!;
+        const neighbour = siblings[index + (input.placement === 'before' ? -1 : 1)];
+        position = neighbour ? (target.position + neighbour.position) / 2 : target.position + (input.placement === 'before' ? -1 : 1);
+      }
+      if (parentId) {
+        await this.parentIn(found.spaceId, parentId, transaction);
+        if (parentId === noteId || (await this.ancestors(parentId, transaction)).some((ancestor) => ancestor.id === noteId)) {
+          throw new BadRequestException('A page cannot move inside itself');
+        }
+      }
+      if (parentId !== undefined && position === undefined) {
+        const last = await transaction.note.aggregate({ where: { ...siblingsOf(parentId), itemId: { not: noteId }, item: { spaceId: found.spaceId, trashedAt: null, archivedAt: null } }, _max: { position: true } });
+        position = (last._max.position ?? 0) + 1;
+      }
+      if (input.expectedTitle !== undefined && (await transaction.item.updateMany({
+        where: { id: noteId, title: input.expectedTitle },
+        data: { title: input.title },
+      })).count !== 1) throw new ConflictException('Someone renamed this page. Your draft is kept; choose which title to use.');
       await transaction.note.upsert({
         where: { itemId: noteId },
         create: {
           itemId: noteId,
-          parentId: input.parentId ?? null,
+          parentId: parentId ?? null,
           position: position ?? 0,
           icon: input.icon ?? null,
           pinnedAt: input.pinned ? new Date() : null,
           template: input.template ?? false,
         },
         update: {
-          parentId: input.parentId,
+          parentId,
           position,
           icon: input.icon,
           pinnedAt: input.pinned === undefined ? undefined : input.pinned ? new Date() : null,
@@ -213,15 +299,21 @@ export class NotesService {
       }
       return item;
     });
-    this.changes.notify('pages', { spaceId: found.spaceId });
+    this.changes.notify('page-details', { spaceId: found.spaceId, itemId: noteId });
+    if (input.title !== undefined) this.realtime.titleChanged(noteId, updated.title, updated.updatedAt);
     return present(updated);
   }
 
-  async note(userId: string, noteId: string, access: 'read' | 'edit', kinds: ItemKind[] = pageKinds) {
-    const found = await this.access.assertItem(userId, noteId, access);
-    const { kind, note } = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: { kind: true, note: { select: { quick: true } } } });
-    if (!kinds.includes(kind)) throw new NotFoundException('Note not found');
-    return { ...found, kind, quick: note?.quick ?? false };
+  async note(userId: string, noteId: string, access: PageAccess, kinds: ItemKind[] = pageKinds) {
+    const found = await this.pages.assertPage(userId, noteId, access);
+    if (!kinds.includes(found.kind)) throw new NotFoundException('Note not found');
+    return found;
+  }
+
+  private async visibleRows(userId: string, rows: NoteRow[]) {
+    if (!rows.some((row) => row.note?.parentId)) return rows.map(present);
+    const readable = new Set((await this.prisma.item.findMany({ where: { id: { in: rows.flatMap((row) => row.note?.parentId ? [row.note.parentId] : []) }, AND: this.pages.pagesOf(userId) }, select: { id: true } })).map((row) => row.id));
+    return rows.map((row) => ({ ...present(row), parentId: row.note?.parentId && readable.has(row.note.parentId) ? row.note.parentId : null }));
   }
 
   private async initialState(spaceId: string, input: CreateNoteDto) {
@@ -243,24 +335,25 @@ export class NotesService {
     return document;
   }
 
-  private async parentIn(spaceId: string, parentId: string) {
-    const parent = await this.prisma.item.findFirst({
+  private async parentIn(spaceId: string, parentId: string, transaction: Prisma.TransactionClient = this.prisma) {
+    const parent = await transaction.item.findFirst({
       where: { id: parentId, spaceId, kind: ItemKind.NOTE, trashedAt: null, note: { quick: false } },
       select: { id: true },
     });
     if (!parent) throw new BadRequestException('Choose a page from this space');
   }
 
-  private async ancestors(parentId: string | null) {
-    const path: { id: string; title: string }[] = [];
+  private async ancestors(parentId: string | null, transaction: Prisma.TransactionClient = this.prisma) {
+    const path: { id: string; title: string; visible: boolean }[] = [];
     let current = parentId;
-    while (current && path.length < 50) {
-      const row: { id: string; title: string; note: { parentId: string | null } | null } | null = await this.prisma.item.findUnique({
+    while (current) {
+      if (path.some((step) => step.id === current)) throw new BadRequestException('The page hierarchy contains a cycle');
+      const row: { id: string; title: string; kind: ItemKind; trashedAt: Date | null; archivedAt: Date | null; note: { parentId: string | null; quick: boolean; template: boolean } | null } | null = await transaction.item.findUnique({
         where: { id: current },
-        select: { id: true, title: true, note: { select: { parentId: true } } },
+        select: { id: true, title: true, kind: true, trashedAt: true, archivedAt: true, note: { select: { parentId: true, quick: true, template: true } } },
       });
-      if (!row || path.some((step) => step.id === row.id)) break;
-      path.unshift({ id: row.id, title: row.title });
+      if (!row) break;
+      path.unshift({ id: row.id, title: row.title, visible: row.kind === ItemKind.NOTE && !row.trashedAt && !row.archivedAt && Boolean(row.note && !row.note.quick && !row.note.template) });
       current = row.note?.parentId ?? null;
     }
     return path;

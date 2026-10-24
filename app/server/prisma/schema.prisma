@@ -50,6 +50,13 @@ enum ShareAccess {
   EDIT @map("edit")
 }
 
+enum PageRole {
+  VIEW    @map("view")
+  COMMENT @map("comment")
+  EDIT    @map("edit")
+  MANAGE  @map("manage")
+}
+
 enum GuestResponse {
   PENDING @map("pending")
   YES     @map("yes")
@@ -104,6 +111,8 @@ model User {
   receivedInvitations Invitation[]           @relation("ReceivedInvitations")
   redemptions         InvitationRedemption[]
   createdShareLinks   ShareLink[]
+  pageGrants          PageGrant[]            @relation("PageGrantRecipient")
+  createdPageGrants   PageGrant[]            @relation("PageGrantCreator")
   activity            ActivityEvent[]
   auditEvents         AuditEvent[]           @relation("AuditSubject")
   auditActions        AuditEvent[]           @relation("AuditActor")
@@ -276,6 +285,7 @@ model Item {
   linksOut       ItemLink[]          @relation("LinkSource")
   linksIn        ItemLink[]          @relation("LinkTarget")
   shareLinks     ShareLink[]
+  pageGrants     PageGrant[]
   activity       ActivityEvent[]
   file           File?
   searchDocument SearchDocument?
@@ -414,6 +424,22 @@ model ShareLink {
 
   @@index([itemId])
   @@map("share_links")
+}
+
+model PageGrant {
+  itemId      String   @map("item_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        PageRole @default(VIEW)
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user        User     @relation("PageGrantRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("PageGrantCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@id([itemId, userId])
+  @@index([userId])
+  @@map("page_grants")
 }
 
 model ActivityEvent {

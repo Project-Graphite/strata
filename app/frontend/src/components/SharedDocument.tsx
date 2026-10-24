@@ -1,31 +1,28 @@
-import { useMemo } from 'react';
-import Collaboration from '@tiptap/extension-collaboration';
-import { EditorContent, useEditor } from '@tiptap/react';
-import * as Y from 'yjs';
+import { useEffect, useMemo, useState } from 'react';
+import { LinesSkeleton } from '@project-graphite/ui';
+import { ClosedShareLink } from './ClosedShareLink';
 import { FileSourceContext, sharedFiles } from './file-source';
-import { pageContent } from './note-extensions';
+import { useLiveDocument } from './live-document';
+import { CollaborativeEditor } from './NoteEditor';
 
-const unavailable = () => Promise.reject(new Error('Signed-in features are not available on shared pages'));
-
-export default function SharedDocument({ code, state }: { code: string; state: string | null }) {
-  const document = useMemo(() => {
-    const shared = new Y.Doc();
-    if (state) Y.applyUpdate(shared, Uint8Array.from(atob(state), (character) => character.charCodeAt(0)));
-    return shared;
-  }, [state]);
+export default function SharedDocument({ code, editable, noteId, onTitle }: { code: string; editable: boolean; noteId: string; onTitle: (title: string) => void }) {
+  const connection = useLiveDocument(noteId, { shareCode: code, onTitle });
   const files = useMemo(() => sharedFiles(code), [code]);
-  const editor = useEditor(
-    {
-      editable: false,
-      extensions: [...pageContent(unavailable, ''), Collaboration.configure({ document })],
-      editorProps: { attributes: { 'aria-label': 'Shared page', class: 'note-content' } },
-    },
-    [document],
-  );
-
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!connection) return;
+    const synced = () => setReady(true);
+    connection.provider.on('synced', synced);
+    if (connection.provider.isSynced) synced();
+    return () => {
+      connection.provider.off('synced', synced);
+    };
+  }, [connection]);
+  if (connection?.refused === 'closed') return <ClosedShareLink />;
+  if (!connection || (!ready && !connection.refused)) return <LinesSkeleton label="Loading the page" lines={6} />;
   return (
     <FileSourceContext.Provider value={files}>
-      <EditorContent editor={editor} />
+      <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={false} />
     </FileSourceContext.Provider>
   );
 }

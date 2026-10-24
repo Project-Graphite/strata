@@ -6,6 +6,7 @@ import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { CreateLinkDto, ListItemsDto, UpdateItemDto } from './dto/items.dto';
+import { PageAccessService } from '../notes/page-access.service';
 
 const pageSize = 50;
 
@@ -64,6 +65,7 @@ export class ItemsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
+    private readonly pages: PageAccessService,
   ) {}
 
   async list(userId: string, spaceId: string, query: ListItemsDto) {
@@ -164,8 +166,8 @@ export class ItemsService {
   }
 
   async links(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'read');
-    const visible = { trashedAt: null, ...this.access.itemsOf(userId) };
+    await this.pages.assertReference(userId, itemId, 'read');
+    const visible = { trashedAt: null, OR: [this.access.itemsOf(userId), this.pages.pagesOf(userId)] };
     const [outgoing, backlinks] = await Promise.all([
       this.prisma.itemLink.findMany({
         where: { sourceItemId: itemId, target: visible },
@@ -185,11 +187,11 @@ export class ItemsService {
   }
 
   async link(userId: string, itemId: string, input: CreateLinkDto) {
-    assertNotTrashed(await this.access.assertItem(userId, itemId, 'edit'));
+    assertNotTrashed(await this.pages.assertReference(userId, itemId, 'edit'));
     if (input.targetId === itemId) {
       throw new BadRequestException('An item cannot link to itself');
     }
-    await this.access.assertItem(userId, input.targetId, 'read');
+    await this.pages.assertReference(userId, input.targetId, 'read');
     const link = await this.prisma.itemLink
       .create({
         data: {
@@ -210,7 +212,7 @@ export class ItemsService {
   }
 
   async unlink(userId: string, itemId: string, linkId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
+    await this.pages.assertReference(userId, itemId, 'edit');
     const deleted = await this.prisma.itemLink.deleteMany({ where: { id: linkId, sourceItemId: itemId } });
     if (deleted.count === 0) {
       throw new NotFoundException('That link is already gone');

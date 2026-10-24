@@ -58,7 +58,7 @@ interface AuthContextValue {
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
   updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
-  accessToken(): string;
+  accessToken(): Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -201,7 +201,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const active = current.current;
         if (active) applySession({ ...active, user: { ...active.user, ...changes } });
       },
-      accessToken: () => current.current?.accessToken ?? '',
+      accessToken: async () => {
+        const active = current.current;
+        if (!active) return '';
+        const expiresAt = JSON.parse(atob(active.accessToken.split('.')[1]!.replaceAll('-', '+').replaceAll('_', '/'))).exp;
+        if (Number.isFinite(expiresAt) && expiresAt * 1000 > Date.now() + 30_000) return active.accessToken;
+        const renewed = await restoreSession();
+        if (current.current?.user.id !== active.user.id) throw new Error('The signed-in account changed');
+        if (current.current.accessToken !== active.accessToken) return current.current.accessToken;
+        applySession(renewed);
+        if (renewed?.user.id !== active.user.id) throw new Error('The signed-in account changed');
+        return renewed.accessToken;
+      },
     }),
     [applySession, ready, request, restoreError, session],
   );

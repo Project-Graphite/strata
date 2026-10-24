@@ -1,25 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
-import { useSnackbar } from '@project-graphite/ui';
-import { IndexeddbPersistence } from 'y-indexeddb';
 import * as Y from 'yjs';
 import { useAuth } from '../auth';
+import { ApiError } from '../api';
 import { realtimeUrl } from '../notes';
+import { editorFormat } from '../editor-format';
+import { LocalPageDraft } from '../local-page-draft';
+export { editorFormat } from '../editor-format';
 
 export interface Connection {
   document: Y.Doc;
   provider: HocuspocusProvider;
+  guest: boolean;
+  drafts?: LocalPageDraft;
+  refused?: 'closed' | 'outdated' | 'restricted';
 }
 
 export interface Person {
-  clientId: number;
+  id: string;
   name: string;
-  color: string;
+  access: 'view' | 'edit';
+  guest: boolean;
+  activity: 'reading' | 'editing' | 'idle';
 }
 
-export const editorFormat = 4;
-
 const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb8b0', '#6a9eea', '#a388e8', '#e07fb5'];
+const tokenUnavailableReason = 'Session renewal unavailable';
 
 export function colorFor(id: string) {
   let hash = 0;
@@ -27,87 +33,215 @@ export function colorFor(id: string) {
   return colors[hash % colors.length]!;
 }
 
-export function useLiveDocument(noteId: string, shareCode?: string) {
+export function useLiveDocument(noteId: string, { shareCode, onTitle, localDrafts = false }: { shareCode?: string; onTitle?: (title: string) => void; localDrafts?: boolean } = {}) {
   const auth = useAuth();
+  const userId = auth.user?.id;
   const [connection, setConnection] = useState<Connection>();
   const accessToken = useRef(auth.accessToken);
   accessToken.current = auth.accessToken;
+  const titleChanged = useRef(onTitle);
+  titleChanged.current = onTitle;
 
   useEffect(() => {
+    if (!shareCode && !userId) return;
     const document = new Y.Doc();
-    const drafts = shareCode ? null : new IndexeddbPersistence(`strata-note-${noteId}`, document);
+    let titleAt = 0;
+    let active = true;
+    let renewalFailures = 0;
+    let renewalDelay = 1_000;
+    let renewalTimer: number | undefined;
+    const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-${userId}-${noteId}`, document) : undefined;
     const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
     const provider = new HocuspocusProvider({
       name: noteId,
       document,
       websocketProvider,
-      token: () => (shareCode ? `share:${shareCode}` : accessToken.current()),
+      token: async () => {
+        if (shareCode) return `share:${shareCode}`;
+        try {
+          return await accessToken.current();
+        } catch (error) {
+          renewalDelay = Math.max(Math.min(30_000, 1_000 * 2 ** Math.min(5, renewalFailures)), error instanceof ApiError ? (error.retryAfter ?? 0) * 1_000 : 0);
+          renewalFailures += 1;
+          throw new Error(tokenUnavailableReason);
+        }
+      },
+      onStateless: ({ payload }) => {
+        const message = JSON.parse(payload);
+        if (message.type === 'title' && Date.parse(message.updatedAt) >= titleAt) {
+          titleAt = Date.parse(message.updatedAt);
+          titleChanged.current?.(message.title);
+        }
+      },
+      onAuthenticationFailed: ({ reason }) => {
+        if (!active) return;
+        if (reason.includes(tokenUnavailableReason)) {
+          websocketProvider.disconnect();
+          window.clearTimeout(renewalTimer);
+          renewalTimer = window.setTimeout(() => { if (active) void websocketProvider.connect(); }, renewalDelay);
+        } else refuse(reason === 'outdated' ? 'outdated' : 'closed');
+      },
+      onAuthenticated: () => { renewalFailures = 0; window.clearTimeout(renewalTimer); },
+      onClose: ({ event }) => {
+        if (event.reason === 'Access changed' || event.reason === 'Signed out') refuse('closed');
+        else if (event.reason === 'Edit rejected') refuse('restricted');
+        else if (event.reason === 'This page is too large') websocketProvider.disconnect();
+        else websocketProvider.webSocket?.close();
+      },
     });
+    function refuse(refused: NonNullable<Connection['refused']>) {
+      window.clearTimeout(renewalTimer);
+      setConnection((current) => (current?.provider === provider ? { ...current, refused } : current));
+      websocketProvider.disconnect();
+    }
     provider.attach();
-    setConnection({ document, provider });
+    setConnection({ document, provider, guest: Boolean(shareCode), drafts });
     return () => {
+      active = false;
+      window.clearTimeout(renewalTimer);
       provider.destroy();
       websocketProvider.destroy();
-      void drafts?.destroy();
+      drafts?.destroy();
       document.destroy();
     };
-  }, [noteId, shareCode]);
+  }, [noteId, shareCode, userId, localDrafts]);
 
   return connection;
 }
 
 export function useLiveStatus(connection: Connection, editable: boolean) {
-  const show = useSnackbar();
+  const draftStatus = useSyncExternalStore(connection.drafts?.subscribe ?? (() => () => {}), () => connection.drafts?.status);
   const [people, setPeople] = useState<Person[]>([]);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'outdated'>('connecting');
-  const [unsynced, setUnsynced] = useState(0);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>(connection.provider.isSynced ? 'connected' : 'connecting');
+  const [unsynced, setUnsynced] = useState(connection.provider.unsyncedChanges);
+  const [saved, setSaved] = useState(false);
+  const [failure, setFailure] = useState<'save-failed' | 'too-large'>();
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    const { provider } = connection;
-    const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
-      setStatus((current) => (current === 'outdated' ? current : next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
-    const onRefused = ({ reason }: { reason: string }) => {
-      if (reason !== 'outdated') return;
-      setStatus('outdated');
-      provider.disconnect();
+    const { document, provider } = connection;
+    let snapshot: Y.Snapshot | undefined;
+    const onUpdate = () => setSaved(Boolean(snapshot && Y.equalSnapshots(snapshot, Y.snapshot(document))));
+    const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
+      if (next !== 'connected') {
+        setPeople([]);
+        setRetrying(false);
+      }
+      setStatus((current) => (next === 'connecting' && current !== 'connecting' ? 'disconnected' : next));
     };
     const onUnsynced = ({ number }: { number: number }) => setUnsynced(number);
-    const onAwareness = () =>
-      setPeople(
-        [...(provider.awareness?.getStates().entries() ?? [])]
-          .filter(([clientId, state]) => clientId !== provider.awareness?.clientID && state.user)
-          .map(([clientId, state]) => ({ clientId, ...(state.user as { name: string; color: string }) })),
-      );
     const onStateless = ({ payload }: { payload: string }) => {
-      if (payload.includes('too-large')) show({ message: 'This page is too large to save. Split it into smaller pages.', tone: 'error' });
+      const message = JSON.parse(payload);
+      if (message.type === 'presence') setPeople(message.people);
+      if (message.type === 'saved') {
+        snapshot = Y.decodeSnapshot(Uint8Array.from(atob(message.snapshot), (character) => character.charCodeAt(0)));
+        if (Y.equalSnapshots(snapshot, Y.snapshot(document))) {
+          setFailure(undefined);
+          setRetrying(false);
+        }
+        onUpdate();
+      }
+      if (message.type === 'too-large' || message.type === 'save-failed') {
+        setFailure(message.type);
+        setRetrying(false);
+      }
     };
+    const onSynced = () => {
+      setStatus('connected');
+      provider.sendStateless('status');
+    };
+    document.on('update', onUpdate);
     provider.on('status', onStatus);
     provider.on('unsyncedChanges', onUnsynced);
-    provider.on('awarenessChange', onAwareness);
     provider.on('stateless', onStateless);
-    provider.on('authenticationFailed', onRefused);
+    provider.on('synced', onSynced);
+    if (provider.isSynced) onSynced();
     return () => {
+      document.off('update', onUpdate);
       provider.off('status', onStatus);
       provider.off('unsyncedChanges', onUnsynced);
-      provider.off('awarenessChange', onAwareness);
       provider.off('stateless', onStateless);
-      provider.off('authenticationFailed', onRefused);
+      provider.off('synced', onSynced);
     };
-  }, [connection, show]);
+  }, [connection]);
 
-  const label =
-    status === 'outdated'
-      ? 'Strata was updated. Reload the page to keep editing'
+  useEffect(() => {
+    let activeAt = Date.now();
+    let reportedAt = 0;
+    const report = () => {
+      if (!connection.provider.isSynced || connection.refused) return;
+      connection.provider.sendStateless(document.visibilityState === 'visible' && Date.now() - activeAt < 60_000 ? 'active' : 'idle');
+      reportedAt = Date.now();
+    };
+    const active = () => {
+      activeAt = Date.now();
+      if (Date.now() - reportedAt > 5_000) report();
+    };
+    window.addEventListener('pointerdown', active, { passive: true });
+    window.addEventListener('keydown', active);
+    window.addEventListener('scroll', active, { passive: true, capture: true });
+    document.addEventListener('visibilitychange', report);
+    connection.provider.on('synced', report);
+    const interval = window.setInterval(report, 15_000);
+    report();
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('pointerdown', active);
+      window.removeEventListener('keydown', active);
+      window.removeEventListener('scroll', active, true);
+      document.removeEventListener('visibilitychange', report);
+      connection.provider.off('synced', report);
+    };
+  }, [connection]);
+
+  const blocked = Boolean(connection.refused) || failure === 'too-large' || draftStatus === 'loading';
+  const label = connection.refused
+      ? {
+          outdated: 'Strata was updated. Reload the page to keep editing',
+          closed: 'Access changed. Reload the page to continue',
+          restricted: 'This edit needs member access. Reload the page to continue',
+        }[connection.refused]
+      : failure
+        ? {
+            'too-large': 'This page is too large to save. Download its draft to recover it as smaller pages',
+            'save-failed': 'Could not save to the server. Keep this tab open',
+          }[failure]
       : status === 'disconnected'
       ? editable
-        ? 'Offline. Changes are kept on this device'
+        ? draftStatus === 'saved' ? 'Offline. Draft saved on this device' : 'Offline. Keep this tab open to reconnect'
         : 'Offline'
       : status === 'connecting'
         ? 'Connecting…'
-        : unsynced > 0
+        : editable && (unsynced > 0 || !saved)
           ? 'Saving…'
           : editable
             ? 'Saved'
             : 'View only';
-  return { label, people, outdated: status === 'outdated' };
+  const canRetry = editable && failure === 'save-failed' && status === 'connected' && !blocked;
+  return {
+    label,
+    people: blocked ? [] : people,
+    blocked,
+    canRetry,
+    retrying,
+    deviceLabel: draftStatus === 'unavailable'
+      ? connection.drafts?.failure === 'load'
+        ? 'Device drafts unavailable. Previous device-only edits may not be loaded'
+        : 'Device drafts unavailable. Keep this tab open or download a draft'
+      : draftStatus === 'loading'
+        ? 'Loading device draft…'
+        : !saved && draftStatus === 'saving'
+          ? 'Saving device draft…'
+          : !saved && draftStatus === 'saved'
+            ? 'Draft saved on this device'
+            : undefined,
+    deviceUnavailable: draftStatus === 'unavailable',
+    retryDevice: () => connection.drafts?.retry(),
+    canDownload: editable && Boolean(failure || status === 'disconnected' || connection.refused || draftStatus === 'unavailable'),
+    retry: () => {
+      if (!canRetry || retrying) return;
+      setRetrying(true);
+      connection.provider.sendStateless('retry-save');
+    },
+  };
 }

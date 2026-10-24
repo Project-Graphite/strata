@@ -23,11 +23,11 @@ const blank = (display: ReactNode) => display === null || (Array.isArray(display
 export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const database = useResource<NoteDatabase>(`/notes/${noteId}/database`, true);
+  const database = useResource<NoteDatabase>(`/notes/${noteId}/database`, true, { live: ['page-databases', 'page-details', 'items', 'spaces'], spaceId });
   const members = useResource<Member[]>(database.data?.properties.some((property) => property.type === 'person') ? `/spaces/${spaceId}/members` : null, true);
   const saving = useAction();
   const adding = useAction();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<NoteDatabase>();
   const [month, setMonth] = useState(() => dayKey(new Date()));
   const [rows, columns] = useRememberedShape(`database-${noteId}`, database.data && [database.data.rows.length, database.data.properties.length], [3, 2]);
 
@@ -74,25 +74,31 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   const group = selects.find((property) => property.id === data.groupBy) ?? selects[0];
   const dateProperty = dates.find((property) => property.id === data.dateBy) ?? dates[0];
 
-  function saveSchema(next: Partial<Omit<NoteDatabase, 'rows'>>, done = '') {
+  function saveSchema(next: Partial<Omit<NoteDatabase, 'rows' | 'revision'>>, done = '', base = data) {
     if (!editable) {
       database.mutate((current) => ({ ...current, ...next }));
       return Promise.resolve(true);
     }
     return saving.run(async () => {
-      const body = { properties: data.properties, view: data.view, groupBy: data.groupBy, dateBy: data.dateBy, ...next };
+      const body = { properties: base.properties, view: base.view, groupBy: base.groupBy, dateBy: base.dateBy, expectedRevision: base.revision, ...next };
       const saved = await auth.request<NoteDatabase>(`/notes/${noteId}/database`, { method: 'PUT', body: JSON.stringify(body) });
       database.mutate(() => saved);
       return done;
-    }, 'Could not change the database');
+    }, 'Could not change the database').then((saved) => {
+      if (!saved) database.reload();
+      return saved;
+    });
   }
 
-  function setValues(rowId: string, values: PropertyValues) {
-    void saving.run(async () => {
-      const saved = await auth.request<{ values: PropertyValues }>(`/notes/${rowId}/properties`, { method: 'PATCH', body: JSON.stringify({ values }) });
+  function setValues(rowId: string, values: PropertyValues, expectedValues: PropertyValues = Object.fromEntries(Object.keys(values).map((id) => [id, data.rows.find((row) => row.id === rowId)?.values[id] ?? null]))) {
+    return saving.run(async () => {
+      const saved = await auth.request<{ values: PropertyValues }>(`/notes/${rowId}/properties`, { method: 'PATCH', body: JSON.stringify({ values, expectedValues }) });
       database.mutate((current) => ({ ...current, rows: current.rows.map((row) => (row.id === rowId ? { ...row, values: saved.values } : row)) }));
       return '';
-    }, 'Could not save that');
+    }, 'Could not save that').then((saved) => {
+      if (!saved) database.reload();
+      return saved;
+    });
   }
 
   function addRow(values: PropertyValues = {}) {
@@ -281,7 +287,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                     <PropertyField
                       editable={editable}
                       members={people}
-                      onChange={(value) => setValues(row.id, { [property.id]: value })}
+                      onChange={(value, expected) => setValues(row.id, { [property.id]: value }, { [property.id]: expected })}
                       property={property}
                       value={row.values[property.id]}
                     />
@@ -297,6 +303,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
 
   return (
     <section aria-label="Database" className="grid gap-4 border-t border-line-soft pt-6">
+      {database.refreshError && <LoadError compact error={database.refreshError} onRetry={database.reload} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleButtonGroup
           aria-label="Database view"
@@ -313,7 +320,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
         </ToggleButtonGroup>
         {editable && (
           <div className="flex items-center gap-4">
-            <TextButton label="Edit properties" onClick={() => setEditing(true)} />
+            <TextButton label="Edit properties" onClick={() => setEditing(data)} />
             <Button disabled={adding.busy} icon="plus" label="New page" onClick={() => addRow()} />
           </div>
         )}
@@ -322,18 +329,20 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       {editing && (
         <PropertiesDialog
           busy={saving.busy}
-          onClose={() => setEditing(false)}
+          onClose={() => setEditing(undefined)}
           onSave={(properties) =>
             void saveSchema(
               {
                 properties,
-                groupBy: properties.some((property) => property.id === data.groupBy && property.type === 'select') ? data.groupBy : null,
-                dateBy: properties.some((property) => property.id === data.dateBy && property.type === 'date') ? data.dateBy : null,
+                groupBy: properties.some((property) => property.id === editing.groupBy && property.type === 'select') ? editing.groupBy : null,
+                dateBy: properties.some((property) => property.id === editing.dateBy && property.type === 'date') ? editing.dateBy : null,
               },
               'Saved the properties.',
-            ).then((saved) => saved && setEditing(false))
+              editing,
+            ).then((saved) => saved && setEditing(undefined))
           }
-          properties={data.properties}
+          properties={editing.properties}
+          conflicted={editing.revision !== data.revision}
         />
       )}
     </section>

@@ -1,13 +1,19 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { isUUID } from 'class-validator';
+import type { Request } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UploadQueue } from '../files/upload-queue';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateNoteDto, PageKindQueryDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
+import { CreateNoteDto, PageChildrenQueryDto, PageKindQueryDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
 import { NoteDatabasesService } from './note-databases.service';
 import { NoteVersionsService } from './note-versions.service';
 import { NotesService } from './notes.service';
+import { readBody } from '../http/read-body';
+import { RateLimit } from '../redis/rate-limit.guard';
+import { maxDraftFileBytes } from './document-limits';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -16,6 +22,7 @@ export class NotesController {
     private readonly notes: NotesService,
     private readonly versions: NoteVersionsService,
     private readonly databases: NoteDatabasesService,
+    private readonly uploads: UploadQueue,
   ) {}
 
   @Get('me/pages')
@@ -40,6 +47,21 @@ export class NotesController {
   @Scope('items:write')
   create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateNoteDto) {
     return this.notes.create(user.id, spaceId, input);
+  }
+
+  @Get('spaces/:spaceId/page-children')
+  @Scope('items:read')
+  children(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: PageChildrenQueryDto) {
+    return this.notes.children(user.id, spaceId, query);
+  }
+
+  @Post('spaces/:spaceId/page-drafts')
+  @Scope('items:write')
+  @RateLimit('page-draft', 200, 86_400)
+  async recover(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Req() request: Request, @Headers('x-recovery-id') recoveryId?: string) {
+    if (!request.is('application/octet-stream')) throw new BadRequestException('Send the draft file itself as the request body');
+    if (recoveryId !== undefined && !isUUID(recoveryId)) throw new BadRequestException('The recovery ID is invalid');
+    return this.uploads.run(user.id, async () => this.notes.recover(user.id, spaceId, await readBody(request, maxDraftFileBytes, 'Draft files can be at most 8 MB'), recoveryId));
   }
 
   @Get('notes/:id')

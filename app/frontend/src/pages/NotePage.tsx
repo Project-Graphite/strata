@@ -1,15 +1,18 @@
 import ButtonBase from '@mui/material/ButtonBase';
-import InputBase from '@mui/material/InputBase';
-import { Fragment, lazy, Suspense, useState } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, IconButton, LinesSkeleton, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { readBlob } from '../api';
+import { FileSourceContext } from '../components/file-source';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
+import { CommitInput } from '../components/CommitInput';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
 import { Hint } from '../components/Hint';
 import { IconPicker } from '../components/IconPicker';
+import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
@@ -20,10 +23,11 @@ import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
 import { useInArea } from '../navigation';
+import { usePageNavigation } from '../page-navigation';
 import { announcePagesChanged, noteArea, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
-import { useResource } from '../useResource';
+import { useLiveRefresh, useResource } from '../useResource';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
@@ -42,22 +46,26 @@ const linkRow = 'flex w-full items-center gap-3 panel-row text-left text-ink no-
 
 export function NotePage() {
   const { id = '' } = useParams();
+  const [, setCurrentPage] = usePageNavigation();
   const auth = useAuth();
+  const loadFile = useCallback((fileId: string) => auth.request<Blob>(`/notes/${id}/files/${fileId}`, {}, readBlob), [auth.request, id]);
   const spaces = useSpaces();
   const navigate = useNavigate();
-  const note = useResource<NoteDetails>(`/notes/${id}`, true);
+  const note = useResource<NoteDetails>(`/notes/${id}`, true, { live: ['page-details', 'items', 'spaces'], itemIds: [id] });
+  useLiveRefresh(note.reload, { live: ['page-databases'], itemIds: [id, ...(note.data?.parentId ? [note.data.parentId] : [])], spaceId: note.data?.spaceId });
   const [wide, setWide] = useState(() => widePages.has(id));
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [boardAnchors, setBoardAnchors] = useState<CommentAnchors>();
-  const pages = useResource<Note[]>(note.data && !note.data.quick ? `/spaces/${note.data.spaceId}/notes` : null, true);
+  const pages = useResource<Note[]>(note.data && !note.data.quick && note.data.permissions.spaceRole ? `/spaces/${note.data.spaceId}/notes` : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
     true,
+    { live: ['page-details', 'pages', 'items'], spaceId: note.data?.spaceId },
   );
   const members = useResource<Member[]>(
-    note.data?.row?.properties.some((property) => property.type === 'person') ? `/spaces/${note.data.spaceId}/members` : null,
+    note.data?.permissions.spaceRole && note.data?.row?.properties.some((property) => property.type === 'person') ? `/spaces/${note.data.spaceId}/members` : null,
     true,
   );
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
@@ -66,6 +74,11 @@ export function NotePage() {
   const [open, setOpen] = useState<'share' | 'history' | 'unconvert'>();
   const [openTask, setOpenTask] = useState<string>();
   const parent = note.data?.path.at(-1);
+  useEffect(() => {
+    if (note.data?.id !== id) return;
+    setCurrentPage(note.data);
+    return () => setCurrentPage((current) => current?.id === id ? undefined : current);
+  }, [id, note.data, setCurrentPage]);
   const back = !note.data ? { to: '/pages', label: 'Pages' } : parent ? { to: `/notes/${parent.id}`, label: noteTitle(parent) } : noteParent(note.data);
   const moveToTrash = useMovePageToTrash(
     () => navigate(back.to),
@@ -75,7 +88,7 @@ export function NotePage() {
   useDocumentTitle(note.data && noteTitle(note.data));
 
   if (note.error) return <DetailState back={back} resource={note} thing="Page" />;
-  if (!note.data) {
+  if (!note.data || note.data.id !== id) {
     return (
       <article className={`page-enter grid gap-8 ${wide ? 'max-w-none' : 'max-w-3xl'}`}>
         <header className="page-header">
@@ -108,14 +121,17 @@ export function NotePage() {
     window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   }
 
-  function save(change: Partial<Note>, done: (saved: Note) => string, fallback: string) {
-    void run(async () => {
+  function save(change: Partial<Note> & { expectedTitle?: string }, done: (saved: Note) => string, fallback: string) {
+    return run(async () => {
       const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify(change) });
       note.mutate((current) => ({ ...current, ...saved }));
       announcePagesChanged();
       pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
       return done(saved);
-    }, fallback);
+    }, fallback).then((saved) => {
+      if (!saved) note.reload();
+      return saved;
+    });
   }
 
   function toggleWide() {
@@ -134,29 +150,32 @@ export function NotePage() {
     void run(async () => {
       await auth.request(`/notes/${details.id}/database`, {
         method: 'PUT',
-        body: JSON.stringify({ properties: [status, { id: crypto.randomUUID(), name: 'Date', type: 'date' }], view: 'table', groupBy: status.id }),
+        body: JSON.stringify({ properties: [status, { id: crypto.randomUUID(), name: 'Date', type: 'date' }], view: 'table', groupBy: status.id, expectedRevision: null }),
       });
       note.mutate((current) => ({ ...current, database: true }));
       return `Turned ${noteTitle(details)} into a database.`;
     }, 'Could not turn the page into a database');
   }
 
-  function setValue(propertyId: string, value: unknown) {
-    void run(async () => {
+  function setValue(propertyId: string, value: unknown, expected: unknown) {
+    return run(async () => {
       const saved = await auth.request<{ values: PropertyValues }>(`/notes/${details.id}/properties`, {
         method: 'PATCH',
-        body: JSON.stringify({ values: { [propertyId]: value } }),
+        body: JSON.stringify({ values: { [propertyId]: value }, expectedValues: { [propertyId]: expected } }),
       });
       note.mutate((current) => ({ ...current, row: current.row && { ...current.row, values: saved.values } }));
       return '';
-    }, 'Could not save that');
+    }, 'Could not save that').then((saved) => {
+      if (!saved) note.reload();
+      return saved;
+    });
   }
 
   const options: MenuItem[] = [
-    ...(details.editable && details.quick
+    ...(details.permissions.organize && details.quick
       ? [{ label: 'Turn into a page', onSelect: () => save({ quick: false }, (saved) => `Turned ${noteTitle(saved)} into a page.`, 'Could not turn the note into a page') }]
       : []),
-    ...(details.editable && pageOnly
+    ...(details.permissions.organize && pageOnly
       ? [
           { label: details.database ? 'Turn back into a page' : 'Turn into a database', onSelect: () => (details.database ? setOpen('unconvert') : turnIntoDatabase()) },
           {
@@ -172,7 +191,7 @@ export function NotePage() {
       : []),
     ...(pageOnly && !details.database ? [{ label: wide ? 'Standard width' : 'Full width', onSelect: toggleWide }] : []),
   ];
-  const menu: MenuItem[] = details.editable
+  const menu: MenuItem[] = details.permissions.organize
     ? [...options, { label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: options.length > 0 }]
     : options;
 
@@ -187,33 +206,27 @@ export function NotePage() {
             {(details.editable || details.icon) &&
               !details.quick &&
               (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
-            <InputBase
+            <CommitInput
               autoFocus={details.editable && !details.title}
-              defaultValue={details.title}
-              fullWidth
+              className="note-title"
               key={details.id}
-              onBlur={(event) => {
-                const title = event.currentTarget.value.trim();
-                if (details.editable && title !== details.title) save({ title }, () => '', `Could not rename the ${pageNoun(details)}`);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  event.currentTarget.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus();
-                }
-              }}
+              label={details.quick ? 'Note title' : 'Page title'}
+              maxLength={200}
+              onCommit={(title, expectedTitle) => save({ title, expectedTitle }, () => '', `Could not rename the ${pageNoun(details)}`)}
+              onEnter={(input) => input.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus()}
               placeholder="Untitled"
               readOnly={!details.editable}
-              slotProps={{ input: { 'aria-label': details.quick ? 'Note title' : 'Page title', className: 'note-title', maxLength: 200 } }}
+              value={details.title}
             />
           </div>
         </div>
         <div className="page-header-actions">
-          {details.editable && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
-          {!details.quick && <IconButton icon="clock" label="History" onClick={() => setOpen('history')} />}
+          {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
+          {!details.quick && details.permissions.history && <IconButton icon="clock" label="History" onClick={() => setOpen('history')} />}
           {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
         </div>
       </header>
+      {note.refreshError && <LoadError compact error={note.refreshError} onRetry={note.reload} />}
       {details.row && details.row.properties.length > 0 && (
         <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
           {details.row.properties.map((property) => (
@@ -221,9 +234,9 @@ export function NotePage() {
               <dt className="text-muted">{property.name}</dt>
               <dd className="m-0">
                 <PropertyField
-                  editable={details.editable}
+                  editable={details.editable && (property.type !== 'person' || Boolean(details.permissions.spaceRole))}
                   members={members.data}
-                  onChange={(value) => setValue(property.id, value)}
+                  onChange={(value, expected) => setValue(property.id, value, expected)}
                   property={property}
                   value={details.row!.values[property.id]}
                 />
@@ -232,7 +245,7 @@ export function NotePage() {
           ))}
         </dl>
       )}
-      <Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
+      <FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
         {details.kind === 'board' ? (
           <BoardCanvas
             commentedBlocks={commentedBlocks}
@@ -240,8 +253,8 @@ export function NotePage() {
             key={details.id}
             noteId={details.id}
             onAnchors={setBoardAnchors}
-            onComment={quote}
-            spaceId={details.spaceId}
+            onComment={details.permissions.comment ? quote : undefined}
+            spaceId={details.permissions.organize ? details.spaceId : ''}
           />
         ) : (
           <NoteEditor
@@ -249,17 +262,17 @@ export function NotePage() {
             editable={details.editable}
             key={details.id}
             noteId={details.id}
-            onComment={details.quick ? undefined : quote}
+            onComment={details.quick || !details.permissions.comment ? undefined : quote}
             quick={details.quick}
-            spaceId={details.spaceId}
+            spaceId={details.permissions.organize ? details.spaceId : ''}
           />
         )}
-      </Suspense>
-      {details.database && <DatabaseView editable={details.editable} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {pageOnly && !details.database && (children.length > 0 || details.editable) && (
+      </Suspense></FileSourceContext>
+      {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
+      {pageOnly && !details.database && (children.length > 0 || details.permissions.organize) && (
         <Section
           action={
-            details.editable && (
+            details.permissions.organize && (
               <Button
                 disabled={adding.busy}
                 icon="plus"
@@ -321,6 +334,7 @@ export function NotePage() {
       )}
       {!details.quick && (
         <NoteComments
+          commentable={details.permissions.comment}
           anchors={details.kind === 'board' ? boardAnchors : undefined}
           editable={details.editable}
           key={`comments-${details.id}`}
@@ -348,7 +362,7 @@ export function NotePage() {
           The pages inside stay, but the values of their properties are deleted.
         </ConfirmDialog>
       )}
-      {open === 'share' && <ShareLinks editLinks={details.kind === 'board'} itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} />}
+      {open === 'share' && <ShareLinks editLinks itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} page />}
       {open === 'history' && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} />}
       {openTask && <OpenTask onChanged={links.reload} onClose={() => setOpenTask(undefined)} taskId={openTask} />}
     </article>

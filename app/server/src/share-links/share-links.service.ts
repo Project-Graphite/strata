@@ -9,7 +9,9 @@ import { FilesService } from '../files/files.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { documentLinks, pageKinds } from '../notes/document-text';
 import { CreateShareLinkDto } from './dto/share-links.dto';
+import { PageAccessService } from '../notes/page-access.service';
 
 const dayMs = 24 * 60 * 60 * 1000;
 
@@ -24,15 +26,16 @@ export class ShareLinksService {
     private readonly files: FilesService,
     private readonly box: SecretBox,
     private readonly realtime: RealtimeService,
+    private readonly pages: PageAccessService,
   ) {}
 
   async create(userId: string, itemId: string, input: CreateShareLinkDto) {
-    const item = await this.access.assertItem(userId, itemId, 'edit');
+    const item = await this.assertSharing(userId, itemId);
     if (item.trashedAt) {
       throw new BadRequestException('Restore this item from the trash before sharing it');
     }
-    if (input.access === 'edit' && (await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } })).kind !== ItemKind.BOARD) {
-      throw new BadRequestException('Only boards can be shared for editing');
+    if (input.access === 'edit' && !pageKinds.includes((await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } })).kind)) {
+      throw new BadRequestException('Only pages and boards can be shared for editing');
     }
     const id = randomUUID();
     const link = await this.prisma.shareLink.create({
@@ -50,7 +53,7 @@ export class ShareLinksService {
   }
 
   async list(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
+    await this.assertSharing(userId, itemId);
     const links = await this.prisma.shareLink.findMany({
       where: { itemId, revokedAt: null, expiresAt: { gt: new Date() } },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -60,7 +63,7 @@ export class ShareLinksService {
   }
 
   async revoke(userId: string, itemId: string, linkId: string) {
-    await this.access.assertItem(userId, itemId, 'edit');
+    await this.assertSharing(userId, itemId);
     const revoked = await this.prisma.shareLink.updateMany({
       where: { id: linkId, itemId, revokedAt: null },
       data: { revokedAt: new Date() },
@@ -76,7 +79,7 @@ export class ShareLinksService {
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
       select: {
         access: true,
-        item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } } } },
+        item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } }, databaseSchema: { select: { itemId: true } } } },
       },
     });
     if (!link) {
@@ -91,11 +94,17 @@ export class ShareLinksService {
       datePoll: item.pollOptions.length > 0,
       content:
         item.kind === ItemKind.NOTE
-          ? { kind: 'note', state: state ? Buffer.from(state).toString('base64') : null }
+          ? { kind: 'note', id: item.id, state: state ? Buffer.from(state).toString('base64') : null, ...(item.databaseSchema ? { database: true } : {}) }
           : item.kind === ItemKind.BOARD
             ? { kind: 'board', id: item.id }
             : null,
     };
+  }
+
+  private async assertSharing(userId: string, itemId: string) {
+    const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { kind: true } });
+    if (!item) throw new NotFoundException('Item not found');
+    return pageKinds.includes(item.kind) ? this.pages.assertPage(userId, itemId, 'share') : this.access.assertItem(userId, itemId, 'edit');
   }
 
   private present(link: Prisma.ShareLinkGetPayload<{ select: typeof linkFields }>) {
@@ -114,12 +123,18 @@ export class ShareLinksService {
       where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
       select: { itemId: true, item: { select: { spaceId: true } } },
     });
+    const document = link && this.realtime.hocuspocus.documents.get(link.itemId);
     const attached =
       link &&
-      (await this.prisma.itemLink.findFirst({
-        where: { sourceItemId: link.itemId, targetItemId: fileId, kind: LinkKind.ATTACHMENT, target: { trashedAt: null, spaceId: link.item.spaceId } },
-        select: { id: true },
-      }));
+      (document
+        ? documentLinks(document).files.has(fileId) && await this.prisma.item.findFirst({
+            where: { id: fileId, kind: ItemKind.FILE, trashedAt: null, spaceId: link.item.spaceId },
+            select: { id: true },
+          })
+        : await this.prisma.itemLink.findFirst({
+            where: { sourceItemId: link.itemId, targetItemId: fileId, kind: LinkKind.ATTACHMENT, target: { trashedAt: null, spaceId: link.item.spaceId } },
+            select: { id: true },
+          }));
     if (!attached) throw new NotFoundException('That file is not part of this link');
     return this.files.read(fileId);
   }

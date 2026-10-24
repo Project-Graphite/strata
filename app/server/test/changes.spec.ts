@@ -10,7 +10,7 @@ import { requestLog } from '../src/http/request-log';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 
-const members = { spaceMember: { findMany: () => Promise.resolve([{ userId: 'member-a' }, { userId: 'member-b' }]) } };
+const members = { spaceMember: { findMany: () => Promise.resolve([{ userId: 'member-a' }, { userId: 'member-b' }]) }, pageGrant: { findMany: () => Promise.resolve([]) } };
 const withoutRedis = { subscribe: () => Promise.resolve(undefined), run: () => Promise.resolve(undefined) };
 
 function sharedRedis() {
@@ -37,6 +37,32 @@ function receiver(changes: ChangesService, userId: string) {
 }
 
 describe('ChangesService', () => {
+  it('delivers only page-scoped updates to direct recipients without exposing space-wide events', async () => {
+    const grants = vi.fn(async () => [{ userId: 'recipient' }]);
+    const changes = new ChangesService({ ...members, pageGrant: { findMany: grants } } as never, withoutRedis as never);
+    const received = receiver(changes, 'recipient');
+    const unrelated = receiver(changes, 'unrelated');
+    changes.notify('page-comments', { spaceId: 'private-space', itemId: 'shared-page' });
+    await vi.waitFor(() => expect(received).toEqual([{ topic: 'page-comments', itemId: 'shared-page' }]));
+    expect(grants).toHaveBeenCalledWith({ where: { itemId: 'shared-page', item: { kind: { in: ['NOTE', 'BOARD'] }, trashedAt: null, archivedAt: null } }, select: { userId: true } });
+    changes.notify('tasks', { spaceId: 'private-space' });
+    changes.notify('page-details', { spaceId: 'private-space' });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(received).toHaveLength(1);
+    expect(unrelated).toEqual([]);
+    expect(grants).toHaveBeenCalledTimes(1);
+  });
+  it('preserves page scope when delivering metadata and discussion events', async () => {
+    const changes = new ChangesService(members as never, withoutRedis as never);
+    const received = receiver(changes, 'member-a');
+    changes.notify('page-comments', { spaceId: 'space-1', itemId: 'page-1' });
+    await vi.waitFor(() => expect(received).toHaveLength(1));
+    changes.notify('page-databases', { userId: 'member-a', itemId: 'database-1' });
+    await vi.waitFor(() => expect(received).toEqual([
+      { topic: 'page-comments', spaceId: 'space-1', itemId: 'page-1' },
+      { topic: 'page-databases', itemId: 'database-1' },
+    ]));
+  });
   it('nudges every member of a space, and only the user for personal changes', async () => {
     const changes = new ChangesService(members as never, withoutRedis as never);
     const memberA = receiver(changes, 'member-a');

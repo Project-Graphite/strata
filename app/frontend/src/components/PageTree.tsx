@@ -1,17 +1,35 @@
 import ButtonBase from '@mui/material/ButtonBase';
 import MuiIconButton from '@mui/material/IconButton';
-import { useEffect, useState, type DragEvent } from 'react';
+import { createContext, useContext, useEffect, useState, type DragEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Icon, useShell } from '@project-graphite/ui';
+import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { nestedUnder, noteTitle, onPagesChanged, type Note } from '../notes';
+import { noteTitle, onPagesChanged, type Note } from '../notes';
+import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useSpaces } from '../spaces';
-import { NoteMark } from './NoteMark';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { ActionsMenu } from './ActionsMenu';
+import { TextButton } from './Button';
+import { NoteMark } from './NoteMark';
 
 type Place = 'before' | 'inside' | 'after';
+type Move = { parentId: string | null } | { relativeTo: string; placement: 'before' | 'after' };
 
+interface TreeControls {
+  open: Set<string>;
+  reveal?: { spaceId: string; path: string[] };
+  busy: boolean;
+  dragged?: Note;
+  target?: { id: string; place: Place };
+  toggle(id: string): void;
+  add(spaceId: string, parentId: string | null): void;
+  move(note: Note, change: Move): void;
+  drag(note?: Note): void;
+  aim(target?: { id: string; place: Place }): void;
+}
+
+const TreeContext = createContext<TreeControls>(null!);
 const openKey = 'strata-page-tree-open';
 
 function readOpen() {
@@ -30,31 +48,102 @@ function placeFor(event: DragEvent<HTMLElement>, nests: boolean): Place {
   return 'inside';
 }
 
+function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, searching = true }: { spaceId: string; parentId: string | null; depth: number; writable: boolean; cursor?: string; preceding?: Note; searching?: boolean }) {
+  const tree = useContext(TreeContext);
+  const { pathname } = useLocation();
+  const [more, setMore] = useState(false);
+  const listed = useResource<{ pages: Note[]; nextCursor: string | null; nextPage: Note | null }>(
+    `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`,
+    true, { live: ['page-details', 'items', 'spaces'], spaceId },
+  );
+  const reload = listed.reload;
+  useEffect(() => onPagesChanged(reload), [reload]);
+  const parentIndex = tree.reveal?.path.indexOf(parentId ?? '') ?? -1;
+  const wanted = tree.reveal?.spaceId === spaceId && (parentId === null || parentIndex >= 0)
+    ? tree.reveal.path[parentIndex + 1]
+    : undefined;
+  const seeking = Boolean(searching && wanted && !listed.data?.pages.some((note) => note.id === wanted));
+
+  return (
+    <>
+      {(listed.error || listed.refreshError) && <TextButton label="Retry loading pages" onClick={reload} />}
+      {listed.loading && <p className="mono-sm px-4 text-faint" role="status">Loading pages…</p>}
+      {listed.data?.pages.map((note, index, pages) => {
+        const expanded = tree.open.has(note.id);
+        const nests = note.kind !== 'board';
+        const previous = pages[index - 1] ?? preceding;
+        const next = pages[index + 1] ?? listed.data?.nextPage;
+        const moves: MenuItem[] = [
+          ...(previous ? [{ label: 'Move up', onSelect: () => tree.move(note, { relativeTo: previous.id, placement: 'before' }) }] : []),
+          ...(next ? [{ label: 'Move down', onSelect: () => tree.move(note, { relativeTo: next.id, placement: 'after' }) }] : []),
+          ...(previous?.kind === 'note' ? [{ label: `Move inside ${noteTitle(previous)}`, onSelect: () => tree.move(note, { parentId: previous.id }) }] : []),
+          ...(note.parentId ? [{ label: 'Move to space root', onSelect: () => tree.move(note, { parentId: null }) }] : []),
+        ];
+        return (
+          <div key={note.id}>
+            <div className="page-tree-row" data-drop={tree.target?.id === note.id ? tree.target.place : undefined} draggable={writable}
+              onDragEnd={() => { tree.drag(); tree.aim(); }}
+              onDragOver={(event) => {
+                if (!tree.dragged || tree.dragged.spaceId !== spaceId) return;
+                event.preventDefault();
+                tree.aim({ id: note.id, place: placeFor(event, nests) });
+              }}
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', note.id);
+                tree.drag(note);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (tree.dragged && tree.dragged.id !== note.id && tree.dragged.spaceId === spaceId) {
+                  const place = placeFor(event, nests);
+                  tree.move(tree.dragged, place === 'inside' ? { parentId: note.id } : { relativeTo: note.id, placement: place });
+                }
+                tree.drag(); tree.aim();
+              }} style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
+              <MuiIconButton aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle" disabled={!nests} onClick={() => tree.toggle(note.id)} size="small">
+                {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
+              </MuiIconButton>
+              <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} to={`/notes/${note.id}`}>
+                <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
+              </Link>
+              {writable && <>
+                {nests && <MuiIconButton aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={tree.busy} onClick={() => tree.add(spaceId, note.id)} size="small"><Icon name="plus" size={14} /></MuiIconButton>}
+                {moves.length > 0 && <ActionsMenu name={noteTitle(note)} items={moves} />}
+              </>}
+            </div>
+            {nests && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
+          </div>
+        );
+      })}
+      {listed.data?.pages.length === 0 && !listed.error && <p className="mono-sm px-4 text-faint">No pages inside</p>}
+      {listed.data?.nextCursor && (more || seeking
+        ? <TreeBranch cursor={listed.data.nextCursor} depth={depth} key={listed.data.nextCursor} parentId={parentId} preceding={listed.data.pages.at(-1)} searching={seeking} spaceId={spaceId} writable={writable} />
+        : <TextButton label="Load more pages" onClick={() => setMore(true)} />)}
+    </>
+  );
+}
+
 export function PageTree() {
   const { collapsed } = useShell();
   const auth = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [currentPage] = usePageNavigation();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>('/me/notes', true);
   const action = useAction();
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
   const [target, setTarget] = useState<{ id: string; place: Place }>();
-  const reload = listed.reload;
-
+  const reveal = currentPage && pathname === `/notes/${currentPage.id}` && !currentPage.quick && !currentPage.template
+    ? { spaceId: currentPage.spaceId, path: [...currentPage.path.map((page) => page.id), currentPage.id] }
+    : undefined;
+  const revealKey = reveal ? `${reveal.spaceId}|${reveal.path.join('|')}` : '';
   useEffect(() => {
-    reload();
-  }, [pathname, reload]);
-
-  useEffect(() => onPagesChanged(reload), [reload]);
-
-  if (!listed.data || !spaces.data) return null;
-  const pages = listed.data.filter((note) => !note.template);
-  const childrenOf = (spaceId: string, parentId: string | null) =>
-    nestedUnder(pages, parentId)
-      .filter((note) => note.spaceId === spaceId)
-      .sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
+    if (!revealKey) return;
+    const [spaceId, ...path] = revealKey.split('|');
+    setOpen((current) => new Set([...current, `space:${spaceId}`, ...path.slice(0, -1)]));
+  }, [revealKey]);
 
   function toggle(id: string) {
     setOpen((current) => {
@@ -69,135 +158,48 @@ export function PageTree() {
     });
   }
 
-  function addInside(spaceId: string, parentId: string | null) {
-    void action.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(parentId ? { parentId } : {}) });
-      if (parentId && !open.has(parentId)) toggle(parentId);
-      reload();
-      navigate(`/notes/${created.id}`);
-      return '';
-    }, 'Could not add the page');
-  }
-
-  function drop(note: Note, onto: Note | null, place: Place, spaceId: string) {
-    setDragged(undefined);
-    setTarget(undefined);
-    if (note.spaceId !== spaceId || note.id === onto?.id) return;
-    let change: { parentId: string | null; position?: number };
-    if (!onto || place === 'inside') {
-      change = { parentId: onto?.id ?? null };
-    } else {
-      const siblings = childrenOf(spaceId, onto.parentId).filter((sibling) => sibling.id !== note.id);
-      const neighbour = siblings[siblings.indexOf(onto) + (place === 'before' ? -1 : 1)];
-      change = {
-        parentId: onto.parentId,
-        position: neighbour ? (onto.position + neighbour.position) / 2 : onto.position + (place === 'before' ? -1 : 1),
-      };
-    }
-    void action.run(async () => {
-      await auth.request(`/notes/${note.id}`, { method: 'PATCH', body: JSON.stringify(change) });
-      if (change.parentId && !open.has(change.parentId)) toggle(change.parentId);
-      reload();
-      return '';
-    }, 'Could not move the page');
-  }
-
-  function branch(spaceId: string, parentId: string | null, depth: number, writable: boolean) {
-    return childrenOf(spaceId, parentId).map((note) => {
-      const nested = childrenOf(spaceId, note.id);
-      const expanded = open.has(note.id);
-      const nests = note.kind !== 'board';
-      return (
-        <div key={note.id}>
-          <div
-            className="page-tree-row"
-            data-drop={target?.id === note.id ? target.place : undefined}
-            draggable={writable}
-            onDragEnd={() => {
-              setDragged(undefined);
-              setTarget(undefined);
-            }}
-            onDragOver={(event) => {
-              if (!dragged || dragged.spaceId !== spaceId) return;
-              event.preventDefault();
-              const place = placeFor(event, nests);
-              setTarget((current) => (current?.id === note.id && current.place === place ? current : { id: note.id, place }));
-            }}
-            onDragStart={(event) => {
-              event.dataTransfer.effectAllowed = 'move';
-              event.dataTransfer.setData('text/plain', note.id);
-              setDragged(note);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (dragged) drop(dragged, note, placeFor(event, nests), spaceId);
-            }}
-            style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
-          >
-            <MuiIconButton
-              aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`}
-              className="page-tree-toggle"
-              disabled={nested.length === 0}
-              onClick={() => toggle(note.id)}
-              size="small"
-            >
-              {nested.length > 0 && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
-            </MuiIconButton>
-            <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} to={`/notes/${note.id}`}>
-              <NoteMark note={note} />
-              <span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
-            </Link>
-            {nests && writable && (
-              <MuiIconButton aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(spaceId, note.id)} size="small">
-                <Icon name="plus" size={14} />
-              </MuiIconButton>
-            )}
-          </div>
-          {expanded && branch(spaceId, note.id, depth + 1, writable)}
-        </div>
-      );
-    });
-  }
+  const tree: TreeControls = {
+    open, reveal, busy: action.busy, dragged, target, toggle, drag: setDragged, aim: setTarget,
+    add: (spaceId, parentId) => {
+      void action.run(async () => {
+        const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(parentId ? { parentId } : {}) });
+        if (parentId && !open.has(parentId)) toggle(parentId);
+        navigate(`/notes/${created.id}`);
+        return '';
+      }, 'Could not add the page');
+    },
+    move: (note, change) => {
+      if (action.busy) return;
+      void action.run(async () => {
+        const saved = await auth.request<Note>(`/notes/${note.id}`, { method: 'PATCH', body: JSON.stringify(change) });
+        if (saved.parentId && !open.has(saved.parentId)) toggle(saved.parentId);
+        return '';
+      }, 'Could not move the page');
+    },
+  };
 
   return (
-    <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
-      <p className="sidebar-section-label">Pages</p>
-      {spaces.data.map((space) => {
-        const key = `space:${space.id}`;
-        const expanded = open.has(key);
-        const writable = space.role !== 'viewer';
-        return (
-          <div key={space.id}>
-            <div
-              className="page-tree-row"
-              data-drop={target?.id === key ? 'inside' : undefined}
-              onDragOver={(event) => {
-                if (!dragged || dragged.spaceId !== space.id) return;
-                event.preventDefault();
-                setTarget({ id: key, place: 'inside' });
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (dragged) drop(dragged, null, 'inside', space.id);
-              }}
-            >
-              <MuiIconButton aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} size="small">
-                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
-              </MuiIconButton>
-              <ButtonBase className="page-tree-link justify-start" onClick={() => toggle(key)}>
-                <SpaceMark space={space} />
-                <span className="min-w-0 flex-1 truncate text-left">{space.name}</span>
-              </ButtonBase>
-              {writable && (
-                <MuiIconButton aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => addInside(space.id, null)} size="small">
-                  <Icon name="plus" size={14} />
-                </MuiIconButton>
-              )}
+    <TreeContext.Provider value={tree}>
+      <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
+        <p className="sidebar-section-label">Pages</p>
+        {spaces.data?.map((space) => {
+          const key = `space:${space.id}`;
+          const expanded = open.has(key);
+          const writable = space.role !== 'viewer';
+          return (
+            <div key={space.id}>
+              <div className="page-tree-row" data-drop={target?.id === key ? 'inside' : undefined}
+                onDragOver={(event) => { if (dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: key, place: 'inside' }); } }}
+                onDrop={(event) => { event.preventDefault(); if (dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
+                <MuiIconButton aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} size="small"><Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} /></MuiIconButton>
+                <ButtonBase className="page-tree-link justify-start" onClick={() => toggle(key)}><SpaceMark space={space} /><span className="min-w-0 flex-1 truncate text-left">{space.name}</span></ButtonBase>
+                {writable && <MuiIconButton aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => tree.add(space.id, null)} size="small"><Icon name="plus" size={14} /></MuiIconButton>}
+              </div>
+              {expanded && <TreeBranch depth={1} parentId={null} spaceId={space.id} writable={writable} />}
             </div>
-            {expanded && branch(space.id, null, 1, writable)}
-          </div>
-        );
-      })}
-    </section>
+          );
+        })}
+      </section>
+    </TreeContext.Provider>
   );
 }

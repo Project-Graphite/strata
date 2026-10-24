@@ -1,6 +1,6 @@
 import ToggleButton from '@mui/material/ToggleButton';
 import { useEffect, useState } from 'react';
-import { Avatar, Icon, IconButton, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
+import { Dialog, Icon, IconButton, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
@@ -11,11 +11,16 @@ import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
-import { maxUploadBytes, uploadFile } from '../files';
+import { maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { FormDialog } from './FormDialog';
+import { LiveDocumentStatus } from './LiveDocumentStatus';
+import { PageOutline } from './PageOutline';
+import { Copyable } from './Copyable';
+import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
+import { usePageFollowing } from './page-following';
 
 const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 const quickTools = new Set(['Bold', 'Italic', 'Bulleted list', 'Numbered list', 'Checklist', 'Link']);
@@ -33,8 +38,19 @@ function blockItems(editor: Editor, actions: BlockActions, block: Block | undefi
       return true;
     });
   const end = block.pos + block.node.nodeSize;
+  const siblings = editor.state.doc.resolve(block.pos);
+  const previous = siblings.parent.maybeChild(siblings.index() - 1);
+  const next = siblings.parent.maybeChild(siblings.index() + 1);
+  const move = (position: number) => editor.chain().focus().command(({ tr }) => {
+    tr.delete(block.pos, end).insert(position, block.node);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(position + 1)));
+    return true;
+  }).scrollIntoView().run();
   const cell = () => (editor.state.selection.from > block.pos && editor.state.selection.from < end ? editor.chain().focus() : at(end - 2, -1));
   return [
+    ...(typeof block.node.attrs.id === 'string' && actions.onCopyBlock ? [{ label: 'Copy link to block', onSelect: () => actions.onCopyBlock!(block.node.attrs.id as string) }] : []),
+    ...(previous ? [{ label: 'Move block up', onSelect: () => move(block.pos - previous.nodeSize) }] : []),
+    ...(next ? [{ label: 'Move block down', onSelect: () => move(block.pos + next.nodeSize) }] : []),
     { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(end, block.node.toJSON()).run() },
     { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: end }).run() },
     ...(onComment && typeof block.node.attrs.id === 'string'
@@ -130,7 +146,7 @@ function Toolbar({ actions, editor, onComment, quick }: { actions: BlockActions;
           <Icon name={icon} size={16} />
         </ToggleButton>
       ))}
-      {window.matchMedia('(hover: none)').matches && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
+      <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />
       {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
     </div>
   );
@@ -141,7 +157,7 @@ interface CommentHooks {
   commentedBlocks?: string[];
 }
 
-function CollaborativeEditor({
+export function CollaborativeEditor({
   connection,
   editable,
   noteId,
@@ -149,20 +165,36 @@ function CollaborativeEditor({
   spaceId,
   onComment,
   commentedBlocks,
-}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId: string } & CommentHooks) {
+}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
-  const { label, people, outdated } = useLiveStatus(connection, editable);
-  const user = auth.user!;
+  const [blockLink, setBlockLink] = useState<string>();
+  const status = useLiveStatus(connection, editable);
+  const { blocked } = status;
+  const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
 
-  const actions: BlockActions = { onImages: insertImages, onBoard: quick ? undefined : addBoard };
+  const actions: BlockActions = {
+    onImages: connection.guest || !spaceId ? undefined : insertImages,
+    onBoard: quick || connection.guest || !spaceId ? undefined : addBoard,
+    pageLinks: !connection.guest,
+    onCopyBlock: async (id) => {
+      const link = new URL(window.location.href);
+      link.hash = `block-${id}`;
+      try {
+        await navigator.clipboard.writeText(link.href);
+        show({ message: 'Block link copied.' });
+      } catch {
+        setBlockLink(link.href);
+      }
+    },
+  };
 
   const editor = useEditor(
     {
-      editable,
+      editable: editable && !blocked,
       extensions: [
-        ...pageContent(auth.request, noteId),
+        ...pageContent(connection.guest ? undefined : auth.request, noteId),
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
@@ -173,7 +205,7 @@ function CollaborativeEditor({
         attributes: { 'aria-label': 'Page content', class: 'note-content' },
         handleClickOn: (_view, _position, node) => {
           const path = internalPath(node.attrs.href);
-          if (node.type.name !== 'mention' || !path) return false;
+          if (connection.guest || node.type.name !== 'mention' || !path) return false;
           navigate(path);
           return true;
         },
@@ -183,6 +215,8 @@ function CollaborativeEditor({
     },
     [connection],
   );
+
+  const following = usePageFollowing(editor, connection, !blocked && status.people.length > 0);
 
   function addBoard(target: Editor) {
     auth
@@ -195,7 +229,7 @@ function CollaborativeEditor({
 
   function insertImages(view: EditorView, files: File[]) {
     const images = files.filter((file) => file.type.startsWith('image/'));
-    if (!editable || images.length === 0) return false;
+    if (!editable || connection.guest || !spaceId || images.length === 0) return false;
     void (async () => {
       for (const file of images) {
         if (file.size > maxUploadBytes) {
@@ -215,8 +249,8 @@ function CollaborativeEditor({
   }
 
   useEffect(() => {
-    if (outdated) editor?.setEditable(false);
-  }, [editor, outdated]);
+    editor?.setEditable(editable && !blocked);
+  }, [editor, editable, blocked]);
 
   const commented = (commentedBlocks ?? []).join(' ');
   useEffect(() => {
@@ -226,23 +260,14 @@ function CollaborativeEditor({
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return (
     <div className="note-editor grid gap-3">
-      <div className={`flex flex-wrap items-center justify-between gap-3 ${editable && !outdated ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
-        {editable && !outdated ? <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} /> : <span />}
-        <div className="flex items-center gap-3">
-          {people.length > 0 && (
-            <div aria-label={`Also here: ${people.map((person) => person.name).join(', ')}`} className="flex -space-x-2" role="group">
-              {people.slice(0, 5).map((person) => (
-                <Avatar key={person.clientId} name={person.name} present />
-              ))}
-            </div>
-          )}
-          <span className="mono-sm text-faint" role="status">
-            {label}
-          </span>
-        </div>
+      <div className={`flex flex-wrap items-center justify-between gap-3 ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
+        {editable && !blocked ? <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} /> : <span />}
+        <LiveDocumentStatus onDownload={() => saveBlob(new Blob([editor.getText({ blockSeparator: '\n\n' })], { type: 'text/plain;charset=utf-8' }), `page-${noteId}-draft.txt`)} onDownloadDraft={() => downloadPageDraft(connection.document, 'note', noteId)} presenceActions={following} status={status} />
       </div>
-      {editable && !outdated && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
+      {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
+      <PageOutline editor={editor} provider={connection.provider} quick={quick} />
       <EditorContent editor={editor} />
+      {blockLink && <Dialog onClose={() => setBlockLink(undefined)} title="Link to block"><div className="mt-5"><Copyable value={blockLink} /></div></Dialog>}
     </div>
   );
 }
@@ -274,7 +299,7 @@ function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; ed
 }
 
 export default function NoteEditor({ editable, noteId, quick, spaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string } & CommentHooks) {
-  const connection = useLiveDocument(noteId);
+  const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={quick} spaceId={spaceId} {...hooks} />;
 }

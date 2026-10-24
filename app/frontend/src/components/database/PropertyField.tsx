@@ -1,9 +1,9 @@
-import InputBase from '@mui/material/InputBase';
 import type { ReactNode } from 'react';
 import { Checkbox, DatePicker, formatDay, Popover, Select, TagChip } from '@project-graphite/ui';
 import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
 import { Hint } from '../Hint';
+import { CommitInput } from '../CommitInput';
 
 const optionsOf = (property: Property, ids: unknown) =>
   (Array.isArray(ids) ? ids : [ids]).flatMap((id) => property.options?.filter((option) => option.id === id) ?? []);
@@ -44,7 +44,7 @@ export function PropertyField({
 }: {
   editable: boolean;
   members: Member[] | undefined;
-  onChange: (value: unknown) => void;
+  onChange: (value: unknown, expected: unknown) => Promise<boolean>;
   property: Property;
   value: unknown;
 }) {
@@ -60,30 +60,28 @@ export function PropertyField({
     case 'number':
     case 'link':
       return (
-        <InputBase
-          defaultValue={asText(value)}
-          fullWidth
-          key={asText(value)}
-          onBlur={(event) => {
-            const next = event.currentTarget.value.trim();
-            if (next === asText(value)) return;
-            onChange(next === '' ? null : property.type === 'number' ? Number(next) : next);
-          }}
-          onKeyDown={(event) => event.key === 'Enter' && (event.target as HTMLInputElement).blur()}
-          slotProps={{ input: { 'aria-label': label, className: 'property-input' } }}
+        <CommitInput
+          className="property-input"
+          label={label}
+          maxLength={2000}
+          onCommit={(next, expected) => onChange(
+            next === '' ? null : property.type === 'number' ? Number(next) : next,
+            expected === '' ? null : property.type === 'number' ? Number(expected) : expected,
+          )}
           type={property.type === 'number' ? 'number' : property.type === 'link' ? 'url' : 'text'}
+          value={asText(value)}
         />
       );
     case 'date':
-      return <DatePicker aria-label={label} onChange={(day) => onChange(day || null)} placeholder="—" quiet size="small" value={asText(value)} />;
+      return <DatePicker aria-label={label} onChange={(day) => void onChange(day || null, value ?? null)} placeholder="—" quiet size="small" value={asText(value)} />;
     case 'checkbox':
-      return <Checkbox aria-label={label} checked={value === true} onChange={(event) => onChange(event.currentTarget.checked)} />;
+      return <Checkbox aria-label={label} checked={value === true} onChange={(event) => void onChange(event.currentTarget.checked, value ?? null)} />;
     case 'select':
     case 'person':
       return (
         <Select
           aria-label={label}
-          onChange={(chosen) => onChange(chosen || null)}
+          onChange={(chosen) => void onChange(chosen || null, value ?? null)}
           options={[
             { value: '', label: '—' },
             ...(property.type === 'select'
@@ -112,7 +110,7 @@ export function PropertyField({
                     checked={chosen.includes(option.id)}
                     key={option.id}
                     label={option.name}
-                    onChange={(event) => onChange(event.currentTarget.checked ? [...chosen, option.id] : chosen.filter((id) => id !== option.id))}
+                    onChange={(event) => void onChange(event.currentTarget.checked ? [...chosen, option.id] : chosen.filter((id) => id !== option.id), value ?? null)}
                   />
                 ))
               ) : (

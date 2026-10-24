@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import * as Y from 'yjs';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +20,7 @@ export class NoteVersionsService implements OnModuleInit {
   }
 
   async list(userId: string, noteId: string) {
-    await this.notes.note(userId, noteId, 'read');
+    if (!(await this.notes.note(userId, noteId, 'read')).permissions.history) throw new ForbiddenException('Editing access is required to view page history');
     const versions = await this.prisma.noteVersion.findMany({
       where: { itemId: noteId },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -31,7 +31,7 @@ export class NoteVersionsService implements OnModuleInit {
   }
 
   async preview(userId: string, noteId: string, versionId: string) {
-    await this.notes.note(userId, noteId, 'read');
+    if (!(await this.notes.note(userId, noteId, 'read')).permissions.history) throw new ForbiddenException('Editing access is required to view page history');
     const version = await this.version(noteId, versionId);
     const document = new Y.Doc();
     Y.applyUpdate(document, new Uint8Array(version.state));

@@ -129,7 +129,7 @@ function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<Sugge
   };
 }
 
-export function mentionExtension(request: Request, noteId: string) {
+export function mentionExtension(request: Request | undefined, noteId: string) {
   return Mention.extend({
     addAttributes() {
       return {
@@ -147,7 +147,7 @@ export function mentionExtension(request: Request, noteId: string) {
     renderHTML: ({ node, options }) => ['span', { ...options.HTMLAttributes, 'data-href': node.attrs.href }, `@${node.attrs.label ?? node.attrs.id}`],
     suggestion: {
       items: async ({ query }) => {
-        if (query.trim().length < 2) return [];
+        if (!request || query.trim().length < 2) return [];
         const reply = await request<SearchReply>(`/search?q=${encodeURIComponent(query.trim())}`).catch(() => ({ items: [] }));
         return reply.items
           .filter((item) => item.id !== noteId)
@@ -222,17 +222,19 @@ export const Callout = Node.create({
 });
 
 export interface BlockActions {
-  onImages: (view: Editor['view'], files: File[]) => void;
+  onImages?: (view: Editor['view'], files: File[]) => void;
   onBoard?: (editor: Editor) => void;
+  onCopyBlock?: (id: string) => void;
+  pageLinks?: boolean;
 }
 
-export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[] {
+export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActions): BlockChoice[] {
   const chooseImages = (editor: Editor) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = () => onImages(editor.view, [...(input.files ?? [])]);
+    input.onchange = () => onImages?.(editor.view, [...(input.files ?? [])]);
     input.click();
   };
   return [
@@ -248,16 +250,18 @@ export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[]
     { id: 'toggle', label: 'Toggle', hint: 'fold', words: 'toggle collapse fold details', run: (chain) => chain.setDetails().run() },
     { id: 'table', label: 'Table', hint: '3 × 3', words: 'table grid rows columns', run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { id: 'divider', label: 'Divider', hint: '---', words: 'divider line separator rule', run: (chain) => chain.setHorizontalRule().run() },
-    {
-      id: 'image',
-      label: 'Image',
-      hint: 'upload',
-      words: 'image picture photo upload',
-      run: (chain, editor) => {
-        chain.run();
-        chooseImages(editor);
-      },
-    },
+    ...(onImages
+      ? [{
+          id: 'image',
+          label: 'Image',
+          hint: 'upload',
+          words: 'image picture photo upload',
+          run: (chain: ChainedCommands, editor: Editor) => {
+            chain.run();
+            chooseImages(editor);
+          },
+        }]
+      : []),
     ...(onBoard
       ? [
           {
@@ -272,7 +276,7 @@ export function blockChoices({ onImages, onBoard }: BlockActions): BlockChoice[]
           },
         ]
       : []),
-    { id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain) => chain.insertContent('@').run() },
+    ...(pageLinks ? [{ id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain: ChainedCommands) => chain.insertContent('@').run() }] : []),
   ];
 }
 
@@ -297,7 +301,8 @@ export function blockMenuExtension(actions: BlockActions) {
   });
 }
 
-function BoardEmbed({ node }: NodeViewProps) {
+function BoardEmbed({ extension, node }: NodeViewProps) {
+  if (extension.options.shared) return <NodeViewWrapper className="note-board"><Hint>This board needs its own share link.</Hint></NodeViewWrapper>;
   const boardId = uuidOrNull(node.attrs.boardId);
   return (
     <NodeViewWrapper className="note-board" data-drag-handle="">
@@ -320,6 +325,7 @@ export const BoardEmbedExtension = Node.create({
   group: 'block',
   atom: true,
   draggable: true,
+  addOptions: () => ({ shared: false }),
   addAttributes: () => ({
     boardId: {
       default: null,
@@ -360,7 +366,7 @@ export const CommentedBlocks = Extension.create({
 
 const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule'];
 
-export function pageContent(request: Request, noteId: string) {
+export function pageContent(request: Request | undefined, noteId: string) {
   return [
     StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
     TaskList,
@@ -372,7 +378,7 @@ export function pageContent(request: Request, noteId: string) {
     DetailsContent,
     TableKit.configure({ table: { resizable: false, cellMinWidth: 96 } }),
     mentionExtension(request, noteId),
-    BoardEmbedExtension,
+    BoardEmbedExtension.configure({ shared: !request }),
     StoredImageExtension,
     UniqueID.configure({ types: blockTypes, filterTransaction: (transaction) => !isChangeOrigin(transaction) }),
   ];

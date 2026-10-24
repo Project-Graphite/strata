@@ -20,11 +20,13 @@ function clearedBy(before: Property[], after: Property[]) {
 
 export function PropertiesDialog({
   busy,
+  conflicted = false,
   onClose,
   onSave,
   properties,
 }: {
   busy: boolean;
+  conflicted?: boolean;
   onClose: () => void;
   onSave: (properties: Property[]) => void;
   properties: Property[];
@@ -71,6 +73,7 @@ export function PropertiesDialog({
       submitLabel="Save"
       title="Edit properties"
     >
+      {conflicted && <Hint>The database changed while this draft was open. Your draft is kept. Close and reopen this dialog to edit the current properties.</Hint>}
       {draft.length === 0 && <Hint>Pages in this database have no properties yet.</Hint>}
       <ul className="m-0 grid list-none gap-4 p-0">
         {draft.map((property) => (

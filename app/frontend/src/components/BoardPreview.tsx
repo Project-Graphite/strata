@@ -13,6 +13,7 @@ function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; labe
   const [state, setState] = useState<'loading' | 'shown' | 'failed'>('loading');
 
   useEffect(() => {
+    if (elements.length === 0) return;
     let cancelled = false;
     (async () => {
       const [{ exportToSvg }, images] = await Promise.all([

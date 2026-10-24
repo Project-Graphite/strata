@@ -23,7 +23,7 @@ import { required, useFormErrors } from '../validation';
 const SharedDocument = lazy(() => import('../components/SharedDocument'));
 const SharedBoard = lazy(() => import('../components/SharedBoard'));
 
-type SharedContent = { kind: 'note'; state: string | null } | { kind: 'board'; id: string } | null;
+type SharedContent = { kind: 'note' | 'board'; id: string; database?: boolean } | null;
 
 function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boolean }) {
   return (
@@ -187,6 +187,10 @@ export function SharePage() {
   const [unanswered, setUnanswered] = useState(false);
   useDocumentTitle(shared.data && noteTitle(shared.data.item));
 
+  function updateTitle(title: string) {
+    shared.mutate((current) => ({ ...current, item: { ...current.item, title } }));
+  }
+
   if (shared.loading) {
     return (
       <section className="page-enter grid w-full max-w-3xl gap-6">
@@ -220,15 +224,16 @@ export function SharePage() {
           </p>
           <h1 className="page-heading">{item.title || 'Untitled'}</h1>
         </div>
+        {content?.kind === 'note' && content.database && <Hint>This link shares the page body. Its database rows and properties are not shared.</Hint>}
         {content?.kind === 'note' && (
           <Suspense fallback={<LinesSkeleton label="Loading the page" lines={6} />}>
-            <SharedDocument code={code} state={content.state} />
+            <SharedDocument code={code} editable={access === 'edit'} key={`${code}/${content.id}`} noteId={content.id} onTitle={updateTitle} />
           </Suspense>
         )}
         {content?.kind === 'board' && (
           <FileSourceContext.Provider value={files}>
             <Suspense fallback={<LinesSkeleton label="Loading the board" lines={6} />}>
-              <SharedBoard boardId={content.id} code={code} editable={access === 'edit'} />
+              <SharedBoard boardId={content.id} code={code} editable={access === 'edit'} key={`${code}/${content.id}`} onTitle={updateTitle} />
             </Suspense>
           </FileSourceContext.Provider>
         )}

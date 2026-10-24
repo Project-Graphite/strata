@@ -1,5 +1,6 @@
 import { SpaceRole, UserRole } from '@prisma/client';
 import { afterAll, describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 import { integrationApp } from './harness';
 
 const inviteCode = (text: string) => /\/invite\/([A-Za-z0-9_-]{43})/.exec(text)?.[1] ?? '';
@@ -155,12 +156,12 @@ describe('Invitations, the invite-only switch and share links against Postgres',
       item: { kind: 'note', title: 'Packing list' },
       event: null,
       datePoll: false,
-      content: { kind: 'note', state: null },
+      content: { kind: 'note', id: note.id, state: null },
     });
     expect((await owner.call('GET', `/items/${note.id}/share-links`)).body).toEqual([expect.objectContaining({ id: shared.body.id, access: 'view', link: shared.body.link })]);
-    expect((await owner.call('POST', `/items/${note.id}/share-links`, { access: 'edit' })).status).toBe(400);
     await strata.prisma.shareLink.create({ data: { itemId: note.id, access: 'VIEW', tokenHash: 'f'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) } });
     expect((await owner.call('GET', `/items/${note.id}/share-links`)).body.map((link: { link: string | null }) => link.link)).toEqual([null, shared.body.link]);
+    expect((await owner.call('POST', `/items/${note.id}/share-links`, { access: 'edit' })).status).toBe(201);
 
     await strata.prisma.item.update({ where: { id: note.id }, data: { trashedAt: new Date() } });
     expect((await strata.anonymous('GET', `/share/${code}`)).status).toBe(404);
@@ -169,6 +170,31 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     expect((await owner.call('DELETE', `/items/${note.id}/share-links/${shared.body.id}`)).status).toBe(204);
     expect((await strata.anonymous('GET', `/share/${code}`)).status).toBe(404);
     expect((await strata.anonymous('GET', `/share/${'x'.repeat(43)}`)).status).toBe(404);
+  });
+
+  it('keeps database schemas, rows and embedded boards outside a page-only guest link', async () => {
+    const owner = await member('shared-database');
+    const board = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private embedded board', board: true })).body;
+    const document = new Y.Doc();
+    const embed = new Y.XmlElement('boardEmbed');
+    embed.setAttribute('boardId', board.id);
+    document.getXmlFragment('default').push([embed]);
+    const state = Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64');
+    document.destroy();
+    const page = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Shared database body', state })).body;
+    const row = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private row title', parentId: page.id })).body;
+    expect((await owner.call('PUT', `/notes/${page.id}/database`, { properties: [{ id: 'secret', name: 'Private property', type: 'text' }], view: 'table' })).status).toBe(200);
+    expect((await owner.call('PATCH', `/notes/${row.id}/properties`, { values: { secret: 'Private property value' } })).status).toBe(200);
+    const shared = (await owner.call('POST', `/items/${page.id}/share-links`, { access: 'view' })).body;
+    const code = shared.link.split('/share/')[1];
+    const opened = await strata.anonymous('GET', `/share/${code}`);
+    expect(opened.status).toBe(200);
+    expect(opened.body.content).toEqual({ kind: 'note', id: page.id, state, database: true });
+    expect(JSON.stringify(opened.body)).not.toMatch(/Private row title|Private property|Private property value|Private embedded board/);
+    for (const path of [`/notes/${page.id}/database`, `/notes/${row.id}`, `/notes/${board.id}/board`]) {
+      expect((await strata.anonymous('GET', path)).status).toBe(401);
+      expect((await strata.anonymous('GET', `/share/${code}${path}`)).status).toBe(404);
+    }
   });
 
   it('turns off the links and invitations of someone who is demoted or removed', async () => {
