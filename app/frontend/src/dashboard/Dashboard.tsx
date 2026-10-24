@@ -315,7 +315,7 @@ export function DashboardHome() {
           <>
             <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
             <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
-            {wide && widgets.length > 1 && <Button icon="sparkles" label="Organise" large onClick={() => grid.current?.organize()} />}
+            {wide && widgets.length > 1 && <Button icon="panel" label="Organise" large onClick={() => grid.current?.organize()} />}
             <Button
               disabled={history.length === 0}
               label="Undo"
@@ -346,14 +346,7 @@ export function DashboardHome() {
       )}
       {widgets.length === 0 ? (
         <div className="dashboard-empty">
-          <div aria-hidden="true" className="dashboard-empty-art">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <h2 className="m-0 text-xl font-medium text-ink">Make this dashboard yours</h2>
-          <p className="m-0 max-w-md text-sm text-muted">Pick widgets for your day, your money, your notes and the world around you.</p>
+          <h2 className="m-0 text-xl font-medium text-ink">No widgets</h2>
           <div className="mt-3">
             <Button
               icon="plus"

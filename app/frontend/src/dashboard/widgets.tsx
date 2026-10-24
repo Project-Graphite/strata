@@ -190,9 +190,7 @@ function Today() {
       <TaskWidget
         empty={
           schedule.data.length === 0 && (
-            <WidgetEmpty icon="sparkles" title="A clear day">
-              Nothing scheduled and nothing due.
-            </WidgetEmpty>
+            <WidgetEmpty icon="calendar" title="Nothing scheduled or due" />
           )
         }
         path="/tasks/today"
@@ -725,7 +723,7 @@ function Tidy() {
   const tidied = last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet';
   if (findings.length === 0) {
     return (
-      <WidgetEmpty icon="sparkles" title="All tidy">
+      <WidgetEmpty icon="check-mark" title="No suggestions">
         {tidied}
       </WidgetEmpty>
     );

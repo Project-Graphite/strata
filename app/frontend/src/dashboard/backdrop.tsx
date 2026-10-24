@@ -88,7 +88,7 @@ export function SiteBackdrop({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!className) return;
-    const classes = [...className.split(' '), 'has-backdrop'];
+    const classes = className.split(' ');
     document.body.classList.add(...classes);
     if (image) document.body.style.setProperty('--backdrop-image', image);
     return () => {
