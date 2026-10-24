@@ -4,7 +4,7 @@ import { ConfirmDialog, Pagination, Placeholder, timeAgo } from '@project-graphi
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { announcePagesChanged } from '../../notes';
-import { useSpaces, type Item } from '../../spaces';
+import { useAllSpaces, type Item } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { ItemList, ItemRowsSkeleton, itemsShape } from '../spaces/ItemList';
@@ -19,7 +19,7 @@ const empty = { title: 'The trash is empty', hint: 'Anything you move to the tra
 
 export function TrashSettings() {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const [params] = useSearchParams();
   const page = Number(params.get('page')) || 1;
   const trash = useResource<ResultPage<Item>>(`/trash?page=${page}`, true);

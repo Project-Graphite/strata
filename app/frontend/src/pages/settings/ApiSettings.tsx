@@ -5,7 +5,7 @@ import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Hint } from '../../components/Hint';
-import { spaceOptions, useSpaces } from '../../spaces';
+import { spaceOptions, useAllSpaces } from '../../spaces';
 import { useAction } from '../../useAction';
 import type { Resource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
@@ -47,7 +47,7 @@ function deliveryText(webhook: Webhook) {
 
 export function ApiSettings({ reference, webhooks }: { reference: ApiReference; webhooks: Resource<Webhook[]> }) {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const action = useAction();
   const form = useFormErrors();
   const [adding, setAdding] = useState(false);

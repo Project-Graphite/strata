@@ -9,7 +9,7 @@ import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
 import { RowText } from '../../components/RowText';
 import { RowsSkeleton, SpaceMarkSkeleton, useRememberedShape } from '../../components/Skeletons';
-import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, spacesTabs, useSpaces, type Space } from '../../spaces';
+import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, spacesTabs, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
 import { spaceDescription, useSpaceActions } from './SpaceLayout';
@@ -17,7 +17,7 @@ import { spaceDescription, useSpaceActions } from './SpaceLayout';
 export function NewSpace() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const creating = useAction();
   const form = useFormErrors();
   const [open, setOpen] = useState(false);
@@ -50,7 +50,7 @@ export function NewSpace() {
 }
 
 export function SpacesPage() {
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const actions = useSpaceActions();
   const [rows] = useRememberedShape('spaces', spaces.data && [spaces.data.length], [2]);
 

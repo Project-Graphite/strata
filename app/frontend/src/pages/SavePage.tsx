@@ -2,11 +2,11 @@ import FormLabel from '@mui/material/FormLabel';
 import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Placeholder, Radio, Select, Skeleton, TextField } from '@project-graphite/ui';
+import { Placeholder, Radio, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
@@ -149,7 +149,7 @@ export function SavePage() {
         {editable.length === 0 ? (
           <Alert className="m-0" severity="error">You can only view your spaces, so there is nowhere to save this.</Alert>
         ) : (
-          <Select defaultValue={editable[0]!.id} label="Space" name="spaceId" options={spaceOptions(editable)} />
+          <input name="spaceId" type="hidden" value={editable[0]!.id} />
         )}
         {link && (
           <fieldset className="grid gap-2">

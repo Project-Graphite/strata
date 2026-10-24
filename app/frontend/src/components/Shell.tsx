@@ -19,7 +19,7 @@ import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
 import { enabledApps } from '../apps';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
-import { SpacesContext, type Space } from '../spaces';
+import { ActiveSpaceProvider, SpacesContext, useChosenSpace, type Space } from '../spaces';
 import { PageNavigationProvider } from '../page-navigation';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
@@ -32,6 +32,7 @@ import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 import { SiteBackdrop } from '../dashboard/backdrop';
+import { SpaceNavigation } from './SpaceNavigation';
 
 const sessionHintKey = 'strata-signed-in';
 
@@ -70,6 +71,7 @@ function ScrollToTop() {
 
 function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; spaces: Resource<Space[]> }) {
   const auth = useAuth();
+  const { spaceId } = useChosenSpace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
@@ -94,7 +96,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
   const showSidebar = auth.user || (!auth.ready && expectSession);
-  const content = <CrashBoundary><Outlet /></CrashBoundary>;
+  const content = <CrashBoundary key={spaceId}><Outlet /></CrashBoundary>;
 
   return (
     <>
@@ -132,7 +134,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         sidebar={
           showSidebar && (
             <Sidebar
-              footer={auth.user && <PageTree />}
+              footer={auth.user && <PageTree key={spaceId} />}
               label="Areas"
               loading={!auth.user || spaces.loading}
               sections={sidebarSections(active, spaces.data, apps)}
@@ -149,6 +151,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         }
       >
         <OutageGate healthUrl={apiUrl('/health')} key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
+          {auth.user && <SpaceNavigation />}
           {auth.restoreError ? (
             <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
               {auth.restoreError}
@@ -160,7 +163,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
           )}
         </OutageGate>
       </AppShell>
-      {searching && <SearchPalette onClose={() => setSearching(false)} />}
+      {searching && <SearchPalette key={spaceId} onClose={() => setSearching(false)} />}
       <UpdatePrompt />
     </>
   );
@@ -175,9 +178,9 @@ export function Shell() {
     <SpacesContext.Provider value={spaces}>
       <InboxContext.Provider value={inbox}>
         <SnackbarProvider>
-          <SiteBackdrop>
+          <ActiveSpaceProvider key={auth.user?.id}><SiteBackdrop>
             <PageNavigationProvider key={auth.user?.id}><ShellFrame inbox={inbox} spaces={spaces} /></PageNavigationProvider>
-          </SiteBackdrop>
+          </SiteBackdrop></ActiveSpaceProvider>
         </SnackbarProvider>
       </InboxContext.Provider>
     </SpacesContext.Provider>

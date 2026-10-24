@@ -237,7 +237,6 @@ export function RecurringPage() {
           onClose={close}
           onSaved={summary.reload}
           spaceId={opened === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : opened.spaceId}
-          spaces={opened === 'new' ? editable : undefined}
           subscription={opened === 'new' ? undefined : opened}
         />
       )}

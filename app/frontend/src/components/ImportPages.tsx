@@ -1,8 +1,8 @@
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
+import { Dialog, LinesSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { spaceOptions, type Space } from '../spaces';
+import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { Hint } from './Hint';
 import { FileButton } from './FileButton';
@@ -19,7 +19,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
   const auth = useAuth();
   const importing = useAction();
   const navigate = useNavigate();
-  const [spaceId, setSpaceId] = useState(spaces[0]!.id);
+  const spaceId = spaces[0]!.id;
   const [recovery, setRecovery] = useState<DraftPart[]>();
   const [pageImport, setPageImport] = useState<PageImportPlan>();
   const [progress, setProgress] = useState<ImportProgress>();
@@ -67,9 +67,6 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
         </Hint>
         <Hint>Strata draft files recover body formatting or board content into a new page. Attachments require access to their original files; database properties are separate.</Hint>
         {progress && <Hint>Loaded progress for {progress.pages.length} pages. Choose the original source folder or files to resume. Changed source files are refused. <Button label="Clear loaded progress" onClick={() => setProgress(undefined)} /></Hint>}
-        {spaces.length > 1 && (
-          <Select disabled={importing.busy} label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
-        )}
         <div className="flex flex-wrap gap-3">
           <FileButton accept=".md,.markdown,text/markdown" busy={importing.busy} label="Choose Markdown files" multiple onFiles={start} />
           <FileButton busy={importing.busy} folder label="Choose a folder" onFiles={start} />
@@ -77,8 +74,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           <FileButton accept=".strata-import" busy={importing.busy} label="Load import progress" onFiles={([file]) => void importing.run(async () => {
             const saved = await readImportProgress(file!);
             if (saved.userId !== auth.user!.id) throw new Error('Resume this import with the original account');
-            if (!spaces.some((space) => space.id === saved.spaceId)) throw new Error('You need editing access to the original space');
-            setSpaceId(saved.spaceId);
+            if (spaceId !== saved.spaceId) throw new Error('Switch to the original space before resuming this import');
             setProgress(saved);
             return 'Choose the original source folder or Markdown files.';
           }, 'Could not load import progress')} />

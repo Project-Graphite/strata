@@ -4,7 +4,7 @@ import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { saveBlob } from '../files';
 import { spendingTabs, useByCategory, useCategories, type MoneyAccount, type SpendingCategory, type SpendingTab } from '../spending';
-import { SpaceChooser, useChosenSpace, useSpaces } from '../spaces';
+import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
@@ -35,7 +35,6 @@ export function SpendingFrame({
   const auth = useAuth();
   const action = useAction();
   const [params] = useSearchParams();
-  const spaces = useSpaces();
   const { spaceId, space, editable } = useChosenSpace();
   const [byCategory, showByCategory] = useByCategory();
   const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories'>();
@@ -76,7 +75,6 @@ export function SpendingFrame({
       tabs={spendingTabs(tab, params)}
       title="Spending"
       toolbar={toolbar}
-      toolbarEnd={tab !== 'recurring' && spaceId && (spaces.data?.length ?? 0) > 1 && <SpaceChooser />}
     >
       {children}
       {spaceId && dialog === 'new' && (

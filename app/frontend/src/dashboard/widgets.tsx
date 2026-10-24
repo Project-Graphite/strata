@@ -10,7 +10,7 @@ import { noteTitle, type Note } from '../notes';
 import { addDays, dayKey, entryDay, entryTime, useAgenda, useTodaySchedule } from '../agenda';
 import { useInbox, type InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useChosenSpace, useSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
 import { completeTask, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
@@ -199,16 +199,9 @@ function Today() {
   );
 }
 
-function useTodoSpaceId(settings: Record<string, unknown>) {
-  const spaces = useSpaces();
-  return typeof settings.spaceId === 'string' ? settings.spaceId : spaces.data?.find((space) => space.kind === 'personal')?.id;
-}
-
 function Tasks({ settings }: WidgetProps) {
-  const spaces = useSpaces();
-  const spaceId = useTodoSpaceId(settings);
-  const listId = typeof settings.listId === 'string' ? settings.listId : undefined;
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
+  const { spaceId, space } = useChosenSpace();
+  const listId = settings.spaceId === spaceId && typeof settings.listId === 'string' ? settings.listId : undefined;
   if (!spaceId) return <TasksSkeleton adding />;
   return (
     <TaskWidget
@@ -221,19 +214,17 @@ function Tasks({ settings }: WidgetProps) {
 }
 
 function TasksSettings({ onChange, settings }: SettingsProps) {
-  const spaces = useSpaces();
-  const spaceId = useTodoSpaceId(settings) ?? '';
+  const { spaceId } = useChosenSpace();
   const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
   return (
     <div className="grid gap-3">
-      <Select label="Space" onChange={(chosen) => onChange({ spaceId: chosen })} options={spaceOptions(spaces.data ?? [])} placeholder="Choose a space" size="small" value={spaceId} />
       {spaceId && (
         <Select
           label="List"
-          onChange={(listId) => onChange({ ...settings, listId: listId || undefined })}
+          onChange={(listId) => onChange({ ...settings, spaceId, listId: listId || undefined })}
           options={[{ value: '', label: 'All open tasks' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
           size="small"
-          value={typeof settings.listId === 'string' ? settings.listId : ''}
+          value={settings.spaceId === spaceId && typeof settings.listId === 'string' ? settings.listId : ''}
         />
       )}
     </div>
@@ -537,7 +528,7 @@ interface TidyScanSummary {
 
 function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
-  const personal = useSpaces().data?.find((space) => space.kind === 'personal');
+  const personal = useSpaces().data?.find((space) => space.role !== 'viewer');
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) {
     return (

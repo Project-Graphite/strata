@@ -1,7 +1,7 @@
-import { Select, TextAreaField, TextField } from '@project-graphite/ui';
+import { TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Recipe, RecipeDraft } from '../recipes';
-import { spaceOptions, type Space } from '../spaces';
+import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, webAddress, type Check } from '../validation';
 import { FormDialog } from './FormDialog';
@@ -75,8 +75,7 @@ export function RecipeEditor({
       title={recipe ? 'Edit recipe' : 'New recipe'}
     >
       <TextField autoFocus defaultValue={start?.title} label="Name" maxLength={200} {...form.field('title')} />
-      {!recipe && spaces.length > 1 && <Select defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
-      {!recipe && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
+      {!recipe && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <div className="grid gap-4 sm:grid-cols-3">
         <TextField defaultValue={start?.servings ?? ''} inputMode="numeric" label="Serves" {...form.field('servings')} />
         <TextField defaultValue={start?.prepMinutes ?? ''} inputMode="numeric" label="Prep (minutes)" {...form.field('prepMinutes')} />

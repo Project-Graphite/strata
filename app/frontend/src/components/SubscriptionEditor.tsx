@@ -3,7 +3,6 @@ import { DatePicker, Select, SuggestField, TextField } from '@project-graphite/u
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { catalogue, knownService } from '../catalogue';
-import { spaceOptions, type Space } from '../spaces';
 import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, type Check, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
@@ -16,13 +15,11 @@ export function SubscriptionEditor({
   onClose,
   onSaved,
   spaceId,
-  spaces = [],
   subscription,
 }: {
   onClose: () => void;
   onSaved: (subscription: Subscription) => void;
   spaceId: string;
-  spaces?: Space[];
   subscription?: Subscription;
 }) {
   const auth = useAuth();
@@ -90,7 +87,6 @@ export function SubscriptionEditor({
       submitLabel={subscription ? 'Save' : 'Add subscription'}
       title={subscription ? 'Edit subscription' : 'New subscription'}
     >
-      {spaces.length > 1 && <Select defaultValue={spaceId} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
       <SuggestField
         defaultValue={subscription?.name}
         label="Name"

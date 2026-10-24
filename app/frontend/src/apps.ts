@@ -59,7 +59,7 @@ export const appCatalogue: AppEntry[] = [
   {
     key: 'files',
     label: 'Files',
-    description: 'Uploads from across your spaces, in one library you can search and sort.',
+    description: 'Uploads in the current space, in one library you can search and sort.',
     icon: 'library',
     href: '/files',
   },
@@ -95,7 +95,7 @@ export const appCatalogue: AppEntry[] = [
   {
     key: 'tidy',
     label: 'Tidy',
-    description: 'Suggestions and rules that file, tag and clear out items across your spaces, with an optional weekly summary.',
+    description: 'Suggestions and rules that file, tag and clear out items in the current space, with an optional weekly summary.',
     icon: 'sparkles',
     href: '/tidy',
   },

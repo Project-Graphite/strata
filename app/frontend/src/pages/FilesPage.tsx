@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router';
-import { formatDay, Icon, Meter, Placeholder, Select, Skeleton } from '@project-graphite/ui';
+import { formatDay, Icon, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -11,13 +10,13 @@ import { FileButton } from '../components/FileButton';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RowText } from '../components/RowText';
 import { HintSkeleton, IconButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
-const empty = { title: 'No files yet', hint: 'Files you upload to any of your spaces show up here.' };
+const empty = { title: 'No files yet', hint: 'Files in this space show up here.' };
 
 interface StoredFile {
   id: string;
@@ -41,8 +40,7 @@ export function FilesPage() {
   const action = useAction();
   const storage = useResource<Storage>('/me/storage', true);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const [chosen, setChosen] = useState<string>();
-  const target = chosen ?? writable.find((space) => space.kind === 'personal')?.id ?? writable[0]?.id;
+  const target = writable[0]?.id;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name;
   const shown = storage.data;
   const [fileRows] = useRememberedShape('files', shown && [shown.files.length], [4]);
@@ -68,7 +66,6 @@ export function FilesPage() {
         )
       }
       title="Files"
-      toolbarEnd={writable.length > 1 && target && <Select aria-label="Upload to" onChange={setChosen} options={spaceOptions(writable)} size="small" value={target} />}
     >
       {storage.error ? (
         <LoadError error={storage.error} onRetry={storage.reload} />
@@ -129,7 +126,7 @@ export function FilesPage() {
                             return '';
                           }, 'Could not download the file'),
                       },
-                      {
+                      ...(writable.some((space) => space.id === file.spaceId) ? [{
                         label: 'Move to trash',
                         separated: true,
                         onSelect: () =>
@@ -145,7 +142,7 @@ export function FilesPage() {
                               },
                             };
                           }, 'Could not move the file to the trash'),
-                      },
+                      }] : []),
                     ]}
                     name={file.name}
                   />

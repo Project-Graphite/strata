@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Placeholder, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -8,7 +8,7 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -120,11 +120,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
         >
           <TextField autoFocus hint="An https:// or webcal:// address." inputMode="url" label="Calendar address" {...form.field('url')} />
           <TextField label="Name (optional)" maxLength={80} {...form.field('name')} />
-          {editable.length > 1 ? (
-            <Select defaultValue={editable[0]!.id} label="Show it in" name="spaceId" options={spaceOptions(editable)} />
-          ) : (
-            <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />
-          )}
+          <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />
         </FormDialog>
       )}
       {stopping && (

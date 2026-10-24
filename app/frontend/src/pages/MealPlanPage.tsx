@@ -7,7 +7,7 @@ import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
-import { SpaceChooser, useChosenSpace } from '../spaces';
+import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesArea } from './RecipesPage';
@@ -76,7 +76,6 @@ export function MealPlanPage() {
       }
       toolbarEnd={
         <>
-          <SpaceChooser />
           {editable && (
             <Button
               disabled={action.busy || !plan.data?.some((entry) => entry.recipe)}

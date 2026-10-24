@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
 import { ConfirmDialog, Placeholder, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useSpaces, type Space } from '../../spaces';
+import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
 import { ActionsMenu } from '../../components/ActionsMenu';
@@ -35,7 +35,7 @@ type SpaceAction = 'rename' | 'invite' | 'leave' | 'delete';
 export function useSpaceActions(onInvited?: () => void) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const renaming = useAction();
   const renameForm = useFormErrors();
   const { report } = renaming;
@@ -137,7 +137,7 @@ export function useSpaceActions(onInvited?: () => void) {
 export function SpaceLayout() {
   const { id } = useParams();
   const { pathname } = useLocation();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const [invited, setInvited] = useState(0);
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;

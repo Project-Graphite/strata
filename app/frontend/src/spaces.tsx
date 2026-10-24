@@ -1,6 +1,8 @@
-import { createContext, useContext } from 'react';
-import { useSearchParams } from 'react-router';
-import { ColorSwatches, Icon, Select, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
+import { ColorSwatches, Icon, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
+import { ActiveSpaceContext } from './active-space';
+import { useAuth } from './auth';
 import type { Resource } from './useResource';
 import { atMost, required, type Check } from './validation';
 
@@ -43,12 +45,59 @@ export interface Item {
 
 export const SpacesContext = createContext<Resource<Space[]> | null>(null);
 
-export function useSpaces() {
+export function useAllSpaces() {
   const context = useContext(SpacesContext);
   if (!context) {
-    throw new Error('useSpaces must be used inside the shell');
+    throw new Error('useAllSpaces must be used inside the shell');
   }
   return context;
+}
+
+export function useSpaces() {
+  const spaces = useAllSpaces();
+  const active = useContext(ActiveSpaceContext);
+  return active ? { ...spaces, data: spaces.data?.filter((space) => space.id === active.space?.id) } : spaces;
+}
+
+export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
+  const spaces = useAllSpaces();
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const key = user ? `strata-active-space:${user.id}` : undefined;
+  const [chosen, setChosen] = useState<string | undefined>(() => {
+    if (!key) return undefined;
+    try {
+      return localStorage.getItem(key) ?? undefined;
+    } catch (reason) {
+      if (!(reason instanceof DOMException)) throw reason;
+      return undefined;
+    }
+  });
+  const routed = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1] ?? params.get('space');
+  const space = spaces.data?.find((space) => space.id === (routed ?? chosen)) ?? spaces.data?.find((space) => space.kind === 'personal') ?? spaces.data?.[0];
+  const choose = useCallback((spaceId: string) => {
+    if (spaces.data?.some((space) => space.id === spaceId)) setChosen(spaceId);
+  }, [spaces.data]);
+
+  useEffect(() => {
+    if (!key || !space) return;
+    try {
+      localStorage.setItem(key, space.id);
+    } catch (reason) {
+      if (!(reason instanceof DOMException)) throw reason;
+    }
+    if (routed && routed === space.id) setChosen(space.id);
+    if (params.has('space') && spaces.data) {
+      setParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete('space');
+        return next;
+      }, { replace: true });
+    }
+  }, [key, space, routed, params, setParams, spaces.data]);
+
+  return <ActiveSpaceContext.Provider value={{ space, choose }}>{children}</ActiveSpaceContext.Provider>;
 }
 
 export async function addJoinedSpace(
@@ -135,25 +184,12 @@ export function NameAndColorFields({
 }
 
 export function useChosenSpace() {
-  const spaces = useSpaces();
-  const [params, setParams] = useSearchParams();
-  const spaceId = params.get('space') ?? spaces.data?.find((space) => space.kind === 'personal')?.id;
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
+  const active = useContext(ActiveSpaceContext);
+  if (!active) throw new Error('useChosenSpace must be used inside ActiveSpaceProvider');
   return {
-    spaceId,
-    space,
-    editable: Boolean(space && space.role !== 'viewer'),
-    choose: (chosen: string) =>
-      setParams((current) => {
-        const next = new URLSearchParams(current);
-        next.set('space', chosen);
-        return next;
-      }),
+    spaceId: active.space?.id,
+    space: active.space,
+    editable: Boolean(active.space && active.space.role !== 'viewer'),
+    choose: active.choose,
   };
-}
-
-export function SpaceChooser() {
-  const spaces = useSpaces();
-  const { spaceId, choose } = useChosenSpace();
-  return (spaces.data?.length ?? 0) > 1 && spaceId ? <Select aria-label="Space" onChange={choose} options={spaceOptions(spaces.data ?? [])} size="small" value={spaceId} /> : null;
 }

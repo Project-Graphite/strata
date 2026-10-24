@@ -4,8 +4,9 @@ import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@p
 import { isAdmin, useAuth } from '../auth';
 import { enabledApps } from '../apps';
 import { searchableAreas } from '../navigation';
-import { itemHref, itemKindName, useSpaces, type Tag } from '../spaces';
+import { itemHref, itemKindName, useChosenSpace, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
+import { inActiveSpace } from '../active-space';
 
 interface SearchResults {
   items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string; archived: boolean }[];
@@ -15,21 +16,22 @@ interface SearchResults {
 export function SearchPalette({ onClose }: { onClose: () => void }) {
   const { request, user } = useAuth();
   const spaces = useSpaces();
+  const { spaceId } = useChosenSpace();
   const navigate = useNavigate();
   const creating = useAction();
-  const personal = spaces.data?.find((space) => space.kind === 'personal');
+  const personal = spaces.data?.find((space) => space.role !== 'viewer');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults & { error?: string }>();
   const text = query.trim();
 
   useEffect(() => {
-    if (!text) {
+    if (!text || !spaceId) {
       setResults(undefined);
       return;
     }
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      request<SearchResults>(`/search?q=${encodeURIComponent(text)}`, { signal: controller.signal }).then(
+      request<SearchResults>(inActiveSpace(`/search?q=${encodeURIComponent(text)}`, spaceId), { signal: controller.signal }).then(
         setResults,
         (reason: unknown) => {
           if (!isAbortError(reason)) setResults({ items: [], tags: [], error: errorMessage(reason, 'Search failed') });
@@ -40,7 +42,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [request, text]);
+  }, [request, text, spaceId]);
 
   const matches = (label: string) => label.toLowerCase().includes(text.toLowerCase());
   const spaceName = (spaceId: string) => spaces.data?.find((space) => space.id === spaceId)?.name;

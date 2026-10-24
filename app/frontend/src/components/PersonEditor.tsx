@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayOptions, monthOptions, type Person } from '../people';
-import { spaceOptions, type Space } from '../spaces';
+import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, emailAddress, required, useFormErrors, type Check } from '../validation';
 import { FormDialog } from './FormDialog';
@@ -57,8 +57,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
       title={person ? 'Edit person' : 'New person'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />
-      {!person && spaces.length > 1 && <Select defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
-      {!person && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
+      {!person && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" placeholder="Friend, sister, colleague" />
       <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
         <FormLabel className="mb-2" component="legend">Birthday (optional)</FormLabel>

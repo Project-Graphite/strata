@@ -264,7 +264,7 @@ export function DashboardHome() {
     schedule.until !== fieldTime(current.showUntil) ||
     schedule.on !== current.showOn;
   const configured = widgets.find((widget) => widget.id === settingsOpen);
-  const personal = spaces.data?.find((space) => space.kind === 'personal');
+  const personal = spaces.data?.find((space) => space.role !== 'viewer');
   const features = auth.user?.features ?? [];
   if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
 

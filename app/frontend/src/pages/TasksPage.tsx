@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Placeholder, Select, Skeleton, TextField } from '@project-graphite/ui';
+import { Placeholder, Skeleton, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
@@ -11,7 +11,7 @@ import { Page } from '../components/Page';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { ChipsSkeleton, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { completeTask, taskDetails, TaskListChips, TaskListFooter, taskLink, TaskRow, TaskStatusChips, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -46,7 +46,7 @@ export function TasksPage() {
   );
   const spaceOf = (id: string) => spaces.data?.find((space) => space.id === id);
   const editableSpaces = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const personal = spaces.data?.find((space) => space.kind === 'personal');
+  const personal = spaces.data?.[0];
   const link = taskLink('/tasks', listId, completed);
   const shownList = lists.data?.find((list) => list.id === listId);
   const addTo = shownList ? spaceOf(shownList.spaceId) : personal;
@@ -65,8 +65,8 @@ export function TasksPage() {
   );
   const [listCount] = useRememberedShape('task-lists', lists.data && [lists.data.length], [1]);
   const empty = completed
-    ? { title: 'Nothing finished yet', hint: 'Tasks you tick off in any space show up here.' }
-    : { title: 'Nothing to do', hint: 'Tasks from all your spaces show up here, so add one above.' };
+    ? { title: 'Nothing finished yet', hint: 'Tasks you finish in this space show up here.' }
+    : { title: 'Nothing to do', hint: 'Add a task above.' };
   return (
     <Page
       actions={addTo && addTo.role !== 'viewer' && <Button icon="plus" label="New task" large onClick={() => setOpened('new')} primary />}
@@ -159,11 +159,7 @@ export function TasksPage() {
           title="New list"
         >
           <TextField autoFocus label="Name" maxLength={100} {...listForm.field('title')} />
-          {editableSpaces.length > 1 ? (
-            <Select defaultValue={personal?.id} label="Space" name="spaceId" options={spaceOptions(editableSpaces)} />
-          ) : (
-            <input name="spaceId" type="hidden" value={editableSpaces[0]!.id} />
-          )}
+          <input name="spaceId" type="hidden" value={editableSpaces[0]!.id} />
         </FormDialog>
       )}
     </Page>

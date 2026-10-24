@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, IconButton, Menu, Placeholder, timeAgo } from '@project-graphite/ui';
+import { IconButton, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -13,7 +13,7 @@ import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { ButtonSkeleton, IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, nestedUnder, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
-import { useSpaces, type Space } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -24,22 +24,8 @@ const emptyStates = {
   boards: { title: 'No boards yet', hint: 'A board is a blank canvas to draw, sketch and plan on together.' },
 };
 
-function CreateButton({ busy, label, onCreate, primary = false, spaces }: { busy: boolean; label: string; onCreate: (spaceId: string) => void; primary?: boolean; spaces: Space[] }) {
-  if (spaces.length === 1) return <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaces[0]!.id)} primary={primary} />;
-  return (
-    <Menu
-      items={spaces.map((space) => ({ label: `In ${space.name}`, onSelect: () => onCreate(space.id) }))}
-      label="Spaces"
-      trigger={
-        <span className="inline-flex items-center gap-2">
-          <Icon name="plus" size={18} />
-          {label}
-        </span>
-      }
-      triggerLabel={`${label}: choose a space`}
-      triggerVariant={primary ? 'primary' : 'secondary'}
-    />
-  );
+function CreateButton({ busy, label, onCreate, primary = false, spaceId }: { busy: boolean; label: string; onCreate: (spaceId: string) => void; primary?: boolean; spaceId: string }) {
+  return <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaceId)} primary={primary} />;
 }
 
 export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
@@ -85,11 +71,11 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
       actions={
         writable.length > 0 &&
         (section === 'boards' ? (
-          <CreateButton busy={creating.busy} label="New board" onCreate={(spaceId) => create(spaceId, { board: true }, 'board')} primary spaces={writable} />
+          <CreateButton busy={creating.busy} label="New board" onCreate={(spaceId) => create(spaceId, { board: true }, 'board')} primary spaceId={writable[0]!.id} />
         ) : (
           <>
             <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />
-            <CreateButton busy={creating.busy} label="New page" onCreate={(spaceId) => create(spaceId, {}, 'page')} primary spaces={writable} />
+            <CreateButton busy={creating.busy} label="New page" onCreate={(spaceId) => create(spaceId, {}, 'page')} primary spaceId={writable[0]!.id} />
           </>
         ))
       }
@@ -100,7 +86,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
         (!spaces.data ? (
           <ButtonSkeleton width="w-40" />
         ) : (
-          writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaces={writable} />
+          writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaceId={writable[0]!.id} />
         ))
       }
     >

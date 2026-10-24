@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router';
 import { useState } from 'react';
-import { Placeholder, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -11,7 +11,7 @@ import { LoadError } from '../components/LoadError';
 import { FilterChips, Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors, webAddress } from '../validation';
@@ -82,11 +82,7 @@ export function BookmarksPage() {
           title="New bookmark"
         >
           <TextField autoFocus inputMode="url" label="Link" placeholder="https://" type="url" {...form.field('url')} />
-          {writable.length > 1 ? (
-            <Select defaultValue={writable[0]!.id} label="Space" name="spaceId" options={spaceOptions(writable)} />
-          ) : (
-            <input name="spaceId" type="hidden" value={writable[0]!.id} />
-          )}
+          <input name="spaceId" type="hidden" value={writable[0]!.id} />
         </FormDialog>
       )}
       {listed.error ? (

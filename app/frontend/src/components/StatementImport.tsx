@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Dialog, Select } from '@project-graphite/ui';
+import { Dialog } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { merchantKey, suggestRecurring } from '../statement';
 import { cycleLabel, money, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -18,11 +18,10 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
   const spaces = useSpaces();
   const adding = useAction();
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const [spaceId, setSpaceId] = useState('');
   const [currency, setCurrency] = useState(defaultCurrency);
   const statement = useStatementFile(setCurrency);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
-  const target = spaceId || (editable.find((space) => space.kind === 'personal') ?? editable[0])?.id;
+  const target = editable[0]?.id;
   const existing = useResource<Subscription[]>(target ? `/spaces/${target}/subscriptions` : null, true);
   const tracked = new Set((existing.data ?? []).map((subscription) => merchantKey(subscription.name)));
   const charges = statement.charges;
@@ -60,7 +59,6 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
               </ul>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Add to" onChange={setSpaceId} options={spaceOptions(editable)} value={target ?? ''} />
               <CurrencyField onChange={setCurrency} value={currency} />
             </div>
           </>

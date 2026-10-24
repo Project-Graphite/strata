@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Avatar, ConfirmDialog, Placeholder, Select, Skeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { roleOptions, useSpaces, type SpaceRole } from '../../spaces';
+import { roleOptions, useAllSpaces, type SpaceRole } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
@@ -27,7 +27,7 @@ export function SpaceMembers() {
   const auth = useAuth();
   const space = useSpace();
   const { invite, invited } = useSpaceInvites();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const members = useResource<Member[]>(`/spaces/${space.id}/members`, true);
   const action = useAction();
   const [removing, setRemoving] = useState<Member>();

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { periodChoices, periodLabel, periodStart, type Goal, type GoalPeriod } from '../goals';
-import { spaceOptions, type Space } from '../spaces';
+import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { dayKey } from '../agenda';
 import { atMost, required, useFormErrors, type Check } from '../validation';
@@ -70,8 +70,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
       title={goal ? 'Edit goal' : 'New goal'}
     >
       <TextField autoFocus defaultValue={goal?.title} label="Goal" maxLength={200} placeholder="Run a half marathon" {...form.field('title')} />
-      {!goal && spaces.length > 1 && <Select defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id} label="Space" name="spaceId" options={spaceOptions(spaces)} />}
-      {!goal && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
+      {!goal && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Select
           label="For"

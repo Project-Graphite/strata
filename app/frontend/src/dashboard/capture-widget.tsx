@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Placeholder, Select, TextAreaField } from '@project-graphite/ui';
+import { Placeholder, TextAreaField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Note } from '../notes';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Hint } from '../components/Hint';
@@ -16,9 +16,8 @@ export function Capture() {
   const notes = useResource<Note[]>('/me/notes?kind=quick', true, { live: ['items', 'pages'] });
   const saving = useAction();
   const [text, setText] = useState('');
-  const [spaceId, setSpaceId] = useState('');
   const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const target = spaceId || editable[0]?.id;
+  const target = editable[0]?.id;
 
   if (spaces.data && editable.length === 0) {
     return (
@@ -59,9 +58,6 @@ export function Capture() {
         value={text}
       />
       <div className="flex flex-wrap items-center gap-2">
-        {editable.length > 1 && (
-          <Select aria-label="Save in" onChange={setSpaceId} options={spaceOptions(editable)} size="small" value={target ?? ''} />
-        )}
         <Button disabled={!text.trim() || saving.busy} label="Save note" onClick={() => save('note')} />
         <Button disabled={!text.trim() || saving.busy} label="Save as task" onClick={() => save('task')} />
       </div>

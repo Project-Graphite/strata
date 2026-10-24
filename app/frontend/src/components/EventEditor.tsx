@@ -1,7 +1,7 @@
 import { DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import type { EventDetails } from '../agenda';
 import { useAuth } from '../auth';
-import { spaceOptions, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
@@ -74,14 +74,7 @@ export function EventEditor({
     >
       <TextField defaultValue={event?.title} label="Title" maxLength={200} {...form.field('title')} />
       {!event && spaceId && <input name="spaceId" type="hidden" value={spaceId} />}
-      {!event && !spaceId && (
-        <Select
-          defaultValue={editable[0]?.id}
-          label="Space"
-          name="spaceId"
-          options={spaceOptions(editable)}
-        />
-      )}
+      {!event && !spaceId && <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <DatePicker
           defaultValue={event?.startsOn ?? startsOn ?? ''}

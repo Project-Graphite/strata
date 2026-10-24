@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, Placeholder, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
-import { addJoinedSpace, SpaceMark, spacesTabs, useSpaces } from '../spaces';
+import { addJoinedSpace, SpaceMark, spacesTabs, useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, useFormErrors } from '../validation';
@@ -27,7 +27,7 @@ const statusLabels: Record<SentInvitation['status'], string> = {
 
 export function InvitationsPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const received = useResource<ReceivedInvitation[]>('/me/invitations', true);
   const sent = useResource<SentInvitation[]>('/invitations', true);
   const answering = useAction();

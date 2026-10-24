@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { DatePicker, Select, TextField } from '@project-graphite/ui';
+import { DatePicker, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { spaceOptions, type Space } from '../spaces';
+import type { Space } from '../spaces';
 import { fromMinor, toMinor } from '../subscriptions';
 import type { Trip } from '../trips';
 import { useAction } from '../useAction';
@@ -60,15 +60,7 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
       title={trip ? 'Edit trip' : 'New trip'}
     >
       <TextField autoFocus defaultValue={trip?.title} label="Trip" maxLength={200} placeholder="Lisbon in May" {...form.field('title')} />
-      {!trip && spaces.length > 1 && (
-        <Select
-          defaultValue={spaces.find((space) => space.kind === 'personal')?.id ?? spaces[0]!.id}
-          label="Space"
-          name="spaceId"
-          options={spaceOptions(spaces)}
-        />
-      )}
-      {!trip && spaces.length === 1 && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
+      {!trip && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={trip?.destination} label="Destination (optional)" maxLength={200} name="destination" placeholder="Lisbon, Portugal" />
       <div className="grid gap-4 sm:grid-cols-2">
         <DatePicker error={datesError} label="From" onChange={setStartsOn} optional={false} value={startsOn} />

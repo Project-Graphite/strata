@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { errorMessage, isAbortError, useSettled } from '@project-graphite/ui';
 import { ApiError } from './api';
 import { useAuth } from './auth';
 import { onChange, type Change, type Topic } from './changes';
+import { ActiveSpaceContext, inActiveSpace, isSpaceResource } from './active-space';
 
 export type Resource<T> = ReturnType<typeof useResource<T>>;
 
@@ -57,9 +58,13 @@ export function useLiveRefresh(refresh: () => void, { every, live, spaceId, item
 
 export function useResource<T>(path: string | null, authenticated = false, live?: LiveOptions) {
   const auth = useAuth();
+  const active = useContext(ActiveSpaceContext);
+  const scoped = authenticated && path !== null && isSpaceResource(path);
+  const spaceId = scoped ? active?.space?.id : undefined;
+  path = scoped && !spaceId ? null : authenticated && path ? inActiveSpace(path, spaceId) : path;
   const { request } = auth;
   const userId = auth.user?.id;
-  const key = !path ? null : authenticated ? (userId ? `${userId}|${path}` : null) : path;
+  const key = !path ? null : authenticated ? (userId ? `${userId}|${spaceId ?? ''}|${path}` : null) : path;
   const [state, setState] = useState<ResourceState<T>>({ key: null, error: '' });
   const [version, setVersion] = useState(0);
   const inFlight = useRef<AbortController>(undefined);
@@ -109,8 +114,11 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   }, live);
 
   const current = key && state.key === key ? state : undefined;
-  const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|`)) : true;
+  const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|${spaceId ?? ''}|`)) : true;
   const data = useSettled(current ? current.data : key && sameViewer ? state.data : undefined);
+  useEffect(() => {
+    if (path && /^\/(notes|tasks|events|goals|trips|people|recipes|bookmarks|subscriptions)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
+  }, [path, data, active]);
   return {
     data,
     error: current?.data === undefined ? current?.error ?? '' : '',
