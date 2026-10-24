@@ -73,7 +73,8 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
         const nests = note.kind !== 'board';
         const previous = pages[index - 1] ?? preceding;
         const next = pages[index + 1] ?? listed.data?.nextPage;
-        const moves: MenuItem[] = [
+        const actions: MenuItem[] = [
+          ...(nests ? [{ label: 'Add page inside', onSelect: () => tree.add(spaceId, note.id) }] : []),
           ...(previous ? [{ label: 'Move up', onSelect: () => tree.move(note, { relativeTo: previous.id, placement: 'before' }) }] : []),
           ...(next ? [{ label: 'Move down', onSelect: () => tree.move(note, { relativeTo: next.id, placement: 'after' }) }] : []),
           ...(previous?.kind === 'note' ? [{ label: `Move inside ${noteTitle(previous)}`, onSelect: () => tree.move(note, { parentId: previous.id }) }] : []),
@@ -100,17 +101,14 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
                   tree.move(tree.dragged, place === 'inside' ? { parentId: note.id } : { relativeTo: note.id, placement: place });
                 }
                 tree.drag(); tree.aim();
-              }} style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
+              }} style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 0.6}rem` }}>
               <MuiIconButton aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle" disabled={!nests} onClick={() => tree.toggle(note.id)} size="small">
                 {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
               </MuiIconButton>
-              <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} to={`/notes/${note.id}`}>
+              <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={`/notes/${note.id}`}>
                 <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
               </Link>
-              {writable && <>
-                {nests && <MuiIconButton aria-label={`Add a page inside ${noteTitle(note)}`} className="page-tree-add" disabled={tree.busy} onClick={() => tree.add(spaceId, note.id)} size="small"><Icon name="plus" size={14} /></MuiIconButton>}
-                {moves.length > 0 && <ActionsMenu name={noteTitle(note)} items={moves} />}
-              </>}
+              {writable && actions.length > 0 && <ActionsMenu name={noteTitle(note)} items={actions} />}
             </div>
             {nests && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
           </div>
@@ -192,7 +190,7 @@ export function PageTree() {
                 onDragOver={(event) => { if (dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: key, place: 'inside' }); } }}
                 onDrop={(event) => { event.preventDefault(); if (dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
                 <MuiIconButton aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle" onClick={() => toggle(key)} size="small"><Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} /></MuiIconButton>
-                <ButtonBase className="page-tree-link justify-start" onClick={() => toggle(key)}><SpaceMark space={space} /><span className="min-w-0 flex-1 truncate text-left">{space.name}</span></ButtonBase>
+                <ButtonBase className="page-tree-link justify-start" onClick={() => toggle(key)} title={space.name}><SpaceMark space={space} /><span className="min-w-0 flex-1 truncate text-left">{space.name}</span></ButtonBase>
                 {writable && <MuiIconButton aria-label={`Add a page to ${space.name}`} className="page-tree-add" disabled={action.busy} onClick={() => tree.add(space.id, null)} size="small"><Icon name="plus" size={14} /></MuiIconButton>}
               </div>
               {expanded && <TreeBranch depth={1} parentId={null} spaceId={space.id} writable={writable} />}

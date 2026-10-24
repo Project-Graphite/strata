@@ -733,12 +733,15 @@ button.habit-day::before {
 
 .page-tree {
   display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.05rem;
   margin-top: 1rem;
 }
 
 .page-tree-row {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.2rem;
   border-radius: var(--radius-field);
@@ -791,6 +794,7 @@ button.habit-day::before {
   display: flex;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
   align-items: center;
   gap: 0.45rem;
   padding: 0.3rem 0;
@@ -808,6 +812,7 @@ button.habit-day::before {
   visibility: hidden;
   width: 1.25rem;
   height: 1.25rem;
+  flex-shrink: 0;
   place-items: center;
   border-radius: var(--radius-field);
   color: var(--color-faint);
@@ -880,6 +885,7 @@ button.habit-day::before {
 
 .back-link {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 0.2rem;
   margin-left: -0.2rem;
@@ -1355,16 +1361,28 @@ button.habit-day::before {
   background: transparent;
 }
 
+.dashboard-backdrop-color {
+  --site-backdrop: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--tag-color) 28%, var(--color-paper)), var(--color-paper) 70%);
+}
+
+.dashboard-backdrop-image {
+  --site-backdrop: linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)), var(--backdrop-image) center / cover;
+  --site-backdrop-size: cover;
+}
+
 .dashboard-backdrop-color::before,
 .dashboard-backdrop-image::before {
   position: fixed;
   inset: 0;
   z-index: -1;
+  background: var(--site-backdrop);
   content: '';
 }
 
-.dashboard-backdrop-color::before {
-  background: color-mix(in srgb, var(--tag-color) 12%, var(--color-paper));
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(header.backdrop-blur-md, .tab-bar, .bg-paper) {
+  background: var(--site-backdrop);
+  background-attachment: fixed;
+  background-size: var(--site-backdrop-size, 100vw 100vh);
 }
 
 header.backdrop-blur-md {
@@ -1389,12 +1407,6 @@ header.backdrop-blur-md {
   overflow: hidden;
   color: transparent;
   white-space: nowrap;
-}
-
-.dashboard-backdrop-image::before {
-  background:
-    linear-gradient(color-mix(in srgb, var(--color-paper) 55%, transparent), color-mix(in srgb, var(--color-paper) 55%, transparent)),
-    var(--backdrop-image) center / cover;
 }
 
 .insights-table {
