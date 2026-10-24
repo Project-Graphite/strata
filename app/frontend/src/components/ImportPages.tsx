@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Dialog, Select } from '@project-graphite/ui';
+import { lazy, Suspense, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Dialog, LinesSkeleton, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { spaceOptions, type Space } from '../spaces';
 import { useAction } from '../useAction';
@@ -7,38 +8,80 @@ import { Hint } from './Hint';
 import { FileButton } from './FileButton';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
+import { draftRecoveryParts, recoverDraftPart, type DraftPart } from '../draft-parts';
+import { DraftRecoveryDialog } from './DraftRecoveryDialog';
+import type { PageImportPlan } from '../page-import';
+import { readImportProgress, verifyImportSources, type ImportProgress } from '../page-import-progress';
+
+const MarkdownImportDialog = lazy(() => import('./MarkdownImportDialog'));
 
 export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
   const auth = useAuth();
   const importing = useAction();
+  const navigate = useNavigate();
   const [spaceId, setSpaceId] = useState(spaces[0]!.id);
+  const [recovery, setRecovery] = useState<DraftPart[]>();
+  const [pageImport, setPageImport] = useState<PageImportPlan>();
+  const [progress, setProgress] = useState<ImportProgress>();
+
+  function recovered(id: string) {
+    onDone();
+    onClose();
+    navigate(`/notes/${id}`);
+  }
+
+  function recover([file]: File[]) {
+    void importing.run(async () => {
+      const parts = await draftRecoveryParts(file!);
+      if (parts.length > 1) {
+        setRecovery(parts);
+        return '';
+      }
+      try {
+        recovered((await recoverDraftPart(auth.request, spaceId, parts[0]!)).id);
+      } catch (error) {
+        setRecovery(parts);
+        throw error;
+      }
+      return 'Recovered the draft into a new page.';
+    }, 'Could not recover the draft');
+  }
 
   function start(chosen: File[]) {
     void importing.run(async () => {
-      const { importPages } = await import('../page-import');
-      const { imported, tooLong } = await importPages(auth.request, spaceId, chosen).finally(onDone);
-      onClose();
-      return [
-        imported === 1 ? 'Imported 1 page.' : imported ? `Imported ${imported} pages.` : tooLong ? '' : 'No Markdown files were found.',
-        tooLong ? `${tooLong} ${tooLong === 1 ? 'page was' : 'pages were'} too long to import.` : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
+      const { preparePageImport } = await import('../page-import');
+      if (progress) await verifyImportSources(chosen, progress, auth.user!.id, spaceId);
+      setPageImport(await preparePageImport(chosen, progress));
+      return '';
     }, 'Could not import the pages');
   }
 
+  if (recovery) return <DraftRecoveryDialog onClose={() => setRecovery(undefined)} onComplete={recovered} parts={recovery} spaceId={spaceId} />;
+  if (pageImport) return <Suspense fallback={<LinesSkeleton label="Preparing import preview" lines={6} />}><MarkdownImportDialog onClose={onClose} onDone={onDone} plan={pageImport} spaceId={spaceId} /></Suspense>;
+
   return (
-    <Dialog onClose={onClose} title="Import pages">
+    <Dialog dismissible={!importing.busy} onClose={onClose} title="Import pages">
       <div className="mt-5 grid gap-4">
         <Hint>
           Markdown files become pages. For a Notion export, unzip it and choose the folder: pages keep their nesting and their images come along.
         </Hint>
+        <Hint>Strata draft files recover body formatting or board content into a new page. Attachments require access to their original files; database properties are separate.</Hint>
+        {progress && <Hint>Loaded progress for {progress.pages.length} pages. Choose the original source folder or files to resume. Changed source files are refused. <Button label="Clear loaded progress" onClick={() => setProgress(undefined)} /></Hint>}
         {spaces.length > 1 && (
-          <Select label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
+          <Select disabled={importing.busy} label="Space" onChange={setSpaceId} options={spaceOptions(spaces)} value={spaceId} />
         )}
         <div className="flex flex-wrap gap-3">
           <FileButton accept=".md,.markdown,text/markdown" busy={importing.busy} label="Choose Markdown files" multiple onFiles={start} />
           <FileButton busy={importing.busy} folder label="Choose a folder" onFiles={start} />
+          <FileButton accept=".strata-page" busy={importing.busy} label="Recover a draft" onFiles={recover} />
+          <FileButton accept=".strata-import" busy={importing.busy} label="Load import progress" onFiles={([file]) => void importing.run(async () => {
+            const saved = await readImportProgress(file!);
+            if (saved.userId !== auth.user!.id) throw new Error('Resume this import with the original account');
+            if (!spaces.some((space) => space.id === saved.spaceId)) throw new Error('You need editing access to the original space');
+            setSpaceId(saved.spaceId);
+            setProgress(saved);
+            return 'Choose the original source folder or Markdown files.';
+          }, 'Could not load import progress')} />
         </div>
         {importing.busy && (
           <p className="m-0 text-sm text-muted" role="status">

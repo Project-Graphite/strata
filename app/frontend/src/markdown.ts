@@ -1,4 +1,5 @@
 export type ImageFileId = (src: string) => string | undefined;
+export type MarkdownLink = (href: string) => string | undefined;
 
 const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const escape = (text: string) => text.replace(/[&<>"]/g, (character) => entities[character]!);
@@ -19,21 +20,33 @@ function webLink(href: string) {
   return /^(https?:|mailto:)/i.test(href) ? href : undefined;
 }
 
-function formatted(text: string) {
-  return escape(text)
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, (_match, alt: string, src: string) =>
-      webLink(src) ? `<a href="${src}">${alt || 'Image'}</a>` : alt,
-    )
-    .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, (_match, label: string, href: string) => (webLink(href) ? `<a href="${href}">${label}</a>` : label))
+function emphasis(text: string) {
+  return text
     .replace(/\*\*(?=\S)(.+?)(?<=\S)\*\*|(?<!\w)__(?=\S)(.+?)(?<=\S)__(?!\w)/g, (_match, stars: string, lines: string) => `<strong>${stars ?? lines}</strong>`)
     .replace(/\*(?=\S)(.+?)(?<=\S)\*|(?<!\w)_(?=\S)(.+?)(?<=\S)_(?!\w)/g, (_match, star: string, line: string) => `<em>${star ?? line}</em>`)
     .replace(/~~(?=\S)(.+?)(?<=\S)~~/g, '<s>$1</s>');
 }
 
-function inline(text: string) {
+function formatted(text: string, link?: MarkdownLink) {
+  const escaped = escape(text);
+  const out: string[] = [];
+  let offset = 0;
+  for (const match of escaped.matchAll(/(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g)) {
+    out.push(emphasis(escaped.slice(offset, match.index)));
+    const href = match[3]!.replace(/&(amp|quot|lt|gt);/g, (_entity, name: string) => ({ amp: '&', quot: '"', lt: '<', gt: '>' })[name]!);
+    const mapped = match[1] ? webLink(href) : link?.(href) ?? webLink(href);
+    const label = emphasis(match[2] || (match[1] ? 'Image' : ''));
+    out.push(mapped && (webLink(mapped) || /^\/notes\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?:#block-[\w-]{1,64})?$/i.test(mapped)) ? `<a href="${escape(mapped)}">${label}</a>` : label);
+    offset = match.index + match[0].length;
+  }
+  out.push(emphasis(escaped.slice(offset)));
+  return out.join('');
+}
+
+function inline(text: string, link?: MarkdownLink) {
   return text
     .split(/(`[^`]+`)/)
-    .map((part) => (/^`[^`]+`$/.test(part) ? `<code>${escape(part.slice(1, -1))}</code>` : formatted(part)))
+    .map((part) => (/^`[^`]+`$/.test(part) ? `<code>${escape(part.slice(1, -1))}</code>` : formatted(part, link)))
     .join('');
 }
 
@@ -47,7 +60,7 @@ function cells(line: string) {
   return line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
 }
 
-function list(lines: string[], start: number): { html: string; next: number } {
+function list(lines: string[], start: number, link?: MarkdownLink): { html: string; next: number } {
   const indent = indentOf(lines[start]!);
   const ordered = /\d/.test(itemPattern.exec(lines[start]!)![2]!);
   const tasks = /^\[[ xX]\]\s/.test(itemPattern.exec(lines[start]!)![3]!);
@@ -70,7 +83,7 @@ function list(lines: string[], start: number): { html: string; next: number } {
       }
       if (indentOf(line) <= indent) break;
       if (itemPattern.test(line)) {
-        const inner = list(lines, index);
+        const inner = list(lines, index, link);
         nested += inner.html;
         index = inner.next;
       } else {
@@ -78,14 +91,14 @@ function list(lines: string[], start: number): { html: string; next: number } {
         index += 1;
       }
     }
-    const body = `<p>${inline(text.join(' '))}</p>${nested}`;
+    const body = `<p>${inline(text.join(' '), link)}</p>${nested}`;
     items.push(tasks ? `<li data-type="taskItem" data-checked="${task?.[1]?.toLowerCase() === 'x'}">${body}</li>` : `<li>${body}</li>`);
   }
   const tag = tasks ? 'ul data-type="taskList"' : ordered ? 'ol' : 'ul';
   return { html: `<${tag}>${items.join('')}</${tag.split(' ')[0]}>`, next: index };
 }
 
-export function markdownToHtml(markdown: string, image: ImageFileId): string {
+export function markdownToHtml(markdown: string, image: ImageFileId, link?: MarkdownLink): string {
   const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
   const out: string[] = [];
   let index = 0;
@@ -106,7 +119,7 @@ export function markdownToHtml(markdown: string, image: ImageFileId): string {
     }
     const heading = headingPattern.exec(line);
     if (heading) {
-      out.push(`<h${heading[1]!.length}>${inline(heading[2]!)}</h${heading[1]!.length}>`);
+      out.push(`<h${heading[1]!.length}>${inline(heading[2]!, link)}</h${heading[1]!.length}>`);
       index += 1;
       continue;
     }
@@ -121,17 +134,17 @@ export function markdownToHtml(markdown: string, image: ImageFileId): string {
       while (index < lines.length && !/<\/aside>/.test(lines[index]!)) inside.push(lines[index++]!);
       if (index < lines.length) inside.push(lines[index++]!.replace(/<\/aside>.*/, ''));
       const text = inside.map((part) => part.trim()).filter(Boolean);
-      out.push(`<div data-callout>${(text.length ? text : ['']).map((part) => `<p>${inline(part)}</p>`).join('')}</div>`);
+      out.push(`<div data-callout>${(text.length ? text : ['']).map((part) => `<p>${inline(part, link)}</p>`).join('')}</div>`);
       continue;
     }
     if (quotePattern.test(line)) {
       const quoted: string[] = [];
       while (index < lines.length && quotePattern.test(lines[index]!)) quoted.push(lines[index++]!.replace(quotePattern, ''));
-      out.push(`<blockquote>${markdownToHtml(quoted.join('\n'), image) || '<p></p>'}</blockquote>`);
+      out.push(`<blockquote>${markdownToHtml(quoted.join('\n'), image, link) || '<p></p>'}</blockquote>`);
       continue;
     }
     if (itemPattern.test(line)) {
-      const parsed = list(lines, index);
+      const parsed = list(lines, index, link);
       out.push(parsed.html);
       index = parsed.next;
       continue;
@@ -141,7 +154,7 @@ export function markdownToHtml(markdown: string, image: ImageFileId): string {
       const rows: string[][] = [];
       index += 2;
       while (index < lines.length && lines[index]!.includes('|') && lines[index]!.trim()) rows.push(cells(lines[index++]!));
-      const row = (values: string[], tag: string) => `<tr>${header.map((_, column) => `<${tag}><p>${inline(values[column] ?? '')}</p></${tag}>`).join('')}</tr>`;
+      const row = (values: string[], tag: string) => `<tr>${header.map((_, column) => `<${tag}><p>${inline(values[column] ?? '', link)}</p></${tag}>`).join('')}</tr>`;
       out.push(`<table><tbody>${row(header, 'th')}${rows.map((values) => row(values, 'td')).join('')}</tbody></table>`);
       continue;
     }
@@ -149,14 +162,14 @@ export function markdownToHtml(markdown: string, image: ImageFileId): string {
     if (picture) {
       const fileId = image(picture[2]!);
       const src = webLink(picture[2]!);
-      out.push(fileId ? `<img alt="${escape(picture[1]!)}" data-file-id="${fileId}" src="">` : src ? `<p><a href="${escape(src)}">${escape(picture[1]! || 'Image')}</a></p>` : '');
+      out.push(fileId ? `<img alt="${escape(picture[1]!)}" data-file-id="${fileId}" src="">` : src ? `<p><a href="${escape(src)}">${escape(picture[1]! || 'Image')}</a></p>` : `<p>${escape(picture[1]! || 'Image not imported')}</p>`);
       index += 1;
       continue;
     }
     const paragraph: string[] = [];
     while (index < lines.length && lines[index]!.trim() && !startsBlock(lines[index]!) && !imagePattern.test(lines[index]!.trim())) paragraph.push(lines[index++]!.trim());
     if (paragraph.length === 0) paragraph.push(lines[index++]!.trim());
-    out.push(`<p>${inline(paragraph.join(' '))}</p>`);
+    out.push(`<p>${inline(paragraph.join(' '), link)}</p>`);
   }
   return out.join('');
 }
