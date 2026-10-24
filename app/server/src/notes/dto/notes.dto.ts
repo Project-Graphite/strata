@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
@@ -183,7 +184,7 @@ export class UpdateCommentDto {
   body!: string;
 }
 
-export class PageKindQueryDto {
+export class PageKindQueryDto extends SpaceQueryDto {
   @IsOptional()
   @IsIn(['note', 'board', 'quick'], { message: 'Choose note, board or quick.' })
   kind?: 'note' | 'board' | 'quick';

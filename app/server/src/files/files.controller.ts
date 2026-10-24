@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import {
   BadRequestException,
   Controller,
@@ -6,6 +7,7 @@ import {
   Param,
   Post,
   Req,
+  Query,
   Res,
   StreamableFile,
   UseGuards,
@@ -68,8 +70,8 @@ export class FilesController {
   @Get('me/storage')
   @Scope('items:read')
   @UseGuards(JwtAuthGuard)
-  storage(@CurrentUser() user: AuthenticatedUser) {
-    return this.files.storage(user.id);
+  storage(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.files.storage(user.id, query.spaceId);
   }
 
   @Get('files/:id')

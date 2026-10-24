@@ -112,8 +112,8 @@ export class TasksService implements OnModuleInit {
     return this.listsIn({ spaceId });
   }
 
-  myLists(userId: string) {
-    return this.listsIn(this.access.itemsOf(userId));
+  myLists(userId: string, spaceId?: string) {
+    return this.listsIn({ ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}) });
   }
 
   private async listsIn(scope: Prisma.ItemWhereInput) {
@@ -160,7 +160,7 @@ export class TasksService implements OnModuleInit {
   }
 
   mine(userId: string, query: ListTasksDto) {
-    return this.pageOf(this.access.itemsOf(userId), query.listId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
+    return this.pageOf({ ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}) }, query.listId || query.spaceId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
   }
 
   private async pageOf(scope: Prisma.ItemWhereInput, tasks: Prisma.TaskWhereInput, query: ListTasksDto) {
@@ -189,17 +189,17 @@ export class TasksService implements OnModuleInit {
     return { page: query.page, totalPages: Math.max(1, Math.ceil(total / pageSize)), totalResults: total, results: rows.map(present) };
   }
 
-  async today(userId: string) {
+  async today(userId: string, spaceId?: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId),
+        ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}),
         kind: ItemKind.TASK,
         trashedAt: null,
         task: {
           completedAt: null,
           dueDate: { lte: dateValue(localDate(user.timeZone)) },
-          OR: [{ assigneeId: userId }, { assigneeId: null }],
+          ...(!spaceId ? { OR: [{ assigneeId: userId }, { assigneeId: null }] } : {}),
         },
       },
       orderBy: [{ task: { dueDate: 'asc' } }, { task: { dueTime: { sort: 'asc', nulls: 'first' } } }, { id: 'asc' }],

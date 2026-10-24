@@ -8,6 +8,7 @@ import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CalendarFeedService } from './calendar-feed.service';
 import { CalendarSubscriptionsService } from './calendar-subscriptions.service';
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { AddCalendarDto, CalendarEventDto } from './dto/calendar.dto';
 
 @Controller()
@@ -47,8 +48,8 @@ export class CalendarController {
   @Get('me/calendars')
   @Scope('items:read')
   @UseGuards(JwtAuthGuard)
-  calendars(@CurrentUser() user: AuthenticatedUser) {
-    return this.subscriptions.mine(user.id);
+  calendars(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.subscriptions.mine(user.id, query.spaceId);
   }
 
   @Post('me/calendars/refresh')

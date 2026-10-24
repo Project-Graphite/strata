@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { applyDecorators } from '@nestjs/common';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsTimeZone, IsUrl, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -86,7 +87,7 @@ export class UpdateEventDto extends EventDetailsDto {
   startsOn?: string;
 }
 
-export class AgendaDto {
+export class AgendaDto extends SpaceQueryDto {
   @DateText()
   from!: string;
 

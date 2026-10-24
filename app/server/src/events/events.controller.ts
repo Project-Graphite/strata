@@ -24,7 +24,7 @@ export class EventsController {
   @Scope('items:read')
   @UseGuards(JwtAuthGuard)
   agenda(@CurrentUser() user: AuthenticatedUser, @Query() query: AgendaDto) {
-    return this.events.agenda(user.id, query.from, query.to);
+    return this.events.agenda(user.id, query.from, query.to, query.spaceId);
   }
 
   @Get('events/:id')

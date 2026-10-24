@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { SpaceQueryDto } from '../validation/space-query.dto';
+import { Query, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -26,8 +27,8 @@ export class HabitsController {
 
   @Get('me/habits')
   @Scope('items:read')
-  mine(@CurrentUser() user: AuthenticatedUser) {
-    return this.habits.mine(user.id);
+  mine(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.habits.mine(user.id, query.spaceId);
   }
 
   @Patch('habits/:id')

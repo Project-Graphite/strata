@@ -16,6 +16,6 @@ export class SearchController {
   @RateLimit('search', 600, 3_600)
   @UseGuards(JwtAuthGuard)
   find(@CurrentUser() user: AuthenticatedUser, @Query() query: SearchDto) {
-    return this.search.search(user.id, query.q);
+    return this.search.search(user.id, query.q, query.spaceId);
   }
 }

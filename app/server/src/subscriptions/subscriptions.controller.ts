@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -34,8 +35,8 @@ export class SubscriptionsController {
 
   @Get('subscriptions/summary')
   @Scope('items:read')
-  summary(@CurrentUser() user: AuthenticatedUser) {
-    return this.subscriptions.summary(user.id);
+  summary(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.subscriptions.summary(user.id, query.spaceId);
   }
 
   @Get('subscriptions/:id')

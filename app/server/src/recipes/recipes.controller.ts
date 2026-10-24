@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -15,8 +16,8 @@ export class RecipesController {
 
   @Get('me/recipes')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.recipes.list(user.id);
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.recipes.list(user.id, query.spaceId);
   }
 
   @Post('spaces/:spaceId/recipes')

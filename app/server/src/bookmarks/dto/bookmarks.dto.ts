@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
@@ -9,7 +10,7 @@ export class CreateBookmarkDto {
   url!: string;
 }
 
-export class ListBookmarksDto {
+export class ListBookmarksDto extends SpaceQueryDto {
   @IsOptional()
   @IsIn(['unread', 'read'], { message: 'Choose unread or read.' })
   status?: 'unread' | 'read';

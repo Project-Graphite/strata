@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { SpaceQueryDto } from '../validation/space-query.dto';
+import { Query, Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -14,8 +15,8 @@ export class TripsController {
 
   @Get('me/trips')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.trips.list(user.id);
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.trips.list(user.id, query.spaceId);
   }
 
   @Post('spaces/:spaceId/trips')

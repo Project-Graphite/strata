@@ -73,10 +73,10 @@ export class PeopleService implements OnModuleInit {
     this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; birthday: string }));
   }
 
-  async list(userId: string) {
+  async list(userId: string, spaceId?: string) {
     const today = await this.today(userId);
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), kind: ItemKind.PERSON, trashedAt: null },
+      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.PERSON, trashedAt: null },
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
       take: 2_000,
       select: personFields,

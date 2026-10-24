@@ -60,9 +60,9 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     this.maintenance.register((now) => this.refreshDue(now));
   }
 
-  async mine(userId: string) {
+  async mine(userId: string, spaceId?: string) {
     const rows = await this.prisma.calendarSubscription.findMany({
-      where: { space: this.access.spacesOf(userId) },
+      where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: subscriptionFields,
     });

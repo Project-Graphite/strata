@@ -77,7 +77,7 @@ export class GoalsService {
     const finished = query.status === 'finished';
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId),
+        ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}),
         kind: ItemKind.GOAL,
         trashedAt: null,
         goal: { status: finished ? { in: ['done', 'dropped'] } : 'active' },

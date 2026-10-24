@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { applyDecorators } from '@nestjs/common';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsIn, IsNumber, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
@@ -81,7 +82,7 @@ export class UpdateGoalDto {
   unit?: string | null;
 }
 
-export class ListGoalsDto {
+export class ListGoalsDto extends SpaceQueryDto {
   @IsOptional()
   @IsIn(['active', 'finished'], { message: 'Choose active or finished goals.' })
   status?: 'active' | 'finished';

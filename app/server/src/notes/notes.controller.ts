@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import type { Request } from 'express';
@@ -27,14 +28,14 @@ export class NotesController {
 
   @Get('me/pages')
   @Scope('items:read')
-  mine(@CurrentUser() user: AuthenticatedUser) {
-    return this.notes.mine(user.id);
+  mine(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.notes.mine(user.id, query.spaceId);
   }
 
   @Get('me/notes')
   @Scope('items:read')
   everywhere(@CurrentUser() user: AuthenticatedUser, @Query() query: PageKindQueryDto) {
-    return this.notes.everywhere(user.id, query.kind);
+    return this.notes.everywhere(user.id, query.kind, query.spaceId);
   }
 
   @Get('spaces/:spaceId/notes')

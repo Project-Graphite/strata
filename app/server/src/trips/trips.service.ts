@@ -58,10 +58,10 @@ export class TripsService {
     private readonly rates: ExchangeRatesService,
   ) {}
 
-  async list(userId: string) {
+  async list(userId: string, spaceId?: string) {
     const today = await this.today(userId);
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), kind: ItemKind.TRIP, trashedAt: null },
+      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.TRIP, trashedAt: null },
       orderBy: [{ trip: { startsOn: 'asc' } }, { createdAt: 'asc' }],
       take: 1_000,
       select: tripFields,

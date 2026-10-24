@@ -73,9 +73,9 @@ export class NotesService {
     return rows.map(present);
   }
 
-  async everywhere(userId: string, kind: 'note' | 'board' | 'quick' | undefined) {
+  async everywhere(userId: string, kind: 'note' | 'board' | 'quick' | undefined, spaceId?: string) {
     const rows = await this.prisma.item.findMany({
-      where: {
+      where: { ...(spaceId ? { spaceId } : {}),
         kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' || kind === 'quick' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
@@ -103,8 +103,8 @@ export class NotesService {
     return { pages: rows.slice(0, 100).map(present), nextCursor: rows.length > 100 ? rows[99]!.id : null, nextPage: rows[100] ? present(rows[100]) : null };
   }
 
-  async mine(userId: string) {
-    const where = { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, AND: this.pages.pagesOf(userId) };
+  async mine(userId: string, spaceId?: string) {
+    const where = { ...(spaceId ? { spaceId } : {}), kind: { in: pageKinds }, trashedAt: null, archivedAt: null, AND: this.pages.pagesOf(userId) };
     const [pinned, recent] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...where, note: { template: false, quick: false, pinnedAt: { not: null } } },

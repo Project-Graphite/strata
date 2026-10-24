@@ -13,7 +13,7 @@ export class SearchService {
     private readonly access: AccessService,
   ) {}
 
-  async search(userId: string, text: string) {
+  async search(userId: string, text: string, spaceId?: string) {
     const terms = text.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.slice(0, 8) ?? [];
     if (terms.length === 0) {
       return { items: [], tags: [] };
@@ -26,13 +26,14 @@ export class SearchService {
         JOIN "items" AS "i" ON "i"."id" = "d"."item_id"
         WHERE ("d"."space_id" IN (SELECT "space_id" FROM "space_members" WHERE "user_id" = ${userId}::uuid)
           OR ("i"."kind" IN ('note', 'board') AND "i"."archived_at" IS NULL AND EXISTS (SELECT 1 FROM "page_grants" AS "g" WHERE "g"."item_id" = "i"."id" AND "g"."user_id" = ${userId}::uuid)))
+          AND (${spaceId ?? null}::uuid IS NULL OR "i"."space_id" = ${spaceId ?? null}::uuid)
           AND "i"."trashed_at" IS NULL
           AND to_tsvector('english', "d"."title" || ' ' || "d"."body_text") @@ to_tsquery('english', ${query})
         ORDER BY ts_rank(to_tsvector('english', "d"."title" || ' ' || "d"."body_text"), to_tsquery('english', ${query})) DESC,
           "i"."updated_at" DESC
         LIMIT ${itemLimit}`,
       this.prisma.tag.findMany({
-        where: { space: this.access.spacesOf(userId), name: { contains: text, mode: 'insensitive' } },
+        where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId), name: { contains: text, mode: 'insensitive' } },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         take: tagLimit,
         select: tagFields,

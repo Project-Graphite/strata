@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -18,8 +19,8 @@ export class TidyController {
 
   @Get('tidy/scan')
   @Scope('items:read')
-  scan(@CurrentUser() user: AuthenticatedUser) {
-    return this.tidy.scan(user.id);
+  scan(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.tidy.scan(user.id, query.spaceId);
   }
 
   @Post('tidy/preview')

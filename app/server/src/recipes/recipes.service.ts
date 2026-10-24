@@ -65,9 +65,9 @@ export class RecipesService {
     private readonly tasks: TasksService,
   ) {}
 
-  async list(userId: string) {
+  async list(userId: string, spaceId?: string) {
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), kind: ItemKind.RECIPE, trashedAt: null },
+      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.RECIPE, trashedAt: null },
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
       take: 2_000,
       select: recipeFields,

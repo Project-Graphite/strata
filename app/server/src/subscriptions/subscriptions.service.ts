@@ -297,9 +297,9 @@ export class SubscriptionsService implements OnModuleInit {
     return this.get(userId, itemId);
   }
 
-  async summary(userId: string) {
+  async summary(userId: string, spaceId?: string) {
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), kind: ItemKind.SUBSCRIPTION, trashedAt: null, subscription: { cancelledOn: null } },
+      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.SUBSCRIPTION, trashedAt: null, subscription: { cancelledOn: null } },
       select: subscriptionFields,
     });
     const totals = new Map<string, { currency: string; yearlyMinor: number }>();

@@ -1,3 +1,4 @@
+import { SpaceQueryDto } from '../validation/space-query.dto';
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -42,8 +43,8 @@ export class TasksController {
 
   @Get('me/lists')
   @Scope('items:read')
-  myLists(@CurrentUser() user: AuthenticatedUser) {
-    return this.tasks.myLists(user.id);
+  myLists(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.tasks.myLists(user.id, query.spaceId);
   }
 
   @Get('me/tasks')
@@ -54,8 +55,8 @@ export class TasksController {
 
   @Get('tasks/today')
   @Scope('items:read')
-  today(@CurrentUser() user: AuthenticatedUser) {
-    return this.tasks.today(user.id);
+  today(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.tasks.today(user.id, query.spaceId);
   }
 
   @Get('tasks/:id')

@@ -63,7 +63,7 @@ export class BookmarksService {
   async list(userId: string, query: ListBookmarksDto) {
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId),
+        ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}),
         kind: ItemKind.BOOKMARK,
         trashedAt: null,
         archivedAt: null,

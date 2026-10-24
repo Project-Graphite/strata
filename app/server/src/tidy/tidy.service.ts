@@ -196,8 +196,8 @@ export class TidyService implements OnModuleInit {
     await this.inbox.notify(this.prisma, [{ userId, kind: 'tidy_summary', title: `Tidy found ${listed}`, link: '/tidy' }]);
   }
 
-  async scan(userId: string) {
-    const editable = { ...this.access.itemsOf(userId, 'edit'), trashedAt: null } satisfies Prisma.ItemWhereInput;
+  async scan(userId: string, spaceId?: string) {
+    const editable = { ...this.access.itemsOf(userId, 'edit'), ...(spaceId ? { spaceId } : {}), trashedAt: null } satisfies Prisma.ItemWhereInput;
     const groups = await this.prisma.file.groupBy({
       by: ['sha256'],
       where: { item: editable },

@@ -27,9 +27,9 @@ export class HabitsService {
     return this.withStats(userId, habits);
   }
 
-  async mine(userId: string) {
+  async mine(userId: string, spaceId?: string) {
     const habits = await this.prisma.habit.findMany({
-      where: { space: this.access.spacesOf(userId) },
+      where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) },
       orderBy: [{ space: { createdAt: 'asc' } }, { position: 'asc' }, { createdAt: 'asc' }],
       select: habitFields,
     });
