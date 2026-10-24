@@ -211,6 +211,13 @@ export function CollaborativeEditor({
         },
         handlePaste: (view, event) => insertImages(view, [...(event.clipboardData?.files ?? [])]),
         handleDrop: (view, event) => insertImages(view, [...((event as DragEvent).dataTransfer?.files ?? [])]),
+        handleDOMEvents: {
+          dragstart: (view, event) => {
+            if (!(view.state.selection instanceof TextSelection) || view.state.selection.empty) return false;
+            event.preventDefault();
+            return true;
+          },
+        },
       },
     },
     [connection],
@@ -285,7 +292,11 @@ function HoldHandle({ editor }: { editor: Editor }) {
 function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
   const [block, setBlock] = useState<Block>();
   return (
-    <DragHandle editor={editor} onNodeChange={({ node, pos }) => setBlock(node ? { node, pos } : undefined)}>
+    <DragHandle
+      className={block && block.node.type.name !== 'paragraph' ? 'drag-handle' : 'drag-handle hidden'}
+      editor={editor}
+      onNodeChange={({ node, pos }) => setBlock(node ? { node, pos } : undefined)}
+    >
       <Menu
         header={<HoldHandle editor={editor} />}
         items={blockItems(editor, actions, block, onComment)}
