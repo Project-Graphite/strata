@@ -101,7 +101,7 @@ export function AccountEditor({
       {kind !== 'cash' && (
         <>
           <TextField defaultValue={account?.cardDigits.join(', ')} inputMode="numeric" label="Card endings (optional)" placeholder="1234, 5678" {...form.field('cardDigits')} />
-          <TextField defaultValue={account?.senders.join(', ')} label="SMS senders (optional)" placeholder="CIB" {...form.field('senders')} />
+          <TextField defaultValue={account?.senders.join(', ')} label="SMS chats or apps (optional)" placeholder="CIB, InstaPay, nSave, PayPal" {...form.field('senders')} />
         </>
       )}
     </FormDialog>

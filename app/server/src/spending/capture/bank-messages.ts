@@ -32,23 +32,26 @@ const currencyCodes: [RegExp, string][] = [
 const codeWords = /\b(otp|one[- ]time|verification|passcode|password|pin|code)\b|رمز|كود|كلمة (?:السر|المرور)|الرقم السري/i;
 const codeNearby = /(?:\b(?:otp|code|passcode|pin)\b|رمز|كود)[^\d]{0,20}\d{4,8}(?!\d)|(?<!\d)\d{4,8}[^\d]{0,12}(?:is your|هو رمز|رمز)/i;
 const declinedWords = /declined|rejected|unsuccessful|failed|insufficient|not completed|مرفوض|رفض|لم تتم|غير ناجح|فشل/i;
-const noticeWords = /log ?in|logged|sign(?:ed)? in|تسجيل الدخول|\brequest\b|طلبك|طلب /i;
+const paymentRequestWords =
+  /\brequest(?:ed|s|ing)?\b.*?\b(?:from you|money|payment)\b|\b(?:payment|money|collect|transfer) request\b|\brequested\s+(?:EGP|USD|EUR|GBP|SAR|AED|KWD|QAR|L\.?E\.?|\$|€|£|\d)|طلب (?:دفع|تحصيل|تحويل|سداد|أموال|اموال)|يطلب منك/i;
+const noticeWords = /log ?in|logged|sign(?:ed)? in|تسجيل الدخول|\brequest(?:ed|s|ing)?\b|طلبك|طلب /i;
 const promotionWords = /\boffer|discount|cashback|\bwin\b|\bwon\b|promo|valid (?:till|until)|%|٪|عرض|اربح|استمتع|استفد/i;
 const strongWords =
-  /debited|charged|deducted|credited|refund|was used|has been used|تم خصم|تم إضافة|تم اضافة|تم إيداع|تم ايداع|تم تحويل|تم استلام|تم سحب|تم شراء|تم سداد|تم دفع|استرداد/i;
+  /debited|charged|deducted|credited|refund|was used|has been used|sent you|paid you|transferred to you|you (?:sent|paid|transferred|received|spent)|authorized a payment|تم خصم|تم إضافة|تم اضافة|تم إيداع|تم ايداع|تم تحويل|تم استلام|تم سحب|تم شراء|تم سداد|تم دفع|وصلك|وصلتك|وصل لك|حول لك|استرداد/i;
 const refundWords = /refund|revers|returned|استرداد|مرتجع|إرجاع|ارجاع|رد مبلغ/i;
 const receivedWords =
-  /credited|received|deposit|salary|incoming|added to|to your (?:account|card|wallet)|تم إضافة|تم اضافة|تم إيداع|تم ايداع|إيداع|ايداع|استلام|استلمت|وارد|راتب|إلى حسابك|الى حسابك|لحسابك|إلى محفظتك|الى محفظتك/i;
-const spentWords = /debited|charged|deducted|purchase|paid|payment|spent|withdraw|was used|has been used|sent|transfer|recharge|خصم|شراء|سحب|دفع|سداد|تحويل|حولت|شحن/i;
+  /credited|received|deposit|salary|incoming|added to|to your (?:[a-z]{3}\s+)?(?:account|card|wallet)|sent you|paid you|transferred to you|تم إضافة|تم اضافة|تم إيداع|تم ايداع|إيداع|ايداع|استلام|استلمت|وصلك|وصلتك|وصل لك|حول لك|أرسل لك|ارسل لك|وارد|راتب|إلى حسابك|الى حسابك|لحسابك|إلى محفظتك|الى محفظتك/i;
+const spentWords = /debited|charged|deducted|purchase|paid|payment|spent|withdraw|was used|has been used|authorized|sent|transfer|recharge|خصم|شراء|سحب|دفع|سداد|تحويل|حولت|شحن/i;
 const balanceBefore =
   /(?:available(?: balance| limit| credit(?: limit)?)?|avail\.?(?: bal\.?)?|(?:current |new |remaining )?balance(?: is)?|bal\.?|المتاح(?: هو)?|متاح|الرصيد(?: المتاح| الحالي)?|رصيدك(?: الحالي| المتاح)?|رصيد)\s*(?:is|:|=|هو|-)?\s*$/i;
 const cardDigits = /(?:\*{2,}|x{2,}|#|ending(?: with| in)?|ends with|المنتهي(?:ة)? ب(?:ـ)?|المنتهية|رقم)\s*(\d{4})(?!\d)/i;
 const merchantAfter = [
-  /(?:لدى|لدي|عند)\s+(.+?)(?=\s+(?:في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع)\s|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/g,
-  /\bat\s+(.+?)(?=\s+(?:on|at|from|to|dated|date|for|via|ref|avail|available|balance|with|using|card)\b|\s+\d{1,2}[/.-]\d|[,;]|\.\s|\.$|$)/gi,
-  /(?:\bfrom|\bto|من|إلى|الى)\s+(.+?)(?=\s+(?:on|at|from|to|dated|date|for|via|ref|avail|available|balance|في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|من|إلى|الى)(?:\s|$)|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/gi,
+  /(?:لدى|لدي|عند)\s+(.+?)(?=\s+(?:في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|بنجاح|عبر|عن طريق)\s|\s+(?:بنجاح|عبر|عن طريق)$|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/g,
+  /\bat\s+(.+?)(?=\s+(?:on|at|from|to|into|in|dated|date|for|via|ref|avail|available|balance|with|using|card|completed|succeeded|successfully|was)\b|\s+\d{1,2}[/.-]\d|[,;]|\.\s|\.$|$)/gi,
+  /(?:^(?:(?:paypal|instapay|nsave)\s*[:\-–—]\s*)?|[.!?]\s+)([A-Za-z\u0600-\u06ff][\p{L}\p{N}.'’&_-]*(?:\s+[\p{L}\p{N}.'’&_-]+){0,4})\s+(?:sent you|paid you|transferred to you|حول لك|أرسل لك|ارسل لك)\b/giu,
+  /(?:\bfrom|\bto|من|إلى|الى)\s+(.+?)(?=\s+(?:on|at|from|to|into|in|dated|date|for|via|ref|avail|available|balance|with|using|card|completed|succeeded|successfully|was|في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|من|إلى|الى|بنجاح|عبر|عن طريق|لحسابك)(?:\s|$)|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/gi,
 ];
-const notMerchant = /^(?:(?:your|the|a|an|account|card|wallet)\b|حساب|بطاق|محفظ|رقم|الحساب|البطاقة|المحفظة)/i;
+const notMerchant = /^(?:(?:you|your|the|a|an|main|account|card|wallet)\b|أنت|انت|حساب|بطاق|محفظ|رقم|الحساب|البطاقة|المحفظة)/i;
 
 export function normalise(text: string) {
   return text
@@ -76,12 +79,41 @@ function merchantIn(text: string) {
   return null;
 }
 
+export type DigitalPaymentApp = 'InstaPay' | 'nSave' | 'PayPal';
+
+const digitalAppMatchers: [DigitalPaymentApp, RegExp][] = [
+  ['InstaPay', /\b(?:instapay|ipn)\b|com\.egyptianbanks\.instapay|@instapay|انستاباي|إنستاباي/i],
+  ['nSave', /\bnsave\b|com\.nsave|tech\.nsave/i],
+  ['PayPal', /\bpaypal\b|com\.paypal/i],
+];
+
+export function paymentLabelOf(sender: string, text: string, app?: string | null): DigitalPaymentApp | null {
+  const combined = `${app ?? ''} ${sender} ${normalise(text)}`;
+  return digitalAppMatchers.find(([, pattern]) => pattern.test(combined))?.[0] ?? null;
+}
+
+const cleanSender = (value: string) => value.trim().toLowerCase().replace(/[\s\-_.]+/g, '');
+
+export function chatAllowed(
+  sender: string,
+  allowedChats?: string[] | null,
+  app?: string | null,
+  text = '',
+  chat?: string | null,
+): boolean {
+  const filters = (allowedChats ?? []).map(cleanSender).filter(Boolean);
+  if (filters.length === 0) return true;
+  const appLabel = paymentLabelOf(sender, text, app);
+  const candidates = [sender, chat ?? '', app ?? '', appLabel ?? ''].map(cleanSender).filter(Boolean);
+  return candidates.some((candidate) => filters.some((allowed) => candidate === allowed || candidate.includes(allowed) || allowed.includes(candidate)));
+}
+
 export function readMessage(raw: string): ReadMessage {
   const text = normalise(raw);
   const strong = strongWords.test(text);
   if (codeNearby.test(text) || (!strong && codeWords.test(text))) return { kind: 'ignored', reason: 'code' };
   if (declinedWords.test(text)) return { kind: 'ignored', reason: 'declined' };
-  if (!strong && noticeWords.test(text)) return { kind: 'ignored', reason: 'notice' };
+  if (paymentRequestWords.test(text) || (!strong && noticeWords.test(text))) return { kind: 'ignored', reason: 'notice' };
   if (!strong && promotionWords.test(text)) return { kind: 'ignored', reason: 'promotion' };
 
   const mentions = [...text.matchAll(mention)].map((match) => ({

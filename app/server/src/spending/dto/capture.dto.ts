@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 const stampText = Transform(({ value }: { value: unknown }) => (typeof value === 'number' ? String(value) : value));
 
@@ -26,4 +26,21 @@ export class CaptureMessageDto {
   @IsString()
   @MaxLength(60)
   sim?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  app?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  chat?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @Length(1, 60, { each: true })
+  allowedChats?: string[];
 }

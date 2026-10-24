@@ -56,7 +56,7 @@ export function ExpenseEditor({
   const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
   const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
   const startCard = expense?.cardDigits ?? suggested?.cardDigits ?? null;
-  const startLabel = expense?.paymentLabel ?? null;
+  const startLabel = expense?.paymentLabel ?? suggested?.paymentLabel ?? null;
   const [paidWith, setPaidWith] = useState(
     startCard ? `card:${startCard}` : !startLabel ? '' : paymentMethods.some(([method]) => method === startLabel) ? `method:${startLabel}` : 'other',
   );

@@ -1,7 +1,8 @@
 import { Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { DashboardHome } from '../dashboard/Dashboard';
-import { ButtonLink } from '../components/Button';
+import { ButtonAnchor, ButtonLink } from '../components/Button';
+import { androidReleaseUrl, isNativeAndroid } from '../native-capture';
 
 const areas: [IconName, string, string][] = [
   ['check-mark', 'Tasks', 'Lists, due dates, repeats and reminders.'],
@@ -11,7 +12,7 @@ const areas: [IconName, string, string][] = [
   ['bookmark', 'Bookmarks', 'Links and articles saved to read later.'],
   ['pencil', 'Journal', 'A mood for each day and a weekly review.'],
   ['library', 'Files', 'Documents, photos and anything else you upload.'],
-  ['wallet', 'Spending', 'Expenses and budgets, plus recurring subscriptions and bills.'],
+  ['wallet', 'Spending', 'Expenses, budgets, recurring bills and Android transaction capture.'],
   ['folder', 'Spaces', 'Share tasks, pages and boards with people you choose.'],
 ];
 
@@ -30,6 +31,7 @@ export function HomePage() {
       <div className="mt-8 flex flex-wrap gap-3">
         <ButtonLink label="Create account" large primary to="/register" />
         <ButtonLink label="Sign in" large to="/login" />
+        {!isNativeAndroid() && <ButtonAnchor href={androidReleaseUrl} label="Download for Android" large />}
       </div>
       <ul className="stagger-in mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map(([icon, name, description]) => (

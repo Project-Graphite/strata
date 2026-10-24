@@ -100,4 +100,89 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(404);
   });
 
+  it('captures digital transactions from InstaPay, nSave and PayPal and filters SMS by specific chats', async () => {
+    const owner = await member('digital-texter');
+    const home = (await owner.call('POST', '/spaces', { name: 'Digital' })).body;
+    const nbe = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly', 'InstaPay'] })).body;
+    const nsave = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'nSave', kind: 'wallet', currency: 'GBP', cardDigits: ['4412'], senders: ['nSave'] })).body;
+    const paypal = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'PayPal', kind: 'wallet', currency: 'USD', senders: ['PayPal'] })).body;
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'spotify ab', rename: 'Spotify', category: 'entertainment' });
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: "sainsbury's", rename: 'Sainsburys', category: 'groceries' });
+
+    const allowedChats = ['BanK-AlAhly', 'InstaPay', 'nSave', 'PayPal'];
+    const ignoredChat = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'Mom',
+      chat: 'Mom',
+      text: 'I sent you EGP 500 for dinner',
+      allowedChats,
+    });
+    expect(ignoredChat.body).toEqual({ status: 'ignored', reason: 'chat' });
+
+    const instapayIn = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'InstaPay',
+      app: 'com.egyptianbanks.instapay',
+      text: 'MOHAMED ALI sent you EGP 600.00 via InstaPay',
+      allowedChats,
+    });
+    expect(instapayIn.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${instapayIn.body.expenseId}`)).body).toMatchObject({
+      title: 'MOHAMED ALI',
+      direction: 'received',
+      amountMinor: 60_000,
+      currency: 'EGP',
+      accountId: nbe.id,
+      paymentLabel: 'InstaPay',
+    });
+
+    const nsaveCard = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'nSave',
+      app: 'com.nsave.app',
+      text: "nSave: You spent £12.50 at Sainsbury's with card ending 4412",
+      allowedChats,
+    });
+    expect(nsaveCard.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${nsaveCard.body.expenseId}`)).body).toMatchObject({
+      title: 'Sainsburys',
+      direction: 'spent',
+      amountMinor: 1250,
+      currency: 'GBP',
+      category: 'groceries',
+      accountId: nsave.id,
+      cardDigits: '4412',
+      paymentLabel: 'nSave',
+    });
+
+    const paypalPayment = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'PayPal',
+      app: 'com.paypal.android.p2pmobile',
+      text: 'You paid $19.99 USD to Spotify AB',
+      allowedChats,
+    });
+    expect(paypalPayment.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${paypalPayment.body.expenseId}`)).body).toMatchObject({
+      title: 'Spotify',
+      direction: 'spent',
+      amountMinor: 1999,
+      currency: 'USD',
+      category: 'entertainment',
+      accountId: paypal.id,
+      paymentLabel: 'PayPal',
+    });
+
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'ahmed@instapay', rename: 'Ahmed transfer', category: 'other' });
+    const instapayOut = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'InstaPay',
+      app: 'com.egyptianbanks.instapay',
+      text: 'You have transferred EGP 450.00 to ahmed@instapay from your account ****1234',
+      allowedChats,
+    });
+    expect(instapayOut.body.status).toBe('recorded');
+    const duplicateBankSms = await owner.call('POST', `/spaces/${home.id}/captures`, {
+      from: 'BanK-AlAhly',
+      text: 'تم خصم 450.00 جم من حسابك ****1234 لدى ahmed@instapay المتاح 8,000.00 جم',
+      allowedChats,
+    });
+    expect(duplicateBankSms.body).toEqual({ status: 'recorded', expenseId: instapayOut.body.expenseId });
+  });
+
 });
