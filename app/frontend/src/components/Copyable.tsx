@@ -4,24 +4,28 @@ import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Hint } from './Hint';
 
-export function Copyable({ label, value }: { label?: string; value: string }) {
+export function Copyable({ compact = false, label, value }: { compact?: boolean; label?: string; value: string }) {
   const [copied, setCopied] = useState(false);
+  const [manualCopy, setManualCopy] = useState(false);
   const show = useSnackbar();
   return (
-    <div className="grid gap-1">
+    <div className="grid min-w-0 gap-1">
       {label && <span className="text-sm text-muted">{label}</span>}
       <div className="flex items-start gap-2">
-        <code className="mono-sm block min-w-0 flex-1 break-all rounded-field border border-line p-3 text-ink select-all">{value}</code>
+        {(!compact || manualCopy) && <code className="mono-sm block min-w-0 flex-1 break-all rounded-field border border-line p-3 text-ink select-all">{value}</code>}
         <Button
           icon={copied ? 'check-mark' : undefined}
-          label={copied ? 'Copied' : 'Copy'}
+          label={copied ? 'Copied' : compact ? 'Copy link' : 'Copy'}
           onClick={() =>
             void navigator.clipboard.writeText(value).then(
               () => {
                 setCopied(true);
                 window.setTimeout(() => setCopied(false), 2000);
               },
-              () => show({ message: 'Could not copy. Select the text and copy it yourself.', tone: 'error' }),
+              () => {
+                if (compact) setManualCopy(true);
+                show({ message: compact ? 'Could not copy link.' : 'Could not copy. Select the text and copy it yourself.', tone: 'error' });
+              },
             )
           }
         />

@@ -8,7 +8,6 @@ import { Copyable } from './Copyable';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
-import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
 import { PagePeople } from './PagePeople';
 import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
@@ -42,7 +41,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
   const [access, setAccess] = useState<Access>('view');
   const [days, setDays] = useState('30');
   const [turningOff, setTurningOff] = useState<ShareLink>();
-  const [linkRows, shownLinks] = useRememberedShape('share-links', links.data && [links.data.length, links.data.filter((link) => link.link).length], [0, 0]);
+  const [linkRows] = useRememberedShape('share-links', links.data && [links.data.length], [0]);
 
   if (turningOff) {
     return (
@@ -59,96 +58,81 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
         title="Turn off this link?"
         tone="danger"
       >
-        Anyone with it loses access to this {noun} straight away.
+        Anyone using this link will lose access.
       </ConfirmDialog>
     );
   }
 
   return (
-    <Dialog onClose={onClose} title={`Share this ${noun}`}>
-      <div className="mt-5 grid gap-4">
+    <Dialog onClose={onClose} title={`Share ${noun}`}>
+      <div className="mt-5 grid gap-5">
         {page && <PagePeople itemId={itemId} />}
-        <Hint>Anyone with a link can open this {noun} without an account, until the link ends or you turn it off.</Hint>
-        {editLinks && <Hint>Changes appear live. Edit links let guests change the content, without access to the rest of your space.</Hint>}
-        {editLinks && <Hint>Subpages and database rows are not included. Embedded boards need their own share link.</Hint>}
-        <Hint>{page ? 'Space owners, space editors and page managers can manage these links.' : 'Space owners and editors can manage these links.'}</Hint>
-        <div className={`grid gap-3 ${editLinks ? 'sm:grid-cols-2' : ''}`}>
-          {editLinks && <Select label="People with the link" onChange={setAccess} options={accessOptions} value={access} />}
-          <Select label="Link works for" onChange={setDays} options={durationOptions} value={days} />
-        </div>
-        <Button
-          disabled={action.busy}
-          label={action.busy ? 'Creating…' : 'Create link'}
-          onClick={() =>
-            void action.run(async () => {
-              const created = await auth.request<ShareLink>(`/items/${itemId}/share-links`, {
-                method: 'POST',
-                body: JSON.stringify({ access, expiresInDays: Number(days) }),
-              });
-              links.mutate((current) => [created, ...current]);
-              return 'Created the link.';
-            }, 'Could not create the link')
-          }
-          primary
-        />
-        <Subheading>Links</Subheading>
-        {links.error ? (
-          <LoadError compact error={links.error} onRetry={links.reload} />
-        ) : links.loading ? (
-          <Placeholder label="Loading links">
-            {linkRows ? (
-              <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0">
-                {rowsOf(linkRows).map((row) => (
-                  <li className="grid gap-2 rounded-panel border border-line p-3" key={row}>
-                    <div className="flex items-center justify-between gap-3">
-                      <SkeletonLine className="text-sm" width="w-40" />
-                      <ButtonSkeleton width="w-20" />
-                    </div>
-                    {row < shownLinks ? (
-                      <div className="flex items-start gap-2">
-                        <div className="mono-sm min-w-0 flex-1 rounded-field border border-line p-3">
-                          <SkeletonLine width="w-full" />
-                        </div>
-                        <ButtonSkeleton width="w-16" />
+        <section aria-label="Anyone with the link" className={`grid gap-3 ${page ? 'border-t border-line pt-5' : ''}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Subheading>Anyone with the link</Subheading>
+            {page && <Hint>This page only</Hint>}
+          </div>
+          <div className={`grid grid-cols-1 items-end gap-3 ${editLinks ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}>
+            {editLinks && <Select label="Access" onChange={setAccess} options={accessOptions} size="small" value={access} />}
+            <Select label="Expires in" onChange={setDays} options={durationOptions} size="small" value={days} />
+            <Button
+              disabled={action.busy}
+              label={action.busy ? 'Creating…' : 'Create link'}
+              onClick={() =>
+                void action.run(async () => {
+                  const created = await auth.request<ShareLink>(`/items/${itemId}/share-links`, {
+                    method: 'POST',
+                    body: JSON.stringify({ access, expiresInDays: Number(days) }),
+                  });
+                  links.mutate((current) => [created, ...current]);
+                  return 'Created the link.';
+                }, 'Could not create the link')
+              }
+              primary
+            />
+          </div>
+          {links.error ? (
+            <LoadError compact error={links.error} onRetry={links.reload} />
+          ) : links.loading ? (
+            <Placeholder label="Loading links">
+              {linkRows ? (
+                <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0">
+                  {rowsOf(linkRows).map((row) => (
+                    <li className="grid gap-2 rounded-panel border border-line p-3" key={row}>
+                      <div className="flex items-center justify-between gap-3">
+                        <SkeletonLine className="text-sm" width="w-40" />
+                        <ButtonSkeleton width="w-20" />
                       </div>
-                    ) : (
-                      <HintSkeleton />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <HintSkeleton />
-            )}
-          </Placeholder>
-        ) : links.data?.length ? (
-          <ul className="m-0 grid list-none gap-3 p-0">
-            {links.data.map((link) => (
-              <li className="grid gap-2 rounded-panel border border-line p-3" key={link.id}>
-                <div className="flex items-center justify-between gap-3">
+                      <ButtonSkeleton width="w-24" />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <HintSkeleton />
+              )}
+            </Placeholder>
+          ) : links.data?.length ? (
+            <ul className="m-0 grid list-none gap-3 p-0">
+              {links.data.map((link) => (
+                <li className="flex flex-wrap items-center justify-between gap-3 rounded-field border border-line p-3" key={link.id}>
                   <p className="m-0 text-sm text-ink">
                     {link.access === 'edit' ? 'Can edit' : 'Can view'}
                     <span className="text-faint">
-                      {' · Until '}
+                      {' · Expires '}
                       {formatDay(dayKey(new Date(link.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </p>
-                  <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
-                </div>
-                {link.link ? (
-                  <Copyable value={link.link} />
-                ) : (
-                  <Hint>This older link can’t be shown again. Turn it off and create a new one to copy it.</Hint>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Hint>No public links yet.</Hint>
-        )}
-        <DialogActions>
-          <Button label="Done" large onClick={onClose} />
-        </DialogActions>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {link.link ? <Copyable compact value={link.link} /> : <Hint>Link unavailable</Hint>}
+                    <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Hint>No links</Hint>
+          )}
+        </section>
       </div>
     </Dialog>
   );
