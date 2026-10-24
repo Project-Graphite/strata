@@ -6,6 +6,11 @@
   --color-highlight: #d7b24a;
 }
 
+:is(button, [role='button'], [role='tab'], .MuiButton-root, .MuiToggleButton-root, .MuiTab-root) {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .note-title {
   width: 100%;
   border: 0;
