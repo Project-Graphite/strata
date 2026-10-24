@@ -7,6 +7,9 @@ on:
         description: Release tag to publish (defaults to the latest v* tag)
         required: false
         type: string
+  workflow_run:
+    workflows: [Changelog]
+    types: [completed]
   push:
     tags: ['v*']
 
@@ -22,6 +25,7 @@ permissions:
 jobs:
   android:
     name: Android APK
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -70,6 +74,8 @@ jobs:
           java-version: "21"
           cache: gradle
 
+      - uses: android-actions/setup-android@v3
+
       - name: Build web assets and sync Capacitor
         working-directory: app
         run: |
@@ -102,10 +108,12 @@ jobs:
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$VERSIONED_APK" --clobber
+            gh release edit "$TAG" --draft=false --latest
           else
             gh release create "$TAG" "$APK" "$VERSIONED_APK" \
               --verify-tag \
               --title "Strata $TAG" \
-              --generate-notes
+              --generate-notes \
+              --latest
           fi
 
