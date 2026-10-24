@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
@@ -80,6 +81,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const areaContext = useMemo(() => ({ setArea }), []);
   const active = areaOverride ?? areaOf(pathname);
   const signedIn = Boolean(auth.user);
+  const transitions = useMediaQuery('(min-width: 64rem) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
   const apps = enabledApps(auth.user?.features);
   const openSearch = useCallback(() => signedIn && setSearching(true), [signedIn]);
   useCommandShortcut(openSearch);
@@ -91,6 +93,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
   const showSidebar = auth.user || (!auth.ready && expectSession);
+  const content = <CrashBoundary><Outlet /></CrashBoundary>;
 
   return (
     <>
@@ -151,11 +154,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             </ErrorState>
           ) : (
             <AreaContext.Provider value={areaContext}>
-              <PageTransition page={pathname}>
-                <CrashBoundary>
-                  <Outlet />
-                </CrashBoundary>
-              </PageTransition>
+              {transitions ? <PageTransition page={pathname}>{content}</PageTransition> : <Fragment key={pathname}>{content}</Fragment>}
             </AreaContext.Provider>
           )}
         </OutageGate>
