@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { TextButton } from './Button';
 import { Hint } from './Hint';
 
-export function CommitInput({ autoFocus, className, label, maxLength, onCommit, onEnter, placeholder, readOnly, type = 'text', value }: {
+export function CommitInput({ autoFocus, className, label, maxLength, multiline = false, onCommit, onEnter, placeholder, readOnly, type = 'text', value }: {
   autoFocus?: boolean;
   className?: string;
   label: string;
   maxLength?: number;
+  multiline?: boolean;
   onCommit: (value: string, expected: string) => Promise<boolean>;
-  onEnter?: (input: HTMLInputElement) => void;
+  onEnter?: (input: HTMLInputElement | HTMLTextAreaElement) => void;
   placeholder?: string;
   readOnly?: boolean;
   type?: 'text' | 'number' | 'url';
@@ -38,6 +39,7 @@ export function CommitInput({ autoFocus, className, label, maxLength, onCommit, 
       <InputBase
         autoFocus={autoFocus}
         fullWidth
+        multiline={multiline}
         onBlur={() => {
           if (draft && draft.base === value) void commit(draft.base);
         }}
@@ -48,8 +50,8 @@ export function CommitInput({ autoFocus, className, label, maxLength, onCommit, 
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return;
           event.preventDefault();
-          (event.target as HTMLInputElement).blur();
-          onEnter?.(event.target as HTMLInputElement);
+          (event.target as HTMLInputElement | HTMLTextAreaElement).blur();
+          onEnter?.(event.target as HTMLInputElement | HTMLTextAreaElement);
         }}
         placeholder={placeholder}
         readOnly={readOnly || busy}

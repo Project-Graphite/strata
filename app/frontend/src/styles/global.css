@@ -21,10 +21,15 @@
   font-weight: 640;
   letter-spacing: -0.03em;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .note-title:focus {
   outline: none;
+}
+
+.page-header:has(.note-title) {
+  align-items: flex-start;
 }
 
 .note-title::placeholder {
@@ -35,6 +40,122 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.note-editor-header,
+.board-editor-header {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.board-editor-header > .live-document-status {
+  grid-row: 1;
+}
+
+.live-document-status {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.live-document-summary {
+  display: flex;
+  min-width: 0;
+  min-height: 2.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.live-save-status {
+  display: flex;
+  min-width: 7.25rem;
+  min-height: 2.25rem;
+  margin-inline-start: auto;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-faint);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.live-save-indicator {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+.live-save-status[data-saved='true'] .live-save-indicator {
+  border-color: var(--color-live);
+  background: var(--color-live);
+}
+
+.live-save-status[data-busy='true'] .live-save-indicator {
+  border-inline-end-color: transparent;
+  animation: live-save-spin 900ms linear infinite;
+}
+
+.live-device-status {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.live-document-actions,
+.live-presence,
+.live-presence-follow {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.live-presence-follow {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
+.live-presence-avatars > :nth-child(n + 3) {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .live-presence-avatars > :nth-child(n + 3) {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 39.999rem) {
+  .page-header:has(.note-title) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .page-header:has(.note-title) .page-header-actions {
+    justify-self: end;
+  }
+}
+
+@keyframes live-save-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-save-status[data-busy='true'] .live-save-indicator {
+    animation: none;
+  }
 }
 
 .note-content {

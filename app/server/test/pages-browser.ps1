@@ -293,7 +293,7 @@ async function cdp(url) {
       throw new Error(`Browser condition failed: ${expression}\n${await this.evaluate('JSON.stringify({ url: location.href, blocks: [...document.querySelectorAll(".note-content [data-id]")].map((node) => ({ id: node.dataset.id, className: node.className })), outline: document.querySelector("[aria-label=\\"Page outline\\"]")?.innerHTML })')}\n${await this.evaluate('document.body.innerText')}`);
     },
     async type(label, value) {
-      await this.evaluate(`(() => { const input = document.querySelector('input[aria-label="${label}"]'); input.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await this.evaluate(`(() => { const input = document.querySelector('input[aria-label="${label}"], textarea[aria-label="${label}"]:not([aria-hidden="true"])'); input.focus(); Object.getOwnPropertyDescriptor(input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     },
     async click(label) {
       await this.evaluate(`(() => { const button = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === ${JSON.stringify(label)}); if (!button) throw new Error('Missing button'); button.click(); })()`);
@@ -379,7 +379,7 @@ try {
     await peer.evaluate(`(() => { const content = document.querySelector('.note-content'); content.focus(); const range = document.createRange(); range.selectNodeContents(content); range.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(range); document.execCommand('insertText', false, ${JSON.stringify(text)}); })()`);
   }
   const member = await open('/notes/page');
-  await member.until(`document.querySelector('input[aria-label="Page title"]')?.value === 'Original title' && document.querySelector('input[aria-label="Text"]')`);
+  await member.until(`document.querySelector('textarea[aria-label="Page title"]')?.value === 'Original title' && document.querySelector('input[aria-label="Text"]')`);
   await member.until(`document.querySelector('button[aria-label="Collapse Test space"]')`);
   await member.evaluate(`document.querySelector('button[aria-label="Collapse Test space"]').click()`);
   await member.until(`document.querySelector('button[aria-label="Expand Test space"]')`);
@@ -424,24 +424,24 @@ try {
   await member.type('Page title', 'Local title draft');
   rename('Remote title');
   await member.until(`document.body.innerText.includes('Someone changed this value')`);
-  assert.equal(await member.evaluate(`document.querySelector('input[aria-label="Page title"]').value`), 'Local title draft');
+  assert.equal(await member.evaluate(`document.querySelector('textarea[aria-label="Page title"]').value`), 'Local title draft');
   await member.click('Save my change');
-  await member.until(`document.querySelector('input[aria-label="Page title"]').value === 'Local title draft' && !document.body.innerText.includes('Someone changed this value')`);
+  await member.until(`document.querySelector('textarea[aria-label="Page title"]').value === 'Local title draft' && !document.body.innerText.includes('Someone changed this value')`);
   assert.equal(page.title, 'Local title draft');
   await member.type('Page title', 'Unsent title');
   failDetails = true;
   notify('page-details', 'page');
   await member.until(`[...document.querySelectorAll('button')].some((button) => ['Try again', 'Retry'].includes(button.textContent.trim()))`);
-  assert.equal(await member.evaluate(`document.querySelector('input[aria-label="Page title"]').value`), 'Unsent title');
+  assert.equal(await member.evaluate(`document.querySelector('textarea[aria-label="Page title"]').value`), 'Unsent title');
   failDetails = false;
   notify('page-details', 'page');
   await delay(500);
   rename('Conflicting title', false);
-  await member.evaluate(`document.querySelector('input[aria-label="Page title"]').blur()`);
+  await member.evaluate(`document.querySelector('textarea[aria-label="Page title"]').blur()`);
   await member.until(`document.body.innerText.includes('Someone changed this value')`);
   assert.equal(page.title, 'Conflicting title');
   await member.click('Use current value');
-  await member.until(`document.querySelector('input[aria-label="Page title"]').value === 'Conflicting title'`);
+  await member.until(`document.querySelector('textarea[aria-label="Page title"]').value === 'Conflicting title'`);
   await member.type('Text', 'Local property draft');
   rowValue = 'Remote property';
   notify('page-databases', 'page');
@@ -457,7 +457,7 @@ try {
   rename('First update');
   for (let attempt = 0; attempt < 100 && detailsRequests === before; attempt += 1) await delay(25);
   rename('Second update');
-  await member.until(`document.querySelector('input[aria-label="Page title"]').value === 'Second update'`);
+  await member.until(`document.querySelector('textarea[aria-label="Page title"]').value === 'Second update'`);
   assert.ok(detailsRequests >= before + 2);
   const viewer = await open('/share/view#block-browser-heading');
   await viewer.until(`document.querySelector('.note-content')?.textContent.includes('Initial body')`);

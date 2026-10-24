@@ -304,7 +304,7 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="board-editor-header">
         <BrainstormBar controls={Boolean(member) && editable && !blocked} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
         <LiveDocumentStatus onDownloadDraft={() => downloadPageDraft(connection.document, 'board', boardId)} status={status} />
       </div>

@@ -16,12 +16,12 @@ export function LivePresence({ people, actions }: { people: Person[]; actions?: 
   if (people.length === 0) return null;
   return (
     <>
-      <div className="flex items-center gap-2">
-        <div aria-hidden="true" className="flex -space-x-2">
+      <div className="live-presence">
+        <div aria-hidden="true" className="live-presence-avatars flex -space-x-2">
           {people.slice(0, 5).map((person) => <Avatar key={person.id} name={person.name} present={person.activity !== 'idle'} />)}
         </div>
         <TextButton label={`${people.length} ${people.length === 1 ? 'person' : 'people'} here`} onClick={() => setOpen(true)} />
-        {actions?.following && <><span className="mono-sm text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></>}
+        {actions?.following && <div className="live-presence-follow"><span className="text-sm text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></div>}
       </div>
       {open && (
         <Dialog onClose={() => setOpen(false)} title="People here">

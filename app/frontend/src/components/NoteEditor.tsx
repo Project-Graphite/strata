@@ -260,9 +260,9 @@ export function CollaborativeEditor({
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return (
     <div className="note-editor grid gap-3">
-      <div className={`flex flex-wrap items-center justify-between gap-3 ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
-        {editable && !blocked ? <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} /> : <span />}
+      <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
         <LiveDocumentStatus onDownload={() => saveBlob(new Blob([editor.getText({ blockSeparator: '\n\n' })], { type: 'text/plain;charset=utf-8' }), `page-${noteId}-draft.txt`)} onDownloadDraft={() => downloadPageDraft(connection.document, 'note', noteId)} presenceActions={following} status={status} />
+        {editable && !blocked && <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} />}
       </div>
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <PageOutline editor={editor} provider={connection.provider} quick={quick} />

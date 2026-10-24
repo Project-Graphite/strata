@@ -96,7 +96,7 @@ export function NotePage() {
             <p className="page-header-eyebrow">
               <BackLink back={back} />
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <Skeleton className="size-11 shrink-0 rounded-field" />
               <SkeletonLine className="note-title" width="w-72 max-w-full" />
             </div>
@@ -202,7 +202,7 @@ export function NotePage() {
           <p className="page-header-eyebrow">
             <BackLink back={back} />
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             {(details.editable || details.icon) &&
               !details.quick &&
               (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
@@ -212,6 +212,7 @@ export function NotePage() {
               key={details.id}
               label={details.quick ? 'Note title' : 'Page title'}
               maxLength={200}
+              multiline
               onCommit={(title, expectedTitle) => save({ title, expectedTitle }, () => '', `Could not rename the ${pageNoun(details)}`)}
               onEnter={(input) => input.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus()}
               placeholder="Untitled"
