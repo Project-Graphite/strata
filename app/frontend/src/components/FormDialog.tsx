@@ -29,7 +29,7 @@ export function FormDialog({
   return (
     <Dialog onClose={onClose} title={title}>
       <form
-        className="mt-5 grid gap-4"
+        className="mt-5 grid min-w-0 grid-cols-1 gap-4"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();

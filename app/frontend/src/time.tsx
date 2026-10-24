@@ -78,7 +78,7 @@ function ClockDialog({ initial, onClose, onSet, optional, title }: { initial: st
 
   return (
     <Dialog onClose={onClose} title={title}>
-      <div className="mt-5 grid gap-6">
+      <div className="mt-5 grid min-w-0 grid-cols-1 gap-6">
         <div className="clock-face">
           {twelve ? (
             <Digits label="Hours" max={12} min={1} onChange={(next) => setHours((next % 12) + (afternoon ? 12 : 0))} step={1} value={hours % 12 || 12} />

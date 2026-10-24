@@ -50,7 +50,7 @@ export function PropertyField({
 }) {
   if (!editable)
     return (
-      <span className="flex flex-wrap gap-1">
+      <span className="flex min-w-0 flex-wrap gap-1 wrap-anywhere">
         {(property.type === 'checkbox' ? (value ? 'Yes' : null) : propertyDisplay(property, value, members)) ?? <span className="text-faint">—</span>}
       </span>
     );
@@ -73,7 +73,7 @@ export function PropertyField({
         />
       );
     case 'date':
-      return <DatePicker aria-label={label} onChange={(day) => void onChange(day || null, value ?? null)} placeholder="—" quiet size="small" value={asText(value)} />;
+      return <DatePicker aria-label={label} className="w-full min-w-0" onChange={(day) => void onChange(day || null, value ?? null)} placeholder="—" quiet size="small" value={asText(value)} />;
     case 'checkbox':
       return <Checkbox aria-label={label} checked={value === true} onChange={(event) => void onChange(event.currentTarget.checked, value ?? null)} />;
     case 'select':
@@ -81,6 +81,7 @@ export function PropertyField({
       return (
         <Select
           aria-label={label}
+          className="w-full min-w-0"
           onChange={(chosen) => void onChange(chosen || null, value ?? null)}
           options={[
             { value: '', label: '—' },

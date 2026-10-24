@@ -117,13 +117,13 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       .filter(([, display]) => !blank(display))
       .slice(0, 3)
       .map(([property, display]) => (
-        <span className="inline-flex flex-wrap items-center gap-1 text-sm text-muted" key={property.id}>
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-1 wrap-anywhere text-sm text-muted" key={property.id}>
           {display}
         </span>
       ));
 
   const title = (row: DatabaseRow) => (
-    <Link className="text-ink no-underline hover:underline" to={`/notes/${row.id}`}>
+    <Link className="min-w-0 wrap-anywhere text-ink no-underline hover:underline" to={`/notes/${row.id}`}>
       {row.icon ? `${row.icon} ` : ''}
       {noteTitle(row)}
     </Link>
@@ -223,14 +223,14 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
             {Array.from({ length: days }, (_, index) => addDays(from, index)).map((day) => (
               <div
                 aria-label={formatDay(day, { day: 'numeric', month: 'long' })}
-                className={`grid min-h-20 content-start gap-0.5 bg-paper p-1.5 ${new Date(`${day}T00:00:00`).getMonth() !== shown.getMonth() ? 'opacity-50' : ''}`}
+                className={`grid min-h-20 min-w-0 content-start gap-0.5 bg-paper p-1.5 ${new Date(`${day}T00:00:00`).getMonth() !== shown.getMonth() ? 'opacity-50' : ''}`}
                 key={day}
                 role="group"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between">
                   <span className={`mono-sm ${day === today ? 'font-medium text-ink' : 'text-faint'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
                   {editable && (
-                    <IconButton disabled={adding.busy} icon="plus" label="Add a page on this day" onClick={() => addRow({ [dateProperty.id]: day })} size="small" />
+                    <IconButton className="max-sm:min-h-10" disabled={adding.busy} icon="plus" label="Add a page on this day" onClick={() => addRow({ [dateProperty.id]: day })} size="small" />
                   )}
                 </div>
                 {(byDay.get(day) ?? []).map((row) => (
@@ -255,7 +255,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
     if (data.rows.length === 0) return empty;
     if (data.view === 'list') {
       return (
-        <ul className="m-0 grid list-none gap-1.5 p-0">
+        <ul className="m-0 grid min-w-0 grid-cols-1 list-none gap-1.5 p-0">
           {data.rows.map((row) => (
             <li className="flex flex-wrap items-center gap-x-3 gap-y-1" key={row.id}>
               {title(row)}
@@ -302,7 +302,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   }
 
   return (
-    <section aria-label="Database" className="grid gap-4 border-t border-line-soft pt-6">
+    <section aria-label="Database" className="grid min-w-0 grid-cols-1 gap-4 border-t border-line-soft pt-6">
       {database.refreshError && <LoadError compact error={database.refreshError} onRetry={database.reload} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleButtonGroup

@@ -121,7 +121,7 @@ export function DetailState({
 export function Toolbar({ actions, children }: { actions?: ReactNode; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 max-sm:basis-full">{children}</div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
@@ -129,7 +129,7 @@ export function Toolbar({ actions, children }: { actions?: ReactNode; children?:
 
 export function FilterChips({ children, items, label }: { children?: ReactNode; items: { active: boolean; count?: number; href: string; label: string }[]; label: string }) {
   return (
-    <nav aria-label={label} className="flex flex-wrap items-center gap-2">
+    <nav aria-label={label} className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
       {items.map((item) => (
         <Chip
           aria-current={item.active ? 'page' : undefined}
@@ -137,11 +137,12 @@ export function FilterChips({ children, items, label }: { children?: ReactNode; 
           component={Link}
           key={item.href}
           label={
-            <>
-              {item.label}
-              {item.count !== undefined && <span className="ml-1.5 text-faint">{item.count}</span>}
-            </>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate">{item.label}</span>
+              {item.count !== undefined && <span className="shrink-0 text-faint">{item.count}</span>}
+            </span>
           }
+          title={item.label}
           to={item.href}
           variant={item.active ? 'filled' : 'outlined'}
         />
@@ -158,7 +159,7 @@ export function Subheading({ children, level = 3 }: { children: ReactNode; level
 
 export function Section({ action, children, description, title }: { action?: ReactNode; children: ReactNode; description?: ReactNode; title: string }) {
   return (
-    <section className="grid gap-3">
+    <section className="grid min-w-0 grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="m-0 text-lg font-medium">{title}</h2>

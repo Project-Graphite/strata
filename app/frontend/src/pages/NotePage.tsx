@@ -196,7 +196,7 @@ export function NotePage() {
     : options;
 
   return (
-    <article className={`page-enter grid gap-8 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+    <article className={`page-enter grid min-w-0 grid-cols-1 gap-8 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <header className="page-header">
         <div className="min-w-0 flex-1">
           <p className="page-header-eyebrow">
@@ -229,11 +229,11 @@ export function NotePage() {
       </header>
       {note.refreshError && <LoadError compact error={note.refreshError} onRetry={note.reload} />}
       {details.row && details.row.properties.length > 0 && (
-        <dl aria-label="Properties" className="m-0 grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-x-4 gap-y-1 text-sm">
+        <dl aria-label="Properties" className="m-0 grid min-w-0 grid-cols-1 items-center gap-x-4 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)]">
           {details.row.properties.map((property) => (
             <Fragment key={property.id}>
-              <dt className="text-muted">{property.name}</dt>
-              <dd className="m-0">
+              <dt className="min-w-0 wrap-anywhere text-muted">{property.name}</dt>
+              <dd className="m-0 min-w-0 max-sm:mb-3">
                 <PropertyField
                   editable={details.editable && (property.type !== 'person' || Boolean(details.permissions.spaceRole))}
                   members={members.data}

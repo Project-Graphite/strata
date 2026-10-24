@@ -2,6 +2,12 @@
 @import '@project-graphite/ui/theme.css';
 @source '../../../node_modules/@project-graphite/ui/dist';
 
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 :root {
   --color-highlight: #d7b24a;
 }
@@ -9,6 +15,10 @@
 :is(button, [role='button'], [role='tab'], .MuiButton-root, .MuiToggleButton-root, .MuiTab-root) {
   text-transform: none;
   letter-spacing: normal;
+}
+
+.MuiChip-root {
+  max-width: 100%;
 }
 
 .note-title {
@@ -42,6 +52,29 @@
   gap: 0.25rem;
   min-width: 0;
   max-width: 100%;
+}
+
+@media (max-width: 64rem) and (pointer: coarse) {
+  .MuiButton-root,
+  .MuiInputBase-root,
+  [aria-label='Database view'] .MuiToggleButton-root {
+    min-height: 2.75rem;
+  }
+
+  .note-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .note-toolbar > * {
+    flex-shrink: 0;
+  }
+
+  .note-toolbar :is(.MuiIconButton-root, .MuiToggleButton-root) {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }
 
 .note-editor-header,
@@ -1387,10 +1420,11 @@ header.backdrop-blur-md {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-width: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--color-ink) 4%, var(--color-paper));
-  padding: 1rem 1.25rem;
+  padding: 1rem clamp(0.5rem, 3vw, 1.25rem);
 }
 
 .clock-digits {
@@ -1398,7 +1432,7 @@ header.backdrop-blur-md {
   border-radius: var(--radius-field);
   color: var(--color-ink);
   font-family: var(--font-mono);
-  font-size: 3.5rem;
+  font-size: clamp(2rem, 10vw, 3.5rem);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-align: center;

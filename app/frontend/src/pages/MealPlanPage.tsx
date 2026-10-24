@@ -16,11 +16,11 @@ import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRemembered
 
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 const weekRange = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-const dayRow = 'panel-row grid grid-cols-3 gap-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]';
+const dayRow = 'panel-row grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]';
 
 function DayLabel({ day, today }: { day: string; today: string }) {
   return (
-    <p className={`m-0 text-sm max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
+    <p className={`m-0 text-sm sm:max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
       {formatDay(day, { weekday: 'long', day: 'numeric', month: 'short' })}
       {day === today && <span className="block text-muted">Today</span>}
     </p>
@@ -111,7 +111,7 @@ export function MealPlanPage() {
               <li className={dayRow} key={day}>
                 <DayLabel day={day} today={today} />
                 {meals.map(({ value, label }, column) => (
-                  <div className="grid content-start gap-1" key={value}>
+                  <div className="grid min-w-0 content-start gap-1" key={value}>
                     <span className="text-sm text-faint">{label}</span>
                     {rowsOf(planned[row * meals.length + column] ?? 0).map((entry) => (
                       <span className="flex min-w-0 items-center gap-1" key={entry}>
@@ -134,16 +134,16 @@ export function MealPlanPage() {
               {meals.map(({ value, label }) => {
                 const planned = plan.data!.filter((entry) => entry.day === day && entry.meal === value);
                 return (
-                  <div className="grid content-start gap-1" key={value}>
+                  <div className="grid min-w-0 content-start gap-1" key={value}>
                     <span className="text-sm text-faint">{label}</span>
                     {planned.map((entry) => (
                       <span className="flex min-w-0 items-center gap-1" key={entry.id}>
                         {entry.recipe ? (
-                          <Link className="min-w-0 flex-1 truncate text-sm text-ink" to={`/recipes/${entry.recipe.id}`}>
+                          <Link className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate" to={`/recipes/${entry.recipe.id}`}>
                             {entry.recipe.title}
                           </Link>
                         ) : (
-                          <span className="min-w-0 flex-1 truncate text-sm text-ink">{entry.note || 'A recipe that was removed'}</span>
+                          <span className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate">{entry.note || 'A recipe that was removed'}</span>
                         )}
                         {editable && (
                           <IconButton

@@ -97,7 +97,7 @@ export function RecipePage() {
         ) : (
           <ul className="panel-rows">
             {shown.ingredients.map((ingredient, index) => (
-              <li className="panel-row text-ink" key={index}>
+              <li className="panel-row min-w-0 wrap-anywhere text-ink" key={index}>
                 {ingredient}
               </li>
             ))}
@@ -108,13 +108,13 @@ export function RecipePage() {
         {shown.steps.length === 0 ? (
           <Hint>No steps written down yet.</Hint>
         ) : (
-          <ol className="m-0 grid list-none gap-4 p-0">
+          <ol className="m-0 grid min-w-0 grid-cols-1 list-none gap-4 p-0">
             {shown.steps.map((step, index) => (
               <li className="flex items-baseline gap-4" key={index}>
                 <span aria-hidden="true" className="mono-sm w-5 shrink-0 text-right text-faint">
                   {index + 1}
                 </span>
-                <span className="text-ink">{step}</span>
+                <span className="min-w-0 wrap-anywhere text-ink">{step}</span>
               </li>
             ))}
           </ol>
