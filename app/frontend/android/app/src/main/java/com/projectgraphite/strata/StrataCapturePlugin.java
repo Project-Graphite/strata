@@ -3,6 +3,8 @@ package com.projectgraphite.strata;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.provider.Settings;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -16,6 +18,8 @@ import org.json.JSONException;
 
 @CapacitorPlugin(name = "StrataCapture")
 public class StrataCapturePlugin extends Plugin {
+    private static final String CAPTURE_APK_URL =
+        "https://github.com/Project-Graphite/strata/releases/latest/download/strata-capture.apk";
 
     @PluginMethod
     public void getStatus(PluginCall call) {
@@ -36,34 +40,47 @@ public class StrataCapturePlugin extends Plugin {
 
     @PluginMethod
     public void requestSmsPermissions(PluginCall call) {
-        Context context = getContext();
-        if (isNotificationListenerEnabled(context)) {
-            JSObject ret = new JSObject();
-            ret.put("granted", true);
-            call.resolve(ret);
-            return;
-        }
-        try {
-            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-            JSObject ret = new JSObject();
-            ret.put("granted", isNotificationListenerEnabled(context));
-            call.resolve(ret);
-        } catch (Exception e) {
-            call.reject("Could not open notification listener settings", e);
-        }
+        openOrDownloadCapture(call, true);
     }
 
     @PluginMethod
     public void openNotificationSettings(PluginCall call) {
+        openOrDownloadCapture(call, false);
+    }
+
+    private void openOrDownloadCapture(PluginCall call, boolean returnGrantedResult) {
+        Context context = getContext();
+        if (isCaptureServiceInstalled(context)) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                if (returnGrantedResult) {
+                    JSObject ret = new JSObject();
+                    ret.put("granted", isNotificationListenerEnabled(context));
+                    call.resolve(ret);
+                } else {
+                    call.resolve();
+                }
+            } catch (Exception e) {
+                call.reject("Could not open notification listener settings", e);
+            }
+            return;
+        }
+
         try {
-            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(CAPTURE_APK_URL));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(intent);
-            call.resolve();
+            context.startActivity(intent);
+            if (returnGrantedResult) {
+                JSObject ret = new JSObject();
+                ret.put("granted", false);
+                call.resolve(ret);
+            } else {
+                call.resolve();
+            }
         } catch (Exception e) {
-            call.reject("Could not open notification listener settings", e);
+            call.reject("Install strata-capture.apk from the release page to enable on-device notification capture", e);
         }
     }
 
@@ -112,7 +129,18 @@ public class StrataCapturePlugin extends Plugin {
         return status;
     }
 
+    private static boolean isCaptureServiceInstalled(Context context) {
+        try {
+            ComponentName cn = new ComponentName(context, TransactionNotificationService.class);
+            context.getPackageManager().getServiceInfo(cn, PackageManager.GET_META_DATA);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     private static boolean isNotificationListenerEnabled(Context context) {
+        if (!isCaptureServiceInstalled(context)) return false;
         String flat = Settings.Secure.getString(context.getContentResolver(), "enabled_notification_listeners");
         if (flat == null || flat.isEmpty()) return false;
         ComponentName cn = new ComponentName(context, TransactionNotificationService.class);
