@@ -59,6 +59,7 @@ export const paymentMethods: [string, string][] = [
   ['Apple Pay', 'Online'],
   ['Google Pay', 'Online'],
   ['InstaPay', 'Online'],
+  ['nSave', 'Online'],
   ['Vodafone Cash', 'Wallet'],
   ['Cash', 'In person'],
 ];
@@ -164,6 +165,7 @@ export interface CapturedMessage {
     merchant: string | null;
     cardDigits: string | null;
     accountId: string | null;
+    paymentLabel?: string | null;
   };
 }
 

@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (defaults to the latest v* tag)
+        required: false
+        type: string
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: version
+        name: Resolve release version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          elif [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+          else
+            tag="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
+          fi
+          if [ -z "$tag" ]; then
+            echo "::error::No release tag found to publish."
+            exit 1
+          fi
+          git checkout "$tag"
+          version="${tag#v}"
+          IFS='.' read -r major minor patch _ <<< "${version%%-*}"
+          code=$(( ${major:-0} * 10000 + ${minor:-0} * 100 + ${patch:-1} ))
+          if [ "$code" -lt 1 ]; then
+            code=1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build web assets and sync Capacitor
+        working-directory: app
+        run: |
+          npm ci
+          npm run android:build --workspace frontend
+
+      - name: Build signed Android APK
+        working-directory: app/frontend/android
+        env:
+          STRATA_VERSION_NAME: ${{ steps.version.outputs.version }}
+          STRATA_VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
+
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ runner.temp }}/strata.apk
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APK: ${{ runner.temp }}/strata.apk
+          VERSIONED_APK: ${{ runner.temp }}/strata-${{ steps.version.outputs.version }}.apk
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" "$VERSIONED_APK" --clobber
+          else
+            gh release create "$TAG" "$APK" "$VERSIONED_APK" \
+              --verify-tag \
+              --title "Strata $TAG" \
+              --generate-notes
+          fi
+
