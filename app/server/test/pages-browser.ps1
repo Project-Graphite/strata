@@ -405,8 +405,9 @@ try {
   await member.until(`(() => { const links = [...document.querySelectorAll('[aria-label="Page tree"] .page-tree-link[href]')].map((link) => link.getAttribute('href')); return links.indexOf('/notes/old-98') < links.indexOf('/notes/old-99'); })()`);
   assert.deepEqual(treeMoves.at(-1), { id: 'old-98', relativeTo: 'old-99', placement: 'before' });
   await member.until(`indexedDB.databases().then((databases) => databases.some((database) => database.name === 'strata-note-member-page'))`);
-  await member.until(`document.querySelector('[aria-label="Page outline"]')?.textContent.includes('Outline heading')`);
-  await member.evaluate(`document.querySelector('[aria-label="Page outline"]').closest('details').open = true; document.querySelector('[aria-label="Page outline"] a').click()`);
+  await member.until(`document.querySelector('.note-content h2[data-id="browser-heading"]')?.textContent === 'Outline heading'`);
+  assert.equal(await member.evaluate(`document.querySelector('[aria-label="Page outline"]') === null && ![...document.querySelectorAll('summary')].some((summary) => summary.textContent === 'On this page')`), true);
+  await member.evaluate(`location.hash = '#block-browser-heading'`);
   await member.until(`location.hash === '#block-browser-heading' && document.querySelector('[data-id="browser-heading"]').getAnimations().length > 0`);
   await member.evaluate(`location.hash = '#block-missing'`);
   await member.until(`document.body.textContent.includes('This linked block is no longer on this page.')`);

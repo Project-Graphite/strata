@@ -14,7 +14,7 @@ import { useAuth } from '../auth';
 import { maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { FormDialog } from './FormDialog';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
-import { PageOutline } from './PageOutline';
+import { PageBlockTarget } from './PageBlockTarget';
 import { Copyable } from './Copyable';
 import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
@@ -272,7 +272,7 @@ export function CollaborativeEditor({
         {editable && !blocked && <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} />}
       </div>
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
-      <PageOutline editor={editor} provider={connection.provider} quick={quick} />
+      <PageBlockTarget editor={editor} provider={connection.provider} />
       <EditorContent editor={editor} />
       {blockLink && <Dialog onClose={() => setBlockLink(undefined)} title="Link to block"><div className="mt-5"><Copyable value={blockLink} /></div></Dialog>}
     </div>
