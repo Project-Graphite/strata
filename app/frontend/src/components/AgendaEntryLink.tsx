@@ -131,9 +131,19 @@ export function AgendaEntryLink({
 export function AgendaCard({ colour, entry }: { colour: TagColor; entry: AgendaEntry }) {
   return (
     <AgendaEntryLink className="agenda-card" colour={colour} entry={entry}>
-      <span className="block truncate text-sm text-ink">{entry.title}</span>
+      <span className="block text-sm wrap-anywhere text-ink">{entry.title}</span>
       <span className="sr-only"> · </span>
-      <span className="mono-sm block truncate text-faint">{[entryTime(entry), entry.calendar ?? kindLabels[entry.kind], entry.location].filter(Boolean).join(' · ')}</span>
+      <span className="mono-sm block wrap-anywhere text-faint">
+        <span className="whitespace-nowrap">{entryTime(entry)}</span>
+        {' · '}
+        {entry.calendar ?? kindLabels[entry.kind]}
+        {entry.location && (
+          <>
+            <span className="hidden sm:inline"> · </span>
+            <span className="block sm:inline">{entry.location}</span>
+          </>
+        )}
+      </span>
     </AgendaEntryLink>
   );
 }
