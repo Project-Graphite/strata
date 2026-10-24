@@ -8,7 +8,7 @@ android {
     namespace = "com.projectgraphite.strata"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.projectgraphite.strata"
+        applicationId "app.projectgraphite.strata"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (releaseVersionCode * 10)
@@ -24,10 +24,12 @@ android {
     productFlavors {
         standard {
             dimension "edition"
+            applicationId "app.projectgraphite.strata"
             versionCode (releaseVersionCode * 10)
         }
         capture {
             dimension "edition"
+            applicationId "app.projectgraphite.strata.capture"
             versionCode (releaseVersionCode * 10 + 1)
         }
     }
