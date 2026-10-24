@@ -1,6 +1,6 @@
 import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
@@ -49,19 +49,36 @@ interface ListHandle {
 
 const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(function SuggestionList({ command, items }, ref) {
   const [active, setActive] = useState(0);
+  const list = useRef<HTMLDivElement>(null);
   useEffect(() => setActive(0), [items]);
+  useLayoutEffect(() => {
+    const selected = list.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list.current || !selected) return;
+    const bounds = list.current.getBoundingClientRect();
+    const option = selected.getBoundingClientRect();
+    if (option.top < bounds.top) list.current.scrollTop += option.top - bounds.top;
+    else if (option.bottom > bounds.bottom) list.current.scrollTop += option.bottom - bounds.bottom;
+  }, [active, items]);
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
       if (items.length === 0) return false;
       if (event.key === 'ArrowDown') setActive((current) => (current + 1) % items.length);
       else if (event.key === 'ArrowUp') setActive((current) => (current - 1 + items.length) % items.length);
-      else if (event.key === 'Enter') command(items[active]!);
+      else if (event.key === 'Home') setActive(0);
+      else if (event.key === 'End') setActive(items.length - 1);
+      else if (event.key === 'Enter' && items[active]) command(items[active]);
       else return false;
       return true;
     },
   }));
   return (
-    <Paper className="grid max-h-72 w-[min(22rem,calc(100vw-2rem))] overflow-y-auto py-1" elevation={8} role="listbox">
+    <Paper
+      aria-label="Editor suggestions"
+      className="grid max-h-[min(18rem,calc(100dvh-2rem))] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain py-1"
+      elevation={8}
+      ref={list}
+      role="listbox"
+    >
       {items.length === 0 ? (
         <p className="m-0 px-3 py-2 text-sm text-muted">Nothing matches</p>
       ) : (
@@ -72,6 +89,7 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
             dense
             key={item.id}
             onClick={() => command(item)}
+            onMouseDown={(event) => event.preventDefault()}
             onMouseEnter={() => setActive(index)}
             role="option"
             selected={index === active}
