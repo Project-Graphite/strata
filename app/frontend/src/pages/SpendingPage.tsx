@@ -273,6 +273,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                     }
                     detail={
                       <>
+                        {message.suggestion.paymentLabel && `${message.suggestion.paymentLabel} · `}
                         {message.suggestion.cardDigits && `•••• ${message.suggestion.cardDigits} · `}
                         <span dir="auto">{message.text}</span>
                       </>

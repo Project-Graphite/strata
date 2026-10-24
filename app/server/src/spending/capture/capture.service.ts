@@ -12,7 +12,7 @@ import { CaptureMessageDto } from '../dto/capture.dto';
 import { ruleFor } from '../categories.service';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
-import { MessageDirection, normalise, readMessage } from './bank-messages';
+import { chatAllowed, DigitalPaymentApp, MessageDirection, normalise, paymentLabelOf, readMessage } from './bank-messages';
 
 const keepForMs = 30 * 24 * 60 * 60 * 1000;
 const pairWithinMs = 10 * 60 * 1000;
@@ -25,16 +25,29 @@ export interface Suggestion {
   cardDigits: string | null;
   accountId: string | null;
   availableMinor: number | null;
+  paymentLabel?: DigitalPaymentApp | null;
 }
 
 const toMinor = (amount: number, currency: string) => Math.round(amount * 10 ** fractionDigits(currency));
 
-export function accountFor(accounts: MoneyAccount[], sender: string, cardDigits: string | null) {
+export function accountFor(
+  accounts: MoneyAccount[],
+  sender: string,
+  cardDigits: string | null,
+  paymentLabel: string | null = null,
+  chat: string | null = null,
+) {
   const byCard = cardDigits ? accounts.filter((account) => account.cardDigits.includes(cardDigits)) : [];
   if (byCard.length === 1) return byCard[0]!;
-  const bySender = accounts.filter((account) => account.senders.some((known) => known.toLowerCase() === sender.trim().toLowerCase()));
+  const needles = [sender, chat ?? '', paymentLabel ?? ''].map((value) => value.trim().toLowerCase()).filter(Boolean);
+  const bySender = accounts.filter((account) => account.senders.some((known) => needles.includes(known.trim().toLowerCase())));
   const candidates = byCard.length ? byCard.filter((account) => bySender.includes(account)) : bySender;
-  return candidates.length === 1 ? candidates[0]! : null;
+  if (candidates.length === 1) return candidates[0]!;
+  if (paymentLabel) {
+    const byName = accounts.filter((account) => account.name.trim().toLowerCase() === paymentLabel.toLowerCase());
+    if (byName.length === 1) return byName[0]!;
+  }
+  return null;
 }
 
 @Injectable()
@@ -54,9 +67,13 @@ export class CaptureService implements OnModuleInit {
 
   async receive(userId: string, spaceId: string, input: CaptureMessageDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
+    const sender = input.from.trim();
+    if (!chatAllowed(sender, input.allowedChats, input.app, input.text, input.chat)) {
+      return { status: 'ignored', reason: 'chat' };
+    }
     const read = readMessage(input.text);
     if (read.kind === 'ignored') return { status: 'ignored', reason: read.reason };
-    const sender = input.from.trim();
+    const paymentLabel = paymentLabelOf(sender, input.text, input.app);
     const hash = createHash('sha256').update(`${sender.toLowerCase()}\n${normalise(input.text)}`).digest('hex');
     const seen = await this.prisma.capturedMessage.findUnique({ where: { spaceId_hash: { spaceId, hash } }, select: { status: true, expenseId: true } });
     if (seen) return { status: seen.status, expenseId: seen.expenseId };
@@ -68,7 +85,7 @@ export class CaptureService implements OnModuleInit {
     ]);
     const rule = read.merchant ? ruleFor(rules, read.merchant) : null;
     if (rule?.ignore) return { status: 'ignored', reason: 'rule' };
-    const account = accountFor(accounts, sender, read.cardDigits);
+    const account = accountFor(accounts, sender, read.cardDigits, paymentLabel, input.chat ?? null);
     const currency = read.currency ?? account?.currency ?? null;
     const suggestion: Suggestion = {
       direction: read.direction,
@@ -78,6 +95,7 @@ export class CaptureService implements OnModuleInit {
       cardDigits: read.cardDigits,
       accountId: account?.id ?? null,
       availableMinor: read.available !== null && account ? toMinor(read.available, account.currency) : null,
+      ...(paymentLabel ? { paymentLabel } : {}),
     };
     const receivedAt = input.receivedStamp ? new Date(Number(input.receivedStamp)) : new Date();
     const message = await this.prisma.capturedMessage
@@ -93,7 +111,7 @@ export class CaptureService implements OnModuleInit {
     const category = direction === 'received' ? 'other' : (rule?.category ?? (merchant ? await this.knownCategory(spaceId, merchant) : null));
     if (!direction || !amountMinor || !currency || !category) return { status: 'review', expenseId: null };
     const expenseId = await this.record(userId, message, {
-      title: rule?.rename ?? merchant ?? sender,
+      title: rule?.rename ?? merchant ?? paymentLabel ?? sender,
       amountMinor,
       currency,
       spentOn: localDate(user.timeZone, receivedAt),
@@ -102,6 +120,7 @@ export class CaptureService implements OnModuleInit {
       accountId: suggestion.accountId,
       merchant,
       cardDigits,
+      ...(paymentLabel ? { paymentLabel } : {}),
     });
     return { status: 'recorded', expenseId };
   }
@@ -132,12 +151,47 @@ export class CaptureService implements OnModuleInit {
   }
 
   private async record(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
-    const expenseId = (await this.pairedTransfer(userId, message.spaceId, input)) ?? (await this.spending.capture(userId, message.spaceId, input, 'sms'));
+    const { accountId, availableMinor, paymentLabel } = message.suggestion as unknown as Suggestion;
+    const enriched: CreateExpenseDto = {
+      ...input,
+      ...(input.paymentLabel === undefined && paymentLabel ? { paymentLabel } : {}),
+    };
+    const expenseId =
+      (await this.sameMovement(userId, message, enriched)) ??
+      (await this.pairedTransfer(userId, message.spaceId, enriched)) ??
+      (await this.spending.capture(userId, message.spaceId, enriched, 'sms'));
     await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'recorded', expenseId } });
-    const { accountId, availableMinor } = message.suggestion as unknown as Suggestion;
-    if (availableMinor !== null && accountId && input.accountId === accountId) await this.reportBalance(accountId, availableMinor);
+    if (availableMinor !== null && accountId && enriched.accountId === accountId) await this.reportBalance(accountId, availableMinor);
     this.changes.notify('spending', { spaceId: message.spaceId });
     return expenseId;
+  }
+
+  private async sameMovement(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
+    if (!input.accountId || !input.direction) return null;
+    const duplicate = await this.prisma.expense.findFirst({
+      where: {
+        source: 'sms',
+        direction: input.direction,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+        accountId: input.accountId,
+        ...(input.paymentLabel ? {} : { paymentLabel: { not: null } }),
+        item: {
+          spaceId: message.spaceId,
+          trashedAt: null,
+          createdAt: { gte: new Date(Date.now() - pairWithinMs) },
+          captures: { some: { sender: { not: message.sender, mode: 'insensitive' } } },
+        },
+      },
+      orderBy: { item: { createdAt: 'desc' } },
+      select: { itemId: true, paymentLabel: true, cardDigits: true },
+    });
+    if (!duplicate) return null;
+    const updates: Partial<CreateExpenseDto> = {};
+    if (input.paymentLabel && !duplicate.paymentLabel) updates.paymentLabel = input.paymentLabel;
+    if (input.cardDigits && !duplicate.cardDigits) updates.cardDigits = input.cardDigits;
+    if (Object.keys(updates).length > 0) await this.spending.update(userId, duplicate.itemId, updates);
+    return duplicate.itemId;
   }
 
   private async pairedTransfer(userId: string, spaceId: string, input: CreateExpenseDto) {

@@ -1,4 +1,5 @@
 import type { TagColor } from '@project-graphite/ui';
+import { serverOrigin } from './native-capture';
 
 export interface Note {
   id: string;
@@ -134,7 +135,7 @@ export function onPagesChanged(listener: () => void) {
 }
 
 export function realtimeUrl() {
-  return `${window.location.origin.replace(/^http/, 'ws')}/api/v1/realtime`;
+  return `${serverOrigin().replace(/^http/, 'ws')}/api/v1/realtime`;
 }
 
 export const builtInTemplates = [

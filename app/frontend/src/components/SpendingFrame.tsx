@@ -39,7 +39,7 @@ export function SpendingFrame({
   const { spaceId, space, editable } = useChosenSpace();
   const [byCategory, showByCategory] = useByCategory();
   const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories'>();
-  const loadedAccounts = useResource<MoneyAccount[]>(dialog === 'new' && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
   const editedCategories = categories ?? loadedCategories.data;
 
@@ -83,7 +83,9 @@ export function SpendingFrame({
         <ExpenseEditor accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
       )}
       {spaceId && dialog === 'import' && <ExpenseImport currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
-      {spaceId && space && dialog === 'phone' && <PhoneSetup onClose={() => setDialog(undefined)} spaceId={spaceId} spaceName={space.name} />}
+      {spaceId && space && dialog === 'phone' && (
+        <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => setDialog(undefined)} spaceId={spaceId} spaceName={space.name} />
+      )}
       {spaceId && editedCategories && dialog === 'categories' && (
         <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
       )}

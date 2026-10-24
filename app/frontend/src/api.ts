@@ -1,4 +1,5 @@
 import { isAbortError } from '@project-graphite/ui';
+import { apiUrl } from './native-capture';
 
 export class ApiError extends Error {
   constructor(
@@ -64,7 +65,7 @@ export async function apiRequest<T>(
 ) {
   let response: Response;
   try {
-    response = await fetch(`/api/v1${path}`, {
+    response = await fetch(apiUrl(path), {
       ...init,
       credentials: 'include',
       headers: {

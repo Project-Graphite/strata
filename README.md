@@ -20,7 +20,8 @@ and files, built by Project Graphite.
 - **Recurring**: subscriptions with renewals, price history, reminders, home-currency totals at ECB
   rates, bank statement suggestions and shared splits; habits with check-ins and streaks.
 - **Spending**: accounts and cards, budgets, installment plans, insights, net worth with assets and
-  savings goals, bank texts to review, and statement import and CSV export.
+  savings goals, bank texts and digital payment notifications (InstaPay, nSave and PayPal) to
+  review, and statement import and CSV export.
 - **Files**: uploads, previews and downloads, with metadata stripped.
 - **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
 - **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
@@ -121,8 +122,18 @@ npm run system-manager:grant --workspace server -- you@example.com
 | Folder | What it is |
 | :--- | :--- |
 | `app/server` | NestJS API, Prisma schema and hand-written migrations |
-| `app/frontend` | React app |
+| `app/frontend` | React app and Capacitor Android project (`app/frontend/android`) |
 | `app/Dockerfile` | development, build and production stages; the image is `ghcr.io/project-graphite/strata/app` |
+
+### Android app
+
+Build the frontend and sync the Capacitor Android project from `app/`:
+
+```sh
+npm run android:build --workspace frontend
+```
+
+Tagged releases (`v*`) build and attach `strata.apk` to the GitHub release via `.github/workflows/release.yml`, linked from the Strata home page and phone setup dialog.
 
 ## Production
 

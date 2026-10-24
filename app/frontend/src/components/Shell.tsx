@@ -13,6 +13,7 @@ import {
   useCommandShortcut,
 } from '@project-graphite/ui';
 import { onOutage } from '../api';
+import { apiUrl } from '../native-capture';
 import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
@@ -147,7 +148,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               ]
         }
       >
-        <OutageGate healthUrl="/api/v1/health" key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
+        <OutageGate healthUrl={apiUrl('/health')} key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
           {auth.restoreError ? (
             <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
               {auth.restoreError}
