@@ -346,7 +346,14 @@ export function DashboardHome() {
       )}
       {widgets.length === 0 ? (
         <div className="dashboard-empty">
-          <h2 className="m-0 text-xl font-medium text-ink">No widgets</h2>
+          <div aria-hidden="true" className="dashboard-empty-art">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <h2 className="m-0 text-xl font-medium text-ink">Make this dashboard yours</h2>
+          <p className="m-0 max-w-md text-sm text-muted">Pick widgets for your day, your money, your notes and the world around you.</p>
           <div className="mt-3">
             <Button
               icon="plus"

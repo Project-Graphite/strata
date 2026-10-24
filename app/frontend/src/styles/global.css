@@ -1020,6 +1020,12 @@ button.habit-day::before {
   min-height: var(--card-height);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-card-body > :not([role='status']) {
+    animation: fade-in 200ms ease-out backwards;
+  }
+}
+
 .dashboard-card-editing {
   border-style: dashed;
   user-select: none;
@@ -1070,9 +1076,32 @@ button.habit-day::before {
   gap: 0.5rem;
   border: 1px dashed var(--color-line);
   border-radius: var(--radius-card);
-  background: var(--color-surface);
+  background: radial-gradient(ellipse at top, color-mix(in srgb, var(--color-ink) 5%, transparent), transparent 65%);
   padding: 3rem 1.5rem;
   text-align: center;
+}
+
+.dashboard-empty-art {
+  display: grid;
+  width: 9rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1.25rem 1.75rem;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-empty-art > span {
+  border: 1px solid var(--color-line);
+  border-radius: 0.4rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-ink) 7%, var(--color-surface)), var(--color-surface));
+}
+
+.dashboard-empty-art > span:first-child {
+  grid-row: span 2;
+}
+
+.dashboard-empty-art > span:last-child {
+  grid-column: span 2;
 }
 
 .widget-heading {
@@ -1379,18 +1408,23 @@ button.habit-day::before {
   content: '';
 }
 
-:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(header.backdrop-blur-md, .tab-bar, .bg-paper) {
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .app-tile:not(.app-tile-off), .form-panel, .panel-rows, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) .note-editor-header.bg-paper {
   background: var(--site-backdrop);
   background-attachment: fixed;
   background-size: var(--site-backdrop-size, 100vw 100vh);
 }
 
 header.backdrop-blur-md {
-  background-color: var(--color-paper);
+  background: color-mix(in srgb, var(--color-paper) 68%, transparent);
 }
 
 .tab-bar {
-  background: var(--color-paper);
+  background: color-mix(in srgb, var(--color-paper) 72%, transparent);
 }
 
 .sidebar .sidebar-item {
