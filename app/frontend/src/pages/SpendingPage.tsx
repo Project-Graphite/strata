@@ -170,7 +170,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         tab !== 'accounts' && (
           <>
             <PeriodNav
-              current={{
+              current={tab === 'overview' ? undefined : {
                 label: 'This month',
                 onSelect: () =>
                   setParams((current) => {
