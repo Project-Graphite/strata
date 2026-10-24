@@ -13,6 +13,7 @@ import { ApiError, apiRequest } from './api';
 import { announceChange } from './changes';
 import { wipeLocalData } from './local-data';
 import { applyTimeFormat, type TimeFormat } from './time';
+import { refreshSession } from './session-refresh';
 
 export type UserRole = 'member' | 'admin' | 'system_manager';
 
@@ -63,8 +64,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-let sessionRestoration: Promise<Session | undefined> | undefined;
-
 async function requestSession(retries = 4, delay = 1_000): Promise<Session | undefined> {
   try {
     return await apiRequest<Session>('/auth/refresh', { method: 'POST' });
@@ -82,10 +81,7 @@ async function requestSession(retries = 4, delay = 1_000): Promise<Session | und
 }
 
 function restoreSession() {
-  sessionRestoration ??= requestSession().finally(() => {
-    sessionRestoration = undefined;
-  });
-  return sessionRestoration;
+  return refreshSession(() => requestSession());
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
