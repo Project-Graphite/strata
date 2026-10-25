@@ -39,6 +39,7 @@ export interface NativeCaptureStatus {
   smsGranted: boolean;
   notificationsGranted: boolean;
   configured: boolean;
+  endpointUrl?: string;
   allowedChats: string[];
   enabledApps: DigitalAppId[];
   queuedCount: number;

@@ -96,11 +96,10 @@ jobs:
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/strata-release.jks"
           fi
           chmod +x gradlew
-          ./gradlew assembleStandardRelease assembleCaptureRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
           rm -f "$RUNNER_TEMP/strata-release.jks"
-          cp app/build/outputs/apk/standard/release/app-standard-release.apk "$RUNNER_TEMP/strata.apk"
-          cp app/build/outputs/apk/standard/release/app-standard-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
-          cp app/build/outputs/apk/capture/release/app-capture-release.apk "$RUNNER_TEMP/strata-capture.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
 
       - uses: actions/attest-build-provenance@v4
         with:
@@ -113,14 +112,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           APK: ${{ runner.temp }}/strata.apk
           VERSIONED_APK: ${{ runner.temp }}/strata-${{ steps.version.outputs.version }}.apk
-          CAPTURE_APK: ${{ runner.temp }}/strata-capture.apk
         run: |
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" "$VERSIONED_APK" "$CAPTURE_APK" --clobber
+            gh release upload "$TAG" "$APK" "$VERSIONED_APK" --clobber
             gh release edit "$TAG" --draft=false --latest
           else
-            gh release create "$TAG" "$APK" "$VERSIONED_APK" "$CAPTURE_APK" \
+            gh release create "$TAG" "$APK" "$VERSIONED_APK" \
               --verify-tag \
               --title "Strata $TAG" \
               --generate-notes \

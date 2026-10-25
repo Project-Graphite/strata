@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CapturedMessage, MoneyAccount, Prisma } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { AccessService } from '../../access/access.service';
+import { tokenPrefix } from '../../access-tokens/scopes';
 import { ChangesService } from '../../changes/changes.service';
+import { linkTokenHash } from '../../crypto/link-token';
 import { SecretBox } from '../../crypto/secret-box.service';
 import { fractionDigits } from '../../exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../jobs/maintenance.scheduler';
@@ -63,6 +65,26 @@ export class CaptureService implements OnModuleInit {
 
   onModuleInit() {
     this.maintenance.register((now) => this.prisma.capturedMessage.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - keepForMs) } } }));
+  }
+
+  async connectDevice(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'edit');
+    const name = `Android phone (${spaceId.slice(0, 8)})`;
+    await this.prisma.accessToken.updateMany({
+      where: { userId, name, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    const token = `${tokenPrefix}${randomBytes(32).toString('base64url')}`;
+    await this.prisma.accessToken.create({
+      data: {
+        userId,
+        name,
+        tokenHash: linkTokenHash(token),
+        scopes: ['spending:capture'],
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      },
+    });
+    return { token };
   }
 
   async receive(userId: string, spaceId: string, input: CaptureMessageDto) {

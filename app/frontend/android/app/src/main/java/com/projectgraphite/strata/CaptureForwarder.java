@@ -51,6 +51,11 @@ public final class CaptureForwarder {
         editor.apply();
     }
 
+    public static String getEndpoint(Context context) {
+        String endpoint = prefs(context).getString(KEY_ENDPOINT, "");
+        return endpoint != null ? endpoint : "";
+    }
+
     public static boolean isConfigured(Context context) {
         SharedPreferences sp = prefs(context);
         String endpoint = sp.getString(KEY_ENDPOINT, "");
@@ -241,4 +246,3 @@ public final class CaptureForwarder {
         }
     }
 }
-

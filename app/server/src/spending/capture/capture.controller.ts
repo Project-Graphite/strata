@@ -22,6 +22,12 @@ export class CaptureController {
     return this.captures.receive(user.id, spaceId, input);
   }
 
+  @Post('spaces/:spaceId/captures/device')
+  @RateLimit('capture-device', 30, 3_600)
+  connectDevice(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
+    return this.captures.connectDevice(user.id, spaceId);
+  }
+
   @Get('spaces/:spaceId/captures')
   @Scope('items:read')
   pending(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {

@@ -20,19 +20,6 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    flavorDimensions = ["edition"]
-    productFlavors {
-        standard {
-            dimension "edition"
-            applicationId "app.projectgraphite.strata"
-            versionCode (releaseVersionCode * 10)
-        }
-        capture {
-            dimension "edition"
-            applicationId "app.projectgraphite.strata.capture"
-            versionCode (releaseVersionCode * 10 + 1)
-        }
-    }
     signingConfigs {
         if (releaseKeystorePath) {
             release {
