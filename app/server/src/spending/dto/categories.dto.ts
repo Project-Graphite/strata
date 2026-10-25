@@ -1,11 +1,10 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsOptional, IsString, Length, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsOptional, IsString, Length, MaxLength, ValidateNested } from 'class-validator';
 import { IsColor } from '../../validation/color.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-const nullable = (_input: object, value: unknown) => value !== null;
 
-export class CategoryDto {
+class CategoryDto {
   @Trimmed()
   @IsString()
   @Length(1, 40, { message: 'Name each category in 1 to 40 characters.' })
@@ -36,14 +35,12 @@ export class CreateMerchantRuleDto {
   match!: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Trimmed()
   @IsString()
   @Length(1, 200, { message: 'Rename to 1 to 200 characters.' })
   rename?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Trimmed()
   @IsString()
   @Length(1, 40, { message: 'Choose a category from the list.' })

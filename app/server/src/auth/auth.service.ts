@@ -26,7 +26,7 @@ import { SignInAttemptsService } from './sign-in-attempts.service';
 import { TwoStepService } from './two-step.service';
 
 export const refreshLifetimeMs = 30 * 24 * 60 * 60 * 1000;
-export const signInLifetimeMs = 30 * 24 * 60 * 60 * 1000;
+const signInLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 export const refreshReuseGraceMs = 30 * 1000;
 const challengeLifetimeMs = 5 * 60 * 1000;
 const challengeAttempts = 5;

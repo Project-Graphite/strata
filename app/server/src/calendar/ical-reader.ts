@@ -2,7 +2,7 @@ import { dateText, dateValue, dayMs } from '../recurrence/dates';
 import { zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 
-export interface ReadEvent {
+interface ReadEvent {
   uid: string;
   title: string;
   startsOn: string;

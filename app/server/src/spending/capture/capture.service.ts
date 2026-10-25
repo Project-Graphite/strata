@@ -32,7 +32,7 @@ export interface Suggestion {
 
 const toMinor = (amount: number, currency: string) => Math.round(amount * 10 ** fractionDigits(currency));
 
-export function accountFor(
+function accountFor(
   accounts: MoneyAccount[],
   sender: string,
   cardDigits: string | null,

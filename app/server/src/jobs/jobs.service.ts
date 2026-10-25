@@ -8,7 +8,7 @@ const claimTimeoutMinutes = 5;
 const maxAttempts = 5;
 const batchSize = 20;
 
-export type JobHandler = (payload: Prisma.JsonValue) => Promise<void>;
+type JobHandler = (payload: Prisma.JsonValue) => Promise<void>;
 
 interface ClaimedJob {
   id: string;

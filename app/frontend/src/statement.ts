@@ -9,7 +9,7 @@ export interface StatementColumns {
 
 export type DateOrder = 'ymd' | 'dmy' | 'mdy';
 
-export interface Charge {
+interface Charge {
   date: string;
   description: string;
   amount: number;
@@ -108,7 +108,7 @@ function dateParts(value: string, order: DateOrder) {
   return { year, month, day };
 }
 
-export function parseDate(value: string, order: DateOrder) {
+function parseDate(value: string, order: DateOrder) {
   const parts = dateParts(value, order);
   if (!parts) return null;
   const { year, month, day } = parts;
@@ -118,7 +118,7 @@ export function parseDate(value: string, order: DateOrder) {
   return date.toISOString().slice(0, 10);
 }
 
-export function parseAmount(value: string) {
+function parseAmount(value: string) {
   const negative = /^\(.*\)$/.test(value.trim()) || /-\s*[\d.,]+|[\d.,]+\s*-$/.test(value);
   const digits = value.replace(/[^\d.,]/g, '');
   if (!/\d/.test(digits)) return null;

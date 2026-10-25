@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const pageSize = 50;
 
-export type AuditAction =
+type AuditAction =
   | 'signed_in'
   | 'sign_in_failed'
   | 'password_changed'

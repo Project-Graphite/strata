@@ -1,6 +1,6 @@
 import { dateText, dayMs } from '../recurrence/dates';
 
-export interface FeedEvent {
+interface FeedEvent {
   id: string;
   title: string;
   updatedAt: Date;

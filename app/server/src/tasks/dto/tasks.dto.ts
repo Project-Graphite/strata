@@ -12,13 +12,10 @@ import {
   Max,
   MaxLength,
   Min,
-  ValidateIf,
 } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { PageDto } from '../../validation/page.dto';
 import { Trimmed } from '../../validation/trimmed.decorator';
-
-const nullable = (value: unknown) => value === null;
 
 export class CreateListDto {
   @Trimmed()
@@ -29,22 +26,18 @@ export class CreateListDto {
 
 export class TaskFieldsDto {
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @IsUUID('all', { message: 'Choose a list from this space.' })
   listId?: string | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @IsUUID('all', { message: 'Choose a task from this space.' })
   parentId?: string | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Due dates look like 2026-10-31.' })
   dueDate?: string | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'Due times look like 09:30.' })
   dueTime?: string | null;
 
@@ -54,20 +47,17 @@ export class TaskFieldsDto {
   timeZone?: string;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @IsString()
   @MaxLength(300, { message: 'Repetition rules are at most 300 characters long.' })
   repeatRule?: string | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @IsInt()
   @Min(0)
   @Max(40_320, { message: 'Reminders can be at most four weeks early.' })
   reminderMinutes?: number | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
   @IsUUID('all', { message: 'Choose someone from this space.' })
   assigneeId?: string | null;
 

@@ -1,6 +1,6 @@
 import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsBase64, IsBoolean, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
 import { databaseViews, propertyTypes } from '../database';
 import { builtInTemplates } from '../templates';
 import { IsColor } from '../../validation/color.decorator';
@@ -65,7 +65,6 @@ export class UpdateNoteDto {
   title?: string;
 
   @IsOptional()
-  @ValidateIf((_input, value) => value !== null)
   @IsUUID('all', { message: 'Choose a page from this space.' })
   parentId?: string | null;
 
@@ -74,7 +73,6 @@ export class UpdateNoteDto {
   position?: number;
 
   @IsOptional()
-  @ValidateIf((_input, value) => value !== null)
   @IsString()
   @MaxLength(8, { message: 'An icon is a single emoji.' })
   icon?: string | null;
@@ -92,7 +90,7 @@ export class UpdateNoteDto {
   quick?: false;
 }
 
-export class PropertyOptionDto {
+class PropertyOptionDto {
   @IsString()
   @Length(1, 40)
   id!: string;
@@ -106,7 +104,7 @@ export class PropertyOptionDto {
   color!: string;
 }
 
-export class PropertyDto {
+class PropertyDto {
   @IsString()
   @Length(1, 40)
   id!: string;
@@ -129,7 +127,6 @@ export class PropertyDto {
 
 export class SaveDatabaseDto {
   @IsOptional()
-  @ValidateIf((_input, value) => value !== null)
   @IsDateString()
   expectedRevision?: string | null;
 
@@ -143,12 +140,10 @@ export class SaveDatabaseDto {
   view!: (typeof databaseViews)[number];
 
   @IsOptional()
-  @ValidateIf((_input, value) => value !== null)
   @IsString()
   groupBy?: string | null;
 
   @IsOptional()
-  @ValidateIf((_input, value) => value !== null)
   @IsString()
   dateBy?: string | null;
 }

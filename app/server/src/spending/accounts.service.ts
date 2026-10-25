@@ -6,7 +6,7 @@ import { convertMinor, ExchangeRatesService, RateTable } from '../exchange-rates
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/accounts.dto';
 
-export interface AccountFlow {
+interface AccountFlow {
   amountMinor: number;
   currency: string;
   direction: string;
@@ -15,7 +15,7 @@ export interface AccountFlow {
   item: { createdAt: Date };
 }
 
-export function balanceOf(account: MoneyAccount, flows: AccountFlow[], rates: RateTable) {
+function balanceOf(account: MoneyAccount, flows: AccountFlow[], rates: RateTable) {
   const missing = new Set<string>();
   let balanceMinor = account.balanceMinor;
   for (const flow of flows) {

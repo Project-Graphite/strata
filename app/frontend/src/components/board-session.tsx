@@ -5,12 +5,12 @@ import type * as Y from 'yjs';
 import { Hint } from './Hint';
 import { Subheading } from './Page';
 
-export interface VoteRound {
+interface VoteRound {
   startedAt: number;
   perPerson: number;
 }
 
-export interface VoteResult {
+interface VoteResult {
   id: string;
   label: string;
   votes: number;

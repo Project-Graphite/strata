@@ -4,6 +4,7 @@ import { Icon, Skeleton, timeAgo, type IconName } from '@project-graphite/ui';
 import type { Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { Subheading } from '../components/Page';
+import { rowsOf, SkeletonLine } from '../components/Skeletons';
 
 export interface WidgetProps {
   settings: Record<string, unknown>;
@@ -37,16 +38,6 @@ export function WidgetEmpty({ action, children, icon, title }: { action?: ReactN
 
 export interface SettingsProps extends WidgetProps {
   onChange: (settings: Record<string, unknown>) => void;
-}
-
-const rowsOf = (count: number) => Array.from({ length: count }, (_, index) => index);
-
-export function SkeletonLine({ className = '', width }: { className?: string; width: string }) {
-  return (
-    <span aria-hidden="true" className={`flex h-[1lh] items-center ${className}`}>
-      <Skeleton className={`h-[0.7em] ${width}`} />
-    </span>
-  );
 }
 
 export function TaskRowsSkeleton({ rows }: { rows: number }) {

@@ -1,4 +1,4 @@
-export interface KnownService {
+interface KnownService {
   name: string;
   category: string;
   cancelUrl: string;

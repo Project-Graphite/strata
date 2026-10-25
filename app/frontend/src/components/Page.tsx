@@ -26,7 +26,7 @@ export function useDocumentTitle(title: string | undefined, heading?: { title?: 
   }, [title, pathname, setTitle, heading?.title, heading?.back?.to, heading?.back?.label, heading?.tab?.href, heading?.tab?.label]);
 }
 
-export function BackLink({ back }: { back: Back }) {
+function BackLink({ back }: { back: Back }) {
   return (
     <Link className="back-link" title={back.label} to={back.to}>
       <span className="shrink-0"><Icon name="chevron-left" size={14} /></span>

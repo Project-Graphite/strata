@@ -28,11 +28,7 @@ interface Candidate {
   hint: string;
 }
 
-export interface MentionCandidate extends Candidate {
-  href: string;
-}
-
-export interface BlockChoice extends Candidate {
+interface BlockChoice extends Candidate {
   words: string;
   run: (chain: ChainedCommands, editor: Editor) => void;
 }
@@ -108,7 +104,7 @@ export const internalPath = (href: unknown) => (typeof href === 'string' && /^\/
 const uuidOrNull = (value: unknown) =>
   typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
 
-export const storedFileId = uuidOrNull;
+const storedFileId = uuidOrNull;
 
 function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<SuggestionOptions<Item>['render']>> {
   let renderer: ReactRenderer<ListHandle, SuggestionProps<Candidate>> | undefined;
@@ -147,7 +143,7 @@ function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<Sugge
   };
 }
 
-export function mentionExtension(request: Request | undefined, noteId: string) {
+function mentionExtension(request: Request | undefined, noteId: string) {
   return Mention.extend({
     addAttributes() {
       return {
@@ -214,7 +210,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
   );
 }
 
-export const StoredImageExtension = Image.extend({
+const StoredImageExtension = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -230,7 +226,7 @@ export const StoredImageExtension = Image.extend({
   },
 });
 
-export const Callout = Node.create({
+const Callout = Node.create({
   name: 'callout',
   group: 'block',
   content: 'paragraph+',
@@ -338,7 +334,7 @@ function BoardEmbed({ extension, node }: NodeViewProps) {
   );
 }
 
-export const BoardEmbedExtension = Node.create({
+const BoardEmbedExtension = Node.create({
   name: 'boardEmbed',
   group: 'block',
   atom: true,

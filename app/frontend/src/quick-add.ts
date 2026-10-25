@@ -1,8 +1,8 @@
 import { formatDay } from '@project-graphite/ui';
 import { addDays, dayKey } from './agenda';
-import { clockTime } from './time';
+import { clockTime, pad } from './time';
 
-export interface QuickTask {
+interface QuickTask {
   title: string;
   dueDate?: string;
   dueTime?: string;
@@ -13,7 +13,6 @@ export interface QuickTask {
 const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 const ordinaryWords = new Set(['sat', 'sun']);
-const pad = (value: number) => String(value).padStart(2, '0');
 
 function weekday(word: string) {
   return ordinaryWords.has(word) ? -1 : weekdays.findIndex((name) => word.length >= 3 && name.startsWith(word));

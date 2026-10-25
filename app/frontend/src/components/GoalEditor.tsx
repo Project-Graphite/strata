@@ -5,10 +5,9 @@ import { periodChoices, periodLabel, periodStart, type Goal, type GoalPeriod } f
 import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { dayKey } from '../agenda';
-import { atMost, required, useFormErrors, type Check } from '../validation';
+import { atMost, decimalNumber, required, useFormErrors } from '../validation';
 import { FormDialog } from './FormDialog';
 
-const numberCheck: Check = (value) => (!value.trim() || Number.isFinite(Number(value.replace(',', '.'))) ? undefined : 'Enter a number such as 12.5.');
 const toNumber = (value: FormDataEntryValue | null) => {
   const text = String(value ?? '').trim().replace(',', '.');
   return text ? Number(text) : null;
@@ -39,7 +38,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
         if (
           !form.check(target, {
             title: [required('Name the goal.'), atMost(200, 'Use at most 200 characters.')],
-            ...(measure === 'number' ? { target: [required('Enter the number to reach.'), numberCheck], current: [numberCheck] } : {}),
+            ...(measure === 'number' ? { target: [required('Enter the number to reach.'), decimalNumber], current: [decimalNumber] } : {}),
           })
         ) {
           return;

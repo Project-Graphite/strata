@@ -1,9 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
-import { Trimmed } from '../../validation/trimmed.decorator';
-
-const normalizedEmail = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim().toLowerCase() : value;
+import { Trimmed, TrimmedLowercase } from '../../validation/trimmed.decorator';
 
 class NoteDto {
   @IsOptional()
@@ -16,14 +13,14 @@ class NoteDto {
 
 export class InviteToStrataDto extends NoteDto {
   @IsOptional()
-  @Transform(normalizedEmail)
+  @TrimmedLowercase()
   @IsEmail({}, { message: 'Enter a valid email address.' })
   email?: string;
 }
 
 export class InviteToSpaceDto extends NoteDto {
   @ValidateIf((input: InviteToSpaceDto) => input.handle === undefined)
-  @Transform(normalizedEmail)
+  @TrimmedLowercase()
   @IsEmail({}, { message: 'Enter an email address or a handle.' })
   email?: string;
 

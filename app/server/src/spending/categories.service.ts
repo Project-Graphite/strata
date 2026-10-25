@@ -4,7 +4,7 @@ import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMerchantRuleDto, SaveCategoriesDto } from './dto/categories.dto';
 
-export const defaultCategories = [
+const defaultCategories = [
   { name: 'groceries', colour: 'green' },
   { name: 'eating out', colour: 'orange' },
   { name: 'transport', colour: 'blue' },
@@ -21,7 +21,7 @@ export const defaultCategories = [
 
 type Client = PrismaService | Prisma.TransactionClient;
 
-export interface MerchantRuleRow {
+interface MerchantRuleRow {
   match: string;
   rename: string | null;
   category: string | null;

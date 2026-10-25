@@ -9,7 +9,7 @@ import type { InboxEntry } from './inbox-kinds';
 
 const deliverKind = 'push.deliver';
 
-export function isPushEndpoint(endpoint: string) {
+function isPushEndpoint(endpoint: string) {
   let url: URL;
   try {
     url = new URL(endpoint);

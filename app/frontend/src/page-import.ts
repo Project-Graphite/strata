@@ -11,7 +11,7 @@ import type { ImportProgress } from './page-import-progress';
 
 type Request = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-export interface ImportPage extends ImportSource {
+interface ImportPage extends ImportSource {
   images: Set<string>;
   references: Set<string>;
   issues: string[];
@@ -70,7 +70,7 @@ function fill(parent: Y.XmlFragment | Y.XmlElement, content: JSONContent[]) {
   flush();
 }
 
-export function documentState(html: string) {
+function documentState(html: string) {
   const document = new Y.Doc();
   try {
     fill(document.getXmlFragment('default'), generateJSON(html, pageContent((() => Promise.reject(new Error('Not available'))) as Request, '')).content ?? []);

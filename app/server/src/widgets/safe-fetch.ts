@@ -111,7 +111,7 @@ function guard(outgoing: ClientRequest, timeoutMs: number, reject: (error: Error
   return outgoing;
 }
 
-export interface SafeFetchOptions {
+interface SafeFetchOptions {
   accept: string;
   maxBytes: number;
   timeoutMs: number;

@@ -33,7 +33,7 @@ export interface TaskList {
   openTasks: number;
 }
 
-export const repeatPresets = [
+const repeatPresets = [
   ['', 'Does not repeat'],
   ['FREQ=DAILY', 'Every day'],
   ['FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', 'Every weekday'],
@@ -43,7 +43,7 @@ export const repeatPresets = [
   ['FREQ=YEARLY', 'Every year'],
 ] as const;
 
-export const reminderPresets = [
+const reminderPresets = [
   ['', 'No reminder'],
   ['0', 'At the due time'],
   ['15', '15 minutes before'],
@@ -83,7 +83,7 @@ export function dueLabel(task: Task) {
   return task.dueTime ? `${day} ${clockTime(task.dueTime)}` : day;
 }
 
-export function isOverdue(task: Task) {
+function isOverdue(task: Task) {
   return Boolean(task.dueDate && !task.completedAt && task.dueDate < localToday());
 }
 
@@ -155,7 +155,7 @@ export function TaskRow({
   );
 }
 
-export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number }) => string;
+type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number }) => string;
 
 export function taskLink(base: string, listId: string | null, completed: boolean): TaskLink {
   return (next) => {

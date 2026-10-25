@@ -1,6 +1,6 @@
 import { weekdays, type RepetitionRule } from './rule';
 
-export interface LocalStart {
+interface LocalStart {
   date: string;
   time: string;
   timeZone: string;

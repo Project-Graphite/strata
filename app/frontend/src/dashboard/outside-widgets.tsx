@@ -6,7 +6,8 @@ import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useLiveRefresh, useResource } from '../useResource';
-import { LinkRowsSkeleton, SkeletonLine, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { LinkRowsSkeleton, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
 
 const outsideRefresh = { every: 15 * 60_000 };
