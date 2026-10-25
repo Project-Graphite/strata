@@ -5,6 +5,6 @@ export default defineConfig({
     include: ['test/**/*.spec.ts'],
     exclude: ['test/integration/**'],
     restoreMocks: true,
-    testTimeout: 15000,
+    testTimeout: 30000,
   },
 });

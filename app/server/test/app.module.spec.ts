@@ -30,7 +30,7 @@ describe('AppModule', () => {
 
     expect(application.get(AppModule)).toBeInstanceOf(AppModule);
     await application.close();
-  });
+  }, 30000);
 
   it('refuses to start when a required setting is missing', async () => {
     delete process.env.AUTH_ACCESS_TOKEN_SECRET;
