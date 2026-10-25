@@ -17,7 +17,7 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { NoteMark } from '../components/NoteMark';
-import { BackLink, DetailState, Section, useDocumentTitle } from '../components/Page';
+import { DetailState, Section, useDocumentTitle } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
@@ -93,9 +93,6 @@ export function NotePage() {
       <article className={`page-enter grid gap-8 ${wide ? 'max-w-none' : 'max-w-3xl'}`}>
         <header className="page-header">
           <div className="min-w-0 flex-1">
-            <p className="page-header-eyebrow">
-              <BackLink back={back} />
-            </p>
             <div className="flex items-start gap-3">
               <Skeleton className="size-11 shrink-0 rounded-field" />
               <SkeletonLine className="note-title" width="w-72 max-w-full" />
@@ -199,9 +196,6 @@ export function NotePage() {
     <article className={`page-enter grid min-w-0 grid-cols-1 gap-8 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <header className="page-header">
         <div className="min-w-0 flex-1">
-          <p className="page-header-eyebrow">
-            <BackLink back={back} />
-          </p>
           <div className="flex items-start gap-3">
             {(details.editable || details.icon) &&
               !details.quick &&

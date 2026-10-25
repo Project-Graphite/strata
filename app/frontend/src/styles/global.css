@@ -1427,6 +1427,27 @@ header.backdrop-blur-md {
   background: color-mix(in srgb, var(--color-paper) 72%, transparent);
 }
 
+.app-header:has(.space-navigation) .shell-bar > .ml-auto {
+  min-width: 0;
+  flex: 1;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 47.99rem) {
+  .app-header:has(.space-navigation) .shell-bar > a {
+    display: none;
+  }
+
+  .app-header:has(.space-navigation) .shell-bar > .ml-auto {
+    margin-left: 0;
+    gap: 0.25rem;
+  }
+
+  .app-header .shell-account-actions {
+    gap: 0.125rem;
+  }
+}
+
 .sidebar .sidebar-item {
   min-height: calc(0.9rem * 1.55 + 0.9rem);
   justify-content: flex-start;

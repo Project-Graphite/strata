@@ -1,24 +1,29 @@
 import Chip from '@mui/material/Chip';
-import { useEffect, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { useContext, useEffect, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
 import { Icon, PageHeader, Placeholder, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from './Skeletons';
+import { HeaderTitleContext } from '../header-title';
 
 export interface Back {
   to: string;
   label: string;
 }
 
-export function useDocumentTitle(title: string | undefined) {
+export function useDocumentTitle(title: string | undefined, heading?: { title?: string; back?: Back; tab?: TabItem }) {
+  const { pathname } = useLocation();
+  const setTitle = useContext(HeaderTitleContext)?.setTitle;
   useEffect(() => {
     if (!title) return;
     document.title = `${title} · Strata`;
+    setTitle?.({ pathname, title: heading?.title ?? title, back: heading?.back, tab: heading?.tab });
     return () => {
       document.title = 'Strata';
+      setTitle?.((current) => current?.pathname === pathname ? undefined : current);
     };
-  }, [title]);
+  }, [title, pathname, setTitle, heading?.title, heading?.back?.to, heading?.back?.label, heading?.tab?.href, heading?.tab?.label]);
 }
 
 export function BackLink({ back }: { back: Back }) {
@@ -55,19 +60,32 @@ export function Page({
 }) {
   const named = documentTitle ?? (typeof title === 'string' ? title : undefined);
   const tab = tabs?.find((item) => item.active);
-  useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named);
+  const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named);
+  useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named, { title: named, back, tab });
   return (
     <section className="page-enter grid grid-cols-1 content-start gap-8">
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
       ) : (
-        <div className="grid gap-6">
-          <PageHeader actions={actions} eyebrow={back && <BackLink back={back} />} title={title}>
-            {description}
-          </PageHeader>
-          {tabs && <Tabs items={tabs} label={named ?? 'Sections'} />}
-          {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
-        </div>
+        <>
+          {titleInHeader && <h1 className="sr-only">{title}</h1>}
+          {(!titleInHeader || actions || description || tabs || toolbar || toolbarEnd) && (
+            <div className="grid gap-6">
+              {titleInHeader ? (
+                (actions || description) && <header className="page-header">
+                  {description && <div className="max-w-2xl text-sm text-muted">{description}</div>}
+                  {actions && <div className="page-header-actions ml-auto">{actions}</div>}
+                </header>
+              ) : (
+                <PageHeader actions={actions} eyebrow={back && <BackLink back={back} />} title={title}>
+                  {description}
+                </PageHeader>
+              )}
+              {tabs && <Tabs items={tabs} label={named ?? 'Sections'} />}
+              {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
+            </div>
+          )}
+        </>
       )}
       {children}
     </section>

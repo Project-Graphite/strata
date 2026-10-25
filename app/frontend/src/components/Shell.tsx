@@ -33,6 +33,7 @@ import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 import { SiteBackdrop } from '../dashboard/backdrop';
 import { SpaceNavigation } from './SpaceNavigation';
+import { HeaderTitleProvider } from '../header-title';
 
 const sessionHintKey = 'strata-signed-in';
 
@@ -107,17 +108,20 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             <Skeleton className="h-9 w-9 rounded-full" />
           ) : auth.user ? (
             <>
-              <IconButton icon="search" label="Search (Ctrl+K)" onClick={openSearch} />
-              <IconLink badge={unread} icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox" />
-              <AccountMenu
-                onSignOut={() =>
-                  void signingOut.run(async () => {
-                    await auth.logout();
-                    navigate('/');
-                    return '';
-                  }, 'Could not sign out')
-                }
-              />
+              <SpaceNavigation active={active} />
+              <div className="shell-account-actions ml-auto flex shrink-0 items-center gap-2">
+                <IconButton icon="search" label="Search (Ctrl+K)" onClick={openSearch} />
+                <IconLink badge={unread} icon="bell" label={unread ? `Inbox, ${unread} unread` : 'Inbox'} to="/inbox" />
+                <AccountMenu
+                  onSignOut={() =>
+                    void signingOut.run(async () => {
+                      await auth.logout();
+                      navigate('/');
+                      return '';
+                    }, 'Could not sign out')
+                  }
+                />
+              </div>
             </>
           ) : (
             <>
@@ -151,7 +155,6 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         }
       >
         <OutageGate healthUrl={apiUrl('/health')} key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
-          {auth.user && <SpaceNavigation />}
           {auth.restoreError ? (
             <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
               {auth.restoreError}
@@ -179,7 +182,7 @@ export function Shell() {
       <InboxContext.Provider value={inbox}>
         <SnackbarProvider>
           <ActiveSpaceProvider key={auth.user?.id}><SiteBackdrop>
-            <PageNavigationProvider key={auth.user?.id}><ShellFrame inbox={inbox} spaces={spaces} /></PageNavigationProvider>
+            <HeaderTitleProvider enabled={Boolean(auth.user)}><PageNavigationProvider key={auth.user?.id}><ShellFrame inbox={inbox} spaces={spaces} /></PageNavigationProvider></HeaderTitleProvider>
           </SiteBackdrop></ActiveSpaceProvider>
         </SnackbarProvider>
       </InboxContext.Provider>
