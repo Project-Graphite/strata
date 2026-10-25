@@ -28,7 +28,7 @@ export function HomePage() {
     <section className="page-enter">
       <h1 className="page-heading max-w-3xl">Tasks, agenda, pages, spending and files in one place</h1>
       <p className="mt-5 max-w-2xl text-lg text-muted">Free and open source, from Project Graphite.</p>
-      <div className="mt-8 flex flex-wrap gap-3">
+      <div className="mt-8 grid gap-3 [&>a]:w-full sm:flex sm:flex-wrap sm:[&>a]:w-fit">
         <ButtonLink label="Create account" large primary to="/register" />
         <ButtonLink label="Sign in" large to="/login" />
         {!isNativeAndroid() && <ButtonAnchor href={androidReleaseUrl} label="Download for Android" large />}
