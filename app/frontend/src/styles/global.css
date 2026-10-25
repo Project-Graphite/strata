@@ -1427,6 +1427,10 @@ header.backdrop-blur-md {
   background: color-mix(in srgb, var(--color-paper) 72%, transparent);
 }
 
+.tab-bar .MuiBottomNavigationAction-root {
+  max-width: none;
+}
+
 .app-header:has(.space-navigation) .shell-bar > .ml-auto {
   min-width: 0;
   flex: 1;
