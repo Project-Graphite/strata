@@ -93,6 +93,63 @@ describe('RateLimitGuard', () => {
     expect([...keys].some((key) => key.includes('first'))).toBe(false);
   });
 
+  it('puts every write without a limit of its own into a shared bucket per user, or per address when signed out, and leaves reads alone', async () => {
+    const keys: string[] = [];
+    const guard = new RateLimitGuard({ get: () => undefined } as unknown as Reflector, {
+      run: (operation: (client: object) => Promise<number>) =>
+        operation({
+          incr: (key: string) => {
+            keys.push(key);
+            return Promise.resolve(1);
+          },
+          expire: () => Promise.resolve(true),
+        }),
+    } as never);
+    const member = { ip: '203.0.113.9', user: { id: 'user-id' } };
+
+    for (const method of ['GET', 'HEAD', 'OPTIONS']) {
+      await expect(guard.canActivate(contextFor({ ...member, method }))).resolves.toBe(true);
+    }
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      await expect(guard.canActivate(contextFor({ ...member, method }))).resolves.toBe(true);
+    }
+    await guard.canActivate(contextFor({ ip: '203.0.113.9', method: 'POST' }));
+
+    expect(keys).toEqual([...Array<string>(4).fill('rate:writes:user-id'), 'rate:writes:203.0.113.9']);
+  });
+
+  it('allows 600 writes per user in five minutes and refuses the next', async () => {
+    const guard = new RateLimitGuard({ get: () => undefined } as unknown as Reflector, {
+      run: () => Promise.resolve(undefined),
+    } as never);
+    const write = (id: string) => contextFor({ ip: '203.0.113.9', method: 'PATCH', user: { id } });
+
+    for (let request = 0; request < 600; request += 1) {
+      await guard.canActivate(write('busy-user'));
+    }
+
+    await expect(guard.canActivate(write('busy-user'))).rejects.toMatchObject({ status: 429 });
+    await expect(guard.canActivate(write('other-user'))).resolves.toBe(true);
+  });
+
+  it('keeps an explicit limit instead of the shared write bucket', async () => {
+    const keys: string[] = [];
+    const guard = new RateLimitGuard({ get: () => ({ bucket: 'login', limit: 10, windowSeconds: 900 }) } as unknown as Reflector, {
+      run: (operation: (client: object) => Promise<number>) =>
+        operation({
+          incr: (key: string) => {
+            keys.push(key);
+            return Promise.resolve(1);
+          },
+          expire: () => Promise.resolve(true),
+        }),
+    } as never);
+
+    await guard.canActivate(contextFor({ ip: '203.0.113.9', method: 'POST' }));
+
+    expect(keys).toEqual(['rate:login:203.0.113.9']);
+  });
+
   it('tells a rejected client how many seconds are left in the window', async () => {
     vi.useFakeTimers();
     const reflector = { get: () => ({ bucket: 'login', limit: 1, windowSeconds: 60 }) };

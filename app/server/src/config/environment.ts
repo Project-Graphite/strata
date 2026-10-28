@@ -1,5 +1,6 @@
+import { isAbsolute } from 'node:path';
 import { plainToInstance } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUrl, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUrl, Matches, Max, Min, MinLength, ValidateBy, ValidateIf, validateSync } from 'class-validator';
 
 const origins = /^https?:\/\/[^/,\s]+(,https?:\/\/[^/,\s]+)*$/;
 
@@ -23,9 +24,13 @@ class Environment {
   @Matches(/^postgres(ql)?:\/\//)
   DATABASE_URL!: string;
 
-  @IsOptional()
+  @ValidateIf((environment: Environment) => environment.NODE_ENV === 'production' || environment.REDIS_URL !== undefined)
   @Matches(/^rediss?:\/\//)
   REDIS_URL?: string;
+
+  @IsOptional()
+  @ValidateBy({ name: 'isAbsolutePath', validator: { validate: (value: unknown) => typeof value === 'string' && isAbsolute(value) } })
+  FILES_ROOT?: string;
 
   @IsString()
   @MinLength(32)

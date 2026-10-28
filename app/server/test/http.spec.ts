@@ -63,6 +63,16 @@ describe('HTTP layer', () => {
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
+  it('asks browsers to keep to https, subdomains included, and allows preloading, on secure requests', () => {
+    const response = { locals: {}, set: vi.fn() };
+
+    securityHeaders({ secure: true } as never, response as never, vi.fn());
+
+    expect(response.set).toHaveBeenCalledWith(
+      expect.objectContaining({ 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload' }),
+    );
+  });
+
   it('maps known database errors to plain answers without leaking their detail', async () => {
     const missing = await fetch(`${base}/missing`);
     expect(missing.status).toBe(404);

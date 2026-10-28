@@ -1,12 +1,10 @@
 import {
-  applyDecorators,
   CanActivate,
   ExecutionContext,
   HttpException,
   HttpStatus,
   Injectable,
   SetMetadata,
-  UseGuards,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { createHash } from 'node:crypto';
@@ -22,17 +20,15 @@ interface RateLimitRule {
 }
 
 const rateLimitRule = 'rateLimitRule';
+const writeRule: RateLimitRule = { bucket: 'writes', limit: 600, windowSeconds: 300 };
+const readMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export const RateLimit = (
   bucket: string,
   limit: number,
   windowSeconds: number,
   perCookie?: RateLimitRule['perCookie'],
-) =>
-  applyDecorators(
-    SetMetadata(rateLimitRule, { bucket, limit, windowSeconds, perCookie }),
-    UseGuards(RateLimitGuard),
-  );
+) => SetMetadata(rateLimitRule, { bucket, limit, windowSeconds, perCookie });
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -44,9 +40,12 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext) {
-    const rule = this.reflector.get<RateLimitRule>(rateLimitRule, context.getHandler());
     const http = context.switchToHttp();
     const request = http.getRequest<Request & { user?: AuthenticatedUser }>();
+    const rule =
+      this.reflector.get<RateLimitRule | undefined>(rateLimitRule, context.getHandler()) ??
+      (readMethods.has(request.method) ? undefined : writeRule);
+    if (!rule) return true;
     const cookie = rule.perCookie && (request.cookies[rule.perCookie.name] as string | undefined);
     const retryAfter = Math.max(
       await this.hit(`rate:${rule.bucket}:${request.user?.id ?? request.ip}`, rule.limit, rule.windowSeconds),
