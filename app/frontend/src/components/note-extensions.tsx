@@ -1,17 +1,18 @@
 import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
-import { Extension, mergeAttributes, Node, type ChainedCommands, type Editor } from '@tiptap/core';
+import { Icon, type IconName } from '@project-graphite/ui';
+import { Extension, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import Highlight from '@tiptap/extension-highlight';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
+import { Color, TextStyle } from '@tiptap/extension-text-style';
 import UniqueID from '@tiptap/extension-unique-id';
 import StarterKit from '@tiptap/starter-kit';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
-import { AttrStep } from '@tiptap/pm/transform';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
@@ -21,6 +22,7 @@ import { Link } from 'react-router';
 import type { useAuth } from '../auth';
 import { itemHref, itemKindName } from '../spaces';
 import { BoardPreview } from './BoardPreview';
+import { Callout, changedBlocks, CodeHighlight, Column, Columns, columnsOf, enterFirstColumn } from './editor-blocks';
 import { useFileSource } from './file-source';
 import { Hint } from './Hint';
 
@@ -28,6 +30,9 @@ interface Candidate {
   id: string;
   label: string;
   hint: string;
+  group?: string;
+  icon?: IconName;
+  glyph?: string;
 }
 
 export interface MentionCandidate extends Candidate {
@@ -35,8 +40,19 @@ export interface MentionCandidate extends Candidate {
 }
 
 export interface BlockChoice extends Candidate {
+  group: 'Basic' | 'Lists' | 'Media' | 'Advanced';
   words: string;
   run: (chain: ChainedCommands, editor: Editor) => void;
+}
+
+function sectionsOf(items: Candidate[]) {
+  const sections: { group?: string; entries: { item: Candidate; index: number }[] }[] = [];
+  items.forEach((item, index) => {
+    const last = sections.at(-1);
+    if (last && last.group === item.group) last.entries.push({ item, index });
+    else sections.push({ group: item.group, entries: [{ item, index }] });
+  });
+  return sections;
 }
 
 interface SearchReply {
@@ -76,7 +92,7 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
   return (
     <Paper
       aria-label="Editor suggestions"
-      className="grid max-h-[min(18rem,calc(100dvh-2rem))] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain py-1"
+      className="grid max-h-[min(22rem,calc(100dvh-2rem))] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain py-1"
       elevation={8}
       ref={list}
       role="listbox"
@@ -84,21 +100,31 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
       {items.length === 0 ? (
         <p className="m-0 px-3 py-2 text-small text-muted">Nothing matches</p>
       ) : (
-        items.map((item, index) => (
-          <ListItemButton
-            aria-selected={index === active}
-            className="justify-between gap-3"
-            dense
-            key={item.id}
-            onClick={() => command(item)}
-            onMouseDown={(event) => event.preventDefault()}
-            onMouseEnter={() => setActive(index)}
-            role="option"
-            selected={index === active}
-          >
-            <span className="min-w-0 truncate">{item.label}</span>
-            <span className="mono-sm shrink-0 text-faint">{item.hint}</span>
-          </ListItemButton>
+        sectionsOf(items).map(({ group, entries }) => (
+          <div aria-label={group} className="grid" key={group ?? ''} role={group ? 'group' : undefined}>
+            {group && <p aria-hidden="true" className="m-0 px-3 pt-2 pb-1 text-micro text-faint">{group}</p>}
+            {entries.map(({ item, index }) => (
+              <ListItemButton
+                aria-selected={index === active}
+                className="gap-3"
+                dense
+                key={item.id}
+                onClick={() => command(item)}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActive(index)}
+                role="option"
+                selected={index === active}
+              >
+                {(item.icon || item.glyph) && (
+                  <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-field border border-line text-small font-semibold text-muted">
+                    {item.icon ? <Icon name={item.icon} size={16} /> : item.glyph}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <span className="mono-sm shrink-0 text-faint">{item.hint}</span>
+              </ListItemButton>
+            ))}
+          </div>
         ))
       )}
     </Paper>
@@ -232,15 +258,6 @@ export const StoredImageExtension = Image.extend({
   },
 });
 
-export const Callout = Node.create({
-  name: 'callout',
-  group: 'block',
-  content: 'paragraph+',
-  defining: true,
-  parseHTML: () => [{ tag: 'div[data-callout]' }],
-  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-callout': '', class: 'note-callout' }), 0],
-});
-
 export interface BlockActions {
   onImages?: (view: Editor['view'], files: File[]) => void;
   onBoard?: (editor: Editor) => void;
@@ -258,21 +275,22 @@ export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActio
     input.click();
   };
   return [
-    { id: 'text', label: 'Text', hint: 'paragraph', words: 'text paragraph plain', run: (chain) => chain.setParagraph().run() },
-    { id: 'heading', label: 'Heading', hint: '#', words: 'heading title h1', run: (chain) => chain.setHeading({ level: 1 }).run() },
-    { id: 'subheading', label: 'Subheading', hint: '##', words: 'subheading heading h2', run: (chain) => chain.setHeading({ level: 2 }).run() },
-    { id: 'bullets', label: 'Bulleted list', hint: '-', words: 'bulleted list bullets unordered', run: (chain) => chain.toggleBulletList().run() },
-    { id: 'numbers', label: 'Numbered list', hint: '1.', words: 'numbered list ordered numbers', run: (chain) => chain.toggleOrderedList().run() },
-    { id: 'checklist', label: 'Checklist', hint: '[]', words: 'checklist todo tasks checkbox', run: (chain) => chain.toggleTaskList().run() },
-    { id: 'quote', label: 'Quote', hint: '>', words: 'quote blockquote', run: (chain) => chain.toggleBlockquote().run() },
-    { id: 'code', label: 'Code block', hint: '```', words: 'code block snippet', run: (chain) => chain.toggleCodeBlock().run() },
-    { id: 'callout', label: 'Callout', hint: 'note', words: 'callout note tip warning box', run: (chain) => chain.toggleWrap('callout').run() },
-    { id: 'toggle', label: 'Toggle', hint: 'fold', words: 'toggle collapse fold details', run: (chain) => chain.setDetails().run() },
-    { id: 'table', label: 'Table', hint: '3 × 3', words: 'table grid rows columns', run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-    { id: 'divider', label: 'Divider', hint: '---', words: 'divider line separator rule', run: (chain) => chain.setHorizontalRule().run() },
+    { id: 'text', group: 'Basic', glyph: 'T', label: 'Text', hint: 'paragraph', words: 'text paragraph plain', run: (chain) => chain.setParagraph().run() },
+    { id: 'heading1', group: 'Basic', icon: 'heading-1', label: 'Heading 1', hint: '#', words: 'heading title h1', run: (chain) => chain.setHeading({ level: 1 }).run() },
+    { id: 'heading2', group: 'Basic', icon: 'heading-2', label: 'Heading 2', hint: '##', words: 'subheading heading h2', run: (chain) => chain.setHeading({ level: 2 }).run() },
+    { id: 'heading3', group: 'Basic', glyph: 'H3', label: 'Heading 3', hint: '###', words: 'subheading heading h3', run: (chain) => chain.setHeading({ level: 3 }).run() },
+    { id: 'quote', group: 'Basic', icon: 'quote', label: 'Quote', hint: '>', words: 'quote blockquote', run: (chain) => chain.toggleBlockquote().run() },
+    { id: 'callout', group: 'Basic', icon: 'info', label: 'Callout', hint: 'note', words: 'callout note tip info success warning danger box', run: (chain) => chain.toggleWrap('callout').run() },
+    { id: 'divider', group: 'Basic', glyph: '—', label: 'Divider', hint: '---', words: 'divider line separator rule', run: (chain) => chain.setHorizontalRule().run() },
+    { id: 'bullets', group: 'Lists', icon: 'list', label: 'Bulleted list', hint: '-', words: 'bulleted list bullets unordered', run: (chain) => chain.toggleBulletList().run() },
+    { id: 'numbers', group: 'Lists', icon: 'list-ordered', label: 'Numbered list', hint: '1.', words: 'numbered list ordered numbers', run: (chain) => chain.toggleOrderedList().run() },
+    { id: 'checklist', group: 'Lists', icon: 'checklist', label: 'Checklist', hint: '[]', words: 'checklist todo tasks checkbox', run: (chain) => chain.toggleTaskList().run() },
+    { id: 'toggle', group: 'Lists', icon: 'chevron-right', label: 'Toggle', hint: 'fold', words: 'toggle collapse fold details', run: (chain) => chain.setDetails().run() },
     ...(onImages
       ? [{
           id: 'image',
+          group: 'Media' as const,
+          icon: 'upload' as const,
           label: 'Image',
           hint: 'upload',
           words: 'image picture photo upload',
@@ -286,6 +304,8 @@ export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActio
       ? [
           {
             id: 'board',
+            group: 'Media' as const,
+            icon: 'board' as const,
             label: 'Board',
             hint: 'whiteboard',
             words: 'board whiteboard drawing sketch canvas diagram',
@@ -296,7 +316,11 @@ export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActio
           },
         ]
       : []),
-    ...(pageLinks ? [{ id: 'link', label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain: ChainedCommands) => chain.insertContent('@').run() }] : []),
+    { id: 'code', group: 'Advanced', icon: 'code', label: 'Code block', hint: '```', words: 'code block snippet highlight', run: (chain) => chain.toggleCodeBlock().run() },
+    { id: 'table', group: 'Advanced', glyph: '▦', label: 'Table', hint: '3 × 3', words: 'table grid rows cells', run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { id: 'columns2', group: 'Advanced', icon: 'panel', label: '2 columns', hint: 'side by side', words: 'columns two layout side', run: (chain) => chain.insertContent(columnsOf(2)).command(({ tr }) => enterFirstColumn(tr)).run() },
+    { id: 'columns3', group: 'Advanced', icon: 'panel', label: '3 columns', hint: 'side by side', words: 'columns three layout side', run: (chain) => chain.insertContent(columnsOf(3)).command(({ tr }) => enterFirstColumn(tr)).run() },
+    ...(pageLinks ? [{ id: 'link', group: 'Advanced' as const, icon: 'link' as const, label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain: ChainedCommands) => chain.insertContent('@').run() }] : []),
   ];
 }
 
@@ -372,24 +396,6 @@ function commentMarks(doc: ProseMirrorNode, ids: Set<string>, from = 0, to = doc
   return marks;
 }
 
-function changedBlocks(transaction: Transaction) {
-  let from = transaction.doc.content.size;
-  let to = 0;
-  transaction.steps.forEach((step, index) => {
-    const after = transaction.mapping.slice(index + 1);
-    const widen = (start: number, end: number) => {
-      from = Math.min(from, after.map(start, -1));
-      to = Math.max(to, after.map(end, 1));
-    };
-    if (step instanceof AttrStep) widen(step.pos, step.pos + 1);
-    step.getMap().forEach((_oldStart, _oldEnd, start, end) => widen(start, end));
-  });
-  if (from > to) return undefined;
-  const $from = transaction.doc.resolve(from);
-  const $to = transaction.doc.resolve(to);
-  return { from: $from.depth ? $from.before(1) : from, to: $to.depth ? $to.after(1) : to };
-}
-
 export const CommentedBlocks = Extension.create({
   name: 'commentedBlocks',
   addProseMirrorPlugins: () => [
@@ -415,15 +421,20 @@ export const CommentedBlocks = Extension.create({
   ],
 });
 
-const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule'];
+const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule', 'columns'];
 
 export function pageContent(request: Request | undefined, noteId: string) {
   return [
     StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
     TaskList,
     TaskItem.configure({ nested: true }),
-    Highlight,
+    Highlight.configure({ multicolor: true }),
+    TextStyle,
+    Color,
     Callout,
+    Columns,
+    Column,
+    CodeHighlight,
     Details.configure({ persist: true, HTMLAttributes: { class: 'note-toggle' } }),
     DetailsSummary,
     DetailsContent,
