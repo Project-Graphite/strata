@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Emirates NBD",
+  "messages": [
+    {
+      "sender": "EmiratesNBD",
+      "text": "Purchase of EGP 1,020.00 made on your Emirates NBD Credit Card ending 1234 at SAMPLE STORE on 14/10/2026. Available limit EGP 58,980.00",
+      "expect": { "direction": "spent", "amount": 1020, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 58980, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Purchase of USD 30.00 made on your Emirates NBD Debit Card ending 1234 at SAMPLE.COM on 15/10/2026",
+      "expect": { "direction": "spent", "amount": 30, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "ENBD",
+      "text": "Cash withdrawal of EGP 2,500.00 made on your Emirates NBD Debit Card ending 1234 at ATM SAMPLE on 16/10/2026. Available balance EGP 10,000.00",
+      "expect": { "direction": "spent", "amount": 2500, "currency": "EGP", "cardDigits": "1234", "merchant": "ATM SAMPLE", "available": 10000, "movement": "atm", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Your Emirates NBD account ending 1234 has been credited with EGP 5,000.00 from AHMED SAMPLE on 17/10/2026",
+      "expect": { "direction": "received", "amount": 5000, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Your Emirates NBD account ending 1234 has been debited with EGP 1,250.00 for a transfer to MONA SAMPLE on 18/10/2026",
+      "expect": { "direction": "spent", "amount": 1250, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-18" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Your Emirates NBD account ending 1234 has been credited with salary of EGP 35,000.00 on 25/10/2026",
+      "expect": { "direction": "received", "amount": 35000, "currency": "EGP", "cardDigits": "1234", "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Payment of EGP 6,000.00 has been received for your Emirates NBD Credit Card ending 1234 on 20/10/2026",
+      "expect": { "direction": "received", "amount": 6000, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Refund of EGP 450.00 from SAMPLE SHOP has been credited to your Emirates NBD Credit Card ending 1234 on 22/10/2026",
+      "expect": { "direction": "refund", "amount": 450, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE SHOP", "movement": "refund", "occurredOn": "2026-10-22" }
+    },
+    {
+      "sender": "EmiratesNBD",
+      "text": "Bill payment of EGP 320.00 for SAMPLE MOBILE has been debited from your Emirates NBD account ending 1234 on 21/10/2026",
+      "expect": { "direction": "spent", "amount": 320, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MOBILE", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    { "sender": "EmiratesNBD", "text": "482913 is your one-time password for Emirates NBD online banking. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "EmiratesNBD", "text": "Your Emirates NBD OTP is 739102", "expect": { "ignored": "code" } },
+    { "sender": "EmiratesNBD", "text": "Enjoy up to 20% discount at partner restaurants with your Emirates NBD card", "expect": { "ignored": "promotion" } }
+  ]
+}

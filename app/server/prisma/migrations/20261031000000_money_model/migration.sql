@@ -109,7 +109,7 @@ UPDATE "expenses" e SET
   "capture_id" = m."id",
   "occurred_at" = m."received_at",
   "reference" = NULLIF(m."suggestion"->>'reference', ''),
-  "kind" = CASE WHEN m."suggestion"->>'direction' = e."direction" AND m."suggestion"->>'movement' IN ('purchase', 'atm', 'fee', 'bill', 'transfer', 'card_payment', 'salary', 'refund', 'income') THEN m."suggestion"->>'movement' ELSE e."kind" END
+  "kind" = CASE WHEN m."suggestion"->>'direction' = e."direction" AND m."suggestion"->>'movement' IN ('purchase', 'atm', 'fee', 'bill', 'transfer', 'card_payment', 'installment', 'salary', 'refund', 'income') THEN m."suggestion"->>'movement' ELSE e."kind" END
 FROM (SELECT DISTINCT ON ("expense_id") "id", "expense_id", "received_at", "suggestion" FROM "captured_messages" WHERE "expense_id" IS NOT NULL ORDER BY "expense_id", "created_at") m
 WHERE m."expense_id" = e."item_id";
 

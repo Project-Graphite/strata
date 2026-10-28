@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Orange Cash",
+  "messages": [
+    {
+      "sender": "Orange Cash",
+      "text": "تم إضافة 250 جنيه لمحفظتك من الرقم 010XXXXXXXX. رصيدك الحالي 600 جنيه",
+      "expect": { "direction": "received", "amount": 250, "currency": "EGP", "available": 600, "movement": "transfer" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "تم تحويل 120 جنيه من محفظتك إلى الرقم 010XXXXXXXX. رصيدك الحالي 480 جنيه",
+      "expect": { "direction": "spent", "amount": 120, "currency": "EGP", "available": 480, "movement": "transfer" }
+    },
+    {
+      "sender": "OrangeCash",
+      "text": "تم دفع 75 جنيه لدى SAMPLE BAKERY. رصيدك الحالي 405 جنيه",
+      "expect": { "direction": "spent", "amount": 75, "currency": "EGP", "merchant": "SAMPLE BAKERY", "available": 405, "movement": "purchase" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "تم سداد فاتورة SAMPLE ELECTRICITY بمبلغ 180 جنيه. رصيدك الحالي 225 جنيه",
+      "expect": { "direction": "spent", "amount": 180, "currency": "EGP", "merchant": "SAMPLE ELECTRICITY", "available": 225, "movement": "bill" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "تم شحن 30 جنيه للرقم 010XXXXXXXX. رصيدك الحالي 195 جنيه",
+      "expect": { "direction": "spent", "amount": 30, "currency": "EGP", "available": 195, "movement": "bill" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "تم سحب 200 جنيه نقداً من ماكينة ATM SAMPLE. رصيدك الحالي 95 جنيه",
+      "expect": { "direction": "spent", "amount": 200, "currency": "EGP", "merchant": "ATM SAMPLE", "available": 95, "movement": "atm" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "Orange Cash: You received 350 EGP from 010XXXXXXXX. Balance: 450 EGP",
+      "expect": { "direction": "received", "amount": 350, "currency": "EGP", "available": 450, "movement": "transfer" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "Orange Cash: You sent 90 EGP to 010XXXXXXXX. Balance: 360 EGP",
+      "expect": { "direction": "spent", "amount": 90, "currency": "EGP", "available": 360, "movement": "transfer" }
+    },
+    {
+      "sender": "Orange Cash",
+      "text": "Orange Cash: You paid 45 EGP to SAMPLE KIOSK. Balance: 315 EGP",
+      "expect": { "direction": "spent", "amount": 45, "currency": "EGP", "merchant": "SAMPLE KIOSK", "available": 315, "movement": "purchase" }
+    },
+    { "sender": "Orange Cash", "text": "رمز التحقق لمحفظة أورنج كاش هو 482913", "expect": { "ignored": "code" } },
+    { "sender": "Orange Cash", "text": "Orange Cash: Your OTP is 739102. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "Orange Cash", "text": "استفد بخصم 10% على مشترياتك من المحلات المشاركة بأورنج كاش", "expect": { "ignored": "promotion" } }
+  ]
+}

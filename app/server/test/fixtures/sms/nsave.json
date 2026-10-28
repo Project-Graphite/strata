@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "nSave",
+  "messages": [
+    {
+      "sender": "nSave",
+      "text": "nSave: You received $500.00 from AHMED SAMPLE. Your balance is $1,250.00",
+      "expect": { "direction": "received", "amount": 500, "currency": "USD", "merchant": "AHMED SAMPLE", "available": 1250, "movement": "transfer" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Your card ending 1234 was charged $12.99 at SAMPLE.COM",
+      "expect": { "direction": "spent", "amount": 12.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Your card ending 1234 was charged $45.00 at SAMPLE STORE on 14/10/2026",
+      "expect": { "direction": "spent", "amount": 45, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE STORE", "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: You sent $100.00 to MONA SAMPLE. Your balance is $1,150.00",
+      "expect": { "direction": "spent", "amount": 100, "currency": "USD", "merchant": "MONA SAMPLE", "available": 1150, "movement": "transfer" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Your withdrawal of $300.00 to your bank account ending 1234 is complete",
+      "expect": { "direction": "spent", "amount": 300, "currency": "USD", "cardDigits": "1234", "movement": "transfer" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Your deposit of $1,000.00 has arrived. Your balance is $2,150.00",
+      "expect": { "direction": "received", "amount": 1000, "currency": "USD", "available": 2150, "movement": "transfer" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Refund of $12.99 from SAMPLE.COM to your card ending 1234",
+      "expect": { "direction": "refund", "amount": 12.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "refund" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: Your card ending 1234 was used to withdraw $50.00 at ATM SAMPLE",
+      "expect": { "direction": "spent", "amount": 50, "currency": "USD", "cardDigits": "1234", "merchant": "ATM SAMPLE", "movement": "atm" }
+    },
+    {
+      "sender": "nSave",
+      "text": "nSave: A monthly fee of $1.00 was charged to your account",
+      "expect": { "direction": "spent", "amount": 1, "currency": "USD", "movement": "fee" }
+    },
+    { "sender": "nSave", "text": "nSave: Your verification code is 482913. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "nSave", "text": "nSave: 739102 is your one-time code", "expect": { "ignored": "code" } },
+    { "sender": "nSave", "text": "nSave: Invite a friend and win $10 when they open an account", "expect": { "ignored": "promotion" } }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "AAIB",
+  "messages": [
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your card ***1234 was debited with EGP 560.00 at SAMPLE STORE on 14/10/2026 13:10. Avl Bal EGP 4,440.00",
+      "expect": { "direction": "spent", "amount": 560, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 4440, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your card ***1234 was debited with USD 18.50 at SAMPLE.COM on 16/10/2026",
+      "expect": { "direction": "spent", "amount": 18.5, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your card ***1234 was debited with EGP 1,500.00 for ATM withdrawal at AAIB ATM SAMPLE on 15/10/2026. Avl Bal EGP 2,940.00",
+      "expect": { "direction": "spent", "amount": 1500, "currency": "EGP", "cardDigits": "1234", "merchant": "AAIB ATM SAMPLE", "available": 2940, "movement": "atm", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your account ***1234 was credited with EGP 2,500.00 from AHMED SAMPLE on 16/10/2026. Avl Bal EGP 5,440.00",
+      "expect": { "direction": "received", "amount": 2500, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "available": 5440, "movement": "transfer", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your account ***1234 was credited with salary EGP 21,000.00 on 25/10/2026",
+      "expect": { "direction": "received", "amount": 21000, "currency": "EGP", "cardDigits": "1234", "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: EGP 800.00 was transferred from your account ***1234 to MONA SAMPLE on 17/10/2026",
+      "expect": { "direction": "spent", "amount": 800, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "AAIB: Your credit card ***1234 payment of EGP 2,000.00 has been received on 20/10/2026",
+      "expect": { "direction": "received", "amount": 2000, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "تم خصم 340.00 جم من بطاقتك ***1234 لدى SAMPLE MARKET بتاريخ 18/10/2026 الرصيد المتاح 2,600.00 جم",
+      "expect": { "direction": "spent", "amount": 340, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "available": 2600, "movement": "purchase", "occurredOn": "2026-10-18" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "تم إيداع 700.00 جم في حسابك ***1234 من AHMED SAMPLE بتاريخ 19/10/2026",
+      "expect": { "direction": "received", "amount": 700, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "movement": "transfer", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "AAIB",
+      "text": "تم سداد فاتورة SAMPLE GAS بمبلغ 95.00 جم من حسابك ***1234 بتاريخ 21/10/2026",
+      "expect": { "direction": "spent", "amount": 95, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE GAS", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    { "sender": "AAIB", "text": "AAIB: Your OTP is 482913. Do not share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "AAIB", "text": "رمز التحقق لعملية الدخول هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "AAIB", "text": "AAIB: Win a trip for two when you spend with your AAIB card this month", "expect": { "ignored": "promotion" } }
+  ]
+}

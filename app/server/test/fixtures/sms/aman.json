@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Aman",
+  "messages": [
+    {
+      "sender": "Aman",
+      "text": "تم سداد فاتورة SAMPLE ELECTRICITY بمبلغ 320.00 جنيه عن طريق أمان. رقم العملية 5512345",
+      "expect": { "direction": "spent", "amount": 320, "currency": "EGP", "merchant": "SAMPLE ELECTRICITY", "movement": "bill", "reference": "5512345" }
+    },
+    {
+      "sender": "Aman",
+      "text": "تم شحن 100 جنيه للرقم 010XXXXXXXX عن طريق أمان. رقم العملية 5512346",
+      "expect": { "direction": "spent", "amount": 100, "currency": "EGP", "movement": "bill", "reference": "5512346" }
+    },
+    {
+      "sender": "Aman",
+      "text": "تم سداد القسط بمبلغ 1,250.00 جنيه لعقد رقم 1234 لدى أمان للتمويل الاستهلاكي. رقم العملية 5512347",
+      "expect": { "direction": "spent", "amount": 1250, "currency": "EGP", "movement": "installment", "reference": "5512347" }
+    },
+    {
+      "sender": "Aman",
+      "text": "تم إضافة 500 جنيه إلى محفظة أمان من 010XXXXXXXX. رصيدك 700 جنيه",
+      "expect": { "direction": "received", "amount": 500, "currency": "EGP", "available": 700, "movement": "transfer" }
+    },
+    {
+      "sender": "Aman",
+      "text": "تم تحويل 200 جنيه من محفظة أمان إلى 010XXXXXXXX. رصيدك 500 جنيه",
+      "expect": { "direction": "spent", "amount": 200, "currency": "EGP", "available": 500, "movement": "transfer" }
+    },
+    {
+      "sender": "Aman",
+      "text": "تم دفع 90 جنيه لدى SAMPLE STORE. رصيدك 410 جنيه",
+      "expect": { "direction": "spent", "amount": 90, "currency": "EGP", "merchant": "SAMPLE STORE", "available": 410, "movement": "purchase" }
+    },
+    {
+      "sender": "AMAN",
+      "text": "Aman: Payment of EGP 260.00 for SAMPLE WATER was successful. Ref 5512348",
+      "expect": { "direction": "spent", "amount": 260, "currency": "EGP", "merchant": "SAMPLE WATER", "movement": "bill", "reference": "5512348" }
+    },
+    {
+      "sender": "AMAN",
+      "text": "Aman: EGP 300.00 has been added to your Aman wallet from 010XXXXXXXX. Balance EGP 710.00",
+      "expect": { "direction": "received", "amount": 300, "currency": "EGP", "available": 710, "movement": "transfer" }
+    },
+    {
+      "sender": "AMAN",
+      "text": "Aman: Your instalment of EGP 1,250.00 for contract 1234 has been paid. Ref 5512349",
+      "expect": { "direction": "spent", "amount": 1250, "currency": "EGP", "movement": "installment", "reference": "5512349" }
+    },
+    { "sender": "Aman", "text": "رمز التحقق الخاص بك من أمان هو 482913", "expect": { "ignored": "code" } },
+    { "sender": "AMAN", "text": "Aman: Your OTP is 739102. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "Aman", "text": "استمتع بخصم 15% على مشترياتك بالتقسيط من أمان حتى 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}

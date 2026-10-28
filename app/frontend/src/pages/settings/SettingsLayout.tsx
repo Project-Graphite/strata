@@ -16,6 +16,8 @@ export interface Me {
   tidySummary: boolean;
   weeklyReview: boolean;
   homeCurrency: string | null;
+  weekStart: number;
+  weekendDays: number[];
   role: string;
 }
 

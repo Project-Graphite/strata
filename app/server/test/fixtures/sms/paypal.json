@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "PayPal",
+  "messages": [
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You received $250.00 USD from SAMPLE CLIENT LLC",
+      "expect": { "direction": "received", "amount": 250, "currency": "USD", "merchant": "SAMPLE CLIENT LLC", "movement": "income" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: SAMPLE CLIENT sent you $120.00 USD",
+      "expect": { "direction": "received", "amount": 120, "currency": "USD", "merchant": "SAMPLE CLIENT", "movement": "transfer" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: Good news! SAMPLE AGENCY sent you $300.00 USD",
+      "expect": { "direction": "received", "amount": 300, "currency": "USD", "merchant": "SAMPLE AGENCY", "movement": "transfer" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You sent a payment of $35.00 USD to SAMPLE STORE",
+      "expect": { "direction": "spent", "amount": 35, "currency": "USD", "merchant": "SAMPLE STORE", "movement": "purchase" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You paid €15.00 EUR to SAMPLE SHOP EU",
+      "expect": { "direction": "spent", "amount": 15, "currency": "EUR", "merchant": "SAMPLE SHOP EU", "movement": "purchase" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You sent $40.00 USD to AHMED SAMPLE",
+      "expect": { "direction": "spent", "amount": 40, "currency": "USD", "merchant": "AHMED SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You sent an automatic payment of $9.99 USD to SAMPLE STREAMING",
+      "expect": { "direction": "spent", "amount": 9.99, "currency": "USD", "merchant": "SAMPLE STREAMING", "movement": "bill" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: Your transfer of $500.00 USD to your bank account ending 1234 is complete",
+      "expect": { "direction": "spent", "amount": 500, "currency": "USD", "cardDigits": "1234", "movement": "transfer" }
+    },
+    {
+      "sender": "PayPal",
+      "text": "PayPal: You received a refund of $19.99 USD from SAMPLE.COM",
+      "expect": { "direction": "refund", "amount": 19.99, "currency": "USD", "merchant": "SAMPLE.COM", "movement": "refund" }
+    },
+    { "sender": "PayPal", "text": "PayPal: Your security code is 482913. Your code expires in 10 minutes. Please don't reply.", "expect": { "ignored": "code" } },
+    { "sender": "PayPal", "text": "PayPal: 739102 is your one-time code", "expect": { "ignored": "code" } },
+    { "sender": "PayPal", "text": "PayPal: Get 5% back when you check out with PayPal this weekend", "expect": { "ignored": "promotion" } }
+  ]
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Placeholder, Select, TextField, Toggle } from '@project-graphite/ui';
+import { Fieldset, FilterChip, Placeholder, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
 import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
@@ -17,6 +17,8 @@ import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepSt
 import { CurrencyField } from '../../components/CurrencyField';
 import { Button } from '../../components/Button';
 
+const weekDays = Array.from({ length: 7 }, (_, day) => new Intl.DateTimeFormat('en', { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, 1 + day))));
+
 export function ProfileSettings() {
   const auth = useAuth();
   const me = useResource<Me>('/me', true);
@@ -28,6 +30,7 @@ export function ProfileSettings() {
   const profileForm = useFormErrors();
   const emailForm = useFormErrors();
   const [changingEmail, setChangingEmail] = useState(false);
+  const [weekend, setWeekend] = useState<number[]>();
 
   if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
@@ -41,6 +44,7 @@ export function ProfileSettings() {
               <FieldSkeleton />
               <FieldSkeleton />
               <FieldSkeleton hint />
+              <FieldSkeleton />
             </div>
             <ButtonSkeleton width="w-16" />
           </div>
@@ -62,6 +66,7 @@ export function ProfileSettings() {
     );
   }
   const current = me.data;
+  const weekendDays = weekend ?? current.weekendDays;
 
   return (
     <>
@@ -88,6 +93,8 @@ export function ProfileSettings() {
                   timeZone: String(values.get('timeZone')),
                   timeFormat: String(values.get('timeFormat')),
                   homeCurrency: String(values.get('homeCurrency')) || null,
+                  weekStart: Number(values.get('weekStart')),
+                  weekendDays,
                 }),
               });
               me.mutate(() => next);
@@ -121,7 +128,20 @@ export function ProfileSettings() {
               name="homeCurrency"
               noneLabel="None, keep each currency separate"
             />
+            <Select defaultValue={String(current.weekStart)} label="Week starts on" name="weekStart" options={weekDays.map((label, day) => ({ value: String(day), label }))} />
           </div>
+          <Fieldset legend="Weekend days">
+            <div className="flex flex-wrap gap-2">
+              {weekDays.map((label, day) => (
+                <FilterChip
+                  active={weekendDays.includes(day)}
+                  key={label}
+                  label={label}
+                  onClick={() => setWeekend(weekendDays.includes(day) ? weekendDays.filter((other) => other !== day) : [...weekendDays, day])}
+                />
+              ))}
+            </div>
+          </Fieldset>
           <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save'} primary submit />
         </form>
       </Section>

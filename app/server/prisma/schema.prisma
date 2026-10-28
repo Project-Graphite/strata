@@ -40,6 +40,12 @@ enum LinkKind {
   ATTACHMENT @map("attachment")
 }
 
+enum TaskStatus {
+  OPEN        @map("open")
+  IN_PROGRESS @map("in_progress")
+  DONE        @map("done")
+}
+
 enum InvitationKind {
   APP   @map("app")
   SPACE @map("space")
@@ -89,6 +95,8 @@ model User {
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
+  weekStart           Int                    @default(0) @map("week_start")
+  weekendDays         Int[]                  @default([5, 6]) @map("weekend_days")
   monthStartDay       Int                    @default(1) @map("month_start_day")
   budgetsEnabled      Boolean                @default(true) @map("budgets_enabled")
   features            String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
@@ -566,22 +574,24 @@ model SearchDocument {
 }
 
 model Task {
-  itemId          String    @id @map("item_id") @db.Uuid
-  listId          String?   @map("list_id") @db.Uuid
-  parentId        String?   @map("parent_id") @db.Uuid
-  dueDate         DateTime? @map("due_date") @db.Date
-  dueTime         String?   @map("due_time")
-  timeZone        String    @map("time_zone")
-  repeatRule      String?   @map("repeat_rule")
-  reminderMinutes Int?      @map("reminder_minutes")
-  assigneeId      String?   @map("assignee_id") @db.Uuid
-  priority        Int       @default(0)
-  position        Float     @default(0)
-  completedAt     DateTime? @map("completed_at")
-  item            Item      @relation("TaskItem", fields: [itemId], references: [id], onDelete: Cascade)
-  list            Item?     @relation("TaskList", fields: [listId], references: [id], onDelete: SetNull)
-  parent          Item?     @relation("TaskParent", fields: [parentId], references: [id], onDelete: SetNull)
-  assignee        User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  itemId          String     @id @map("item_id") @db.Uuid
+  listId          String?    @map("list_id") @db.Uuid
+  parentId        String?    @map("parent_id") @db.Uuid
+  dueDate         DateTime?  @map("due_date") @db.Date
+  dueTime         String?    @map("due_time")
+  timeZone        String     @map("time_zone")
+  repeatRule      String?    @map("repeat_rule")
+  reminderMinutes Int?       @map("reminder_minutes")
+  assigneeId      String?    @map("assignee_id") @db.Uuid
+  priority        Int        @default(0)
+  position        Float      @default(0)
+  status          TaskStatus @default(OPEN)
+  description     Json?
+  completedAt     DateTime?  @map("completed_at")
+  item            Item       @relation("TaskItem", fields: [itemId], references: [id], onDelete: Cascade)
+  list            Item?      @relation("TaskList", fields: [listId], references: [id], onDelete: SetNull)
+  parent          Item?      @relation("TaskParent", fields: [parentId], references: [id], onDelete: SetNull)
+  assignee        User?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@index([listId])
   @@index([parentId])
