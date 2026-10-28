@@ -63,7 +63,7 @@ export class CostSplitsService {
       const renewals = subscription ? renewalsBetween(subscription, from, to).filter((day) => !cancelled || day < cancelled) : spentOn! >= from && spentOn! < to ? [spentOn!] : [];
       if (renewals.length === 0) return [];
       const details = (subscription ?? expense)!;
-      const total = renewals.length * details.amountMinor;
+      const total = renewals.length * Number(details.amountMinor);
       const weights = split.shares.reduce((sum, share) => sum + share.weight, 0);
       for (const share of split.shares) {
         if (share.userId !== split.payerId) add(share.userId, split.payerId, details.currency, Math.round((total * share.weight) / weights));

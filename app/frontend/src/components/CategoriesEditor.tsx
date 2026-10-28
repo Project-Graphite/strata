@@ -29,7 +29,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
   const save = () =>
     auth.request(`/spaces/${spaceId}/spending-categories`, {
       method: 'PUT',
-      body: JSON.stringify({ categories: rows.map(({ name, colour, previous }) => ({ name: name.trim(), colour, ...(previous ? { previous } : {}) })) }),
+      body: JSON.stringify({ categories: rows.map(({ name, colour, icon, kind, previous }) => ({ name: name.trim(), colour, icon, kind, ...(previous ? { previous } : {}) })) }),
     });
 
   if (removing) {
@@ -102,7 +102,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
           </li>
         ))}
       </ul>
-      <Button disabled={rows.length >= 40} label="Add a category" large onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray' }])} />
+      <Button disabled={rows.length >= 40} label="Add a category" large onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray', icon: null, kind: 'expense' }])} />
       {error && <Banner tone="danger">{error}</Banner>}
     </FormDialog>
   );

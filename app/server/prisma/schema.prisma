@@ -89,6 +89,8 @@ model User {
   tidySummary         Boolean                @default(false) @map("tidy_summary")
   weeklyReview        Boolean                @default(false) @map("weekly_review")
   homeCurrency        String?                @map("home_currency")
+  monthStartDay       Int                    @default(1) @map("month_start_day")
+  budgetsEnabled      Boolean                @default(true) @map("budgets_enabled")
   features            String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
   calendarFeedHash    String?                @unique @map("calendar_feed_hash")
   isActive            Boolean                @default(true) @map("is_active")
@@ -244,7 +246,8 @@ model Space {
   moneyAccounts   MoneyAccount[]
   captures        CapturedMessage[]
   categories      SpendingCategory[]
-  merchantRules   MerchantRule[]
+  merchants       Merchant[]
+  senderRules     SenderRule[]
   spendingPlan    SpendingPlan?
   budgetAlerts    BudgetAlert[]
   installments    InstallmentPlan[]
@@ -1106,60 +1109,148 @@ model MealPlanEntry {
 }
 
 model Expense {
-  itemId       String        @id @map("item_id") @db.Uuid
-  amountMinor  Int           @map("amount_minor")
-  currency     String
-  spentOn      DateTime      @map("spent_on") @db.Date
-  category     String        @default("other")
-  paymentLabel String?       @map("payment_label")
-  note         String        @default("")
-  direction    String        @default("spent")
-  merchant     String?
-  source       String        @default("manual")
-  accountId    String?       @map("account_id") @db.Uuid
-  toAccountId  String?       @map("to_account_id") @db.Uuid
-  cardDigits   String?       @map("card_digits")
-  item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  account      MoneyAccount? @relation("AccountExpenses", fields: [accountId], references: [id], onDelete: SetNull)
-  toAccount    MoneyAccount? @relation("AccountTransfersIn", fields: [toAccountId], references: [id], onDelete: SetNull)
+  itemId         String           @id @map("item_id") @db.Uuid
+  amountMinor    BigInt           @map("amount_minor")
+  currency       String
+  spentOn        DateTime         @map("spent_on") @db.Date
+  occurredAt     DateTime?        @map("occurred_at") @db.Timestamptz(3)
+  category       String           @default("other")
+  paymentLabel   String?          @map("payment_label")
+  note           String           @default("")
+  direction      String           @default("spent")
+  kind           String           @default("purchase")
+  status         String           @default("posted")
+  merchant       String?
+  merchantId     String?          @map("merchant_id") @db.Uuid
+  source         String           @default("manual")
+  reference      String?
+  captureId      String?          @unique @map("capture_id") @db.Uuid
+  accountId      String?          @map("account_id") @db.Uuid
+  toAccountId    String?          @map("to_account_id") @db.Uuid
+  cardId         String?          @map("card_id") @db.Uuid
+  cardDigits     String?          @map("card_digits")
+  transferPairId String?          @map("transfer_pair_id") @db.Uuid
+  item           Item             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  account        MoneyAccount?    @relation("AccountExpenses", fields: [accountId], references: [id], onDelete: SetNull)
+  toAccount      MoneyAccount?    @relation("AccountTransfersIn", fields: [toAccountId], references: [id], onDelete: SetNull)
+  card           Card?            @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  knownMerchant  Merchant?        @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  capture        CapturedMessage? @relation("ExpenseCapture", fields: [captureId], references: [id], onDelete: SetNull)
 
   @@index([spentOn])
   @@index([accountId])
   @@index([toAccountId])
+  @@index([cardId])
+  @@index([merchantId])
+  @@index([transferPairId])
   @@map("expenses")
 }
 
 model MoneyAccount {
-  id               String            @id @default(uuid()) @db.Uuid
-  spaceId          String            @map("space_id") @db.Uuid
-  name             String
-  kind             String            @default("bank")
-  currency         String
-  cardDigits       String[]          @default([]) @map("card_digits")
-  senders          String[]          @default([])
-  balanceMinor     Int               @default(0) @map("balance_minor")
-  balanceAt        DateTime          @default(now()) @map("balance_at")
-  creditLimitMinor Int?              @map("credit_limit_minor")
-  dueDay           Int?              @map("due_day")
-  dueRemindedOn    DateTime?         @map("due_reminded_on") @db.Date
-  position         Int               @default(0)
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  space            Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  expenses         Expense[]         @relation("AccountExpenses")
-  transfersIn      Expense[]         @relation("AccountTransfersIn")
-  installments     InstallmentPlan[]
-  savingsGoals     SavingsGoal[]
+  id                String            @id @default(uuid()) @db.Uuid
+  spaceId           String            @map("space_id") @db.Uuid
+  name              String
+  kind              String            @default("bank_current")
+  institution       String?
+  handle            String?
+  fundedByAccountId String?           @map("funded_by_account_id") @db.Uuid
+  colour            String?
+  icon              String?
+  currency          String
+  senders           String[]          @default([])
+  balanceMinor      BigInt            @default(0) @map("balance_minor")
+  balanceAt         DateTime          @default(now()) @map("balance_at")
+  creditLimitMinor  BigInt?           @map("credit_limit_minor")
+  dueDay            Int?              @map("due_day")
+  dueRemindedOn     DateTime?         @map("due_reminded_on") @db.Date
+  position          Int               @default(0)
+  archivedAt        DateTime?         @map("archived_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  space             Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  fundedBy          MoneyAccount?     @relation("AccountFunding", fields: [fundedByAccountId], references: [id], onDelete: SetNull)
+  funds             MoneyAccount[]    @relation("AccountFunding")
+  expenses          Expense[]         @relation("AccountExpenses")
+  transfersIn       Expense[]         @relation("AccountTransfersIn")
+  cards             Card[]
+  balances          AccountBalance[]
+  senderRules       SenderRule[]
+  installments      InstallmentPlan[]
+  savingsGoals      SavingsGoal[]
 
   @@index([spaceId])
   @@map("money_accounts")
+}
+
+model AccountBalance {
+  id           String       @id @default(uuid()) @db.Uuid
+  accountId    String       @map("account_id") @db.Uuid
+  balanceMinor BigInt       @map("balance_minor")
+  recordedAt   DateTime     @default(now()) @map("recorded_at")
+  source       String       @default("manual")
+  account      MoneyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, recordedAt])
+  @@map("account_balances")
+}
+
+model Card {
+  id          String       @id @default(uuid()) @db.Uuid
+  accountId   String       @map("account_id") @db.Uuid
+  last4       String
+  network     String?
+  kind        String       @default("debit")
+  label       String?
+  expiresOn   DateTime?    @map("expires_on") @db.Date
+  position    Int          @default(0)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  account     MoneyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expenses    Expense[]
+  senderRules SenderRule[]
+
+  @@unique([accountId, last4])
+  @@map("cards")
+}
+
+model Merchant {
+  id        String    @id @default(uuid()) @db.Uuid
+  spaceId   String    @map("space_id") @db.Uuid
+  name      String
+  aliases   String[]  @default([])
+  category  String?
+  icon      String?
+  ignore    Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+
+  @@index([spaceId])
+  @@map("merchants")
+}
+
+model SenderRule {
+  id         String        @id @default(uuid()) @db.Uuid
+  spaceId    String        @map("space_id") @db.Uuid
+  pattern    String
+  accountId  String?       @map("account_id") @db.Uuid
+  cardId     String?       @map("card_id") @db.Uuid
+  confidence Float         @default(1)
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  space      Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  account    MoneyAccount? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  card       Card?         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId])
+  @@map("sender_rules")
 }
 
 model Budget {
   id          String   @id @default(uuid()) @db.Uuid
   spaceId     String   @map("space_id") @db.Uuid
   category    String
-  amountMinor Int      @map("amount_minor")
+  amountMinor BigInt   @map("amount_minor")
   currency    String
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -1183,20 +1274,24 @@ model Trip {
 }
 
 model CapturedMessage {
-  id         String   @id @default(uuid()) @db.Uuid
-  spaceId    String   @map("space_id") @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  sender     String
-  textSealed String   @map("text_sealed")
-  hash       String
-  status     String   @default("review")
-  suggestion Json     @default("{}")
-  expenseId  String?  @map("expense_id") @db.Uuid
-  receivedAt DateTime @map("received_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  space      Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expense    Item?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  id            String   @id @default(uuid()) @db.Uuid
+  spaceId       String   @map("space_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  sender        String
+  textSealed    String?  @map("text_sealed")
+  hash          String
+  status        String   @default("review")
+  suggestion    Json     @default("{}")
+  parserVersion Int?     @map("parser_version")
+  templateId    String?  @map("template_id")
+  confidence    Float?
+  expenseId     String?  @map("expense_id") @db.Uuid
+  receivedAt    DateTime @map("received_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  space         Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense       Item?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  recorded      Expense? @relation("ExpenseCapture")
 
   @@unique([spaceId, hash])
   @@index([spaceId, status])
@@ -1205,36 +1300,23 @@ model CapturedMessage {
 }
 
 model SpendingCategory {
-  id       String @id @default(uuid()) @db.Uuid
-  spaceId  String @map("space_id") @db.Uuid
+  id       String  @id @default(uuid()) @db.Uuid
+  spaceId  String  @map("space_id") @db.Uuid
   name     String
-  colour   String @default("gray")
-  position Int    @default(0)
-  space    Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  colour   String  @default("gray")
+  icon     String?
+  kind     String  @default("expense")
+  position Int     @default(0)
+  space    Space   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@unique([spaceId, name])
   @@map("spending_categories")
 }
 
-model MerchantRule {
-  id        String   @id @default(uuid()) @db.Uuid
-  spaceId   String   @map("space_id") @db.Uuid
-  match     String
-  rename    String?
-  category  String?
-  ignore    Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-
-  @@unique([spaceId, match])
-  @@map("merchant_rules")
-}
-
 model SpendingPlan {
   spaceId     String   @id @map("space_id") @db.Uuid
-  budgetMinor Int?     @map("budget_minor")
+  budgetMinor BigInt?  @map("budget_minor")
   currency    String?
-  startDay    Int      @default(1) @map("start_day")
   rollover    Boolean  @default(false)
   updatedAt   DateTime @updatedAt @map("updated_at")
   space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
@@ -1261,7 +1343,7 @@ model InstallmentPlan {
   accountId    String?       @map("account_id") @db.Uuid
   name         String
   currency     String
-  monthlyMinor Int           @map("monthly_minor")
+  monthlyMinor BigInt        @map("monthly_minor")
   count        Int
   firstDueOn   DateTime      @map("first_due_on") @db.Date
   paidCount    Int           @default(0) @map("paid_count")
@@ -1283,8 +1365,8 @@ model SavingsGoal {
   accountId   String?       @map("account_id") @db.Uuid
   name        String
   currency    String
-  targetMinor Int           @map("target_minor")
-  savedMinor  Int           @default(0) @map("saved_minor")
+  targetMinor BigInt        @map("target_minor")
+  savedMinor  BigInt        @default(0) @map("saved_minor")
   dueOn       DateTime?     @map("due_on") @db.Date
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -1301,7 +1383,7 @@ model Asset {
   name        String
   kind        String    @default("other")
   currency    String
-  valueMinor  Int       @map("value_minor")
+  valueMinor  BigInt    @map("value_minor")
   ratePercent Float?    @map("rate_percent")
   maturesOn   DateTime? @map("matures_on") @db.Date
   createdAt   DateTime  @default(now()) @map("created_at")

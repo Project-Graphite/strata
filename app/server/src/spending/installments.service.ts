@@ -31,19 +31,20 @@ export const dueDates = (plan: Pick<InstallmentPlan, 'firstDueOn' | 'count'>) =>
 
 function present(plan: InstallmentPlan, today: string) {
   const nextDueOn = plan.paidCount < plan.count ? addMonths(dateText(plan.firstDueOn), plan.paidCount) : null;
+  const monthlyMinor = Number(plan.monthlyMinor);
   return {
     id: plan.id,
     spaceId: plan.spaceId,
     accountId: plan.accountId,
     name: plan.name,
     currency: plan.currency,
-    monthlyMinor: plan.monthlyMinor,
+    monthlyMinor,
     count: plan.count,
     firstDueOn: dateText(plan.firstDueOn),
     paidCount: plan.paidCount,
     reminderDays: plan.reminderDays,
-    totalMinor: plan.monthlyMinor * plan.count,
-    remainingMinor: plan.monthlyMinor * (plan.count - plan.paidCount),
+    totalMinor: monthlyMinor * plan.count,
+    remainingMinor: monthlyMinor * (plan.count - plan.paidCount),
     nextDueOn,
     status: nextDueOn === null ? 'done' : nextDueOn < today ? 'missed' : 'due',
   };
@@ -110,13 +111,13 @@ export class InstallmentsService implements OnModuleInit {
   async remind(now: Date) {
     const today = dateText(now);
     const plans = await this.prisma.installmentPlan.findMany();
-    const cards = await this.prisma.moneyAccount.findMany({ where: { kind: 'credit', dueDay: { not: null } } });
+    const cards = await this.prisma.moneyAccount.findMany({ where: { kind: 'credit_card', dueDay: { not: null } } });
     const notes: { spaceId: string; title: string; body: string }[] = [];
     for (const plan of plans) {
       if (plan.paidCount >= plan.count) continue;
       const due = addMonths(dateText(plan.firstDueOn), plan.paidCount);
       const days = daysBetween(today, due);
-      const amount = this.format(plan.monthlyMinor, plan.currency);
+      const amount = this.format(Number(plan.monthlyMinor), plan.currency);
       if (days >= 0 && days <= plan.reminderDays && dateText(plan.remindedOn) !== due) {
         notes.push({ spaceId: plan.spaceId, title: `${plan.name} is due ${days === 0 ? 'today' : `on ${readableDay(due)}`}`, body: `${amount}, payment ${plan.paidCount + 1} of ${plan.count}` });
         await this.prisma.installmentPlan.update({ where: { id: plan.id }, data: { remindedOn: dateValue(due) } });

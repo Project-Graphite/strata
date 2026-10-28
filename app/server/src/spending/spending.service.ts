@@ -31,17 +31,22 @@ function present(row: ExpenseRow) {
     id: row.id,
     spaceId: row.spaceId,
     title: row.title,
-    amountMinor: expense.amountMinor,
+    amountMinor: Number(expense.amountMinor),
     currency: expense.currency,
     spentOn: dateText(expense.spentOn),
+    occurredAt: expense.occurredAt,
     category: expense.category,
     paymentLabel: expense.paymentLabel,
     note: expense.note,
     direction: expense.direction,
+    kind: expense.kind,
+    status: expense.status,
     merchant: expense.merchant,
     source: expense.source,
+    reference: expense.reference,
     accountId: expense.accountId,
     toAccountId: expense.toAccountId,
+    cardId: expense.cardId,
     cardDigits: expense.cardDigits,
     split: row.costSplit,
     createdAt: row.createdAt,
@@ -56,18 +61,24 @@ const movementOf = (input: Pick<CreateExpenseDto, 'direction' | 'accountId' | 't
   return { direction, accountId: input.accountId ?? null, toAccountId: direction === 'transfer' ? (input.toAccountId ?? null) : null };
 };
 
-const expenseData = (input: CreateExpenseDto, source: string) => ({
-  amountMinor: input.amountMinor,
-  currency: input.currency,
-  spentOn: dateValue(input.spentOn),
-  category: input.category ?? 'other',
-  paymentLabel: input.paymentLabel || null,
-  note: input.note ?? '',
-  merchant: input.merchant || null,
-  cardDigits: input.cardDigits ?? null,
-  source,
-  ...movementOf(input),
-});
+export const kindOf = (direction: string) => (direction === 'received' ? 'income' : direction === 'refund' || direction === 'transfer' ? direction : 'purchase');
+
+const expenseData = (input: CreateExpenseDto, source: string) => {
+  const movement = movementOf(input);
+  return {
+    amountMinor: input.amountMinor,
+    currency: input.currency,
+    spentOn: dateValue(input.spentOn),
+    category: input.category ?? 'other',
+    paymentLabel: input.paymentLabel || null,
+    note: input.note ?? '',
+    merchant: input.merchant || null,
+    cardDigits: input.cardDigits ?? null,
+    source,
+    kind: input.kind ?? kindOf(movement.direction),
+    ...movement,
+  };
+};
 
 @Injectable()
 export class SpendingService {
@@ -89,17 +100,21 @@ export class SpendingService {
   async savePlan(userId: string, spaceId: string, input: SavePlanDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     if ((input.budgetMinor === null) !== (input.currency === null)) throw new BadRequestException('Give the monthly budget an amount and a currency');
-    const plan = await this.prisma.spendingPlan.upsert({ where: { spaceId }, create: { spaceId, ...input }, update: input });
+    const { startDay, ...settings } = input;
+    const [plan] = await this.prisma.$transaction([
+      this.prisma.spendingPlan.upsert({ where: { spaceId }, create: { spaceId, ...settings }, update: settings }),
+      this.prisma.user.update({ where: { id: userId }, data: { monthStartDay: startDay } }),
+    ]);
     this.changes.notify('spending', { spaceId });
-    return { budgetMinor: plan.budgetMinor, currency: plan.currency, startDay: plan.startDay, rollover: plan.rollover };
+    return { budgetMinor: plan.budgetMinor === null ? null : Number(plan.budgetMinor), currency: plan.currency, startDay, rollover: plan.rollover };
   }
 
   private async summary(userId: string, spaceId: string, month?: string) {
     const [user, plan] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true, monthStartDay: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
     ]);
-    const startDay = plan?.startDay ?? 1;
+    const startDay = user.monthStartDay;
     const today = localDate(user.timeZone);
     const shownMonth = month ?? monthOf(today, startDay);
     const { from, to } = periodOf(shownMonth, startDay);
@@ -124,13 +139,13 @@ export class SpendingService {
     const expenses = rows.map(present);
     const currency = user.homeCurrency ?? plan?.currency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EUR';
     const missing = new Set<string>();
-    const shown = (amountMinor: number, from: string) => {
-      if (from === currency) return amountMinor;
-      const converted = convertMinor(amountMinor, from, currency, rates.rates);
+    const shown = (amountMinor: number | bigint, from: string) => {
+      if (from === currency) return Number(amountMinor);
+      const converted = convertMinor(Number(amountMinor), from, currency, rates.rates);
       if (converted === null) missing.add(from);
       return converted ?? 0;
     };
-    const spentBy = (list: { amountMinor: number; currency: string; direction: string; category: string }[]) => {
+    const spentBy = (list: { amountMinor: number | bigint; currency: string; direction: string; category: string }[]) => {
       const totals = new Map<string, number>();
       for (const expense of list) {
         if (expense.direction !== 'spent' && expense.direction !== 'refund') continue;
@@ -178,8 +193,8 @@ export class SpendingService {
       safeDailyMinor: budgetMinor !== null && today >= from && today < to ? Math.floor(Math.max(0, budgetMinor - spentMinor) / daysBetween(today, to)) : null,
       committedMinor,
       categories: totals,
-      budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: budget.amountMinor, currency: budget.currency })),
-      plan: { budgetMinor: plan?.budgetMinor ?? null, currency: plan?.currency ?? null, startDay, rollover: plan?.rollover ?? false },
+      budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: Number(budget.amountMinor), currency: budget.currency })),
+      plan: { budgetMinor: plan?.budgetMinor == null ? null : Number(plan.budgetMinor), currency: plan?.currency ?? null, startDay, rollover: plan?.rollover ?? false },
       expenses,
     };
   }
@@ -223,10 +238,10 @@ export class SpendingService {
   async insights(userId: string, spaceId: string, count: number) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const [user, plan] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true, monthStartDay: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
     ]);
-    const startDay = plan?.startDay ?? 1;
+    const startDay = user.monthStartDay;
     const current = monthOf(localDate(user.timeZone), startDay);
     const months = [current];
     while (months.length < count) months.unshift(previousMonth(months[0]!));
@@ -250,7 +265,7 @@ export class SpendingService {
     const rows = expenses.map((expense) => ({
       ...expense,
       day: dateText(expense.spentOn),
-      amount: shown(expense.amountMinor, expense.currency) * (expense.direction === 'refund' ? -1 : 1),
+      amount: shown(Number(expense.amountMinor), expense.currency) * (expense.direction === 'refund' ? -1 : 1),
       spending: expense.direction === 'spent' || expense.direction === 'refund',
     }));
     const merchants = new Map<string, { merchant: string; count: number; totalMinor: number; lastOn: string }>();
@@ -352,6 +367,8 @@ export class SpendingService {
     });
     await this.checkAccounts(row.spaceId, [movement]);
     await this.categories.assertCategory(row.spaceId, input.category);
+    const cardDigits = input.cardDigits === undefined ? row.expense!.cardDigits : input.cardDigits;
+    const [card] = movement.accountId && cardDigits ? await this.prisma.card.findMany({ where: { accountId: movement.accountId, last4: cardDigits }, select: { id: true } }) : [];
     await this.prisma.$transaction(async (transaction) => {
       await transaction.item.update({
         where: { id: itemId },
@@ -368,6 +385,8 @@ export class SpendingService {
               note: input.note,
               merchant: input.merchant === undefined ? undefined : input.merchant || null,
               cardDigits: input.cardDigits,
+              cardId: card?.id ?? null,
+              kind: input.kind ?? (movement.direction === row.expense!.direction ? undefined : kindOf(movement.direction)),
               ...movement,
             },
           },
@@ -388,7 +407,7 @@ export class SpendingService {
       update: { amountMinor: input.amountMinor, currency: input.currency },
     });
     this.changes.notify('spending', { spaceId });
-    return { category: budget.category, amountMinor: budget.amountMinor, currency: budget.currency };
+    return { category: budget.category, amountMinor: Number(budget.amountMinor), currency: budget.currency };
   }
 
   async removeBudget(userId: string, spaceId: string, category: string) {
@@ -411,11 +430,13 @@ export class SpendingService {
   private async insert(userId: string, spaceId: string, inputs: CreateExpenseDto[], source: string) {
     await this.checkAccounts(spaceId, inputs.map(movementOf));
     for (const category of new Set(inputs.map((input) => input.category))) await this.categories.assertCategory(spaceId, category);
+    const cards = await this.prisma.card.findMany({ where: { account: { spaceId } }, select: { id: true, accountId: true, last4: true } });
+    const cardIdOf = (input: CreateExpenseDto) => cards.find((card) => card.accountId === input.accountId && card.last4 === input.cardDigits)?.id ?? null;
     const ids = await this.prisma.$transaction(async (transaction) => {
       const created: string[] = [];
       for (const input of inputs) {
         const item = await transaction.item.create({
-          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: expenseData(input, source) } },
+          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: { ...expenseData(input, source), cardId: cardIdOf(input) } } },
           select: { id: true },
         });
         created.push(item.id);

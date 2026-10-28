@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsString, IsTimeZone, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsString, IsTimeZone, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { featureKeys } from '../features';
 
@@ -33,6 +33,16 @@ export class UpdateProfileDto {
   @ValidateIf((_input, value) => value !== undefined && value !== null)
   @Matches(/^[A-Z]{3}$/, { message: 'Choose a currency from the list.' })
   homeCurrency?: string | null;
+
+  @IsOptionalNotNull()
+  @IsInt()
+  @Min(1)
+  @Max(28, { message: 'Months start on day 1 to 28.' })
+  monthStartDay?: number;
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  budgetsEnabled?: boolean;
 
   @IsOptionalNotNull()
   @IsArray()

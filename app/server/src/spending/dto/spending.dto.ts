@@ -2,10 +2,11 @@ import { applyDecorators } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
-import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
+import { AmountMinor, CurrencyCode, moneyCapMinor, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as const;
+export const expenseKinds = ['purchase', 'atm', 'fee', 'bill', 'transfer', 'card_payment', 'installment', 'salary', 'refund', 'income'] as const;
 
 const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Describe the expense in 1 to 200 characters.' }));
@@ -20,6 +21,7 @@ const PaymentLabel = () =>
     NotCardNumber(),
   );
 const Direction = () => IsIn(expenseDirections, { message: 'Choose spent, received, refund or transfer.' });
+const Kind = () => IsIn(expenseKinds, { message: 'Choose a kind of transaction from the list.' });
 const AccountId = () => IsUUID('all', { message: 'Choose an account from the list.' });
 const Merchant = () => applyDecorators(Trimmed(), IsString(), MaxLength(120, { message: 'Use at most 120 characters for the merchant.' }));
 
@@ -27,7 +29,7 @@ export class CreateExpenseDto {
   @Title()
   title!: string;
 
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   amountMinor!: number;
 
   @CurrencyCode()
@@ -56,6 +58,10 @@ export class CreateExpenseDto {
   direction?: (typeof expenseDirections)[number];
 
   @IsOptional()
+  @Kind()
+  kind?: (typeof expenseKinds)[number];
+
+  @IsOptional()
   @ValidateIf(nullable)
   @AccountId()
   accountId?: string | null;
@@ -82,7 +88,7 @@ export class UpdateExpenseDto {
   title?: string;
 
   @IsOptionalNotNull()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   amountMinor?: number;
 
   @IsOptionalNotNull()
@@ -111,6 +117,10 @@ export class UpdateExpenseDto {
   @IsOptionalNotNull()
   @Direction()
   direction?: (typeof expenseDirections)[number];
+
+  @IsOptionalNotNull()
+  @Kind()
+  kind?: (typeof expenseKinds)[number];
 
   @IsOptional()
   @ValidateIf(nullable)
@@ -149,7 +159,7 @@ export class MonthDto {
 }
 
 export class SaveBudgetDto {
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   amountMinor!: number;
 
   @CurrencyCode()
@@ -158,7 +168,7 @@ export class SaveBudgetDto {
 
 export class SavePlanDto {
   @ValidateIf(nullable)
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   budgetMinor!: number | null;
 
   @ValidateIf(nullable)

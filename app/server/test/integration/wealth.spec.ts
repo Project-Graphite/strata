@@ -15,7 +15,7 @@ describe('Savings goals and net worth against Postgres', () => {
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
     await owner.call('PATCH', '/me', { homeCurrency: 'EGP' });
     const savings = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Savings', currency: 'EGP', balanceMinor: 2_000_000 })).body;
-    await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Visa', kind: 'credit', currency: 'EGP', balanceMinor: -300_000 });
+    await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Visa', kind: 'credit_card', currency: 'EGP', balanceMinor: -300_000 });
     await owner.call('POST', `/spaces/${home.id}/installments`, { name: 'Phone', currency: 'EGP', monthlyMinor: 100_000, count: 5, firstDueOn: '2027-01-01' });
 
     expect((await viewer.call('POST', `/spaces/${home.id}/savings-goals`, { name: 'Car', currency: 'EGP', targetMinor: 1 })).status).toBe(403);

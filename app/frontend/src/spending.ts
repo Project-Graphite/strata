@@ -6,8 +6,12 @@ import { useResource } from './useResource';
 export interface SpendingCategory {
   name: string;
   colour: TagColor;
+  icon: string | null;
+  kind: 'expense' | 'income';
   uses?: number;
 }
+
+export const expenseCategories = (categories: SpendingCategory[] | undefined) => (categories ?? []).filter((category) => category.kind !== 'income');
 
 export interface MerchantRule {
   id: string;
@@ -26,13 +30,19 @@ export const directionOptions: { value: ExpenseDirection; label: string }[] = [
   { value: 'transfer', label: 'Transfer between accounts' },
 ];
 
-export type AccountKind = 'bank' | 'credit' | 'wallet' | 'cash';
+export type AccountKind = 'bank_current' | 'bank_savings' | 'credit_card' | 'prepaid' | 'wallet' | 'online' | 'bnpl' | 'loan' | 'cash' | 'investment';
 
 export const accountKindOptions: { value: AccountKind; label: string }[] = [
-  { value: 'bank', label: 'Bank account' },
-  { value: 'credit', label: 'Credit card' },
+  { value: 'bank_current', label: 'Bank account' },
+  { value: 'bank_savings', label: 'Savings account' },
+  { value: 'credit_card', label: 'Credit card' },
+  { value: 'prepaid', label: 'Prepaid card' },
   { value: 'wallet', label: 'Wallet' },
+  { value: 'online', label: 'Online account' },
+  { value: 'bnpl', label: 'Buy now, pay later' },
+  { value: 'loan', label: 'Loan' },
   { value: 'cash', label: 'Cash' },
+  { value: 'investment', label: 'Investment' },
 ];
 
 export interface MoneyAccount {

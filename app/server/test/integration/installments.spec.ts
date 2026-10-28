@@ -14,8 +14,8 @@ describe('Installments and card due dates against Postgres', () => {
     const home = (await owner.call('POST', '/spaces', { name: 'Installments' })).body;
     const other = (await owner.call('POST', '/spaces', { name: 'Elsewhere' })).body;
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
-    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Bad card', kind: 'credit', currency: 'EGP', dueDay: 32 })).status).toBe(400);
-    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB Visa', kind: 'credit', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
+    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Bad card', kind: 'credit_card', currency: 'EGP', dueDay: 32 })).status).toBe(400);
+    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB Visa', kind: 'credit_card', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
     expect(card.dueDay).toBe(20);
     const elsewhere = (await owner.call('POST', `/spaces/${other.id}/accounts`, { name: 'Other', currency: 'EGP' })).body;
 

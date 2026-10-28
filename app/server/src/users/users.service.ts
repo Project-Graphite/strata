@@ -18,6 +18,8 @@ export class UsersService {
       tidySummary: user.tidySummary,
       weeklyReview: user.weeklyReview,
       homeCurrency: user.homeCurrency,
+      monthStartDay: user.monthStartDay,
+      budgetsEnabled: user.budgetsEnabled,
       features: user.features,
       role: user.role.toLowerCase(),
     };
@@ -33,6 +35,8 @@ export class UsersService {
         tidySummary: input.tidySummary,
         weeklyReview: input.weeklyReview,
         homeCurrency: input.homeCurrency,
+        monthStartDay: input.monthStartDay,
+        budgetsEnabled: input.budgetsEnabled,
         features: input.features,
       },
     });

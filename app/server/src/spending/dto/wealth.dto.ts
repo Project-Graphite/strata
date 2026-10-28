@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, NotEquals, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
-import { AmountMinor, CurrencyCode } from '../../validation/money.decorators';
+import { AmountMinor, CurrencyCode, moneyCapMinor } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const assetKinds = ['certificate', 'gold', 'property', 'vehicle', 'investment', 'cash', 'other'] as const;
@@ -20,11 +20,11 @@ export class CreateSavingsGoalDto {
   @CurrencyCode()
   currency!: string;
 
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   targetMinor!: number;
 
   @IsOptional()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   savedMinor?: number;
 
   @IsOptional()
@@ -48,11 +48,11 @@ export class UpdateSavingsGoalDto {
   currency?: string;
 
   @IsOptionalNotNull()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   targetMinor?: number;
 
   @IsOptionalNotNull()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   savedMinor?: number;
 
   @IsOptional()
@@ -68,8 +68,8 @@ export class UpdateSavingsGoalDto {
 
 export class AddToGoalDto {
   @IsInt()
-  @Min(-100_000_000)
-  @Max(100_000_000)
+  @Min(-moneyCapMinor)
+  @Max(moneyCapMinor)
   @NotEquals(0, { message: 'Enter an amount to add or take out.' })
   amountMinor!: number;
 }
@@ -85,7 +85,7 @@ export class CreateAssetDto {
   @CurrencyCode()
   currency!: string;
 
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   valueMinor!: number;
 
   @IsOptional()
@@ -113,7 +113,7 @@ export class UpdateAssetDto {
   currency?: string;
 
   @IsOptionalNotNull()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   valueMinor?: number;
 
   @IsOptional()

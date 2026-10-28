@@ -267,7 +267,7 @@ export class EventsService implements OnModuleInit {
           })
         : [],
       this.prisma.installmentPlan.findMany({ where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) }, take: 1_000 }),
-      this.prisma.moneyAccount.findMany({ where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId), kind: 'credit', dueDay: { not: null } }, take: 1_000 }),
+      this.prisma.moneyAccount.findMany({ where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId), kind: 'credit_card', dueDay: { not: null } }, take: 1_000 }),
     ]);
     const times = (event: EventTimes, slot: Slot) => ({
       allDay: !event.startTime,

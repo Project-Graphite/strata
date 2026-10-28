@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Checkbox, DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
-import { directionOptions, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
+import { directionOptions, expenseCategories, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -43,9 +43,9 @@ export function ExpenseEditor({
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const categories = useCategories(spaceId);
+  const categories = expenseCategories(useCategories(spaceId).data);
   const [category, setCategory] = useState(expense?.category ?? '');
-  const chosenCategory = category || categories.data?.[0]?.name || 'other';
+  const chosenCategory = category || categories[0]?.name || 'other';
   const suggested = capture?.suggestion;
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
   const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? suggested?.direction ?? 'spent');
@@ -174,7 +174,7 @@ export function ExpenseEditor({
         )}
         {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
       </div>
-      {direction !== 'received' && !transfer && <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={chosenCategory} />}
+      {direction !== 'received' && !transfer && <CategoryChips categories={categories} onChange={setCategory} value={chosenCategory} />}
       {suggested?.merchant && (
         <Checkbox defaultChecked label={`Always do this for ${suggested.merchant}`} name="remember" />
       )}

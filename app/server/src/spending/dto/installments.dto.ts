@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
-import { AmountMinor, CurrencyCode } from '../../validation/money.decorators';
+import { AmountMinor, CurrencyCode, moneyCapMinor } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 const nullable = (_input: object, value: unknown) => value !== null;
@@ -18,7 +18,7 @@ export class CreateInstallmentDto {
   @CurrencyCode()
   currency!: string;
 
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   monthlyMinor!: number;
 
   @Count()
@@ -47,7 +47,7 @@ export class UpdateInstallmentDto {
   currency?: string;
 
   @IsOptionalNotNull()
-  @AmountMinor()
+  @AmountMinor(moneyCapMinor)
   monthlyMinor?: number;
 
   @IsOptionalNotNull()

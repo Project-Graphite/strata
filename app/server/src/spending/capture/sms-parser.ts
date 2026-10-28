@@ -2,6 +2,8 @@ import { amountOf, currencyOf, dateIn, MessageDirection, normalise, ReadMessage,
 import { institutions } from './senders';
 import { MovementKind } from './senders/template';
 
+export const parserVersion = 1;
+
 export type ParsedTransaction =
   | Extract<ReadMessage, { kind: 'ignored' }>
   | {

@@ -86,14 +86,18 @@ describe('Spending and budgets against Postgres', () => {
     const home = (await owner.call('POST', '/spaces', { name: 'Home money' })).body;
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
     const other = (await owner.call('POST', '/spaces', { name: 'Elsewhere' })).body;
+    const elsewhereId = (await owner.call('POST', `/spaces/${other.id}/accounts`, { name: 'Far bank', currency: 'EGP' })).body.id;
 
     expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP', cardDigits: ['12345'] })).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP', kind: 'vault' })).status).toBe(400);
     expect((await viewer.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP' })).status).toBe(403);
     const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'egp', cardDigits: ['1234', '1234', '5678'], senders: ['CIB'], balanceMinor: 1_000_000 })).body;
-    expect(bank).toMatchObject({ name: 'CIB', kind: 'bank', currency: 'EGP', cardDigits: ['1234', '5678'], senders: ['CIB'], balanceMinor: 1_000_000, missing: [] });
-    const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP' })).body;
-    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Travel card', kind: 'credit', currency: 'EUR', creditLimitMinor: 100_000 })).body;
+    expect(bank).toMatchObject({ name: 'CIB', kind: 'bank_current', currency: 'EGP', cardDigits: ['1234', '5678'], senders: ['CIB'], balanceMinor: 1_000_000, missing: [] });
+    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Wallet', kind: 'wallet', currency: 'EGP', fundedByAccountId: elsewhereId })).status).toBe(400);
+    const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP', institution: 'Vodafone', handle: '01012345678', fundedByAccountId: bank.id })).body;
+    expect(wallet).toMatchObject({ institution: 'Vodafone', handle: '01012345678', fundedByAccountId: bank.id, archivedAt: null, cardDigits: [] });
+    expect((await owner.call('PATCH', `/accounts/${wallet.id}`, { fundedByAccountId: wallet.id })).status).toBe(400);
+    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Travel card', kind: 'credit_card', currency: 'EUR', creditLimitMinor: 100_000 })).body;
     const elsewhere = (await owner.call('POST', `/spaces/${other.id}/accounts`, { name: 'Other bank', currency: 'EGP' })).body;
 
     const base = { currency: 'EGP', spentOn: '2026-10-10' };
@@ -126,6 +130,12 @@ describe('Spending and budgets against Postgres', () => {
     expect((await owner.call('PATCH', `/expenses/${groceries.id}`, { direction: 'spent' })).body).toMatchObject({ direction: 'spent', toAccountId: null });
 
     expect((await owner.call('PATCH', `/accounts/${bank.id}`, { balanceMinor: 500_000 })).body.balanceMinor).toBe(500_000);
+    expect(await strata.prisma.accountBalance.findMany({ where: { accountId: bank.id }, orderBy: { recordedAt: 'asc' }, select: { balanceMinor: true, source: true } })).toEqual([
+      { balanceMinor: 1_000_000n, source: 'manual' },
+      { balanceMinor: 500_000n, source: 'manual' },
+    ]);
+    expect((await owner.call('PATCH', `/accounts/${bank.id}`, { cardDigits: ['5678', '4321'], archived: true })).body).toMatchObject({ cardDigits: ['5678', '4321'], archivedAt: expect.any(String) });
+    expect((await owner.call('GET', `/expenses/${groceries.id}`)).body).toMatchObject({ kind: 'purchase', status: 'posted', cardId: null });
     expect((await viewer.call('PATCH', `/accounts/${bank.id}`, { name: 'Mine' })).status).toBe(403);
     expect((await owner.call('DELETE', `/accounts/${wallet.id}`)).status).toBe(204);
     expect((await owner.call('GET', `/expenses/${groceries.id}`)).body.accountId).toBe(bank.id);
@@ -138,16 +148,17 @@ describe('Spending and budgets against Postgres', () => {
     const home = (await owner.call('POST', '/spaces', { name: 'Categories' })).body;
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
     const defaults = (await viewer.call('GET', `/spaces/${home.id}/spending-categories`)).body;
-    expect(defaults).toHaveLength(12);
-    expect(defaults[0]).toEqual({ name: 'groceries', colour: 'green', uses: 0 });
+    expect(defaults).toHaveLength(15);
+    expect(defaults[0]).toEqual({ name: 'groceries', colour: 'green', icon: 'checklist', kind: 'expense', uses: 0 });
+    expect(defaults.filter((category: { kind: string }) => category.kind === 'income').map((category: { name: string }) => category.name)).toEqual(['salary', 'refund', 'other income']);
 
     const base = { currency: 'EGP', spentOn: '2026-10-10' };
     const market = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Market', amountMinor: 100, category: 'groceries' })).body;
     const cinema = (await owner.call('POST', `/spaces/${home.id}/expenses`, { ...base, title: 'Cinema', amountMinor: 200, category: 'entertainment' })).body;
     const used = (await viewer.call('GET', `/spaces/${home.id}/spending-categories`)).body;
     expect(used.filter((category: { uses: number }) => category.uses > 0)).toEqual([
-      { name: 'groceries', colour: 'green', uses: 1 },
-      { name: 'entertainment', colour: 'teal', uses: 1 },
+      { name: 'groceries', colour: 'green', icon: 'checklist', kind: 'expense', uses: 1 },
+      { name: 'entertainment', colour: 'teal', icon: 'gamepad', kind: 'expense', uses: 1 },
     ]);
     await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 5000, currency: 'EGP' });
     await owner.call('PUT', `/spaces/${home.id}/budgets/entertainment`, { amountMinor: 3000, currency: 'EGP' });
@@ -164,9 +175,9 @@ describe('Spending and budgets against Postgres', () => {
       { name: 'other', colour: 'gray', previous: 'other' },
     ]);
     expect(saved.body).toEqual([
-      { name: 'food', colour: 'orange' },
-      { name: 'fitness', colour: 'teal' },
-      { name: 'other', colour: 'gray' },
+      { name: 'food', colour: 'orange', icon: 'checklist', kind: 'expense' },
+      { name: 'fitness', colour: 'teal', icon: null, kind: 'expense' },
+      { name: 'other', colour: 'gray', icon: 'more', kind: 'expense' },
     ]);
     expect((await owner.call('GET', `/expenses/${market.id}`)).body.category).toBe('food');
     expect((await owner.call('GET', `/expenses/${cinema.id}`)).body.category).toBe('other');
@@ -192,6 +203,8 @@ describe('Spending and budgets against Postgres', () => {
     expect((await plan({ budgetMinor: 100_000, currency: 'EGP', startDay: 29, rollover: true })).status).toBe(400);
     expect((await viewer.call('PUT', `/spaces/${home.id}/spending-plan`, { budgetMinor: null, currency: null, startDay: 1, rollover: false })).status).toBe(403);
     expect((await plan({ budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true })).body).toEqual({ budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true });
+    expect((await owner.call('GET', '/me')).body).toMatchObject({ monthStartDay: 25, budgetsEnabled: true });
+    expect((await partner.call('GET', '/me')).body.monthStartDay).toBe(1);
     await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 10_000, currency: 'EGP' });
 
     const add = (title: string, amountMinor: number, spentOn: string, category = 'groceries') =>
@@ -233,6 +246,18 @@ describe('Spending and budgets against Postgres', () => {
     await spend('Another treat', 500);
     expect((await alerts(owner)).map((alert) => alert.title)).toEqual(['80% of the monthly budget used', 'Over the monthly budget']);
     expect(await alerts(viewer)).toHaveLength(2);
+  });
+
+  it('keeps amounts far beyond the old 32-bit limit and returns them as plain numbers', async () => {
+    const owner = await member('tycoon');
+    const home = owner.personalSpaceId;
+    const big = 5_000_000_000_000;
+    expect((await owner.call('POST', `/spaces/${home}/expenses`, { title: 'Villa', amountMinor: 10_000_000_000_001, currency: 'EGP', spentOn: '2026-10-10' })).status).toBe(400);
+    const villa = (await owner.call('POST', `/spaces/${home}/expenses`, { title: 'Villa', amountMinor: big, currency: 'EGP', spentOn: '2026-10-10', category: 'housing' })).body;
+    expect(villa.amountMinor).toBe(big);
+    expect((await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Private bank', currency: 'EGP', balanceMinor: -9_000_000_000_000 })).body.balanceMinor).toBe(-9_000_000_000_000);
+    expect((await owner.call('POST', `/spaces/${home}/assets`, { name: 'Land', currency: 'EGP', valueMinor: big })).body.valueMinor).toBe(big);
+    expect((await owner.call('GET', `/spaces/${home}/spending?month=2026-10`)).body.spentMinor).toBe(big);
   });
 
   it('adds up recent months, top merchants and days, and exports every transaction as CSV', async () => {

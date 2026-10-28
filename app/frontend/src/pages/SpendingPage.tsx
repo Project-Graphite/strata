@@ -21,6 +21,7 @@ import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
   categoryName,
+  expenseCategories,
   spendingHref,
   useByCategory,
   useCategories,
@@ -329,8 +330,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                       title={account.name}
                       trail={
                         <>
-                          <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
-                            {account.kind === 'credit' && ' owed'}
+                          <Amount currency={account.currency} minor={account.kind === 'credit_card' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+                            {account.kind === 'credit_card' && ' owed'}
                           </Amount>
                           {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
                         </>
@@ -518,7 +519,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
       )}
       {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
         <BudgetDialog
-          categories={categories.data ?? []}
+          categories={expenseCategories(categories.data)}
           category={dialog.budget}
           currency={currency}
           onClose={() => setDialog(undefined)}

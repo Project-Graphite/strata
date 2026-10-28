@@ -1,35 +1,37 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Merchant, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMerchantRuleDto, SaveCategoriesDto } from './dto/categories.dto';
 
 export const defaultCategories = [
-  { name: 'groceries', colour: 'green' },
-  { name: 'eating out', colour: 'orange' },
-  { name: 'transport', colour: 'blue' },
-  { name: 'housing', colour: 'purple' },
-  { name: 'utilities', colour: 'yellow' },
-  { name: 'health', colour: 'red' },
-  { name: 'shopping', colour: 'pink' },
-  { name: 'entertainment', colour: 'teal' },
-  { name: 'travel', colour: 'blue' },
-  { name: 'gifts', colour: 'pink' },
-  { name: 'education', colour: 'purple' },
-  { name: 'other', colour: 'gray' },
+  { name: 'groceries', colour: 'green', icon: 'checklist', kind: 'expense' },
+  { name: 'eating out', colour: 'orange', icon: 'utensils', kind: 'expense' },
+  { name: 'transport', colour: 'blue', icon: 'compass', kind: 'expense' },
+  { name: 'housing', colour: 'purple', icon: 'home', kind: 'expense' },
+  { name: 'utilities', colour: 'yellow', icon: 'repeat', kind: 'expense' },
+  { name: 'health', colour: 'red', icon: 'shield', kind: 'expense' },
+  { name: 'shopping', colour: 'pink', icon: 'tag', kind: 'expense' },
+  { name: 'entertainment', colour: 'teal', icon: 'gamepad', kind: 'expense' },
+  { name: 'travel', colour: 'blue', icon: 'plane', kind: 'expense' },
+  { name: 'gifts', colour: 'pink', icon: 'gift', kind: 'expense' },
+  { name: 'education', colour: 'purple', icon: 'library', kind: 'expense' },
+  { name: 'other', colour: 'gray', icon: 'more', kind: 'expense' },
+  { name: 'salary', colour: 'green', icon: 'wallet', kind: 'income' },
+  { name: 'refund', colour: 'teal', icon: 'undo', kind: 'income' },
+  { name: 'other income', colour: 'gray', icon: 'plus', kind: 'income' },
 ];
 
 type Client = PrismaService | Prisma.TransactionClient;
 
-export interface MerchantRuleRow {
-  match: string;
-  rename: string | null;
-  category: string | null;
-  ignore: boolean;
-}
+export const merchantFor = <T extends Pick<Merchant, 'aliases'>>(merchants: T[], text: string) =>
+  merchants
+    .flatMap((merchant) => merchant.aliases.filter((alias) => text.toLowerCase().includes(alias.toLowerCase())).map((alias) => ({ merchant, length: alias.length })))
+    .sort((a, b) => b.length - a.length)[0]?.merchant ?? null;
 
-export const ruleFor = (rules: MerchantRuleRow[], merchant: string) =>
-  rules.filter((rule) => merchant.toLowerCase().includes(rule.match.toLowerCase())).sort((a, b) => b.match.length - a.match.length)[0] ?? null;
+export const renameOf = (merchant: Pick<Merchant, 'name' | 'aliases'>) => (merchant.aliases.includes(merchant.name) ? null : merchant.name);
+
+const presentRule = (merchant: Merchant) => ({ id: merchant.id, match: merchant.aliases[0] ?? merchant.name, rename: renameOf(merchant), category: merchant.category, ignore: merchant.ignore });
 
 @Injectable()
 export class CategoriesService {
@@ -39,7 +41,7 @@ export class CategoriesService {
   ) {}
 
   async categories(spaceId: string, client: Client = this.prisma) {
-    const rows = await client.spendingCategory.findMany({ where: { spaceId }, orderBy: { position: 'asc' }, select: { name: true, colour: true } });
+    const rows = await client.spendingCategory.findMany({ where: { spaceId }, orderBy: { position: 'asc' }, select: { name: true, colour: true, icon: true, kind: true } });
     return rows.length ? rows : defaultCategories;
   }
 
@@ -65,13 +67,14 @@ export class CategoriesService {
       throw new BadRequestException('Keep the Other category');
     }
     await this.prisma.$transaction(async (transaction) => {
-      const current = (await this.categories(spaceId, transaction)).map((category) => category.name);
+      const existing = await this.categories(spaceId, transaction);
+      const current = existing.map((category) => category.name);
       const renamed = input.categories.filter((category) => category.previous && category.previous !== category.name && current.includes(category.previous));
       const kept = new Set([...names, ...renamed.map((category) => category.previous!)]);
       const removed = current.filter((name) => !kept.has(name));
       const recategorise = async (from: string, to: string | null) => {
         await transaction.expense.updateMany({ where: { category: from, item: { spaceId } }, data: { category: to ?? 'other' } });
-        await transaction.merchantRule.updateMany({ where: { spaceId, category: from }, data: { category: to } });
+        await transaction.merchant.updateMany({ where: { spaceId, category: from }, data: { category: to } });
         if (to) await transaction.budget.updateMany({ where: { spaceId, category: from }, data: { category: to } });
         else await transaction.budget.deleteMany({ where: { spaceId, category: from } });
       };
@@ -79,32 +82,38 @@ export class CategoriesService {
       for (const [index, category] of renamed.entries()) await recategorise(category.previous!, `renaming ${index}`);
       for (const [index, category] of renamed.entries()) await recategorise(`renaming ${index}`, category.name);
       await transaction.spendingCategory.deleteMany({ where: { spaceId } });
-      await transaction.spendingCategory.createMany({ data: input.categories.map(({ name, colour }, position) => ({ spaceId, name, colour, position })) });
+      await transaction.spendingCategory.createMany({
+        data: input.categories.map(({ name, colour, icon, kind, previous }, position) => {
+          const was = existing.find((category) => category.name === (previous ?? name));
+          return { spaceId, name, colour, icon: icon ?? was?.icon ?? null, kind: kind ?? was?.kind ?? 'expense', position };
+        }),
+      });
     });
     return this.categories(spaceId);
   }
 
   async rules(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    return this.prisma.merchantRule.findMany({ where: { spaceId }, orderBy: { match: 'asc' }, select: { id: true, match: true, rename: true, category: true, ignore: true } });
+    const merchants = await this.prisma.merchant.findMany({ where: { spaceId } });
+    return merchants.map(presentRule).sort((a, b) => a.match.localeCompare(b.match));
   }
 
   async saveRule(userId: string, spaceId: string, input: CreateMerchantRuleDto) {
     await this.access.assertSpace(userId, spaceId, 'edit');
     await this.assertCategory(spaceId, input.category);
-    const data = { rename: input.rename ?? null, category: input.category ?? null, ignore: input.ignore ?? false };
-    return this.prisma.merchantRule.upsert({
-      where: { spaceId_match: { spaceId, match: input.match } },
-      create: { spaceId, match: input.match, ...data },
-      update: data,
-      select: { id: true, match: true, rename: true, category: true, ignore: true },
-    });
+    const data = { name: input.rename ?? input.match, category: input.category ?? null, ignore: input.ignore ?? false };
+    const known = await this.prisma.merchant.findFirst({ where: { spaceId, aliases: { has: input.match } }, select: { id: true } });
+    return presentRule(
+      known
+        ? await this.prisma.merchant.update({ where: { id: known.id }, data })
+        : await this.prisma.merchant.create({ data: { spaceId, aliases: [input.match], ...data } }),
+    );
   }
 
   async removeRule(userId: string, id: string) {
-    const rule = await this.prisma.merchantRule.findUnique({ where: { id }, select: { spaceId: true } });
-    if (!rule) throw new NotFoundException('Rule not found');
-    await this.access.assertSpace(userId, rule.spaceId, 'edit');
-    await this.prisma.merchantRule.delete({ where: { id } });
+    const merchant = await this.prisma.merchant.findUnique({ where: { id }, select: { spaceId: true } });
+    if (!merchant) throw new NotFoundException('Rule not found');
+    await this.access.assertSpace(userId, merchant.spaceId, 'edit');
+    await this.prisma.merchant.delete({ where: { id } });
   }
 }

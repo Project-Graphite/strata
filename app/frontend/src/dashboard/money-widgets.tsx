@@ -75,7 +75,7 @@ export function PaymentsWidget() {
   const payments = [
     ...installments.data.flatMap((plan) => (plan.nextDueOn ? [{ key: plan.id, name: plan.name, on: plan.nextDueOn, amountMinor: plan.monthlyMinor, currency: plan.currency, missed: plan.status === 'missed' }] : [])),
     ...accounts.data.flatMap((account) =>
-      account.kind === 'credit' && account.dueDay && account.balanceMinor < 0
+      account.kind === 'credit_card' && account.dueDay && account.balanceMinor < 0
         ? [{ key: account.id, name: account.name, on: nextCardDue(account.dueDay), amountMinor: -account.balanceMinor, currency: account.currency, missed: false }]
         : [],
     ),

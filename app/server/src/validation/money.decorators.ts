@@ -2,7 +2,9 @@ import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
 import { IsInt, Matches, Max, Min } from 'class-validator';
 
-export const AmountMinor = () => applyDecorators(IsInt(), Min(0), Max(100_000_000, { message: 'That price is too large.' }));
+export const moneyCapMinor = 10_000_000_000_000;
+
+export const AmountMinor = (max = 100_000_000) => applyDecorators(IsInt(), Min(0), Max(max, { message: 'That price is too large.' }));
 
 export const CurrencyCode = () =>
   applyDecorators(
