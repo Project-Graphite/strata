@@ -9,6 +9,7 @@ export function requestLog(request: Request, response: Response, next: NextFunct
   const started = performance.now();
   const requestId = randomUUID();
   response.set('X-Request-Id', requestId);
+  response.locals.requestId = requestId;
   response.on('close', () => {
     logger.log({
       requestId,
