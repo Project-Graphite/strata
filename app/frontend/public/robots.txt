@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /register
+Allow: /privacy
+Allow: /terms
+Allow: /llms.txt
+Disallow: /
+
+Sitemap: https://strata.project-graphite.com/sitemap.xml

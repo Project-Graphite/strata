@@ -1,0 +1,21 @@
+# Strata
+
+> Strata is a personal workspace for tasks, an agenda, pages, whiteboards, spending and files in one place. It is free and open source, from Project Graphite.
+
+Everything except the pages below needs an account. Shared spaces let a few people work on the same tasks, pages and boards.
+
+## Public pages
+
+- [Home](https://strata.project-graphite.com/): what Strata is
+- [Sign in](https://strata.project-graphite.com/login)
+- [Create an account](https://strata.project-graphite.com/register)
+- [Privacy](https://strata.project-graphite.com/privacy): what is stored and for how long
+- [Terms](https://strata.project-graphite.com/terms)
+
+## API
+
+Signed-in users can create personal access tokens under Settings, Developer, which also lists every route by scope. Requests go to `https://strata.project-graphite.com/api/v1` with the header `Authorization: Bearer <token>`.
+
+## Source
+
+- [Project Graphite on GitHub](https://github.com/Project-Graphite)
