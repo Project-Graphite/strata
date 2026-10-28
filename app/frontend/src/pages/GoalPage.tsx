@@ -10,12 +10,12 @@ import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section } from '../components/Page';
 import { ButtonSkeleton, HabitRowSkeleton, HintSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { TaskEditor } from '../components/TaskEditor';
+import { OpenTask } from '../components/OpenTask';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
 import { HabitRow, type Habit } from '../habits';
-import { useSpaces, type Tag } from '../spaces';
-import { dueLabel, taskDetails, TaskRow, type Task, type TaskList } from '../tasks';
+import { useSpaces } from '../spaces';
+import { dueLabel, taskDetails, TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useFormErrors, type Check } from '../validation';
@@ -29,9 +29,6 @@ export function GoalPage() {
   const spaces = useSpaces();
   const goal = useResource<GoalDetail>(`/goals/${id}`, true);
   const spaceId = goal.data?.spaceId;
-  const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
-  const members = useResource<{ userId: string; displayName: string }[]>(spaceId ? `/spaces/${spaceId}/members` : null, true);
-  const tags = useResource<Tag[]>(spaceId ? `/spaces/${spaceId}/tags` : null, true);
   const action = useAction();
   const progressForm = useFormErrors();
   const [editing, setEditing] = useState(false);
@@ -307,26 +304,17 @@ export function GoalPage() {
         />
       )}
 
-      {taskEditing && lists.data && (
-        <TaskEditor
-          editable={editable}
-          lists={lists.data}
-          members={members.data ?? []}
+      {taskEditing && (
+        <OpenTask
+          onChanged={() => goal.reload()}
           onClose={() => setTaskEditing(undefined)}
-          onSaved={(saved) => {
-            if (taskEditing !== 'new') {
-              goal.reload();
-              return;
-            }
+          onCreated={(saved) =>
             void action.run(async () => {
               await link(saved.id);
               return '';
-            }, 'Could not link the task');
-          }}
-          onRestored={() => goal.reload()}
-          onTrashed={() => goal.reload()}
+            }, 'Could not link the task')
+          }
           spaceId={shown.spaceId}
-          tags={tags.data ?? []}
           task={taskEditing === 'new' ? undefined : taskEditing}
         />
       )}

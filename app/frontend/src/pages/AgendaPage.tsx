@@ -11,7 +11,7 @@ import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { AgendaCardsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { OpenTask } from '../components/TaskEditor';
+import { OpenTask } from '../components/OpenTask';
 import { DayNumber, TimeGrid } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { completeTask, taskDetails, TaskRow, type Task } from '../tasks';

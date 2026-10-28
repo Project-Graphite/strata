@@ -1,18 +1,14 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Placeholder, Skeleton, TextField } from '@project-graphite/ui';
-import type { Page as ResultPage } from '../api';
+import { SegmentedControl, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
-import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
-import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
-import { QuickAddTask } from '../components/QuickAddTask';
-import { ChipsSkeleton, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { OpenTask } from '../components/TaskEditor';
+import { ChipsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { TaskPanel } from '../components/TaskPanel';
 import { useSpaces } from '../spaces';
-import { completeTask, taskDetails, TaskListChips, TaskListFooter, taskLink, TaskRow, TaskStatusChips, type Task, type TaskList } from '../tasks';
+import { TaskListChips, taskLink, TaskStatusChips, taskViews, type Task, type TaskList, type TaskView } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -23,16 +19,14 @@ export function TasksPage() {
   const spaces = useSpaces();
   const [params, setParams] = useSearchParams();
   const listId = params.get('list');
-  const completed = params.get('completed') === 'true';
+  const view: TaskView = params.get('view') === 'board' ? 'board' : 'list';
+  const completed = view === 'list' && params.get('completed') === 'true';
   const page = Number(params.get('page')) || 1;
-  const linkedTask = params.get('task');
-  const filters = `${listId ? `&listId=${encodeURIComponent(listId)}` : ''}${completed ? '&completed=true' : ''}`;
-  const tasks = useResource<ResultPage<Task>>(`/me/tasks?page=${page}${filters}`, true);
   const lists = useResource<TaskList[]>('/me/lists', true);
   const action = useAction();
   const listForm = useFormErrors();
   const [creatingList, setCreatingList] = useState(false);
-  const [opened, setOpened] = useState<Task | 'new'>();
+  const [creating, setCreating] = useState(false);
   const closeLinked = useCallback(
     () =>
       setParams(
@@ -47,29 +41,23 @@ export function TasksPage() {
   const spaceOf = (id: string) => spaces.data?.find((space) => space.id === id);
   const editableSpaces = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const personal = spaces.data?.[0];
-  const link = taskLink('/tasks', listId, completed);
+  const link = taskLink('/tasks', listId, completed, view);
   const shownList = lists.data?.find((list) => list.id === listId);
   const addTo = shownList ? spaceOf(shownList.spaceId) : personal;
-  const reload = () => {
-    tasks.reload();
-    lists.reload();
-  };
-
-  const failed = [tasks, lists, spaces].find((resource) => resource.error);
-  const whereOf = (task: Task) =>
-    [(spaces.data?.length ?? 0) > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ');
-  const [taskRows, detailedRows] = useRememberedShape(
-    `tasks${filters}`,
-    tasks.data && lists.data && spaces.data && [tasks.data.results.length, tasks.data.results.filter((task) => taskDetails(task, whereOf(task)).length > 0).length],
-    [5, 5],
-  );
   const [listCount] = useRememberedShape('task-lists', lists.data && [lists.data.length], [1]);
-  const empty = completed
-    ? { title: 'Nothing finished yet', hint: 'Tasks you finish in this space show up here.' }
-    : { title: 'Nothing to do', hint: 'Add a task above.' };
+  const whereOf = (task: Task) =>
+    [(spaces.data?.length ?? 0) > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ') || undefined;
+
   return (
     <Page
-      actions={addTo && addTo.role !== 'viewer' && <Button icon="plus" label="New task" large onClick={() => setOpened('new')} primary />}
+      actions={
+        addTo &&
+        addTo.role !== 'viewer' && (
+          <span className="page-primary-action">
+            <Button icon="plus" label="New task" large onClick={() => setCreating(true)} primary />
+          </span>
+        )
+      }
       title="Tasks"
       toolbar={
         lists.data ? (
@@ -78,62 +66,33 @@ export function TasksPage() {
           <ChipsSkeleton count={listCount + 2} />
         )
       }
-      toolbarEnd={<TaskStatusChips completed={completed} link={link} />}
-    >
-      {failed ? (
-        <LoadError error={failed.error} onRetry={failed.reload} />
-      ) : !tasks.data || !lists.data || !spaces.data ? (
-        <Placeholder className="grid gap-8" label="Loading your tasks">
-          {!completed && (
-            <div className="flex gap-2">
-              <Skeleton className="h-14 flex-1 rounded-field" />
-              <Skeleton className="h-14 w-16 rounded-field" />
-            </div>
-          )}
-          {taskRows ? (
-            <TaskRowsSkeleton detailed={detailedRows} rows={taskRows} />
-          ) : (
-            <Empty loading title={empty.title}>
-              {empty.hint}
-            </Empty>
-          )}
-        </Placeholder>
-      ) : (
+      toolbarEnd={
         <>
-          {!completed && addTo && addTo.role !== 'viewer' && <QuickAddTask key={`${addTo.id}/${shownList?.id ?? ''}`} listId={shownList?.id} onAdded={reload} spaceId={addTo.id} />}
-
-          {tasks.data.results.length === 0 ? (
-            <Empty title={empty.title}>{empty.hint}</Empty>
-          ) : (
-            <ul className="panel-rows">
-              {tasks.data.results.map((task) => (
-                <TaskRow
-                  disabled={spaceOf(task.spaceId)?.role === 'viewer' || action.busy}
-                  key={task.id}
-                  onEdit={() => setOpened(task)}
-                  onToggle={() =>
-                    void action.run(async () => {
-                      if (!task.completedAt) return completeTask(auth.request, task, reload);
-                      await auth.request(`/tasks/${task.id}/reopen`, { method: 'POST' });
-                      reload();
-                      return '';
-                    }, 'Could not update the task')
-                  }
-                  task={task}
-                  where={whereOf(task)}
-                />
-              ))}
-            </ul>
-          )}
-
-          <TaskListFooter link={link} tasks={tasks.data} />
+          <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
+          {view === 'list' && <TaskStatusChips completed={completed} link={link} />}
         </>
-      )}
-
-      {opened && (
-        <OpenTask listId={shownList?.id} onChanged={reload} onClose={() => setOpened(undefined)} spaceId={addTo?.id} task={opened === 'new' ? undefined : opened} />
-      )}
-      {linkedTask && <OpenTask key={linkedTask} onChanged={reload} onClose={closeLinked} taskId={linkedTask} />}
+      }
+    >
+      <TaskPanel
+        addTo={addTo && addTo.role !== 'viewer' ? { spaceId: addTo.id, listId: shownList?.id } : undefined}
+        completed={completed}
+        creating={creating}
+        editable={(task) => spaceOf(task.spaceId)?.role !== 'viewer'}
+        failed={[lists, spaces].find((resource) => resource.error)}
+        link={link}
+        linkedTask={params.get('task')}
+        listId={listId}
+        onCloseLinked={closeLinked}
+        onClosed={() => setCreating(false)}
+        onCreate={() => setCreating(true)}
+        onListsChanged={lists.reload}
+        page={page}
+        ready={Boolean(lists.data && spaces.data)}
+        shape="tasks"
+        tasksPath="/me/tasks"
+        view={view}
+        where={whereOf}
+      />
 
       {creatingList && (
         <FormDialog
