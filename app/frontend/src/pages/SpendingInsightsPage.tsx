@@ -6,7 +6,7 @@ import { Section } from '../components/Page';
 import { HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { categoryName, type SpendingInsights } from '../spending';
-import { useChosenSpace } from '../spaces';
+import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
 import { MissingRates } from '../components/Stats';
@@ -17,7 +17,7 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 export function SpendingInsightsPage() {
-  const { spaceId } = useChosenSpace();
+  const { spaceId } = usePersonalSpace();
   const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true);
   const shown = insights.data;
   const [periodRows, categoryRows, merchantRows, leadCells, dayCells] = useRememberedShape(

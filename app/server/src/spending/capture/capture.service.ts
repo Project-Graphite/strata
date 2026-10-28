@@ -79,7 +79,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   async connectDevice(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const name = `Android phone (${spaceId.slice(0, 8)})`;
     await this.prisma.accessToken.updateMany({
       where: { userId, name, revokedAt: null },
@@ -99,7 +99,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   async receive(userId: string, spaceId: string, input: CaptureMessageDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const sender = input.from.trim();
     if (!chatAllowed(sender, input.allowedChats, input.app, input.text, input.chat)) {
       return { status: 'ignored', reason: 'chat' };
@@ -164,7 +164,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   async pending(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const rows = await this.prisma.capturedMessage.findMany({ where: { spaceId, status: 'review', textSealed: { not: null } }, orderBy: { receivedAt: 'desc' }, take: 100 });
     return rows.map((row) => ({ id: row.id, sender: row.sender, text: this.box.open(row.textSealed!), receivedAt: row.receivedAt, suggestion: row.suggestion as unknown as Suggestion }));
   }
@@ -183,7 +183,7 @@ export class CaptureService implements OnModuleInit {
   private async waiting(userId: string, id: string) {
     const message = await this.prisma.capturedMessage.findUnique({ where: { id } });
     if (!message) throw new NotFoundException('Message not found');
-    await this.access.assertSpace(userId, message.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, message.spaceId);
     if (message.status !== 'review') throw new BadRequestException('This message has already been handled');
     return message;
   }

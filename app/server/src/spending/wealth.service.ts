@@ -33,12 +33,12 @@ export class WealthService {
   ) {}
 
   async goals(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     return this.present(await this.prisma.savingsGoal.findMany({ where: { spaceId }, orderBy: [{ dueOn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }] }));
   }
 
   async createGoal(userId: string, spaceId: string, input: CreateSavingsGoalDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertAccount(spaceId, input.accountId);
     const goal = await this.prisma.savingsGoal.create({ data: { spaceId, ...input, dueOn: optionalDay(input.dueOn), accountId: input.accountId ?? null } });
     this.changes.notify('spending', { spaceId });
@@ -69,7 +69,7 @@ export class WealthService {
   }
 
   async netWorth(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [user, plan, accounts, assets, installments, rates] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId }, select: { currency: true } }),
@@ -101,7 +101,7 @@ export class WealthService {
   }
 
   async createAsset(userId: string, spaceId: string, input: CreateAssetDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const asset = await this.prisma.asset.create({ data: { spaceId, ...input, maturesOn: optionalDay(input.maturesOn) } });
     this.changes.notify('spending', { spaceId });
     return presentAsset(asset);
@@ -146,14 +146,14 @@ export class WealthService {
   private async goal(userId: string, id: string) {
     const goal = await this.prisma.savingsGoal.findUnique({ where: { id } });
     if (!goal) throw new NotFoundException('Goal not found');
-    await this.access.assertSpace(userId, goal.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, goal.spaceId);
     return goal;
   }
 
   private async asset(userId: string, id: string) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
-    await this.access.assertSpace(userId, asset.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, asset.spaceId);
     return asset;
   }
 }

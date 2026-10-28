@@ -17,7 +17,6 @@ import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
-import { SplitEditor } from '../components/SplitEditor';
 import {
   accountKindOptions,
   categoryName,
@@ -34,7 +33,7 @@ import {
   type SpendingMonth,
   type SpendingPlan,
 } from '../spending';
-import { useChosenSpace, type Member } from '../spaces';
+import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { formatDate } from '../time';
 import { useAction } from '../useAction';
@@ -57,9 +56,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
-  const { spaceId, space, editable } = useChosenSpace();
+  const { spaceId, space, editable } = usePersonalSpace();
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true);
-  const members = useResource<Member[]>(space?.kind === 'shared' ? `/spaces/${spaceId}/members` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
   const categories = useCategories(spaceId);
@@ -70,7 +68,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
     | 'plan'
     | { budget: string | null }
     | { expense: Expense }
-    | { split: Expense }
     | { account: MoneyAccount | null }
     | { capture: CapturedMessage }
     | { installment: InstallmentPlan | null }
@@ -140,21 +137,13 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                 ? 'Received'
                 : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
             expense.direction !== 'transfer' && (expense.cardDigits ? cardName(expense.cardDigits, expense.accountId) : accountName(expense.accountId)),
-            expense.split && 'split',
             expense.paymentLabel,
           ]
             .filter(Boolean)
             .join(' · ')}
           onClick={editable ? () => setDialog({ expense }) : undefined}
           title={expense.title}
-          trail={
-            <>
-              <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
-              {editable && space?.kind === 'shared' && members.data && (
-                <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
-              )}
-            </>
-          }
+          trail={<Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />}
         />
       ))}
     </ul>
@@ -502,15 +491,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           spaceId={spaceId}
         />
       )}
-      {typeof dialog === 'object' && 'split' in dialog && members.data && (
-        <SplitEditor
-          item={{ id: dialog.split.id, name: dialog.split.title, split: dialog.split.split }}
-          kind="expenses"
-          members={members.data}
-          onClose={() => setDialog(undefined)}
-          onSaved={() => summary.reload()}
-        />
-      )}
+
       {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
         <ExpenseEditor accounts={accounts.data ?? []} capture={dialog.capture} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
       )}

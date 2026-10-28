@@ -18,7 +18,7 @@ import { OpenTask } from '../components/TaskEditor';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { categoryName, type MoneyAccount } from '../spending';
-import { useSpaces } from '../spaces';
+import { usePersonalSpace, useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { taskDetails, TaskRow, type Task } from '../tasks';
 import { tripDates, type TripDetail } from '../trips';
@@ -36,7 +36,8 @@ export function TripPage() {
   const action = useAction();
   const [dialog, setDialog] = useState<'edit' | 'event' | 'pack' | 'expense'>();
   const [openTask, setOpenTask] = useState<Task>();
-  const accounts = useResource<MoneyAccount[]>(trip.data ? `/spaces/${trip.data.spaceId}/accounts` : null, true);
+  const personal = usePersonalSpace().spaceId;
+  const accounts = useResource<MoneyAccount[]>(personal ? `/spaces/${personal}/accounts` : null, true);
 
   const space = spaces.data?.find((candidate) => candidate.id === trip.data?.spaceId);
   const editable = Boolean(space && space.role !== 'viewer');
@@ -353,7 +354,7 @@ export function TripPage() {
 
       {dialog === 'edit' && space && <TripEditor onClose={() => setDialog(undefined)} onSaved={() => trip.reload()} spaces={[space]} trip={shown} />}
       {dialog === 'event' && <EventEditor onClose={() => setDialog(undefined)} onSaved={(event) => addToTrip(event.id)} spaceId={shown.spaceId} startsOn={shown.startsOn} />}
-      {dialog === 'expense' && <ExpenseEditor accounts={accounts.data ?? []} currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => addToTrip(expense.id)} spaceId={shown.spaceId} />}
+      {dialog === 'expense' && personal && <ExpenseEditor accounts={accounts.data ?? []} currency={budgetCurrency} onClose={() => setDialog(undefined)} onSaved={(expense) => addToTrip(expense.id)} spaceId={personal} />}
       {dialog === 'pack' && shown.packing && (
         <PackDialog
           busy={action.busy}

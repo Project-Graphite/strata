@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
 import type { TagColor } from '@project-graphite/ui';
-import type { CostSplit } from './subscriptions';
 import { useResource } from './useResource';
 
 export interface SpendingCategory {
@@ -90,7 +89,6 @@ export interface Expense {
   accountId: string | null;
   toAccountId: string | null;
   cardDigits: string | null;
-  split: CostSplit | null;
   createdAt: string;
   updatedAt: string;
 }

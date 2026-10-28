@@ -18,14 +18,17 @@ describe('Bank messages from a phone against Postgres', () => {
   it('records bank texts, asks about the unclear ones, pairs transfers and keeps balances', async () => {
     const owner = await member('texter');
     const viewer = await member('text-reader');
-    const home = (await owner.call('POST', '/spaces', { name: 'Texts' })).body;
-    await strata.join(home.id, viewer, SpaceRole.VIEWER);
+    const home = { id: owner.personalSpaceId };
+    const shared = (await owner.call('POST', '/spaces', { name: 'Texts' })).body;
+    await strata.join(shared.id, viewer, SpaceRole.EDITOR);
     const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly'] })).body;
     const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP', senders: ['VF-Cash'] })).body;
     const token = (await owner.call('POST', '/me/tokens', { name: 'Phone', scopes: ['spending:capture'], password })).body.token;
     const send = (from: string, text: string) => withToken(token, 'POST', `/spaces/${home.id}/captures`, { from, text, sentStamp: 1791971990000, receivedStamp: 1791972000000, sim: 'sim1' });
 
     expect((await withToken(token, 'GET', `/spaces/${home.id}/spending?month=2026-10`)).status).toBe(403);
+    expect((await withToken(token, 'POST', `/spaces/${shared.id}/captures`, { from: 'BanK-AlAhly', text: 'تم خصم 10.00جم من بطاقة رقم ****1234 لدى SHOP' })).status).toBe(403);
+    expect((await owner.call('POST', `/spaces/${shared.id}/captures/device`)).status).toBe(403);
     expect((await send('BanK-AlAhly', 'رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد')).body).toEqual({ status: 'ignored', reason: 'code' });
     expect(await strata.prisma.capturedMessage.count({ where: { spaceId: home.id } })).toBe(0);
 
@@ -35,7 +38,8 @@ describe('Bank messages from a phone against Postgres', () => {
     const stored = await strata.prisma.capturedMessage.findFirstOrThrow({ where: { spaceId: home.id } });
     expect(stored.textSealed).not.toContain('CARREFOUR');
 
-    const [waiting] = (await viewer.call('GET', `/spaces/${home.id}/captures`)).body;
+    expect((await viewer.call('GET', `/spaces/${home.id}/captures`)).status).toBe(404);
+    const [waiting] = (await owner.call('GET', `/spaces/${home.id}/captures`)).body;
     expect(waiting).toMatchObject({
       sender: 'BanK-AlAhly',
       text: purchase,
@@ -43,7 +47,7 @@ describe('Bank messages from a phone against Postgres', () => {
       suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
     });
     const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI', cardDigits: '1234' };
-    expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
+    expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(404);
     expect((await withToken(token, 'POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Carrefour', source: 'sms', category: 'groceries', accountId: bank.id, cardDigits: '1234' });
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(400);
@@ -83,7 +87,8 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(400);
     expect((await owner.call('GET', `/spaces/${home.id}/captures`)).body).toEqual([]);
 
-    expect((await viewer.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([{ digits: '1234', accountId: bank.id }]);
+    expect((await viewer.call('GET', `/spaces/${home.id}/cards`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([{ digits: '1234', accountId: bank.id }]);
     expect((await withToken(token, 'GET', `/spaces/${home.id}/cards`)).status).toBe(403);
     expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '5555', accountId: null })).body).toMatchObject({ cardDigits: '5555' });
     expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '55' })).status).toBe(400);
@@ -95,7 +100,7 @@ describe('Bank messages from a phone against Postgres', () => {
 
   it('renames, categorises and drops messages by merchant rules', async () => {
     const owner = await member('rule-maker');
-    const home = (await owner.call('POST', '/spaces', { name: 'Rules' })).body;
+    const home = { id: owner.personalSpaceId };
     const send = (text: string) => owner.call('POST', `/spaces/${home.id}/captures`, { from: 'CIB', text });
     await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'talabat', rename: 'Talabat', category: 'eating out' });
     expect((await send('Your card **1234 was charged for EGP 120.00 at TALABAT EG on 13/10')).body).toEqual({ status: 'review', expenseId: null });
@@ -121,7 +126,7 @@ describe('Bank messages from a phone against Postgres', () => {
 
   it('captures digital transactions from InstaPay, nSave and PayPal and filters SMS by specific chats', async () => {
     const owner = await member('digital-texter');
-    const home = (await owner.call('POST', '/spaces', { name: 'Digital' })).body;
+    const home = { id: owner.personalSpaceId };
     const nbe = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly', 'InstaPay'] })).body;
     const nsave = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'nSave', kind: 'wallet', currency: 'GBP', cardDigits: ['4412'], senders: ['nSave'] })).body;
     const paypal = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'PayPal', kind: 'wallet', currency: 'USD', senders: ['PayPal'] })).body;

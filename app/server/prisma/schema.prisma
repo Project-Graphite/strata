@@ -1403,3 +1403,12 @@ model Asset {
   @@index([spaceId])
   @@map("assets")
 }
+
+model SpendingBackup {
+  id        String   @id @default(uuid()) @db.Uuid
+  source    String
+  row       Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("spending_backup")
+}

@@ -63,7 +63,8 @@ describe('Access tokens against Postgres', () => {
     expect(routes('spaces:read')).toContainEqual({ method: 'GET', path: '/spaces' });
     expect(routes('items:read')).toContainEqual({ method: 'GET', path: '/agenda' });
     expect(routes('items:write')).toContainEqual({ method: 'POST', path: '/spaces/:spaceId/tasks' });
-    expect(routes('items:write')).toEqual(expect.arrayContaining([{ method: 'PUT', path: '/subscriptions/:id/split' }, { method: 'PUT', path: '/expenses/:id/split' }]));
+    expect(routes('items:write')).toEqual(expect.arrayContaining([{ method: 'PUT', path: '/subscriptions/:id/split' }]));
+    expect(routes('items:write')).not.toContainEqual({ method: 'PUT', path: '/expenses/:id/split' });
     expect(routes('spending:capture')).toEqual([{ method: 'POST', path: '/spaces/:spaceId/captures' }]);
     expect(JSON.stringify(reference)).not.toContain('/me/tokens');
 
