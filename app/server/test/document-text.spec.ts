@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { boardElementsKey, documentLinks, documentText } from '../src/notes/document-text';
+import { boardElementsKey, documentLinks, documentText, updateLinks } from '../src/notes/document-text';
 
 function block(name: string, ...children: (Y.XmlElement | Y.XmlText)[]) {
   const element = new Y.XmlElement(name);
@@ -45,5 +45,49 @@ describe('documentText', () => {
     document.getXmlFragment('default').push([embed]);
 
     expect([...documentLinks(document).mentions]).toEqual(['seating-board']);
+  });
+});
+
+describe('updateLinks', () => {
+  function edit(server: Y.Doc, change: (client: Y.Doc) => void) {
+    const client = new Y.Doc();
+    Y.applyUpdate(client, Y.encodeStateAsUpdate(server));
+    const before = Y.encodeStateVector(client);
+    change(client);
+    const update = Y.encodeStateAsUpdate(client, before);
+    client.destroy();
+    return update;
+  }
+
+  it('reads only the references an update adds, without walking typed text or block ids', () => {
+    const server = new Y.Doc();
+    const update = edit(server, (client) => {
+      const mention = new Y.XmlElement('mention');
+      mention.setAttribute('id', 'task-1');
+      const paragraph = block('paragraph', new Y.XmlText('Hello '), mention);
+      paragraph.setAttribute('id', 'block-1');
+      client.getXmlFragment('default').push([paragraph]);
+      client.getMap(boardElementsKey).set('photo', { id: 'photo', type: 'image', fileId: 'file-1' });
+    });
+
+    expect(updateLinks(server, update)).toEqual({ mentions: new Set(['task-1']), files: new Set(['file-1']) });
+    Y.applyUpdate(server, update);
+    const typing = edit(server, (client) => ((client.getXmlFragment('default').get(0) as Y.XmlElement).get(0) as Y.XmlText).insert(6, 'there '));
+    expect(updateLinks(server, typing)).toEqual({ mentions: new Set(), files: new Set() });
+  });
+
+  it('resolves changed attributes of existing nodes through the stored document', () => {
+    const server = new Y.Doc();
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', 'shared-file');
+    const paragraph = new Y.XmlElement('paragraph');
+    paragraph.setAttribute('id', 'old-block');
+    server.getXmlFragment('default').push([image, paragraph]);
+
+    const swapped = edit(server, (client) => {
+      (client.getXmlFragment('default').get(0) as Y.XmlElement).setAttribute('fileId', 'private-file');
+      (client.getXmlFragment('default').get(1) as Y.XmlElement).setAttribute('id', 'new-block');
+    });
+    expect(updateLinks(server, swapped)).toEqual({ mentions: new Set(), files: new Set(['private-file']) });
   });
 });

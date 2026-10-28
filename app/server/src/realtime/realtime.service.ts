@@ -14,7 +14,7 @@ import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
 import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash } from '../crypto/link-token';
-import { boardElementsKey, documentLinks, documentText, pageKinds } from '../notes/document-text';
+import { boardElementsKey, documentLinks, documentText, pageKinds, updateLinks } from '../notes/document-text';
 import { maxDocumentBytes } from '../notes/document-limits';
 import { editorFormat } from '../notes/editor-format';
 import { PageAccessService } from '../notes/page-access.service';
@@ -40,6 +40,17 @@ export type RealtimeContext = { userId: string; role: SpaceRole; signedInAt?: Da
 
 function openerOf(context: RealtimeContext) {
   return context.userId === null ? `link/${context.shareLinkId}` : context.userId;
+}
+
+function candidateLinks(document: Y.Doc, update: Uint8Array) {
+  const candidate = new Y.Doc();
+  try {
+    Y.applyUpdate(candidate, Y.encodeStateAsUpdate(document));
+    Y.applyUpdate(candidate, update);
+    return documentLinks(candidate);
+  } finally {
+    candidate.destroy();
+  }
 }
 
 function rejectUpgrade(socket: Duplex, status: number, reason: string) {
@@ -126,20 +137,14 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       },
       beforeSync: async ({ connection, context, document, payload, type }) => {
         if (connection.readOnly || type === messageYjsSyncStep1 || (context.userId !== null && !context.restrictedReferences)) return;
-        const candidate = new Y.Doc();
-        try {
-          Y.applyUpdate(candidate, Y.encodeStateAsUpdate(document));
-          Y.applyUpdate(candidate, payload);
-          const current = documentLinks(document);
-          const next = documentLinks(candidate);
-          for (const id of [...next.files].filter((id) => !current.files.has(id))) {
-            if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, kind: 'FILE', trashedAt: null, space: this.access.spacesOf(context.userId) }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible files'), { code: 4403, reason: 'Edit rejected' });
-          }
-          for (const id of [...next.mentions].filter((id) => !current.mentions.has(id))) {
-            if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, OR: [this.access.itemsOf(context.userId), this.pages.pagesOf(context.userId)] }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible references'), { code: 4403, reason: 'Edit rejected' });
-          }
-        } finally {
-          candidate.destroy();
+        const next = updateLinks(document, payload) ?? candidateLinks(document, payload);
+        if (next.files.size === 0 && next.mentions.size === 0) return;
+        const current = documentLinks(document);
+        for (const id of [...next.files].filter((id) => !current.files.has(id))) {
+          if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, kind: 'FILE', trashedAt: null, space: this.access.spacesOf(context.userId) }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible files'), { code: 4403, reason: 'Edit rejected' });
+        }
+        for (const id of [...next.mentions].filter((id) => !current.mentions.has(id))) {
+          if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, OR: [this.access.itemsOf(context.userId), this.pages.pagesOf(context.userId)] }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible references'), { code: 4403, reason: 'Edit rejected' });
         }
       },
       beforeHandleAwareness: async ({ connection, context, document, states }) => {

@@ -28,7 +28,7 @@ export class LocalPageDraft {
     if (!this.failed || this.closing) return;
     this.failed = false;
     this.loaded = false;
-    this.pending = [];
+    this.pending = [Y.encodeStateAsUpdate(this.document)];
     this.database = undefined;
     this.failure = undefined;
     this.setStatus('loading');
@@ -90,25 +90,33 @@ export class LocalPageDraft {
         database.onversionchange = fail;
         database.onclose = () => { if (!this.closing) fail(); };
         try {
-          const transaction = database.transaction('updates', 'readonly');
-          const updates = transaction.objectStore('updates').getAll();
+          const transaction = database.transaction('updates', 'readwrite');
+          const store = transaction.objectStore('updates');
+          const updates = store.getAll();
+          let draft: Uint8Array | undefined;
+          updates.onsuccess = () => {
+            const restored = new Y.Doc();
+            try {
+              for (const update of updates.result) {
+                if (!(update instanceof Uint8Array)) throw new Error('Invalid device draft');
+                Y.applyUpdate(restored, update);
+              }
+              draft = Y.encodeStateAsUpdate(restored);
+              if (updates.result.length > 1) {
+                store.clear();
+                store.add(draft);
+              }
+            } catch {
+              transaction.abort();
+            } finally {
+              restored.destroy();
+            }
+          };
           transaction.onabort = fail;
           transaction.oncomplete = () => {
             if (this.failed || opening !== this.opening) return;
             try {
-              if (!this.closing) {
-                const restored = new Y.Doc();
-                try {
-                  for (const update of updates.result) {
-                    if (!(update instanceof Uint8Array)) throw new Error('Invalid device draft');
-                    Y.applyUpdate(restored, update);
-                  }
-                  Y.applyUpdate(this.document, Y.encodeStateAsUpdate(restored), this);
-                } finally {
-                  restored.destroy();
-                }
-                this.pending.push(Y.encodeStateAsUpdate(this.document));
-              }
+              if (!this.closing && draft) Y.applyUpdate(this.document, draft, this);
               this.loaded = true;
               window.clearTimeout(timer);
               this.flush();

@@ -13,7 +13,7 @@ export interface Connection {
   provider: HocuspocusProvider;
   guest: boolean;
   drafts?: LocalPageDraft;
-  refused?: 'closed' | 'outdated' | 'restricted';
+  refused?: 'closed' | 'outdated' | 'restricted' | 'oversized';
 }
 
 export interface Person {
@@ -50,12 +50,13 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
     let renewalFailures = 0;
     let renewalDelay = 1_000;
     let renewalTimer: number | undefined;
-    const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-${userId}-${noteId}`, document) : undefined;
+    const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-v${editorFormat}-${userId}-${noteId}`, document) : undefined;
     const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
     const provider = new HocuspocusProvider({
       name: noteId,
       document,
       websocketProvider,
+      flushDelay: 50,
       token: async () => {
         if (shareCode) return `share:${shareCode}`;
         try {
@@ -85,6 +86,7 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
       onClose: ({ event }) => {
         if (event.reason === 'Access changed' || event.reason === 'Signed out') refuse('closed');
         else if (event.reason === 'Edit rejected') refuse('restricted');
+        else if (event.code === 1009) refuse('oversized');
         else if (event.reason === 'This page is too large') websocketProvider.disconnect();
         else websocketProvider.webSocket?.close();
       },
@@ -120,8 +122,7 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
 
   useEffect(() => {
     const { document, provider } = connection;
-    let snapshot: Y.Snapshot | undefined;
-    const onUpdate = () => setSaved(Boolean(snapshot && Y.equalSnapshots(snapshot, Y.snapshot(document))));
+    const onUpdate = () => setSaved(false);
     const onStatus = ({ status: next }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
       if (next !== 'connected') {
         setPeople([]);
@@ -134,12 +135,12 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
       const message = JSON.parse(payload);
       if (message.type === 'presence') setPeople(message.people);
       if (message.type === 'saved') {
-        snapshot = Y.decodeSnapshot(Uint8Array.from(atob(message.snapshot), (character) => character.charCodeAt(0)));
-        if (Y.equalSnapshots(snapshot, Y.snapshot(document))) {
+        const current = Y.equalSnapshots(Y.decodeSnapshot(Uint8Array.from(atob(message.snapshot), (character) => character.charCodeAt(0))), Y.snapshot(document));
+        if (current) {
           setFailure(undefined);
           setRetrying(false);
         }
-        onUpdate();
+        setSaved(current);
       }
       if (message.type === 'too-large' || message.type === 'save-failed') {
         setFailure(message.type);
@@ -200,6 +201,7 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
           outdated: 'Strata was updated. Reload the page to keep editing',
           closed: 'Access changed. Reload the page to continue',
           restricted: 'This edit needs member access. Reload the page to continue',
+          oversized: 'That change is too large to send. Download the draft to recover it as smaller pages',
         }[connection.refused]
       : failure
         ? {
