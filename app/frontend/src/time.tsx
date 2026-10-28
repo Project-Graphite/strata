@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { Dialog, IconButton, PickerField, Button as UiButton } from '@project-graphite/ui';
+import { Dialog, formatDay, IconButton, PickerField, Button as UiButton } from '@project-graphite/ui';
 import { Button, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
@@ -12,14 +12,41 @@ export const timeFormatOptions: { value: TimeFormat; label: string }[] = [
 ];
 
 let hour12: boolean | undefined;
+let profileZone: string | undefined;
 
-export function applyTimeFormat(format: TimeFormat | undefined) {
+export function applyTimePreferences(format: TimeFormat | undefined, zone: string | undefined) {
   hour12 = format === '12h' ? true : format === '24h' ? false : undefined;
+  profileZone = zone;
 }
 
 export const timeOptions = (): Intl.DateTimeFormatOptions => (hour12 === undefined ? {} : { hour12 });
 
-export const zoneLabel = (zone: string) => (zone === Intl.DateTimeFormat().resolvedOptions().timeZone ? '' : zone.replaceAll('_', ' '));
+export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? '' : zone.replaceAll('_', ' '));
+
+export const profileDay = (at: Date | string = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: profileZone }).format(new Date(at));
+
+const daysAway = (day: string) => (Date.parse(day) - Date.parse(profileDay())) / 86_400_000;
+
+export function formatDate(day: string, time?: string | null) {
+  const away = daysAway(day);
+  const label =
+    away === 0
+      ? 'today'
+      : away === 1
+        ? 'tomorrow'
+        : away === -1
+          ? 'yesterday'
+          : away > 1 && away < 7
+            ? formatDay(day, { weekday: 'short' })
+            : formatDay(day, { day: 'numeric', month: 'short', ...(day.slice(0, 4) === profileDay().slice(0, 4) ? {} : { year: 'numeric' }) });
+  return time ? `${label} ${clockTime(time)}` : label;
+}
+
+export function formatMoment(at: string) {
+  const day = profileDay(at);
+  return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${clockTime(new Date(at), profileZone)}` : formatDate(day);
+}
 
 export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 

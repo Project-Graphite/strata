@@ -12,7 +12,7 @@ import { errorMessage } from '@project-graphite/ui';
 import { ApiError, apiRequest } from './api';
 import { announceChange } from './changes';
 import { wipeLocalData } from './local-data';
-import { applyTimeFormat, type TimeFormat } from './time';
+import { applyTimePreferences, type TimeFormat } from './time';
 import { refreshSession } from './session-refresh';
 
 export type UserRole = 'member' | 'admin' | 'system_manager';
@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession, ready, request, restoreError, session],
   );
 
-  applyTimeFormat(session?.user.timeFormat);
+  applyTimePreferences(session?.user.timeFormat, session?.user.timeZone);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

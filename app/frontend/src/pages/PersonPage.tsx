@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, formatDay, IconButton, ListRow, TextField } from '@project-graphite/ui';
+import { Checkbox, IconButton, ListRow, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
@@ -17,7 +17,7 @@ import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
-import { clockTime } from '../time';
+import { formatDate } from '../time';
 
 type EventLink = PersonDetail['events'][number];
 
@@ -154,7 +154,7 @@ export function PersonPage() {
         <ListRow
           href={`/events/${event.id}`}
           key={event.linkId}
-          meta={`${formatDay(event.startsOn)}${event.startTime ? ` · ${clockTime(event.startTime)}` : ''}`}
+          meta={formatDate(event.startsOn, event.startTime)}
           title={event.title}
           trail={editable && <ActionsMenu items={[{ label: `Remove from ${shown.name}’s events`, onSelect: () => unlink(event) }]} name={event.title} />}
         />

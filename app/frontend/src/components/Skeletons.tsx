@@ -82,7 +82,7 @@ export function TaskRowsSkeleton({ detailed = Infinity, rows }: { detailed?: num
           </span>
           <span className="min-w-0 flex-1">
             <SkeletonLine width={titleWidths[row % titleWidths.length]!} />
-            {row < detailed && <SkeletonLine className="mono-sm mt-0.5" width={detailWidths[row % detailWidths.length]!} />}
+            {row < detailed && <SkeletonLine className="text-small mt-0.5" width={detailWidths[row % detailWidths.length]!} />}
           </span>
         </li>
       ))}
@@ -173,7 +173,7 @@ export function AgendaCardsSkeleton({ rows }: { rows: number }) {
       {rowsOf(rows).map((row) => (
         <li className="agenda-card" key={row} style={{ '--entry-color': 'var(--color-line)' } as CSSProperties}>
           <SkeletonLine className="text-sm" width={titleWidths[row % titleWidths.length]!} />
-          <SkeletonLine className="mono-sm" width="w-24" />
+          <SkeletonLine className="text-small" width="w-24" />
         </li>
       ))}
     </ul>

@@ -34,8 +34,9 @@
   overflow-wrap: anywhere;
 }
 
-.note-title:focus {
-  outline: none;
+.note-title:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 .page-header:has(.note-title) {

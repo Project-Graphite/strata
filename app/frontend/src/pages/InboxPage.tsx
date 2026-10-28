@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from 'react-router';
-import { IconButton, Pagination, Placeholder, timeAgo } from '@project-graphite/ui';
+import { IconButton, Pagination, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Empty } from '../components/Empty';
@@ -64,7 +65,7 @@ export function InboxPage() {
       ) : !notifications.data ? (
         <Placeholder label="Loading your inbox">
           {rows ? (
-            <RowsSkeleton below={<SkeletonLine className="mono-sm" width="w-16" />} lead={<span className="size-2 shrink-0" />} rows={rows} />
+            <RowsSkeleton below={<SkeletonLine className="text-small" width="w-16" />} lead={<span className="size-2 shrink-0" />} rows={rows} />
           ) : (
             <Empty loading title={empty.title}>
               {empty.hint}
@@ -86,7 +87,7 @@ export function InboxPage() {
                     detail={notification.body && (notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body)}
                     title={<span className={notification.read ? 'text-muted' : 'font-medium'}>{notification.title}</span>}
                   >
-                    <span className="mono-sm text-faint">{timeAgo(notification.createdAt)}</span>
+                    <span className="text-small text-muted tabular-nums">{formatMoment(notification.createdAt)}</span>
                   </RowText>
                 </>
               );

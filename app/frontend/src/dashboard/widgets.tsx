@@ -39,7 +39,7 @@ import {
   type SettingsProps,
   type WidgetProps,
 } from './widget-parts';
-import { clockTime } from '../time';
+import { clockTime, formatDate } from '../time';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
@@ -397,8 +397,8 @@ function Agenda() {
         <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
           <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
             <span className="block truncate text-ink">{entry.title}</span>
-            <span className="mono-sm block truncate text-faint">
-              {formatDay(entryDay(entry), { weekday: 'short' })} {entryTime(entry)}
+            <span className="block truncate text-small text-muted tabular-nums">
+              {formatDate(entryDay(entry))} {entryTime(entry)}
             </span>
           </AgendaEntryLink>
         </li>
