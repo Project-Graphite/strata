@@ -14,7 +14,7 @@ export class LocalPageDraft {
   private closing = false;
   private opening = 0;
 
-  constructor(private readonly name: string, private readonly document: Y.Doc, private readonly legacyName?: string) {
+  constructor(private readonly name: string, private readonly document: Y.Doc, private readonly legacyNames: string[] = []) {
     document.on('update', this.updated);
     this.open();
   }
@@ -120,7 +120,7 @@ export class LocalPageDraft {
               if (this.failed || opening !== this.opening) return;
               try {
                 if (!this.closing && draft) Y.applyUpdate(this.document, draft, this);
-                if (legacy && this.legacyName) indexedDB.deleteDatabase(this.legacyName);
+                if (legacy) for (const legacyName of this.legacyNames) indexedDB.deleteDatabase(legacyName);
                 this.loaded = true;
                 window.clearTimeout(timer);
                 this.flush();
@@ -139,9 +139,20 @@ export class LocalPageDraft {
   }
 
   private readLegacy(done: (legacy?: Uint8Array) => void) {
-    if (!this.legacyName) return done();
+    const found: Uint8Array[] = [];
+    const next = (index: number) => {
+      if (index < this.legacyNames.length) this.readDatabase(this.legacyNames[index]!, (update) => {
+        if (update) found.push(update);
+        next(index + 1);
+      });
+      else done(found.length ? Y.mergeUpdates(found) : undefined);
+    };
+    next(0);
+  }
+
+  private readDatabase(name: string, done: (legacy?: Uint8Array) => void) {
     try {
-      const request = indexedDB.open(this.legacyName);
+      const request = indexedDB.open(name);
       request.onupgradeneeded = () => request.transaction?.abort();
       request.onerror = () => done();
       request.onsuccess = () => {

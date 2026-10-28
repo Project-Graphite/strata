@@ -1,15 +1,15 @@
-import ToggleButton from '@mui/material/ToggleButton';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Dialog, Icon, IconButton, LinesSkeleton, Menu, TextField, useSnackbar, type IconName, type MenuItem } from '@project-graphite/ui';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Menu, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import type { Node as BlockNode, Slice } from '@tiptap/pm/model';
-import { TextSelection, type Transaction } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import type { Mapping } from '@tiptap/pm/transform';
 import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
 import { maxUploadBytes, saveBlob, uploadFile } from '../files';
@@ -20,11 +20,34 @@ import { Copyable } from './Copyable';
 import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
-import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions } from './note-extensions';
+import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
+import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
 import { usePageFollowing } from './page-following';
 
-const turnInto = new Set(['text', 'heading', 'subheading', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
-const quickTools = new Set(['Bold', 'Italic', 'Bulleted list', 'Numbered list', 'Checklist', 'Link']);
+const turnInto = new Set(['text', 'heading1', 'heading2', 'heading3', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
+const blockKinds: Record<string, [string, Record<string, unknown>?]> = {
+  text: ['paragraph'],
+  heading1: ['heading', { level: 1 }],
+  heading2: ['heading', { level: 2 }],
+  heading3: ['heading', { level: 3 }],
+  bullets: ['bulletList'],
+  numbers: ['orderedList'],
+  checklist: ['taskList'],
+  quote: ['blockquote'],
+  code: ['codeBlock'],
+  callout: ['callout'],
+};
+const textColors = [
+  ['Gray', '#8b8b95'],
+  ['Red', '#e5736b'],
+  ['Orange', '#e0915a'],
+  ['Yellow', '#d7b24a'],
+  ['Green', '#5fbf7f'],
+  ['Blue', '#6a9eea'],
+  ['Purple', '#a388e8'],
+  ['Pink', '#e07fb5'],
+] as const;
+const bubblePlacement = { placement: window.matchMedia('(pointer: coarse)').matches ? 'bottom-start' : 'top-start', shift: { padding: 16 } } as const;
 const maxInsertBytes = 768 * 1024;
 
 interface Block {
@@ -34,9 +57,15 @@ interface Block {
 
 function selectedBlock(editor: Editor): Block | undefined {
   const { $from } = editor.state.selection;
-  const pos = $from.depth ? $from.before(1) : $from.pos;
+  let depth = 1;
+  while (depth + 2 <= $from.depth && $from.node(depth).type.name === 'columns') depth += 2;
+  const pos = $from.depth >= depth ? $from.before(depth) : $from.pos;
   const node = editor.state.doc.nodeAt(pos);
   return node ? { node, pos } : undefined;
+}
+
+function quoted(block: Block | undefined) {
+  return block && typeof block.node.attrs.id === 'string' ? { id: block.node.attrs.id, excerpt: block.node.textContent.trim().slice(0, 80) } : undefined;
 }
 
 function moveBlock(editor: Editor, block: Block, direction: -1 | 1) {
@@ -88,15 +117,16 @@ function blockItems(editor: Editor, actions: BlockActions, block: Block | undefi
   const previous = siblings.parent.maybeChild(siblings.index() - 1);
   const next = siblings.parent.maybeChild(siblings.index() + 1);
   const cell = () => (editor.state.selection.from > block.pos && editor.state.selection.from < end ? editor.chain().focus() : at(end - 2, -1));
+  const change = (apply: (tr: Transaction) => unknown) => () => editor.chain().focus().command(({ tr }) => Boolean(apply(tr))).run();
+  const columns = block.node.type.name === 'columns' ? block : siblings.parent.type.name === 'column' ? { node: siblings.node(siblings.depth - 1), pos: siblings.before(siblings.depth - 1) } : undefined;
+  const comment = onComment && quoted(block);
   return [
     ...(typeof block.node.attrs.id === 'string' && actions.onCopyBlock ? [{ label: 'Copy link to block', onSelect: () => actions.onCopyBlock!(block.node.attrs.id as string) }] : []),
     ...(previous ? [{ label: 'Move block up', onSelect: () => moveBlock(editor, block, -1) }] : []),
     ...(next ? [{ label: 'Move block down', onSelect: () => moveBlock(editor, block, 1) }] : []),
     { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(end, block.node.toJSON()).run() },
     { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: end }).run() },
-    ...(onComment && typeof block.node.attrs.id === 'string'
-      ? [{ label: 'Comment', onSelect: () => onComment({ id: block.node.attrs.id as string, excerpt: block.node.textContent.trim().slice(0, 80) }) }]
-      : []),
+    ...(comment ? [{ label: 'Comment', onSelect: () => onComment!(comment) }] : []),
     ...(block.node.type.name === 'table'
       ? [
           { label: 'Add a row', onSelect: () => at(end - 2, -1).addRowAfter().run(), separated: true },
@@ -104,9 +134,23 @@ function blockItems(editor: Editor, actions: BlockActions, block: Block | undefi
           { label: 'Delete row', onSelect: () => cell().deleteRow().run() },
           { label: 'Delete column', onSelect: () => cell().deleteColumn().run() },
         ]
-      : blockChoices(actions)
-          .filter((choice) => turnInto.has(choice.id))
-          .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
+      : block.node.type.name === 'columns'
+        ? []
+        : blockChoices(actions)
+            .filter((choice) => turnInto.has(choice.id))
+            .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
+    ...(block.node.type.name === 'callout'
+      ? calloutTints
+          .filter(([tint]) => tint !== block.node.attrs.tint)
+          .map(([tint, name], index) => ({ label: `${name} callout`, onSelect: change((tr) => tr.setNodeAttribute(block.pos, 'tint', tint)), separated: index === 0 }))
+      : []),
+    ...(columns
+      ? [
+          ...(columns.node.childCount < 3 ? [{ label: 'Add a third column', onSelect: change((tr) => addColumn(tr, columns.pos, columns.node)) }] : []),
+          ...(columns.node.childCount > 2 ? [{ label: 'Merge the third column', onSelect: change((tr) => mergeLastColumn(tr, columns.pos, columns.node)) }] : []),
+          { label: 'Unwrap the columns', onSelect: change((tr) => unwrapColumns(tr, columns.pos, columns.node)) },
+        ].map((item, index) => ({ ...item, separated: index === 0 }))
+      : []),
   ];
 }
 
@@ -142,49 +186,146 @@ function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActi
   return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerLabel="Change this block" triggerVariant="text" />;
 }
 
-const Toolbar = memo(function Toolbar({ actions, editor, onComment, quick }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void; quick: boolean }) {
+function GlyphButton({ active, children, label, onClick }: { active?: boolean; children: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <ToolbarButton active={active} label={label} onClick={onClick}>
+      <span aria-hidden="true" className="inline-flex items-center gap-1">{children}</span>
+      <span className="sr-only">{label}</span>
+    </ToolbarButton>
+  );
+}
+
+function showBubble({ editor, element, view, state }: { editor: Editor; element: HTMLElement; view: EditorView; state: EditorState }) {
+  const { from, to } = state.selection;
+  return editor.isEditable && !(state.selection instanceof NodeSelection) && state.doc.textBetween(from, to).length > 0 && (view.hasFocus() || element.contains(document.activeElement));
+}
+
+const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
+  const [panel, setPanel] = useState<'format' | 'colour' | 'block'>('format');
   const [linking, setLinking] = useState(false);
+  const toolbar = useRef<HTMLDivElement>(null);
+  const options = useMemo(() => ({ ...bubblePlacement, onHide: () => setPanel('format') }), []);
+  const choices = useMemo(() => blockChoices(actions).filter((choice) => choice.id in blockKinds), [actions]);
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
       bold: current.isActive('bold'),
       italic: current.isActive('italic'),
-      highlight: current.isActive('highlight'),
-      heading1: current.isActive('heading', { level: 1 }),
-      heading2: current.isActive('heading', { level: 2 }),
-      bullets: current.isActive('bulletList'),
-      numbers: current.isActive('orderedList'),
-      checklist: current.isActive('taskList'),
-      quote: current.isActive('blockquote'),
-      code: current.isActive('codeBlock'),
+      underline: current.isActive('underline'),
+      strike: current.isActive('strike'),
+      code: current.isActive('code'),
       link: current.isActive('link'),
+      color: current.getAttributes('textStyle').color as string | undefined,
+      highlight: current.isActive('highlight') ? ((current.getAttributes('highlight').color as string | undefined) ?? 'default') : undefined,
+      kind: Object.keys(blockKinds).reverse().find((id) => current.isActive(...blockKinds[id]!)) ?? 'text',
     }),
   });
-  const tools: [IconName, string, boolean, () => void][] = [
-    ['bold', 'Bold', state.bold, () => editor.chain().focus().toggleBold().run()],
-    ['italic', 'Italic', state.italic, () => editor.chain().focus().toggleItalic().run()],
-    ['highlight', 'Highlight', state.highlight, () => editor.chain().focus().toggleHighlight().run()],
-    ['heading-1', 'Heading', state.heading1, () => editor.chain().focus().toggleHeading({ level: 1 }).run()],
-    ['heading-2', 'Subheading', state.heading2, () => editor.chain().focus().toggleHeading({ level: 2 }).run()],
-    ['list', 'Bulleted list', state.bullets, () => editor.chain().focus().toggleBulletList().run()],
-    ['list-ordered', 'Numbered list', state.numbers, () => editor.chain().focus().toggleOrderedList().run()],
-    ['checklist', 'Checklist', state.checklist, () => editor.chain().focus().toggleTaskList().run()],
-    ['quote', 'Quote', state.quote, () => editor.chain().focus().toggleBlockquote().run()],
-    ['code', 'Code block', state.code, () => editor.chain().focus().toggleCodeBlock().run()],
-    ['link', 'Link', state.link, () => setLinking(true)],
-  ];
+
+  useEffect(() => {
+    const dom = editor.view.dom;
+    const focusToolbar = (event: KeyboardEvent) => {
+      const first = toolbar.current?.querySelector('button');
+      if (!event.altKey || event.key !== 'F10' || !first?.isConnected) return;
+      event.preventDefault();
+      first.focus();
+    };
+    dom.addEventListener('keydown', focusToolbar);
+    return () => dom.removeEventListener('keydown', focusToolbar);
+  }, [editor]);
+
+  useLayoutEffect(() => {
+    if (document.activeElement === document.body && toolbar.current?.isConnected) toolbar.current.querySelector('button')?.focus();
+  }, [panel]);
+
+  const turn = (choice: BlockChoice) => {
+    choice.run(editor.chain().focus().clearNodes(), editor);
+    setPanel('format');
+  };
+  const current = choices.find((choice) => choice.id === state.kind);
+  const comment = onComment && (() => {
+    const block = quoted(selectedBlock(editor));
+    if (block) onComment(block);
+  });
+
   return (
-    <div aria-label="Formatting" className="note-toolbar" role="toolbar">
-      <IconButton icon="undo" label="Undo" onClick={() => editor.chain().focus().undo().run()} size="small" />
-      <IconButton icon="redo" label="Redo" onClick={() => editor.chain().focus().redo().run()} size="small" />
-      {(quick ? tools.filter(([, label]) => quickTools.has(label)) : tools).map(([icon, label, active, run]) => (
-        <ToggleButton aria-label={label} className="border-0" key={label} onChange={run} selected={active} size="small" title={label} value={label}>
-          <Icon name={icon} size={16} />
-        </ToggleButton>
-      ))}
-      <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />
+    <>
+      <BubbleMenu className="z-20" editor={editor} options={options} shouldShow={showBubble}>
+        <div
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            editor.commands.focus();
+          }}
+        >
+          {panel === 'format' ? (
+            <FloatingToolbar className="note-bubble" label="Format the selection" ref={toolbar}>
+              <ToolbarButton active={state.bold} icon="bold" label="Bold" onClick={() => editor.chain().focus().toggleBold().run()} />
+              <ToolbarButton active={state.italic} icon="italic" label="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} />
+              <GlyphButton active={state.underline} label="Underline" onClick={() => editor.chain().focus().toggleUnderline().run()}>
+                <span className="font-semibold underline">U</span>
+              </GlyphButton>
+              <GlyphButton active={state.strike} label="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()}>
+                <span className="font-semibold line-through">S</span>
+              </GlyphButton>
+              <ToolbarButton active={state.code} icon="code" label="Inline code" onClick={() => editor.chain().focus().toggleCode().run()} />
+              <ToolbarSeparator />
+              <ToolbarButton active={state.highlight !== undefined} icon="highlight" label="Highlight" onClick={() => editor.chain().focus().toggleHighlight().run()} />
+              <GlyphButton active={Boolean(state.color)} label="Text and highlight colour" onClick={() => setPanel('colour')}>
+                <span className="font-semibold underline" style={{ color: state.color }}>A</span>
+              </GlyphButton>
+              <ToolbarButton active={state.link} icon="link" label="Link" onClick={() => setLinking(true)} />
+              <ToolbarSeparator />
+              <GlyphButton label={`Turn into, now ${current?.label ?? 'Text'}`} onClick={() => setPanel('block')}>
+                {current?.label ?? 'Text'}
+                <Icon name="chevron-down" size={14} />
+              </GlyphButton>
+              {comment && <ToolbarButton label="Comment on this block" onClick={comment}>Comment</ToolbarButton>}
+            </FloatingToolbar>
+          ) : panel === 'colour' ? (
+            <FloatingToolbar className="note-bubble flex-col items-start" label="Text and highlight colour" ref={toolbar}>
+              <div className="flex flex-wrap items-center gap-0.5">
+                <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
+                <GlyphButton active={!state.color} label="Default text colour" onClick={() => editor.chain().focus().unsetColor().run()}>
+                  <span className="font-semibold">A</span>
+                </GlyphButton>
+                {textColors.map(([name, color]) => (
+                  <GlyphButton active={state.color === color} key={name} label={`${name} text`} onClick={() => editor.chain().focus().setColor(color).run()}>
+                    <span className="font-semibold" style={{ color }}>A</span>
+                  </GlyphButton>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-0.5">
+                <GlyphButton active={state.highlight === undefined} label="No highlight" onClick={() => editor.chain().focus().unsetHighlight().run()}>
+                  <span className="note-swatch" />
+                </GlyphButton>
+                <GlyphButton active={state.highlight === 'default'} label="Gold highlight" onClick={() => editor.chain().focus().unsetHighlight().setHighlight().run()}>
+                  <span className="note-swatch note-swatch-default" />
+                </GlyphButton>
+                {textColors.map(([name, color]) => (
+                  <GlyphButton active={state.highlight === `${color}59`} key={name} label={`${name} highlight`} onClick={() => editor.chain().focus().setHighlight({ color: `${color}59` }).run()}>
+                    <span className="note-swatch" style={{ background: `${color}59` }} />
+                  </GlyphButton>
+                ))}
+              </div>
+            </FloatingToolbar>
+          ) : (
+            <FloatingToolbar className="note-bubble" label="Turn into" ref={toolbar}>
+              <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
+              {choices.map((choice) =>
+                choice.icon ? (
+                  <ToolbarButton active={state.kind === choice.id} icon={choice.icon} key={choice.id} label={choice.label} onClick={() => turn(choice)} />
+                ) : (
+                  <GlyphButton active={state.kind === choice.id} key={choice.id} label={choice.label} onClick={() => turn(choice)}>
+                    <span className="font-semibold">{choice.glyph}</span>
+                  </GlyphButton>
+                ),
+              )}
+            </FloatingToolbar>
+          )}
+        </div>
+      </BubbleMenu>
       {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
-    </div>
+    </>
   );
 });
 
@@ -315,8 +456,9 @@ export function CollaborativeEditor({
     <div className="note-editor relative grid min-w-0 grid-cols-1 gap-3" onDragStartCapture={(event) => event.preventDefault()}>
       <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
         <LiveStatus connection={connection} editable={editable} editor={editor} noteId={noteId} onBlocked={setBlocked} />
-        {editable && !blocked && <Toolbar actions={actions} editor={editor} onComment={onComment} quick={quick} />}
+        {editable && !blocked && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
       </div>
+      {editable && !blocked && <SelectionMenu actions={actions} editor={editor} onComment={onComment} />}
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <PageBlockTarget editor={editor} provider={connection.provider} />
       <EditorContent editor={editor} />
