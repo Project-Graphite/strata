@@ -137,6 +137,7 @@ model User {
   habitCheckIns       HabitCheckIn[]
   paidSplits          CostSplit[]
   capturedMessages    CapturedMessage[]
+  parserReports       ParserReport[]
   costShares          CostShare[]
   settlementsPaid     Settlement[]           @relation("SettlementFrom")
   settlementsReceived Settlement[]           @relation("SettlementTo")
@@ -1184,7 +1185,8 @@ model MoneyAccount {
   transfersIn       Expense[]         @relation("AccountTransfersIn")
   cards             Card[]
   balances          AccountBalance[]
-  senderRules       SenderRule[]
+  senderRules       SenderRule[]      @relation("SenderRuleAccount")
+  transferRules     SenderRule[]      @relation("SenderRuleTransfer")
   installments      InstallmentPlan[]
   savingsGoals      SavingsGoal[]
 
@@ -1240,17 +1242,20 @@ model Merchant {
 }
 
 model SenderRule {
-  id         String        @id @default(uuid()) @db.Uuid
-  spaceId    String        @map("space_id") @db.Uuid
-  pattern    String
-  accountId  String?       @map("account_id") @db.Uuid
-  cardId     String?       @map("card_id") @db.Uuid
-  confidence Float         @default(1)
-  createdAt  DateTime      @default(now()) @map("created_at")
-  updatedAt  DateTime      @updatedAt @map("updated_at")
-  space      Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  account    MoneyAccount? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  card       Card?         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  id          String        @id @default(uuid()) @db.Uuid
+  spaceId     String        @map("space_id") @db.Uuid
+  pattern     String
+  accountId   String?       @map("account_id") @db.Uuid
+  cardId      String?       @map("card_id") @db.Uuid
+  toAccountId String?       @map("to_account_id") @db.Uuid
+  ignore      Boolean       @default(false)
+  confidence  Float         @default(1)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  space       Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  account     MoneyAccount? @relation("SenderRuleAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  card        Card?         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  toAccount   MoneyAccount? @relation("SenderRuleTransfer", fields: [toAccountId], references: [id], onDelete: Cascade)
 
   @@index([spaceId])
   @@map("sender_rules")
@@ -1284,29 +1289,49 @@ model Trip {
 }
 
 model CapturedMessage {
-  id            String   @id @default(uuid()) @db.Uuid
-  spaceId       String   @map("space_id") @db.Uuid
-  userId        String   @map("user_id") @db.Uuid
+  id            String        @id @default(uuid()) @db.Uuid
+  spaceId       String        @map("space_id") @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
   sender        String
-  textSealed    String?  @map("text_sealed")
+  textSealed    String?       @map("text_sealed")
   hash          String
-  status        String   @default("review")
-  suggestion    Json     @default("{}")
-  parserVersion Int?     @map("parser_version")
-  templateId    String?  @map("template_id")
+  status        String        @default("review")
+  suggestion    Json          @default("{}")
+  parserVersion Int?          @map("parser_version")
+  templateId    String?       @map("template_id")
   confidence    Float?
-  expenseId     String?  @map("expense_id") @db.Uuid
-  receivedAt    DateTime @map("received_at")
-  createdAt     DateTime @default(now()) @map("created_at")
-  space         Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expense       Item?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  recorded      Expense? @relation("ExpenseCapture")
+  expenseId     String?       @map("expense_id") @db.Uuid
+  receivedAt    DateTime      @map("received_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  space         Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense       Item?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  recorded      Expense?      @relation("ExpenseCapture")
+  report        ParserReport?
 
   @@unique([spaceId, hash])
   @@index([spaceId, status])
   @@index([createdAt])
   @@map("captured_messages")
+}
+
+model ParserReport {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  captureId     String?          @unique @map("capture_id") @db.Uuid
+  sender        String
+  institution   String?
+  text          String
+  parserVersion Int?             @map("parser_version")
+  templateId    String?          @map("template_id")
+  parsed        Json
+  corrected     Json
+  createdAt     DateTime         @default(now()) @map("created_at")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capture       CapturedMessage? @relation(fields: [captureId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("parser_reports")
 }
 
 model SpendingCategory {

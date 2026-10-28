@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Merchant, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateMerchantRuleDto, SaveCategoriesDto } from './dto/categories.dto';
+import { CreateMerchantRuleDto, SaveCategoriesDto, UpdateMerchantRuleDto } from './dto/categories.dto';
 
 export const defaultCategories = [
   { name: 'groceries', colour: 'green', icon: 'checklist', kind: 'expense' },
@@ -110,10 +110,22 @@ export class CategoriesService {
     );
   }
 
+  async updateRule(userId: string, id: string, input: UpdateMerchantRuleDto) {
+    const merchant = await this.ownRule(userId, id);
+    await this.assertCategory(merchant.spaceId, input.category);
+    const name = input.rename === undefined ? undefined : (input.rename ?? merchant.aliases[0] ?? merchant.name);
+    return presentRule(await this.prisma.merchant.update({ where: { id }, data: { name, category: input.category, ignore: input.ignore } }));
+  }
+
   async removeRule(userId: string, id: string) {
-    const merchant = await this.prisma.merchant.findUnique({ where: { id }, select: { spaceId: true } });
+    await this.ownRule(userId, id);
+    await this.prisma.merchant.delete({ where: { id } });
+  }
+
+  private async ownRule(userId: string, id: string) {
+    const merchant = await this.prisma.merchant.findUnique({ where: { id } });
     if (!merchant) throw new NotFoundException('Rule not found');
     await this.access.assertPersonalSpace(userId, merchant.spaceId);
-    await this.prisma.merchant.delete({ where: { id } });
+    return merchant;
   }
 }

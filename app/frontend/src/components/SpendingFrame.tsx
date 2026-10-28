@@ -14,6 +14,7 @@ import { ExpenseEditor } from './ExpenseEditor';
 import { ExpenseImport } from './ExpenseImport';
 import { Page } from './Page';
 import { PhoneSetup } from './PhoneSetup';
+import { RulesEditor } from './RulesEditor';
 
 export function SpendingFrame({
   accounts,
@@ -37,8 +38,8 @@ export function SpendingFrame({
   const [params] = useSearchParams();
   const { spaceId, space, editable } = usePersonalSpace();
   const [byCategory, showByCategory] = useByCategory();
-  const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories'>();
-  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories' | 'rules'>();
+  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
   const editedCategories = categories ?? loadedCategories.data;
 
@@ -54,6 +55,7 @@ export function SpendingFrame({
                       { label: 'Import expenses from a statement', onSelect: () => setDialog('import') },
                       { label: 'Connect your phone', onSelect: () => setDialog('phone') },
                       { label: 'Edit categories', onSelect: () => setDialog('categories') },
+                      { label: 'Edit rules', onSelect: () => setDialog('rules') },
                     ]
                   : []),
                 { label: byCategory ? 'Hide spending by category' : 'Show spending by category', onSelect: () => showByCategory(!byCategory) },
@@ -87,6 +89,7 @@ export function SpendingFrame({
       {spaceId && editedCategories && dialog === 'categories' && (
         <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
       )}
+      {spaceId && dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
     </Page>
   );
 }

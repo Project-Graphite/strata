@@ -41,12 +41,7 @@ export class SaveCategoriesDto {
   categories!: CategoryDto[];
 }
 
-export class CreateMerchantRuleDto {
-  @Trimmed()
-  @IsString()
-  @Length(2, 120, { message: 'Match on 2 to 120 characters of the merchant name.' })
-  match!: string;
-
+export class UpdateMerchantRuleDto {
   @IsOptional()
   @ValidateIf(nullable)
   @Trimmed()
@@ -64,4 +59,11 @@ export class CreateMerchantRuleDto {
   @IsOptional()
   @IsBoolean()
   ignore?: boolean;
+}
+
+export class CreateMerchantRuleDto extends UpdateMerchantRuleDto {
+  @Trimmed()
+  @IsString()
+  @Length(2, 120, { message: 'Match on 2 to 120 characters of the merchant name.' })
+  match!: string;
 }

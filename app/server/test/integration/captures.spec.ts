@@ -1,4 +1,4 @@
-import { SpaceRole } from '@prisma/client';
+import { SpaceRole, UserRole } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp, password } from './harness';
@@ -74,11 +74,19 @@ describe('Bank messages from a phone against Postgres', () => {
     const sent = await send('BanK-AlAhly', 'تم تنفيذ تحويل لحظي بمبلغ 500 جم من حسابك المنتهي ب ****1234 بتاريخ 14-10-2026 13:45');
     expect(sent.body.status).toBe('review');
     const transfer = (await owner.call('GET', `/spaces/${home.id}/captures`)).body.find((message: { text: string }) => message.text.includes('تحويل لحظي'));
-    const paired = (await owner.call('POST', `/captures/${transfer.id}/record`, { ...draft, title: 'To wallet', amountMinor: 50_000, category: 'other', merchant: null })).body;
-    expect(paired).toMatchObject({ id: topUp.body.expenseId, title: 'Transfer', direction: 'transfer', accountId: bank.id, toAccountId: wallet.id });
+    expect(transfer.suggestion.transfer).toEqual({ expenseId: topUp.body.expenseId, fromAccountId: bank.id, toAccountId: wallet.id });
+    const paired = (
+      await owner.call('POST', `/captures/${transfer.id}/record`, { ...draft, title: 'To wallet', amountMinor: 50_000, category: 'other', merchant: null, direction: 'transfer', toAccountId: wallet.id, remember: true })
+    ).body;
+    expect(paired).toMatchObject({ id: topUp.body.expenseId, title: 'To wallet', direction: 'transfer', accountId: bank.id, toAccountId: wallet.id });
 
     const balances = Object.fromEntries((await owner.call('GET', `/spaces/${home.id}/accounts`)).body.map((account: { name: string; balanceMinor: number }) => [account.name, account.balanceMinor]));
     expect(balances).toEqual({ NBE: 967_000 - 50_000, 'Vodafone Cash': 65_000 });
+
+    const smallTopUp = await send('VF-Cash', 'تم استلام مبلغ 200 جنيه من رقم 01012345678 ورصيدك الحالي 850 جنيه');
+    expect(smallTopUp.body.status).toBe('recorded');
+    expect((await send('BanK-AlAhly', 'تم تنفيذ تحويل لحظي بمبلغ 200 جم من حسابك المنتهي ب ****1234 بتاريخ 14-10-2026 13:50')).body).toEqual({ status: 'recorded', expenseId: smallTopUp.body.expenseId });
+    expect((await owner.call('GET', `/expenses/${smallTopUp.body.expenseId}`)).body).toMatchObject({ title: 'Transfer', direction: 'transfer', accountId: bank.id, toAccountId: wallet.id });
 
     expect((await send('Unknown', 'Your card **9876 was used for USD 12.99 at NETFLIX.COM')).body.status).toBe('review');
     const unknown = (await owner.call('GET', `/spaces/${home.id}/captures`)).body.find((message: { sender: string }) => message.sender === 'Unknown');
@@ -207,6 +215,58 @@ describe('Bank messages from a phone against Postgres', () => {
       allowedChats,
     });
     expect(duplicateBankSms.body).toEqual({ status: 'recorded', expenseId: instapayOut.body.expenseId });
+  });
+
+  it('learns from review corrections, edits the rules and stores anonymised parsing reports', async () => {
+    const owner = await member('rule-learner');
+    const stranger = await member('rule-stranger');
+    const admin = await member('fixture-admin', UserRole.ADMIN);
+    const home = owner.personalSpaceId;
+    const send = (from: string, text: string) => owner.call('POST', `/spaces/${home}/captures`, { from, text });
+    const cib = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB', currency: 'EGP', senders: ['CIB'] })).body;
+    const credit = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB credit', kind: 'credit_card', currency: 'EGP' })).body;
+
+    const text = 'Your card **7777 was charged for EGP 120.00 at TALABAT EG on 13/10. Call 01012345678';
+    expect((await send('CIB', text)).body).toEqual({ status: 'review', expenseId: null });
+    const [waiting] = (await owner.call('GET', `/spaces/${home}/captures`)).body;
+    expect(waiting.suggestion).toMatchObject({ accountId: cib.id, title: 'TALABAT EG', category: null, confidence: 0.95, templateId: 'cib-card-charged' });
+    const correction = { title: 'Talabat', amountMinor: 12_000, currency: 'EGP', spentOn: '2026-10-13', category: 'eating out', direction: 'spent', accountId: credit.id, merchant: 'TALABAT EG', cardDigits: '7777', remember: true, report: true };
+    expect((await owner.call('POST', `/captures/${waiting.id}/record`, correction)).body).toMatchObject({ title: 'Talabat', accountId: credit.id, cardDigits: '7777' });
+
+    const [senderRule] = (await owner.call('GET', `/spaces/${home}/sender-rules`)).body;
+    expect(senderRule).toMatchObject({ sender: 'cib', accountId: credit.id, cardDigits: '7777', toAccountId: null, ignore: false });
+    const [merchantRule] = (await owner.call('GET', `/spaces/${home}/merchant-rules`)).body;
+    expect(merchantRule).toMatchObject({ match: 'talabat eg', rename: 'Talabat', category: 'eating out', ignore: false });
+    const learned = await send('CIB', 'Your card **7777 was charged for EGP 95.00 at TALABAT EG on 14/10');
+    expect(learned.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${learned.body.expenseId}`)).body).toMatchObject({ title: 'Talabat', category: 'eating out', accountId: credit.id });
+
+    const reports = await strata.prisma.parserReport.findMany({ where: { userId: owner.id } });
+    expect(reports).toHaveLength(1);
+    expect(JSON.stringify(reports)).not.toMatch(/7777|120\.00|TALABAT|Talabat|01012345678/);
+    expect((await owner.call('GET', '/admin/parser-reports')).status).toBe(403);
+    const fixtures = (await admin.call('GET', '/admin/parser-reports')).body;
+    expect(fixtures.find((fixture: { institution: string }) => fixture.institution === 'CIB').messages).toContainEqual({
+      sender: 'CIB',
+      text: 'Your card **1234 was charged for EGP 100.00 at SAMPLE A on 13/10. Call 01000000000',
+      expect: { direction: 'spent', amount: 100, currency: 'EGP', cardDigits: '1234', merchant: 'SAMPLE A', available: null, movement: 'purchase', occurredOn: null },
+    });
+
+    expect((await stranger.call('PATCH', `/sender-rules/${senderRule.id}`, { accountId: cib.id })).status).toBe(404);
+    expect((await owner.call('PATCH', `/sender-rules/${senderRule.id}`, { toAccountId: cib.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/sender-rules/${senderRule.id}`, { accountId: cib.id })).body).toMatchObject({ accountId: cib.id, cardDigits: null });
+    expect((await owner.call('PATCH', `/merchant-rules/${merchantRule.id}`, { category: 'yachts' })).status).toBe(400);
+    expect((await owner.call('PATCH', `/merchant-rules/${merchantRule.id}`, { rename: 'Talabat food', category: 'groceries' })).body).toMatchObject({ match: 'talabat eg', rename: 'Talabat food', category: 'groceries' });
+    expect((await stranger.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(404);
+    expect((await owner.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(204);
+    expect((await owner.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(404);
+
+    expect((await send('PromoBank', 'Your card **5555 was charged for EGP 10.00 at SHOP')).body.status).toBe('review');
+    const promo = (await owner.call('GET', `/spaces/${home}/captures`)).body.find((message: { sender: string }) => message.sender === 'PromoBank');
+    expect((await owner.call('POST', `/captures/${promo.id}/ignore`, { always: 'sender' })).status).toBe(204);
+    expect((await send('PromoBank', 'Your card **5555 was charged for EGP 11.00 at SHOP')).body).toEqual({ status: 'ignored', reason: 'rule' });
+    expect((await owner.call('GET', `/spaces/${home}/sender-rules`)).body).toEqual([expect.objectContaining({ sender: 'promobank', ignore: true })]);
+    expect((await owner.call('PATCH', `/sender-rules/${(await owner.call('GET', `/spaces/${home}/sender-rules`)).body[0].id}`, { accountId: cib.id })).status).toBe(400);
   });
 
   it('forgets message text after 90 days but keeps the link to the recorded transaction', async () => {

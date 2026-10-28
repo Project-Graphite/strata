@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Select, Skeleton, TextField, Toggle } from '@project-graphite/ui';
-import { shiftMonth } from '../agenda';
+import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -27,7 +27,6 @@ import {
   type CapturedMessage,
   type Expense,
   type InstallmentPlan,
-  type MerchantRule,
   type MoneyAccount,
   type SpendingCategory,
   type SpendingMonth,
@@ -61,7 +60,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
   const categories = useCategories(spaceId);
-  const rules = useResource<MerchantRule[]>(spaceId ? `/spaces/${spaceId}/merchant-rules` : null, true);
   const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true);
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
@@ -69,14 +67,15 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
     | { budget: string | null }
     | { expense: Expense }
     | { account: MoneyAccount | null }
-    | { capture: CapturedMessage }
+    | { capture: CapturedMessage; report?: boolean }
     | { installment: InstallmentPlan | null }
-    | { ignoreMerchant: CapturedMessage }
+    | { ignoreAlways: CapturedMessage; by: 'sender' | 'merchant' }
     | { deleteAccount: MoneyAccount }
     | { deletePlan: InstallmentPlan }
     | { deleteBudget: string }
-    | { deleteRule: MerchantRule }
   >();
+  const [opened, setOpened] = useState<string[]>([]);
+  const toggleMessage = (id: string) => setOpened((current) => (current.includes(id) ? current.filter((shown) => shown !== id) : [...current, id]));
   const [byCategory, showByCategory] = useByCategory();
   const shown = summary.data;
   const currency = shown?.currency ?? 'EUR';
@@ -109,20 +108,14 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         : tab === 'transactions'
           ? [listed.length, cards.length]
           : tab === 'budgets'
-            ? [
-                shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0,
-                shown.categories.filter((row) => row.budgetMinor !== null).length,
-                rules.data?.length ?? 0,
-                rules.data?.filter((rule) => rule.ignore || rule.rename || rule.category).length ?? 0,
-              ]
+            ? [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]
             : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
-    tab === 'overview' ? [0, 0, 0, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3, 0, 0] : [2, 0],
+    tab === 'overview' ? [0, 0, 0, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3] : [2, 0],
   );
   const reload = () => {
     summary.reload();
     accounts.reload();
     captures.reload();
-    rules.reload();
   };
   const expenseRows = (expenses: Expense[]) => (
     <ul className="panel-rows">
@@ -258,45 +251,77 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           {tab === 'overview' && Boolean(captures.data?.length) && (
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
-                {captures.data!.map((message) => (
-                  <ListRow
-                    key={message.id}
-                    meta={
-                      <>
-                        {message.suggestion.paymentLabel && `${message.suggestion.paymentLabel} · `}
-                        {message.suggestion.cardDigits && `•••• ${message.suggestion.cardDigits} · `}
-                        <span dir="auto">{message.text}</span>
-                      </>
-                    }
-                    title={message.suggestion.merchant ?? message.sender}
-                    trail={
-                      <>
-                        {message.suggestion.amountMinor !== null &&
-                          message.suggestion.currency && <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />}
-                        {editable && (
-                          <>
-                            <Button label="Add" onClick={() => setDialog({ capture: message })} />
-                            <ActionsMenu
-                              items={[
-                                {
-                                  label: 'Ignore',
-                                  onSelect: () =>
-                                    void action.run(async () => {
-                                      await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
-                                      captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
-                                      return `Ignored the message from ${message.suggestion.merchant ?? message.sender}.`;
-                                    }, 'Could not ignore the message'),
-                                },
-                                ...(message.suggestion.merchant ? [{ label: 'Always ignore', onSelect: () => setDialog({ ignoreMerchant: message }) }] : []),
-                              ]}
-                              name={message.suggestion.merchant ?? message.sender}
-                            />
-                          </>
-                        )}
-                      </>
-                    }
-                  />
-                ))}
+                {captures.data!.map((message) => {
+                  const suggested = message.suggestion;
+                  const name = suggested.title ?? suggested.merchant ?? message.sender;
+                  const ready = quickAdd(message);
+                  return (
+                    <ListRow
+                      key={message.id}
+                      meta={[
+                        formatDate(suggested.occurredOn ?? dayKey(new Date(message.receivedAt))),
+                        suggested.transfer
+                          ? `Transfer from ${accountName(suggested.transfer.fromAccountId) ?? 'Removed account'} to ${accountName(suggested.transfer.toAccountId) ?? 'Removed account'}?`
+                          : [
+                              suggested.direction === 'received' ? 'Received' : suggested.category ? categoryName(suggested.category) : 'No category',
+                              accountName(suggested.accountId) ?? 'No account',
+                            ].join(' · '),
+                        suggested.cardDigits && `•••• ${suggested.cardDigits}`,
+                        suggested.paymentLabel ?? message.sender,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      title={name}
+                      trail={
+                        <>
+                          {suggested.amountMinor !== null && suggested.currency && <Amount currency={suggested.currency} direction={suggested.direction} minor={suggested.amountMinor} />}
+                          {editable && (
+                            <>
+                              <Button
+                                label="Add"
+                                onClick={() =>
+                                  ready
+                                    ? void action.run(async () => {
+                                        await auth.request(`/captures/${message.id}/record`, { method: 'POST', body: JSON.stringify(ready) });
+                                        reload();
+                                        return `Added ${ready.title}.`;
+                                      }, 'Could not add the transaction')
+                                    : setDialog({ capture: message })
+                                }
+                              />
+                              <ActionsMenu
+                                items={[
+                                  { label: 'Edit and add', onSelect: () => setDialog({ capture: message }) },
+                                  { label: opened.includes(message.id) ? 'Hide message' : 'Show message', onSelect: () => toggleMessage(message.id) },
+                                  { label: 'Report parsing', onSelect: () => setDialog({ capture: message, report: true }) },
+                                  {
+                                    label: 'Ignore',
+                                    separated: true,
+                                    onSelect: () =>
+                                      void action.run(async () => {
+                                        await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                                        captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
+                                        return `Ignored the message from ${name}.`;
+                                      }, 'Could not ignore the message'),
+                                  },
+                                  ...(suggested.merchant ? [{ label: `Always ignore ${suggested.merchant}`, onSelect: () => setDialog({ ignoreAlways: message, by: 'merchant' }) }] : []),
+                                  { label: `Always ignore ${message.sender}`, onSelect: () => setDialog({ ignoreAlways: message, by: 'sender' }) },
+                                ]}
+                                name={name}
+                              />
+                            </>
+                          )}
+                        </>
+                      }
+                    >
+                      {opened.includes(message.id) && (
+                        <p className="m-0 text-small text-muted" dir="auto">
+                          {message.text}
+                        </p>
+                      )}
+                    </ListRow>
+                  );
+                })}
               </ul>
             </Section>
           )}
@@ -449,21 +474,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             </Section>
           )}
 
-          {tab === 'budgets' && Boolean(rules.data?.length) && (
-            <Section title="Merchant rules">
-              <ul className="panel-rows">
-                {rules.data!.map((rule) => (
-                  <ListRow
-                    key={rule.id}
-                    meta={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
-                    title={rule.match}
-                    trail={editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteRule: rule }) }]} name={rule.match} />}
-                  />
-                ))}
-              </ul>
-            </Section>
-          )}
-
           {tab === 'overview' && (
             <Section action={shown.expenses.length > recentCount && <ButtonLink label="All transactions" to={spendingHref('transactions', params)} />} title="Recent">
               {shown.expenses.length === 0 ? <Hint>No transactions this month yet.</Hint> : expenseRows(shown.expenses.slice(0, recentCount))}
@@ -493,7 +503,15 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
       )}
 
       {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
-        <ExpenseEditor accounts={accounts.data ?? []} capture={dialog.capture} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
+        <ExpenseEditor
+          accounts={accounts.data ?? []}
+          capture={dialog.capture}
+          currency={currency}
+          onClose={() => setDialog(undefined)}
+          onSaved={reload}
+          reportParsing={dialog.report}
+          spaceId={spaceId}
+        />
       )}
       {spaceId && typeof dialog === 'object' && 'account' in dialog && (
         <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
@@ -520,25 +538,21 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         />
       )}
       {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
-      {typeof dialog === 'object' && 'ignoreMerchant' in dialog && (
+      {typeof dialog === 'object' && 'ignoreAlways' in dialog && (
         <ConfirmDialog
           busyLabel="Ignoring…"
           confirmLabel="Always ignore"
-          errorFallback="Could not ignore the merchant"
+          errorFallback={`Could not ignore the ${dialog.by}`}
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/spaces/${spaceId}/merchant-rules`, {
-              method: 'POST',
-              body: JSON.stringify({ match: dialog.ignoreMerchant.suggestion.merchant!.toLowerCase(), ignore: true }),
-            });
-            await auth.request(`/captures/${dialog.ignoreMerchant.id}/ignore`, { method: 'POST' });
+            await auth.request(`/captures/${dialog.ignoreAlways.id}/ignore`, { method: 'POST', body: JSON.stringify({ always: dialog.by }) });
             reload();
-            action.report(`Ignored ${dialog.ignoreMerchant.suggestion.merchant} from now on.`);
+            action.report(`Ignored ${ignoredName(dialog)} from now on.`);
           }}
-          title={`Always ignore ${dialog.ignoreMerchant.suggestion.merchant}?`}
+          title={`Always ignore ${ignoredName(dialog)}?`}
           tone="danger"
         >
-          This message and every later one from {dialog.ignoreMerchant.suggestion.merchant} are skipped. You can delete the rule under Budgets.
+          This message and every later one {dialog.by === 'sender' ? 'from' : 'naming'} {ignoredName(dialog)} are skipped. You can delete the rule under Edit rules.
         </ConfirmDialog>
       )}
       {typeof dialog === 'object' && 'deleteAccount' in dialog && (
@@ -592,25 +606,26 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           Spending in this category is still tracked, without a limit.
         </ConfirmDialog>
       )}
-      {typeof dialog === 'object' && 'deleteRule' in dialog && (
-        <ConfirmDialog
-          busyLabel="Deleting…"
-          confirmLabel="Delete rule"
-          errorFallback="Could not delete the rule"
-          onClose={() => setDialog(undefined)}
-          onConfirm={async () => {
-            await auth.request(`/merchant-rules/${dialog.deleteRule.id}`, { method: 'DELETE' });
-            rules.mutate((current) => current.filter((shown) => shown.id !== dialog.deleteRule.id));
-            action.report(`Deleted the rule for ${dialog.deleteRule.match}.`);
-          }}
-          title={`Delete the rule for ${dialog.deleteRule.match}?`}
-          tone="danger"
-        >
-          Transactions it has already changed stay as they are.
-        </ConfirmDialog>
-      )}
     </SpendingFrame>
   );
+}
+
+const ignoredName = ({ ignoreAlways, by }: { ignoreAlways: CapturedMessage; by: 'sender' | 'merchant' }) => (by === 'sender' ? ignoreAlways.sender : ignoreAlways.suggestion.merchant);
+
+function quickAdd({ receivedAt, sender, suggestion }: CapturedMessage) {
+  const { amountMinor, currency, direction, transfer } = suggestion;
+  if (amountMinor === null || !currency || !direction) return null;
+  const base = { title: suggestion.title ?? suggestion.merchant ?? sender, amountMinor, currency, spentOn: suggestion.occurredOn ?? dayKey(new Date(receivedAt)), merchant: suggestion.merchant };
+  if (transfer) return { ...base, direction: 'transfer', accountId: transfer.fromAccountId, toAccountId: transfer.toAccountId, remember: true };
+  if (direction !== 'received' && !suggestion.category) return null;
+  return {
+    ...base,
+    direction,
+    ...(direction === 'received' ? {} : { category: suggestion.category }),
+    accountId: suggestion.accountId,
+    cardDigits: suggestion.cardDigits,
+    ...(suggestion.paymentLabel ? { paymentLabel: suggestion.paymentLabel } : {}),
+  };
 }
 
 function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: boolean; editable: boolean; shape: number[]; tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
@@ -644,7 +659,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
     );
   }
   if (tab === 'budgets') {
-    const [budgeted = 0, budgetRows = 0, ruleRows = 0, detailedRules = 0] = shape;
+    const [budgeted = 0, budgetRows = 0] = shape;
     return (
       <>
         <Section
@@ -668,11 +683,6 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
             <HintSkeleton />
           )}
         </Section>
-        {ruleRows > 0 && (
-          <Section title="Merchant rules">
-            <AmountRowsSkeleton detailed={detailedRules} rows={ruleRows} />
-          </Section>
-        )}
       </>
     );
   }

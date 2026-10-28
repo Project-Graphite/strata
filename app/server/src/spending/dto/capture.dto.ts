@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { CreateExpenseDto } from './spending.dto';
 
 const stampText = Transform(({ value }: { value: unknown }) => (typeof value === 'number' ? String(value) : value));
 
@@ -43,4 +44,30 @@ export class CaptureMessageDto {
   @IsString({ each: true })
   @Length(1, 60, { each: true })
   allowedChats?: string[];
+}
+
+export class RecordCaptureDto extends CreateExpenseDto {
+  @IsOptional()
+  @IsBoolean()
+  remember?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  report?: boolean;
+}
+
+export class IgnoreCaptureDto {
+  @IsOptional()
+  @IsIn(['sender', 'merchant'], { message: 'Ignore by sender or by merchant.' })
+  always?: 'sender' | 'merchant';
+}
+
+export class UpdateSenderRuleDto {
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose an account from the list.' })
+  accountId?: string;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose an account from the list.' })
+  toAccountId?: string;
 }
