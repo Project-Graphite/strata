@@ -1,6 +1,6 @@
-import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
@@ -17,11 +17,11 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
-import { DashboardGrid, useWide, type GridHandle } from './DashboardGrid';
+import { DashboardGrid } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
-import { gridColumns, inOrder, placed, sizeWidths } from './grid';
+import { gridColumns, placed, sizeWidths } from './grid';
 import { NowStrip } from './NowStrip';
-import { WidgetEmpty, WidgetHeading } from './widget-parts';
+import { useWide, WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
 import { clockTime, TimeField } from '../time';
@@ -99,13 +99,15 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
         {Settings && <Settings onChange={(settings) => onChange({ settings })} settings={widget.settings} />}
         <Fieldset className="gap-4" legend="Card">
           <TextField
+            hint="Clear the title to hide it."
             label="Title"
             maxLength={40}
-            onChange={(event) => onChange({ title: event.currentTarget.value.trim() ? event.currentTarget.value : undefined })}
-            placeholder={title}
-            value={widget.title ?? ''}
+            onChange={(event) => {
+              const typed = event.currentTarget.value;
+              onChange(typed.trim() ? { title: typed.trim() === title ? undefined : typed, hideTitle: undefined } : { title: undefined, hideTitle: true });
+            }}
+            value={widget.hideTitle ? '' : cardTitle(widget)}
           />
-          <Toggle checked={!widget.hideTitle} label="Show the title" onChange={(shown) => onChange({ hideTitle: shown ? undefined : true })} />
           <div className="grid gap-4 sm:grid-cols-3">
             <Select
               label="Accent"
@@ -130,20 +132,6 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
         </DialogActions>
       </div>
     </Dialog>
-  );
-}
-
-function swapWithNeighbour(widgets: PlacedWidget[], id: string, step: -1 | 1) {
-  const ordered = inOrder(widgets);
-  const index = ordered.findIndex((widget) => widget.id === id);
-  const neighbour = ordered[index + step]!;
-  const widget = ordered[index]!;
-  return widgets.map((shown) =>
-    shown.id === id
-      ? { ...shown, x: Math.min(neighbour.x, gridColumns - shown.w), y: neighbour.y }
-      : shown.id === neighbour.id
-        ? { ...shown, x: Math.min(widget.x, gridColumns - shown.w), y: widget.y }
-        : shown,
   );
 }
 
@@ -228,7 +216,6 @@ export function DashboardHome() {
   const [draft, setDraft] = useState<Layout>();
   const [history, setHistory] = useState<Layout[]>([]);
   const [settingsOpen, setSettingsOpen] = useState<string>();
-  const grid = useRef<GridHandle>(null);
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
@@ -310,7 +297,6 @@ export function DashboardHome() {
           <>
             <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
             <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
-            {wide && widgets.length > 1 && <Button icon="panel" label="Organise" large onClick={() => grid.current?.organize()} />}
             <Button
               disabled={history.length === 0}
               label="Undo"
@@ -362,14 +348,11 @@ export function DashboardHome() {
         <DashboardGrid
           card={(widget) => {
             const kind = widgetKinds[widget.type];
-            const index = inOrder(widgets).findIndex((shown) => shown.id === widget.id);
             const app = appCatalogue.find((entry) => entry.key === kind.app);
             const menu = editing && (
               <ActionsMenu
                 items={[
                   { label: 'Settings', onSelect: () => setSettingsOpen(widget.id) },
-                  ...(index > 0 ? [{ label: 'Move earlier', separated: true, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, -1) }) }] : []),
-                  ...(index < widgets.length - 1 ? [{ label: 'Move later', separated: index === 0, onSelect: () => change({ widgets: swapWithNeighbour(widgets, widget.id, 1) }) }] : []),
                   ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
                   ...(wide && widget.w > kind.minW ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
                   ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
@@ -408,8 +391,7 @@ export function DashboardHome() {
           editing={editing}
           key={current.id}
           label={cardTitle}
-          onChange={(next, replace) => (replace ? setDraft({ ...layout, widgets: next }) : change({ widgets: next }))}
-          ref={grid}
+          onChange={(next) => change({ widgets: next })}
           widgets={widgets}
         />
       )}

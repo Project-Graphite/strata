@@ -1,4 +1,4 @@
-import { widgetKinds, type PlacedWidget, type Widget, type WidgetSize } from './widgets';
+import { widgetKinds, type PlacedWidget, type Widget, type WidgetSize, type WidgetType } from './widgets';
 
 export const gridColumns = 12;
 export const rowPixels = 8;
@@ -58,76 +58,26 @@ export function inOrder<T extends Pick<Cell, 'x' | 'y'>>(cells: T[]) {
   return [...cells].sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
-const laneSplits: number[][] = (function split(left: number, lanes: number): number[][] {
-  if (left === 0) return [[]];
-  if (lanes === 0) return [];
-  return Array.from({ length: left - 2 }, (_, index) => index + 3).flatMap((width) => split(left - width, lanes - 1).map((rest) => [width, ...rest]));
-})(gridColumns, 4);
+const phonePriority: WidgetType[] = ['today', 'agenda', 'tasks', 'payments', 'spending', 'inbox', 'capture'];
 
-function widthCost(widget: PlacedWidget, width: number) {
-  const { maxW, size } = widgetKinds[widget.type];
-  return Math.abs(width - sizeWidths[size]) + 2 * Math.max(0, width - maxW);
+export function phoneOrder<T extends Pick<PlacedWidget, 'type' | 'x' | 'y'>>(widgets: T[]) {
+  const rank = (widget: T) => (phonePriority.includes(widget.type) ? phonePriority.indexOf(widget.type) : phonePriority.length);
+  return inOrder(widgets).sort((a, b) => rank(a) - rank(b));
 }
 
-export function stretched(widgets: PlacedWidget[], contentRows: (widget: PlacedWidget) => number): PlacedWidget[] {
-  const lanes = new Map<string, PlacedWidget[]>();
-  for (const widget of inOrder(widgets)) lanes.set(`${widget.x}/${widget.w}`, [...(lanes.get(`${widget.x}/${widget.w}`) ?? []), widget]);
-  const stacks = [...lanes.values()];
-  const heights = stacks.map((stack) => stack.reduce((total, widget) => total + contentRows(widget), 0));
-  const tallest = Math.max(0, ...heights);
-  return stacks.flatMap((stack, lane) => {
-    let spare = tallest - heights[lane]!;
-    let y = 0;
-    return stack.map((widget, index) => {
-      const rows = contentRows(widget);
-      const extra = index === stack.length - 1 ? spare : Math.round((spare * rows) / stack.slice(index).reduce((total, rest) => total + contentRows(rest), 0));
-      spare -= extra;
-      const at = { ...widget, y, h: extra > 0 ? rows + extra : null };
-      y += rows + extra;
-      return at;
-    });
-  });
-}
+export const pixelsOf = (rows: number) => rows * (rowPixels + gapPixels) - gapPixels;
 
-export function organized(widgets: PlacedWidget[], contentRows: (widget: PlacedWidget) => number): PlacedWidget[] {
+export function swapWithNeighbour(widgets: PlacedWidget[], id: string, step: -1 | 1) {
   const ordered = inOrder(widgets);
-  let best: { score: number; widths: number[]; lanes: PlacedWidget[][] } | undefined;
-  for (const widths of laneSplits) {
-    const lanes = widths.map((): PlacedWidget[] => []);
-    const heights = widths.map(() => 0);
-    let mismatch = 0;
-    for (const widget of ordered) {
-      let lane = -1;
-      let cost = Infinity;
-      widths.forEach((width, index) => {
-        const candidate = heights[index]! + contentRows(widget) + 2 * widthCost(widget, width);
-        if (width >= widgetKinds[widget.type].minW && candidate < cost) {
-          cost = candidate;
-          lane = index;
-        }
-      });
-      if (lane < 0) break;
-      lanes[lane]!.push(widget);
-      heights[lane]! += contentRows(widget);
-      mismatch += widthCost(widget, widths[lane]!) * contentRows(widget);
-    }
-    if (lanes.some((stack) => stack.length === 0) || lanes.flat().length < ordered.length) continue;
-    const tallest = Math.max(...heights);
-    const score = tallest * gridColumns + mismatch + heights.reduce((total, height, index) => total + (tallest - height) * widths[index]!, 0) / 2;
-    if (!best || score < best.score) best = { score, widths, lanes };
-  }
-  if (!best) return widgets;
-  const { lanes, widths } = best;
-  let x = 0;
-  const arranged = lanes.flatMap((stack, index) => {
-    const at = x;
-    x += widths[index]!;
-    let y = 0;
-    return stack.map((widget) => {
-      const placedAt = { ...widget, x: at, y, w: widths[index]!, h: null };
-      y += contentRows(widget);
-      return placedAt;
-    });
-  });
-  return stretched(arranged, contentRows);
+  const index = ordered.findIndex((widget) => widget.id === id);
+  const neighbour = ordered[index + step];
+  if (!neighbour) return widgets;
+  const widget = ordered[index]!;
+  return widgets.map((shown) =>
+    shown.id === id
+      ? { ...shown, x: Math.min(neighbour.x, gridColumns - shown.w), y: neighbour.y }
+      : shown.id === neighbour.id
+        ? { ...shown, x: Math.min(widget.x, gridColumns - shown.w), y: widget.y }
+        : shown,
+  );
 }

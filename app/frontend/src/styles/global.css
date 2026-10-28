@@ -1534,24 +1534,51 @@ button.habit-day::before {
   cursor: grabbing;
 }
 
+.dashboard-card-editing:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.dashboard-grid-guides {
+  background-image: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-ink) 5%, transparent) 0 calc((100% - 11 * var(--grid-gap)) / 12),
+    transparent calc((100% - 11 * var(--grid-gap)) / 12) calc((100% - 11 * var(--grid-gap)) / 12 + var(--grid-gap))
+  );
+}
+
 .dashboard-resize {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 14px;
-  height: 14px;
-  border-right: 2px solid var(--color-muted);
-  border-bottom: 2px solid var(--color-muted);
-  border-bottom-right-radius: var(--radius-field);
+  right: 0;
+  bottom: 0;
+  width: 2rem;
+  height: 2rem;
+  border-bottom-right-radius: var(--radius-card);
+  background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--color-muted) 35%, transparent) 50%);
   cursor: nwse-resize;
   touch-action: none;
 }
 
-@media (pointer: coarse) {
-  .dashboard-resize {
-    width: 2rem;
-    height: 2rem;
-  }
+.dashboard-resize:hover,
+.dashboard-resize:focus-visible {
+  background: linear-gradient(135deg, transparent 50%, var(--color-muted) 50%);
+}
+
+.dashboard-resize:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.dashboard-resize-size {
+  position: absolute;
+  right: 2.25rem;
+  bottom: 0.5rem;
+  border-radius: var(--radius-field);
+  background: var(--color-raised);
+  padding: 0.125rem 0.5rem;
+  color: var(--color-ink);
+  font-size: var(--text-small);
+  white-space: nowrap;
 }
 
 .dashboard-empty {

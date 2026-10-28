@@ -10,7 +10,7 @@ import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { ShowAll, SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -136,20 +136,23 @@ export function Goals() {
   }
   if (goals.data.length === 0) return <WidgetEmpty action={<ButtonLink label="Set a goal" to="/goals" />} icon="target" title="No goals yet" />;
   return (
-    <ul className="m-0 grid list-none gap-3 p-0">
-      {goals.data.slice(0, 4).map((goal) => (
-        <li className="grid gap-1" key={goal.id}>
-          <span className="flex justify-between gap-3 text-sm">
-            <Link className="min-w-0 truncate text-ink no-underline hover:underline" to={`/goals/${goal.id}`}>
-              {goal.title}
-            </Link>
-            <span className="mono-sm shrink-0 text-faint">{periodLabel(goal.period, goal.startsOn)}</span>
-          </span>
-          {goal.progress !== null && <Meter label={`${goal.title} progress`} value={goal.progress} />}
-          <span className="mono-sm text-faint">{progressText(goal)}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-3">
+      <ul className="m-0 grid list-none gap-3 p-0">
+        {goals.data.slice(0, 4).map((goal) => (
+          <li className="grid gap-1" key={goal.id}>
+            <span className="flex justify-between gap-3 text-sm">
+              <Link className="min-w-0 truncate text-ink no-underline hover:underline" to={`/goals/${goal.id}`}>
+                {goal.title}
+              </Link>
+              <span className="mono-sm shrink-0 text-faint">{periodLabel(goal.period, goal.startsOn)}</span>
+            </span>
+            {goal.progress !== null && <Meter label={`${goal.title} progress`} value={goal.progress} />}
+            <span className="mono-sm text-faint">{progressText(goal)}</span>
+          </li>
+        ))}
+      </ul>
+      {goals.data.length > 4 && <ShowAll count={goals.data.length} href="/goals" />}
+    </div>
   );
 }
 
@@ -199,18 +202,21 @@ export function Birthdays() {
   const coming = people.data.filter((person) => person.nextBirthday).sort((a, b) => a.nextBirthday!.localeCompare(b.nextBirthday!));
   if (coming.length === 0) return <WidgetEmpty action={<ButtonLink label="Add someone" to="/people" />} icon="gift" title="No birthdays coming up" />;
   return (
-    <ul className="m-0 grid list-none gap-2.5 p-0">
-      {coming.slice(0, 5).map((person) => (
-        <li key={person.id}>
-          <Link className="flex items-center gap-2.5 no-underline" to={`/people/${person.id}`}>
-            <Avatar name={person.name} size="sm" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm text-ink">{person.name}</span>
-              <span className="mono-sm block truncate text-faint">{nextBirthdayText(person, today)}</span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-2.5">
+      <ul className="m-0 grid list-none gap-2.5 p-0">
+        {coming.slice(0, 5).map((person) => (
+          <li key={person.id}>
+            <Link className="flex items-center gap-2.5 no-underline" to={`/people/${person.id}`}>
+              <Avatar name={person.name} size="sm" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm text-ink">{person.name}</span>
+                <span className="mono-sm block truncate text-faint">{nextBirthdayText(person, today)}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {coming.length > 5 && <ShowAll count={coming.length} href="/people" />}
+    </div>
   );
 }
