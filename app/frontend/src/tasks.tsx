@@ -3,6 +3,7 @@ import { Avatar, Badge, Button, Checkbox, ListRow, Pagination } from '@project-g
 import type { Page as ResultPage } from './api';
 import type { useAuth } from './auth';
 import { FilterChips } from './components/Page';
+import type { Tag } from './spaces';
 import { formatDate, profileDay } from './time';
 
 export interface Task {
@@ -18,6 +19,9 @@ export interface Task {
   reminderMinutes: number | null;
   priority: number;
   position: number;
+  status: 'open' | 'in_progress' | 'done';
+  labels: Tag[];
+  subtaskCounts: { total: number; done: number };
   assignee: { id: string; handle: string; displayName: string } | null;
   completedAt: string | null;
   createdAt: string;

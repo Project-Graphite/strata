@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { ItemKind, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { ItemKind, Prisma, TaskStatus } from '@prisma/client';
+import { type Access, AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
 import { InboxService } from '../inbox/inbox.service';
@@ -9,7 +9,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
-import { CreateListDto, CreateTaskDto, ListTasksDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { presentTag, tagFields } from '../tags/tags.service';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { positionBetween, positionGap } from './task-position';
+import { statusFields, statusOf } from './task-status';
 
 const pageSize = 100;
 const reminderKind = 'task.reminder';
@@ -22,6 +25,8 @@ const taskFields = {
   createdAt: true,
   updatedAt: true,
   trashedAt: true,
+  tags: { select: { tag: { select: tagFields } }, orderBy: { tag: { name: 'asc' } } },
+  subtasks: { where: { item: { trashedAt: null } }, select: { completedAt: true } },
   task: {
     select: {
       listId: true,
@@ -33,14 +38,16 @@ const taskFields = {
       reminderMinutes: true,
       priority: true,
       position: true,
+      status: true,
       completedAt: true,
       assignee: { select: { id: true, handle: true, displayName: true } },
     },
   },
 } satisfies Prisma.ItemSelect;
 
-type TaskRow = Prisma.ItemGetPayload<{ select: typeof taskFields }>;
+const detailFields = { ...taskFields, task: { select: { ...taskFields.task.select, description: true } } } satisfies Prisma.ItemSelect;
 
+type TaskRow = Prisma.ItemGetPayload<{ select: typeof taskFields }>;
 
 function present(row: TaskRow) {
   const task = row.task!;
@@ -57,6 +64,9 @@ function present(row: TaskRow) {
     reminderMinutes: task.reminderMinutes,
     priority: task.priority,
     position: task.position,
+    status: task.status.toLowerCase(),
+    labels: row.tags.map(({ tag }) => presentTag(tag)),
+    subtaskCounts: { total: row.subtasks.length, done: row.subtasks.filter((subtask) => subtask.completedAt).length },
     assignee: task.assignee,
     completedAt: task.completedAt,
     createdAt: row.createdAt,
@@ -143,7 +153,15 @@ export class TasksService implements OnModuleInit {
           title: input.title,
           createdById: userId,
           updatedById: userId,
-          task: { create: { ...fields, timeZone: fields.timeZone ?? user.timeZone } },
+          task: {
+            create: {
+              ...fields,
+              ...statusFields(input.status ? statusOf(input.status) : TaskStatus.OPEN, null),
+              timeZone: fields.timeZone ?? user.timeZone,
+              assigneeId: input.assigneeId === undefined ? userId : input.assigneeId,
+              position: input.position ?? Date.now(),
+            },
+          },
         },
         select: { id: true },
       });
@@ -220,9 +238,57 @@ export class TasksService implements OnModuleInit {
 
   async get(userId: string, itemId: string) {
     await this.access.assertItem(userId, itemId, 'read');
-    const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: taskFields });
+    const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: detailFields });
     if (!row.task) throw new NotFoundException('That item is not a task');
-    return present(row);
+    const subtasks = await this.prisma.item.findMany({
+      where: { kind: ItemKind.TASK, trashedAt: null, task: { parentId: itemId } },
+      orderBy: [{ task: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
+      select: taskFields,
+    });
+    return { ...present(row), description: row.task.description, subtasks: subtasks.map(present) };
+  }
+
+  async assertTask(userId: string, itemId: string, access: Access) {
+    const found = await this.access.assertItem(userId, itemId, access);
+    if (!(await this.prisma.task.count({ where: { itemId } }))) throw new NotFoundException('That item is not a task');
+    if (access !== 'read' && found.trashedAt) throw new BadRequestException('Restore this task from the trash before changing it');
+    return found;
+  }
+
+  async activityOf(userId: string, itemId: string, page: number) {
+    await this.assertTask(userId, itemId, 'read');
+    return this.activity.ofItem(itemId, page);
+  }
+
+  async move(userId: string, itemId: string, input: MoveTaskDto) {
+    const { spaceId } = await this.assertTask(userId, itemId, 'edit');
+    const neighbourIds = [input.previousId, input.nextId].filter((id): id is string => Boolean(id));
+    if (neighbourIds.includes(itemId)) throw new BadRequestException('Place the task next to a different task');
+    await this.prisma.$transaction(async (transaction) => {
+      const between = async () => {
+        const neighbours = await transaction.task.findMany({ where: { itemId: { in: neighbourIds }, item: { spaceId, trashedAt: null } }, select: { itemId: true, position: true } });
+        if (neighbours.length !== neighbourIds.length) throw new BadRequestException('Choose tasks from this space');
+        const positionOf = (id?: string | null) => neighbours.find((neighbour) => neighbour.itemId === id)?.position ?? null;
+        return positionBetween(positionOf(input.previousId), positionOf(input.nextId));
+      };
+      let position = await between();
+      if (position === null) {
+        await transaction.$executeRaw`
+          UPDATE "tasks" SET "position" = "ranked"."rank" * ${positionGap}
+          FROM (
+            SELECT "tasks"."item_id", row_number() OVER (ORDER BY "tasks"."position", "items"."created_at", "items"."id") AS "rank"
+            FROM "tasks" JOIN "items" ON "items"."id" = "tasks"."item_id"
+            WHERE "items"."space_id" = ${spaceId}::uuid
+          ) AS "ranked"
+          WHERE "tasks"."item_id" = "ranked"."item_id"`;
+        position = await between();
+      }
+      if (position === null) throw new BadRequestException('Those tasks are not next to each other');
+      await transaction.task.update({ where: { itemId }, data: { position } });
+      await transaction.item.update({ where: { id: itemId }, data: { updatedById: userId } });
+    });
+    this.changes.notify('tasks', { spaceId });
+    return this.get(userId, itemId);
   }
 
   async update(userId: string, itemId: string, input: UpdateTaskDto) {
@@ -247,6 +313,7 @@ export class TasksService implements OnModuleInit {
           data: { title: input.title, renamedFrom: item.title },
         });
       }
+      if (input.status) await this.changeStatus(transaction, userId, itemId, statusOf(input.status));
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
     });
     this.changes.notify('tasks', { spaceId: item.spaceId });
@@ -256,22 +323,9 @@ export class TasksService implements OnModuleInit {
   async complete(userId: string, itemId: string) {
     const item = await this.editableTask(userId, itemId);
     if (item.task.completedAt) return this.get(userId, itemId);
-    const next = this.nextOccurrence(item.task);
     await this.prisma.$transaction(async (transaction) => {
-      await transaction.task.update({
-        where: { itemId },
-        data: next
-          ? { dueDate: dateValue(next.date), repeatRule: next.rule }
-          : { completedAt: new Date() },
-      });
+      await this.changeStatus(transaction, userId, itemId, TaskStatus.DONE);
       await transaction.item.update({ where: { id: itemId }, data: { updatedById: userId } });
-      await this.activity.record(transaction, {
-        spaceId: item.spaceId,
-        actorId: userId,
-        itemId,
-        verb: 'task.completed',
-        data: { title: item.title, ...(next ? { nextDue: next.date } : {}) },
-      });
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
     });
     return this.get(userId, itemId);
@@ -280,11 +334,34 @@ export class TasksService implements OnModuleInit {
   async reopen(userId: string, itemId: string) {
     const item = await this.editableTask(userId, itemId);
     await this.prisma.$transaction(async (transaction) => {
-      await transaction.task.update({ where: { itemId }, data: { completedAt: null } });
-      await this.activity.record(transaction, { spaceId: item.spaceId, actorId: userId, itemId, verb: 'task.reopened', data: { title: item.title } });
+      await this.changeStatus(transaction, userId, itemId, TaskStatus.OPEN);
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
     });
     return this.get(userId, itemId);
+  }
+
+  private async changeStatus(transaction: Prisma.TransactionClient, userId: string, itemId: string, status: TaskStatus) {
+    const { spaceId, title, task } = await transaction.item.findUniqueOrThrow({
+      where: { id: itemId },
+      select: { spaceId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true, repeatRule: true, status: true, completedAt: true } } },
+    });
+    const current = task!;
+    if (status === current.status) return;
+    const next = status === TaskStatus.DONE ? this.nextOccurrence(current) : null;
+    await transaction.task.update({
+      where: { itemId },
+      data: next ? { dueDate: dateValue(next.date), repeatRule: next.rule, ...statusFields(TaskStatus.OPEN, null) } : statusFields(status, current.completedAt),
+    });
+    await this.activity.record(transaction, {
+      spaceId,
+      actorId: userId,
+      itemId,
+      ...(status === TaskStatus.DONE
+        ? { verb: 'task.completed', data: { title, ...(next ? { nextDue: next.date } : {}) } }
+        : current.status === TaskStatus.DONE
+          ? { verb: 'task.reopened', data: { title } }
+          : { verb: 'item.updated', data: { title, status: status.toLowerCase() } }),
+    });
   }
 
   private nextOccurrence(task: { dueDate: Date | null; dueTime: string | null; timeZone: string; repeatRule: string | null }) {
@@ -306,8 +383,7 @@ export class TasksService implements OnModuleInit {
   }
 
   private async editableTask(userId: string, itemId: string) {
-    const found = await this.access.assertItem(userId, itemId, 'edit');
-    if (found.trashedAt) throw new BadRequestException('Restore this task from the trash before changing it');
+    await this.assertTask(userId, itemId, 'edit');
     const item = await this.prisma.item.findUniqueOrThrow({
       where: { id: itemId },
       select: {
@@ -355,6 +431,7 @@ export class TasksService implements OnModuleInit {
       assigneeId: input.assigneeId,
       priority: input.priority,
       position: input.position,
+      description: input.description === null ? Prisma.DbNull : (input.description as Prisma.InputJsonObject | undefined),
     };
   }
 

@@ -83,7 +83,7 @@ export function TaskEditor({
             .run(async () => {
               const saved = await auth.request<Task>(task ? `/tasks/${task.id}` : `/spaces/${spaceId}/tasks`, {
                 method: task ? 'PATCH' : 'POST',
-                body: JSON.stringify(task ? fields : Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null && value !== 0))),
+                body: JSON.stringify(task ? fields : { ...Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null && value !== 0)), assigneeId: fields.assigneeId }),
               });
               const tagIds = tags.filter((tag) => quick?.tagNames.includes(tag.name)).map((tag) => tag.id);
               if (tagIds.length) await auth.request(`/items/${saved.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
@@ -128,7 +128,7 @@ export function TaskEditor({
               options={[{ value: '', label: 'No list' }, ...lists.map((list) => ({ value: list.id, label: list.title }))]}
             />
             <Select
-              defaultValue={task?.assignee?.id ?? ''}
+              defaultValue={task ? (task.assignee?.id ?? '') : (auth.user?.id ?? '')}
               disabled={!editable}
               label="Assigned to"
               name="assigneeId"

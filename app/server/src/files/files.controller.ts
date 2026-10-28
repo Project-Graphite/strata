@@ -41,6 +41,14 @@ function fileName(encoded: string | undefined) {
   return cleaned;
 }
 
+export function uploadedFile(request: Request, encodedName: string | undefined) {
+  if (request.is('application/json') || request.is('application/x-www-form-urlencoded')) {
+    throw new BadRequestException('Send the file itself as the request body');
+  }
+  const name = fileName(encodedName);
+  return async () => ({ name, data: await readBody(request, maxFileBytes, 'Files can be at most 25 MB') });
+}
+
 @Controller()
 export class FilesController {
   constructor(
@@ -57,11 +65,11 @@ export class FilesController {
     @Headers('x-file-name') name: string | undefined,
     @Req() request: Request,
   ) {
-    if (request.is('application/json') || request.is('application/x-www-form-urlencoded')) {
-      throw new BadRequestException('Send the file itself as the request body');
-    }
-    const cleanedName = fileName(name);
-    return this.uploads.run(user.id, async () => this.files.upload(user.id, spaceId, cleanedName, await readBody(request, maxFileBytes, 'Files can be at most 25 MB')));
+    const read = uploadedFile(request, name);
+    return this.uploads.run(user.id, async () => {
+      const file = await read();
+      return this.files.upload(user.id, spaceId, file.name, file.data);
+    });
   }
 
   @Get('me/storage')

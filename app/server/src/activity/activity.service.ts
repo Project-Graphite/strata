@@ -74,10 +74,18 @@ export class ActivityService {
 
   async list(userId: string, spaceId: string, page: number) {
     await this.access.assertSpace(userId, spaceId, 'read');
+    return this.page({ spaceId }, page);
+  }
+
+  ofItem(itemId: string, page: number) {
+    return this.page({ itemId }, page);
+  }
+
+  private async page(where: Prisma.ActivityEventWhereInput, page: number) {
     const [total, events] = await this.prisma.$transaction([
-      this.prisma.activityEvent.count({ where: { spaceId } }),
+      this.prisma.activityEvent.count({ where }),
       this.prisma.activityEvent.findMany({
-        where: { spaceId },
+        where,
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,

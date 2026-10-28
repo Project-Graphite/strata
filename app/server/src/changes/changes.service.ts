@@ -6,7 +6,7 @@ import type { RedisClientType } from 'redis';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
-export type Topic = 'items' | 'tasks' | 'subscriptions' | 'spaces' | 'inbox' | 'spending' | 'habits' | 'journal' | 'dashboards' | 'pages' | 'page-details' | 'page-comments' | 'page-databases';
+export type Topic = 'items' | 'tasks' | 'subscriptions' | 'spaces' | 'inbox' | 'spending' | 'habits' | 'journal' | 'dashboards' | 'pages' | 'page-details' | 'page-comments' | 'page-databases' | 'task-details';
 
 export interface Change {
   spaceId?: string;

@@ -18,6 +18,8 @@ export class UsersService {
       tidySummary: user.tidySummary,
       weeklyReview: user.weeklyReview,
       homeCurrency: user.homeCurrency,
+      weekStart: user.weekStart,
+      weekendDays: user.weekendDays,
       features: user.features,
       role: user.role.toLowerCase(),
     };
@@ -33,6 +35,8 @@ export class UsersService {
         tidySummary: input.tidySummary,
         weeklyReview: input.weeklyReview,
         homeCurrency: input.homeCurrency,
+        weekStart: input.weekStart,
+        weekendDays: input.weekendDays?.toSorted((first, second) => first - second),
         features: input.features,
       },
     });
