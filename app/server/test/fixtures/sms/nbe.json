@@ -1,0 +1,76 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "National Bank of Egypt",
+  "messages": [
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم خصم 250.00جم من بطاقة الخصم المباشر رقم ****1234 لدى SAMPLE MARKET MAADI في 14/10 13:45 المتاح 9,750.00جم",
+      "expect": { "direction": "spent", "amount": 250, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET MAADI", "available": 9750, "movement": "purchase", "occurredOn": null }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم خصم 1,250.00 جم من بطاقة الائتمان رقم ****5678 لدى SAMPLE ONLINE.EG في 21/10/2026 20:15 المتاح 38,750.00 جم",
+      "expect": { "direction": "spent", "amount": 1250, "currency": "EGP", "cardDigits": "5678", "merchant": "SAMPLE ONLINE.EG", "available": 38750, "movement": "purchase", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم خصم 450.00 جم من حسابك ****1234 لدى sample@instapay المتاح 8,000.00 جم",
+      "expect": { "direction": "spent", "amount": 450, "currency": "EGP", "cardDigits": "1234", "merchant": "sample@instapay", "available": 8000, "movement": "purchase" }
+    },
+    {
+      "sender": "NBE",
+      "text": "تم سحب 3,000.00 جم من بطاقة الخصم المباشر رقم ****1234 من ماكينة الصراف NBE SAMPLE BRANCH في 16/10/2026 11:05 المتاح 6,750.00 جم",
+      "expect": { "direction": "spent", "amount": 3000, "currency": "EGP", "cardDigits": "1234", "merchant": "NBE SAMPLE BRANCH", "available": 6750, "movement": "atm", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم إضافة تحويل لحظي بمبلغ 1500 جم إلى حسابك رقم ****5678 من AHMED SAMPLE برقم مرجعي 123456789",
+      "expect": { "direction": "received", "amount": 1500, "currency": "EGP", "cardDigits": "5678", "merchant": "AHMED SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم تنفيذ تحويل لحظي بمبلغ 500 جم من حسابك رقم ****1234 إلى MONA SAMPLE بتاريخ 24/10/2026 13:45",
+      "expect": { "direction": "spent", "amount": 500, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-24" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم إيداع راتب بمبلغ 18,000.00 جم في حسابك رقم ****1234 بتاريخ 25/10/2026 الرصيد المتاح 24,750.00 جم",
+      "expect": { "direction": "received", "amount": 18000, "currency": "EGP", "cardDigits": "1234", "available": 24750, "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم استلام سداد بمبلغ 4,000.00 جم لبطاقة الائتمان رقم ****9876 بتاريخ 18/10/2026 الحد المتاح 40,000.00 جم",
+      "expect": { "direction": "received", "amount": 4000, "currency": "EGP", "cardDigits": "9876", "available": 40000, "movement": "card_payment", "occurredOn": "2026-10-18" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم سداد فاتورة SAMPLE INTERNET بمبلغ 300.00 جم من حسابك رقم ****1234 بتاريخ 21/10/2026",
+      "expect": { "direction": "spent", "amount": 300, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE INTERNET", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "BanK-AlAhly",
+      "text": "تم خصم 5.00 جم رسوم خدمة الرسائل القصيرة من حسابك رقم ****1234 بتاريخ 23/10/2026",
+      "expect": { "direction": "spent", "amount": 5, "currency": "EGP", "cardDigits": "1234", "movement": "fee", "occurredOn": "2026-10-23" }
+    },
+    {
+      "sender": "NBE",
+      "text": "Dear Customer, your NBE debit card ****1234 was used for a purchase of EGP 640.00 at SAMPLE STORE on 19/10/2026 14:30. Available balance EGP 6,110.00",
+      "expect": { "direction": "spent", "amount": 640, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 6110, "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "NBE",
+      "text": "EGP 2,000.00 has been transferred from your account ****1234 to MONA SAMPLE on 20/10/2026. Ref 987654321",
+      "expect": { "direction": "spent", "amount": 2000, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "NBE",
+      "text": "Your account ****1234 has been credited with EGP 750.00 on 22/10/2026. Available balance EGP 6,860.00",
+      "expect": { "direction": "received", "amount": 750, "currency": "EGP", "cardDigits": "1234", "available": 6860, "movement": "income", "occurredOn": "2026-10-22" }
+    },
+    { "sender": "BanK-AlAhly", "text": "رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد", "expect": { "ignored": "code" } },
+    { "sender": "NBE", "text": "Your NBE OTP is 573920. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "BanK-AlAhly", "text": "استمتع بخصم 15% على مشترياتك ببطاقات البنك الأهلي حتى 31/12/2026", "expect": { "ignored": "promotion" } },
+    { "sender": "BanK-AlAhly", "text": "رصيدك الحالي 1,200.00 جم", "expect": { "ignored": "notice" } },
+    { "sender": "NBE", "text": "Your transaction of EGP 500 at SAMPLE STORE was declined", "expect": { "ignored": "declined" } }
+  ]
+}

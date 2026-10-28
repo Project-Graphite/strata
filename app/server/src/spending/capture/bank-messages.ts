@@ -12,8 +12,10 @@ export type ReadMessage =
       available: number | null;
     };
 
-const currencyToken = String.raw`(EGP|USD|EUR|GBP|SAR|AED|KWD|QAR|L\.?E\.?|\$|€|£|ج\.م\.?|جم|جنيه(?:اً|ا|ات)?(?: مصري)?|دولار(?: أمريكي)?|يورو|ريال(?: سعودي)?|درهم(?: إماراتي)?)`;
-const number = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)`;
+export const currencyWords = String.raw`EGP|USD|EUR|GBP|SAR|AED|KWD|QAR|L\.?E\.?|\$|€|£|ج\.م\.?|جم|جنيه(?:اً|ا|ات)?(?: مصري)?|دولار(?: أمريكي)?|يورو|ريال(?: سعودي)?|درهم(?: إماراتي)?`;
+export const amountDigits = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;
+const currencyToken = `(${currencyWords})`;
+const number = `(${amountDigits})`;
 const mention = new RegExp(String.raw`${currencyToken}\s?${number}|${number}\s?${currencyToken}`, 'gi');
 const bareAmount = new RegExp(String.raw`(?:amount|amt|مبلغ|بمبلغ|بقيمة|قيمة)\s*(?:of\s*)?${number}`, 'i');
 const startsWithCurrency = new RegExp(`^${currencyToken}`, 'i');
@@ -31,6 +33,7 @@ const currencyCodes: [RegExp, string][] = [
 
 const codeWords = /\b(otp|one[- ]time|verification|passcode|password|pin|code)\b|رمز|كود|كلمة (?:السر|المرور)|الرقم السري/i;
 const codeNearby = /(?:\b(?:otp|code|passcode|pin)\b|رمز|كود)[^\d]{0,20}\d{4,8}(?!\d)|(?<!\d)\d{4,8}[^\d]{0,12}(?:is your|هو رمز|رمز)/i;
+const otpNearby = /(?:\b(?:otp|passcode|one[- ]time (?:password|code))\b|رمز التحقق|كلمة المرور)[^\d]{0,20}\d{4,8}(?!\d)|(?<!\d)\d{4,8}[^\d]{0,12}(?:is your|هو رمز)/i;
 const declinedWords = /declined|rejected|unsuccessful|failed|insufficient|not completed|مرفوض|رفض|لم تتم|غير ناجح|فشل/i;
 const paymentRequestWords =
   /\brequest(?:ed|s|ing)?\b.*?\b(?:from you|money|payment)\b|\b(?:payment|money|collect|transfer) request\b|\brequested\s+(?:EGP|USD|EUR|GBP|SAR|AED|KWD|QAR|L\.?E\.?|\$|€|£|\d)|طلب (?:دفع|تحصيل|تحويل|سداد|أموال|اموال)|يطلب منك/i;
@@ -43,11 +46,14 @@ const receivedWords =
   /credited|received|deposit|salary|incoming|added to|to your (?:[a-z]{3}\s+)?(?:account|card|wallet)|sent you|paid you|transferred to you|تم إضافة|تم اضافة|تم إيداع|تم ايداع|إيداع|ايداع|استلام|استلمت|وصلك|وصلتك|وصل لك|حول لك|أرسل لك|ارسل لك|وارد|راتب|إلى حسابك|الى حسابك|لحسابك|إلى محفظتك|الى محفظتك/i;
 const spentWords = /debited|charged|deducted|purchase|paid|payment|spent|withdraw|was used|has been used|authorized|sent|transfer|recharge|خصم|شراء|سحب|دفع|سداد|تحويل|حولت|شحن/i;
 const balanceBefore =
-  /(?:available(?: balance| limit| credit(?: limit)?)?|avail\.?(?: bal\.?)?|(?:current |new |remaining )?balance(?: is)?|bal\.?|المتاح(?: هو)?|متاح|الرصيد(?: المتاح| الحالي)?|رصيدك(?: الحالي| المتاح)?|رصيد)\s*(?:is|:|=|هو|-)?\s*$/i;
-const cardDigits = /(?:\*{2,}|x{2,}|#|ending(?: with| in)?|ends with|المنتهي(?:ة)? ب(?:ـ)?|المنتهية|رقم)\s*(\d{4})(?!\d)/i;
+  /(?:available(?: balance| limit| credit(?: limit)?)?|avail\.?(?: bal\.?)?|(?:current |new |remaining )?balance(?: is)?|bal\.?|المتاح(?: هو)?|متاح|الرصيد(?: المتاح| الحالي)?|رصيدك(?: الحالي| المتاح)?|رصيد)\s*(?:is|:|=|هو|-)?\s*(?:now|الآن|الان)?\s*$/i;
+const sideBefore = /(?:\bfees?|commission|\brate|equivalent(?: to)?|رسوم|عمولة|مصاريف|سعر الصرف|يعادل)\s*(?:of|:|-)?\s*$|=\s*$/i;
+const cardDigits = /(?:\*+|x{2,}|#|card (?:no\.?|number)|ending(?: with| in)?|ends with|المنتهي(?:ة)? ب(?:ـ)?|المنتهية|رقم)\s*(\d{4})(?!\d)/i;
 const merchantAfter = [
-  /(?:لدى|لدي|عند)\s+(.+?)(?=\s+(?:في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|بنجاح|عبر|عن طريق)\s|\s+(?:بنجاح|عبر|عن طريق)$|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/g,
+  /(?:لدى|لدي|عند|لصالح)\s+(.+?)(?=\s+(?:في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|بنجاح|عبر|عن طريق)\s|\s+(?:بنجاح|عبر|عن طريق)$|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/g,
   /\bat\s+(.+?)(?=\s+(?:on|at|from|to|into|in|dated|date|for|via|ref|avail|available|balance|with|using|card|completed|succeeded|successfully|was)\b|\s+\d{1,2}[/.-]\d|[,;]|\.\s|\.$|$)/gi,
+  /\b(?:bill )?payment for\s+(.+?)(?=\s+(?:on|of|from|to|via|ref|with|using|was|has|is)\b|\s+\d{1,2}[/.-]\d|[,;]|\.\s|\.$|$)/gi,
+  new RegExp(String.raw`\b(?:pos|purchase)\s*[-–—]\s*(?:(?:(?:${currencyWords})\s?[\d,.]+|[\d,.]+\s?(?:${currencyWords}))\s*[-–—]\s*)?([^-–—]+?)\s*[-–—]`, 'gi'),
   /(?:^(?:(?:paypal|instapay|nsave)\s*[:\-–—]\s*)?|[.!?]\s+)([A-Za-z\u0600-\u06ff][\p{L}\p{N}.'’&_-]*(?:\s+[\p{L}\p{N}.'’&_-]+){0,4})\s+(?:sent you|paid you|transferred to you|حول لك|أرسل لك|ارسل لك)\b/giu,
   /(?:\bfrom|\bto|من|إلى|الى)\s+(.+?)(?=\s+(?:on|at|from|to|into|in|dated|date|for|via|ref|avail|available|balance|with|using|card|completed|succeeded|successfully|was|في|بتاريخ|يوم|المتاح|الرصيد|رصيد|رقم|برقم|مرجع|من|إلى|الى|بنجاح|عبر|عن طريق|لحسابك)(?:\s|$)|\s+\d{1,2}[/.-]\d|[،,;]|\.\s|\.$|$)/gi,
 ];
@@ -59,25 +65,41 @@ export function normalise(text: string) {
     .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x6f0))
     .replace(/\u066b/g, '.')
     .replace(/\u066c/g, ',')
-    .replace(/[\u200e\u200f\u061c]/g, '')
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\u061c\ufeff]/g, '')
     .replace(/(\d)(?=[A-Za-z\u0600-\u06ff$€£])/g, '$1 ')
     .replace(/([A-Za-z\u0600-\u06ff$€£])(?=\d)/g, '$1 ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-const currencyOf = (token: string) => currencyCodes.find(([pattern]) => pattern.test(token))?.[1] ?? null;
-const amountOf = (text: string) => Number(text.replace(/,/g, ''));
+export const currencyOf = (token: string) => currencyCodes.find(([pattern]) => pattern.test(token))?.[1] ?? null;
+export const amountOf = (text: string) => Number(text.replace(/,/g, ''));
+export const trimMerchant = (found: string) => found.replace(/[\s.:*-]+$/, '').trim().slice(0, 120);
 
 function merchantIn(text: string) {
   for (const pattern of merchantAfter) {
     for (const match of text.matchAll(pattern)) {
-      const found = match[1]!.replace(/[\s.:*-]+$/, '').trim();
-      if (/\p{L}/u.test(found) && !notMerchant.test(found) && !startsWithCurrency.test(found)) return found.slice(0, 120);
+      const found = trimMerchant(match[1]!);
+      if (/\p{L}/u.test(found) && !notMerchant.test(found) && !startsWithCurrency.test(found)) return found;
     }
   }
   return null;
 }
+
+const fullDate = /(?<!\d)(?:(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})|(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2}))(?![\d/.-]?\d)/g;
+
+export function dateIn(text: string) {
+  for (const found of text.matchAll(fullDate)) {
+    const [year, month, day] = (found[1] ? [found[1], found[2], found[3]] : [found[6]!.padStart(4, '20'), found[5], found[4]]).map(Number) as [number, number, number];
+    const at = new Date(Date.UTC(year, month - 1, day));
+    if (at.getUTCMonth() === month - 1 && at.getUTCDate() === day) return at.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+const referenceLabel = /(?:\bref(?:erence)?\b(?:\s*(?:no|number)\b)?\.?|رقم مرجعي|الرقم المرجعي|رقم المرجع|رقم العملية|كود العملية|transaction id)\s*[:#]?\s*([A-Za-z0-9-]*\d[A-Za-z0-9-]*)/i;
+
+export const referenceIn = (text: string) => text.match(referenceLabel)?.[1] ?? null;
 
 export type DigitalPaymentApp = 'InstaPay' | 'nSave' | 'PayPal';
 
@@ -111,17 +133,16 @@ export function chatAllowed(
 export function readMessage(raw: string): ReadMessage {
   const text = normalise(raw);
   const strong = strongWords.test(text);
-  if (codeNearby.test(text) || (!strong && codeWords.test(text))) return { kind: 'ignored', reason: 'code' };
+  if (otpNearby.test(text) || (!strong && (codeNearby.test(text) || codeWords.test(text)))) return { kind: 'ignored', reason: 'code' };
   if (declinedWords.test(text)) return { kind: 'ignored', reason: 'declined' };
   if (paymentRequestWords.test(text) || (!strong && noticeWords.test(text))) return { kind: 'ignored', reason: 'notice' };
   if (!strong && promotionWords.test(text)) return { kind: 'ignored', reason: 'promotion' };
 
-  const mentions = [...text.matchAll(mention)].map((match) => ({
-    balance: balanceBefore.test(text.slice(Math.max(0, match.index - 40), match.index)),
-    currency: currencyOf(match[1] ?? match[4]!),
-    amount: amountOf(match[2] ?? match[3]!),
-  }));
-  const moved = mentions.find((found) => !found.balance);
+  const mentions = [...text.matchAll(mention)].map((match) => {
+    const before = text.slice(Math.max(0, match.index - 40), match.index);
+    return { balance: balanceBefore.test(before), side: sideBefore.test(before), currency: currencyOf(match[1] ?? match[4]!), amount: amountOf(match[2] ?? match[3]!) };
+  });
+  const moved = mentions.find((found) => !found.balance && !found.side) ?? mentions.find((found) => !found.balance);
   const bare = moved ? null : text.match(bareAmount);
   const direction: MessageDirection | null = refundWords.test(text) ? 'refund' : receivedWords.test(text) ? 'received' : spentWords.test(text) ? 'spent' : null;
   if (!moved && !bare) return { kind: 'ignored', reason: 'notice' };

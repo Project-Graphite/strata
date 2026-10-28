@@ -1,0 +1,64 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Fawry",
+  "messages": [
+    {
+      "sender": "Fawry",
+      "text": "تم سداد فاتورة SAMPLE INTERNET بمبلغ 350.00 جنيه بنجاح. رقم العملية 1234567890",
+      "expect": { "direction": "spent", "amount": 350, "currency": "EGP", "merchant": "SAMPLE INTERNET", "movement": "bill" }
+    },
+    {
+      "sender": "Fawry",
+      "text": "تم سداد فاتورة كهرباء جنوب القاهرة بمبلغ 420.00 جنيه بنجاح. كود العملية 83921",
+      "expect": { "direction": "spent", "amount": 420, "currency": "EGP", "merchant": "كهرباء جنوب القاهرة", "movement": "bill" }
+    },
+    {
+      "sender": "FawryPay",
+      "text": "Your payment of EGP 350.00 for SAMPLE INTERNET was successful. Reference no. 1234567890",
+      "expect": { "direction": "spent", "amount": 350, "currency": "EGP", "merchant": "SAMPLE INTERNET", "movement": "bill" }
+    },
+    {
+      "sender": "Fawry",
+      "text": "You have successfully recharged EGP 100.00 for SAMPLE mobile 012XXXXXXXX. Ref 5551234",
+      "expect": { "direction": "spent", "amount": 100, "currency": "EGP", "merchant": "SAMPLE", "movement": "bill" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "Purchase - EGP 185.00 - SAMPLE MARKET - Fawry card *1234 - 19/10/2026 12:30 - Bal EGP 815.00",
+      "expect": { "direction": "spent", "amount": 185, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "available": 815, "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "عملية شراء بمبلغ 95.00 جنيه من SAMPLE PHARMACY ببطاقة فوري رقم *1234 بتاريخ 20/10/2026 الرصيد المتاح 720.00 جنيه",
+      "expect": { "direction": "spent", "amount": 95, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE PHARMACY", "available": 720, "movement": "purchase", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "تم إضافة 500.00 جنيه إلى محفظة ماي فوري. الرصيد الحالي 1,315.00 جنيه",
+      "expect": { "direction": "received", "amount": 500, "currency": "EGP", "available": 1315, "movement": "transfer" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "EGP 500.00 has been added to your myFawry wallet. Balance: EGP 1,815.00",
+      "expect": { "direction": "received", "amount": 500, "currency": "EGP", "available": 1815, "movement": "transfer" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "Refund of EGP 185.00 from SAMPLE MARKET to your Fawry card *1234 on 21/10/2026",
+      "expect": { "direction": "refund", "amount": 185, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "movement": "refund", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "تم استرداد 95.00 جنيه من SAMPLE PHARMACY إلى بطاقة فوري رقم *1234",
+      "expect": { "direction": "refund", "amount": 95, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE PHARMACY", "movement": "refund" }
+    },
+    {
+      "sender": "myFawry",
+      "text": "تم خصم 2.50 جنيه رسوم خدمة من محفظة ماي فوري. الرصيد الحالي 1,312.50 جنيه",
+      "expect": { "direction": "spent", "amount": 2.5, "currency": "EGP", "available": 1312.5, "movement": "fee" }
+    },
+    { "sender": "Fawry", "text": "كود التحقق الخاص بك من فوري هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "myFawry", "text": "Your myFawry verification code is 482913", "expect": { "ignored": "code" } },
+    { "sender": "Fawry", "text": "خصم 10% على مدفوعات فوري لفترة محدودة", "expect": { "ignored": "promotion" } }
+  ]
+}

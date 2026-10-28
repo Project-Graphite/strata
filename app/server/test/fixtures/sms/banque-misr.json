@@ -1,0 +1,65 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Banque Misr",
+  "messages": [
+    {
+      "sender": "BanqueMisr",
+      "text": "Dear Customer, EGP 2,000.00 has been withdrawn from your account ***4321 at ATM BM SAMPLE CITY on 14/10/2026. Avail. Bal: EGP 5,300.00",
+      "expect": { "direction": "spent", "amount": 2000, "currency": "EGP", "cardDigits": "4321", "merchant": "ATM BM SAMPLE CITY", "available": 5300, "movement": "atm", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "Dear Customer, EGP 535.75 has been deducted from your card ***1234 for POS purchase at SAMPLE HYPER - SHEIKH ZAYED on 15/10/2026 20:41. Avail. Bal: EGP 4,764.25",
+      "expect": { "direction": "spent", "amount": 535.75, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE HYPER - SHEIKH ZAYED", "available": 4764.25, "movement": "purchase", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "BM",
+      "text": "Dear Customer, USD 9.99 has been deducted from your card ***1234 for online purchase at SAMPLE MUSIC on 16/10/2026. Avail. Bal: EGP 4,250.00",
+      "expect": { "direction": "spent", "amount": 9.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE MUSIC", "available": 4250, "movement": "purchase", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "Dear Customer, EGP 3,500.00 has been credited to your account ***4321 from KARIM SAMPLE on 17/10/2026. Avail. Bal: EGP 7,750.00",
+      "expect": { "direction": "received", "amount": 3500, "currency": "EGP", "cardDigits": "4321", "merchant": "KARIM SAMPLE", "available": 7750, "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "Dear Customer, your salary of EGP 16,000.00 has been credited to your account ***4321 on 25/10/2026. Avail. Bal: EGP 23,750.00",
+      "expect": { "direction": "received", "amount": 16000, "currency": "EGP", "cardDigits": "4321", "available": 23750, "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "Dear Customer, payment of EGP 3,000.00 to your credit card ***5678 has been received on 18/10/2026. Available limit: EGP 30,000.00",
+      "expect": { "direction": "received", "amount": 3000, "currency": "EGP", "cardDigits": "5678", "available": 30000, "movement": "card_payment", "occurredOn": "2026-10-18" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "عميلنا العزيز، تم خصم مبلغ 320.00 جم من بطاقتك رقم ***1234 لصالح SAMPLE FOOD بتاريخ 19/10/2026 الرصيد المتاح 3,930.00 جم",
+      "expect": { "direction": "spent", "amount": 320, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE FOOD", "available": 3930, "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "تم سحب مبلغ 1,000.00 جم نقداً من ماكينة ATM BM SAMPLE بالبطاقة رقم ***1234 بتاريخ 20/10/2026 الرصيد المتاح 2,930.00 جم",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "merchant": "ATM BM SAMPLE", "available": 2930, "movement": "atm", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "تم تحويل مبلغ 1,500.00 جم من حسابك رقم ***4321 إلى حساب SARA SAMPLE بتاريخ 21/10/2026",
+      "expect": { "direction": "spent", "amount": 1500, "currency": "EGP", "cardDigits": "4321", "merchant": "SARA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "تم إيداع مبلغ 2,000.00 جم بحسابك رقم ***4321 بتاريخ 22/10/2026 الرصيد المتاح 4,430.00 جم",
+      "expect": { "direction": "received", "amount": 2000, "currency": "EGP", "cardDigits": "4321", "available": 4430, "movement": "income", "occurredOn": "2026-10-22" }
+    },
+    {
+      "sender": "BanqueMisr",
+      "text": "تم سداد فاتورة كهرباء بمبلغ 450.00 جم من حسابك رقم ***4321 بتاريخ 23/10/2026",
+      "expect": { "direction": "spent", "amount": 450, "currency": "EGP", "cardDigits": "4321", "merchant": "كهرباء", "movement": "bill", "occurredOn": "2026-10-23" }
+    },
+    { "sender": "BanqueMisr", "text": "Your Banque Misr OTP is 573920. Valid for 5 minutes. Do not share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "BanqueMisr", "text": "رمز التحقق الخاص بك هو 829104 صالح لمدة 5 دقائق", "expect": { "ignored": "code" } },
+    { "sender": "BanqueMisr", "text": "Get 10% cashback on Banque Misr credit card purchases until 31/12/2026", "expect": { "ignored": "promotion" } },
+    { "sender": "BanqueMisr", "text": "تم رفض العملية بمبلغ 500.00 جم لدى SAMPLE STORE لعدم كفاية الرصيد", "expect": { "ignored": "declined" } }
+  ]
+}
