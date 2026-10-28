@@ -62,6 +62,7 @@ const SpaceTasks = lazy(() => import('./pages/spaces/SpaceTasks').then((module) 
 const TasksPage = lazy(() => import('./pages/TasksPage').then((module) => ({ default: module.TasksPage })));
 const TidyPage = lazy(() => import('./pages/TidyPage').then((module) => ({ default: module.TidyPage })));
 const VerifyPage = lazy(() => import('./pages/VerifyPage').then((module) => ({ default: module.VerifyPage })));
+const WallPage = lazy(() => import('./dashboard/Dashboard').then((module) => ({ default: module.WallPage })));
 
 function Protected() {
   const auth = useAuth();
@@ -128,6 +129,7 @@ export function App() {
             <Route element={<Moved to={to} />} key={path} path={path} />
           ))}
           <Route element={<Protected />}>
+            <Route path="wall" element={<WallPage />} />
             <Route element={<AppRoute app="tasks" />}>
               <Route path="tasks" element={<TasksPage />} />
             </Route>

@@ -384,7 +384,7 @@ function Inbox() {
 }
 
 function Agenda() {
-  const today = dayKey(new Date());
+  const today = profileDay();
   const agenda = useAgenda(today, addDays(today, 7));
   const rows = useListRows(6);
   if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;

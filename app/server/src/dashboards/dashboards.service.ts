@@ -192,11 +192,14 @@ export class DashboardsService {
     if (input.showFrom != null && input.showFrom === input.showUntil) {
       throw new BadRequestException('The time range needs a start and an end that differ');
     }
+    if (input.template && input.layout) throw new BadRequestException('Send a layout or a template, not both');
+    const kept = input.template ? await this.prisma.dashboard.findFirst({ where: { id: dashboardId, userId }, select: { layout: true } }) : null;
+    const background = (kept?.layout as { background?: Prisma.InputJsonObject } | undefined)?.background;
     const [updated] = await this.prisma.dashboard.updateManyAndReturn({
       where: { id: dashboardId, userId },
       data: {
         name: input.name,
-        layout: input.layout ? checkedLayout(input.layout) : undefined,
+        layout: input.template ? { ...starterLayout(input.template), ...(background ? { background } : {}) } : input.layout ? checkedLayout(input.layout) : undefined,
         showFrom: input.showFrom,
         showUntil: input.showUntil,
         showOn: input.showOn,
