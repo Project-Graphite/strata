@@ -1,0 +1,65 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "InstaPay",
+  "messages": [
+    {
+      "sender": "InstaPay",
+      "text": "You have transferred EGP 1,500.00 to sample@instapay from your account ****1234. Ref: 61234567890",
+      "expect": { "direction": "spent", "amount": 1500, "currency": "EGP", "cardDigits": "1234", "merchant": "sample@instapay", "movement": "transfer" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "You have received EGP 1,200.00 from OMAR SAMPLE via InstaPay",
+      "expect": { "direction": "received", "amount": 1200, "currency": "EGP", "merchant": "OMAR SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "You have received EGP 900.00 from SARA SAMPLE to your account ****1234 on 24/10/2026",
+      "expect": { "direction": "received", "amount": 900, "currency": "EGP", "cardDigits": "1234", "merchant": "SARA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-24" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "MOHAMED SAMPLE sent you EGP 600.00 via InstaPay",
+      "expect": { "direction": "received", "amount": 600, "currency": "EGP", "merchant": "MOHAMED SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "You have paid EGP 275.00 to SAMPLE CAFE using InstaPay QR from your account ****1234",
+      "expect": { "direction": "spent", "amount": 275, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE CAFE", "movement": "purchase" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "You have paid EGP 350.00 for SAMPLE INTERNET bill from your account ****1234. Ref: 7712345",
+      "expect": { "direction": "spent", "amount": 350, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE INTERNET", "movement": "bill" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "You have paid EGP 3,000.00 to your credit card ****9876 from your account ****1234",
+      "expect": { "direction": "spent", "amount": 3000, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "تم تحويل مبلغ 1,200.00 ج.م إلى محمد مثال بنجاح عبر انستاباي",
+      "expect": { "direction": "spent", "amount": 1200, "currency": "EGP", "merchant": "محمد مثال", "movement": "transfer" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "تم تحويل 750.00 ج.م إلى sample@instapay من حسابك ****1234 بتاريخ 23/10/2026",
+      "expect": { "direction": "spent", "amount": 750, "currency": "EGP", "cardDigits": "1234", "merchant": "sample@instapay", "movement": "transfer", "occurredOn": "2026-10-23" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "وصلك 850.00 ج.م من خالد مثال عبر انستاباي",
+      "expect": { "direction": "received", "amount": 850, "currency": "EGP", "merchant": "خالد مثال", "movement": "transfer" }
+    },
+    {
+      "sender": "InstaPay",
+      "text": "تم إضافة 1,000.00 ج.م إلى حسابك ****1234 من سارة مثال عبر انستاباي",
+      "expect": { "direction": "received", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "merchant": "سارة مثال", "movement": "transfer" }
+    },
+    { "sender": "InstaPay", "text": "Your InstaPay OTP is 482913. Do not share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "InstaPay", "text": "رمز التحقق لانستاباي هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "InstaPay", "text": "Send money instantly with InstaPay and win up to EGP 1,000 every week!", "expect": { "ignored": "promotion" } },
+    { "sender": "InstaPay", "text": "AHMED SAMPLE requested EGP 500.00 from you on InstaPay", "expect": { "ignored": "notice" } }
+  ]
+}

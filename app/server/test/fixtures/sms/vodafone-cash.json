@@ -1,0 +1,60 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Vodafone Cash",
+  "messages": [
+    {
+      "sender": "VF-Cash",
+      "text": "تم استلام مبلغ 200 جنيه من رقم 010XXXXXXXX ورصيدك الحالي 450 جنيه",
+      "expect": { "direction": "received", "amount": 200, "currency": "EGP", "merchant": null, "available": 450, "movement": "transfer" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "تم استلام 500 جنيه من رقم 010XXXXXXXX المسجل باسم AHMED SAMPLE؛ رصيدك الحالي 950 جنيه",
+      "expect": { "direction": "received", "amount": 500, "currency": "EGP", "merchant": "AHMED SAMPLE", "available": 950, "movement": "transfer" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "تم تحويل 100 جنيه لرقم 010XXXXXXXX المسجل باسم MONA SAMPLE بنجاح؛ رصيدك الحالي 350 جنيه",
+      "expect": { "direction": "spent", "amount": 100, "currency": "EGP", "merchant": "MONA SAMPLE", "available": 350, "movement": "transfer" }
+    },
+    {
+      "sender": "VodafoneCash",
+      "text": "تم دفع 150 جنيه لـ SAMPLE CAFE بنجاح. رصيدك الحالي 200 جنيه",
+      "expect": { "direction": "spent", "amount": 150, "currency": "EGP", "merchant": "SAMPLE CAFE", "available": 200, "movement": "purchase" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "تم شحن رصيد 50 جنيه للرقم 010XXXXXXXX بنجاح. رصيدك الحالي 150 جنيه",
+      "expect": { "direction": "spent", "amount": 50, "currency": "EGP", "available": 150, "movement": "bill" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "تم سحب 500 جنيه من خلال ماكينة ATM SAMPLE BANK بنجاح؛ رصيدك الحالي 150 جنيه",
+      "expect": { "direction": "spent", "amount": 500, "currency": "EGP", "merchant": "ATM SAMPLE BANK", "available": 150, "movement": "atm" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "You have successfully recharged 50 LE for 010XXXXXXXX",
+      "expect": { "direction": "spent", "amount": 50, "currency": "EGP", "movement": "bill" }
+    },
+    {
+      "sender": "Vodafone Cash",
+      "text": "You have received 300 EGP from 010XXXXXXXX (AHMED SAMPLE). Your current balance is 650 EGP",
+      "expect": { "direction": "received", "amount": 300, "currency": "EGP", "merchant": "AHMED SAMPLE", "available": 650, "movement": "transfer" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "Transfer of 120 EGP to 010XXXXXXXX succeeded. Your current balance is 530 EGP",
+      "expect": { "direction": "spent", "amount": 120, "currency": "EGP", "available": 530, "movement": "transfer" }
+    },
+    {
+      "sender": "VF-Cash",
+      "text": "You have paid 220 EGP for SAMPLE INTERNET bill. Your current balance is 310 EGP",
+      "expect": { "direction": "spent", "amount": 220, "currency": "EGP", "merchant": "SAMPLE INTERNET", "available": 310, "movement": "bill" }
+    },
+    { "sender": "VF-Cash", "text": "كود التفعيل الخاص بك هو 482913 لا تشاركه مع أي شخص", "expect": { "ignored": "code" } },
+    { "sender": "VF-Cash", "text": "Your Vodafone Cash PIN reset code is 7391", "expect": { "ignored": "code" } },
+    { "sender": "VF-Cash", "text": "استمتع بخصم 20% عند الدفع بفودافون كاش في المحلات المشاركة", "expect": { "ignored": "promotion" } },
+    { "sender": "VF-Cash", "text": "رصيدك الحالي 450 جنيه", "expect": { "ignored": "notice" } }
+  ]
+}

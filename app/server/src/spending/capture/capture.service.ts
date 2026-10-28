@@ -14,7 +14,9 @@ import { CaptureMessageDto } from '../dto/capture.dto';
 import { ruleFor } from '../categories.service';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
-import { chatAllowed, DigitalPaymentApp, MessageDirection, normalise, paymentLabelOf, readMessage } from './bank-messages';
+import { chatAllowed, DigitalPaymentApp, MessageDirection, normalise, paymentLabelOf } from './bank-messages';
+import { MovementKind } from './senders/template';
+import { parseMessage } from './sms-parser';
 
 const keepForMs = 30 * 24 * 60 * 60 * 1000;
 const pairWithinMs = 10 * 60 * 1000;
@@ -28,6 +30,11 @@ export interface Suggestion {
   accountId: string | null;
   availableMinor: number | null;
   paymentLabel?: DigitalPaymentApp | null;
+  movement?: MovementKind | null;
+  occurredOn?: string | null;
+  reference?: string | null;
+  confidence?: number;
+  templateId?: string | null;
 }
 
 const toMinor = (amount: number, currency: string) => Math.round(amount * 10 ** fractionDigits(currency));
@@ -93,7 +100,7 @@ export class CaptureService implements OnModuleInit {
     if (!chatAllowed(sender, input.allowedChats, input.app, input.text, input.chat)) {
       return { status: 'ignored', reason: 'chat' };
     }
-    const read = readMessage(input.text);
+    const read = parseMessage(sender, input.text, input.app);
     if (read.kind === 'ignored') return { status: 'ignored', reason: read.reason };
     const paymentLabel = paymentLabelOf(sender, input.text, input.app);
     const hash = createHash('sha256').update(`${sender.toLowerCase()}\n${normalise(input.text)}`).digest('hex');
@@ -118,6 +125,11 @@ export class CaptureService implements OnModuleInit {
       accountId: account?.id ?? null,
       availableMinor: read.available !== null && account ? toMinor(read.available, account.currency) : null,
       ...(paymentLabel ? { paymentLabel } : {}),
+      movement: read.movement,
+      occurredOn: read.occurredOn,
+      reference: read.reference,
+      confidence: read.confidence,
+      templateId: read.templateId,
     };
     const receivedAt = input.receivedStamp ? new Date(Number(input.receivedStamp)) : new Date();
     const message = await this.prisma.capturedMessage
@@ -136,7 +148,7 @@ export class CaptureService implements OnModuleInit {
       title: rule?.rename ?? merchant ?? paymentLabel ?? sender,
       amountMinor,
       currency,
-      spentOn: localDate(user.timeZone, receivedAt),
+      spentOn: read.occurredOn ?? localDate(user.timeZone, receivedAt),
       category: category as CreateExpenseDto['category'],
       direction,
       accountId: suggestion.accountId,

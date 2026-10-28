@@ -1,0 +1,76 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "CIB",
+  "messages": [
+    {
+      "sender": "CIB",
+      "text": "Your credit card ending with 1234 was charged for EGP 1,250.50 at SAMPLE STORE EG on 14/10/26 13:45. Available limit EGP 48,749.50",
+      "expect": { "direction": "spent", "amount": 1250.5, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE EG", "available": 48749.5, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your CIB debit card ending with 1234 was charged for USD 12.99 at SAMPLE.COM on 15/10/26 09:12. Available balance EGP 9,000.00",
+      "expect": { "direction": "spent", "amount": 12.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "available": 9000, "movement": "purchase", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your card **1234 was charged for EGP 85.00 at SAMPLE *TRIP CAIRO on 14/10",
+      "expect": { "direction": "spent", "amount": 85, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE *TRIP CAIRO", "movement": "purchase", "occurredOn": null }
+    },
+    {
+      "sender": "CIB",
+      "text": "Cash withdrawal of EGP 2,000.00 from your card ending with 1234 at CIB ATM SAMPLE on 16/10/26 18:20. Available balance EGP 7,000.00",
+      "expect": { "direction": "spent", "amount": 2000, "currency": "EGP", "cardDigits": "1234", "merchant": "CIB ATM SAMPLE", "available": 7000, "movement": "atm", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your account ****1234 has been credited with EGP 15,000.00 transfer from AHMED SAMPLE on 17/10/2026. Available balance EGP 22,000.00",
+      "expect": { "direction": "received", "amount": 15000, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "available": 22000, "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your account ****1234 has been credited with salary of EGP 20,000.00 on 25/10/2026. Available balance EGP 29,000.00",
+      "expect": { "direction": "received", "amount": 20000, "currency": "EGP", "cardDigits": "1234", "available": 29000, "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Payment of EGP 5,000.00 has been received for your credit card ending with 1234 on 18/10/26. Available limit EGP 50,000.00",
+      "expect": { "direction": "received", "amount": 5000, "currency": "EGP", "cardDigits": "1234", "available": 50000, "movement": "card_payment", "occurredOn": "2026-10-18" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Refund of EGP 349.00 to your card ending 1234 from SAMPLE SHOP",
+      "expect": { "direction": "refund", "amount": 349, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE SHOP", "movement": "refund" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Bill payment for SAMPLE INTERNET of EGP 300.00 was debited from your account ****1234 on 21/10/2026",
+      "expect": { "direction": "spent", "amount": 300, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE INTERNET", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم تنفيذ تحويل لحظي بمبلغ 500 جم من حسابك المنتهي ب ****1234 بتاريخ 14-10-2026 13:45",
+      "expect": { "direction": "spent", "amount": 500, "currency": "EGP", "cardDigits": "1234", "merchant": null, "movement": "transfer", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم تنفيذ تحويل بمبلغ 1,000.00 جم من حسابك المنتهي ب 1234 لصالح شركة مثال للتجارة بتاريخ 22/10/2026",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "merchant": "شركة مثال للتجارة", "movement": "transfer", "occurredOn": "2026-10-22" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم خصم 450.00 جم من بطاقتك الائتمانية المنتهية ب 1234 لدى SAMPLE MARKET يوم 19/10/2026 الحد المتاح 47,000.00 جم",
+      "expect": { "direction": "spent", "amount": 450, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "available": 47000, "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "CIB EG",
+      "text": "تم إيداع 2,500.00 جم في حسابك المنتهي ب 1234 بتاريخ 20/10/2026 الرصيد المتاح 9,500.00 جم",
+      "expect": { "direction": "received", "amount": 2500, "currency": "EGP", "cardDigits": "1234", "available": 9500, "movement": "income", "occurredOn": "2026-10-20" }
+    },
+    { "sender": "CIB", "text": "Your OTP for the purchase of EGP 500.00 at SAMPLE STORE is 482913. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "CIB", "text": "رمز التحقق لعملية الشراء بمبلغ 500 جم هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "CIB", "text": "Enjoy 20% cashback on all purchases with your CIB card. Minimum purchase EGP 500", "expect": { "ignored": "promotion" } },
+    { "sender": "CIB", "text": "You have logged in to CIB Mobile Banking on 14/10", "expect": { "ignored": "notice" } },
+    { "sender": "CIB", "text": "Your account balance is now EGP 5,000.00", "expect": { "ignored": "notice" } }
+  ]
+}
