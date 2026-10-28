@@ -1,5 +1,6 @@
 import { Controller, Get, INestApplication, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
@@ -10,6 +11,7 @@ import type { AuthenticatedUser } from '../src/auth/auth.types';
 import { CurrentUser } from '../src/auth/current-user.decorator';
 import { JwtStrategy } from '../src/auth/jwt.strategy';
 import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
+import { Public } from '../src/auth/public.decorator';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const secret = 'test-access-secret';
@@ -32,6 +34,20 @@ class ProbeController {
   @Scope('items:write')
   write() {
     return {};
+  }
+}
+
+@Controller('open')
+class UnmarkedController {
+  @Get()
+  unmarked() {
+    return {};
+  }
+
+  @Public()
+  @Get('public')
+  open() {
+    return { open: true };
   }
 }
 
@@ -123,5 +139,37 @@ describe('JwtAuthGuard', () => {
     expect((await call('', token)).status).toBe(403);
     expect((await call('/write', token)).status).toBe(403);
     expect((await call('/items', `strata_pat_${'x'.repeat(43)}`)).status).toBe(401);
+  });
+});
+
+describe('JwtAuthGuard as the global guard', () => {
+  let app: INestApplication;
+  let base: string;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [PassportModule, JwtModule.register({})],
+      controllers: [UnmarkedController],
+      providers: [
+        JwtStrategy,
+        JwtAuthGuard,
+        { provide: APP_GUARD, useExisting: JwtAuthGuard },
+        { provide: ConfigService, useValue: new ConfigService({ AUTH_ACCESS_TOKEN_SECRET: secret }) },
+        { provide: TokenAuthenticator, useValue: { authenticate: vi.fn(() => Promise.resolve(null)) } },
+        { provide: PrismaService, useValue: {} },
+      ],
+    }).compile();
+    app = module.createNestApplication();
+    await app.listen(0, '127.0.0.1');
+    base = `${await app.getUrl()}/open`;
+  });
+
+  afterAll(() => app.close());
+
+  it('refuses anonymous requests to a route with no guard of its own and lets them reach routes marked public', async () => {
+    expect((await fetch(base)).status).toBe(401);
+    const open = await fetch(`${base}/public`);
+    expect(open.status).toBe(200);
+    await expect(open.json()).resolves.toEqual({ open: true });
   });
 });

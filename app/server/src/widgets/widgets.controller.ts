@@ -1,11 +1,9 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, Get, Query } from '@nestjs/common';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { FeedQueryDto, PlaceQueryDto, WeatherQueryDto } from './dto/widgets.dto';
 import { WidgetsService } from './widgets.service';
 
 @Controller('widgets')
-@UseGuards(JwtAuthGuard)
 export class WidgetsController {
   constructor(private readonly widgets: WidgetsService) {}
 

@@ -1,16 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { SpaceQueryDto } from '../validation/space-query.dto';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateTidyRuleDto, TidyActionDto, UpdateTidyRuleDto } from './dto/tidy.dto';
 import { TidyRulesService } from './tidy-rules.service';
 import { TidyService } from './tidy.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class TidyController {
   constructor(
     private readonly tidy: TidyService,

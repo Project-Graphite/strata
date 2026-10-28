@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CostSplitsService } from './cost-splits.service';
 import { BalancesQueryDto, CreateSettlementDto, SaveCostSplitDto } from './dto/cost-splits.dto';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class CostSplitsController {
   constructor(private readonly splits: CostSplitsService) {}
 

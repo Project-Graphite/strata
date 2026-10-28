@@ -1,11 +1,10 @@
 import { SpaceQueryDto } from '../validation/space-query.dto';
-import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import type { Request } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UploadQueue } from '../files/upload-queue';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateNoteDto, PageChildrenQueryDto, PageKindQueryDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
@@ -17,7 +16,6 @@ import { RateLimit } from '../redis/rate-limit.guard';
 import { maxDraftFileBytes } from './document-limits';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class NotesController {
   constructor(
     private readonly notes: NotesService,

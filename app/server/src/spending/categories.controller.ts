@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CategoriesService } from './categories.service';
 import { CreateMerchantRuleDto, SaveCategoriesDto } from './dto/categories.dto';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 

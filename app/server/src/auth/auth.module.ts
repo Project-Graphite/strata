@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { InvitationsModule } from '../invitations/invitations.module';
@@ -18,7 +19,7 @@ import { TwoStepService } from './two-step.service';
     InvitationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PasswordService, SessionsService, SignInAttemptsService, TwoStepService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, { provide: APP_GUARD, useExisting: JwtAuthGuard }, PasswordService, SessionsService, SignInAttemptsService, TwoStepService],
   exports: [PassportModule, JwtModule, JwtStrategy, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
 })
 export class AuthModule {}

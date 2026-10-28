@@ -1,13 +1,11 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JournalQueryDto, SetMoodDto } from './dto/journal.dto';
 import { JournalService } from './journal.service';
 
 @Controller('me/journal')
-@UseGuards(JwtAuthGuard)
 export class JournalController {
   constructor(private readonly journal: JournalService) {}
 

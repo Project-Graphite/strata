@@ -1,14 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { MarkReadDto } from './dto/inbox.dto';
 import { InboxService } from './inbox.service';
 
 @Controller('me/inbox')
-@UseGuards(JwtAuthGuard)
 export class InboxController {
   constructor(private readonly inbox: InboxService) {}
 

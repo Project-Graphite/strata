@@ -1,15 +1,13 @@
 import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Query, Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Query, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreatePersonDto, UpdatePersonDto } from './dto/people.dto';
 import { PeopleService } from './people.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class PeopleController {
   constructor(private readonly people: PeopleService) {}
 

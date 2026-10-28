@@ -1,15 +1,13 @@
 import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateSubscriptionDto, ListSubscriptionsDto, UpdateSubscriptionDto } from './dto/subscriptions.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 

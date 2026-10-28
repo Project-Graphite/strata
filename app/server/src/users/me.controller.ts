@@ -7,13 +7,11 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ChangeEmailDto, ProofDto, TwoStepCodeDto } from '../auth/dto/account.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionsService } from '../auth/sessions.service';
 import { TwoStepService } from '../auth/two-step.service';
 import { RateLimit } from '../redis/rate-limit.guard';
@@ -22,7 +20,6 @@ import { UpdateProfileDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 
 @Controller('me')
-@UseGuards(JwtAuthGuard)
 export class MeController {
   constructor(
     private readonly users: UsersService,

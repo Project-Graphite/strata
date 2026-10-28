@@ -1,13 +1,11 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { DashboardsService } from './dashboards.service';
 import { CreateDashboardDto, UpdateDashboardDto } from './dto/dashboards.dto';
 
 @Controller('me/dashboards')
-@UseGuards(JwtAuthGuard)
 export class DashboardsController {
   constructor(private readonly dashboards: DashboardsService) {}
 

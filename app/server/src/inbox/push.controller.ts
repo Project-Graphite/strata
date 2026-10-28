@@ -1,12 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post, Put } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PushEndpointDto, SavePushSubscriptionDto } from './dto/push.dto';
 import { PushService } from './push.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class PushController {
   constructor(private readonly push: PushService) {}
 
