@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { appCatalogue } from '../apps';
 import { HeaderTitleContext } from '../header-title';
 import { areaOf } from '../navigation';
-import { noteTitle } from '../notes';
+import { noteHref, noteTitle } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useAllSpaces, useChosenSpace } from '../spaces';
 
@@ -17,11 +17,11 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const navigate = useNavigate();
   const heading = useContext(HeaderTitleContext)?.title;
   const [currentPage] = usePageNavigation();
-  const page = currentPage && pathname === `/notes/${currentPage.id}` ? currentPage : undefined;
+  const page = currentPage && pathname === noteHref(currentPage) ? currentPage : undefined;
   const root = appCatalogue.find((app) => app.href === active) ?? { href: active ?? '/', label: areaNames[active ?? '/'] ?? 'Overview' };
   const current = heading?.pathname === pathname ? heading : undefined;
   const parents = page?.path.map((parent) => ({ href: `/notes/${parent.id}`, label: parent.title || 'Untitled' })) ?? (current?.back && current.back.to !== root.href ? [{ href: current.back.to, label: current.back.label }] : []);
-  const title = page ? noteTitle(page) : pathname.startsWith('/notes/') ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
+  const title = page ? noteTitle(page) : /^\/(?:notes|boards)\//.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
   return (

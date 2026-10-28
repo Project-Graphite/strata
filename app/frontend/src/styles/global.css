@@ -78,15 +78,10 @@
   }
 }
 
-.note-editor-header,
-.board-editor-header {
+.note-editor-header {
   display: grid;
   min-width: 0;
   gap: 0.5rem;
-}
-
-.board-editor-header > .live-document-status {
-  grid-row: 1;
 }
 
 .live-document-status {
@@ -266,12 +261,110 @@
   visibility: hidden;
 }
 
-.board-canvas {
+:root:has(.board-area) #content {
+  width: 100%;
+  padding-block: 0;
+}
+
+:root:has(.board-area) #content ~ footer {
+  display: none;
+}
+
+.board-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100dvh - var(--header-height));
+  background: var(--color-paper);
+}
+
+.board-stage {
+  --board-bar-height: 3.25rem;
   position: relative;
-  height: max(28rem, calc(100dvh - 16rem));
-  overflow: hidden;
-  border: 1px solid var(--color-line);
+}
+
+.board-bar {
+  position: absolute;
+  inset: calc(0.5rem + env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) auto max(0.5rem, env(safe-area-inset-left));
+  z-index: 5;
+  display: flex;
+  min-height: var(--board-bar-height);
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-line-soft);
   border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--color-paper) 92%, transparent);
+  padding: 0.25rem 0.5rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  backdrop-filter: blur(12px);
+}
+
+.board-bar .board-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.board-results {
+  position: absolute;
+  top: calc(100% + 4rem);
+  right: 0;
+  width: min(18rem, 100%);
+}
+
+.board-canvas {
+  --sat: calc(var(--board-bar-height) + 0.5rem + env(safe-area-inset-top));
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.board-comments {
+  width: 22rem;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-line-soft);
+  padding: 1rem;
+}
+
+@media (max-width: 47.99rem) {
+  :root:has(.board-area) :is(.app-header, .tab-bar),
+  .board-bar :is(.page-icon, .live-presence) {
+    display: none;
+  }
+
+  .board-area {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    height: auto;
+  }
+
+  .board-bar .live-save-status {
+    min-width: 0;
+  }
+
+  .board-comments {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 6;
+    width: auto;
+    max-height: 60%;
+    border-top: 1px solid var(--color-line-soft);
+    border-left: 0;
+    background: var(--color-paper);
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+:root:fullscreen:has(.board-area) :is(.app-header, .tab-bar) {
+  display: none;
+}
+
+:root:fullscreen .board-area {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  height: auto;
 }
 
 .board-pin {

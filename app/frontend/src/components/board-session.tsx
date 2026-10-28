@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { Menu } from '@project-graphite/ui';
+import type { MenuItem } from '@project-graphite/ui';
 import type * as Y from 'yjs';
 import { Hint } from './Hint';
 import { Subheading } from './Page';
@@ -77,51 +77,32 @@ function useNow(running: boolean) {
 
 const clock = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor((ms % 60_000) / 1_000)).padStart(2, '0')}`;
 
-export function BrainstormBar({
-  controls,
-  onCount,
-  session,
-  votesLeft,
-}: {
-  controls: boolean;
-  onCount: () => void;
-  session: ReturnType<typeof useBoardSession>;
-  votesLeft: number;
-}) {
+export const brainstormItems = (session: ReturnType<typeof useBoardSession>, onCount: () => void): MenuItem[] => [
+  ...[5, 10, 15].map((minutes) => ({ label: `Start a ${minutes}-minute timer`, onSelect: () => session.set('timer', { endsAt: Date.now() + minutes * 60_000 }) })),
+  ...(session.timer ? [{ label: 'Stop the timer', onSelect: () => session.set('timer', undefined) }] : []),
+  session.round
+    ? { label: 'End the vote and count', onSelect: onCount }
+    : { label: 'Start a vote, 3 dots each', onSelect: () => session.set('round', { startedAt: Date.now(), perPerson: 3 }) },
+  ...(session.results ? [{ label: 'Clear the results', onSelect: () => session.set('results', undefined) }] : []),
+];
+
+export function BrainstormStatus({ session, votesLeft }: { session: ReturnType<typeof useBoardSession>; votesLeft: number }) {
   const now = useNow(Boolean(session.timer));
   const left = session.timer ? session.timer.endsAt - now : 0;
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-3">
-        {controls && (
-          <Menu
-            items={[
-              ...[5, 10, 15].map((minutes) => ({ label: `Start a ${minutes}-minute timer`, onSelect: () => session.set('timer', { endsAt: Date.now() + minutes * 60_000 }) })),
-              ...(session.timer ? [{ label: 'Stop the timer', onSelect: () => session.set('timer', undefined) }] : []),
-              session.round
-                ? { label: 'End the vote and count', onSelect: onCount }
-                : { label: 'Start a vote, 3 dots each', onSelect: () => session.set('round', { startedAt: Date.now(), perPerson: 3 }) },
-              ...(session.results ? [{ label: 'Clear the results', onSelect: () => session.set('results', undefined) }] : []),
-            ]}
-            label="Brainstorm"
-            trigger="Brainstorm"
-            triggerLabel="Brainstorm: timer and voting"
-            triggerVariant="secondary"
-          />
-        )}
-        {session.timer && (
-          <span className={`mono-sm ${left > 0 ? 'text-ink' : 'text-faint'}`} role="timer">
-            {left > 0 ? `${clock(left)} left` : 'Time’s up'}
-          </span>
-        )}
-        {session.round && (
-          <span className="mono-sm text-ink" role="status">
-            Voting · {votesLeft === 0 ? 'no dots left' : `${votesLeft} of ${session.round.perPerson} dots left`}
-          </span>
-        )}
-      </div>
+    <>
+      {session.timer && (
+        <span className={`mono-sm shrink-0 ${left > 0 ? 'text-ink' : 'text-faint'}`} role="timer">
+          {left > 0 ? `${clock(left)} left` : 'Time’s up'}
+        </span>
+      )}
+      {session.round && (
+        <span className="mono-sm shrink-0 text-ink" role="status">
+          Voting · {votesLeft === 0 ? 'no dots left' : `${votesLeft} of ${session.round.perPerson} dots left`}
+        </span>
+      )}
       {session.results && (
-        <section aria-label="Vote results" className="grid gap-1 rounded-panel border border-line-soft px-3 py-2">
+        <section aria-label="Vote results" className="board-results grid gap-1 rounded-panel border border-line-soft bg-paper px-3 py-2">
           <Subheading>Vote results</Subheading>
           {session.results.length === 0 ? (
             <Hint>No dots landed on a shape.</Hint>
@@ -139,6 +120,6 @@ export function BrainstormBar({
           )}
         </section>
       )}
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { readBlob } from '../api';
@@ -13,7 +13,7 @@ import { Hint } from '../components/Hint';
 import { IconPicker } from '../components/IconPicker';
 import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
-import { NoteComments, type CommentAnchors, type QuotedBlock } from '../components/NoteComments';
+import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { NoteMark } from '../components/NoteMark';
 import { DetailState, Section, useDocumentTitle } from '../components/Page';
@@ -22,13 +22,12 @@ import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeleton
 import { OpenTask } from '../components/TaskEditor';
 import { useInArea } from '../navigation';
 import { usePageNavigation } from '../page-navigation';
-import { announcePagesChanged, noteArea, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { announcePagesChanged, noteArea, noteHref, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
-const BoardCanvas = lazy(() => import('../components/BoardCanvas'));
 
 const wideKey = 'strata-wide-pages';
 
@@ -53,7 +52,6 @@ export function NotePage() {
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
-  const [boardAnchors, setBoardAnchors] = useState<CommentAnchors>();
   const pages = useResource<Note[]>(note.data && !note.data.quick && note.data.permissions.spaceRole ? `/spaces/${note.data.spaceId}/notes` : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -105,9 +103,10 @@ export function NotePage() {
     );
   }
   const details = note.data;
+  if (details.kind === 'board') return <Navigate replace to={noteHref(details)} />;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = (pages.data ?? []).filter((page) => page.parentId === details.id);
-  const pageOnly = details.kind !== 'board' && !details.quick;
+  const pageOnly = !details.quick;
 
   function quote(block: QuotedBlock) {
     setQuoting({ ...block, noteId: details.id });
@@ -189,7 +188,7 @@ export function NotePage() {
     : options;
 
   return (
-    <article className={`page-enter grid min-w-0 grid-cols-1 gap-8 ${details.kind === 'board' || wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+    <article className={`page-enter grid min-w-0 grid-cols-1 gap-8 ${wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
       <header className="page-header">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
@@ -237,27 +236,15 @@ export function NotePage() {
         </dl>
       )}
       <FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
-        {details.kind === 'board' ? (
-          <BoardCanvas
-            commentedBlocks={commentedBlocks}
-            editable={details.editable}
-            key={details.id}
-            noteId={details.id}
-            onAnchors={setBoardAnchors}
-            onComment={details.permissions.comment ? quote : undefined}
-            spaceId={details.permissions.organize ? details.spaceId : ''}
-          />
-        ) : (
-          <NoteEditor
-            commentedBlocks={commentedBlocks}
-            editable={details.editable}
-            key={details.id}
-            noteId={details.id}
-            onComment={details.quick || !details.permissions.comment ? undefined : quote}
-            quick={details.quick}
-            spaceId={details.permissions.organize ? details.spaceId : ''}
-          />
-        )}
+        <NoteEditor
+          commentedBlocks={commentedBlocks}
+          editable={details.editable}
+          key={details.id}
+          noteId={details.id}
+          onComment={details.quick || !details.permissions.comment ? undefined : quote}
+          quick={details.quick}
+          spaceId={details.permissions.organize ? details.spaceId : ''}
+        />
       </Suspense></FileSourceContext>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {pageOnly && !details.database && (children.length > 0 || details.permissions.organize) && (
@@ -287,7 +274,7 @@ export function NotePage() {
           {children.length > 0 ? (
             <ul className="panel-rows">
               {children.map((child) => (
-                <ListRow href={`/notes/${child.id}`} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />
+                <ListRow href={noteHref(child)} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />
               ))}
             </ul>
           ) : (
@@ -316,7 +303,6 @@ export function NotePage() {
       {!details.quick && (
         <NoteComments
           commentable={details.permissions.comment}
-          anchors={details.kind === 'board' ? boardAnchors : undefined}
           editable={details.editable}
           key={`comments-${details.id}`}
           noteId={details.id}

@@ -211,8 +211,17 @@ export function SharePage() {
   }
   if (!shared.data.event) {
     const { access, content, item } = shared.data;
+    if (content?.kind === 'board') {
+      return (
+        <FileSourceContext.Provider value={files}>
+          <Suspense fallback={<LinesSkeleton label="Loading the board" lines={6} />}>
+            <SharedBoard boardId={content.id} code={code} editable={access === 'edit'} key={`${code}/${content.id}`} onTitle={updateTitle} title={noteTitle(item)} />
+          </Suspense>
+        </FileSourceContext.Provider>
+      );
+    }
     return (
-      <section className={`page-enter grid w-full gap-6 ${content?.kind === 'board' ? 'max-w-6xl' : 'max-w-3xl'}`}>
+      <section className="page-enter grid w-full max-w-3xl gap-6">
         <div>
           <p className="page-header-eyebrow">
             Shared {item.kind === 'note' ? 'page' : item.kind}
@@ -225,13 +234,6 @@ export function SharePage() {
           <Suspense fallback={<LinesSkeleton label="Loading the page" lines={6} />}>
             <SharedDocument code={code} editable={access === 'edit'} key={`${code}/${content.id}`} noteId={content.id} onTitle={updateTitle} />
           </Suspense>
-        )}
-        {content?.kind === 'board' && (
-          <FileSourceContext.Provider value={files}>
-            <Suspense fallback={<LinesSkeleton label="Loading the board" lines={6} />}>
-              <SharedBoard boardId={content.id} code={code} editable={access === 'edit'} key={`${code}/${content.id}`} onTitle={updateTitle} />
-            </Suspense>
-          </FileSourceContext.Provider>
         )}
       </section>
     );

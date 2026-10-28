@@ -12,7 +12,7 @@ import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { ButtonSkeleton, IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { announcePagesChanged, nestedUnder, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
+import { announcePagesChanged, nestedUnder, noteHref, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
 import { useSpaces } from '../spaces';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -47,7 +47,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
     const level = nestedUnder(pages, parentId);
     return (parentId ? level.sort((a, b) => a.position - b.position) : level).flatMap((note) => [
       <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={note.id}>
-        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={`/notes/${note.id}`}>
+        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={noteHref(note)}>
           <NoteMark note={note} />
           <RowText detail={[spaceNames.get(note.spaceId), formatMoment(note.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
         </Link>
@@ -62,7 +62,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
   function create(spaceId: string, body: { board?: true; quick?: true }, noun: string) {
     void creating.run(async () => {
       const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(body) });
-      navigate(`/notes/${created.id}`);
+      navigate(noteHref(created));
       return '';
     }, `Could not create the ${noun}`);
   }

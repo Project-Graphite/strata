@@ -327,7 +327,7 @@ function BoardEmbed({ extension, node }: NodeViewProps) {
       {boardId ? (
         <>
           <BoardPreview boardId={boardId} label="Board preview" />
-          <Link className="note-board-open" contentEditable={false} to={`/notes/${boardId}`}>
+          <Link className="note-board-open" contentEditable={false} to={`/boards/${boardId}`}>
             Open board
           </Link>
         </>
