@@ -51,7 +51,7 @@ export class CategoriesService {
   }
 
   async list(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [categories, counts] = await Promise.all([
       this.categories(spaceId),
       this.prisma.expense.groupBy({ by: ['category'], where: { item: { spaceId, trashedAt: null }, direction: { in: ['spent', 'refund'] } }, _count: { _all: true } }),
@@ -60,7 +60,7 @@ export class CategoriesService {
   }
 
   async save(userId: string, spaceId: string, input: SaveCategoriesDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const names = input.categories.map((category) => category.name);
     if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) throw new BadRequestException('Give each category a different name');
     if (!names.includes('other') || input.categories.some((category) => category.previous === 'other' && category.name !== 'other')) {
@@ -93,13 +93,13 @@ export class CategoriesService {
   }
 
   async rules(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const merchants = await this.prisma.merchant.findMany({ where: { spaceId } });
     return merchants.map(presentRule).sort((a, b) => a.match.localeCompare(b.match));
   }
 
   async saveRule(userId: string, spaceId: string, input: CreateMerchantRuleDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertCategory(spaceId, input.category);
     const data = { name: input.rename ?? input.match, category: input.category ?? null, ignore: input.ignore ?? false };
     const known = await this.prisma.merchant.findFirst({ where: { spaceId, aliases: { has: input.match } }, select: { id: true } });
@@ -113,7 +113,7 @@ export class CategoriesService {
   async removeRule(userId: string, id: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id }, select: { spaceId: true } });
     if (!merchant) throw new NotFoundException('Rule not found');
-    await this.access.assertSpace(userId, merchant.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, merchant.spaceId);
     await this.prisma.merchant.delete({ where: { id } });
   }
 }

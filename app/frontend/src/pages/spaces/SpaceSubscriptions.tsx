@@ -13,7 +13,6 @@ import type { Member } from '../../spaces';
 import { cycleLabel, shortDate, type Subscription } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
-import { SpaceBalances } from './SpaceBalances';
 import { useSpace } from './SpaceLayout';
 import { LoadError } from '../../components/LoadError';
 import { FilterChips, Toolbar } from '../../components/Page';
@@ -35,7 +34,6 @@ export function SpaceSubscriptions() {
   const shared = space.kind === 'shared';
   const members = useResource<Member[]>(shared ? `/spaces/${space.id}/members` : null, true);
   const memberName = (userId: string) => members.data?.find((member) => member.userId === userId)?.displayName ?? 'a former member';
-  const splitVersion = (subscriptions.data ?? []).map((subscription) => JSON.stringify(subscription.split ?? null)).join();
   const linked = editable ? subscriptions.data?.find((subscription) => subscription.id === params.get('subscription')) : undefined;
   const opened = editing ?? linked;
   const [rows] = useRememberedShape(`space-subscriptions-${space.id}${cancelled ? '-cancelled' : ''}`, subscriptions.data && [subscriptions.data.length], [4]);
@@ -83,7 +81,6 @@ export function SpaceSubscriptions() {
           label="Subscriptions"
         />
       </Toolbar>
-      {shared && !cancelled && <SpaceBalances key={splitVersion} spaceId={space.id} />}
       {subscriptions.error ? (
         <LoadError error={subscriptions.error} onRetry={subscriptions.reload} />
       ) : !subscriptions.data ? (
@@ -141,7 +138,6 @@ export function SpaceSubscriptions() {
       {splitting && members.data && (
         <SplitEditor
           item={splitting}
-          kind="subscriptions"
           members={members.data}
           onClose={() => setSplitting(undefined)}
           onSaved={(split) => subscriptions.mutate((current) => current.map((shown) => (shown.id === splitting.id ? { ...shown, split } : shown)))}

@@ -41,12 +41,12 @@ export class AccountsService {
   ) {}
 
   async list(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     return this.balances(await this.prisma.moneyAccount.findMany({ where: { spaceId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }));
   }
 
   async cards(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [owned, paid] = await Promise.all([
       this.prisma.card.findMany({
         where: { account: { spaceId } },
@@ -66,7 +66,7 @@ export class AccountsService {
   }
 
   async create(userId: string, spaceId: string, input: CreateAccountDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertFunding(spaceId, input.fundedByAccountId, null);
     const { cardDigits = [], senders = [], balanceMinor = 0, ...details } = input;
     const kind = input.kind ?? 'bank_current';
@@ -87,7 +87,7 @@ export class AccountsService {
   }
 
   async update(userId: string, id: string, input: UpdateAccountDto) {
-    const existing = await this.find(userId, id, 'edit');
+    const existing = await this.find(userId, id);
     await this.assertFunding(existing.spaceId, input.fundedByAccountId, id);
     const { cardDigits, senders, balanceMinor, archived, ...details } = input;
     const account = await this.prisma.$transaction(async (transaction) => {
@@ -117,15 +117,15 @@ export class AccountsService {
   }
 
   async remove(userId: string, id: string) {
-    const account = await this.find(userId, id, 'edit');
+    const account = await this.find(userId, id);
     await this.prisma.moneyAccount.delete({ where: { id: account.id } });
     this.changes.notify('spending', { spaceId: account.spaceId });
   }
 
-  private async find(userId: string, id: string, access: 'read' | 'edit') {
+  private async find(userId: string, id: string) {
     const account = await this.prisma.moneyAccount.findUnique({ where: { id } });
     if (!account) throw new NotFoundException('Account not found');
-    await this.access.assertSpace(userId, account.spaceId, access);
+    await this.access.assertPersonalSpace(userId, account.spaceId);
     return account;
   }
 

@@ -66,14 +66,14 @@ export class InstallmentsService implements OnModuleInit {
   }
 
   async list(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const today = await this.today(userId);
     const plans = await this.prisma.installmentPlan.findMany({ where: { spaceId }, orderBy: [{ firstDueOn: 'asc' }, { createdAt: 'asc' }] });
     return plans.map((plan) => present(plan, today));
   }
 
   async create(userId: string, spaceId: string, input: CreateInstallmentDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertAccount(spaceId, input.accountId);
     const plan = await this.prisma.installmentPlan.create({
       data: { spaceId, ...input, firstDueOn: dateValue(input.firstDueOn), accountId: input.accountId ?? null },
@@ -162,7 +162,7 @@ export class InstallmentsService implements OnModuleInit {
   private async find(userId: string, id: string) {
     const plan = await this.prisma.installmentPlan.findUnique({ where: { id } });
     if (!plan) throw new NotFoundException('Installment plan not found');
-    await this.access.assertSpace(userId, plan.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, plan.spaceId);
     return plan;
   }
 }

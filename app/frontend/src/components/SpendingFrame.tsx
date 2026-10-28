@@ -4,7 +4,7 @@ import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { saveBlob } from '../files';
 import { spendingTabs, useByCategory, useCategories, type MoneyAccount, type SpendingCategory, type SpendingTab } from '../spending';
-import { useChosenSpace } from '../spaces';
+import { usePersonalSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
@@ -35,7 +35,7 @@ export function SpendingFrame({
   const auth = useAuth();
   const action = useAction();
   const [params] = useSearchParams();
-  const { spaceId, space, editable } = useChosenSpace();
+  const { spaceId, space, editable } = usePersonalSpace();
   const [byCategory, showByCategory] = useByCategory();
   const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories'>();
   const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);

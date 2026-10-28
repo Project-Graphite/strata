@@ -20,7 +20,6 @@ const expenseFields = {
   createdAt: true,
   updatedAt: true,
   expense: true,
-  costSplit: { select: { payerId: true, shares: { select: { userId: true, weight: true }, orderBy: { userId: 'asc' } } } },
 } satisfies Prisma.ItemSelect;
 
 type ExpenseRow = Prisma.ItemGetPayload<{ select: typeof expenseFields }>;
@@ -48,7 +47,6 @@ function present(row: ExpenseRow) {
     toAccountId: expense.toAccountId,
     cardId: expense.cardId,
     cardDigits: expense.cardDigits,
-    split: row.costSplit,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -93,12 +91,12 @@ export class SpendingService {
   ) {}
 
   async month(userId: string, spaceId: string, month?: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     return this.summary(userId, spaceId, month);
   }
 
   async savePlan(userId: string, spaceId: string, input: SavePlanDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     if ((input.budgetMinor === null) !== (input.currency === null)) throw new BadRequestException('Give the monthly budget an amount and a currency');
     const { startDay, ...settings } = input;
     const [plan] = await this.prisma.$transaction([
@@ -236,7 +234,7 @@ export class SpendingService {
   }
 
   async insights(userId: string, spaceId: string, count: number) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [user, plan] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true, monthStartDay: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
@@ -304,7 +302,7 @@ export class SpendingService {
   }
 
   async export(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [rows, accounts] = await Promise.all([
       this.prisma.item.findMany({
         where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null },
@@ -338,13 +336,13 @@ export class SpendingService {
   }
 
   async create(userId: string, spaceId: string, input: CreateExpenseDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [id] = await this.insert(userId, spaceId, [input], 'manual');
     return this.get(userId, id!);
   }
 
   async import(userId: string, spaceId: string, inputs: CreateExpenseDto[]) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     return { added: (await this.insert(userId, spaceId, inputs, 'import')).length };
   }
 
@@ -354,11 +352,11 @@ export class SpendingService {
   }
 
   async get(userId: string, itemId: string) {
-    return present(await this.row(userId, itemId, 'read'));
+    return present(await this.row(userId, itemId));
   }
 
   async update(userId: string, itemId: string, input: UpdateExpenseDto) {
-    const row = await this.row(userId, itemId, 'edit');
+    const row = await this.row(userId, itemId);
     if (row.trashedAt) throw new BadRequestException('Restore this expense from the trash before changing it');
     const movement = movementOf({
       direction: input.direction ?? (row.expense!.direction as CreateExpenseDto['direction']),
@@ -399,7 +397,7 @@ export class SpendingService {
   }
 
   async saveBudget(userId: string, spaceId: string, category: string, input: SaveBudgetDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.categories.assertCategory(spaceId, category);
     const budget = await this.prisma.budget.upsert({
       where: { spaceId_category: { spaceId, category } },
@@ -411,7 +409,7 @@ export class SpendingService {
   }
 
   async removeBudget(userId: string, spaceId: string, category: string) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const removed = await this.prisma.budget.deleteMany({ where: { spaceId, category } });
     if (removed.count === 0) throw new NotFoundException('There is no budget for that category');
     this.changes.notify('spending', { spaceId });
@@ -454,8 +452,8 @@ export class SpendingService {
     return ids;
   }
 
-  private async row(userId: string, itemId: string, access: 'read' | 'edit') {
-    await this.access.assertItem(userId, itemId, access);
+  private async row(userId: string, itemId: string) {
+    await this.access.assertPersonalSpace(userId, (await this.access.assertItem(userId, itemId, 'read')).spaceId);
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: expenseFields });
     if (!row.expense) throw new NotFoundException('That item is not an expense');
     return row;

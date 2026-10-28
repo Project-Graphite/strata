@@ -5,14 +5,11 @@ import { ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '../spending';
-import { useSpaces } from '../spaces';
+import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
 import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
-function usePersonalSpace() {
-  return useSpaces().data?.find((space) => space.kind === 'personal')?.id;
-}
 
 function nextCardDue(dueDay: number) {
   const today = new Date();
@@ -24,7 +21,7 @@ function nextCardDue(dueDay: number) {
 }
 
 export function SpendingWidget() {
-  const spaceId = usePersonalSpace();
+  const { spaceId } = usePersonalSpace();
   const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending` : null, true, { live: ['spending', 'items'] });
   if (summary.error) return <LoadError compact error={summary.error} onRetry={summary.reload} />;
   if (!summary.data) {
@@ -60,7 +57,7 @@ export function SpendingWidget() {
 }
 
 export function PaymentsWidget() {
-  const spaceId = usePersonalSpace();
+  const { spaceId } = usePersonalSpace();
   const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true, { live: ['spending'] });
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, { live: ['spending', 'items'] });
   const failed = installments.error ?? accounts.error;
@@ -98,7 +95,7 @@ export function PaymentsWidget() {
 }
 
 export function SavingsWidget() {
-  const spaceId = usePersonalSpace();
+  const { spaceId } = usePersonalSpace();
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true, { live: ['spending', 'items'] });
   if (goals.error) return <LoadError compact error={goals.error} onRetry={goals.reload} />;
   if (!goals.data) {
