@@ -1,7 +1,6 @@
-import MuiIconButton from '@mui/material/IconButton';
 import { Fragment, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Icon } from '@project-graphite/ui';
+import { IconButton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type FetchedPage, type Inline } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -139,9 +138,7 @@ export function BookmarkPage() {
     <Page
       actions={
         <>
-          <MuiIconButton aria-label="Open original" href={details.url} LinkComponent="a" rel="noopener noreferrer" target="_blank" title="Open original">
-            <Icon name="external" size={18} />
-          </MuiIconButton>
+          <IconButton href={details.url} icon="external" label="Open original" LinkComponent="a" rel="noopener noreferrer" target="_blank" />
           {editable && (
             <ActionsMenu
               items={[
