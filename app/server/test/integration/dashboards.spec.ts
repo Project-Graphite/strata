@@ -96,6 +96,22 @@ describe('Dashboards against Postgres', () => {
     });
   });
 
+  it('resets a dashboard to a layout and keeps its background', async () => {
+    const owner = await member('resetter');
+    const other = await member('reset-peeker');
+    const [home] = (await owner.call('GET', '/me/dashboards')).body;
+    await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: { widgets: [{ id: 'a', type: 'quote', x: 0, y: 0, w: 6, settings: {} }], background: { colour: 'teal' } } });
+
+    const reset = await owner.call('PATCH', `/me/dashboards/${home.id}`, { template: 'work' });
+    expect(reset.status).toBe(200);
+    expect(reset.body.layout.widgets.map((widget: { type: string }) => widget.type)).toEqual(['today', 'tasks', 'shortcuts', 'clock']);
+    expect(reset.body.layout.background).toEqual({ colour: 'teal' });
+
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { template: 'holiday' })).status).toBe(400);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { template: 'work', layout: { widgets: [] } })).status).toBe(400);
+    expect((await other.call('PATCH', `/me/dashboards/${home.id}`, { template: 'work' })).status).toBe(404);
+  });
+
   it('drops widgets that no longer exist from saved layouts and refuses new ones', async () => {
     const owner = await member('retired-widget');
     const [home] = (await owner.call('GET', '/me/dashboards')).body;

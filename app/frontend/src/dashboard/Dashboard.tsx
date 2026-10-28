@@ -1,22 +1,21 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
-import { dayKey } from '../agenda';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, ButtonLink, IconLink, TextButton } from '../components/Button';
+import { Button, ButtonLink, TextButton } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
-import { Page } from '../components/Page';
+import { Page, useDocumentTitle } from '../components/Page';
 import { colorOptions, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
-import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
+import { chosenDashboard, rememberDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
 import { DashboardGrid } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, placed, sizeWidths } from './grid';
@@ -24,9 +23,7 @@ import { NowStrip } from './NowStrip';
 import { useWide, WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
-import { clockTime, TimeField } from '../time';
-
-type Device = 'any' | 'phone' | 'desktop';
+import { clockTime, profileDay } from '../time';
 
 interface Layout {
   widgets: PlacedWidget[];
@@ -38,20 +35,13 @@ interface Dashboard {
   name: string;
   position: number;
   layout: { widgets: Widget[]; background?: Background };
-  showFrom: number | null;
-  showUntil: number | null;
-  showOn: Device;
 }
-
-const fieldTime = (minutes: number | null) => (minutes === null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
-const minutesOf = (time: string) => (time ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) : null);
 
 const templates = [
   ['morning', 'Morning briefing', 'Clock, Today, Agenda, Renewals and spend, Inbox'],
   ['work', 'Work day', 'Today, Tasks, Shortcuts, Clock'],
   ['student', 'Student', 'Today, Tasks, Shortcuts'],
   ['travel', 'Travel', 'World clocks, Today, Shortcuts'],
-  ['', 'Empty', 'Add widgets yourself'],
 ] as const;
 
 const heights: [string, string][] = [
@@ -135,11 +125,21 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
   );
 }
 
+export function WallPage() {
+  const [params] = useSearchParams();
+  const dashboards = useResource<Dashboard[]>('/me/dashboards', true, { live: ['dashboards'] });
+  if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
+  if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
+  return <WallDisplay dashboard={chosenDashboard(dashboards.data, params.get('d'))} />;
+}
+
 function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [now, setNow] = useState(() => new Date());
   const [mayDim, setMayDim] = useState(false);
   const backdrop = useBackdrop(dashboard.layout.background);
+  useDocumentTitle(`${dashboard.name} wall display`);
 
   useEffect(() => {
     let lock: WakeLockSentinel | undefined;
@@ -177,8 +177,8 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Hint>{dashboard.name}</Hint>
-          <p className="m-0 text-5xl text-ink">{clockTime(now)}</p>
-          <p className="mono-sm m-0 mt-1 text-faint">{formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="m-0 text-5xl text-ink">{clockTime(now, user?.timeZone)}</p>
+          <p className="mono-sm m-0 mt-1 text-faint">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
@@ -222,7 +222,7 @@ export function DashboardHome() {
   const [adding, setAdding] = useState(false);
   const [configuring, setConfiguring] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [schedule, setSchedule] = useState({ from: '', until: '', on: 'any' as Device });
+  const [resetting, setResetting] = useState(false);
   const addForm = useFormErrors();
   const chosen = params.get('d');
 
@@ -230,29 +230,20 @@ export function DashboardHome() {
     if (chosen) rememberDashboard(chosen);
   }, [chosen]);
 
+  if (params.get('display') === 'wall') return <Navigate replace to={`/wall${chosen ? `?d=${chosen}` : ''}`} />;
   if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
   if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
-  const picked = chosen ?? rememberedDashboard();
-  const current =
-    dashboards.data.find((dashboard) => dashboard.id === picked) ??
-    automaticDashboard(dashboards.data, new Date(), window.matchMedia('(max-width: 767px)').matches)!;
+  const current = chosenDashboard(dashboards.data, chosen);
   const layout = draft ?? layoutOf(current);
   const { widgets } = layout;
   const editing = draft !== undefined;
-  const unsaved =
-    history.length > 0 ||
-    name !== current.name ||
-    schedule.from !== fieldTime(current.showFrom) ||
-    schedule.until !== fieldTime(current.showUntil) ||
-    schedule.on !== current.showOn;
+  const unsaved = history.length > 0 || name !== current.name;
   const configured = widgets.find((widget) => widget.id === settingsOpen);
   const personal = spaces.data?.find((space) => space.role !== 'viewer');
   const features = auth.user?.features ?? [];
-  if (params.get('display') === 'wall' && !editing) return <WallDisplay dashboard={current} />;
 
   function startEditing() {
     setName(current.name);
-    setSchedule({ from: fieldTime(current.showFrom), until: fieldTime(current.showUntil), on: current.showOn });
     setDraft(layoutOf(current));
   }
 
@@ -272,16 +263,11 @@ export function DashboardHome() {
     }
     void saving
       .run(async () => {
-        if (Boolean(schedule.from) !== Boolean(schedule.until)) throw new Error('Set both times, or neither.');
-        const showFrom = minutesOf(schedule.from);
-        const showUntil = minutesOf(schedule.until);
         const saved = await auth.request<Dashboard>(`/me/dashboards/${current.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
             layout,
             ...(name.trim() ? { name: name.trim() } : {}),
-            ...(showFrom !== current.showFrom || showUntil !== current.showUntil ? { showFrom, showUntil } : {}),
-            ...(schedule.on !== current.showOn ? { showOn: schedule.on } : {}),
           }),
         });
         dashboards.mutate((all) => all.map((dashboard) => (dashboard.id === saved.id ? saved : dashboard)));
@@ -311,9 +297,15 @@ export function DashboardHome() {
           </>
         ) : (
           <>
-            <IconLink icon="monitor" label="Wall display" to={`/?d=${current.id}&display=wall`} />
-            <IconButton icon="pencil" label="Edit" onClick={startEditing} />
-            <IconButton icon="plus" label="New dashboard" onClick={() => setAdding(true)} />
+            <Button icon="pencil" label="Edit" large onClick={startEditing} />
+            <ActionsMenu
+              items={[
+                { label: 'New dashboard', onSelect: () => setAdding(true) },
+                { label: 'Reset to a layout', onSelect: () => setResetting(true) },
+                { label: 'Wall display', separated: true, href: `/wall?d=${current.id}` },
+              ]}
+              name={current.name}
+            />
           </>
         )
       }
@@ -418,22 +410,6 @@ export function DashboardHome() {
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
           <div className="mt-5 grid gap-5">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
-            <Fieldset className="gap-3" legend="Opens by itself">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <TimeField emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
-                <TimeField emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
-                <Select
-                  label="On"
-                  onChange={(on: Device) => setSchedule({ ...schedule, on })}
-                  options={[
-                    { value: 'any', label: 'Any device' },
-                    { value: 'phone', label: 'Phones' },
-                    { value: 'desktop', label: 'Computers' },
-                  ]}
-                  value={schedule.on}
-                />
-              </div>
-            </Fieldset>
             <div className="grid gap-3">
               <ColorSwatches label="Background" name="background" onChange={(colour) => change({ background: { colour } })} value={layout.background?.colour ?? null} />
               <div className="flex flex-wrap items-center gap-3">
@@ -482,13 +458,11 @@ export function DashboardHome() {
           onClose={() => setAdding(false)}
           onSubmit={(target) => {
             if (!addForm.check(target, { name: [required('Name the dashboard.'), atMost(40, 'Use at most 40 characters.')] })) return;
-            const values = new FormData(target);
-            const template = String(values.get('template'));
             void saving
               .run(async () => {
                 const created = await auth.request<Dashboard>('/me/dashboards', {
                   method: 'POST',
-                  body: JSON.stringify({ name: String(values.get('name')).trim(), ...(template ? { template } : {}) }),
+                  body: JSON.stringify({ name: String(new FormData(target).get('name')).trim() }),
                 });
                 dashboards.mutate((all) => [...all, created]);
                 navigate(`/?d=${created.id}`);
@@ -499,13 +473,36 @@ export function DashboardHome() {
           submitLabel="Add dashboard"
           title="New dashboard"
         >
-          <TextField autoFocus defaultValue="Morning briefing" label="Name" maxLength={40} {...addForm.field('name')} />
-          <Fieldset legend="Start from">
+          <TextField autoFocus label="Name" maxLength={40} {...addForm.field('name')} />
+        </FormDialog>
+      )}
+      {resetting && (
+        <FormDialog
+          busy={saving.busy}
+          busyLabel="Resetting…"
+          onClose={() => setResetting(false)}
+          onSubmit={(target) => {
+            void saving
+              .run(async () => {
+                const saved = await auth.request<Dashboard>(`/me/dashboards/${current.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ template: new FormData(target).get('template') }),
+                });
+                dashboards.mutate((all) => all.map((dashboard) => (dashboard.id === saved.id ? saved : dashboard)));
+                return `Reset ${saved.name}.`;
+              }, 'Could not reset the dashboard')
+              .then((done) => done && setResetting(false));
+          }}
+          submitLabel="Reset layout"
+          title="Reset to a layout"
+        >
+          <Hint>Your widgets on {current.name} are replaced. The background stays.</Hint>
+          <Fieldset legend="Layout">
             {templates.map(([value, label, contents]) => (
               <Radio
                 className="choice-card m-0"
                 defaultChecked={value === 'morning'}
-                key={label}
+                key={value}
                 label={
                   <span className="grid gap-0.5">
                     <span className="text-ink">{label}</span>
@@ -513,10 +510,6 @@ export function DashboardHome() {
                   </span>
                 }
                 name="template"
-                onChange={(event) => {
-                  const field = event.currentTarget.form?.elements.namedItem('name');
-                  if (field instanceof HTMLInputElement && templates.some(([, known]) => known === field.value)) field.value = label;
-                }}
                 value={value}
               />
             ))}

@@ -73,8 +73,8 @@ export function useAgenda(from: string, to: string) {
 
 export function useTodaySchedule() {
   const today = profileDay();
-  const agenda = useAgenda(today, addDays(today, 1));
-  return { ...agenda, data: agenda.data?.filter((entry) => entry.kind !== 'task') };
+  const agenda = useAgenda(today, addDays(today, 7));
+  return { ...agenda, data: agenda.data?.filter((entry) => entry.kind !== 'task' && (entry.allDay ? entry.start : profileDay(entry.start)) <= today) };
 }
 
 export interface PublicEvent {
