@@ -1,6 +1,5 @@
-import { amount, anyCurrency, arabicMerchant, balance, currency, Institution, shape } from './template';
+import { amount, anyCurrency, arabicMerchant, balance, currency, Institution, phone, shape } from './template';
 
-const phone = String.raw`01\d ?[\dX]{8}`;
 const holder = String.raw`(?: (?:المسجل باسم|باسم) ${arabicMerchant})?`;
 const owner = String.raw`(?: \((?<merchant>[^)]+)\))?`;
 const arabicBalance = String.raw`(?:.*?رصيدك(?: الحالي)?(?: هو)? ${balance} ${anyCurrency})?`;

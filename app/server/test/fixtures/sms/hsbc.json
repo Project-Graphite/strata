@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "HSBC",
+  "messages": [
+    {
+      "sender": "HSBC",
+      "text": "HSBC: A purchase of EGP 799.00 was made on your credit card ending 1234 at SAMPLE STORE on 14/10/2026. Available credit EGP 39,201.00",
+      "expect": { "direction": "spent", "amount": 799, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 39201, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: A purchase of USD 25.00 was made on your credit card ending 1234 at SAMPLE.COM on 15/10/2026",
+      "expect": { "direction": "spent", "amount": 25, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: Cash withdrawal of EGP 3,000.00 from your debit card ending 1234 at HSBC ATM SAMPLE on 16/10/2026. Available balance EGP 12,000.00",
+      "expect": { "direction": "spent", "amount": 3000, "currency": "EGP", "cardDigits": "1234", "merchant": "HSBC ATM SAMPLE", "available": 12000, "movement": "atm", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "HSBC EG",
+      "text": "HSBC: Your account ending 1234 has been credited with EGP 6,000.00 from AHMED SAMPLE on 17/10/2026",
+      "expect": { "direction": "received", "amount": 6000, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: EGP 1,000.00 has been debited from your account ending 1234 for a transfer to MONA SAMPLE on 18/10/2026. Ref 3312345",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-18", "reference": "3312345" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: Salary of EGP 30,000.00 has been credited to your account ending 1234 on 25/10/2026",
+      "expect": { "direction": "received", "amount": 30000, "currency": "EGP", "cardDigits": "1234", "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: Thank you. Your payment of EGP 5,000.00 to your credit card ending 1234 has been received on 20/10/2026",
+      "expect": { "direction": "received", "amount": 5000, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: A refund of EGP 199.00 from SAMPLE SHOP has been credited to your credit card ending 1234 on 22/10/2026",
+      "expect": { "direction": "refund", "amount": 199, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE SHOP", "movement": "refund", "occurredOn": "2026-10-22" }
+    },
+    {
+      "sender": "HSBC",
+      "text": "HSBC: Bill payment of EGP 410.00 to SAMPLE ELECTRICITY has been debited from your account ending 1234 on 21/10/2026",
+      "expect": { "direction": "spent", "amount": 410, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE ELECTRICITY", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    { "sender": "HSBC", "text": "HSBC: Your one-time password is 482913. Never share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "HSBC", "text": "HSBC: 739102 is your passcode for online banking", "expect": { "ignored": "code" } },
+    { "sender": "HSBC", "text": "HSBC: Enjoy 0% instalments on travel bookings with your HSBC credit card. Offer valid until 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}

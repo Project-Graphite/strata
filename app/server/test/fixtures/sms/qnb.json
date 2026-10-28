@@ -1,0 +1,59 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "QNB Alahli",
+  "messages": [
+    {
+      "sender": "QNB",
+      "text": "Your QNB card ending 1234 was used for EGP 640.00 at SAMPLE STORE on 14/10/2026 13:45. Available limit EGP 29,360.00",
+      "expect": { "direction": "spent", "amount": 640, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 29360, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "QNB",
+      "text": "Your QNB card ending 1234 was used for USD 9.99 at SAMPLE.COM on 15/10/2026",
+      "expect": { "direction": "spent", "amount": 9.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "QNB",
+      "text": "Cash withdrawal of EGP 1,000.00 from your QNB card ending 1234 at QNB ATM SAMPLE on 16/10/2026. Available balance EGP 4,000.00",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "merchant": "QNB ATM SAMPLE", "available": 4000, "movement": "atm", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "QNBAlahli",
+      "text": "Your account ending 1234 has been credited with EGP 3,000.00 from AHMED SAMPLE on 17/10/2026. Available balance EGP 7,000.00",
+      "expect": { "direction": "received", "amount": 3000, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "available": 7000, "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "QNB",
+      "text": "EGP 750.00 has been transferred from your account ending 1234 to MONA SAMPLE on 18/10/2026. Ref 7712345",
+      "expect": { "direction": "spent", "amount": 750, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-18", "reference": "7712345" }
+    },
+    {
+      "sender": "QNB",
+      "text": "Salary of EGP 18,000.00 has been credited to your account ending 1234 on 25/10/2026. Available balance EGP 25,000.00",
+      "expect": { "direction": "received", "amount": 18000, "currency": "EGP", "cardDigits": "1234", "available": 25000, "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "QNB",
+      "text": "We have received your credit card payment of EGP 4,000.00 for card ending 1234 on 20/10/2026",
+      "expect": { "direction": "received", "amount": 4000, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "QNB",
+      "text": "Bill payment of EGP 280.00 for SAMPLE INTERNET has been debited from your account ending 1234 on 21/10/2026",
+      "expect": { "direction": "spent", "amount": 280, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE INTERNET", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    {
+      "sender": "QNB",
+      "text": "تم خصم 320.00 جم من بطاقتك المنتهية ب 1234 لدى SAMPLE MARKET بتاريخ 19/10/2026 الحد المتاح 28,000.00 جم",
+      "expect": { "direction": "spent", "amount": 320, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "available": 28000, "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "QNB",
+      "text": "تم إيداع 1,500.00 جم في حسابك المنتهي ب 1234 من AHMED SAMPLE بتاريخ 22/10/2026",
+      "expect": { "direction": "received", "amount": 1500, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "movement": "transfer", "occurredOn": "2026-10-22" }
+    },
+    { "sender": "QNB", "text": "Your QNB OTP is 482913. Do not share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "QNB", "text": "رمز التحقق الخاص بك هو 739102 لا تشاركه مع أحد", "expect": { "ignored": "code" } },
+    { "sender": "QNB", "text": "Enjoy 15% cashback on QNB card purchases until 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}

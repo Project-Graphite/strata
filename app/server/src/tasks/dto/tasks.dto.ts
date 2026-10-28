@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -16,7 +17,9 @@ import {
 } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { PageDto } from '../../validation/page.dto';
+import { IsRichText } from '../../validation/rich-text.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
+import { taskStatuses } from '../task-status';
 
 const nullable = (value: unknown) => value === null;
 
@@ -80,6 +83,15 @@ export class TaskFieldsDto {
   @IsOptionalNotNull()
   @IsNumber()
   position?: number;
+
+  @IsOptionalNotNull()
+  @IsIn(taskStatuses, { message: 'Choose open, in progress or done.' })
+  status?: (typeof taskStatuses)[number];
+
+  @IsOptional()
+  @ValidateIf((_input, value) => !nullable(value))
+  @IsRichText()
+  description?: Record<string, unknown> | null;
 }
 
 export class CreateTaskDto extends TaskFieldsDto {
@@ -106,4 +118,21 @@ export class ListTasksDto extends PageDto {
   @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
   @IsBoolean()
   completed?: boolean;
+}
+
+export class MoveTaskDto {
+  @ValidateIf((input: MoveTaskDto, value) => (value !== undefined && !nullable(value)) || !input.nextId)
+  @IsUUID('all', { message: 'Choose the task to place this one after.' })
+  previousId?: string | null;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose the task to place this one before.' })
+  nextId?: string | null;
+}
+
+export class TaskCommentDto {
+  @Trimmed()
+  @IsString()
+  @Length(1, 2_000, { message: 'Comments are between 1 and 2,000 characters long.' })
+  body!: string;
 }

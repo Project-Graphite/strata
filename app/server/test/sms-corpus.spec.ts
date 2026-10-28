@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { institutions } from '../src/spending/capture/senders';
 import { parseMessage } from '../src/spending/capture/sms-parser';
 
 interface Sample {
@@ -42,11 +43,21 @@ describe('SMS corpus', () => {
   });
 
   it('covers at least eight movements and an OTP and a promotion per institution', () => {
-    expect(corpora.length).toBeGreaterThanOrEqual(6);
+    expect(corpora.map(({ institution }) => institution).sort()).toEqual(institutions.map(({ institution }) => institution).sort());
     for (const { messages } of corpora) {
       expect(messages.filter((sample) => !('ignored' in sample.expect)).length).toBeGreaterThanOrEqual(8);
       expect(messages.some((sample) => 'ignored' in sample.expect && sample.expect.ignored === 'code')).toBe(true);
       expect(messages.some((sample) => 'ignored' in sample.expect && sample.expect.ignored === 'promotion')).toBe(true);
+    }
+  });
+
+  it('claims every message for its own institution only', () => {
+    for (const { institution, messages } of corpora) {
+      for (const { sender, text, expect: wanted } of messages) {
+        const claimants = institutions.filter(({ senderPatterns }) => senderPatterns.some((pattern) => pattern.test(sender))).map((found) => found.institution);
+        expect(claimants, sender).toEqual([institution]);
+        if (!('ignored' in wanted)) expect(parseMessage(sender, text), text).toMatchObject({ institution, templateId: expect.any(String) });
+      }
     }
   });
 
