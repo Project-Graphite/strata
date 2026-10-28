@@ -13,9 +13,6 @@ export interface Background {
 interface Choice {
   id: string;
   layout: { background?: Background };
-  showFrom: number | null;
-  showUntil: number | null;
-  showOn: 'any' | 'phone' | 'desktop';
 }
 
 const chosenKey = 'strata-dashboard';
@@ -36,15 +33,8 @@ export function rememberDashboard(id: string) {
   }
 }
 
-export function automaticDashboard<T extends Pick<Choice, 'showFrom' | 'showUntil' | 'showOn'>>(dashboards: T[], now: Date, phone: boolean) {
-  const minute = now.getHours() * 60 + now.getMinutes();
-  const fits = dashboards.filter(
-    ({ showFrom, showUntil, showOn }) =>
-      (showFrom === null || showUntil === null || (showFrom < showUntil ? minute >= showFrom && minute < showUntil : minute >= showFrom || minute < showUntil)) &&
-      (showOn === 'any' || showOn === (phone ? 'phone' : 'desktop')),
-  );
-  return fits.find((dashboard) => dashboard.showFrom !== null || dashboard.showOn !== 'any') ?? fits[0] ?? dashboards[0];
-}
+export const chosenDashboard = <T extends Pick<Choice, 'id'>>(dashboards: T[], chosen?: string | null) =>
+  dashboards.find((dashboard) => dashboard.id === (chosen ?? rememberedDashboard())) ?? dashboards[0]!;
 
 export function useBackdrop(background?: Background) {
   const { request } = useAuth();
@@ -81,10 +71,7 @@ const BackdropContext = createContext<(background?: Background | null) => void>(
 export function SiteBackdrop({ children }: { children: ReactNode }) {
   const dashboards = useResource<Choice[]>('/me/dashboards', true, { live: ['dashboards'] });
   const [shown, setShown] = useState<Background | null>();
-  const chosen =
-    dashboards.data &&
-    (dashboards.data.find((dashboard) => dashboard.id === rememberedDashboard()) ??
-      automaticDashboard(dashboards.data, new Date(), window.matchMedia('(max-width: 767px)').matches));
+  const chosen = dashboards.data && chosenDashboard(dashboards.data);
   const onHome = useLocation().pathname === '/';
   const { className, image } = useBackdrop(!onHome ? undefined : shown === undefined ? chosen?.layout.background : (shown ?? undefined));
 

@@ -1,6 +1,6 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, Icon, Skeleton, timeAgo, type IconName } from '@project-graphite/ui';
+import { EmptyState, Icon, Skeleton, TextLink, timeAgo, type IconName } from '@project-graphite/ui';
 import { noteHref, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { Subheading } from '../components/Page';
@@ -24,6 +24,28 @@ export function WidgetHeading({ children, icon, title }: { children?: ReactNode;
 
 export function WidgetEmpty({ action, icon, title }: { action?: ReactNode; icon: IconName; title: string }) {
   return <EmptyState action={action} icon={icon} title={title} variant="widget" />;
+}
+
+export function useWide() {
+  const query = '(min-width: 64rem)';
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setWide(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+
+export const useListRows = (rows: number) => (useWide() ? rows : Math.min(rows, 5));
+
+export function ShowAll({ count, href }: { count: number; href: string }) {
+  return (
+    <p className="m-0 text-small">
+      <TextLink href={href}>Show all {count}</TextLink>
+    </p>
+  );
 }
 
 export interface SettingsProps extends WidgetProps {

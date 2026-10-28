@@ -1,5 +1,6 @@
-import { useEffect, useEffectEvent, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react';
-import { compact, gapPixels, gridColumns, inOrder, organized, rowPixels, rowsFor, stretched, type Cell } from './grid';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { compact, gapPixels, gridColumns, inOrder, phoneOrder, pixelsOf, rowPixels, rowsFor, swapWithNeighbour, type Cell } from './grid';
+import { useWide } from './widget-parts';
 import { widgetKinds, type PlacedWidget } from './widgets';
 
 const paddings = { compact: 'p-3', normal: 'p-4', roomy: 'p-6' };
@@ -16,22 +17,6 @@ interface Gesture {
 
 type Preview = Partial<Cell> & { id: string; fixed?: boolean };
 
-export interface GridHandle {
-  organize: () => void;
-}
-
-export function useWide() {
-  const query = '(min-width: 64rem)';
-  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    const update = () => setWide(media.matches);
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-  return wide;
-}
-
 function rememberedRows(dashboard: string): Record<string, number> {
   try {
     return JSON.parse(localStorage.getItem(rowsKey(dashboard)) ?? '{}') as Record<string, number>;
@@ -40,27 +25,19 @@ function rememberedRows(dashboard: string): Record<string, number> {
   }
 }
 
-const sameLayout = (a: PlacedWidget[], b: PlacedWidget[]) =>
-  a.every((widget) => {
-    const other = b.find((candidate) => candidate.id === widget.id);
-    return other && other.x === widget.x && other.y === widget.y && other.w === widget.w && (other.h ?? null) === (widget.h ?? null);
-  });
-
 export function DashboardGrid({
   card,
   dashboard,
   editing = false,
   label,
   onChange,
-  ref,
   widgets,
 }: {
   card: (widget: PlacedWidget) => ReactNode;
   dashboard: string;
   editing?: boolean;
   label: (widget: PlacedWidget) => string;
-  onChange?: (next: PlacedWidget[], replace?: boolean) => void;
-  ref?: Ref<GridHandle>;
+  onChange?: (next: PlacedWidget[]) => void;
   widgets: PlacedWidget[];
 }) {
   const wide = useWide();
@@ -68,7 +45,7 @@ export function DashboardGrid({
   const [measured, setMeasured] = useState(() => rememberedRows(dashboard));
   const [gesture, setGesture] = useState<Gesture>();
   const [preview, setPreview] = useState<Preview>();
-  const [settling, setSettling] = useState(false);
+  const moved = useRef<string>(undefined);
   const observer = useMemo(
     () =>
       new ResizeObserver((entries) =>
@@ -93,40 +70,25 @@ export function DashboardGrid({
       return;
     }
   }, [dashboard, editing, measured]);
+  useEffect(() => {
+    if (!moved.current) return;
+    grid.current?.querySelector<HTMLElement>(`[data-widget="${moved.current}"]`)?.focus();
+    moved.current = undefined;
+  }, [widgets]);
 
   const contentRows = (widget: PlacedWidget) => Math.max(measured[widget.id] ?? unmeasuredRows, widgetKinds[widget.type].minH);
-  const settle = useEffectEvent(() => {
-    const next = stretched(widgets, contentRows);
-    if (!sameLayout(next, widgets)) onChange?.(next, true);
-  });
-  useEffect(() => {
-    if (!settling) return;
-    const timer = window.setTimeout(() => {
-      setSettling(false);
-      settle();
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [measured, settling]);
-  useImperativeHandle(ref, () => ({
-    organize() {
-      const next = organized(widgets, contentRows);
-      if (sameLayout(next, widgets)) return;
-      onChange?.(next);
-      setSettling(true);
-    },
-  }));
-
   const shown = widgets.map((widget) => (preview?.id === widget.id ? { ...widget, ...preview, h: preview.fixed ? preview.h : widget.h } : widget));
-  const rowsOf = (widget: PlacedWidget) => widget.h ?? contentRows(widget);
   const cells = compact(
-    shown.map((widget) => ({ id: widget.id, x: widget.x, y: widget.y, w: widget.w, h: rowsOf(widget) })),
+    shown.map((widget) => ({ id: widget.id, x: widget.x, y: widget.y, w: widget.w, h: Math.max(widget.h ?? 0, contentRows(widget)) })),
     preview?.id,
   );
   const cellOf = new Map(cells.map((cell) => [cell.id, cell]));
-  const ordered = inOrder(shown.map((widget) => ({ ...widget, ...cellOf.get(widget.id)!, h: widget.h })));
+  const placedCells = shown.map((widget) => ({ ...widget, ...cellOf.get(widget.id)!, h: widget.h }));
+  const ordered = wide ? inOrder(placedCells) : phoneOrder(placedCells);
+  const editable = editing && wide && onChange;
 
   function begin(event: ReactPointerEvent<HTMLElement>, widget: PlacedWidget, mode: Gesture['mode']) {
-    if (!editing || !wide || !onChange || event.button !== 0 || !event.currentTarget.contains(event.target as Node)) return;
+    if (!editable || event.button !== 0 || !event.currentTarget.contains(event.target as Node)) return;
     if (mode === 'move' && (event.target as HTMLElement).closest('button, a, input, select, textarea, label, [contenteditable="true"], [role="menu"], [role="menuitem"], [role="dialog"]')) return;
     event.preventDefault();
     event.stopPropagation();
@@ -165,22 +127,47 @@ export function DashboardGrid({
     setPreview(undefined);
   }
 
+  function nudge(event: KeyboardEvent<HTMLElement>, widget: PlacedWidget, mode: Gesture['mode']) {
+    if (!onChange || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.target !== event.currentTarget) return;
+    event.preventDefault();
+    const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+    const across = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    const { minH, minW } = widgetKinds[widget.type];
+    const update = (fields: Partial<PlacedWidget>) => onChange(widgets.map((shown) => (shown.id === widget.id ? { ...shown, ...fields } : shown)));
+    if (mode === 'resize') {
+      if (across) update({ w: Math.min(Math.max(widget.w + step, minW), gridColumns - widget.x) });
+      else update({ h: Math.max((widget.h ?? cellOf.get(widget.id)!.h) + step, minH) });
+      return;
+    }
+    moved.current = widget.id;
+    if (across) update({ x: Math.min(Math.max(widget.x + step, 0), gridColumns - widget.w) });
+    else onChange(swapWithNeighbour(widgets, widget.id, step));
+  }
+
   return (
     <div
-      className={wide ? 'dashboard-grid' : 'grid grid-cols-1 gap-4 md:grid-cols-2'}
+      className={wide ? `dashboard-grid ${gesture ? 'dashboard-grid-guides' : ''}` : 'grid grid-cols-1 gap-4 md:grid-cols-2'}
       onPointerCancel={end}
       onPointerMove={track}
       onPointerUp={end}
       ref={grid}
-      style={wide ? { gridAutoRows: rowPixels, gap: gapPixels } : undefined}
+      style={wide ? ({ gridAutoRows: rowPixels, gap: gapPixels, '--grid-gap': `${gapPixels}px` } as CSSProperties) : undefined}
     >
       {ordered.map((widget) => (
         <article
           aria-label={label(widget)}
-          className={`dashboard-card ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${!wide && widget.w > gridColumns / 2 ? 'md:col-span-2' : ''} ${wide && widget.h ? 'overflow-y-auto [scrollbar-gutter:stable]' : 'overflow-hidden'}`}
+          aria-roledescription={editable ? 'Movable card, use the arrow keys to move it' : undefined}
+          className={`dashboard-card overflow-hidden ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${!wide && widget.w > gridColumns / 2 ? 'md:col-span-2' : ''}`}
+          data-widget={widget.id}
           key={widget.id}
+          onKeyDown={editable ? (event) => nudge(event, widget, 'move') : undefined}
           onPointerDown={(event) => begin(event, widget, 'move')}
-          style={wide ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` } : undefined}
+          style={
+            wide
+              ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` }
+              : { minHeight: pixelsOf(Math.max(widget.h ?? 0, widgetKinds[widget.type].minH)) }
+          }
+          tabIndex={editable ? 0 : undefined}
         >
           <div
             className={`dashboard-card-body grid min-w-0 grid-cols-1 content-start gap-3 ${paddings[widget.padding ?? 'normal']}`}
@@ -190,12 +177,25 @@ export function DashboardGrid({
               observer.observe(node);
               return () => observer.unobserve(node);
             }}
-            style={measured[widget.id] ? ({ '--card-height': `${measured[widget.id]! * (rowPixels + gapPixels) - gapPixels - 4}px` } as CSSProperties) : undefined}
+            style={measured[widget.id] ? ({ '--card-height': `${pixelsOf(measured[widget.id]!) - 4}px` } as CSSProperties) : undefined}
           >
             {card(widget)}
           </div>
-          {editing && wide && onChange && (
-            <span aria-hidden="true" className="dashboard-resize" onPointerDown={(event) => begin(event, widget, 'resize')} title="Drag to resize" />
+          {editable && (
+            <button
+              aria-label={`Resize ${label(widget)}, use the arrow keys`}
+              className="dashboard-resize"
+              onKeyDown={(event) => nudge(event, widget, 'resize')}
+              onPointerDown={(event) => begin(event, widget, 'resize')}
+              title="Drag or use the arrow keys to resize"
+              type="button"
+            >
+              {gesture?.id === widget.id && gesture.mode === 'resize' && (
+                <span className="dashboard-resize-size">
+                  {cellOf.get(widget.id)!.w} of {gridColumns} columns
+                </span>
+              )}
+            </button>
           )}
         </article>
       ))}

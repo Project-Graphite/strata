@@ -117,6 +117,10 @@ export class UpdateDashboardDto {
   @Type(() => LayoutDto)
   layout?: LayoutDto;
 
+  @IsOptionalNotNull()
+  @IsIn(templates, { message: 'Choose a template from the list.' })
+  template?: (typeof templates)[number];
+
   @IsOptional()
   @ValidateIf((_input, value) => value !== null)
   @IsInt()

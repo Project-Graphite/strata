@@ -8,7 +8,7 @@ import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '
 import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { ShowAll, SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 
 function nextCardDue(dueDay: number) {
@@ -79,18 +79,21 @@ export function PaymentsWidget() {
   ].sort((a, b) => a.on.localeCompare(b.on));
   if (payments.length === 0) return <WidgetEmpty icon="check" title="No payments due" />;
   return (
-    <ul className="m-0 grid list-none gap-1.5 p-0">
-      {payments.slice(0, 5).map((payment) => (
-        <li className="flex justify-between gap-3 text-sm" key={payment.key}>
-          <span className="min-w-0 flex-1 truncate text-ink">{payment.name}</span>
-          <span className={payment.missed ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}>
-            {payment.missed ? 'missed ' : ''}
-            {formatDay(payment.on, { day: 'numeric', month: 'short' })}
-          </span>
-          <Amount currency={payment.currency} danger={payment.missed} minor={payment.amountMinor} />
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-2">
+      <ul className="m-0 grid list-none gap-1.5 p-0">
+        {payments.slice(0, 5).map((payment) => (
+          <li className="flex justify-between gap-3 text-sm" key={payment.key}>
+            <span className="min-w-0 flex-1 truncate text-ink">{payment.name}</span>
+            <span className={payment.missed ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}>
+              {payment.missed ? 'missed ' : ''}
+              {formatDay(payment.on, { day: 'numeric', month: 'short' })}
+            </span>
+            <Amount currency={payment.currency} danger={payment.missed} minor={payment.amountMinor} />
+          </li>
+        ))}
+      </ul>
+      {payments.length > 5 && <ShowAll count={payments.length} href="/spending/accounts" />}
+    </div>
   );
 }
 
@@ -112,18 +115,21 @@ export function SavingsWidget() {
   }
   if (goals.data.length === 0) return <WidgetEmpty action={<ButtonLink label="Add a goal" to="/spending/net-worth" />} icon="shield" title="No savings goals yet" />;
   return (
-    <ul className="m-0 grid list-none gap-3 p-0">
-      {goals.data.slice(0, 4).map((goal) => (
-        <li className="grid gap-1" key={goal.id}>
-          <span className="flex flex-wrap justify-between gap-x-3 text-sm">
-            <span className="max-w-full shrink-0 truncate text-ink">{goal.name}</span>
-            <Amount currency={goal.currency} minor={goal.savedMinor ?? goal.targetMinor}>
-              {goal.savedMinor !== null && ` of ${money(goal.targetMinor, goal.currency)}`}
-            </Amount>
-          </span>
-          <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-3">
+      <ul className="m-0 grid list-none gap-3 p-0">
+        {goals.data.slice(0, 4).map((goal) => (
+          <li className="grid gap-1" key={goal.id}>
+            <span className="flex flex-wrap justify-between gap-x-3 text-sm">
+              <span className="max-w-full shrink-0 truncate text-ink">{goal.name}</span>
+              <Amount currency={goal.currency} minor={goal.savedMinor ?? goal.targetMinor}>
+                {goal.savedMinor !== null && ` of ${money(goal.targetMinor, goal.currency)}`}
+              </Amount>
+            </span>
+            <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor : 1} />
+          </li>
+        ))}
+      </ul>
+      {goals.data.length > 4 && <ShowAll count={goals.data.length} href="/spending/net-worth" />}
+    </div>
   );
 }

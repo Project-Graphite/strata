@@ -32,14 +32,16 @@ import {
   LinkRowsSkeleton,
   PageLinks,
   PageLinksSkeleton,
+  ShowAll,
   SkeletonLine,
   SplitRowsSkeleton,
   TaskRowsSkeleton,
+  useListRows,
   WidgetEmpty,
   type SettingsProps,
   type WidgetProps,
 } from './widget-parts';
-import { clockTime, formatDate } from '../time';
+import { clockTime, formatDate, profileDay } from '../time';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
@@ -72,13 +74,14 @@ function Clock({ settings }: WidgetProps) {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  const { user } = useAuth();
   const zones = Array.isArray(settings.zones) ? (settings.zones as string[]) : [];
   return (
     <div className="grid gap-3">
       <div>
-        <p className="widget-figure">{clockTime(now)}</p>
+        <p className="widget-figure">{clockTime(now, user?.timeZone)}</p>
         <p className="mono-sm m-0 mt-1 text-faint">
-          {formatDay(dayKey(now), { weekday: 'long', day: 'numeric', month: 'long' })}
+          {formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
       {zones.length > 0 && (
@@ -140,17 +143,19 @@ function TaskWidget({ add, empty, path }: { add?: { spaceId: string; listId?: st
   const spaces = useSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
   const action = useAction();
+  const rows = useListRows(8);
   const [opened, setOpened] = useState<Task>();
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
   if (!tasks.data) return <TasksSkeleton adding={Boolean(add)} />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
+  const total = Array.isArray(tasks.data) ? tasks.data.length : tasks.data.totalResults;
   return (
     <div className="fade-in grid gap-2">
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
       {list.length === 0 && empty}
       {list.length > 0 && (
         <ul className="panel-rows">
-          {list.slice(0, 8).map((task) => (
+          {list.slice(0, rows).map((task) => (
             <TaskRow
               disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
               key={task.id}
@@ -161,6 +166,7 @@ function TaskWidget({ add, empty, path }: { add?: { spaceId: string; listId?: st
           ))}
         </ul>
       )}
+      {total > rows && <ShowAll count={total} href="/tasks" />}
       {opened && <OpenTask onChanged={tasks.reload} onClose={() => setOpened(undefined)} task={opened} />}
     </div>
   );
@@ -181,13 +187,14 @@ function Today() {
     <div className="grid gap-3">
       {schedule.data.length > 0 && (
         <ul className="m-0 grid list-none gap-1.5 p-0">
-          {schedule.data.map((entry) => (
+          {schedule.data.slice(0, 5).map((entry) => (
             <li key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
               <AgendaCard colour={schedule.colourOf(entry)} entry={entry} />
             </li>
           ))}
         </ul>
       )}
+      {schedule.data.length > 5 && <ShowAll count={schedule.data.length} href="/agenda" />}
       <TaskWidget
         empty={
           schedule.data.length === 0 && (
@@ -329,6 +336,7 @@ function Recurring() {
           </li>
         ))}
       </ul>
+      {summary.data.upcoming.length > 3 && <ShowAll count={summary.data.upcoming.length} href="/spending/recurring" />}
     </div>
   );
 }
@@ -376,8 +384,9 @@ function Inbox() {
 }
 
 function Agenda() {
-  const today = dayKey(new Date());
+  const today = profileDay();
   const agenda = useAgenda(today, addDays(today, 7));
+  const rows = useListRows(6);
   if (agenda.error) return <LoadError compact error={agenda.error} onRetry={agenda.reload} />;
   if (!agenda.data) {
     return (
@@ -392,18 +401,21 @@ function Agenda() {
     );
   }
   return (
-    <ul className="m-0 grid list-none gap-1.5 p-0">
-      {agenda.data.slice(0, 6).map((entry) => (
-        <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
-          <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
-            <span className="block truncate text-ink">{entry.title}</span>
-            <span className="block truncate text-small text-muted tabular-nums">
-              {formatDate(entryDay(entry))} {entryTime(entry)}
-            </span>
-          </AgendaEntryLink>
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-2">
+      <ul className="m-0 grid list-none gap-1.5 p-0">
+        {agenda.data.slice(0, rows).map((entry) => (
+          <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
+            <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
+              <span className="block truncate text-ink">{entry.title}</span>
+              <span className="block truncate text-small text-muted tabular-nums">
+                {formatDate(entryDay(entry))} {entryTime(entry)}
+              </span>
+            </AgendaEntryLink>
+          </li>
+        ))}
+      </ul>
+      {agenda.data.length > rows && <ShowAll count={agenda.data.length} href="/agenda/week" />}
+    </div>
   );
 }
 
@@ -553,13 +565,16 @@ function Habits() {
     return <WidgetEmpty action={personal && <ButtonLink label="Add a habit" to={`/spaces/${personal.id}/habits`} />} icon="checklist" title="No habits yet" />;
   }
   return (
-    <ul className="m-0 grid list-none gap-3 p-0">
-      {habits.data.map((habit) => (
-        <li key={habit.id}>
-          <HabitRow habit={habit} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-3">
+      <ul className="m-0 grid list-none gap-3 p-0">
+        {habits.data.slice(0, 5).map((habit) => (
+          <li key={habit.id}>
+            <HabitRow habit={habit} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
+          </li>
+        ))}
+      </ul>
+      {habits.data.length > 5 && personal && <ShowAll count={habits.data.length} href={`/spaces/${personal.id}/habits`} />}
+    </div>
   );
 }
 
@@ -623,18 +638,21 @@ function ReadLater() {
     return <WidgetEmpty action={<ButtonLink label="Open bookmarks" to="/bookmarks" />} icon="bookmark" title="Nothing to read later" />;
   }
   return (
-    <ul className="m-0 grid list-none gap-1.5 p-0">
-      {bookmarks.data.slice(0, 5).map((bookmark) => (
-        <li className="text-sm" key={bookmark.id}>
-          <Link className="text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
-            {bookmark.title}
-          </Link>
-          <span className="mono-sm block text-faint">
-            {siteLabel(bookmark)} · saved {timeAgo(bookmark.createdAt)}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="grid gap-2">
+      <ul className="m-0 grid list-none gap-1.5 p-0">
+        {bookmarks.data.slice(0, 5).map((bookmark) => (
+          <li className="text-sm" key={bookmark.id}>
+            <Link className="text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
+              {bookmark.title}
+            </Link>
+            <span className="mono-sm block text-faint">
+              {siteLabel(bookmark)} · saved {timeAgo(bookmark.createdAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {bookmarks.data.length > 5 && <ShowAll count={bookmarks.data.length} href="/bookmarks" />}
+    </div>
   );
 }
 
@@ -677,6 +695,7 @@ function RecentFiles() {
           </li>
         ))}
       </ul>
+      {files.length > 4 && <ShowAll count={files.length} href="/files" />}
     </div>
   );
 }
@@ -739,7 +758,6 @@ export const widgetKinds: Record<
     icon: IconName;
     size: WidgetSize;
     minW: number;
-    maxW: number;
     minH: number;
     app?: string;
     href?: string;
@@ -748,32 +766,32 @@ export const widgetKinds: Record<
     Settings?: (props: SettingsProps) => ReactNode;
   }
 > = {
-  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', icon: 'clock', size: 'small', minW: 3, maxW: 6, minH: 6, settings: {}, View: Clock, Settings: ClockSettings },
-  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", icon: 'home', size: 'medium', minW: 4, maxW: 12, minH: 8, settings: {}, View: Today },
-  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', icon: 'check-mark', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'tasks', href: '/tasks', settings: {}, View: Tasks, Settings: TasksSettings },
-  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', icon: 'list', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'agenda', href: '/agenda/week', settings: {}, View: Agenda },
-  calendar: { title: 'Calendar', group: 'Your day', description: 'The month at a glance, with busy days marked.', icon: 'calendar', size: 'small', minW: 3, maxW: 6, minH: 13, app: 'agenda', href: '/agenda/month', settings: {}, View: CalendarWidget },
-  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", icon: 'checklist', size: 'medium', minW: 4, maxW: 12, minH: 8, app: 'tasks', settings: {}, View: Habits },
-  journal: { title: 'Journal', group: 'Your day', description: "Today's mood, your last two weeks and today's page.", icon: 'pencil', size: 'small', minW: 3, maxW: 6, minH: 10, app: 'journal', href: '/journal', settings: {}, View: Journal },
-  goals: { title: 'Goals', group: 'Your day', description: 'Your active goals and how far along they are.', icon: 'target', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'goals', href: '/goals', settings: {}, View: Goals },
-  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', icon: 'gift', size: 'small', minW: 3, maxW: 6, minH: 6, settings: {}, View: Countdown, Settings: CountdownSettings },
-  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', icon: 'target', size: 'small', minW: 3, maxW: 6, minH: 8, settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
-  progress: { title: 'Day progress', group: 'Your day', description: 'How much of the day, week, month and year has gone.', icon: 'clock', size: 'small', minW: 3, maxW: 6, minH: 8, settings: {}, View: DayProgress },
-  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', icon: 'repeat', size: 'small', minW: 3, maxW: 6, minH: 8, app: 'spending', href: '/spending/recurring', settings: {}, View: Recurring },
-  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', icon: 'wallet', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'spending', href: '/spending', settings: {}, View: SpendingWidget },
-  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', icon: 'wallet', size: 'small', minW: 3, maxW: 8, minH: 6, app: 'spending', href: '/spending/accounts', settings: {}, View: PaymentsWidget },
-  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', icon: 'shield', size: 'small', minW: 3, maxW: 8, minH: 6, app: 'spending', href: '/spending/net-worth', settings: {}, View: SavingsWidget },
-  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', icon: 'link', size: 'wide', minW: 3, maxW: 12, minH: 6, settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
-  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', icon: 'bell', size: 'medium', minW: 3, maxW: 12, minH: 8, href: '/inbox', settings: {}, View: Inbox },
-  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', icon: 'plus', size: 'medium', minW: 4, maxW: 12, minH: 10, app: 'pages', href: '/pages/quick-notes', settings: {}, View: Capture },
-  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', icon: 'file', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'pages', href: '/pages', settings: {}, View: Pages },
-  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', icon: 'board', size: 'wide', minW: 4, maxW: 12, minH: 10, app: 'boards', settings: {}, View: Board, Settings: BoardSettings },
-  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', icon: 'bookmark', size: 'medium', minW: 3, maxW: 12, minH: 8, app: 'bookmarks', href: '/bookmarks', settings: {}, View: ReadLater },
-  files: { title: 'Recent files', group: 'Notes and links', description: 'Your latest uploads and the storage they use.', icon: 'library', size: 'small', minW: 3, maxW: 8, minH: 8, app: 'files', href: '/files', settings: {}, View: RecentFiles },
-  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
-  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', minW: 3, maxW: 8, minH: 8, settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
-  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', minW: 4, maxW: 12, minH: 8, settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  trip: { title: 'Next trip', group: 'Around you', description: 'Your next trip and how long until you leave.', icon: 'plane', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'trips', href: '/trips', settings: {}, View: NextTrip },
-  birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', minW: 3, maxW: 6, minH: 6, app: 'people', href: '/people', settings: {}, View: Birthdays },
-  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', minW: 3, maxW: 9, minH: 6, settings: {}, View: Quote },
+  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', icon: 'clock', size: 'small', minW: 3, minH: 7, settings: {}, View: Clock, Settings: ClockSettings },
+  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", icon: 'home', size: 'medium', minW: 4, minH: 17, settings: {}, View: Today },
+  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', icon: 'check-mark', size: 'medium', minW: 4, minH: 18, app: 'tasks', href: '/tasks', settings: {}, View: Tasks, Settings: TasksSettings },
+  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', icon: 'list', size: 'medium', minW: 3, minH: 17, app: 'agenda', href: '/agenda/week', settings: {}, View: Agenda },
+  calendar: { title: 'Calendar', group: 'Your day', description: 'The month at a glance, with busy days marked.', icon: 'calendar', size: 'small', minW: 3, minH: 13, app: 'agenda', href: '/agenda/month', settings: {}, View: CalendarWidget },
+  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", icon: 'checklist', size: 'medium', minW: 4, minH: 11, app: 'tasks', settings: {}, View: Habits },
+  journal: { title: 'Journal', group: 'Your day', description: "Today's mood, your last two weeks and today's page.", icon: 'pencil', size: 'small', minW: 3, minH: 11, app: 'journal', href: '/journal', settings: {}, View: Journal },
+  goals: { title: 'Goals', group: 'Your day', description: 'Your active goals and how far along they are.', icon: 'target', size: 'medium', minW: 3, minH: 11, app: 'goals', href: '/goals', settings: {}, View: Goals },
+  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', icon: 'gift', size: 'small', minW: 3, minH: 7, settings: {}, View: Countdown, Settings: CountdownSettings },
+  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', icon: 'target', size: 'small', minW: 3, minH: 10, settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
+  progress: { title: 'Day progress', group: 'Your day', description: 'How much of the day, week, month and year has gone.', icon: 'clock', size: 'small', minW: 3, minH: 11, settings: {}, View: DayProgress },
+  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', icon: 'repeat', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/recurring', settings: {}, View: Recurring },
+  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', icon: 'wallet', size: 'medium', minW: 4, minH: 13, app: 'spending', href: '/spending', settings: {}, View: SpendingWidget },
+  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', icon: 'wallet', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/accounts', settings: {}, View: PaymentsWidget },
+  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', icon: 'shield', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/net-worth', settings: {}, View: SavingsWidget },
+  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', icon: 'link', size: 'wide', minW: 3, minH: 7, settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
+  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', icon: 'bell', size: 'medium', minW: 3, minH: 12, href: '/inbox', settings: {}, View: Inbox },
+  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', icon: 'plus', size: 'medium', minW: 4, minH: 16, app: 'pages', href: '/pages/quick-notes', settings: {}, View: Capture },
+  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', icon: 'file', size: 'medium', minW: 3, minH: 15, app: 'pages', href: '/pages', settings: {}, View: Pages },
+  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', icon: 'board', size: 'wide', minW: 4, minH: 12, app: 'boards', settings: {}, View: Board, Settings: BoardSettings },
+  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', icon: 'bookmark', size: 'medium', minW: 3, minH: 12, app: 'bookmarks', href: '/bookmarks', settings: {}, View: ReadLater },
+  files: { title: 'Recent files', group: 'Notes and links', description: 'Your latest uploads and the storage they use.', icon: 'library', size: 'small', minW: 3, minH: 10, app: 'files', href: '/files', settings: {}, View: RecentFiles },
+  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', minW: 3, minH: 8, app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
+  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', minW: 3, minH: 10, settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
+  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', minW: 4, minH: 13, settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
+  trip: { title: 'Next trip', group: 'Around you', description: 'Your next trip and how long until you leave.', icon: 'plane', size: 'small', minW: 3, minH: 7, app: 'trips', href: '/trips', settings: {}, View: NextTrip },
+  birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', minW: 3, minH: 11, app: 'people', href: '/people', settings: {}, View: Birthdays },
+  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', minW: 3, minH: 8, settings: {}, View: Quote },
 };
