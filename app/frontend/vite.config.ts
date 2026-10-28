@@ -57,6 +57,21 @@ function serviceWorker(): Plugin {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker(), excalidrawFonts()],
+  resolve: {
+    alias: { '@excalidraw/mermaid-to-excalidraw': join(import.meta.dirname, 'src/stubs/mermaid-to-excalidraw.ts') },
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
+            { name: 'ui', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': { target: process.env.VITE_API_ORIGIN ?? 'http://localhost:3000', ws: true, xfwd: true },

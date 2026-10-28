@@ -24,6 +24,13 @@ describe('validateEnvironment', () => {
     expect(() => validateEnvironment({ ...settings, VAPID_SUBJECT: 'not-an-address' })).toThrow('VAPID_SUBJECT');
   });
 
+  it('accepts a proxy hop count from 0 to 5 and nothing else', () => {
+    expect(() => validateEnvironment({ ...settings, TRUST_PROXY: '0' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, TRUST_PROXY: '1' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, TRUST_PROXY: '6' })).toThrow('TRUST_PROXY');
+    expect(() => validateEnvironment({ ...settings, TRUST_PROXY: 'true' })).toThrow('TRUST_PROXY');
+  });
+
   it('refuses to start in production with a development secret or key', () => {
     expect(() => validateEnvironment({ ...settings, NODE_ENV: 'production', DATA_ENCRYPTION_KEY: realKey })).toThrow('development defaults');
     expect(() => validateEnvironment({ ...settings, NODE_ENV: 'production', AUTH_ACCESS_TOKEN_SECRET: realSecret })).toThrow('development defaults');

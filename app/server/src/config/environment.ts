@@ -14,6 +14,12 @@ class Environment {
   @Max(65_535)
   PORT?: number;
 
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  TRUST_PROXY?: number;
+
   @Matches(/^postgres(ql)?:\/\//)
   DATABASE_URL!: string;
 
