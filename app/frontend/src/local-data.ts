@@ -1,3 +1,5 @@
+import { clearResourceCache } from './useResource';
+
 function deleteDatabase(name: string) {
   return new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase(name);
@@ -6,6 +8,7 @@ function deleteDatabase(name: string) {
 }
 
 export async function wipeLocalData() {
+  clearResourceCache();
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.getRegistration();
     await (await registration?.pushManager?.getSubscription())?.unsubscribe();
