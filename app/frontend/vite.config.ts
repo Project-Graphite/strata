@@ -36,11 +36,10 @@ function serviceWorker(): Plugin {
         if (reachable.has(name) || output?.type !== 'chunk') return;
         reachable.add(name);
         output.imports.forEach(visit);
-        output.dynamicImports.filter((imported) => bundle[imported]?.type === 'chunk' && !bundle[imported].facadeModuleId?.includes('node_modules')).forEach(visit);
       };
       Object.values(bundle).forEach((output) => output.type === 'chunk' && output.isEntry && visit(output.fileName));
       const assets = Object.keys(bundle)
-        .filter((name) => name.startsWith('assets/') && (bundle[name]!.type === 'asset' || reachable.has(name)))
+        .filter((name) => name.startsWith('assets/') && (name.endsWith('.css') || reachable.has(name)))
         .sort()
         .map((name) => `/${name}`);
       const template = await readFile(new URL('./service-worker.js', import.meta.url), 'utf8');

@@ -64,9 +64,10 @@ function SiteFooter() {
 
 function ScrollToTop() {
   const { pathname } = useLocation();
+  const area = /^\/(?:spaces\/[^/]+|settings|spending|agenda|pages|recipes|tidy)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [pathname]);
+  }, [area]);
   return null;
 }
 

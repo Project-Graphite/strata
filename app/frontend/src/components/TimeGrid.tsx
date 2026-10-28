@@ -1,5 +1,5 @@
 import { formatDay, type TagColor } from '@project-graphite/ui';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { dayKey, entryTime, type AgendaEntry } from '../agenda';
 import { AgendaEntryLink } from './AgendaEntryLink';
@@ -57,6 +57,15 @@ export function DayNumber({ day, today }: { day: string; today: string }) {
   );
 }
 
+function NowLine({ day }: { day: string }) {
+  const [now, setNow] = useState(() => new Date().toISOString());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date().toISOString()), minuteMs);
+    return () => clearInterval(timer);
+  }, []);
+  return <div aria-hidden="true" className="agenda-now" style={{ top: (minutesInto(day, now) / 60) * hourHeight }} />;
+}
+
 export function TimeGrid({
   colourOf,
   dayHref,
@@ -71,16 +80,12 @@ export function TimeGrid({
   today: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
-  const [now, setNow] = useState(() => new Date().toISOString());
-  const timed = entries.filter((entry) => !entry.allDay);
+  const timed = useMemo(() => entries.filter((entry) => !entry.allDay), [entries]);
+  const placed = useMemo(() => new Map(days.map((day) => [day, place(day, timed)])), [days, timed]);
   const allDay = entries.filter((entry) => entry.allDay);
   const columns = { gridTemplateColumns: `4.5rem repeat(${days.length}, minmax(0, 1fr))` };
   const firstHour = Math.min(8, ...timed.filter((entry) => days.includes(dayKey(new Date(entry.start)))).map((entry) => new Date(entry.start).getHours()));
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date().toISOString()), minuteMs);
-    return () => clearInterval(timer);
-  }, []);
   useLayoutEffect(() => {
     scroller.current?.scrollTo({ top: Math.max(0, firstHour - 1) * hourHeight });
   }, [firstHour]);
@@ -130,7 +135,7 @@ export function TimeGrid({
           </div>
           {days.map((day) => (
             <div className="agenda-hours relative isolate border-l border-line" key={day} style={{ backgroundSize: `100% ${hourHeight}px` }}>
-              {place(day, timed).map(({ column, columns: shared, end, entry, start }) => (
+              {placed.get(day)!.map(({ column, columns: shared, end, entry, start }) => (
                 <AgendaEntryLink
                   className={`agenda-block ${end - start < 45 ? 'truncate' : ''}`}
                   colour={colourOf(entry)}
@@ -151,7 +156,7 @@ export function TimeGrid({
                   </span>
                 </AgendaEntryLink>
               ))}
-              {day === today && <div aria-hidden="true" className="agenda-now" style={{ top: (minutesInto(day, now) / 60) * hourHeight }} />}
+              {day === today && <NowLine day={day} />}
             </div>
           ))}
         </div>
