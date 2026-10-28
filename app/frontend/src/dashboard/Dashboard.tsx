@@ -20,6 +20,7 @@ import { automaticDashboard, rememberDashboard, rememberedDashboard, ShowBackdro
 import { DashboardGrid, useWide, type GridHandle } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, inOrder, placed, sizeWidths } from './grid';
+import { NowStrip } from './NowStrip';
 import { WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
@@ -333,6 +334,7 @@ export function DashboardHome() {
       tabs={dashboards.data.length > 1 ? dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name })) : undefined}
       title={editing ? name.trim() || current.name : current.name}
     >
+      <NowStrip />
       {widgets.length === 0 ? (
         <div className="dashboard-empty">
           <div aria-hidden="true" className="dashboard-empty-art">

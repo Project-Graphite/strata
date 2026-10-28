@@ -25,6 +25,7 @@ import { SpendingModule } from './spending/spending.module';
 import { TripsModule } from './trips/trips.module';
 import { JournalModule } from './journal/journal.module';
 import { HealthModule } from './health/health.module';
+import { HomeModule } from './home/home.module';
 import { InboxModule } from './inbox/inbox.module';
 import { ItemsModule } from './items/items.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -77,6 +78,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     SubscriptionsModule,
     BookmarksModule,
     DashboardsModule,
+    HomeModule,
     EventsModule,
     ExchangeRatesModule,
     TidyModule,
