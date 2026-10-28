@@ -1,14 +1,12 @@
 import { applyDecorators } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsInt, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsInt, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-const nullable = (_input: object, value: unknown) => value !== null;
 const Name = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Names are 1 to 200 characters long.' }));
-const Optional = () => applyDecorators(IsOptional(), ValidateIf(nullable));
 
-export class GiftIdeaDto {
+class GiftIdeaDto {
   @IsUUID('all')
   id!: string;
 
@@ -22,37 +20,37 @@ export class GiftIdeaDto {
 }
 
 class PersonDetailsDto {
-  @Optional()
+  @IsOptional()
   @Trimmed()
   @IsString()
   @MaxLength(60, { message: 'Keep the relationship under 60 characters.' })
   relationship?: string | null;
 
-  @Optional()
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(12, { message: 'Choose a month from the list.' })
   birthdayMonth?: number | null;
 
-  @Optional()
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(31, { message: 'Choose a day from the list.' })
   birthdayDay?: number | null;
 
-  @Optional()
+  @IsOptional()
   @IsInt()
   @Min(1900, { message: 'Enter a year after 1900.' })
   @Max(2100, { message: 'Enter a real year.' })
   birthYear?: number | null;
 
-  @Optional()
+  @IsOptional()
   @Trimmed()
   @IsEmail({}, { message: 'Enter an email address such as sam@example.com.' })
   @MaxLength(200)
   email?: string | null;
 
-  @Optional()
+  @IsOptional()
   @Trimmed()
   @IsString()
   @MaxLength(40, { message: 'Keep the phone number under 40 characters.' })

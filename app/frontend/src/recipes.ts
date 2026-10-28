@@ -31,7 +31,7 @@ export const meals: { value: Meal; label: string }[] = [
   { value: 'dinner', label: 'Dinner' },
 ];
 
-export function durationText(total: number | null) {
+function durationText(total: number | null) {
   if (!total) return null;
   const hours = Math.floor(total / 60);
   const minutes = total % 60;

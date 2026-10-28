@@ -3,7 +3,7 @@ import { widgetKinds, type PlacedWidget, type Widget, type WidgetSize } from './
 export const gridColumns = 12;
 export const rowPixels = 8;
 export const gapPixels = 16;
-export const minRows = 4;
+const minRows = 4;
 
 export const sizeWidths: Record<WidgetSize, number> = { small: 3, medium: 6, wide: 9, full: 12 };
 

@@ -1,5 +1,5 @@
-export type ImageFileId = (src: string) => string | undefined;
-export type MarkdownLink = (href: string) => string | undefined;
+type ImageFileId = (src: string) => string | undefined;
+type MarkdownLink = (href: string) => string | undefined;
 
 const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const escape = (text: string) => text.replace(/[&<>"]/g, (character) => entities[character]!);

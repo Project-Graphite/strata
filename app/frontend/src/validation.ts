@@ -25,6 +25,11 @@ export const emailAddress: Check = (value) =>
 export const webAddress: Check = (value) =>
   !value.trim() || /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(value.trim()) ? undefined : 'Enter a web address that starts with https://.';
 
+export const httpsLink: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
+
+export const decimalNumber: Check = (value) =>
+  !value.trim() || Number.isFinite(Number(value.replace(',', '.'))) ? undefined : 'Enter a number such as 12.5.';
+
 export const moneyAmount: Check = (value) => (/^\d+([.,]\d{1,3})?$/.test(value.trim()) ? undefined : 'Enter an amount such as 9.99.');
 
 export const notCardNumber: Check = (value) => (/\d(?:[ -]?\d){4}/.test(value) ? 'Use a label such as "Visa ending 1234", never a card number.' : undefined);

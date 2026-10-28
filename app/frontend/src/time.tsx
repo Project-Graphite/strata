@@ -21,14 +21,14 @@ export const timeOptions = (): Intl.DateTimeFormatOptions => (hour12 === undefin
 
 export const zoneLabel = (zone: string) => (zone === Intl.DateTimeFormat().resolvedOptions().timeZone ? '' : zone.replaceAll('_', ' '));
 
-export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
+const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 
 export function clockTime(time: string | Date, timeZone?: string) {
   const at = typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time;
   return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...timeOptions() });
 }
 
-const pad = (value: number) => String(value).padStart(2, '0');
+export const pad = (value: number) => String(value).padStart(2, '0');
 
 function Digits({ label, max, min, onChange, step, value }: { label: string; max: number; min: number; onChange: (value: number) => void; step: number; value: number }) {
   const typed = useRef('');

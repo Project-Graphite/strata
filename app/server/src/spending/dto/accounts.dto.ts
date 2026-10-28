@@ -1,12 +1,11 @@
 import { applyDecorators } from '@nestjs/common';
-import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { AmountMinor, CurrencyCode } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const accountKinds = ['bank', 'credit', 'wallet', 'cash'] as const;
+const accountKinds = ['bank', 'credit', 'wallet', 'cash'] as const;
 
-const nullable = (_input: object, value: unknown) => value !== null;
 const Name = () => applyDecorators(Trimmed(), IsString(), Length(1, 60, { message: 'Name the account in 1 to 60 characters.' }));
 const Kind = () => IsIn(accountKinds, { message: 'Choose an account type from the list.' });
 const CardDigits = () =>
@@ -45,12 +44,10 @@ export class CreateAccountDto {
   balanceMinor?: number;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AmountMinor()
   creditLimitMinor?: number | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @DueDay()
   dueDay?: number | null;
 }
@@ -81,12 +78,10 @@ export class UpdateAccountDto {
   balanceMinor?: number;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AmountMinor()
   creditLimitMinor?: number | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @DueDay()
   dueDay?: number | null;
 }

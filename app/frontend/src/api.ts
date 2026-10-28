@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-export class OutageError extends ApiError {
+class OutageError extends ApiError {
   constructor() {
     super('Strata cannot be reached right now', 503);
   }

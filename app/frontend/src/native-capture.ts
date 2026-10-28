@@ -2,7 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export type DigitalAppId = 'instapay' | 'nsave' | 'paypal';
 
-export interface DigitalAppOption {
+interface DigitalAppOption {
   id: DigitalAppId;
   label: 'InstaPay' | 'nSave' | 'PayPal';
   packages: string[];
@@ -30,7 +30,7 @@ export const digitalAppOptions: DigitalAppOption[] = [
   },
 ];
 
-export interface CapturePreferences {
+interface CapturePreferences {
   allowedChats: string[];
   enabledApps: DigitalAppId[];
 }
@@ -45,7 +45,7 @@ export interface NativeCaptureStatus {
   queuedCount: number;
 }
 
-export interface StrataCapturePlugin {
+interface StrataCapturePlugin {
   getStatus(): Promise<NativeCaptureStatus>;
   configure(options: {
     endpointUrl: string;

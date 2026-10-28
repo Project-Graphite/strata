@@ -1,13 +1,13 @@
 import { applyDecorators } from '@nestjs/common';
-import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length, Max, MaxLength, Min } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
+import { DayText } from '../../validation/day-text.decorator';
 
 export const meals = ['breakfast', 'lunch', 'dinner'] as const;
 
-const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Recipe names are 1 to 200 characters long.' }));
-const Count = (most: number, message: string) => applyDecorators(IsOptional(), ValidateIf(nullable), IsInt({ message }), Min(1, { message }), Max(most, { message }));
+const Count = (most: number, message: string) => applyDecorators(IsOptional(), IsInt({ message }), Min(1, { message }), Max(most, { message }));
 const Lines = (most: number, what: string) =>
   applyDecorators(
     IsOptionalNotNull(),
@@ -16,7 +16,6 @@ const Lines = (most: number, what: string) =>
     IsString({ each: true }),
     MaxLength(1_000, { each: true, message: `Each of the ${what} is at most 1,000 characters long.` }),
   );
-const DayText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
 
 class RecipeFieldsDto {
   @Count(100, 'Servings are a whole number from 1 to 100.')
@@ -35,7 +34,6 @@ class RecipeFieldsDto {
   steps?: string[];
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Trimmed()
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true }, { message: 'Enter a web address that starts with https://.' })
   @MaxLength(2_000)

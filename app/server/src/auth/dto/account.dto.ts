@@ -1,12 +1,9 @@
-import { Transform } from 'class-transformer';
 import { IsEmail, IsOptional, IsString, Length, MaxLength } from 'class-validator';
-
-const normalizedEmail = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim().toLowerCase() : value;
+import { TrimmedLowercase } from '../../validation/trimmed.decorator';
 
 export class EmailDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
-  @Transform(normalizedEmail)
+  @TrimmedLowercase()
   email!: string;
 }
 
@@ -48,7 +45,7 @@ export class ChangePasswordDto {
 
 export class ChangeEmailDto extends ProofDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
-  @Transform(normalizedEmail)
+  @TrimmedLowercase()
   email!: string;
 }
 

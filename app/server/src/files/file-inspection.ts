@@ -1,4 +1,4 @@
-export interface InspectedFile {
+interface InspectedFile {
   mimeType: string;
   data: Buffer;
   width: number | null;

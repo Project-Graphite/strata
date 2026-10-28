@@ -1,9 +1,10 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { TrimmedLowercase } from '../../validation/trimmed.decorator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @TrimmedLowercase()
   email!: string;
 
   @IsString()
@@ -11,7 +12,7 @@ export class RegisterDto {
   @Matches(/^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/, {
     message: 'Handles use letters, numbers, - and _, and start and end with a letter or number.',
   })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @TrimmedLowercase()
   handle!: string;
 
   @IsString()

@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 
-export type DraftStatus = 'loading' | 'saving' | 'saved' | 'unavailable';
+type DraftStatus = 'loading' | 'saving' | 'saved' | 'unavailable';
 
 export class LocalPageDraft {
   status: DraftStatus = 'loading';

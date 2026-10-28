@@ -21,7 +21,7 @@ import { PageAccessService } from '../notes/page-access.service';
 export { editorFormat } from '../notes/editor-format';
 import { PrismaService } from '../prisma/prisma.service';
 
-export const realtimePath = '/api/v1/realtime';
+const realtimePath = '/api/v1/realtime';
 const maxUpdateBytes = 2 * 1024 * 1024;
 const maxDocumentsPerUser = 40;
 const maxGuestsPerLink = 100;
@@ -36,7 +36,7 @@ interface BoardVersion {
 
 export const guestTokenPrefix = 'share:';
 
-export type RealtimeContext = { userId: string; role: SpaceRole; signedInAt?: Date; name?: string; restrictedReferences?: boolean } | { userId: null; shareLinkId: string };
+type RealtimeContext = { userId: string; role: SpaceRole; signedInAt?: Date; name?: string; restrictedReferences?: boolean } | { userId: null; shareLinkId: string };
 
 function openerOf(context: RealtimeContext) {
   return context.userId === null ? `link/${context.shareLinkId}` : context.userId;

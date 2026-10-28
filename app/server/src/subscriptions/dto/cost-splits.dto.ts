@@ -3,7 +3,7 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsUUID, Matches, Max, Min, 
 
 const Month = () => Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'Months look like 2026-10.' });
 
-export class CostShareDto {
+class CostShareDto {
   @IsUUID('all', { message: 'Choose members of this space.' })
   userId!: string;
 

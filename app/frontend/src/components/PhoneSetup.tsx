@@ -26,8 +26,8 @@ import { DialogActions } from './DialogActions';
 import { FormDialog } from './FormDialog';
 import { ProofFields, proofFrom } from './ProofFields';
 
-export const forwarderUrl = 'https://f-droid.org/packages/tech.bogomolov.incomingsmsgateway/';
-export const notificationForwarderUrl = 'https://f-droid.org/packages/life.andre.message487/';
+const forwarderUrl = 'https://f-droid.org/packages/tech.bogomolov.incomingsmsgateway/';
+const notificationForwarderUrl = 'https://f-droid.org/packages/life.andre.message487/';
 
 export function PhoneSetup({
   accounts = [],

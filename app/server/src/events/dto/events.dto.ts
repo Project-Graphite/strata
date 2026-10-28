@@ -1,12 +1,11 @@
 import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { applyDecorators } from '@nestjs/common';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsTimeZone, IsUrl, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsTimeZone, IsUrl, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
-import { Trimmed } from '../../validation/trimmed.decorator';
+import { Trimmed, TrimmedLowercase } from '../../validation/trimmed.decorator';
+import { DayText } from '../../validation/day-text.decorator';
 
-const nullable = (_input: object, value: unknown) => value !== null;
-const DateText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
 const TimeText = () => Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'Times look like 18:30.' });
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Event titles are 1 to 200 characters long.' }));
 const Note = () =>
@@ -19,16 +18,14 @@ const Note = () =>
 
 class EventDetailsDto {
   @IsOptional()
-  @ValidateIf(nullable)
   @TimeText()
   startTime?: string | null;
 
   @IsOptionalNotNull()
-  @DateText()
+  @DayText()
   endsOn?: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @TimeText()
   endTime?: string | null;
 
@@ -38,20 +35,17 @@ class EventDetailsDto {
   timeZone?: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @IsString()
   @MaxLength(300)
   repeatRule?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Trimmed()
   @IsString()
   @MaxLength(200, { message: 'Locations are at most 200 characters long.' })
   location?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'Use an https:// meeting link.' })
   @MaxLength(500)
   meetingUrl?: string | null;
@@ -62,7 +56,6 @@ class EventDetailsDto {
   description?: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @IsInt()
   @Min(0)
   @Max(40_320)
@@ -73,7 +66,7 @@ export class CreateEventDto extends EventDetailsDto {
   @Title()
   title!: string;
 
-  @DateText()
+  @DayText()
   startsOn!: string;
 }
 
@@ -83,15 +76,15 @@ export class UpdateEventDto extends EventDetailsDto {
   title?: string;
 
   @IsOptionalNotNull()
-  @DateText()
+  @DayText()
   startsOn?: string;
 }
 
 export class AgendaDto extends SpaceQueryDto {
-  @DateText()
+  @DayText()
   from!: string;
 
-  @DateText()
+  @DayText()
   to!: string;
 }
 
@@ -102,7 +95,7 @@ export class InviteGuestDto {
   name!: string;
 
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @TrimmedLowercase()
   @IsEmail({}, { message: 'Enter a valid email address.' })
   email?: string;
 }
@@ -124,11 +117,10 @@ export class OpenRsvpDto extends RsvpDto {
 }
 
 class PollOptionDto {
-  @DateText()
+  @DayText()
   startsOn!: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @TimeText()
   startTime?: string | null;
 }

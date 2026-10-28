@@ -9,7 +9,8 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
-import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 

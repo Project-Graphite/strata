@@ -14,7 +14,7 @@ interface ResourceState<T> {
   status?: number;
 }
 
-export interface LiveOptions {
+interface LiveOptions {
   live?: Topic[];
   every?: number;
   spaceId?: string;

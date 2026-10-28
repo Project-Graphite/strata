@@ -5,11 +5,10 @@ import { useAuth } from '../auth';
 import { catalogue, knownService } from '../catalogue';
 import { billingCycles, categories, categoryLabel, fromMinor, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
-import { atMost, type Check, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
+import { atMost, httpsLink, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
 import { CurrencyField } from './CurrencyField';
 import { FormDialog } from './FormDialog';
 
-const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
 export function SubscriptionEditor({
   onClose,
@@ -49,7 +48,7 @@ export function SubscriptionEditor({
             amount: [required('Enter the price.'), moneyAmount],
             currency: [required('Enter a currency.'), (value) => (/^[a-z]{3}$/i.test(value.trim()) ? undefined : 'Use a three-letter code such as EUR.')],
             paymentLabel: [atMost(40, 'Use at most 40 characters.'), notCardNumber],
-            cancelUrl: [linkCheck],
+            cancelUrl: [httpsLink],
           })
         ) {
           return;

@@ -14,7 +14,7 @@ export function fileSize(bytes: number) {
   return `${Number((bytes / 1024 / 1024).toFixed(1))} MB`;
 }
 
-export async function preparedUpload(file: File): Promise<Blob> {
+async function preparedUpload(file: File): Promise<Blob> {
   if (!photoTypes.has(file.type) || typeof createImageBitmap !== 'function') return file;
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxPhotoSide / Math.max(bitmap.width, bitmap.height));

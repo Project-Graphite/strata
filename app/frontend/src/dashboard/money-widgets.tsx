@@ -8,7 +8,8 @@ import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '
 import { useSpaces } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 function usePersonalSpace() {
   return useSpaces().data?.find((space) => space.kind === 'personal')?.id;

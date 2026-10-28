@@ -19,6 +19,7 @@ import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
+import { SkeletonLine } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
@@ -31,7 +32,6 @@ import {
   LinkRowsSkeleton,
   PageLinks,
   PageLinksSkeleton,
-  SkeletonLine,
   SplitRowsSkeleton,
   TaskRowsSkeleton,
   WidgetEmpty,
@@ -43,7 +43,7 @@ import { Button, ButtonLink, TextButton } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
-export type WidgetGroup = (typeof widgetGroups)[number];
+type WidgetGroup = (typeof widgetGroups)[number];
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
 
 export type CardPadding = 'compact' | 'normal' | 'roomy';

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { formatDay, type TagColor } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, zoneLabel } from './time';
+import { clockTime, pad, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -87,8 +87,6 @@ export interface EventDetails extends PublicEvent {
   guests: Guest[];
   headcount: Record<Guest['response'], number>;
 }
-
-const pad = (value: number) => String(value).padStart(2, '0');
 
 export function dayKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;

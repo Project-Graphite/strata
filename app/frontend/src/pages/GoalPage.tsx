@@ -19,9 +19,9 @@ import { useSpaces, type Tag } from '../spaces';
 import { dueLabel, taskDetails, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { useFormErrors, type Check } from '../validation';
+import { decimalNumber, required, useFormErrors } from '../validation';
 
-const numberCheck: Check = (value) => (Number.isFinite(Number(value.trim().replace(',', '.'))) && value.trim() ? undefined : 'Enter a number such as 12.5.');
+const progressChecks = [required('Enter a number such as 12.5.'), decimalNumber];
 
 export function GoalPage() {
   const { id = '' } = useParams();
@@ -259,7 +259,7 @@ export function GoalPage() {
           busyLabel="Saving…"
           onClose={() => setDialog(undefined)}
           onSubmit={(target) => {
-            if (!progressForm.check(target, { current: [numberCheck] })) return;
+            if (!progressForm.check(target, { current: progressChecks })) return;
             void patch({ current: Number(String(new FormData(target).get('current')).trim().replace(',', '.')) }, `Saved the progress of ${shown.title}.`).then(
               (saved) => saved && setDialog(undefined),
             );

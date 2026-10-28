@@ -4,11 +4,10 @@ import { useAuth } from '../auth';
 import { useSpaces } from '../spaces';
 import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
-import { atMost, required, useFormErrors, type Check } from '../validation';
+import { atMost, httpsLink, required, useFormErrors } from '../validation';
 import { TimeField } from '../time';
 import { FormDialog } from './FormDialog';
 
-const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
 export function EventEditor({
   event,
@@ -39,7 +38,7 @@ export function EventEditor({
           !form.check(target, {
             title: [required('Give the event a title.'), atMost(200, 'Use at most 200 characters.')],
             startsOn: [required('Choose a date.')],
-            meetingUrl: [linkCheck],
+            meetingUrl: [httpsLink],
           })
         ) {
           return;

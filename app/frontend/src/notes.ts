@@ -100,7 +100,7 @@ export const databaseViews: [DatabaseView, string][] = [
   ['calendar', 'Calendar'],
 ];
 
-export interface NoteBranch {
+interface NoteBranch {
   note: Note;
   depth: number;
 }

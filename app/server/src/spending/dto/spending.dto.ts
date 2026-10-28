@@ -4,12 +4,12 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { AmountMinor, CurrencyCode, NotCardNumber } from '../../validation/money.decorators';
 import { Trimmed } from '../../validation/trimmed.decorator';
+import { DayText } from '../../validation/day-text.decorator';
 
-export const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as const;
+const expenseDirections = ['spent', 'received', 'refund', 'transfer'] as const;
 
 const nullable = (_input: object, value: unknown) => value !== null;
 const Title = () => applyDecorators(Trimmed(), IsString(), Length(1, 200, { message: 'Describe the expense in 1 to 200 characters.' }));
-const DayText = () => Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Dates look like 2026-10-31.' });
 const CardDigits = () => Matches(/^\d{4}$/, { message: 'A card ending is its last 4 digits.' });
 const Category = () => applyDecorators(Trimmed(), IsString(), Length(1, 40, { message: 'Choose a category from the list.' }));
 const PaymentLabel = () =>
@@ -41,7 +41,6 @@ export class CreateExpenseDto {
   category?: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @PaymentLabel()
   paymentLabel?: string | null;
 
@@ -56,22 +55,18 @@ export class CreateExpenseDto {
   direction?: (typeof expenseDirections)[number];
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AccountId()
   accountId?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AccountId()
   toAccountId?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Merchant()
   merchant?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @CardDigits()
   cardDigits?: string | null;
 }
@@ -98,7 +93,6 @@ export class UpdateExpenseDto {
   category?: string;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @PaymentLabel()
   paymentLabel?: string | null;
 
@@ -113,22 +107,18 @@ export class UpdateExpenseDto {
   direction?: (typeof expenseDirections)[number];
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AccountId()
   accountId?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @AccountId()
   toAccountId?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @Merchant()
   merchant?: string | null;
 
   @IsOptional()
-  @ValidateIf(nullable)
   @CardDigits()
   cardDigits?: string | null;
 }

@@ -15,7 +15,7 @@ export const inboxKinds = [
   'payment_due',
 ] as const;
 
-export type InboxKind = (typeof inboxKinds)[number];
+type InboxKind = (typeof inboxKinds)[number];
 
 export interface InboxEntry {
   userId: string;

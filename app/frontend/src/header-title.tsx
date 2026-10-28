@@ -2,7 +2,7 @@ import { createContext, useMemo, useState, type Dispatch, type ReactNode, type S
 import type { TabItem } from '@project-graphite/ui';
 import type { Back } from './components/Page';
 
-export interface HeaderTitle {
+interface HeaderTitle {
   pathname: string;
   title: string;
   back?: Back;

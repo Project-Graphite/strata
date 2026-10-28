@@ -31,7 +31,7 @@ export const activityVerbs = [
 
 export type ActivityVerb = (typeof activityVerbs)[number];
 
-export interface ActivityEntry {
+interface ActivityEntry {
   spaceId: string;
   actorId: string | null;
   verb: ActivityVerb;

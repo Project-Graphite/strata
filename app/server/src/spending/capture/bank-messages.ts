@@ -1,6 +1,6 @@
 export type MessageDirection = 'spent' | 'received' | 'refund';
 
-export type ReadMessage =
+type ReadMessage =
   | { kind: 'ignored'; reason: 'code' | 'declined' | 'notice' | 'promotion' }
   | {
       kind: 'movement';

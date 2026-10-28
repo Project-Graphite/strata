@@ -3,7 +3,7 @@ import { ArrayUnique, IsArray, IsBoolean, IsIn, IsString, IsTimeZone, Length, Ma
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { featureKeys } from '../features';
 
-export const timeFormats = ['auto', '12h', '24h'] as const;
+const timeFormats = ['auto', '12h', '24h'] as const;
 
 export class UpdateProfileDto {
   @IsOptionalNotNull()

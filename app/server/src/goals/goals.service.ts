@@ -24,7 +24,7 @@ const goalFields = {
 
 type GoalRow = Prisma.ItemGetPayload<{ select: typeof goalFields }>;
 
-export function periodRange(period: Period, day: string) {
+function periodRange(period: Period, day: string) {
   const year = Number(day.slice(0, 4));
   const month = Number(day.slice(5, 7));
   const first = period === 'year' ? 1 : period === 'quarter' ? Math.floor((month - 1) / 3) * 3 + 1 : month;
@@ -35,7 +35,7 @@ export function periodRange(period: Period, day: string) {
   };
 }
 
-export function goalProgress(goal: { target: number | null; current: number | null }, tasks: { done: number; total: number }) {
+function goalProgress(goal: { target: number | null; current: number | null }, tasks: { done: number; total: number }) {
   if (goal.target) return Math.min(1, Math.max(0, (goal.current ?? 0) / goal.target));
   return tasks.total ? tasks.done / tasks.total : null;
 }
