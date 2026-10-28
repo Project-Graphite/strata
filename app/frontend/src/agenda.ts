@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { TagColor } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, formatDate, zoneLabel } from './time';
+import { clockTime, formatDate, profileClock, profileDay, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -61,15 +61,18 @@ export function useAgenda(from: string, to: string) {
     const timer = window.setInterval(refresh, calendarRefreshEvery);
     return () => window.clearInterval(timer);
   }, [request, reload]);
-  const colourOf = (entry: AgendaEntry): TagColor =>
-    entry.kind === 'external'
-      ? calendarColours[Math.max(0, calendars.data?.findIndex((calendar) => calendar.id === entry.calendarId) ?? 0) % calendarColours.length]!
-      : kindColours[entry.kind];
+  const colourOf = useCallback(
+    (entry: AgendaEntry): TagColor =>
+      entry.kind === 'external'
+        ? calendarColours[Math.max(0, calendars.data?.findIndex((calendar) => calendar.id === entry.calendarId) ?? 0) % calendarColours.length]!
+        : kindColours[entry.kind],
+    [calendars.data],
+  );
   return { ...agenda, colourOf };
 }
 
 export function useTodaySchedule() {
-  const today = dayKey(new Date());
+  const today = profileDay();
   const agenda = useAgenda(today, addDays(today, 1));
   return { ...agenda, data: agenda.data?.filter((entry) => entry.kind !== 'task') };
 }
@@ -121,22 +124,25 @@ export function shiftMonth(month: string, by: number) {
   return new Date(Date.UTC(year, number - 1 + by, 1)).toISOString().slice(0, 7);
 }
 
-export function monthDays(anchor: string) {
+export const weekOf = (day: string, weekStart: number) => addDays(day, -((new Date(`${day}T00:00:00`).getDay() - weekStart + 7) % 7));
+
+export function monthDays(anchor: string, weekStart = 1) {
   const date = new Date(`${anchor}T00:00:00`);
-  const first = dayKey(new Date(date.getFullYear(), date.getMonth(), 1));
-  const from = addDays(first, -((new Date(`${first}T00:00:00`).getDay() + 6) % 7));
+  const from = weekOf(dayKey(new Date(date.getFullYear(), date.getMonth(), 1)), weekStart);
   return { from, to: addDays(from, 42), days: 42 };
 }
 
+export const entryKey = (entry: AgendaEntry) => `${entry.kind}-${entry.itemId}-${entry.start}`;
+
 export function entryDay(entry: AgendaEntry) {
-  return entry.allDay ? entry.start : dayKey(new Date(entry.start));
+  return entry.allDay ? entry.start : profileDay(entry.start);
 }
 
 export function dayRange(from: string, to: string) {
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(new Date(`${from}T00:00:00`), new Date(`${to}T00:00:00`));
 }
 
-export const entryClock = (at: string) => clockTime(new Date(at));
+export const entryClock = profileClock;
 
 export function entryTime(entry: AgendaEntry) {
   if (entry.allDay) return 'all day';
@@ -147,8 +153,8 @@ export function entryWhen(entry: AgendaEntry) {
   if (entry.allDay) {
     return entry.end && entry.end !== entry.start ? `${formatDate(entry.start)} to ${formatDate(entry.end)}` : `${formatDate(entry.start)}, all day`;
   }
-  const day = (at: string) => formatDate(dayKey(new Date(at)));
-  if (entry.end && dayKey(new Date(entry.end)) !== dayKey(new Date(entry.start))) {
+  const day = (at: string) => formatDate(profileDay(at));
+  if (entry.end && profileDay(entry.end) !== profileDay(entry.start)) {
     return `${day(entry.start)} ${entryClock(entry.start)} to ${day(entry.end)} ${entryClock(entry.end)}`;
   }
   return `${day(entry.start)} ${entryTime(entry)}`;

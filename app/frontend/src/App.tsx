@@ -95,7 +95,7 @@ function Moved({ to }: { to: string }) {
 
 const legacyRoutes = [
   ['todo', '/tasks'],
-  ['today', '/agenda'],
+  ['today', '/agenda/day'],
   ['storage', '/files'],
   ['recurring', '/spending/recurring'],
   ['review', '/journal'],
@@ -133,7 +133,8 @@ export function App() {
             </Route>
             <Route element={<AppRoute app="agenda" />}>
               <Route path="agenda">
-                <Route index element={<AgendaPage key="today" view="today" />} />
+                <Route index element={<AgendaPage key="start" />} />
+                <Route path="today" element={<Moved to="/agenda/day" />} />
                 <Route path="list" element={<AgendaPage key="list" view="list" />} />
                 <Route path="day" element={<AgendaPage key="day" view="day" />} />
                 <Route path="week" element={<AgendaPage key="week" view="week" />} />

@@ -1,4 +1,5 @@
-import { Fragment, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { Dialog, Placeholder, type TagColor, TextLink } from '@project-graphite/ui';
 import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
@@ -9,7 +10,7 @@ import { Button, ButtonAnchor } from './Button';
 import { DialogActions } from './DialogActions';
 import { ButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
 
-function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: () => void }) {
+export function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: () => void }) {
   const details = useResource<CalendarEvent>(`/calendars/${entry.calendarId}/event?uid=${encodeURIComponent(entry.uid!)}`, true);
   const repeats = details.data?.repeatRule ? repeatLabel(details.data.repeatRule) : '';
   const [detailRows, meeting, described] = useRememberedShape(
@@ -98,16 +99,23 @@ export function AgendaEntryLink({
   className,
   colour,
   entry,
-  style,
+  onOpen,
 }: {
   children: ReactNode;
   className: string;
   colour: TagColor;
   entry: AgendaEntry;
-  style?: CSSProperties;
+  onOpen?: (target: HTMLElement) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const shared = { className: `${className} tag-${colour}`, style: { ...style, '--entry-color': 'var(--tag-color)' } as CSSProperties, title: entry.title };
+  const shared = { className: `${className} tag-${colour}`, style: { '--entry-color': 'var(--tag-color)' } as CSSProperties, title: entry.title };
+  if (onOpen) {
+    return (
+      <button {...shared} onClick={(event) => onOpen(event.currentTarget)} type="button">
+        {children}
+      </button>
+    );
+  }
   if (entry.kind !== 'external') {
     return (
       <Link {...shared} to={entryLink(entry)}>
@@ -125,9 +133,9 @@ export function AgendaEntryLink({
   );
 }
 
-export function AgendaCard({ colour, entry }: { colour: TagColor; entry: AgendaEntry }) {
+export function AgendaCard({ colour, entry, onOpen }: { colour: TagColor; entry: AgendaEntry; onOpen?: (target: HTMLElement) => void }) {
   return (
-    <AgendaEntryLink className="agenda-card" colour={colour} entry={entry}>
+    <AgendaEntryLink className="agenda-card" colour={colour} entry={entry} onOpen={onOpen}>
       <span className="block text-sm wrap-anywhere text-ink">{entry.title}</span>
       <span className="sr-only"> · </span>
       <span className="block text-small wrap-anywhere text-muted tabular-nums">
@@ -142,5 +150,54 @@ export function AgendaCard({ colour, entry }: { colour: TagColor; entry: AgendaE
         )}
       </span>
     </AgendaEntryLink>
+  );
+}
+
+export function EntryPeek({ anchor, entry, onClose, onEdit, onOpen }: { anchor: HTMLElement; entry: AgendaEntry; onClose: () => void; onEdit?: () => void; onOpen: () => void }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' });
+
+  useLayoutEffect(() => {
+    const target = anchor.getBoundingClientRect();
+    const own = panel.current!.getBoundingClientRect();
+    const below = target.bottom + 6 + own.height <= window.innerHeight;
+    setPlace({
+      left: Math.max(16, Math.min(target.left, window.innerWidth - own.width - 16)),
+      top: below ? target.bottom + 6 : Math.max(16, target.top - 6 - own.height),
+    });
+    panel.current!.querySelector('button')?.focus();
+  }, [anchor]);
+
+  useEffect(() => {
+    const close = (event: Event) => {
+      if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Escape') return;
+      onClose();
+      anchor.focus({ preventScroll: true });
+    };
+    window.addEventListener('keydown', close);
+    window.addEventListener('scroll', close, { passive: true });
+    return () => {
+      window.removeEventListener('keydown', close);
+      window.removeEventListener('scroll', close);
+    };
+  }, [anchor, onClose]);
+
+  return createPortal(
+    <>
+      <div aria-hidden="true" className="fixed inset-0 z-40" onClick={onClose} />
+      <div aria-label={entry.title} className="fixed z-50 grid w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-card border border-line bg-raised p-4 shadow-(--shadow-popover)" ref={panel} role="dialog" style={place}>
+        <div className="grid gap-1">
+          <p className="eyebrow m-0">{entry.calendar ?? kindLabels[entry.kind]}</p>
+          <p className="m-0 text-h3 wrap-anywhere text-ink">{entry.title}</p>
+          <p className="m-0 text-small text-muted">{entryWhen(entry)}</p>
+          {entry.location && <p className="m-0 text-small wrap-anywhere text-muted">{entry.location}</p>}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          {onEdit && <Button icon="pencil" label="Edit" onClick={onEdit} />}
+          <Button label="Open" onClick={onOpen} primary />
+        </div>
+      </div>
+    </>,
+    document.body,
   );
 }

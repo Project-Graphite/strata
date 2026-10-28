@@ -4,7 +4,6 @@ import { noteTitle } from '../notes';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
-import { Hint } from './Hint';
 import { Button } from './Button';
 import { Section } from './Page';
 
@@ -14,37 +13,28 @@ interface Linked {
   item: { id: string; spaceId: string; kind: string; title: string };
 }
 
-export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boolean; itemId: string; spaceId: string; title: string }) {
+export function useItemBoards(itemId: string) {
   const auth = useAuth();
   const links = useResource<{ outgoing: Linked[] }>(`/items/${itemId}/links`, true);
   const adding = useAction();
-  const boards = (links.data?.outgoing ?? []).filter((link) => link.kind === 'reference' && link.item.kind === 'board');
-  if (!links.data || (boards.length === 0 && !editable)) return null;
+  return {
+    boards: (links.data?.outgoing ?? []).filter((link) => link.kind === 'reference' && link.item.kind === 'board'),
+    loaded: Boolean(links.data),
+    busy: adding.busy,
+    add: (spaceId: string, title: string) =>
+      void adding.run(async () => {
+        const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
+        await auth.request(`/items/${itemId}/links`, { method: 'POST', body: JSON.stringify({ targetId: board.id, kind: 'reference' }) });
+        links.reload();
+        return `Added ${title} board.`;
+      }, 'Could not add a board'),
+  };
+}
 
+export function ItemBoards({ boards, editable, spaceId, title }: { boards: ReturnType<typeof useItemBoards>; editable: boolean; spaceId: string; title: string }) {
   return (
-    <Section
-      action={
-        editable && (
-          <Button
-            disabled={adding.busy}
-            icon="plus"
-            label="New board"
-            large
-            onClick={() =>
-              void adding.run(async () => {
-                const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
-                await auth.request(`/items/${itemId}/links`, { method: 'POST', body: JSON.stringify({ targetId: board.id, kind: 'reference' }) });
-                links.reload();
-                return `Added ${title} board.`;
-              }, 'Could not add a board')
-            }
-          />
-        )
-      }
-      title="Boards"
-    >
-      {boards.length === 0 && <Hint>No boards yet.</Hint>}
-      {boards.map(({ id, item }) => (
+    <Section action={editable && <Button disabled={boards.busy} icon="plus" label="New board" large onClick={() => boards.add(spaceId, title)} />} title="Boards">
+      {boards.boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />
           <Link className="text-sm" to={`/boards/${item.id}`}>
