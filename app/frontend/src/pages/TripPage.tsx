@@ -14,7 +14,7 @@ import { Hint } from '../components/Hint';
 import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { ButtonSkeleton, HintSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { MissingRates } from '../components/Stats';
-import { OpenTask } from '../components/TaskEditor';
+import { OpenTask } from '../components/OpenTask';
 import { TripEditor } from '../components/TripEditor';
 import { fileSize, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { categoryName, type MoneyAccount } from '../spending';

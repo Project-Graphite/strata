@@ -20,7 +20,7 @@ import { BoardPreview } from '../components/BoardPreview';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
-import { OpenTask } from '../components/TaskEditor';
+import { OpenTask } from '../components/OpenTask';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';

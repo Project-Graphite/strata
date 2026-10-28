@@ -19,7 +19,7 @@ import { NoteMark } from '../components/NoteMark';
 import { DetailState, Section, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
-import { OpenTask } from '../components/TaskEditor';
+import { OpenTask } from '../components/OpenTask';
 import { useInArea } from '../navigation';
 import { usePageNavigation } from '../page-navigation';
 import { announcePagesChanged, noteArea, noteHref, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';

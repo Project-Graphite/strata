@@ -102,6 +102,36 @@ export function parseQuickTask(text: string, knownTags: string[], now = new Date
   return result;
 }
 
+export interface QuickSuggestion {
+  insert: string;
+  label: string;
+  hint: string;
+}
+
+export const priorityNames = ['None', 'Low', 'Medium', 'High'];
+
+export function quickSuggestions(text: string, knownTags: string[], now = new Date()): QuickSuggestion[] {
+  const word = /(?:^|\s)(\S+)$/.exec(text)?.[1]?.toLowerCase() ?? '';
+  if (word.startsWith('#')) {
+    return knownTags
+      .filter((name) => !/\s/.test(name) && name.toLowerCase().startsWith(word.slice(1)) && `#${name.toLowerCase()}` !== word)
+      .slice(0, 6)
+      .map((name) => ({ insert: `#${name}`, label: name, hint: 'Label' }));
+  }
+  if (word.startsWith('!')) {
+    return [3, 2, 1].filter((level) => `!${level}`.startsWith(word) && `!${level}` !== word).map((level) => ({ insert: `!${level}`, label: `${priorityNames[level]} priority`, hint: `!${level}` }));
+  }
+  if (word.length < 2) return [];
+  return ['today', 'tonight', 'tomorrow', ...weekdays]
+    .filter((name) => name.startsWith(word) && name !== word)
+    .slice(0, 4)
+    .map((name) => ({ insert: name, label: name[0]!.toUpperCase() + name.slice(1), hint: describeQuickTask(parseQuickTask(name, [], now)) }));
+}
+
+export function withSuggestion(text: string, suggestion: QuickSuggestion) {
+  return `${text.replace(/\S+$/, '')}${suggestion.insert} `;
+}
+
 export function describeQuickTask(task: QuickTask) {
   return [
     task.dueDate &&
@@ -109,7 +139,7 @@ export function describeQuickTask(task: QuickTask) {
         task.dueTime ? ` ${clockTime(task.dueTime)}` : ''
       }`,
     ...task.tagNames.map((name) => `tag ${name}`),
-    task.priority && `${['', 'low', 'medium', 'high'][task.priority]} priority`,
+    task.priority && `${priorityNames[task.priority]!.toLowerCase()} priority`,
   ]
     .filter(Boolean)
     .join(' · ');

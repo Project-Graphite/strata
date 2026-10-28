@@ -1,9 +1,10 @@
 import { useId, useState } from 'react';
-import { TextField } from '@project-graphite/ui';
+import { Badge, formatDay, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { describeQuickTask, parseQuickTask } from '../quick-add';
+import { parseQuickTask, priorityNames, quickSuggestions, withSuggestion } from '../quick-add';
 import type { Tag } from '../spaces';
 import type { Task } from '../tasks';
+import { clockTime } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button } from './Button';
@@ -12,14 +13,25 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
   const auth = useAuth();
   const adding = useAction();
   const hintId = useId();
+  const suggestionsId = useId();
   const tags = useResource<Tag[]>(`/spaces/${spaceId}/tags`, true);
   const [text, setText] = useState('');
-  const quick = parseQuickTask(text, (tags.data ?? []).map((tag) => tag.name));
-  const understood = describeQuickTask(quick);
+  const [active, setActive] = useState(0);
+  const [dismissed, setDismissed] = useState('');
+  const known = (tags.data ?? []).map((tag) => tag.name);
+  const quick = parseQuickTask(text, known);
+  const suggestions = dismissed === text ? [] : quickSuggestions(text, known);
+  const highlighted = Math.min(active, suggestions.length - 1);
+  const understood = Boolean(quick.dueDate || quick.priority || quick.tagNames.length);
+
+  function pick(index: number) {
+    setText(withSuggestion(text, suggestions[index]!));
+    setActive(0);
+  }
 
   return (
     <form
-      className="grid gap-1"
+      className="grid gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         if (!quick.title) return;
@@ -28,29 +40,82 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
             method: 'POST',
             body: JSON.stringify({ title: quick.title.slice(0, 200), listId, dueDate: quick.dueDate, dueTime: quick.dueTime, priority: quick.priority }),
           });
-          const tagIds = (tags.data ?? []).filter((tag) => quick.tagNames.includes(tag.name)).map((tag) => tag.id);
-          if (tagIds.length) await auth.request(`/items/${added.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds }) });
+          const labels = (tags.data ?? []).filter((tag) => quick.tagNames.includes(tag.name));
+          if (labels.length) await auth.request(`/items/${added.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds: labels.map((tag) => tag.id) }) });
           setText('');
-          onAdded(added);
+          onAdded({ ...added, labels });
           return `Added ${added.title}.`;
         }, 'Could not add the task');
       }}
     >
       <div className="flex items-stretch gap-2">
-        <TextField
-          aria-describedby={understood ? hintId : undefined}
-          className="min-w-0 flex-1"
-          label="Add a task"
-          maxLength={300}
-          onChange={(event) => setText(event.currentTarget.value)}
-          value={text}
-        />
+        <div className="relative min-w-0 flex-1">
+          <TextField
+            aria-activedescendant={suggestions.length ? `${suggestionsId}-${highlighted}` : undefined}
+            aria-autocomplete="list"
+            aria-controls={suggestions.length ? suggestionsId : undefined}
+            aria-describedby={understood ? hintId : undefined}
+            aria-expanded={suggestions.length > 0}
+            autoComplete="off"
+            label="Add a task"
+            maxLength={300}
+            onBlur={() => setDismissed(text)}
+            onChange={(event) => {
+              setText(event.currentTarget.value);
+              setActive(0);
+            }}
+            onKeyDown={(event) => {
+              if (!suggestions.length) return;
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                setActive((highlighted + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length);
+              } else if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                pick(highlighted);
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                setDismissed(text);
+              }
+            }}
+            placeholder="Call Sara tomorrow 5pm #work !2"
+            role="combobox"
+            value={text}
+          />
+          {suggestions.length > 0 && (
+            <ul className="quick-suggestions" id={suggestionsId} role="listbox">
+              {suggestions.map((suggestion, index) => (
+                <li
+                  aria-selected={index === highlighted}
+                  className="quick-suggestion"
+                  id={`${suggestionsId}-${index}`}
+                  key={suggestion.insert}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    pick(index);
+                  }}
+                  role="option"
+                >
+                  <span className="min-w-0 truncate text-ink">{suggestion.label}</span>
+                  <span className="shrink-0 text-small text-muted">{suggestion.hint}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <Button disabled={!quick.title || adding.busy} label="Add" large submit />
       </div>
       {understood && (
-        <p className="mono-sm m-0 text-faint" id={hintId} role="status">
-          Understood: {understood}
-        </p>
+        <div aria-label="Understood" className="flex flex-wrap items-center gap-2" id={hintId} role="status">
+          {quick.dueDate && (
+            <Badge icon="calendar">
+              {`Due ${formatDay(quick.dueDate, { weekday: 'short', day: 'numeric', month: 'short' })}${quick.dueTime ? ` ${clockTime(quick.dueTime)}` : ''}`}
+            </Badge>
+          )}
+          {quick.priority && <Badge icon="alert">{`${priorityNames[quick.priority]} priority`}</Badge>}
+          {quick.tagNames.map((name) => (
+            <TagChip color={tags.data?.find((tag) => tag.name === name)?.color} key={name} label={name} />
+          ))}
+        </div>
       )}
     </form>
   );
