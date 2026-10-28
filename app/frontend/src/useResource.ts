@@ -14,6 +14,33 @@ interface ResourceState<T> {
   status?: number;
 }
 
+const cache = new Map<string, { at: number; data?: unknown; promise: Promise<unknown> }>();
+const freshFor = 5_000;
+const burst = 250;
+const cacheLimit = 300;
+
+function sharedRequest<T>(key: string, load: () => Promise<T>, since: number) {
+  const hit = cache.get(key);
+  if (hit && hit.at >= since) return hit.promise as Promise<T>;
+  const entry = { at: Date.now(), data: hit?.data, promise: load() as Promise<unknown> };
+  cache.delete(key);
+  cache.set(key, entry);
+  if (cache.size > cacheLimit) cache.delete(cache.keys().next().value!);
+  entry.promise.then(
+    (data) => {
+      entry.data = data;
+    },
+    () => {
+      if (cache.get(key) === entry) cache.delete(key);
+    },
+  );
+  return entry.promise as Promise<T>;
+}
+
+export function clearResourceCache() {
+  cache.clear();
+}
+
 export interface LiveOptions {
   live?: Topic[];
   every?: number;
@@ -69,12 +96,13 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const [version, setVersion] = useState(0);
   const inFlight = useRef<AbortController>(undefined);
   const refreshPending = useRef(false);
+  const reloadedAt = useRef(0);
 
   useEffect(() => {
     if (!key || !path) return;
     const controller = new AbortController();
     inFlight.current = controller;
-    void request<T>(path, { signal: controller.signal })
+    void sharedRequest(key, () => request<T>(path), Math.max(Date.now() - freshFor, reloadedAt.current - burst))
       .then((data) => {
         if (!controller.signal.aborted) setState({ key, data, error: '' });
       })
@@ -93,6 +121,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
           inFlight.current = undefined;
           if (refreshPending.current) {
             refreshPending.current = false;
+            reloadedAt.current = Date.now();
             setVersion((current) => current + 1);
           }
         }
@@ -101,13 +130,19 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   }, [key, path, request, version]);
 
   const mutate = useCallback(
-    (update: (data: T) => T) =>
+    (update: (data: T) => T) => {
+      const entry = key ? cache.get(key) : undefined;
+      if (entry?.data !== undefined) entry.data = update(entry.data as T);
       setState((current) =>
         current.key !== key || current.data === undefined ? current : { ...current, data: update(current.data) },
-      ),
+      );
+    },
     [key],
   );
-  const reload = useCallback(() => setVersion((current) => current + 1), []);
+  const reload = useCallback(() => {
+    reloadedAt.current = Date.now();
+    setVersion((current) => current + 1);
+  }, []);
   useLiveRefresh(() => {
     if (inFlight.current) refreshPending.current = true;
     else reload();
@@ -115,7 +150,8 @@ export function useResource<T>(path: string | null, authenticated = false, live?
 
   const current = key && state.key === key ? state : undefined;
   const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|${spaceId ?? ''}|`)) : true;
-  const data = useSettled(current ? current.data : key && sameViewer ? state.data : undefined);
+  const cached = key ? (cache.get(key)?.data as T | undefined) : undefined;
+  const data = useSettled(current ? current.data : (cached ?? (key && sameViewer ? state.data : undefined)));
   useEffect(() => {
     if (path && /^\/(notes|tasks|events|goals|trips|people|recipes|bookmarks|subscriptions)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
   }, [path, data, active]);
@@ -124,7 +160,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
     error: current?.data === undefined ? current?.error ?? '' : '',
     refreshError: current?.data === undefined ? '' : current.error,
     status: current?.status,
-    loading: Boolean(key) && !current?.error && current?.data === undefined,
+    loading: Boolean(key) && !current?.error && current?.data === undefined && cached === undefined,
     mutate,
     reload,
   };
