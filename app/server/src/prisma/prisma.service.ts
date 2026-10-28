@@ -1,10 +1,13 @@
-import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+
+const slowQueryMs = 300;
+const logger = new Logger('Prisma');
 
 @Injectable()
 export class PrismaService
-  extends PrismaClient
+  extends PrismaClient<Prisma.PrismaClientOptions, 'query' | 'warn' | 'error'>
   implements OnModuleInit, OnApplicationShutdown
 {
   constructor() {
@@ -12,7 +15,19 @@ export class PrismaService
     if (!connectionString) {
       throw new Error('DATABASE_URL is required');
     }
-    super({ adapter: new PrismaPg(connectionString) });
+    super({
+      adapter: new PrismaPg(connectionString),
+      log: [
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'warn' },
+        { emit: 'event', level: 'error' },
+      ],
+    });
+    this.$on('query', (event) => {
+      if (event.duration > slowQueryMs) logger.warn({ slowQueryMs: event.duration, query: event.query });
+    });
+    this.$on('warn', (event) => logger.warn(event.message));
+    this.$on('error', (event) => logger.error(event.message));
   }
 
   async onModuleInit() {

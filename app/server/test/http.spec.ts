@@ -1,8 +1,9 @@
-import { Controller, Get, INestApplication, NotFoundException } from '@nestjs/common';
+import { Controller, Get, INestApplication, Logger, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ApiExceptionFilter } from '../src/http/api-exception.filter';
+import { requestLog } from '../src/http/request-log';
 import { securityHeaders } from '../src/http/security-headers';
 
 const prismaError = (code: string) =>
@@ -80,5 +81,34 @@ describe('HTTP layer', () => {
     const gone = await fetch(`${base}/gone`);
     expect(gone.status).toBe(404);
     await expect(gone.json()).resolves.toMatchObject({ message: 'That note is gone' });
+  });
+});
+
+describe('Unexpected failures', () => {
+  let app: INestApplication;
+  let base: string;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({ controllers: [ProbeController] }).compile();
+    app = module.createNestApplication({ logger: false });
+    app.setGlobalPrefix('api/v1');
+    app.use(requestLog);
+    app.useGlobalFilters(new ApiExceptionFilter(app.getHttpAdapter()));
+    await app.listen(0, '127.0.0.1');
+    base = `${await app.getUrl()}/api/v1/probe`;
+  });
+
+  afterAll(() => app.close());
+
+  it('logs the request id, method, route and stack, and returns the same request id to the caller', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const broken = await fetch(`${base}/broken`);
+    const requestId = broken.headers.get('x-request-id');
+    expect(broken.status).toBe(500);
+    expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(broken.json()).resolves.toEqual({ statusCode: 500, message: 'Something went wrong on our side', requestId });
+    expect(logged).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId, method: 'GET', route: '/api/v1/probe/broken', status: 500, error: expect.stringContaining('stack detail that must stay private') }),
+    );
   });
 });
