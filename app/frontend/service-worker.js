@@ -1,7 +1,8 @@
 const cacheName = 'strata-__VERSION__';
 const offlinePage = '/offline.html';
+const maintenancePage = '/maintenance.html';
 const shareCache = 'strata-share';
-const precache = [...__ASSETS__, offlinePage, '/offline.css', '/favicon.svg'];
+const precache = [...__ASSETS__, offlinePage, maintenancePage, '/offline.css', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(precache)));
@@ -54,7 +55,12 @@ self.addEventListener('fetch', (event) => {
   }
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match(offlinePage)));
+    event.respondWith(
+      fetch(request).then(
+        async (response) => (response.status >= 502 && response.status <= 504 ? ((await caches.match(maintenancePage)) ?? response) : response),
+        () => caches.match(offlinePage),
+      ),
+    );
   } else if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
       caches.match(request).then(
