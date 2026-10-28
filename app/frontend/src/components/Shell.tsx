@@ -1,11 +1,12 @@
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
   ErrorState,
   IconButton,
   OutageGate,
+  PageSkeleton,
   PageTransition,
   Sidebar,
   Skeleton,
@@ -97,7 +98,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
   const showSidebar = auth.user || (!auth.ready && expectSession);
-  const content = <CrashBoundary key={spaceId}><Outlet /></CrashBoundary>;
+  const content = <CrashBoundary key={spaceId}><Suspense fallback={<PageSkeleton label="Loading page" />}><Outlet /></Suspense></CrashBoundary>;
 
   return (
     <>

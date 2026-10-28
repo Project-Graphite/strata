@@ -8,7 +8,7 @@ import { Hint } from './Hint';
 import { FileButton } from './FileButton';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
-import { draftRecoveryParts, recoverDraftPart, type DraftPart } from '../draft-parts';
+import type { DraftPart } from '../draft-parts';
 import { DraftRecoveryDialog } from './DraftRecoveryDialog';
 import type { PageImportPlan } from '../page-import';
 import { readImportProgress, verifyImportSources, type ImportProgress } from '../page-import-progress';
@@ -32,6 +32,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
 
   function recover([file]: File[]) {
     void importing.run(async () => {
+      const { draftRecoveryParts, recoverDraftPart } = await import('../draft-parts');
       const parts = await draftRecoveryParts(file!);
       if (parts.length > 1) {
         setRecovery(parts);
