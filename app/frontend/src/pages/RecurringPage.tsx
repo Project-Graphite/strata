@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Placeholder } from '@project-graphite/ui';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
 import { useSpaces } from '../spaces';
@@ -13,9 +13,8 @@ import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
-import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, MoneyRowsSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates, Stat, Stats } from '../components/Stats';
@@ -72,12 +71,12 @@ export function RecurringPage() {
     });
   };
   const subscriptionRow = (subscription: Subscription, detail: string) => (
-    <MoneyRow
-      amount={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
-      detail={detail}
+    <ListRow
       key={subscription.id}
-      onOpen={opener(subscription)}
+      meta={detail}
+      onClick={opener(subscription)}
       title={subscription.name}
+      trail={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
     />
   );
 
@@ -90,7 +89,7 @@ export function RecurringPage() {
           {statCount > 0 && <StatsSkeleton count={statCount} />}
           {trialRows > 0 && (
             <Section title="Trials ending soon">
-              <MoneyRowsSkeleton rows={trialRows} />
+              <AmountRowsSkeleton rows={trialRows} />
             </Section>
           )}
           <Section
@@ -109,19 +108,19 @@ export function RecurringPage() {
                 {empty.hint}
               </Empty>
             ) : renewalRows ? (
-              <MoneyRowsSkeleton rows={renewalRows} />
+              <AmountRowsSkeleton rows={renewalRows} />
             ) : (
               <HintSkeleton />
             )}
           </Section>
           {categoryRows > 0 && (
             <Section title="By category">
-              <MoneyRowsSkeleton detailed={0} rows={categoryRows} />
+              <AmountRowsSkeleton detailed={0} rows={categoryRows} />
             </Section>
           )}
           {unusedRows > 0 && (
             <Section description={unusedDescription} title="Still worth it?">
-              <MoneyRowsSkeleton detailed={0} rows={unusedRows} trail={<ButtonSkeleton width="w-24" />} />
+              <AmountRowsSkeleton detailed={0} rows={unusedRows} trail={<ButtonSkeleton width="w-24" />} />
             </Section>
           )}
         </Placeholder>
@@ -188,14 +187,14 @@ export function RecurringPage() {
             <Section title="By category">
               <ul className="panel-rows">
                 {summary.data.categories.map((category) => (
-                  <MoneyRow
-                    amount={
+                  <ListRow
+                    key={`${category.category}-${category.currency}`}
+                    title={categoryLabel(category.category)}
+                    trail={
                       <Amount currency={category.currency} minor={category.monthlyMinor}>
                         {' a month'}
                       </Amount>
                     }
-                    key={`${category.category}-${category.currency}`}
-                    title={categoryLabel(category.category)}
                   />
                 ))}
               </ul>
@@ -205,27 +204,30 @@ export function RecurringPage() {
             <Section description={unusedDescription} title="Still worth it?">
               <ul className="panel-rows">
                 {summary.data.stillWorthIt.map((subscription) => (
-                  <MoneyRow
-                    amount={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
+                  <ListRow
                     key={subscription.id}
-                    onOpen={opener(subscription)}
+                    onClick={opener(subscription)}
                     title={subscription.name}
-                  >
-                    <Button
-                      disabled={action.busy}
-                      label="I used this"
-                      onClick={() =>
-                        void action.run(async () => {
-                          await auth.request(`/subscriptions/${subscription.id}/used`, { method: 'POST' });
-                          summary.mutate((current) => ({
-                            ...current,
-                            stillWorthIt: current.stillWorthIt.filter((shown) => shown.id !== subscription.id),
-                          }));
-                          return `Noted that you used ${subscription.name}.`;
-                        }, 'Could not update the subscription')
-                      }
-                    />
-                  </MoneyRow>
+                    trail={
+                      <>
+                        <Amount currency={subscription.currency} minor={subscription.amountMinor} />
+                        <Button
+                          disabled={action.busy}
+                          label="I used this"
+                          onClick={() =>
+                            void action.run(async () => {
+                              await auth.request(`/subscriptions/${subscription.id}/used`, { method: 'POST' });
+                              summary.mutate((current) => ({
+                                ...current,
+                                stillWorthIt: current.stillWorthIt.filter((shown) => shown.id !== subscription.id),
+                              }));
+                              return `Noted that you used ${subscription.name}.`;
+                            }, 'Could not update the subscription')
+                          }
+                        />
+                      </>
+                    }
+                  />
                 ))}
               </ul>
             </Section>

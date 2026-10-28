@@ -1,7 +1,6 @@
-import Alert from '@mui/material/Alert';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Link, useLocation, type Location } from 'react-router';
-import { Icon } from '@project-graphite/ui';
+import { Banner, Icon } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Section } from '../../components/Page';
 import { appCatalogue, enabledApps } from '../../apps';
@@ -149,11 +148,11 @@ export function AppsSettings() {
     >
       {asked &&
         (keys.includes(asked.key) ? (
-          <Alert className="m-0" severity="info">
+          <Banner>
             <Link to={`${state!.from.pathname}${state!.from.search}`}>Open {asked.label}</Link>
-          </Alert>
+          </Banner>
         ) : (
-          <Alert className="m-0" severity="info">Turn on {asked.label} to open it.</Alert>
+          <Banner>Turn on {asked.label} to open it.</Banner>
         ))}
       <ul aria-label="Apps" className="app-tiles" ref={grid}>
         {tiles.map((app) => {

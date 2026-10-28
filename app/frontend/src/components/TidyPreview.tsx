@@ -1,13 +1,11 @@
-import Alert from '@mui/material/Alert';
 import { useEffect, useState } from 'react';
-import { Dialog, errorMessage, isAbortError, Placeholder } from '@project-graphite/ui';
+import { Banner, Dialog, errorMessage, isAbortError, ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Tag } from '../spaces';
 import { useAction } from '../useAction';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
-import { RowText } from './RowText';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from './Skeletons';
 
 export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
@@ -99,7 +97,7 @@ export function TidyPreview({
     <Dialog onClose={onClose} title="Check before you tidy">
       <div className="mt-5 grid gap-6">
         {error ? (
-          <Alert className="m-0" severity="error">{error}</Alert>
+          <Banner tone="danger">{error}</Banner>
         ) : !preview ? (
           <Placeholder className="grid gap-6" label="Checking the items">
             {changeRows ? (
@@ -128,9 +126,7 @@ export function TidyPreview({
                 <Subheading>{changeHeading(request.action, preview.changes.length)}</Subheading>
                 <ul className="panel-rows max-h-60 overflow-y-auto">
                   {preview.changes.map((change) => (
-                    <li className="panel-row" key={change.id}>
-                      <RowText title={change.title || 'Untitled'} />
-                    </li>
+                    <ListRow key={change.id} title={change.title || 'Untitled'} />
                   ))}
                 </ul>
               </section>
@@ -142,9 +138,7 @@ export function TidyPreview({
                 <Subheading>{itemsText(preview.skipped.length)} will be left alone</Subheading>
                 <ul className="panel-rows max-h-40 overflow-y-auto">
                   {preview.skipped.map((entry) => (
-                    <li className="panel-row" key={entry.id}>
-                      <RowText detail={entry.reason} title={entry.title || 'An item you can’t open'} />
-                    </li>
+                    <ListRow key={entry.id} meta={entry.reason} title={entry.title || 'An item you can’t open'} />
                   ))}
                 </ul>
               </section>

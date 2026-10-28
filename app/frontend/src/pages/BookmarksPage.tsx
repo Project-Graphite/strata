@@ -1,6 +1,6 @@
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useState } from 'react';
-import { Placeholder, TextField, timeAgo } from '@project-graphite/ui';
+import { ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -9,7 +9,6 @@ import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { FilterChips, Page } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -102,22 +101,22 @@ export function BookmarksPage() {
       ) : (
         <ul className="panel-rows">
           {listed.data.map((bookmark) => (
-            <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={bookmark.id}>
-              <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/bookmarks/${bookmark.id}`}>
-                <RowText
-                  detail={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
-                  title={bookmark.title}
-                >
-                  {bookmark.description && <span className="line-clamp-2 text-sm text-muted">{bookmark.description}</span>}
-                </RowText>
-              </Link>
-              {editable(bookmark) && (
-                <ActionsMenu
-                  items={[{ label: bookmark.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => markRead(bookmark, !bookmark.readAt) }]}
-                  name={bookmark.title}
-                />
-              )}
-            </li>
+            <ListRow
+              href={`/bookmarks/${bookmark.id}`}
+              key={bookmark.id}
+              meta={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
+              title={bookmark.title}
+              trail={
+                editable(bookmark) && (
+                  <ActionsMenu
+                    items={[{ label: bookmark.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => markRead(bookmark, !bookmark.readAt) }]}
+                    name={bookmark.title}
+                  />
+                )
+              }
+            >
+              {bookmark.description && <span className="line-clamp-2 text-small text-muted">{bookmark.description}</span>}
+            </ListRow>
           ))}
         </ul>
       )}

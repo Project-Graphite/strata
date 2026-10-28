@@ -1,7 +1,5 @@
-import ButtonBase from '@mui/material/ButtonBase';
-import Chip from '@mui/material/Chip';
 import type { ReactNode } from 'react';
-import { Avatar, Button, Checkbox, formatDay, Icon, Pagination } from '@project-graphite/ui';
+import { Avatar, Button, Checkbox, formatDay, ListRow, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
 import type { useAuth } from './auth';
 import { FilterChips } from './components/Page';
@@ -129,29 +127,40 @@ export function TaskRow({
   const done = Boolean(task.completedAt);
   const details = taskDetails(task, where);
   return (
-    <li className="flex min-w-0 items-center gap-3 panel-row">
-      <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
-        <Checkbox
-          aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
-          checked={done}
-          disabled={disabled}
-          onChange={onToggle}
-        />
-      </label>
-      <ButtonBase className="min-w-0 flex-1 flex-col items-stretch text-left" onClick={onEdit}>
-        <span className={`block truncate transition-colors ${done ? 'text-faint' : 'text-ink'}`}>
+    <ListRow
+      lead={
+        <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
+          <Checkbox
+            aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
+            checked={done}
+            disabled={disabled}
+            onChange={onToggle}
+          />
+        </label>
+      }
+      meta={
+        details.length > 0 && (
+          <span className={`mono-sm block truncate ${isOverdue(task) ? 'text-danger' : 'text-faint'}`}>
+            {details.join(' · ')}
+          </span>
+        )
+      }
+      onClick={onEdit}
+      title={
+        <span className={`transition-colors ${done ? 'text-faint' : 'text-ink'}`}>
           {task.parentId && <span className="text-faint">↳ </span>}
           <span className={`task-title ${done ? 'is-done' : ''}`}>{task.title}</span>
         </span>
-        {details.length > 0 && (
-          <span className={`mono-sm mt-0.5 block truncate ${isOverdue(task) ? 'text-danger' : 'text-faint'}`}>
-            {details.join(' · ')}
-          </span>
-        )}
-      </ButtonBase>
-      {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
-      {actions}
-    </li>
+      }
+      trail={
+        (task.assignee || actions) && (
+          <>
+            {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
+            {actions}
+          </>
+        )
+      }
+    />
   );
 }
 
@@ -178,16 +187,9 @@ export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLi
       label="Lists"
     >
       {onNewList && (
-        <Chip
-          icon={
-            <span className="inline-flex">
-              <Icon name="plus" size={14} />
-            </span>
-          }
-          label="New list"
-          onClick={onNewList}
-          variant="outlined"
-        />
+        <Button icon="plus" onClick={onNewList} size="small">
+          New list
+        </Button>
       )}
     </FilterChips>
   );

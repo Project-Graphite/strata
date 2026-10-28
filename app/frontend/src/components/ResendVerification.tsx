@@ -1,6 +1,5 @@
-import MuiLink from '@mui/material/Link';
 import { useState } from 'react';
-import { errorMessage, useSnackbar } from '@project-graphite/ui';
+import { errorMessage, TextLink, useSnackbar } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 
 export function ResendVerification({ email }: { email: string }) {
@@ -22,15 +21,13 @@ export function ResendVerification({ email }: { email: string }) {
   }
 
   return (
-    <div className="mt-6 text-sm text-muted">
+    <div className="mt-6 text-small text-muted">
       {state === 'sent' ? (
         <p className="m-0">A new link is on its way. It works for 24 hours.</p>
       ) : (
         <p className="m-0">
           Nothing arrived?{' '}
-          <MuiLink component="button" disabled={state === 'sending'} onClick={() => void resend()} type="button" underline="always">
-            Send the link again
-          </MuiLink>
+          <TextLink onClick={() => state === 'idle' && void resend()}>Send the link again</TextLink>
         </p>
       )}
     </div>

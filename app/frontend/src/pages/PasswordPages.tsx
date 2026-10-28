@@ -1,8 +1,6 @@
-import Alert from '@mui/material/Alert';
-import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { errorMessage, TextField } from '@project-graphite/ui';
+import { useSearchParams } from 'react-router';
+import { Banner, errorMessage, TextField, TextLink } from '@project-graphite/ui';
 import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
 import { Button, ButtonLink } from '../components/Button';
@@ -45,16 +43,13 @@ export function ForgotPasswordPage() {
       ) : (
         <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
           <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
-          {error && (
-            <Alert className="m-0" severity="error">
-              {error}
-            </Alert>
-          )}
+          {error && <Banner tone="danger">{error}</Banner>}
+
           <Button disabled={busy} label={busy ? 'Sending…' : 'Send reset link'} large primary submit />
         </form>
       )}
-      <p className="mt-6 text-sm text-muted">
-        <MuiLink component={Link} to="/login" underline="always">Back to sign in</MuiLink>
+      <p className="mt-6 text-small text-muted">
+        <TextLink href="/login">Back to sign in</TextLink>
       </p>
     </Page>
   );
@@ -125,11 +120,9 @@ export function ResetPasswordPage() {
         />
         {error && (
           <>
-            <Alert className="m-0" severity="error">
-              {error}
-            </Alert>
+            <Banner tone="danger">{error}</Banner>
             <Hint>
-              <MuiLink component={Link} to="/forgot-password" underline="always">Request a new link</MuiLink>
+              <TextLink href="/forgot-password">Request a new link</TextLink>
             </Hint>
           </>
         )}

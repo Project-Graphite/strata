@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Meter, Placeholder, Skeleton } from '@project-graphite/ui';
+import { useNavigate, useSearchParams } from 'react-router';
+import { ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
 import { FilterChips, Page, Section } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { periodLabel, progressText, statusLabels, type Goal } from '../goals';
 import { useSpaces } from '../spaces';
@@ -77,18 +76,21 @@ export function GoalsPage() {
           <Section key={label} title={label}>
             <ul className="panel-rows">
               {shown.map((goal) => (
-                <li key={goal.id}>
-                  <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/goals/${goal.id}`}>
-                    <RowText detail={`${goal.spaceName} · ${progressText(goal)}`} title={goal.title}>
-                      {goal.progress !== null && <Meter label={`Progress of ${goal.title}`} value={goal.progress} />}
-                    </RowText>
-                    {goal.status !== 'active' ? (
-                      <span className="shrink-0 text-sm text-muted">{statusLabels[goal.status]}</span>
+                <ListRow
+                  href={`/goals/${goal.id}`}
+                  key={goal.id}
+                  meta={`${goal.spaceName} · ${progressText(goal)}`}
+                  title={goal.title}
+                  trail={
+                    goal.status !== 'active' ? (
+                      <span className="text-small">{statusLabels[goal.status]}</span>
                     ) : (
-                      goal.progress !== null && <span className="mono-sm shrink-0 text-faint">{Math.round(goal.progress * 100)}%</span>
-                    )}
-                  </Link>
-                </li>
+                      goal.progress !== null && <span className="mono-sm text-faint">{Math.round(goal.progress * 100)}%</span>
+                    )
+                  }
+                >
+                  {goal.progress !== null && <Meter label={`Progress of ${goal.title}`} value={goal.progress} />}
+                </ListRow>
               ))}
             </ul>
           </Section>

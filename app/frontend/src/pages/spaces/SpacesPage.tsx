@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Placeholder } from '@project-graphite/ui';
+import { useNavigate } from 'react-router';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
-import { RowText } from '../../components/RowText';
 import { RowsSkeleton, SpaceMarkSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, spacesTabs, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -65,13 +64,14 @@ export function SpacesPage() {
       ) : (
         <ul className="panel-rows">
           {spaces.data.map((space) => (
-            <li className="flex items-center pe-2 hover:bg-line-soft" key={space.id}>
-              <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/spaces/${space.id}`}>
-                <SpaceMark space={space} />
-                <RowText detail={spaceDescription(space)} title={space.name} />
-              </Link>
-              <ActionsMenu items={actions.items(space)} name={space.name} />
-            </li>
+            <ListRow
+              href={`/spaces/${space.id}`}
+              key={space.id}
+              lead={<SpaceMark space={space} />}
+              meta={spaceDescription(space)}
+              title={space.name}
+              trail={<ActionsMenu items={actions.items(space)} name={space.name} />}
+            />
           ))}
         </ul>
       )}

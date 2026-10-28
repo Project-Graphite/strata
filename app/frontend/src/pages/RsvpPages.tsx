@@ -1,8 +1,6 @@
-import FormLabel from '@mui/material/FormLabel';
-import Alert from '@mui/material/Alert';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { LinesSkeleton, Placeholder, Radio, Skeleton, TextAreaField, TextField } from '@project-graphite/ui';
+import { Banner, LinesSkeleton, Placeholder, Radio, Skeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
 import { Button } from '../components/Button';
@@ -45,8 +43,8 @@ function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boo
 
 function ResponseFields({ current, missing, onChoose }: { current?: Guest['response']; missing: boolean; onChoose: () => void }) {
   return (
-    <fieldset aria-invalid={missing || undefined} className="m-0 flex flex-wrap gap-4 border-0 p-0">
-      <FormLabel className="mb-2" component="legend">Can you come?</FormLabel>
+    <fieldset aria-invalid={missing || undefined} className="fieldset flex flex-wrap gap-4">
+      <legend className="fieldset-legend">Can you come?</legend>
       {(['yes', 'maybe', 'no'] as const).map((response) => (
         <Radio
           defaultChecked={current === response}
@@ -59,9 +57,9 @@ function ResponseFields({ current, missing, onChoose }: { current?: Guest['respo
         />
       ))}
       {missing && (
-        <Alert className="m-0 w-full" severity="error">
+        <Banner className="w-full" tone="danger">
           Choose yes, maybe or no.
-        </Alert>
+        </Banner>
       )}
     </fieldset>
   );
@@ -86,7 +84,7 @@ function RsvpSkeleton() {
               ))}
             </div>
           </div>
-          <Skeleton className="h-[4.9375rem] rounded-lg" />
+          <Skeleton className="h-[4.9375rem] rounded-field" />
           <ButtonSkeleton large width="w-32" />
         </div>
       </Placeholder>
@@ -149,7 +147,7 @@ export function RsvpPage() {
         <p className="m-0 text-ink">Hi {guest.name}.</p>
         {poll.data && poll.data.options.length > 0 && (
           <div className="grid gap-2">
-            <FormLabel className="m-0" component="p">The date isn’t fixed yet. Which of these work for you?</FormLabel>
+            <p className="m-0 text-small text-muted">The date isn’t fixed yet. Which of these work for you?</p>
             <PollOptions
               busy={voting.busy}
               onVote={(optionId: string, answer: PollAnswer) =>

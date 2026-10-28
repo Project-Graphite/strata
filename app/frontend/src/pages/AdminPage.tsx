@@ -1,4 +1,4 @@
-import { Avatar, Placeholder, TextField, timeAgo, Toggle } from '@project-graphite/ui';
+import { Avatar, ListRow, Placeholder, TextField, timeAgo, Toggle } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -7,9 +7,7 @@ import { Button } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
-import { RowText } from '../components/RowText';
 import { AvatarSkeleton, ButtonSkeleton, FieldSkeleton, RowsSkeleton, SkeletonLine, ToggleSkeleton, useRememberedShape } from '../components/Skeletons';
-import { SettingsRows } from './settings/SettingsLayout';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -52,7 +50,7 @@ export function AdminPage() {
     <Page title="Admin">
       {site.data ? (
         <Section title="Site settings">
-          <SettingsRows>
+          <div className="panel-rows">
             <Toggle
               checked={site.data.inviteOnly}
               description="New accounts need an invite while this is on. People who already have an account aren’t affected."
@@ -69,7 +67,7 @@ export function AdminPage() {
                 }, 'Could not save the setting')
               }
             />
-          </SettingsRows>
+          </div>
           <form
             className="grid max-w-3xl gap-4"
             noValidate
@@ -104,9 +102,9 @@ export function AdminPage() {
       ) : (
         <Placeholder label="Loading the site settings">
           <Section title="Site settings">
-            <SettingsRows>
+            <div className="panel-rows">
               <ToggleSkeleton description />
-            </SettingsRows>
+            </div>
             <div className="grid max-w-3xl gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <FieldSkeleton hint />
@@ -129,22 +127,21 @@ export function AdminPage() {
         ) : (
           <ul className="panel-rows">
             {accounts.data.map((account) => (
-              <li className="panel-row flex items-center gap-3" key={account.id}>
-                <Avatar name={account.displayName} />
-                <RowText
-                  detail={[
-                    account.email,
-                    `@${account.handle}`,
-                    `joined ${timeAgo(account.createdAt)}`,
-                    `${fileSize(account.usedBytes)} stored`,
-                    !account.verified && 'not verified',
-                    !account.isActive && 'deactivated',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                  title={[account.displayName, roleNames[account.role]].filter(Boolean).join(' · ')}
-                />
-              </li>
+              <ListRow
+                key={account.id}
+                lead={<Avatar name={account.displayName} />}
+                meta={[
+                  account.email,
+                  `@${account.handle}`,
+                  `joined ${timeAgo(account.createdAt)}`,
+                  `${fileSize(account.usedBytes)} stored`,
+                  !account.verified && 'not verified',
+                  !account.isActive && 'deactivated',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                title={[account.displayName, roleNames[account.role]].filter(Boolean).join(' · ')}
+              />
             ))}
           </ul>
         )}

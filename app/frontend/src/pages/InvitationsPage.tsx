@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, Placeholder, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { Dialog, ListRow, Placeholder, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
 import { addJoinedSpace, SpaceMark, spacesTabs, useAllSpaces } from '../spaces';
@@ -14,7 +14,6 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton, useRememberedShape } from '../components/Skeletons';
 import { NewSpace } from './spaces/SpacesPage';
 
@@ -78,14 +77,20 @@ export function InvitationsPage() {
         ) : (
           <ul className="panel-rows">
             {received.data.map((invitation) => (
-              <li className="flex items-center gap-3 panel-row" key={invitation.id}>
-                <SpaceMark space={invitation.space} />
-                <RowText detail={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>} title={invitation.space.name}>
-                  {invitation.note && <span className="text-sm text-muted">“{invitation.note}”</span>}
-                </RowText>
-                <Button disabled={answering.busy} label="Accept" onClick={() => answer(invitation, true)} />
-                <ActionsMenu items={[{ label: 'Decline', onSelect: () => answer(invitation, false) }]} name={invitation.space.name} />
-              </li>
+              <ListRow
+                key={invitation.id}
+                lead={<SpaceMark space={invitation.space} />}
+                meta={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>}
+                title={invitation.space.name}
+                trail={
+                  <>
+                    <Button disabled={answering.busy} label="Accept" onClick={() => answer(invitation, true)} />
+                    <ActionsMenu items={[{ label: 'Decline', onSelect: () => answer(invitation, false) }]} name={invitation.space.name} />
+                  </>
+                }
+              >
+                {invitation.note && <span className="text-small text-muted">“{invitation.note}”</span>}
+              </ListRow>
             ))}
           </ul>
         )}
@@ -101,17 +106,16 @@ export function InvitationsPage() {
         ) : (
           <ul className="panel-rows">
             {sent.data.map((invitation) => (
-              <li className="panel-row" key={invitation.id}>
-                <RowText
-                  detail={
-                    <>
-                      {statusLabels[invitation.status]}
-                      {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created {timeAgo(invitation.createdAt)}
-                    </>
-                  }
-                  title={invitation.email ?? 'Invite link'}
-                />
-              </li>
+              <ListRow
+                key={invitation.id}
+                meta={
+                  <>
+                    {statusLabels[invitation.status]}
+                    {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created {timeAgo(invitation.createdAt)}
+                  </>
+                }
+                title={invitation.email ?? 'Invite link'}
+              />
             ))}
           </ul>
         )}

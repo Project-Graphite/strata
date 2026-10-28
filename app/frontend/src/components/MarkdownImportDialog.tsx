@@ -24,14 +24,14 @@ export default function MarkdownImportDialog({ plan, spaceId, onClose, onDone }:
       <div className="mt-5 grid gap-4">
         <Hint>{ready.length} pages ready; {plan.pages.length - ready.length} skipped. Nothing is uploaded until you start. Original images are kept unchanged; missing or unsupported images keep their descriptions.</Hint>
         <Hint>Completed pages are kept on failure. Save import progress before closing or reloading, then load it in Import with the original source folder to resume. CSV databases are not available yet.</Hint>
-        <p className="m-0 text-sm text-muted" role="status">{completed} of {ready.length} completed · {plan.uploaded.size} images uploaded</p>
+        <p className="m-0 text-small text-muted" role="status">{completed} of {ready.length} completed · {plan.uploaded.size} images uploaded</p>
         {plan.pages.length === 0 && <Hint>No Markdown files were found. Choose unzipped Markdown files or a Notion export folder.</Hint>}
         <ul className="m-0 grid max-h-96 list-none gap-4 overflow-y-auto p-0">
           {plan.pages.map((page) => <li className="grid gap-1 rounded-field border border-line p-3" key={page.id}>
             <p className="m-0 text-sm text-ink">{page.title || 'Untitled'}</p>
             <p className="m-0 break-all text-xs text-muted">{page.path}</p>
             <p className="m-0 text-xs text-muted">{page.parentPath ? `Inside ${plan.pages.find((parent) => parent.path === page.parentPath)?.title || page.parentPath}` : 'Space root'}</p>
-            <p className="m-0 text-sm text-muted">{page.blocked ? `Skipped: ${page.blocked}` : page.error ? `Needs retry: ${page.error}` : page.created && page.nested && page.indexed ? 'Imported' : page.created ? 'Page created; finishing placement and links' : 'Ready'}</p>
+            <Hint>{page.blocked ? `Skipped: ${page.blocked}` : page.error ? `Needs retry: ${page.error}` : page.created && page.nested && page.indexed ? 'Imported' : page.created ? 'Page created; finishing placement and links' : 'Ready'}</Hint>
             {page.issues.map((issue) => <p className="m-0 text-xs text-muted" key={issue}>{issue}</p>)}
             {page.created && !action.busy && <Link className="text-sm" onClick={onClose} to={`/notes/${page.id}`}>Open imported page</Link>}
           </li>)}

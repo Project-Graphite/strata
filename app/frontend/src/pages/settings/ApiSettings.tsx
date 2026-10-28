@@ -1,6 +1,5 @@
-import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
-import { Checkbox, ConfirmDialog, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Checkbox, ConfirmDialog, Fieldset, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { ActionsMenu } from '../../components/ActionsMenu';
@@ -59,7 +58,7 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
   return (
     <>
       <Section title="Personal API">
-        <div className="grid gap-3 text-sm text-muted">
+        <div className="grid gap-3 text-small text-muted">
           <p className="m-0">
             Send requests to <code className="mono-sm text-ink">{`${window.location.origin}${reference.basePath}`}</code> with the header{' '}
             <code className="mono-sm text-ink">Authorization: Bearer strata_pat_…</code>. Create a token above; each permission opens these endpoints.
@@ -90,10 +89,10 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
         }
         title="Webhooks"
       >
-        <p className="m-0 text-sm text-muted">
+        <Hint>
           Strata posts JSON to your address when something happens in your spaces, signed with your webhook’s secret in <code className="mono-sm">X-Strata-Signature</code>{' '}
           (HMAC-SHA256 of the timestamp, a dot and the body). Failed deliveries are retried 5 times.
-        </p>
+        </Hint>
         {webhooks.data!.length === 0 ? (
           <Hint>No webhooks yet.</Hint>
         ) : (
@@ -176,8 +175,7 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
           title="New webhook"
         >
           <TextField autoFocus inputMode="url" label="Send to (https://)" {...form.field('url')} />
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <FormLabel className="mb-2" component="legend">When</FormLabel>
+          <Fieldset legend="When">
             {webhookEvents.map(([event, description]) => (
               <Checkbox
                 defaultChecked={event === 'item.created'}
@@ -191,7 +189,7 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
                 value={event}
               />
             ))}
-          </fieldset>
+          </Fieldset>
           <Select defaultValue="" label="In" name="spaceId" options={[{ value: '', label: 'All my spaces' }, ...spaceOptions(spaces.data ?? [])]} />
         </FormDialog>
       )}

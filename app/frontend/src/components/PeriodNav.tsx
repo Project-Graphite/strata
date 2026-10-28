@@ -22,7 +22,7 @@ export function PeriodNav({
       <IconButton disabled={disabled} icon="chevron-left" label={`Previous ${unit}`} onClick={() => onShift(-1)} />
       <IconButton disabled={disabled || last} icon="chevron-right" label={`Next ${unit}`} onClick={() => onShift(1)} />
       {current && <Button label={current.label} onClick={current.onSelect} />}
-      <h2 className="m-0 ml-2 text-lg font-medium">{title}</h2>
+      <h2 className="m-0 ml-2 text-h2">{title}</h2>
     </div>
   );
 }

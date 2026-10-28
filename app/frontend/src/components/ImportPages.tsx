@@ -81,7 +81,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           }, 'Could not load import progress')} />
         </div>
         {importing.busy && (
-          <p className="m-0 text-sm text-muted" role="status">
+          <p className="m-0 text-small text-muted" role="status">
             Importing…
           </p>
         )}

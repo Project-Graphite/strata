@@ -1,7 +1,6 @@
-import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
+import { Checkbox, Fieldset, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -358,12 +357,11 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
       {habits.data && habits.data.length === 0 ? (
         <Hint>{goal.spaceName} has no habits yet.</Hint>
       ) : (
-        <fieldset className="m-0 grid gap-3 border-0 p-0">
-          <FormLabel className="mb-2" component="legend">Follow these habits</FormLabel>
+        <Fieldset className="gap-3" legend="Follow these habits">
           {(habits.data ?? []).map((habit) => (
             <Checkbox defaultChecked={goal.habits.some((followed) => followed.id === habit.id)} key={habit.id} label={habit.name} name="habitId" value={habit.id} />
           ))}
-        </fieldset>
+        </Fieldset>
       )}
     </FormDialog>
   );

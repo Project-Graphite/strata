@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { ConfirmDialog, formatDay, Placeholder } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, ListRow, Placeholder } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../../agenda';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { RowText } from '../../components/RowText';
-import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowTextSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { money } from '../../subscriptions';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -36,10 +35,7 @@ function BalanceRowsSkeleton({ action, rows, withAction }: { action: ReactNode; 
   return (
     <ul aria-hidden="true" className="panel-rows">
       {rowsOf(rows).map((row) => (
-        <li className="panel-row flex items-center gap-3" key={row}>
-          <RowTextSkeleton detail={false} row={row} />
-          {row < withAction && action}
-        </li>
+        <RowSkeleton detail={false} key={row} row={row} trail={row < withAction && action} />
       ))}
     </ul>
   );
@@ -110,10 +106,11 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
           ) : (
             <ul className="panel-rows">
               {balances.data.debts.map((debt) => (
-                <li className="panel-row flex items-center gap-3" key={`${debt.fromUserId}-${debt.toUserId}-${debt.currency}`}>
-                  <RowText title={`${debt.fromName} owes ${debt.toName} ${money(debt.amountMinor, debt.currency)}`} />
-                  {me === debt.toUserId && <Button disabled={action.busy} label="Mark as paid" onClick={() => settle(debt)} />}
-                </li>
+                <ListRow
+                  key={`${debt.fromUserId}-${debt.toUserId}-${debt.currency}`}
+                  title={`${debt.fromName} owes ${debt.toName} ${money(debt.amountMinor, debt.currency)}`}
+                  trail={me === debt.toUserId && <Button disabled={action.busy} label="Mark as paid" onClick={() => settle(debt)} />}
+                />
               ))}
             </ul>
           )}
@@ -123,12 +120,15 @@ export function SpaceBalances({ spaceId }: { spaceId: string }) {
           {balances.data.settlements.length > 0 && (
             <ul className="panel-rows">
               {balances.data.settlements.map((settlement) => (
-                <li className="panel-row flex items-center gap-3" key={settlement.id}>
-                  <RowText title={`${settlement.fromName} paid ${settlement.toName} ${money(settlement.amountMinor, settlement.currency)}`} />
-                  {(me === settlement.fromUserId || me === settlement.toUserId) && (
-                    <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDeleting(settlement) }]} name={`${settlement.fromName} paid ${settlement.toName}`} />
-                  )}
-                </li>
+                <ListRow
+                  key={settlement.id}
+                  title={`${settlement.fromName} paid ${settlement.toName} ${money(settlement.amountMinor, settlement.currency)}`}
+                  trail={
+                    (me === settlement.fromUserId || me === settlement.toUserId) && (
+                      <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDeleting(settlement) }]} name={`${settlement.fromName} paid ${settlement.toName}`} />
+                    )
+                  }
+                />
               ))}
             </ul>
           )}

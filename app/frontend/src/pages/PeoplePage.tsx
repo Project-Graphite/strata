@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Avatar, Placeholder } from '@project-graphite/ui';
+import { useNavigate } from 'react-router';
+import { Avatar, ListRow, Placeholder } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
@@ -10,21 +10,13 @@ import { PersonEditor } from '../components/PersonEditor';
 import { nextBirthdayText, type Person } from '../people';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
-import { RowText } from '../components/RowText';
 import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 
 const soonDays = 60;
 const empty = { title: 'No people yet', hint: 'Add the people you care about to keep their birthdays on your agenda, gift ideas and the events you shared.' };
 
 function PersonRow({ detail, person }: { detail: string | null; person: Person }) {
-  return (
-    <li>
-      <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/people/${person.id}`}>
-        <Avatar name={person.name} />
-        <RowText detail={detail} title={person.name} />
-      </Link>
-    </li>
-  );
+  return <ListRow href={`/people/${person.id}`} lead={<Avatar name={person.name} />} meta={detail} title={person.name} />;
 }
 
 export function PeoplePage() {

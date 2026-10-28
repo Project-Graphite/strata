@@ -37,14 +37,14 @@ function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; labe
   if (elements.length === 0) {
     return (
       <div aria-label={label} className="board-preview" role="img">
-        <p className="m-0 p-6 text-center text-sm text-muted">Nothing drawn yet</p>
+        <p className="m-0 p-6 text-center text-small text-muted">Nothing drawn yet</p>
       </div>
     );
   }
   return (
     <div aria-label={label} className="board-preview" role="img">
       {state === 'loading' && <Skeleton className="h-40 w-full" />}
-      {state === 'failed' && <p className="m-0 p-6 text-center text-sm text-muted">This board could not be shown</p>}
+      {state === 'failed' && <p className="m-0 p-6 text-center text-small text-muted">This board could not be shown</p>}
       <div className="board-preview-drawing" ref={frame} />
     </div>
   );
@@ -71,7 +71,7 @@ export function BoardPreview({ boardId, label, live = false }: { boardId: string
   if (failed) {
     return (
       <div aria-label={label} className="board-preview" role="img">
-        <p className="m-0 p-6 text-center text-sm text-muted">This board could not be shown</p>
+        <p className="m-0 p-6 text-center text-small text-muted">This board could not be shown</p>
       </div>
     );
   }

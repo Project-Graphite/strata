@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Icon, Skeleton, timeAgo, type IconName } from '@project-graphite/ui';
+import { EmptyState, Icon, Skeleton, timeAgo, type IconName } from '@project-graphite/ui';
 import type { Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { Subheading } from '../components/Page';
@@ -16,23 +16,14 @@ export function WidgetHeading({ children, icon, title }: { children?: ReactNode;
       <span aria-hidden="true" className="widget-icon">
         <Icon name={icon} size={15} />
       </span>
-      <h2 className="m-0 min-w-0 flex-1 truncate text-sm font-medium text-ink">{title}</h2>
+      <h2 className="m-0 min-w-0 flex-1 truncate text-h3 text-ink">{title}</h2>
       {children}
     </header>
   );
 }
 
-export function WidgetEmpty({ action, children, icon, title }: { action?: ReactNode; children?: ReactNode; icon: IconName; title: string }) {
-  return (
-    <div className="widget-empty">
-      <span aria-hidden="true" className="widget-empty-icon">
-        <Icon name={icon} size={18} />
-      </span>
-      <p className="m-0 text-sm font-medium text-ink">{title}</p>
-      {children && <p className="m-0 max-w-72 text-sm text-muted">{children}</p>}
-      {action && <div className="mt-2">{action}</div>}
-    </div>
-  );
+export function WidgetEmpty({ action, icon, title }: { action?: ReactNode; icon: IconName; title: string }) {
+  return <EmptyState action={action} icon={icon} title={title} variant="widget" />;
 }
 
 export interface SettingsProps extends WidgetProps {

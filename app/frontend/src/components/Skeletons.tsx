@@ -1,7 +1,5 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { Skeleton } from '@project-graphite/ui';
-import { MoneyRow } from './MoneyRow';
-import { RowText } from './RowText';
+import { ListRow, Skeleton } from '@project-graphite/ui';
 import { Stat, Stats } from './Stats';
 
 const titleWidths = ['w-3/5', 'w-2/5', 'w-1/2', 'w-1/3'];
@@ -37,14 +35,16 @@ export function CodeLineSkeleton({ width }: { width: string }) {
   );
 }
 
-export function RowTextSkeleton({ below, detail = true, row = 0 }: { below?: ReactNode; detail?: boolean; row?: number }) {
+export function RowSkeleton({ below, detail = true, lead, row = 0, trail }: { below?: ReactNode; detail?: boolean; lead?: ReactNode; row?: number; trail?: ReactNode }) {
   return (
-    <RowText
-      detail={detail && <SkeletonLine width={detailWidths[row % detailWidths.length]!} />}
+    <ListRow
+      lead={lead}
+      meta={detail && <SkeletonLine width={detailWidths[row % detailWidths.length]!} />}
       title={<SkeletonLine width={titleWidths[row % titleWidths.length]!} />}
+      trail={trail}
     >
       {below}
-    </RowText>
+    </ListRow>
   );
 }
 
@@ -66,11 +66,7 @@ export function RowsSkeleton({
   return (
     <ul aria-hidden="true" className="panel-rows">
       {rowsOf(rows).map((row) => (
-        <li className="panel-row flex items-center gap-3" key={row}>
-          {lead}
-          <RowTextSkeleton below={row < belowRows && below} detail={detail} row={row} />
-          {trail}
-        </li>
+        <RowSkeleton below={row < belowRows && below} detail={detail} key={row} lead={lead} row={row} trail={trail} />
       ))}
     </ul>
   );
@@ -82,7 +78,7 @@ export function TaskRowsSkeleton({ detailed = Infinity, rows }: { detailed?: num
       {rowsOf(rows).map((row) => (
         <li className="flex min-w-0 items-center gap-3 panel-row" key={row}>
           <span className="grid size-9.5 shrink-0 place-items-center">
-            <Skeleton className="size-4.5 rounded-sm" />
+            <Skeleton className="size-4.5 rounded-mark" />
           </span>
           <span className="min-w-0 flex-1">
             <SkeletonLine width={titleWidths[row % titleWidths.length]!} />
@@ -107,7 +103,7 @@ export function IconSkeleton() {
 }
 
 export function SpaceMarkSkeleton({ large = false }: { large?: boolean }) {
-  return <Skeleton className={large ? 'space-mark-large' : 'size-4.5 shrink-0 rounded-[0.3rem]'} />;
+  return <Skeleton className={large ? 'space-mark-large' : 'size-4.5 shrink-0 rounded-mark'} />;
 }
 
 export function HintSkeleton() {
@@ -115,13 +111,13 @@ export function HintSkeleton() {
 }
 
 export function ButtonSkeleton({ large = false, width = 'w-28' }: { large?: boolean; width?: string }) {
-  return <Skeleton className={`shrink-0 rounded-lg ${large ? 'h-[2.28125rem]' : 'h-[1.921875rem]'} ${width}`} />;
+  return <Skeleton className={`shrink-0 rounded-field ${large ? 'h-[2.28125rem]' : 'h-[1.921875rem]'} ${width}`} />;
 }
 
 export function IconButtonSkeleton() {
   return (
     <span aria-hidden="true" className="grid size-8.5 shrink-0 place-items-center">
-      <Skeleton className="size-4.5 rounded-sm" />
+      <Skeleton className="size-4.5 rounded-mark" />
     </span>
   );
 }
@@ -129,7 +125,7 @@ export function IconButtonSkeleton() {
 export function FieldSkeleton({ hint = false }: { hint?: boolean }) {
   return (
     <div aria-hidden="true" className="grid">
-      <Skeleton className="h-14 rounded-lg" />
+      <Skeleton className="h-14 rounded-field" />
       {hint && <SkeletonLine className="mx-3.5 mt-0.75 text-xs leading-[1.66]" width="w-3/4" />}
     </div>
   );
@@ -149,19 +145,23 @@ export function ToggleSkeleton({ description = false }: { description?: boolean 
   );
 }
 
-export function MoneyRowsSkeleton({ detailed = Infinity, metered = 0, rows, trail }: { detailed?: number; metered?: number; rows: number; trail?: ReactNode }) {
+export function AmountRowsSkeleton({ detailed = Infinity, metered = 0, rows, trail }: { detailed?: number; metered?: number; rows: number; trail?: ReactNode }) {
   return (
     <ul aria-hidden="true" className="panel-rows">
       {rowsOf(rows).map((row) => (
-        <MoneyRow
-          amount={<SkeletonLine className="shrink-0" width="w-16" />}
-          detail={row < detailed && <SkeletonLine width={detailWidths[row % detailWidths.length]!} />}
+        <ListRow
           key={row}
-          meter={row < metered && <Skeleton className="h-1.5 rounded-full" />}
+          meta={row < detailed && <SkeletonLine width={detailWidths[row % detailWidths.length]!} />}
           title={<SkeletonLine width={titleWidths[row % titleWidths.length]!} />}
+          trail={
+            <>
+              <SkeletonLine className="shrink-0" width="w-16" />
+              {trail}
+            </>
+          }
         >
-          {trail}
-        </MoneyRow>
+          {row < metered && <Skeleton className="h-1.5 rounded-full" />}
+        </ListRow>
       ))}
     </ul>
   );

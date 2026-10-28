@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, DatePicker, formatDay, Meter, Placeholder, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, formatDay, ListRow, Meter, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
@@ -7,9 +7,8 @@ import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
-import { ButtonSkeleton, HintSkeleton, MoneyRowsSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { useChosenSpace } from '../spaces';
@@ -61,10 +60,10 @@ export function NetWorthPage() {
         <Placeholder className="grid gap-8" label="Adding up what you own">
           <StatsSkeleton count={4} detail={false} />
           <Section action={(!space || editable) && <ButtonSkeleton large width="w-44" />} title="Savings goals">
-            {goalRows ? <MoneyRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} /> : <HintSkeleton />}
+            {goalRows ? <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} /> : <HintSkeleton />}
           </Section>
           <Section action={(!space || editable) && <ButtonSkeleton large />} title="Assets">
-            {assetRows ? <MoneyRowsSkeleton rows={assetRows} /> : <HintSkeleton />}
+            {assetRows ? <AmountRowsSkeleton rows={assetRows} /> : <HintSkeleton />}
           </Section>
         </Placeholder>
       ) : (
@@ -83,30 +82,32 @@ export function NetWorthPage() {
             ) : (
               <ul className="panel-rows">
                 {goals.data.map((goal) => (
-                  <MoneyRow
-                    amount={
-                      goal.savedMinor !== null && (
-                        <Amount currency={goal.currency} minor={goal.savedMinor}>
-                          {` of ${money(goal.targetMinor, goal.currency)}`}
-                        </Amount>
-                      )
-                    }
-                    detail={goalDetail(goal)}
+                  <ListRow
                     key={goal.id}
-                    meter={<Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />}
-                    onOpen={editable ? () => setDialog({ goal }) : undefined}
+                    meta={goalDetail(goal)}
+                    onClick={editable ? () => setDialog({ goal }) : undefined}
                     title={goal.name}
+                    trail={
+                      <>
+                        {goal.savedMinor !== null && (
+                          <Amount currency={goal.currency} minor={goal.savedMinor}>
+                            {` of ${money(goal.targetMinor, goal.currency)}`}
+                          </Amount>
+                        )}
+                        {editable && (
+                          <ActionsMenu
+                            items={[
+                              ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
+                              { label: 'Delete', separated: true, onSelect: () => setDialog({ deleteGoal: goal }) },
+                            ]}
+                            name={goal.name}
+                          />
+                        )}
+                      </>
+                    }
                   >
-                    {editable && (
-                      <ActionsMenu
-                        items={[
-                          ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
-                          { label: 'Delete', separated: true, onSelect: () => setDialog({ deleteGoal: goal }) },
-                        ]}
-                        name={goal.name}
-                      />
-                    )}
-                  </MoneyRow>
+                    <Meter label={`${goal.name} saved`} value={goal.targetMinor ? Math.min(1, Math.max(0, goal.savedMinor ?? 0) / goal.targetMinor) : 1} />
+                  </ListRow>
                 ))}
               </ul>
             )}
@@ -118,9 +119,9 @@ export function NetWorthPage() {
             ) : (
               <ul className="panel-rows">
                 {worth.data.assets.map((asset) => (
-                  <MoneyRow
-                    amount={<Amount currency={asset.currency} minor={asset.valueMinor} />}
-                    detail={[
+                  <ListRow
+                    key={asset.id}
+                    meta={[
                       assetKindOptions.find((option) => option.value === asset.kind)?.label,
                       asset.ratePercent !== null && `${asset.ratePercent}% a year`,
                       asset.maturesOn && `matures ${formatDay(asset.maturesOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
@@ -128,12 +129,15 @@ export function NetWorthPage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
-                    key={asset.id}
-                    onOpen={editable ? () => setDialog({ asset }) : undefined}
+                    onClick={editable ? () => setDialog({ asset }) : undefined}
                     title={asset.name}
-                  >
-                    {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAsset: asset }) }]} name={asset.name} />}
-                  </MoneyRow>
+                    trail={
+                      <>
+                        <Amount currency={asset.currency} minor={asset.valueMinor} />
+                        {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAsset: asset }) }]} name={asset.name} />}
+                      </>
+                    }
+                  />
                 ))}
               </ul>
             )}

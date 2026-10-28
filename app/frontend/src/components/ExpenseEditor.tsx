@@ -157,7 +157,7 @@ export function ExpenseEditor({
       submitLabel={expense ? 'Save' : `Add ${words.noun}`}
       title={expense ? `Edit ${words.noun}` : `New ${words.noun}`}
     >
-      {capture && <blockquote className="m-0 rounded-field border border-line p-3 text-sm text-muted">{capture.text}</blockquote>}
+      {capture && <blockquote className="m-0 rounded-field border border-line p-3 text-small text-muted">{capture.text}</blockquote>}
       <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
       <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">

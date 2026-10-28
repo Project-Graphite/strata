@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Placeholder, Select, TagChip, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
@@ -11,7 +11,6 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
-import { RowText } from '../../components/RowText';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
@@ -91,26 +90,27 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (
-            <li className="flex items-center gap-3 panel-row" key={rule.id}>
-              <RowText
-                detail={rule.enabled ? 'On' : 'Paused'}
-                title={
-                  <>
-                    {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
-                  </>
-                }
-              />
-              {editable && (
-                <ActionsMenu
-                  items={[
-                    { label: 'Tag existing items', onSelect: () => findMatches(rule) },
-                    { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },
-                    { label: 'Delete', onSelect: () => setDeleting(rule), separated: true },
-                  ]}
-                  name={ruleText(rule)}
-                />
-              )}
-            </li>
+            <ListRow
+              key={rule.id}
+              meta={rule.enabled ? 'On' : 'Paused'}
+              title={
+                <>
+                  {ruleText(rule)} → <TagChip color={rule.tag.color} label={rule.tag.name} />
+                </>
+              }
+              trail={
+                editable && (
+                  <ActionsMenu
+                    items={[
+                      { label: 'Tag existing items', onSelect: () => findMatches(rule) },
+                      { label: rule.enabled ? 'Pause' : 'Resume', onSelect: () => toggle(rule) },
+                      { label: 'Delete', onSelect: () => setDeleting(rule), separated: true },
+                    ]}
+                    name={ruleText(rule)}
+                  />
+                )
+              }
+            />
           ))}
         </ul>
       )}

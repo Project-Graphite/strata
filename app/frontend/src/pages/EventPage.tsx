@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, IconButton, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, IconButton, ListRow, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -15,7 +15,6 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { DetailState, Page, Section } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { ButtonSkeleton, FieldSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
@@ -247,10 +246,12 @@ export function EventPage() {
         ) : (
           <ul className="panel-rows">
             {details.guests.map((guest) => (
-              <li className="flex items-center justify-between gap-4 panel-row" key={guest.id}>
-                <RowText detail={guest.note ? `${responseLabels[guest.response]} · “${guest.note}”` : responseLabels[guest.response]} title={guest.name} />
-                {editable && <ActionsMenu items={[{ label: 'Remove', separated: true, onSelect: () => setRemoving(guest) }]} name={guest.name} />}
-              </li>
+              <ListRow
+                key={guest.id}
+                meta={guest.note ? `${responseLabels[guest.response]} · “${guest.note}”` : responseLabels[guest.response]}
+                title={guest.name}
+                trail={editable && <ActionsMenu items={[{ label: 'Remove', separated: true, onSelect: () => setRemoving(guest) }]} name={guest.name} />}
+              />
             ))}
           </ul>
         )}

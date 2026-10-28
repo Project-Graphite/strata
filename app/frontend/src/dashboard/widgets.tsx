@@ -17,6 +17,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
 import { OpenTask } from '../components/TaskEditor';
@@ -128,7 +129,7 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
 function TasksSkeleton({ adding }: { adding: boolean }) {
   return (
     <Placeholder className="grid gap-2" label="Loading tasks">
-      {adding && <Skeleton className="h-12 rounded-lg" />}
+      {adding && <Skeleton className="h-12 rounded-field" />}
       <TaskRowsSkeleton rows={3} />
     </Placeholder>
   );
@@ -315,7 +316,7 @@ function Recurring() {
     <div className="grid gap-3">
       {summary.data.totals.map((total) => (
         <p className="m-0 text-2xl text-ink tabular-nums" key={total.currency}>
-          {money(total.monthlyMinor, total.currency)} <span className="text-sm text-muted">a month</span>
+          {money(total.monthlyMinor, total.currency)} <span className="text-small text-muted">a month</span>
         </p>
       ))}
       <ul className="widget-list">
@@ -387,9 +388,7 @@ function Agenda() {
   }
   if (agenda.data.length === 0) {
     return (
-      <WidgetEmpty action={<ButtonLink label="Open agenda" to="/agenda/week" />} icon="calendar" title="A free week">
-        Nothing in the next seven days.
-      </WidgetEmpty>
+      <WidgetEmpty action={<ButtonLink label="Open agenda" to="/agenda/week" />} icon="calendar" title="Nothing in the next seven days" />
     );
   }
   return (
@@ -430,7 +429,7 @@ function Countdown({ configure, settings }: WidgetProps) {
         {days === 0 ? 'Today' : Math.abs(days)}
         {days !== 0 && <span className="widget-unit">{Math.abs(days) === 1 ? 'day' : 'days'}</span>}
       </p>
-      <p className="m-0 mt-1 text-sm text-muted">
+      <p className="m-0 mt-1 text-small text-muted">
         {days === 0 ? `${label} is today` : days > 0 ? `until ${label}` : `since ${label}`}
         <span className="mono-sm text-faint"> · {shortDate(settings.date)}</span>
       </p>
@@ -485,7 +484,7 @@ function Focus({ settings }: WidgetProps) {
         <p className="widget-figure" role="timer">
           {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
         </p>
-        <p className="m-0 mt-1 text-sm text-muted">{phase === 'focus' ? 'Focus' : 'Break'}</p>
+        <p className="m-0 mt-1 text-small text-muted">{phase === 'focus' ? 'Focus' : 'Break'}</p>
       </div>
       <Meter label={`${phase === 'focus' ? 'Focus' : 'Break'} done`} value={1 - left / duration} />
       <div className="flex flex-wrap gap-2">
@@ -663,9 +662,9 @@ function RecentFiles() {
   return (
     <div className="grid gap-3">
       <div className="grid gap-1.5">
-        <p className="m-0 text-sm text-muted">
+        <Hint>
           <span className="text-ink">{fileSize(usedBytes)}</span> of {fileSize(quotaBytes)} used
-        </p>
+        </Hint>
         <Meter label="Storage used" value={quotaBytes ? usedBytes / quotaBytes : 1} />
       </div>
       <ul className="widget-list">
@@ -714,9 +713,7 @@ function Tidy() {
   const tidied = last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet';
   if (findings.length === 0) {
     return (
-      <WidgetEmpty icon="check-mark" title="No suggestions">
-        {tidied}
-      </WidgetEmpty>
+      <WidgetEmpty icon="check-mark" title={`No suggestions. ${tidied}`} />
     );
   }
   return (

@@ -80,7 +80,7 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
       role="listbox"
     >
       {items.length === 0 ? (
-        <p className="m-0 px-3 py-2 text-sm text-muted">Nothing matches</p>
+        <p className="m-0 px-3 py-2 text-small text-muted">Nothing matches</p>
       ) : (
         items.map((item, index) => (
           <ListItemButton
@@ -204,7 +204,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
   return (
     <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`} data-drag-handle="">
       {failed || !fileId ? (
-        <span className="text-sm text-muted">This image is no longer available.</span>
+        <span className="text-small text-muted">This image is no longer available.</span>
       ) : source ? (
         <img alt={(node.attrs.alt as string) ?? ''} src={source} />
       ) : (

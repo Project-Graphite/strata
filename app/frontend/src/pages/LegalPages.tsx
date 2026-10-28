@@ -1,5 +1,5 @@
-import MuiLink from '@mui/material/Link';
 import type { ReactNode } from 'react';
+import { TextLink } from '@project-graphite/ui';
 import { Page, Section } from '../components/Page';
 
 const repository = 'https://github.com/Project-Graphite/strata';
@@ -15,9 +15,9 @@ function LegalPage({ children, title }: { children: ReactNode; title: string }) 
 
 function External({ children, href }: { children: ReactNode; href: string }) {
   return (
-    <MuiLink href={href} rel="noreferrer" target="_blank" underline="always">
+    <TextLink external href={href}>
       {children}
-    </MuiLink>
+    </TextLink>
   );
 }
 

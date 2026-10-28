@@ -10,7 +10,7 @@ export function Copyable({ compact = false, label, value }: { compact?: boolean;
   const show = useSnackbar();
   return (
     <div className="grid min-w-0 gap-1">
-      {label && <span className="text-sm text-muted">{label}</span>}
+      {label && <span className="text-small text-muted">{label}</span>}
       <div className="flex items-start gap-2">
         {(!compact || manualCopy) && <code className="mono-sm block min-w-0 flex-1 break-all rounded-field border border-line p-3 text-ink select-all">{value}</code>}
         <Button

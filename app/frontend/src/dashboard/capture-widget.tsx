@@ -21,9 +21,7 @@ export function Capture() {
 
   if (spaces.data && editable.length === 0) {
     return (
-      <WidgetEmpty icon="lock" title="Nowhere to save">
-        You can only view your spaces.
-      </WidgetEmpty>
+      <WidgetEmpty icon="lock" title="Nowhere to save, you can only view your spaces" />
     );
   }
 

@@ -25,7 +25,7 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
   return (
-    <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-sm text-muted">
+    <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-small text-muted">
       <ol className="m-0 flex min-w-0 list-none items-center gap-1 p-0 sm:gap-2">
         <li className="min-w-0 max-w-[35%] shrink-0 sm:max-w-[45%]">
           <Menu
