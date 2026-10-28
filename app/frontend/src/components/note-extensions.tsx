@@ -9,7 +9,9 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
 import UniqueID from '@tiptap/extension-unique-id';
 import StarterKit from '@tiptap/starter-kit';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
+import { AttrStep } from '@tiptap/pm/transform';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
@@ -202,7 +204,7 @@ function StoredImage({ node, selected }: NodeViewProps) {
   }, [fileId, load]);
 
   return (
-    <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`} data-drag-handle="">
+    <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`}>
       {failed || !fileId ? (
         <span className="text-small text-muted">This image is no longer available.</span>
       ) : source ? (
@@ -323,7 +325,7 @@ function BoardEmbed({ extension, node }: NodeViewProps) {
   if (extension.options.shared) return <NodeViewWrapper className="note-board"><Hint>This board needs its own share link.</Hint></NodeViewWrapper>;
   const boardId = uuidOrNull(node.attrs.boardId);
   return (
-    <NodeViewWrapper className="note-board" data-drag-handle="">
+    <NodeViewWrapper className="note-board">
       {boardId ? (
         <>
           <BoardPreview boardId={boardId} label="Board preview" />
@@ -342,7 +344,6 @@ export const BoardEmbedExtension = Node.create({
   name: 'boardEmbed',
   group: 'block',
   atom: true,
-  draggable: true,
   addOptions: () => ({ shared: false }),
   addAttributes: () => ({
     boardId: {
@@ -356,27 +357,59 @@ export const BoardEmbedExtension = Node.create({
   addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
 });
 
-export const commentedBlocksKey = new PluginKey<Set<string>>('commentedBlocks');
+interface CommentedState {
+  ids: Set<string>;
+  decorations: DecorationSet;
+}
+
+export const commentedBlocksKey = new PluginKey<CommentedState>('commentedBlocks');
+
+function commentMarks(doc: ProseMirrorNode, ids: Set<string>, from = 0, to = doc.content.size) {
+  const marks: Decoration[] = [];
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (typeof node.attrs.id === 'string' && ids.has(node.attrs.id)) marks.push(Decoration.node(pos, pos + node.nodeSize, { class: 'has-comments' }));
+  });
+  return marks;
+}
+
+function changedBlocks(transaction: Transaction) {
+  let from = transaction.doc.content.size;
+  let to = 0;
+  transaction.steps.forEach((step, index) => {
+    const after = transaction.mapping.slice(index + 1);
+    const widen = (start: number, end: number) => {
+      from = Math.min(from, after.map(start, -1));
+      to = Math.max(to, after.map(end, 1));
+    };
+    if (step instanceof AttrStep) widen(step.pos, step.pos + 1);
+    step.getMap().forEach((_oldStart, _oldEnd, start, end) => widen(start, end));
+  });
+  if (from > to) return undefined;
+  const $from = transaction.doc.resolve(from);
+  const $to = transaction.doc.resolve(to);
+  return { from: $from.depth ? $from.before(1) : from, to: $to.depth ? $to.after(1) : to };
+}
 
 export const CommentedBlocks = Extension.create({
   name: 'commentedBlocks',
   addProseMirrorPlugins: () => [
-    new Plugin<Set<string>>({
+    new Plugin<CommentedState>({
       key: commentedBlocksKey,
       state: {
-        init: () => new Set(),
-        apply: (transaction, current) => (transaction.getMeta(commentedBlocksKey) as Set<string> | undefined) ?? current,
+        init: () => ({ ids: new Set(), decorations: DecorationSet.empty }),
+        apply: (transaction, current) => {
+          const ids = transaction.getMeta(commentedBlocksKey) as Set<string> | undefined;
+          if (ids) return { ids, decorations: DecorationSet.create(transaction.doc, commentMarks(transaction.doc, ids)) };
+          if (!transaction.docChanged || current.ids.size === 0) return current;
+          const decorations = current.decorations.map(transaction.mapping, transaction.doc);
+          const changed = changedBlocks(transaction);
+          if (!changed) return { ids: current.ids, decorations };
+          const stale = decorations.find(changed.from, changed.to).filter((mark) => mark.from < changed.to && mark.to > changed.from);
+          return { ids: current.ids, decorations: decorations.remove(stale).add(transaction.doc, commentMarks(transaction.doc, current.ids, changed.from, changed.to)) };
+        },
       },
       props: {
-        decorations(state) {
-          const commented = commentedBlocksKey.getState(state);
-          if (!commented?.size) return null;
-          const marks: Decoration[] = [];
-          state.doc.descendants((node, pos) => {
-            if (typeof node.attrs.id === 'string' && commented.has(node.attrs.id)) marks.push(Decoration.node(pos, pos + node.nodeSize, { class: 'has-comments' }));
-          });
-          return DecorationSet.create(state.doc, marks);
-        },
+        decorations: (state) => commentedBlocksKey.getState(state)?.decorations,
       },
     }),
   ],

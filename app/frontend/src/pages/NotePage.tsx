@@ -39,6 +39,31 @@ const widePages = (() => {
   }
 })();
 
+interface ChildPages {
+  pages: Note[];
+  nextCursor: string | null;
+}
+
+function childPagesPath(spaceId: string, parentId: string, cursor?: string) {
+  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ parentId, ...(cursor ? { cursor } : {}) })}`;
+}
+
+function ChildPageRows({ pages }: { pages: Note[] }) {
+  return pages.map((child) => <ListRow href={noteHref(child)} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />);
+}
+
+function MoreChildPages({ cursor, parentId, spaceId }: { cursor: string; parentId: string; spaceId: string }) {
+  const [shown, setShown] = useState(false);
+  const more = useResource<ChildPages>(shown ? childPagesPath(spaceId, parentId, cursor) : null, true);
+  if (!shown) return <ListRow onClick={() => setShown(true)} title="Show more pages" />;
+  return (
+    <>
+      <ChildPageRows pages={more.data?.pages ?? []} />
+      {more.data?.nextCursor && <MoreChildPages cursor={more.data.nextCursor} parentId={parentId} spaceId={spaceId} />}
+    </>
+  );
+}
+
 export function NotePage() {
   const { id = '' } = useParams();
   const [, setCurrentPage] = usePageNavigation();
@@ -52,7 +77,7 @@ export function NotePage() {
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
-  const pages = useResource<Note[]>(note.data && !note.data.quick && note.data.permissions.spaceRole ? `/spaces/${note.data.spaceId}/notes` : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
+  const inside = useResource<ChildPages>(note.data && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
     true,
@@ -105,7 +130,7 @@ export function NotePage() {
   const details = note.data;
   if (details.kind === 'board') return <Navigate replace to={noteHref(details)} />;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
-  const children = (pages.data ?? []).filter((page) => page.parentId === details.id);
+  const children = inside.data?.pages ?? [];
   const pageOnly = !details.quick;
 
   function quote(block: QuotedBlock) {
@@ -118,7 +143,6 @@ export function NotePage() {
       const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify(change) });
       note.mutate((current) => ({ ...current, ...saved }));
       announcePagesChanged();
-      pages.mutate((current) => current.map((page) => (page.id === saved.id ? saved : page)));
       return done(saved);
     }, fallback).then((saved) => {
       if (!saved) note.reload();
@@ -273,9 +297,8 @@ export function NotePage() {
         >
           {children.length > 0 ? (
             <ul className="panel-rows">
-              {children.map((child) => (
-                <ListRow href={noteHref(child)} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />
-              ))}
+              <ChildPageRows pages={children} />
+              {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}
             </ul>
           ) : (
             <Hint>No pages inside yet.</Hint>

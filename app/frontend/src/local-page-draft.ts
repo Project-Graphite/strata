@@ -14,7 +14,7 @@ export class LocalPageDraft {
   private closing = false;
   private opening = 0;
 
-  constructor(private readonly name: string, private readonly document: Y.Doc) {
+  constructor(private readonly name: string, private readonly document: Y.Doc, private readonly legacyName?: string) {
     document.on('update', this.updated);
     this.open();
   }
@@ -28,7 +28,7 @@ export class LocalPageDraft {
     if (!this.failed || this.closing) return;
     this.failed = false;
     this.loaded = false;
-    this.pending = [];
+    this.pending = [Y.encodeStateAsUpdate(this.document)];
     this.database = undefined;
     this.failure = undefined;
     this.setStatus('loading');
@@ -70,58 +70,110 @@ export class LocalPageDraft {
       if (opening === this.opening) this.fail();
     };
     const timer = window.setTimeout(fail, 8_000);
+    this.readLegacy((legacy) => {
+      if (this.failed || opening !== this.opening) return;
+      try {
+        const request = indexedDB.open(this.name);
+        request.onerror = fail;
+        request.onblocked = fail;
+        request.onupgradeneeded = () => {
+          try {
+            if (!request.result.objectStoreNames.contains('updates')) request.result.createObjectStore('updates', { autoIncrement: true });
+            if (!request.result.objectStoreNames.contains('custom')) request.result.createObjectStore('custom');
+          } catch {
+            request.transaction?.abort();
+            fail();
+          }
+        };
+        request.onsuccess = () => {
+          const database = request.result;
+          if (this.failed || opening !== this.opening) { window.clearTimeout(timer); database.close(); return; }
+          this.database = database;
+          database.onversionchange = fail;
+          database.onclose = () => { if (!this.closing) fail(); };
+          try {
+            const transaction = database.transaction('updates', 'readwrite');
+            const store = transaction.objectStore('updates');
+            const updates = store.getAll();
+            let draft: Uint8Array | undefined;
+            updates.onsuccess = () => {
+              const restored = new Y.Doc();
+              try {
+                for (const update of updates.result) {
+                  if (!(update instanceof Uint8Array)) throw new Error('Invalid device draft');
+                  Y.applyUpdate(restored, update);
+                }
+                if (legacy) Y.applyUpdate(restored, legacy);
+                draft = Y.encodeStateAsUpdate(restored);
+                if (updates.result.length > 1 || legacy) {
+                  store.clear();
+                  store.add(draft);
+                }
+              } catch {
+                transaction.abort();
+              } finally {
+                restored.destroy();
+              }
+            };
+            transaction.onabort = fail;
+            transaction.oncomplete = () => {
+              if (this.failed || opening !== this.opening) return;
+              try {
+                if (!this.closing && draft) Y.applyUpdate(this.document, draft, this);
+                if (legacy && this.legacyName) indexedDB.deleteDatabase(this.legacyName);
+                this.loaded = true;
+                window.clearTimeout(timer);
+                this.flush();
+              } catch {
+                fail();
+              }
+            };
+          } catch {
+            fail();
+          }
+        };
+      } catch {
+        fail();
+      }
+    });
+  }
+
+  private readLegacy(done: (legacy?: Uint8Array) => void) {
+    if (!this.legacyName) return done();
     try {
-      const request = indexedDB.open(this.name);
-      request.onerror = fail;
-      request.onblocked = fail;
-      request.onupgradeneeded = () => {
-        try {
-          if (!request.result.objectStoreNames.contains('updates')) request.result.createObjectStore('updates', { autoIncrement: true });
-          if (!request.result.objectStoreNames.contains('custom')) request.result.createObjectStore('custom');
-        } catch {
-          request.transaction?.abort();
-          fail();
-        }
-      };
+      const request = indexedDB.open(this.legacyName);
+      request.onupgradeneeded = () => request.transaction?.abort();
+      request.onerror = () => done();
       request.onsuccess = () => {
         const database = request.result;
-        if (this.failed || opening !== this.opening) { window.clearTimeout(timer); database.close(); return; }
-        this.database = database;
-        database.onversionchange = fail;
-        database.onclose = () => { if (!this.closing) fail(); };
-        try {
-          const transaction = database.transaction('updates', 'readonly');
-          const updates = transaction.objectStore('updates').getAll();
-          transaction.onabort = fail;
-          transaction.oncomplete = () => {
-            if (this.failed || opening !== this.opening) return;
-            try {
-              if (!this.closing) {
-                const restored = new Y.Doc();
-                try {
-                  for (const update of updates.result) {
-                    if (!(update instanceof Uint8Array)) throw new Error('Invalid device draft');
-                    Y.applyUpdate(restored, update);
-                  }
-                  Y.applyUpdate(this.document, Y.encodeStateAsUpdate(restored), this);
-                } finally {
-                  restored.destroy();
-                }
-                this.pending.push(Y.encodeStateAsUpdate(this.document));
-              }
-              this.loaded = true;
-              window.clearTimeout(timer);
-              this.flush();
-            } catch {
-              fail();
-            }
-          };
-        } catch {
-          fail();
+        if (!database.objectStoreNames.contains('updates')) {
+          database.close();
+          return done();
         }
+        const transaction = database.transaction('updates', 'readonly');
+        const updates = transaction.objectStore('updates').getAll();
+        transaction.onabort = () => {
+          database.close();
+          done();
+        };
+        transaction.oncomplete = () => {
+          database.close();
+          const restored = new Y.Doc();
+          try {
+            for (const update of updates.result) {
+              if (!(update instanceof Uint8Array)) throw new Error('Invalid device draft');
+              Y.applyUpdate(restored, update);
+            }
+            done(Y.encodeStateAsUpdate(restored));
+          } catch {
+            done();
+          } finally {
+            restored.destroy();
+          }
+        };
       };
     } catch {
-      fail();
+      done();
     }
   }
 

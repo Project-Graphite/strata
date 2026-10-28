@@ -357,6 +357,32 @@ describe('live shared documents', () => {
     expect(editor.closed).toEqual([]);
   });
 
+  it('lets guests copy an existing shared image but not point it at a private file', async () => {
+    const initial = new Y.Doc();
+    const image = new Y.XmlElement('image');
+    image.setAttribute('fileId', 'shared-file');
+    initial.getXmlFragment('default').push([image]);
+    stored.set('page', Buffer.from(Y.encodeStateAsUpdate(initial)));
+    initial.destroy();
+    const host = await open('member');
+    const editor = await open(guest('page-EDIT'));
+    const copy = new Y.XmlElement('image');
+    copy.setAttribute('fileId', 'shared-file');
+    editor.document.getXmlFragment('default').push([copy]);
+    await vi.waitFor(() => expect(host.document.getXmlFragment('default').length).toBe(2));
+    (editor.document.getXmlFragment('default').get(0) as Y.XmlElement).setAttribute('fileId', 'private-file');
+    await vi.waitFor(() => expect(editor.closed).toContain('Edit rejected'));
+    expect(text(host)).not.toContain('private-file');
+  });
+
+  it('rejects private images placed on a board by guests', async () => {
+    const host = await open('member', 'board');
+    const editor = await open(guest('board-EDIT'), 'board');
+    editor.document.getMap('board').set('photo', { type: 'image', fileId: 'private-file', version: 1 });
+    await vi.waitFor(() => expect(editor.closed).toContain('Edit rejected'));
+    expect(host.document.getMap('board').has('photo')).toBe(false);
+  });
+
   it('keeps live board editing working through existing links', async () => {
     const host = await open('member', 'board');
     const editor = await open(guest('board-EDIT'), 'board');

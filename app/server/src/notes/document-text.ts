@@ -58,3 +58,38 @@ export function documentLinks(document: Y.Doc) {
   for (const element of boardElements(document)) if (element.type === 'image' && element.fileId) found.files.add(element.fileId);
   return found;
 }
+
+const linkAttributes = new Map<string, { node: string; kind: 'mentions' | 'files' }>([
+  ['id', { node: 'mention', kind: 'mentions' }],
+  ['boardId', { node: 'boardEmbed', kind: 'mentions' }],
+  ['fileId', { node: 'image', kind: 'files' }],
+]);
+
+export function updateLinks(document: Y.Doc, update: Uint8Array) {
+  const found = { mentions: new Set<string>(), files: new Set<string>() };
+  const items = Y.decodeUpdate(update).structs.filter((struct): struct is Y.Item => struct instanceof Y.Item);
+  const fresh = new Map(items.map((item) => [`${item.id.client}:${item.id.clock}`, item]));
+  const find = (id: Y.ID) => fresh.get(`${id.client}:${id.clock}`) ?? (id.clock < Y.getState(document.store, id.client) ? Y.getItem(document.store, id) : undefined);
+  const placeOf = (item: Y.Item, depth = 0): { parent: unknown; key: string | null } | undefined => {
+    const parent = item.parent as unknown;
+    if (parent instanceof Y.AbstractType || typeof parent === 'string') return { parent, key: item.parentSub };
+    if (parent instanceof Y.ID) {
+      const owner = find(parent);
+      return owner instanceof Y.Item && owner.content instanceof Y.ContentType ? { parent: owner.content.type, key: item.parentSub } : undefined;
+    }
+    const neighbour = depth < 100 ? (item.origin ?? item.rightOrigin) : null;
+    const next = neighbour ? find(neighbour) : undefined;
+    return next instanceof Y.Item ? placeOf(next, depth + 1) : undefined;
+  };
+  for (const item of items) {
+    if (!(item.content instanceof Y.ContentAny)) continue;
+    const value = item.content.arr[0] as BoardElement | string | null;
+    if (value && typeof value === 'object' && value.type === 'image' && typeof value.fileId === 'string' && !value.isDeleted) found.files.add(value.fileId);
+    if (typeof value !== 'string' || !value) continue;
+    const place = placeOf(item);
+    if (!place) return undefined;
+    const link = place.key === null ? undefined : linkAttributes.get(place.key);
+    if (link && place.parent instanceof Y.XmlElement && place.parent.nodeName === link.node) found[link.kind].add(value);
+  }
+  return found;
+}
