@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { Dialog } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { recoverDraftPart, type DraftPart } from '../draft-parts';
+import type { DraftPart } from '../draft-parts';
 import { useAction } from '../useAction';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
@@ -23,6 +23,7 @@ export function DraftRecoveryDialog({ parts, spaceId, onClose, onComplete }: { p
         <DialogActions>
           <Button disabled={action.busy} label="Close" onClick={onClose} />
           <Button disabled={action.busy} label={action.busy ? 'Recovering…' : Object.keys(completed).length ? 'Resume recovery' : `Recover ${parts.length} ${parts.length === 1 ? 'page' : 'pages'}`} onClick={() => void action.run(async () => {
+            const { recoverDraftPart } = await import('../draft-parts');
             let firstId = completed[0];
             for (const [index, part] of parts.entries()) {
               if (completed[index]) continue;

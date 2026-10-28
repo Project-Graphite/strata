@@ -1,8 +1,10 @@
+import { lazy } from 'react';
 import { Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { DashboardHome } from '../dashboard/Dashboard';
 import { ButtonAnchor, ButtonLink } from '../components/Button';
 import { androidReleaseUrl, isNativeAndroid } from '../native-capture';
+
+const DashboardHome = lazy(() => import('../dashboard/Dashboard').then((module) => ({ default: module.DashboardHome })));
 
 const areas: [IconName, string, string][] = [
   ['check-mark', 'Tasks', 'Lists, due dates, repeats and reminders.'],
