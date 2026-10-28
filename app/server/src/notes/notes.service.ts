@@ -7,6 +7,7 @@ import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { valueMap } from './database';
+import { boardThumbnail } from './board-thumbnail';
 import { boardElementsKey, documentText, pageKinds } from './document-text';
 import { CreateNoteDto, PageChildrenQueryDto, UpdateNoteDto } from './dto/notes.dto';
 import { importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
@@ -202,6 +203,22 @@ export class NotesService {
     if (stored) Y.applyUpdate(document, new Uint8Array(stored.state));
     const elements = [...document.getMap<{ isDeleted?: boolean }>(boardElementsKey).values()].filter((element) => !element.isDeleted);
     return { elements };
+  }
+
+  async boardThumbnail(userId: string, boardId: string) {
+    await this.note(userId, boardId, 'read', [ItemKind.BOARD]);
+    const stored = await this.prisma.noteDocument.findUnique({ where: { itemId: boardId }, select: { thumbnail: true } });
+    if (!stored || stored.thumbnail !== null) return { thumbnail: stored?.thumbnail || null };
+    const { state } = await this.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: boardId }, select: { state: true } });
+    const document = new Y.Doc();
+    try {
+      Y.applyUpdate(document, new Uint8Array(state));
+      const thumbnail = boardThumbnail(document);
+      await this.prisma.noteDocument.updateMany({ where: { itemId: boardId, thumbnail: null }, data: { thumbnail } });
+      return { thumbnail: thumbnail || null };
+    } finally {
+      document.destroy();
+    }
   }
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {

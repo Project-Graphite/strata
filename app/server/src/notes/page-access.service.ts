@@ -45,16 +45,38 @@ export class PageAccessService {
       },
     });
     if (!item || !pageKinds.includes(item.kind)) throw new NotFoundException('Page not found');
-    const spaceRole = item.space.members[0]?.role ?? null;
-    const pageRole = !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null;
-    if (!spaceRole && !pageRole) throw new NotFoundException('Page not found');
-    const permissions = pagePermissions(spaceRole, pageRole);
+    const granted = accessFrom(item.space.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
+    if (!granted) throw new NotFoundException('Page not found');
+    const { permissions, role } = granted;
     if (access !== 'read' && !permissions[access]) throw new ForbiddenException(access === 'share' ? 'You cannot manage sharing for this page' : access === 'comment' ? 'This page is view only' : 'You cannot edit this page');
     return {
       id: item.id, spaceId: item.spaceId, kind: item.kind, title: item.title, trashedAt: item.trashedAt, archivedAt: item.archivedAt,
       quick: item.note?.quick ?? false,
-      role: spaceRole === SpaceRole.OWNER ? SpaceRole.OWNER : permissions.edit ? SpaceRole.EDITOR : SpaceRole.VIEWER,
+      role,
       permissions,
     };
   }
+
+  async openPageAccess(itemIds: string[], userIds: string[]) {
+    const items = itemIds.length === 0 || userIds.length === 0 ? [] : await this.prisma.item.findMany({
+      where: { id: { in: itemIds }, kind: { in: pageKinds }, trashedAt: null },
+      select: {
+        id: true, archivedAt: true,
+        pageGrants: { where: { userId: { in: userIds } }, select: { userId: true, role: true } },
+        space: { select: { members: { where: { userId: { in: userIds } }, select: { userId: true, role: true } } } },
+      },
+    });
+    const byId = new Map(items.map((item) => [item.id, item]));
+    return (itemId: string, userId: string) => {
+      const item = byId.get(itemId);
+      if (!item) return null;
+      return accessFrom(item.space.members.find((member) => member.userId === userId)?.role ?? null, item.archivedAt ? null : item.pageGrants.find((grant) => grant.userId === userId)?.role ?? null);
+    };
+  }
+}
+
+function accessFrom(spaceRole: SpaceRole | null, pageRole: PageRole | null) {
+  if (!spaceRole && !pageRole) return null;
+  const permissions = pagePermissions(spaceRole, pageRole);
+  return { permissions, role: spaceRole === SpaceRole.OWNER ? SpaceRole.OWNER : permissions.edit ? SpaceRole.EDITOR : SpaceRole.VIEWER };
 }

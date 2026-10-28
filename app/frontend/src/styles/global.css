@@ -213,11 +213,12 @@
   background: #ffffff;
 }
 
-.board-preview-drawing svg {
+.board-preview-drawing {
   display: block;
   width: 100%;
   max-height: 24rem;
   height: auto;
+  object-fit: contain;
 }
 
 .note-board-open {
@@ -252,6 +253,16 @@
   background: #ffffff;
   padding: 0.6rem 0.8rem;
   box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.board-limit {
+  position: absolute;
+  bottom: 4.5rem;
+  left: 50%;
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  transform: translateX(-50%);
 }
 
 .board-print-frame {

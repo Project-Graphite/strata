@@ -217,9 +217,9 @@ async function request(request, response) {
     return json(response, moved);
   }
   if (route === '/items/page/links') return json(response, { backlinks: [], links: [] });
-  if (route === `/notes/${embeddedBoardId}/board`) {
+  if (route === `/notes/${embeddedBoardId}/board/thumbnail`) {
     if ((request.headers.referer || '').includes('/share/')) guestBoardRequests += 1;
-    return json(response, { elements: [] });
+    return json(response, { thumbnail: null });
   }
   if (route === '/notes/page/comments') return json(response, comments);
   if (route === '/notes/page' && request.method === 'GET') {

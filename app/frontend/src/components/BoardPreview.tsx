@@ -1,66 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import type { BinaryFiles } from '@excalidraw/excalidraw/types';
+import { useEffect, useState } from 'react';
 import { Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { useLiveRefresh } from '../useResource';
-import { boardImage } from './board-files';
-import { useFileSource } from './file-source';
-
-function BoardDrawing({ elements, label }: { elements: ExcalidrawElement[]; label: string }) {
-  const load = useFileSource();
-  const frame = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<'loading' | 'shown' | 'failed'>('loading');
-
-  useEffect(() => {
-    if (elements.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const [{ exportToSvg }, images] = await Promise.all([
-        import('@excalidraw/excalidraw'),
-        Promise.all(elements.flatMap((element) => (element.type === 'image' && element.fileId ? [boardImage(load, element.fileId).catch(() => null)] : []))),
-      ]);
-      const files: BinaryFiles = Object.fromEntries(images.flatMap((file) => (file ? [[file.id, file]] : [])));
-      const svg = await exportToSvg({ elements, appState: { exportBackground: true, viewBackgroundColor: '#ffffff' }, files });
-      svg.removeAttribute('width');
-      svg.removeAttribute('height');
-      if (!cancelled) frame.current?.replaceChildren(svg);
-    })().then(
-      () => !cancelled && setState('shown'),
-      () => !cancelled && setState('failed'),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [elements, load]);
-
-  if (elements.length === 0) {
-    return (
-      <div aria-label={label} className="board-preview" role="img">
-        <p className="m-0 p-6 text-center text-small text-muted">Nothing drawn yet</p>
-      </div>
-    );
-  }
-  return (
-    <div aria-label={label} className="board-preview" role="img">
-      {state === 'loading' && <Skeleton className="h-40 w-full" />}
-      {state === 'failed' && <p className="m-0 p-6 text-center text-small text-muted">This board could not be shown</p>}
-      <div className="board-preview-drawing" ref={frame} />
-    </div>
-  );
-}
 
 export function BoardPreview({ boardId, label, live = false }: { boardId: string; label: string; live?: boolean }) {
   const auth = useAuth();
-  const [elements, setElements] = useState<ExcalidrawElement[]>();
+  const [thumbnail, setThumbnail] = useState<string | null>();
   const [failed, setFailed] = useState(false);
   const [version, setVersion] = useState(0);
   useLiveRefresh(() => setVersion((current) => current + 1), live ? { live: ['pages'] } : undefined);
 
   useEffect(() => {
     let cancelled = false;
-    auth.request<{ elements: ExcalidrawElement[] }>(`/notes/${boardId}/board`).then(
-      (board) => !cancelled && setElements(board.elements),
+    auth.request<{ thumbnail: string | null }>(`/notes/${boardId}/board/thumbnail`).then(
+      (board) => !cancelled && setThumbnail(board.thumbnail),
       () => !cancelled && setFailed(true),
     );
     return () => {
@@ -68,19 +21,17 @@ export function BoardPreview({ boardId, label, live = false }: { boardId: string
     };
   }, [auth.request, boardId, version]);
 
-  if (failed) {
-    return (
-      <div aria-label={label} className="board-preview" role="img">
+  return (
+    <div aria-label={label} className="board-preview" role="img">
+      {failed ? (
         <p className="m-0 p-6 text-center text-small text-muted">This board could not be shown</p>
-      </div>
-    );
-  }
-  if (!elements) {
-    return (
-      <div aria-label={label} className="board-preview" role="img">
+      ) : thumbnail === undefined ? (
         <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-  return <BoardDrawing elements={elements} label={label} />;
+      ) : thumbnail === null ? (
+        <p className="m-0 p-6 text-center text-small text-muted">Nothing drawn yet</p>
+      ) : (
+        <img alt="" className="board-preview-drawing" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(thumbnail)}`} />
+      )}
+    </div>
+  );
 }

@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib';
 const dist = new URL('../dist/', import.meta.url);
 const initialBudget = 250 * 1024;
 const chunkBudget = 150 * 1024;
-const heavyEditors = [/^prod-/, /^chunk-EIO257PC-/, /^note-extensions-/];
+const heavyEditors = [/^BoardCanvas-/, /^chunk-EIO257PC-/, /^note-extensions-/];
 
 const html = readFileSync(new URL('index.html', dist), 'utf8');
 const initial = new Set([...html.matchAll(/<(?:script type="module"[^>]*\ssrc|link rel="modulepreload"[^>]*\shref)="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]));
