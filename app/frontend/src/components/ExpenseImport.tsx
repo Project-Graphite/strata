@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dialog, formatDay } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { useCategories } from '../spending';
+import { expenseCategories, useCategories } from '../spending';
 import { money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useStatementFile } from './StatementFile';
@@ -35,7 +35,7 @@ export function ExpenseImport({ currency, onAdded, onClose, spaceId }: { currenc
             <div className="max-w-xs">
               <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
             </div>
-            <CategoryChips categories={categories.data ?? []} onChange={setCategory} value={category} />
+            <CategoryChips categories={expenseCategories(categories.data)} onChange={setCategory} value={category} />
             <Hint>
               {statement.charges.length} charge{statement.charges.length === 1 ? '' : 's'} read{statement.charges.length > shownAtMost ? `, the first ${shownAtMost} shown` : ''}. Untick any you don’t want.
             </Hint>

@@ -11,18 +11,19 @@ describe('Installments and card due dates against Postgres', () => {
   it('tracks plans and card due dates, reminds before and after a missed payment, and puts them on the agenda', async () => {
     const owner = await member('installer');
     const viewer = await member('installment-viewer');
-    const home = (await owner.call('POST', '/spaces', { name: 'Installments' })).body;
-    const other = (await owner.call('POST', '/spaces', { name: 'Elsewhere' })).body;
-    await strata.join(home.id, viewer, SpaceRole.VIEWER);
-    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Bad card', kind: 'credit', currency: 'EGP', dueDay: 32 })).status).toBe(400);
-    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB Visa', kind: 'credit', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
+    const home = { id: owner.personalSpaceId };
+    const shared = (await owner.call('POST', '/spaces', { name: 'Installments' })).body;
+    await strata.join(shared.id, viewer, SpaceRole.EDITOR);
+    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Bad card', kind: 'credit_card', currency: 'EGP', dueDay: 32 })).status).toBe(400);
+    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB Visa', kind: 'credit_card', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
     expect(card.dueDay).toBe(20);
-    const elsewhere = (await owner.call('POST', `/spaces/${other.id}/accounts`, { name: 'Other', currency: 'EGP' })).body;
+    const elsewhere = (await viewer.call('POST', `/spaces/${viewer.personalSpaceId}/accounts`, { name: 'Other', currency: 'EGP' })).body;
 
     const plan = { name: 'valU phone', currency: 'EGP', monthlyMinor: 100_000, count: 6, firstDueOn: '2027-01-31', accountId: card.id };
     expect((await owner.call('POST', `/spaces/${home.id}/installments`, { ...plan, count: 0 })).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${home.id}/installments`, { ...plan, accountId: elsewhere.id })).status).toBe(400);
-    expect((await viewer.call('POST', `/spaces/${home.id}/installments`, plan)).status).toBe(403);
+    expect((await viewer.call('POST', `/spaces/${home.id}/installments`, plan)).status).toBe(404);
+    expect((await owner.call('POST', `/spaces/${shared.id}/installments`, { ...plan, accountId: null })).status).toBe(403);
     const phone = (await owner.call('POST', `/spaces/${home.id}/installments`, plan)).body;
     expect(phone).toMatchObject({ totalMinor: 600_000, remainingMinor: 600_000, nextDueOn: '2027-01-31', status: 'due', paidCount: 0 });
     expect((await owner.call('POST', `/installments/${phone.id}/paid`)).body.nextDueOn).toBe('2027-02-28');
@@ -30,7 +31,8 @@ describe('Installments and card due dates against Postgres', () => {
     expect((await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 7 })).status).toBe(400);
     expect((await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 6 })).body).toMatchObject({ status: 'done', nextDueOn: null, remainingMinor: 0 });
     await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 2 });
-    expect((await viewer.call('GET', `/spaces/${home.id}/installments`)).body.map((shown: { name: string }) => shown.name)).toEqual(['valU phone']);
+    expect((await viewer.call('GET', `/spaces/${home.id}/installments`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${home.id}/installments`)).body.map((shown: { name: string }) => shown.name)).toEqual(['valU phone']);
 
     const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
     await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
@@ -38,7 +40,7 @@ describe('Installments and card due dates against Postgres', () => {
     const remindedFrom = new Date();
     for (const at of ['2027-03-29', '2027-03-30', '2027-04-02', '2027-04-03', '2027-04-18']) await installments.remind(new Date(`${at}T09:00:00Z`));
     const notes = await strata.prisma.inboxNotification.findMany({
-      where: { userId: viewer.id, kind: 'payment_due', createdAt: { gte: remindedFrom } },
+      where: { userId: owner.id, kind: 'payment_due', createdAt: { gte: remindedFrom } },
       orderBy: { createdAt: 'asc' },
       select: { title: true, body: true },
     });

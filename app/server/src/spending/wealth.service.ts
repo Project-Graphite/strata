@@ -16,7 +16,7 @@ const presentAsset = (asset: Asset) => ({
   name: asset.name,
   kind: asset.kind,
   currency: asset.currency,
-  valueMinor: asset.valueMinor,
+  valueMinor: Number(asset.valueMinor),
   ratePercent: asset.ratePercent,
   maturesOn: dateText(asset.maturesOn),
   updatedAt: asset.updatedAt,
@@ -33,12 +33,12 @@ export class WealthService {
   ) {}
 
   async goals(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     return this.present(await this.prisma.savingsGoal.findMany({ where: { spaceId }, orderBy: [{ dueOn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }] }));
   }
 
   async createGoal(userId: string, spaceId: string, input: CreateSavingsGoalDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertAccount(spaceId, input.accountId);
     const goal = await this.prisma.savingsGoal.create({ data: { spaceId, ...input, dueOn: optionalDay(input.dueOn), accountId: input.accountId ?? null } });
     this.changes.notify('spending', { spaceId });
@@ -56,7 +56,7 @@ export class WealthService {
   async addToGoal(userId: string, id: string, input: AddToGoalDto) {
     const goal = await this.goal(userId, id);
     if (goal.accountId) throw new BadRequestException('This goal follows its account balance');
-    if (goal.savedMinor + input.amountMinor < 0) throw new BadRequestException('A goal cannot go below zero');
+    if (Number(goal.savedMinor) + input.amountMinor < 0) throw new BadRequestException('A goal cannot go below zero');
     const updated = await this.prisma.savingsGoal.update({ where: { id }, data: { savedMinor: { increment: input.amountMinor } } });
     this.changes.notify('spending', { spaceId: goal.spaceId });
     return (await this.present([updated]))[0]!;
@@ -69,7 +69,7 @@ export class WealthService {
   }
 
   async netWorth(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const [user, plan, accounts, assets, installments, rates] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId }, select: { currency: true } }),
@@ -80,15 +80,15 @@ export class WealthService {
     ]);
     const currency = user.homeCurrency ?? plan?.currency ?? accounts[0]?.currency ?? assets[0]?.currency ?? 'EUR';
     const missing = new Set<string>();
-    const total = (rows: { amountMinor: number; currency: string }[]) =>
+    const total = (rows: { amountMinor: number | bigint; currency: string }[]) =>
       rows.reduce((sum, row) => {
-        const converted = row.currency === currency ? row.amountMinor : convertMinor(row.amountMinor, row.currency, currency, rates.rates);
+        const converted = row.currency === currency ? Number(row.amountMinor) : convertMinor(Number(row.amountMinor), row.currency, currency, rates.rates);
         if (converted === null) missing.add(row.currency);
         return sum + (converted ?? 0);
       }, 0);
     const accountsMinor = total(accounts.map((account) => ({ amountMinor: account.balanceMinor, currency: account.currency })));
     const assetsMinor = total(assets.map((asset) => ({ amountMinor: asset.valueMinor, currency: asset.currency })));
-    const installmentsMinor = total(installments.map((plan) => ({ amountMinor: plan.monthlyMinor * (plan.count - plan.paidCount), currency: plan.currency })));
+    const installmentsMinor = total(installments.map((plan) => ({ amountMinor: Number(plan.monthlyMinor) * (plan.count - plan.paidCount), currency: plan.currency })));
     return {
       currency,
       missing: [...missing].sort(),
@@ -101,7 +101,7 @@ export class WealthService {
   }
 
   async createAsset(userId: string, spaceId: string, input: CreateAssetDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, spaceId);
     const asset = await this.prisma.asset.create({ data: { spaceId, ...input, maturesOn: optionalDay(input.maturesOn) } });
     this.changes.notify('spending', { spaceId });
     return presentAsset(asset);
@@ -125,14 +125,14 @@ export class WealthService {
     const [balances, rates] = await Promise.all([this.accounts.balances(linked), this.rates.table()]);
     return goals.map((goal) => {
       const account = balances.find((candidate) => candidate.id === goal.accountId);
-      const savedMinor = account ? (account.currency === goal.currency ? account.balanceMinor : convertMinor(account.balanceMinor, account.currency, goal.currency, rates.rates)) : goal.savedMinor;
+      const savedMinor = account ? (account.currency === goal.currency ? account.balanceMinor : convertMinor(account.balanceMinor, account.currency, goal.currency, rates.rates)) : Number(goal.savedMinor);
       return {
         id: goal.id,
         spaceId: goal.spaceId,
         accountId: goal.accountId,
         name: goal.name,
         currency: goal.currency,
-        targetMinor: goal.targetMinor,
+        targetMinor: Number(goal.targetMinor),
         savedMinor,
         dueOn: dateText(goal.dueOn),
       };
@@ -146,14 +146,14 @@ export class WealthService {
   private async goal(userId: string, id: string) {
     const goal = await this.prisma.savingsGoal.findUnique({ where: { id } });
     if (!goal) throw new NotFoundException('Goal not found');
-    await this.access.assertSpace(userId, goal.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, goal.spaceId);
     return goal;
   }
 
   private async asset(userId: string, id: string) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Asset not found');
-    await this.access.assertSpace(userId, asset.spaceId, 'edit');
+    await this.access.assertPersonalSpace(userId, asset.spaceId);
     return asset;
   }
 }

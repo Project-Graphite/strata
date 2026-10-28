@@ -1,7 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsUUID, Matches, Max, Min, ValidateNested } from 'class-validator';
-
-const Month = () => Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'Months look like 2026-10.' });
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 
 export class CostShareDto {
   @IsUUID('all', { message: 'Choose members of this space.' })
@@ -23,28 +21,4 @@ export class SaveCostSplitDto {
   @ValidateNested({ each: true })
   @Type(() => CostShareDto)
   shares!: CostShareDto[];
-}
-
-export class BalancesQueryDto {
-  @Month()
-  month!: string;
-}
-
-export class CreateSettlementDto {
-  @IsUUID('all', { message: 'Choose members of this space.' })
-  fromUserId!: string;
-
-  @IsUUID('all', { message: 'Choose members of this space.' })
-  toUserId!: string;
-
-  @IsInt()
-  @Min(1)
-  @Max(100_000_000, { message: 'That amount is too large.' })
-  amountMinor!: number;
-
-  @Matches(/^[A-Z]{3}$/, { message: 'Currencies are three-letter codes such as EUR or USD.' })
-  currency!: string;
-
-  @Month()
-  month!: string;
 }

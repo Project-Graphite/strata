@@ -1,5 +1,6 @@
 import { SpaceRole } from '@prisma/client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp, password } from './harness';
 
 describe('Bank messages from a phone against Postgres', () => {
@@ -17,14 +18,17 @@ describe('Bank messages from a phone against Postgres', () => {
   it('records bank texts, asks about the unclear ones, pairs transfers and keeps balances', async () => {
     const owner = await member('texter');
     const viewer = await member('text-reader');
-    const home = (await owner.call('POST', '/spaces', { name: 'Texts' })).body;
-    await strata.join(home.id, viewer, SpaceRole.VIEWER);
+    const home = { id: owner.personalSpaceId };
+    const shared = (await owner.call('POST', '/spaces', { name: 'Texts' })).body;
+    await strata.join(shared.id, viewer, SpaceRole.EDITOR);
     const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly'] })).body;
     const wallet = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Vodafone Cash', kind: 'wallet', currency: 'EGP', senders: ['VF-Cash'] })).body;
     const token = (await owner.call('POST', '/me/tokens', { name: 'Phone', scopes: ['spending:capture'], password })).body.token;
     const send = (from: string, text: string) => withToken(token, 'POST', `/spaces/${home.id}/captures`, { from, text, sentStamp: 1791971990000, receivedStamp: 1791972000000, sim: 'sim1' });
 
     expect((await withToken(token, 'GET', `/spaces/${home.id}/spending?month=2026-10`)).status).toBe(403);
+    expect((await withToken(token, 'POST', `/spaces/${shared.id}/captures`, { from: 'BanK-AlAhly', text: 'تم خصم 10.00جم من بطاقة رقم ****1234 لدى SHOP' })).status).toBe(403);
+    expect((await owner.call('POST', `/spaces/${shared.id}/captures/device`)).status).toBe(403);
     expect((await send('BanK-AlAhly', 'رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد')).body).toEqual({ status: 'ignored', reason: 'code' });
     expect(await strata.prisma.capturedMessage.count({ where: { spaceId: home.id } })).toBe(0);
 
@@ -34,7 +38,8 @@ describe('Bank messages from a phone against Postgres', () => {
     const stored = await strata.prisma.capturedMessage.findFirstOrThrow({ where: { spaceId: home.id } });
     expect(stored.textSealed).not.toContain('CARREFOUR');
 
-    const [waiting] = (await viewer.call('GET', `/spaces/${home.id}/captures`)).body;
+    expect((await viewer.call('GET', `/spaces/${home.id}/captures`)).status).toBe(404);
+    const [waiting] = (await owner.call('GET', `/spaces/${home.id}/captures`)).body;
     expect(waiting).toMatchObject({
       sender: 'BanK-AlAhly',
       text: purchase,
@@ -42,14 +47,27 @@ describe('Bank messages from a phone against Postgres', () => {
       suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
     });
     const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI', cardDigits: '1234' };
-    expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
+    expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(404);
     expect((await withToken(token, 'POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Carrefour', source: 'sms', category: 'groceries', accountId: bank.id, cardDigits: '1234' });
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(400);
 
     const again = await send('BanK-AlAhly', 'تم خصم 80.00جم من بطاقة الخصم المباشر رقم ****1234 لدى carrefour maadi في 15/10 09:10 المتاح 9,670.00جم');
     expect(again.body.status).toBe('recorded');
-    expect((await owner.call('GET', `/expenses/${again.body.expenseId}`)).body).toMatchObject({ title: 'carrefour maadi', amountMinor: 8000, category: 'groceries', spentOn: '2026-10-14', accountId: bank.id, cardDigits: '1234' });
+    expect((await owner.call('GET', `/expenses/${again.body.expenseId}`)).body).toMatchObject({
+      title: 'carrefour maadi',
+      amountMinor: 8000,
+      category: 'groceries',
+      spentOn: '2026-10-14',
+      occurredAt: '2026-10-14T10:00:00.000Z',
+      kind: 'purchase',
+      accountId: bank.id,
+      cardDigits: '1234',
+      cardId: expect.any(String),
+    });
+    const againCapture = await strata.prisma.capturedMessage.findFirstOrThrow({ where: { expenseId: again.body.expenseId } });
+    expect(againCapture).toMatchObject({ parserVersion: 1, confidence: expect.any(Number) });
+    expect((await strata.prisma.expense.findUniqueOrThrow({ where: { itemId: again.body.expenseId } })).captureId).toBe(againCapture.id);
 
     const topUp = await send('VF-Cash', 'تم استلام مبلغ 500 جنيه من رقم 01012345678 ورصيدك الحالي 650 جنيه');
     expect(topUp.body.status).toBe('recorded');
@@ -69,7 +87,8 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('POST', `/captures/${unknown.id}/ignore`)).status).toBe(400);
     expect((await owner.call('GET', `/spaces/${home.id}/captures`)).body).toEqual([]);
 
-    expect((await viewer.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([{ digits: '1234', accountId: bank.id }]);
+    expect((await viewer.call('GET', `/spaces/${home.id}/cards`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards`)).body).toEqual([{ digits: '1234', accountId: bank.id }]);
     expect((await withToken(token, 'GET', `/spaces/${home.id}/cards`)).status).toBe(403);
     expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '5555', accountId: null })).body).toMatchObject({ cardDigits: '5555' });
     expect((await owner.call('PATCH', `/expenses/${again.body.expenseId}`, { cardDigits: '55' })).status).toBe(400);
@@ -81,8 +100,11 @@ describe('Bank messages from a phone against Postgres', () => {
 
   it('renames, categorises and drops messages by merchant rules', async () => {
     const owner = await member('rule-maker');
-    const home = (await owner.call('POST', '/spaces', { name: 'Rules' })).body;
+    const home = { id: owner.personalSpaceId };
     const send = (text: string) => owner.call('POST', `/spaces/${home.id}/captures`, { from: 'CIB', text });
+    await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'talabat', rename: 'Talabat', category: 'eating out' });
+    expect((await send('Your card **1234 was charged for EGP 120.00 at TALABAT EG on 13/10')).body).toEqual({ status: 'review', expenseId: null });
+    await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP', senders: ['CIB'] });
 
     expect((await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', category: 'yachts' })).status).toBe(400);
     const uber = (await owner.call('POST', `/spaces/${home.id}/merchant-rules`, { match: 'uber', rename: 'Uber ride', category: 'transport' })).body;
@@ -95,14 +117,16 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('GET', `/expenses/${ride.body.expenseId}`)).body).toMatchObject({ title: 'Uber trip', category: 'transport', merchant: 'UBER *TRIP CAIRO' });
     expect((await send('Your card **1234 was charged for EGP 5.00 at CASHBACK STORE on 14/10')).body).toEqual({ status: 'ignored', reason: 'rule' });
 
-    expect((await owner.call('GET', `/spaces/${home.id}/merchant-rules`)).body.map((rule: { match: string }) => rule.match)).toEqual(['cashback store', 'uber']);
+    expect((await owner.call('GET', `/spaces/${home.id}/merchant-rules`)).body.map((rule: { match: string }) => rule.match)).toEqual(['cashback store', 'talabat', 'uber']);
+    expect(await strata.prisma.merchant.findUniqueOrThrow({ where: { id: uber.id }, select: { name: true, aliases: true, category: true } })).toEqual({ name: 'Uber trip', aliases: ['uber'], category: 'transport' });
+    expect((await strata.prisma.expense.findUniqueOrThrow({ where: { itemId: ride.body.expenseId } })).merchantId).toBe(uber.id);
     expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(204);
     expect((await owner.call('DELETE', `/merchant-rules/${uber.id}`)).status).toBe(404);
   });
 
   it('captures digital transactions from InstaPay, nSave and PayPal and filters SMS by specific chats', async () => {
     const owner = await member('digital-texter');
-    const home = (await owner.call('POST', '/spaces', { name: 'Digital' })).body;
+    const home = { id: owner.personalSpaceId };
     const nbe = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', cardDigits: ['1234'], senders: ['BanK-AlAhly', 'InstaPay'] })).body;
     const nsave = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'nSave', kind: 'wallet', currency: 'GBP', cardDigits: ['4412'], senders: ['nSave'] })).body;
     const paypal = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'PayPal', kind: 'wallet', currency: 'USD', senders: ['PayPal'] })).body;
@@ -183,6 +207,28 @@ describe('Bank messages from a phone against Postgres', () => {
       allowedChats,
     });
     expect(duplicateBankSms.body).toEqual({ status: 'recorded', expenseId: instapayOut.body.expenseId });
+  });
+
+  it('forgets message text after 90 days but keeps the link to the recorded transaction', async () => {
+    const owner = await member('text-keeper');
+    const home = owner.personalSpaceId;
+    await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB', currency: 'EGP', senders: ['CIB'] });
+    await owner.call('POST', `/spaces/${home}/merchant-rules`, { match: 'spinneys', rename: 'Spinneys', category: 'groceries' });
+    const recorded = await owner.call('POST', `/spaces/${home}/captures`, { from: 'CIB', text: 'Your card **1234 was charged for EGP 300.00 at SPINNEYS on 14/10' });
+    expect(recorded.body.status).toBe('recorded');
+    expect((await owner.call('POST', `/spaces/${home}/captures`, { from: 'Unknown', text: 'Your card **9876 was used for USD 12.99 at NETFLIX.COM' })).body.status).toBe('review');
+    const old = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000);
+    await strata.prisma.capturedMessage.updateMany({ where: { spaceId: home }, data: { createdAt: old } });
+
+    const maintenance = strata.service(MaintenanceScheduler);
+    await vi.waitFor(() => expect((maintenance as unknown as { running: boolean }).running).toBe(false), { timeout: 15_000 });
+    await maintenance.run(new Date());
+
+    expect(await strata.prisma.capturedMessage.findMany({ where: { spaceId: home }, select: { textSealed: true, expenseId: true, status: true } })).toEqual([
+      { textSealed: null, expenseId: recorded.body.expenseId, status: 'recorded' },
+    ]);
+    expect((await owner.call('GET', `/spaces/${home}/captures`)).body).toEqual([]);
+    expect((await owner.call('GET', `/expenses/${recorded.body.expenseId}`)).body.title).toBe('Spinneys');
   });
 
 });

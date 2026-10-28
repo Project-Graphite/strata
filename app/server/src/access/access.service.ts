@@ -39,6 +39,12 @@ export class AccessService {
     return member.role;
   }
 
+  async assertPersonalSpace(userId: string, spaceId: string) {
+    const space = await this.prisma.space.findFirst({ where: { id: spaceId, members: { some: { userId } } }, select: { personalOwnerId: true } });
+    if (!space) throw new NotFoundException('Space not found');
+    if (space.personalOwnerId !== userId) throw new ForbiddenException('Spending lives in your personal space');
+  }
+
   async isMember(userId: string, spaceId: string) {
     return (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
   }

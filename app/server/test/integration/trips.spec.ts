@@ -28,8 +28,9 @@ describe('Trips against Postgres', () => {
     const dinner = (await owner.call('POST', `/spaces/${group.id}/events`, { title: 'Dinner in Alfama', startsOn: '2027-05-02', timeZone: 'Europe/Lisbon' })).body;
     const ticket = await (await upload(owner, group.id, 'Boarding pass.pdf', Buffer.from('%PDF-1.7 pass'))).json();
     const notes = (await owner.call('POST', `/spaces/${group.id}/notes`, { title: 'Places to eat' })).body;
-    const hotel = (await owner.call('POST', `/spaces/${group.id}/expenses`, { title: 'Hotel', amountMinor: 60000, currency: 'EUR', spentOn: '2027-05-01', category: 'travel' })).body;
-    const tour = (await owner.call('POST', `/spaces/${group.id}/expenses`, { title: 'Tram tour', amountMinor: 2500, currency: 'USD', spentOn: '2027-05-03', category: 'travel' })).body;
+    expect((await owner.call('POST', `/spaces/${group.id}/expenses`, { title: 'Hotel', amountMinor: 60000, currency: 'EUR', spentOn: '2027-05-01', category: 'travel' })).status).toBe(403);
+    const hotel = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/expenses`, { title: 'Hotel', amountMinor: 60000, currency: 'EUR', spentOn: '2027-05-01', category: 'travel' })).body;
+    const tour = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/expenses`, { title: 'Tram tour', amountMinor: 2500, currency: 'USD', spentOn: '2027-05-03', category: 'travel' })).body;
     for (const target of [dinner, flight, ticket, notes, hotel, tour]) {
       expect((await owner.call('POST', `/items/${lisbon.id}/links`, { targetId: target.id, kind: 'reference' })).status).toBe(201);
     }
@@ -40,8 +41,11 @@ describe('Trips against Postgres', () => {
     expect(detail.packing.tasks.map((task: { title: string }) => task.title)).toEqual(['Passport']);
     expect(detail.documents).toMatchObject([{ id: ticket.id, title: 'Boarding pass.pdf', mimeType: 'application/pdf' }]);
     expect(detail.pages).toMatchObject([{ id: notes.id, title: 'Places to eat' }]);
-    expect(detail.expenses.map((expense: { title: string }) => expense.title)).toEqual(['Tram tour', 'Hotel']);
-    expect(detail.spending).toEqual({ currency: 'EUR', spentMinor: 62000, missing: [] });
+    expect(detail.expenses).toEqual([]);
+    expect(detail.spending).toEqual({ currency: 'EUR', spentMinor: 0, missing: [] });
+    const own = (await owner.call('GET', `/trips/${lisbon.id}`)).body;
+    expect(own.expenses.map((expense: { title: string }) => expense.title)).toEqual(['Tram tour', 'Hotel']);
+    expect(own.spending).toEqual({ currency: 'EUR', spentMinor: 62000, missing: [] });
     expect((await outsider.call('GET', `/trips/${lisbon.id}`)).status).toBe(404);
 
     expect((await friend.call('PATCH', `/trips/${lisbon.id}`, { destination: 'Porto' })).status).toBe(403);

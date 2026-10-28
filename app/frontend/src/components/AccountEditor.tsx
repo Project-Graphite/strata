@@ -34,9 +34,9 @@ export function AccountEditor({
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank');
+  const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank_current');
   const [chosenCurrency, setChosenCurrency] = useState(account?.currency ?? currency);
-  const owed = kind === 'credit';
+  const owed = kind === 'credit_card';
   const shownBalance = account ? fromMinor(Math.abs(account.balanceMinor), account.currency) : '';
 
   return (

@@ -20,6 +20,8 @@ export class UsersService {
       homeCurrency: user.homeCurrency,
       weekStart: user.weekStart,
       weekendDays: user.weekendDays,
+      monthStartDay: user.monthStartDay,
+      budgetsEnabled: user.budgetsEnabled,
       features: user.features,
       role: user.role.toLowerCase(),
     };
@@ -37,6 +39,8 @@ export class UsersService {
         homeCurrency: input.homeCurrency,
         weekStart: input.weekStart,
         weekendDays: input.weekendDays?.toSorted((first, second) => first - second),
+        monthStartDay: input.monthStartDay,
+        budgetsEnabled: input.budgetsEnabled,
         features: input.features,
       },
     });

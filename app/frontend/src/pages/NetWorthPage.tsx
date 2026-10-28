@@ -11,7 +11,7 @@ import { Section } from '../components/Page';
 import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
-import { useChosenSpace } from '../spaces';
+import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -22,7 +22,7 @@ import { MissingRates, Stat, Stats } from '../components/Stats';
 export function NetWorthPage() {
   const auth = useAuth();
   const action = useAction();
-  const { spaceId, space, editable } = useChosenSpace();
+  const { spaceId, space, editable } = usePersonalSpace();
   const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
   const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);

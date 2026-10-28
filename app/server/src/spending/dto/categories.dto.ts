@@ -1,7 +1,9 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsOptional, IsString, Length, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsOptional, IsString, Length, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { IsColor } from '../../validation/color.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
+
+export const categoryKinds = ['expense', 'income'] as const;
 
 const nullable = (_input: object, value: unknown) => value !== null;
 
@@ -13,6 +15,16 @@ export class CategoryDto {
 
   @IsColor()
   colour!: string;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @IsString()
+  @MaxLength(40)
+  icon?: string | null;
+
+  @IsOptional()
+  @IsIn(categoryKinds, { message: 'Categories are for spending or income.' })
+  kind?: (typeof categoryKinds)[number];
 
   @IsOptional()
   @IsString()

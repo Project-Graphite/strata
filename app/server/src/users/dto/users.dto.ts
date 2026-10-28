@@ -50,6 +50,16 @@ export class UpdateProfileDto {
   weekendDays?: number[];
 
   @IsOptionalNotNull()
+  @IsInt()
+  @Min(1)
+  @Max(28, { message: 'Months start on day 1 to 28.' })
+  monthStartDay?: number;
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  budgetsEnabled?: boolean;
+
+  @IsOptionalNotNull()
   @IsArray()
   @ArrayUnique()
   @IsIn(featureKeys, { each: true, message: 'Choose apps from the list.' })

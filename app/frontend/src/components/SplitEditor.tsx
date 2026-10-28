@@ -11,13 +11,11 @@ import { FormDialog } from './FormDialog';
 
 export function SplitEditor({
   item,
-  kind,
   members,
   onClose,
   onSaved,
 }: {
   item: { id: string; name: string; split: CostSplit | null };
-  kind: 'subscriptions' | 'expenses';
   members: Member[];
   onClose: () => void;
   onSaved: (split: CostSplit | null) => void;
@@ -41,7 +39,7 @@ export function SplitEditor({
         void saving
           .run(async () => {
             if (shares.length < 2) throw new Error('Split between at least two members.');
-            onSaved(await auth.request<CostSplit>(`/${kind}/${item.id}/split`, { method: 'PUT', body: JSON.stringify({ payerId, shares }) }));
+            onSaved(await auth.request<CostSplit>(`/subscriptions/${item.id}/split`, { method: 'PUT', body: JSON.stringify({ payerId, shares }) }));
             return `Split ${item.name} between ${shares.length} members.`;
           }, 'Could not save the split')
           .then((saved) => saved && onClose())
@@ -55,7 +53,7 @@ export function SplitEditor({
             onClick={() =>
               void saving
                 .run(async () => {
-                  await auth.request(`/${kind}/${item.id}/split`, { method: 'DELETE' });
+                  await auth.request(`/subscriptions/${item.id}/split`, { method: 'DELETE' });
                   onSaved(null);
                   return `Stopped splitting ${item.name}.`;
                 }, 'Could not change the split')

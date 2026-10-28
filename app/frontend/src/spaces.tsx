@@ -184,6 +184,11 @@ export function NameAndColorFields({
   );
 }
 
+export function usePersonalSpace() {
+  const space = useAllSpaces().data?.find((candidate) => candidate.kind === 'personal');
+  return { spaceId: space?.id, space, editable: Boolean(space) };
+}
+
 export function useChosenSpace() {
   const active = useContext(ActiveSpaceContext);
   if (!active) throw new Error('useChosenSpace must be used inside ActiveSpaceProvider');

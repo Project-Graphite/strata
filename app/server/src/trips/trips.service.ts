@@ -130,7 +130,7 @@ export class TripsService {
       linkId: id,
       id: target.id,
       title: target.title,
-      amountMinor: target.expense!.amountMinor,
+      amountMinor: Number(target.expense!.amountMinor),
       currency: target.expense!.currency,
       spentOn: dateText(target.expense!.spentOn),
       category: target.expense!.category,
