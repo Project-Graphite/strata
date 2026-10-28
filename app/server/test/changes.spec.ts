@@ -126,7 +126,7 @@ describe('ChangesController', () => {
   it('sends a heartbeat comment every 25 seconds and ends the stream when an access token would expire', async () => {
     vi.useFakeTimers();
     const changes = new ChangesService(members as never, withoutRedis as never);
-    const events = firstValueFrom(new ChangesController(changes).stream({ id: 'member-a' } as never).pipe(toArray()));
+    const events = firstValueFrom(new ChangesController(changes).stream({ id: 'member-a' } as never, new AbortController().signal).pipe(toArray()));
 
     changes.notify('inbox', { userId: 'member-a' });
     await vi.advanceTimersByTimeAsync(15 * 60_000);
@@ -228,6 +228,23 @@ describe('GET /me/changes', () => {
     expect(outsider.received).toEqual([]);
     memberA.close();
     outsider.close();
+  });
+
+  it('refuses a sixth open stream per user with 429 and frees the place once a stream closes', async () => {
+    const [first, ...others] = await Promise.all(Array.from({ length: 5 }, () => open('many-tabs')));
+    const elsewhere = await open('one-tab');
+    const connect = (signal?: AbortSignal) => fetch(`${base}/me/changes`, { headers: { 'x-user': 'many-tabs' }, signal });
+
+    expect([first, ...others].every((stream) => stream?.response.status === 200)).toBe(true);
+    expect(elsewhere.response.status).toBe(200);
+    expect((await connect()).status).toBe(429);
+
+    first?.close();
+    const reopened = new AbortController();
+    await vi.waitFor(async () => expect((await connect(reopened.signal)).status).toBe(200));
+
+    reopened.abort();
+    for (const stream of [...others, elsewhere]) stream.close();
   });
 
   it('logs the stream once when the client goes away', async () => {

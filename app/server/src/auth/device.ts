@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 export interface Device {
   hash: string;
   label: string;
+  address?: string;
 }
 
 const browsers: Array<[RegExp, string]> = [

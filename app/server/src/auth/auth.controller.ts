@@ -157,10 +157,10 @@ export class AuthController {
         maxAge: deviceLifetimeMs,
         path: '/api/v1/auth',
         sameSite: 'strict',
-        secure: this.config.get('NODE_ENV') === 'production',
+        secure: this.config.getOrThrow<string>('APP_URL').startsWith('https://'),
       });
     }
-    return { hash: deviceHash(id), label: deviceLabel(request.headers['user-agent']) };
+    return { hash: deviceHash(id), label: deviceLabel(request.headers['user-agent']), address: request.ip };
   }
 
   private setRefreshCookie(response: Response, token: string) {
@@ -169,7 +169,7 @@ export class AuthController {
       maxAge: refreshLifetimeMs,
       path: '/api/v1/auth',
       sameSite: 'strict',
-      secure: this.config.get('NODE_ENV') === 'production',
+      secure: this.config.getOrThrow<string>('APP_URL').startsWith('https://'),
     });
   }
 

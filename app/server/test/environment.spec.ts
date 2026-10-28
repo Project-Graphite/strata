@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateEnvironment } from '../src/config/environment';
 
@@ -11,6 +12,7 @@ const settings = {
   APP_URL: 'http://localhost:4104',
   DEFAULT_FROM_EMAIL: 'Strata <strata@example.com>',
 };
+const production = { NODE_ENV: 'production', REDIS_URL: 'redis://redis:6379' };
 const realSecret = randomBytes(32).toString('base64url');
 const realKey = randomBytes(32).toString('base64');
 
@@ -32,8 +34,23 @@ describe('validateEnvironment', () => {
   });
 
   it('refuses to start in production with a development secret or key', () => {
-    expect(() => validateEnvironment({ ...settings, NODE_ENV: 'production', DATA_ENCRYPTION_KEY: realKey })).toThrow('development defaults');
-    expect(() => validateEnvironment({ ...settings, NODE_ENV: 'production', AUTH_ACCESS_TOKEN_SECRET: realSecret })).toThrow('development defaults');
-    expect(() => validateEnvironment({ ...settings, NODE_ENV: 'production', AUTH_ACCESS_TOKEN_SECRET: realSecret, DATA_ENCRYPTION_KEY: realKey })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, ...production, DATA_ENCRYPTION_KEY: realKey })).toThrow('development defaults');
+    expect(() => validateEnvironment({ ...settings, ...production, AUTH_ACCESS_TOKEN_SECRET: realSecret })).toThrow('development defaults');
+    expect(() => validateEnvironment({ ...settings, ...production, AUTH_ACCESS_TOKEN_SECRET: realSecret, DATA_ENCRYPTION_KEY: realKey })).not.toThrow();
+  });
+
+  it('needs a Redis address in production and takes none elsewhere', () => {
+    const secrets = { AUTH_ACCESS_TOKEN_SECRET: realSecret, DATA_ENCRYPTION_KEY: realKey };
+    expect(() => validateEnvironment({ ...settings, ...secrets, NODE_ENV: 'production' })).toThrow('REDIS_URL');
+    expect(() => validateEnvironment({ ...settings, ...secrets, NODE_ENV: 'production', REDIS_URL: '' })).toThrow('REDIS_URL');
+    expect(() => validateEnvironment({ ...settings, NODE_ENV: 'development' })).not.toThrow();
+    expect(() => validateEnvironment(settings)).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, REDIS_URL: 'http://redis:6379' })).toThrow('REDIS_URL');
+  });
+
+  it('accepts only an absolute files directory', () => {
+    expect(() => validateEnvironment({ ...settings, FILES_ROOT: resolve('files') })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, FILES_ROOT: '' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, FILES_ROOT: 'data/files' })).toThrow('FILES_ROOT');
   });
 });

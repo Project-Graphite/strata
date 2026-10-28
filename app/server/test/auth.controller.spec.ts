@@ -11,7 +11,7 @@ describe('AuthController', () => {
     };
     const controller = new AuthController(
       auth as never,
-      new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example' }),
+      new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example', APP_URL: 'https://strata.example' }),
     );
     const request = (origin?: string) =>
       ({ headers: origin ? { origin } : {}, cookies: { strata_refresh: 'current' } }) as never;
@@ -44,7 +44,7 @@ describe('AuthController', () => {
     };
     const controller = new AuthController(
       auth as never,
-      new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example' }),
+      new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example', APP_URL: 'https://strata.example' }),
     );
     const request = (origin?: string) => ({ headers: origin ? { origin } : {}, cookies: {} }) as never;
     const response = { cookie: vi.fn() };
@@ -62,5 +62,23 @@ describe('AuthController', () => {
     await controller.login(input, request('https://strata.example'), response as never);
     await controller.login(input, request(), response as never);
     expect(auth.login).toHaveBeenCalledTimes(2);
+  });
+
+  it('marks session cookies secure exactly when the app is served over https, and counts sign-ins by client address', async () => {
+    const auth = { login: vi.fn().mockResolvedValue({ session: { accessToken: 'access', refreshToken: 'next', user: {} } }) };
+    const input = { email: 'sam@example.com', password: 'correct horse battery' };
+    const signIn = async (appUrl: string) => {
+      const response = { cookie: vi.fn() };
+      await new AuthController(auth as never, new ConfigService({ AUTH_TRUSTED_ORIGINS: appUrl, APP_URL: appUrl })).login(
+        input,
+        { headers: {}, cookies: {}, ip: '203.0.113.9' } as never,
+        response as never,
+      );
+      return response.cookie.mock.calls.map(([, , options]) => (options as { secure: boolean }).secure);
+    };
+
+    expect(await signIn('https://strata.example')).toEqual([true, true]);
+    expect(await signIn('http://localhost:4104')).toEqual([false, false]);
+    expect(auth.login).toHaveBeenCalledWith(input, expect.objectContaining({ address: '203.0.113.9' }));
   });
 });
