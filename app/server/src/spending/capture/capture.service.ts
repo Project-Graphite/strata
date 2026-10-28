@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { CapturedMessage, MoneyAccount, Prisma } from '@prisma/client';
+import { CapturedMessage, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { AccessService } from '../../access/access.service';
 import { tokenPrefix } from '../../access-tokens/scopes';
@@ -10,16 +10,18 @@ import { fractionDigits } from '../../exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../jobs/maintenance.scheduler';
 import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../recurrence/dates';
-import { CaptureMessageDto } from '../dto/capture.dto';
-import { merchantFor, renameOf } from '../categories.service';
+import { CaptureMessageDto, IgnoreCaptureDto, RecordCaptureDto } from '../dto/capture.dto';
+import { CategoriesService, merchantFor, renameOf } from '../categories.service';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
 import { chatAllowed, DigitalPaymentApp, MessageDirection, normalise, paymentLabelOf } from './bank-messages';
+import { accountFor, autoRecordable, ignoredSender, matchWindowMs, Movement, pairFor, sameMovement, transferCounterpart } from './matching';
+import { CorrectedFields, fixturesOf, ParsedFields, reportOf } from './parser-reports';
+import { SenderRulesService } from './sender-rules.service';
 import { MovementKind } from './senders/template';
 import { parserVersion, parseMessage } from './sms-parser';
 
 const keepTextForMs = 90 * 24 * 60 * 60 * 1000;
-const pairWithinMs = 10 * 60 * 1000;
 
 export interface Suggestion {
   direction: MessageDirection | null;
@@ -35,29 +37,29 @@ export interface Suggestion {
   reference?: string | null;
   confidence?: number;
   templateId?: string | null;
+  title?: string;
+  category?: string | null;
+  transfer?: { expenseId: string; fromAccountId: string; toAccountId: string } | null;
 }
+
+const movementFields = {
+  itemId: true,
+  accountId: true,
+  amountMinor: true,
+  currency: true,
+  direction: true,
+  reference: true,
+  occurredAt: true,
+  merchant: true,
+  paymentLabel: true,
+  cardDigits: true,
+  item: { select: { captures: { select: { sender: true, textSealed: true } } } },
+} satisfies Prisma.ExpenseSelect;
+
+type MovementRow = Prisma.ExpenseGetPayload<{ select: typeof movementFields }>;
 
 const toMinor = (amount: number, currency: string) => Math.round(amount * 10 ** fractionDigits(currency));
-
-export function accountFor(
-  accounts: (MoneyAccount & { cards: { last4: string }[] })[],
-  sender: string,
-  cardDigits: string | null,
-  paymentLabel: string | null = null,
-  chat: string | null = null,
-) {
-  const byCard = cardDigits ? accounts.filter((account) => account.cards.some((card) => card.last4 === cardDigits)) : [];
-  if (byCard.length === 1) return byCard[0]!;
-  const needles = [sender, chat ?? '', paymentLabel ?? ''].map((value) => value.trim().toLowerCase()).filter(Boolean);
-  const bySender = accounts.filter((account) => account.senders.some((known) => needles.includes(known.trim().toLowerCase())));
-  const candidates = byCard.length ? byCard.filter((account) => bySender.includes(account)) : bySender;
-  if (candidates.length === 1) return candidates[0]!;
-  if (paymentLabel) {
-    const byName = accounts.filter((account) => account.name.trim().toLowerCase() === paymentLabel.toLowerCase());
-    if (byName.length === 1) return byName[0]!;
-  }
-  return null;
-}
+const toMajor = (minor: number | null, currency: string | null) => (minor === null || !currency ? null : minor / 10 ** fractionDigits(currency));
 
 @Injectable()
 export class CaptureService implements OnModuleInit {
@@ -66,6 +68,8 @@ export class CaptureService implements OnModuleInit {
     private readonly access: AccessService,
     private readonly box: SecretBox,
     private readonly spending: SpendingService,
+    private readonly categories: CategoriesService,
+    private readonly senderRules: SenderRulesService,
     private readonly maintenance: MaintenanceScheduler,
     private readonly changes: ChangesService,
   ) {}
@@ -111,15 +115,18 @@ export class CaptureService implements OnModuleInit {
     const seen = await this.prisma.capturedMessage.findUnique({ where: { spaceId_hash: { spaceId, hash } }, select: { status: true, expenseId: true } });
     if (seen) return { status: seen.status, expenseId: seen.expenseId };
 
-    const [user, accounts, merchants] = await Promise.all([
+    const [user, accounts, merchants, rules] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } }),
       this.prisma.moneyAccount.findMany({ where: { spaceId }, include: { cards: { select: { last4: true } } } }),
       this.prisma.merchant.findMany({ where: { spaceId } }),
+      this.senderRules.rulesOf(spaceId),
     ]);
+    if (ignoredSender(rules, sender)) return { status: 'ignored', reason: 'rule' };
     const known = read.merchant ? merchantFor(merchants, read.merchant) : null;
     if (known?.ignore) return { status: 'ignored', reason: 'rule' };
-    const account = accountFor(accounts, sender, read.cardDigits, paymentLabel, input.chat ?? null);
+    const account = accountFor(accounts, rules, sender, read.cardDigits, paymentLabel, input.chat ?? null);
     const currency = read.currency ?? account?.currency ?? null;
+    const receivedAt = input.receivedStamp ? new Date(Number(input.receivedStamp)) : new Date();
     const suggestion: Suggestion = {
       direction: read.direction,
       amountMinor: read.amount !== null && currency ? toMinor(read.amount, currency) : null,
@@ -134,8 +141,23 @@ export class CaptureService implements OnModuleInit {
       reference: read.reference,
       confidence: read.confidence,
       templateId: read.templateId,
+      title: (known && renameOf(known)) ?? read.merchant ?? paymentLabel ?? sender,
+      category: read.direction === 'received' ? 'other' : (known?.category ?? (read.merchant ? await this.knownCategory(spaceId, read.merchant) : null)),
     };
-    const receivedAt = input.receivedStamp ? new Date(Number(input.receivedStamp)) : new Date();
+    const ready = autoRecordable(suggestion);
+    const own: Movement = {
+      senders: [sender],
+      reference: read.reference,
+      accountId: suggestion.accountId,
+      amountMinor: suggestion.amountMinor ?? 0,
+      currency: currency ?? '',
+      direction: read.direction ?? '',
+      occurredAt: receivedAt,
+      text: normalise(input.text),
+    };
+    const duplicate = ready && !!(await this.duplicateRow(spaceId, own));
+    const pair = ready && !duplicate ? pairFor(own, await this.nearby(spaceId, own), new Map(accounts.map((listed) => [listed.id, listed.handle])), rules) : null;
+    if (pair && !pair.confirmed) suggestion.transfer = { expenseId: pair.expenseId, fromAccountId: pair.fromAccountId, toAccountId: pair.toAccountId };
     const message = await this.prisma.capturedMessage
       .create({ data: { spaceId, userId, sender, textSealed: this.box.seal(input.text), hash, receivedAt, suggestion: { ...suggestion }, parserVersion, templateId: read.templateId, confidence: read.confidence } })
       .catch((error: unknown) => {
@@ -145,21 +167,24 @@ export class CaptureService implements OnModuleInit {
     if (!message) return { status: 'review', expenseId: null };
     this.changes.notify('spending', { spaceId });
 
-    const { direction, amountMinor, merchant, cardDigits } = suggestion;
-    const category = direction === 'received' ? 'other' : (known?.category ?? (merchant ? await this.knownCategory(spaceId, merchant) : null));
-    if (!direction || !amountMinor || !currency || !category || !suggestion.accountId) return { status: 'review', expenseId: null };
-    const expenseId = await this.record(userId, message, {
-      title: (known && renameOf(known)) ?? merchant ?? paymentLabel ?? sender,
-      amountMinor,
-      currency,
+    if (!ready || (!duplicate && (pair ? !pair.confirmed : !suggestion.category))) return { status: 'review', expenseId: null };
+    const draft: CreateExpenseDto = {
+      title: suggestion.title!,
+      amountMinor: suggestion.amountMinor!,
+      currency: currency!,
       spentOn: read.occurredOn ?? localDate(user.timeZone, receivedAt),
-      category: category as CreateExpenseDto['category'],
-      direction,
+      category: suggestion.category ?? 'other',
+      direction: read.direction!,
       accountId: suggestion.accountId,
-      merchant,
-      cardDigits,
+      merchant: read.merchant,
+      cardDigits: read.cardDigits,
       ...(paymentLabel ? { paymentLabel } : {}),
-    });
+    };
+    const expenseId = await this.record(
+      userId,
+      message,
+      pair ? { ...draft, title: 'Transfer', direction: 'transfer', accountId: pair.fromAccountId, toAccountId: pair.toAccountId } : draft,
+    );
     return { status: 'recorded', expenseId };
   }
 
@@ -169,15 +194,27 @@ export class CaptureService implements OnModuleInit {
     return rows.map((row) => ({ id: row.id, sender: row.sender, text: this.box.open(row.textSealed!), receivedAt: row.receivedAt, suggestion: row.suggestion as unknown as Suggestion }));
   }
 
-  async recordReviewed(userId: string, id: string, input: CreateExpenseDto) {
+  async recordReviewed(userId: string, id: string, { remember, report, ...input }: RecordCaptureDto) {
     const message = await this.waiting(userId, id);
-    return this.spending.get(userId, await this.record(userId, message, input));
+    const expenseId = await this.record(userId, message, input);
+    if (remember) await this.learn(userId, message, input);
+    if (report) await this.report(userId, message, input, expenseId);
+    return this.spending.get(userId, expenseId);
   }
 
-  async ignore(userId: string, id: string) {
+  async ignore(userId: string, id: string, input: IgnoreCaptureDto) {
     const message = await this.waiting(userId, id);
+    const { merchant } = message.suggestion as unknown as Suggestion;
+    if (input.always === 'merchant' && !merchant) throw new BadRequestException('This message names no merchant to ignore');
+    if (input.always === 'sender') await this.senderRules.ignore(message.spaceId, message.sender);
+    if (input.always === 'merchant') await this.categories.saveRule(userId, message.spaceId, { match: merchant!.toLowerCase(), ignore: true });
     await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'ignored' } });
     this.changes.notify('spending', { spaceId: message.spaceId });
+  }
+
+  async reports() {
+    const rows = await this.prisma.parserReport.findMany({ orderBy: { createdAt: 'asc' } });
+    return fixturesOf(rows.map((row) => ({ sender: row.sender, institution: row.institution, text: row.text, parsed: row.parsed as unknown as ParsedFields, corrected: row.corrected as unknown as CorrectedFields })));
   }
 
   private async waiting(userId: string, id: string) {
@@ -193,11 +230,21 @@ export class CaptureService implements OnModuleInit {
     const enriched: CreateExpenseDto = {
       ...input,
       ...(input.paymentLabel === undefined && paymentLabel ? { paymentLabel } : {}),
-      ...(input.kind === undefined && movement && input.direction === direction ? { kind: movement } : {}),
+      ...(input.kind === undefined && movement && (input.direction === direction || (input.direction === 'transfer' && movement === 'card_payment')) ? { kind: movement } : {}),
+    };
+    const own: Movement = {
+      senders: [message.sender],
+      reference: reference ?? null,
+      accountId: enriched.accountId ?? null,
+      amountMinor: enriched.amountMinor,
+      currency: enriched.currency,
+      direction: enriched.direction ?? 'spent',
+      occurredAt: message.receivedAt,
+      text: '',
     };
     const expenseId =
-      (await this.sameMovement(userId, message, enriched)) ??
-      (await this.pairedTransfer(userId, message.spaceId, enriched)) ??
+      (await this.joinDuplicate(userId, message.spaceId, own, enriched)) ??
+      (await this.joinTransfer(userId, message.spaceId, direction, own, enriched)) ??
       (await this.spending.capture(userId, message.spaceId, enriched, 'sms'));
     const merchants = enriched.merchant ? await this.prisma.merchant.findMany({ where: { spaceId: message.spaceId } }) : [];
     await this.prisma.$transaction([
@@ -212,26 +259,43 @@ export class CaptureService implements OnModuleInit {
     return expenseId;
   }
 
-  private async sameMovement(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
-    if (!input.accountId || !input.direction) return null;
-    const duplicate = await this.prisma.expense.findFirst({
+  private movementOf(row: MovementRow): Movement {
+    const captures = row.item.captures;
+    return {
+      id: row.itemId,
+      senders: captures.map((capture) => capture.sender),
+      reference: row.reference,
+      accountId: row.accountId,
+      amountMinor: row.amountMinor,
+      currency: row.currency,
+      direction: row.direction,
+      occurredAt: row.occurredAt,
+      text: normalise([row.merchant ?? '', ...captures.map((capture) => (capture.textSealed ? this.box.open(capture.textSealed) : ''))].join(' ')),
+    };
+  }
+
+  private window(own: Movement) {
+    const at = own.occurredAt!.getTime();
+    return { gte: new Date(at - matchWindowMs), lte: new Date(at + matchWindowMs) };
+  }
+
+  private async duplicateRow(spaceId: string, own: Movement) {
+    if (!own.direction || own.direction === 'transfer' || !own.currency) return null;
+    const rows = await this.prisma.expense.findMany({
       where: {
         source: 'sms',
-        direction: input.direction,
-        amountMinor: input.amountMinor,
-        currency: input.currency,
-        accountId: input.accountId,
-        ...(input.paymentLabel ? {} : { paymentLabel: { not: null } }),
-        item: {
-          spaceId: message.spaceId,
-          trashedAt: null,
-          createdAt: { gte: new Date(Date.now() - pairWithinMs) },
-          captures: { some: { sender: { not: message.sender, mode: 'insensitive' } } },
-        },
+        direction: own.direction,
+        item: { spaceId, trashedAt: null },
+        OR: [...(own.reference ? [{ reference: own.reference }] : []), { amountMinor: own.amountMinor, currency: own.currency, occurredAt: this.window(own) }],
       },
-      orderBy: { item: { createdAt: 'desc' } },
-      select: { itemId: true, paymentLabel: true, cardDigits: true },
+      orderBy: { occurredAt: 'desc' },
+      select: movementFields,
     });
+    return rows.find((row) => sameMovement(own, this.movementOf(row))) ?? null;
+  }
+
+  private async joinDuplicate(userId: string, spaceId: string, own: Movement, input: CreateExpenseDto) {
+    const duplicate = await this.duplicateRow(spaceId, own);
     if (!duplicate) return null;
     const updates: Partial<CreateExpenseDto> = {};
     if (input.paymentLabel && !duplicate.paymentLabel) updates.paymentLabel = input.paymentLabel;
@@ -240,24 +304,62 @@ export class CaptureService implements OnModuleInit {
     return duplicate.itemId;
   }
 
-  private async pairedTransfer(userId: string, spaceId: string, input: CreateExpenseDto) {
-    if (!input.accountId || (input.direction !== 'spent' && input.direction !== 'received')) return null;
-    const counterpart = await this.prisma.expense.findFirst({
-      where: {
-        source: 'sms',
-        direction: input.direction === 'spent' ? 'received' : 'spent',
-        amountMinor: input.amountMinor,
-        currency: input.currency,
-        accountId: { not: input.accountId },
-        item: { spaceId, trashedAt: null, createdAt: { gte: new Date(Date.now() - pairWithinMs) } },
-      },
-      orderBy: { item: { createdAt: 'desc' } },
-      select: { itemId: true, accountId: true },
+  private async nearby(spaceId: string, own: Movement) {
+    const rows = await this.prisma.expense.findMany({
+      where: { source: 'sms', direction: { in: ['spent', 'received'] }, amountMinor: own.amountMinor, currency: own.currency, occurredAt: this.window(own), item: { spaceId, trashedAt: null } },
+      select: movementFields,
     });
+    return rows.map((row) => this.movementOf(row));
+  }
+
+  private async joinTransfer(userId: string, spaceId: string, side: MessageDirection | null, own: Movement, input: CreateExpenseDto) {
+    if (input.direction !== 'transfer' || !input.accountId || !input.toAccountId) return null;
+    const counterpart = transferCounterpart(side, input.accountId, input.toAccountId, own, await this.nearby(spaceId, own));
     if (!counterpart) return null;
-    const [from, to] = input.direction === 'spent' ? [input.accountId, counterpart.accountId] : [counterpart.accountId, input.accountId];
-    await this.spending.update(userId, counterpart.itemId, { title: 'Transfer', direction: 'transfer', accountId: from, toAccountId: to });
-    return counterpart.itemId;
+    await this.spending.update(userId, counterpart, { title: input.title, direction: 'transfer', accountId: input.accountId, toAccountId: input.toAccountId, ...(input.kind ? { kind: input.kind } : {}) });
+    return counterpart;
+  }
+
+  private async learn(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
+    const suggestion = message.suggestion as unknown as Suggestion;
+    if (input.direction === 'transfer') {
+      if (input.accountId && input.toAccountId) await this.senderRules.learnTransfer(message.spaceId, message.sender, input.accountId, input.toAccountId);
+      return;
+    }
+    if (suggestion.merchant) {
+      await this.categories.saveRule(userId, message.spaceId, { match: suggestion.merchant.toLowerCase(), rename: input.title, category: input.direction === 'received' ? null : (input.category ?? null) });
+    }
+    if (input.accountId && input.accountId !== suggestion.accountId) await this.senderRules.learnAccount(message.spaceId, message.sender, input.accountId, input.cardDigits);
+  }
+
+  private async report(userId: string, message: CapturedMessage, input: CreateExpenseDto, expenseId: string) {
+    const suggestion = message.suggestion as unknown as Suggestion;
+    const { kind } = await this.prisma.expense.findUniqueOrThrow({ where: { itemId: expenseId }, select: { kind: true } });
+    const stored = reportOf(
+      message.sender,
+      this.box.open(message.textSealed!),
+      {
+        direction: suggestion.direction,
+        movement: suggestion.movement ?? null,
+        amount: toMajor(suggestion.amountMinor, suggestion.currency),
+        currency: suggestion.currency,
+        cardDigits: suggestion.cardDigits,
+        merchant: suggestion.merchant,
+        available: toMajor(suggestion.availableMinor, suggestion.currency),
+        occurredOn: suggestion.occurredOn ?? null,
+      },
+      {
+        direction: input.direction ?? 'spent',
+        movement: kind,
+        amount: toMajor(input.amountMinor, input.currency)!,
+        currency: input.currency,
+        cardDigits: input.cardDigits ?? null,
+        category: input.category ?? null,
+      },
+      [input.title, input.merchant],
+    );
+    const data = { ...stored, parsed: { ...stored.parsed }, corrected: { ...stored.corrected }, parserVersion: message.parserVersion, templateId: message.templateId };
+    await this.prisma.parserReport.upsert({ where: { captureId: message.id }, create: { userId, captureId: message.id, ...data }, update: data });
   }
 
   private async reportBalance(accountId: string, availableMinor: number) {

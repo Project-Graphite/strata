@@ -15,6 +15,13 @@ export const nsave: Institution = {
       confidence: 0.95,
     },
     {
+      id: 'nsave-spent',
+      pattern: shape(String.raw`you spent ${currency} ${amount} at (?<merchant>.+?) with (?:your )?card ${ending}`),
+      kind: 'purchase',
+      direction: 'spent',
+      confidence: 0.95,
+    },
+    {
       id: 'nsave-atm',
       pattern: shape(String.raw`card ${ending} was used to withdraw ${currency} ${amount} at ${merchant}${on}${balanceAfter}`),
       kind: 'atm',

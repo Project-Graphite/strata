@@ -28,6 +28,7 @@ export function ExpenseEditor({
   onSaved,
   onRestored,
   onTrashed,
+  reportParsing = false,
   spaceId,
 }: {
   accounts: MoneyAccount[];
@@ -38,19 +39,20 @@ export function ExpenseEditor({
   onSaved: (expense: Expense) => void;
   onRestored?: () => void;
   onTrashed?: () => void;
+  reportParsing?: boolean;
   spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
   const categories = expenseCategories(useCategories(spaceId).data);
-  const [category, setCategory] = useState(expense?.category ?? '');
-  const chosenCategory = category || categories[0]?.name || 'other';
   const suggested = capture?.suggestion;
-  const [spentOn, setSpentOn] = useState(expense?.spentOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
-  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? suggested?.direction ?? 'spent');
-  const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.accountId ?? '');
-  const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? '');
+  const [category, setCategory] = useState(expense?.category ?? suggested?.category ?? '');
+  const chosenCategory = category || categories[0]?.name || 'other';
+  const [spentOn, setSpentOn] = useState(expense?.spentOn ?? suggested?.occurredOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
+  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? (suggested?.transfer ? 'transfer' : suggested?.direction) ?? 'spent');
+  const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.transfer?.fromAccountId ?? suggested?.accountId ?? '');
+  const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? suggested?.transfer?.toAccountId ?? '');
   const transfer = direction === 'transfer';
   const words = directionWords[direction];
   const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
@@ -109,7 +111,7 @@ export function ExpenseEditor({
           direction,
           accountId: accountId || null,
           toAccountId: transfer ? toAccountId : null,
-          ...(capture ? { merchant: suggested?.merchant ?? null } : {}),
+          ...(capture ? { merchant: suggested?.merchant ?? null, remember: values.has('remember'), report: values.has('report') } : {}),
         };
         void saving
           .run(async () => {
@@ -117,12 +119,6 @@ export function ExpenseEditor({
               method: expense ? 'PATCH' : 'POST',
               body: JSON.stringify(body),
             });
-            if (suggested?.merchant && values.get('remember')) {
-              await auth.request(`/spaces/${spaceId}/merchant-rules`, {
-                method: 'POST',
-                body: JSON.stringify({ match: suggested.merchant.toLowerCase(), rename: body.title, category: direction === 'received' || transfer ? null : chosenCategory }),
-              });
-            }
             onSaved(saved);
             return `${expense ? 'Saved' : 'Added'} ${body.title}.`;
           }, `Could not save the ${words.noun}`)
@@ -159,7 +155,7 @@ export function ExpenseEditor({
     >
       {capture && <blockquote className="m-0 rounded-field border border-line p-3 text-small text-muted">{capture.text}</blockquote>}
       <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
-      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
+      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : suggested?.amountMinor && suggested.currency ? fromMinor(suggested.amountMinor, suggested.currency) : ''}
@@ -175,9 +171,7 @@ export function ExpenseEditor({
         {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
       </div>
       {direction !== 'received' && !transfer && <CategoryChips categories={categories} onChange={setCategory} value={chosenCategory} />}
-      {suggested?.merchant && (
-        <Checkbox defaultChecked label={`Always do this for ${suggested.merchant}`} name="remember" />
-      )}
+      {capture && <Checkbox defaultChecked label={`Remember these choices for ${suggested?.merchant ?? capture.sender}`} name="remember" />}
       {!transfer && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
@@ -187,6 +181,7 @@ export function ExpenseEditor({
           )}
         </div>
       )}
+      {capture && <Checkbox defaultChecked={reportParsing} label="Report parsing with an anonymised copy of this message" name="report" />}
       <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
     </FormDialog>
   );

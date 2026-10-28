@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CategoriesService } from './categories.service';
-import { CreateMerchantRuleDto, SaveCategoriesDto } from './dto/categories.dto';
+import { CreateMerchantRuleDto, SaveCategoriesDto, UpdateMerchantRuleDto } from './dto/categories.dto';
 
 @Controller()
 export class CategoriesController {
@@ -32,6 +32,12 @@ export class CategoriesController {
   @Scope('items:write')
   saveRule(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateMerchantRuleDto) {
     return this.categories.saveRule(user.id, spaceId, input);
+  }
+
+  @Patch('merchant-rules/:id')
+  @Scope('items:write')
+  updateRule(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateMerchantRuleDto) {
+    return this.categories.updateRule(user.id, id, input);
   }
 
   @Delete('merchant-rules/:id')

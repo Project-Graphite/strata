@@ -19,6 +19,11 @@
     },
     {
       "sender": "nSave",
+      "text": "nSave: You spent £12.50 at SAMPLE MARKET with card ending 1234",
+      "expect": { "direction": "spent", "amount": 12.5, "currency": "GBP", "cardDigits": "1234", "merchant": "SAMPLE MARKET", "movement": "purchase" }
+    },
+    {
+      "sender": "nSave",
       "text": "nSave: You sent $100.00 to MONA SAMPLE. Your balance is $1,150.00",
       "expect": { "direction": "spent", "amount": 100, "currency": "USD", "merchant": "MONA SAMPLE", "available": 1150, "movement": "transfer" }
     },

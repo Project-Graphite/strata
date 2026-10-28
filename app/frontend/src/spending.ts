@@ -20,6 +20,15 @@ export interface MerchantRule {
   ignore: boolean;
 }
 
+export interface SenderRule {
+  id: string;
+  sender: string;
+  accountId: string | null;
+  cardDigits: string | null;
+  toAccountId: string | null;
+  ignore: boolean;
+}
+
 export type ExpenseDirection = 'spent' | 'received' | 'refund' | 'transfer';
 
 export const directionOptions: { value: ExpenseDirection; label: string }[] = [
@@ -174,6 +183,10 @@ export interface CapturedMessage {
     cardDigits: string | null;
     accountId: string | null;
     paymentLabel?: string | null;
+    occurredOn?: string | null;
+    title?: string;
+    category?: string | null;
+    transfer?: { expenseId: string; fromAccountId: string; toAccountId: string } | null;
   };
 }
 

@@ -8,6 +8,7 @@ import { CategoriesService } from './categories.service';
 import { InstallmentsController } from './installments.controller';
 import { InstallmentsService } from './installments.service';
 import { CaptureService } from './capture/capture.service';
+import { SenderRulesService } from './capture/sender-rules.service';
 import { SpendingController } from './spending.controller';
 import { SpendingService } from './spending.service';
 import { WealthController } from './wealth.controller';
@@ -16,6 +17,6 @@ import { WealthService } from './wealth.service';
 @Module({
   imports: [ExchangeRatesModule],
   controllers: [SpendingController, AccountsController, CaptureController, CategoriesController, InstallmentsController, WealthController],
-  providers: [SpendingService, AccountsService, CaptureService, CategoriesService, InstallmentsService, WealthService],
+  providers: [SpendingService, AccountsService, CaptureService, SenderRulesService, CategoriesService, InstallmentsService, WealthService],
 })
 export class SpendingModule {}
