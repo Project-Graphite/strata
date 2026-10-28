@@ -18,5 +18,6 @@ import { WealthService } from './wealth.service';
   imports: [ExchangeRatesModule],
   controllers: [SpendingController, AccountsController, CaptureController, CategoriesController, InstallmentsController, WealthController],
   providers: [SpendingService, AccountsService, CaptureService, SenderRulesService, CategoriesService, InstallmentsService, WealthService],
+  exports: [SpendingService, InstallmentsService],
 })
 export class SpendingModule {}

@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return apiRequest<T>(path, init, renewed.accessToken, read);
       });
-      if (init.method && init.method !== 'GET') announceChange();
+      if (init.method && init.method !== 'GET' && path !== '/me/calendars/refresh') announceChange();
       return result;
     },
     [applySession],
