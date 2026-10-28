@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { errorMessage } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ButtonLink } from '../components/Button';
-import { useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 
 export function VerifyPage() {
   const auth = useAuth();
@@ -13,7 +13,6 @@ export function VerifyPage() {
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState('');
   const started = useRef('');
-  useDocumentTitle('Verify your email');
 
   useEffect(() => {
     if (!token || started.current === token) return;
@@ -28,17 +27,15 @@ export function VerifyPage() {
 
   if (verified) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Your email address is confirmed</h1>
+      <Page title="Your email address is confirmed" variant="panel">
         <div className="mt-8">{next}</div>
-      </section>
+      </Page>
     );
   }
 
   if (!token || error) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">{token ? 'Your email wasn’t verified' : 'This link is incomplete'}</h1>
+      <Page title={token ? 'Your email wasn’t verified' : 'This link is incomplete'} variant="panel">
         {error ? (
           <Alert className="mt-4 mb-0" severity="error">
             {error}
@@ -48,16 +45,15 @@ export function VerifyPage() {
         )}
         <p className="mt-3 text-muted">{auth.user ? 'Change your email in settings to get a new link.' : 'Sign in to get a new link.'}</p>
         <div className="mt-8">{next}</div>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Verify your email</h1>
+    <Page title="Verify your email" variant="panel">
       <p className="mt-4 text-muted" role="status">
         Confirming your email address…
       </p>
-    </section>
+    </Page>
   );
 }

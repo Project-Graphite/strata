@@ -1,6 +1,4 @@
-import Badge from '@mui/material/Badge';
-import MuiIconButton from '@mui/material/IconButton';
-import { Icon, Button as UiButton, type IconName } from '@project-graphite/ui';
+import { Button as UiButton, IconButton, type IconName } from '@project-graphite/ui';
 
 const look = (large: boolean, primary: boolean) => ({ size: large ? 'medium' : 'small', variant: primary ? 'primary' : 'secondary' }) as const;
 
@@ -55,13 +53,7 @@ export function ButtonAnchor({ href, label, large = false, primary = false }: { 
 }
 
 export function IconLink({ badge, icon, label, to }: { badge?: number; icon: IconName; label: string; to: string }) {
-  return (
-    <MuiIconButton aria-label={label} href={to} title={label}>
-      <Badge badgeContent={badge} color="primary" max={99}>
-        <Icon name={icon} size={18} />
-      </Badge>
-    </MuiIconButton>
-  );
+  return <IconButton badge={badge} href={to} icon={icon} label={label} />;
 }
 
 export function TextButton({
