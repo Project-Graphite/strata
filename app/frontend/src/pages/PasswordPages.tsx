@@ -7,14 +7,13 @@ import { apiRequest } from '../api';
 import { emailAddress, password, required, useFormErrors } from '../validation';
 import { Button, ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
-import { useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 
 export function ForgotPasswordPage() {
   const form = useFormErrors();
   const [sentTo, setSentTo] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  useDocumentTitle('Reset your password');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,8 +37,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Reset your password</h1>
+    <Page title="Reset your password" variant="panel">
       {sentTo ? (
         <p className="mt-4 text-muted">
           If an account uses {sentTo}, a reset link is on its way. It works for one hour.
@@ -58,7 +56,7 @@ export function ForgotPasswordPage() {
       <p className="mt-6 text-sm text-muted">
         <MuiLink component={Link} to="/login" underline="always">Back to sign in</MuiLink>
       </p>
-    </section>
+    </Page>
   );
 }
 
@@ -69,7 +67,6 @@ export function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  useDocumentTitle('Choose a new password');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,31 +91,30 @@ export function ResetPasswordPage() {
 
   if (done) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Sign in with your new password</h1>
-        <p className="mt-4 text-muted">Every device that was signed in has been signed out. Your access tokens and private calendar link were revoked, and your webhooks were turned off.</p>
+      <Page
+        description="Every device that was signed in has been signed out. Your access tokens and private calendar link were revoked, and your webhooks were turned off."
+        title="Sign in with your new password"
+        variant="panel"
+      >
         <div className="mt-8">
           <ButtonLink label="Sign in" large primary to="/login" />
         </div>
-      </section>
+      </Page>
     );
   }
 
   if (!token) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">This link is incomplete</h1>
-        <p className="mt-4 text-muted">Open the whole link from the email, or request a new one.</p>
+      <Page description="Open the whole link from the email, or request a new one." title="This link is incomplete" variant="panel">
         <div className="mt-8">
           <ButtonLink label="Request a new link" large primary to="/forgot-password" />
         </div>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Choose a new password</h1>
+    <Page title="Choose a new password" variant="panel">
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField
           autoComplete="new-password"
@@ -139,6 +135,6 @@ export function ResetPasswordPage() {
         )}
         <Button disabled={busy} label={busy ? 'Saving…' : 'Save password'} large primary submit />
       </form>
-    </section>
+    </Page>
   );
 }

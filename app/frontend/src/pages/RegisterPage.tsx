@@ -5,7 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import { errorMessage, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
-import { useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
 import { ButtonSkeleton, FieldSkeleton, SkeletonLine } from '../components/Skeletons';
 import { invitedLine, type InviteDetails } from '../invitations';
@@ -22,7 +22,6 @@ export function RegisterPage() {
   const code = params.get('invite');
   const invite = useResource<InviteDetails>(code ? `/invitations/lookup/${encodeURIComponent(code)}` : null);
   const site = useResource<{ inviteOnly: boolean }>('/site');
-  useDocumentTitle('Create account');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,22 +65,25 @@ export function RegisterPage() {
 
   if (createdEmail) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Check your inbox</h1>
-        <p className="mt-4 text-muted">
-          We sent an email to {createdEmail}. Open the verification link in it within 24 hours to
-          finish setting up your account. If that address already has an account, the email explains
-          how to sign in instead.
-        </p>
+      <Page
+        description={
+          <>
+            We sent an email to {createdEmail}. Open the verification link in it within 24 hours to
+            finish setting up your account. If that address already has an account, the email explains
+            how to sign in instead.
+          </>
+        }
+        title="Check your inbox"
+        variant="panel"
+      >
         <ResendVerification email={createdEmail} />
-      </section>
+      </Page>
     );
   }
 
   if (invite.loading || (!code && site.loading)) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Create your account</h1>
+      <Page title="Create your account" variant="panel">
         <Placeholder label="Loading sign-up">
           {code && <SkeletonLine className="mt-4" width="w-3/4" />}
           <div className="mt-8 grid gap-5">
@@ -93,29 +95,31 @@ export function RegisterPage() {
           </div>
           <SkeletonLine className="mt-6 text-sm" width="w-48" />
         </Placeholder>
-      </section>
+      </Page>
     );
   }
 
   if (!invite.data && site.data?.inviteOnly) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Sign-up is closed for now</h1>
-        <p className="mt-4 text-muted">
-          {invite.error || 'Strata is taking new accounts by invitation only at the moment.'} Ask someone who
-          uses Strata to invite you, then open the link in their invite.
-        </p>
+      <Page
+        description={
+          <>
+            {invite.error || 'Strata is taking new accounts by invitation only at the moment.'} Ask someone who
+            uses Strata to invite you, then open the link in their invite.
+          </>
+        }
+        title="Sign-up is closed for now"
+        variant="panel"
+      >
         <p className="mt-6 text-sm text-muted">
           Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
         </p>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Create your account</h1>
-      {invite.data && <p className="mt-4 mb-0 text-muted">{invitedLine(invite.data)}.</p>}
+    <Page description={invite.data && `${invitedLine(invite.data)}.`} title="Create your account" variant="panel">
       {invite.error && <Alert className="mt-4 mb-0" severity="error">{invite.error}</Alert>}
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />
@@ -152,6 +156,6 @@ export function RegisterPage() {
       <p className="mt-6 text-sm text-muted">
         Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
       </p>
-    </section>
+    </Page>
   );
 }

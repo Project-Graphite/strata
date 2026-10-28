@@ -1,7 +1,7 @@
 import FormLabel from '@mui/material/FormLabel';
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, Tabs, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Dialog, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
@@ -336,14 +336,9 @@ export function DashboardHome() {
           </>
         )
       }
+      tabs={dashboards.data.length > 1 ? dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name })) : undefined}
       title={editing ? name.trim() || current.name : current.name}
     >
-      {dashboards.data.length > 1 && (
-        <Tabs
-          items={dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name }))}
-          label="Dashboards"
-        />
-      )}
       {widgets.length === 0 ? (
         <div className="dashboard-empty">
           <div aria-hidden="true" className="dashboard-empty-art">

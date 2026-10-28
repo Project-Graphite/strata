@@ -1,7 +1,7 @@
 import Chip from '@mui/material/Chip';
 import { useContext, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
-import { Icon, PageHeader, Placeholder, Tabs, type TabItem } from '@project-graphite/ui';
+import { Icon, PageActionsRow, PageHeader, Placeholder, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from './Skeletons';
@@ -46,6 +46,7 @@ export function Page({
   titleHidden = false,
   toolbar,
   toolbarEnd,
+  variant = 'app',
 }: {
   actions?: ReactNode;
   back?: Back;
@@ -57,35 +58,47 @@ export function Page({
   titleHidden?: boolean;
   toolbar?: ReactNode;
   toolbarEnd?: ReactNode;
+  variant?: 'app' | 'panel';
 }) {
   const named = documentTitle ?? (typeof title === 'string' ? title : undefined);
   const tab = tabs?.find((item) => item.active);
-  const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named);
+  const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named) && variant === 'app';
   useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named, { title: named, back, tab });
+  if (variant === 'panel') {
+    return (
+      <section className="form-panel page-enter">
+        <PageHeader eyebrow={back && <BackLink back={back} />} title={title}>
+          {description}
+        </PageHeader>
+        {children}
+      </section>
+    );
+  }
+  const descriptionLine = description && <div className="max-w-2xl text-small text-muted">{description}</div>;
   return (
     <section className="page-enter grid grid-cols-1 content-start gap-8">
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
-      ) : (
+      ) : titleInHeader ? (
         <>
-          {titleInHeader && <h1 className="sr-only">{title}</h1>}
-          {(!titleInHeader || actions || description || tabs || toolbar || toolbarEnd) && (
-            <div className="grid gap-6">
-              {titleInHeader ? (
-                (actions || description) && <header className="page-header">
-                  {description && <div className="max-w-2xl text-sm text-muted">{description}</div>}
-                  {actions && <div className="page-header-actions ml-auto">{actions}</div>}
-                </header>
-              ) : (
-                <PageHeader actions={actions} eyebrow={back && <BackLink back={back} />} title={title}>
-                  {description}
-                </PageHeader>
-              )}
-              {tabs && <Tabs items={tabs} label={named ?? 'Sections'} />}
-              {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
-            </div>
-          )}
+          <PageActionsRow
+            actions={actions}
+            tabs={tabs}
+            tabsLabel={named}
+            title={title}
+            toolbar={toolbar ?? (!tabs && descriptionLine)}
+            toolbarEnd={toolbarEnd}
+          />
+          {(toolbar || tabs) && descriptionLine}
         </>
+      ) : (
+        <div className="grid gap-6">
+          <PageHeader actions={actions} eyebrow={back && <BackLink back={back} />} title={title}>
+            {description}
+          </PageHeader>
+          {tabs && <Tabs items={tabs} label={named ?? 'Sections'} />}
+          {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
+        </div>
       )}
       {children}
     </section>

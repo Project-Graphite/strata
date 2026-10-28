@@ -12,7 +12,7 @@ import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
-import { useDocumentTitle } from '../components/Page';
+import { Page, useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, FieldSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 
@@ -61,7 +61,7 @@ export function SavePage() {
   const form = useFormErrors();
   const [shared, setShared] = useState<Shared | null>();
   const [asTask, setAsTask] = useState(false);
-  useDocumentTitle('Save what you shared');
+  useDocumentTitle(shared === null && spaces.data ? 'Save what you shared' : undefined);
 
   useEffect(() => {
     void readShare().then(setShared);
@@ -69,8 +69,7 @@ export function SavePage() {
 
   if (shared === undefined || !spaces.data) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Save what you shared</h1>
+      <Page title="Save what you shared" variant="panel">
         <div className="mt-8">
           {spaces.error ? (
             <LoadError error={spaces.error} onRetry={spaces.reload} />
@@ -94,7 +93,7 @@ export function SavePage() {
             </Placeholder>
           )}
         </div>
-      </section>
+      </Page>
     );
   }
   if (!shared) {
@@ -115,8 +114,7 @@ export function SavePage() {
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Save what you shared</h1>
+    <Page title="Save what you shared" variant="panel">
       <form
         className="mt-8 grid gap-4"
         noValidate
@@ -180,6 +178,6 @@ export function SavePage() {
           <Button disabled={saving.busy || editable.length === 0} label={saving.busy ? 'Saving…' : 'Save'} large primary submit />
         </DialogActions>
       </form>
-    </section>
+    </Page>
   );
 }

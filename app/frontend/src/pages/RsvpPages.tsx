@@ -10,7 +10,7 @@ import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
 import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
-import { useDocumentTitle } from '../components/Page';
+import { Page, useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
@@ -114,12 +114,11 @@ export function RsvpPage() {
   }
   if (!invitation.data) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Your invitation</h1>
+      <Page title="Your invitation" variant="panel">
         <div className="mt-8">
           <LoadError error={invitation.error} onRetry={invitation.reload} />
         </div>
-      </section>
+      </Page>
     );
   }
   const { event, guest } = invitation.data;
@@ -205,12 +204,11 @@ export function SharePage() {
   if (shared.status === 404) return <ClosedShareLink />;
   if (!shared.data) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Shared with you</h1>
+      <Page title="Shared with you" variant="panel">
         <div className="mt-8">
           <LoadError error={shared.error} onRetry={shared.reload} />
         </div>
-      </section>
+      </Page>
     );
   }
   if (!shared.data.event) {

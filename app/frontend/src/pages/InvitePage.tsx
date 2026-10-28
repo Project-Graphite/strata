@@ -7,7 +7,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { useDocumentTitle } from '../components/Page';
+import { Page, useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, SkeletonLine } from '../components/Skeletons';
 
@@ -19,20 +19,23 @@ export function InvitePage() {
   const spaces = useSpaces();
   const invite = useResource<InviteDetails>(`/invitations/lookup/${encodeURIComponent(code)}`);
   const joining = useAction();
-  useDocumentTitle('Invitation');
+  useDocumentTitle(auth.ready && !invite.loading && invite.status === 404 ? 'Invitation' : undefined);
 
   if (!auth.ready || invite.loading) {
     return (
-      <section className="form-panel page-enter">
+      <Page
+        description={<SkeletonLine width="w-full" />}
+        documentTitle="Invitation"
+        title={<SkeletonLine width="w-4/5" />}
+        variant="panel"
+      >
         <Placeholder label="Loading this invite">
-          <SkeletonLine className="page-heading" width="w-4/5" />
-          <SkeletonLine className="mt-4" width="w-full" />
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonSkeleton large width="w-36" />
             <ButtonSkeleton large width="w-24" />
           </div>
         </Placeholder>
-      </section>
+      </Page>
     );
   }
   if (invite.status === 404) {
@@ -44,18 +47,16 @@ export function InvitePage() {
   }
   if (!invite.data) {
     return (
-      <section className="form-panel page-enter">
-        <h1 className="page-heading">Your invite</h1>
+      <Page title="Your invite" variant="panel">
         <div className="mt-8">
           <LoadError error={invite.error} onRetry={invite.reload} />
         </div>
-      </section>
+      </Page>
     );
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">{invitedLine(invite.data)}</h1>
+    <Page title={invitedLine(invite.data)} variant="panel">
       {!auth.user ? (
         <>
           <p className="mt-4 text-muted">
@@ -96,6 +97,6 @@ export function InvitePage() {
           />
         </div>
       )}
-    </section>
+    </Page>
   );
 }

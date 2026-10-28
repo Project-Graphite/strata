@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { CodeInput, errorMessage, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
-import { useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
 import { emailAddress, required, useFormErrors } from '../validation';
 
@@ -34,13 +34,15 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Enter your code</h1>
-      <p className="mt-4 text-muted">
-        {recovery
+    <Page
+      description={
+        recovery
           ? 'Type one of the recovery codes you saved. Each one works once.'
-          : 'Open your authenticator app and type the six-digit code it shows for Strata.'}
-      </p>
+          : 'Open your authenticator app and type the six-digit code it shows for Strata.'
+      }
+      title="Enter your code"
+      variant="panel"
+    >
       <form className="mt-8 grid gap-5" key={recovery ? 'recovery' : 'code'} noValidate onSubmit={submit}>
         {recovery ? (
           <TextField
@@ -70,7 +72,7 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
           Start again
         </MuiLink>
       </p>
-    </section>
+    </Page>
   );
 }
 
@@ -81,7 +83,6 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [challenge, setChallenge] = useState('');
-  useDocumentTitle('Sign in');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -115,8 +116,7 @@ export function LoginPage() {
   }
 
   return (
-    <section className="form-panel page-enter">
-      <h1 className="page-heading">Sign in</h1>
+    <Page title="Sign in" variant="panel">
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
@@ -134,6 +134,6 @@ export function LoginPage() {
       <p className="mt-2 text-sm text-muted">
         New here? <MuiLink component={Link} to="/register" underline="always">Create account</MuiLink>
       </p>
-    </section>
+    </Page>
   );
 }
