@@ -37,13 +37,29 @@ export interface CalendarEvent {
 const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, TagColor> = { event: 'blue', task: 'yellow', renewal: 'green', birthday: 'pink', payment: 'orange' };
 const calendarColours: TagColor[] = ['purple', 'teal', 'red', 'green', 'orange', 'blue'];
 
+const calendarRefreshEvery = 15 * 60_000;
+let calendarRefresh: { at: number; refreshed: Promise<number> } | undefined;
+
+function refreshCalendars(request: ReturnType<typeof useAuth>['request']) {
+  if (!calendarRefresh || Date.now() - calendarRefresh.at >= calendarRefreshEvery) {
+    calendarRefresh = {
+      at: Date.now(),
+      refreshed: request<{ refreshed: number }>('/me/calendars/refresh', { method: 'POST' }).then(({ refreshed }) => refreshed, () => 0),
+    };
+  }
+  return calendarRefresh.refreshed;
+}
+
 export function useAgenda(from: string, to: string) {
   const { request } = useAuth();
   const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true, { live: ['items', 'tasks', 'subscriptions', 'spending'] });
   const calendars = useResource<{ id: string }[]>('/me/calendars', true);
   const { reload } = agenda;
   useEffect(() => {
-    void request<{ refreshed: number }>('/me/calendars/refresh', { method: 'POST' }).then(({ refreshed }) => refreshed > 0 && reload());
+    const refresh = () => void refreshCalendars(request).then((refreshed) => refreshed > 0 && reload());
+    refresh();
+    const timer = window.setInterval(refresh, calendarRefreshEvery);
+    return () => window.clearInterval(timer);
   }, [request, reload]);
   const colourOf = (entry: AgendaEntry): TagColor =>
     entry.kind === 'external'
