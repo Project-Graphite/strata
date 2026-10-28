@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Etisalat Cash",
+  "messages": [
+    {
+      "sender": "etisalat cash",
+      "text": "تم استلام 300 جنيه من 010XXXXXXXX. رصيد محفظتك الحالي 800 جنيه",
+      "expect": { "direction": "received", "amount": 300, "currency": "EGP", "available": 800, "movement": "transfer" }
+    },
+    {
+      "sender": "etisalat cash",
+      "text": "تم تحويل 150 جنيه إلى 010XXXXXXXX بنجاح. رصيد محفظتك الحالي 650 جنيه",
+      "expect": { "direction": "spent", "amount": 150, "currency": "EGP", "available": 650, "movement": "transfer" }
+    },
+    {
+      "sender": "etisalat cash",
+      "text": "تم دفع 90 جنيه إلى SAMPLE GROCERY بنجاح. رصيد محفظتك الحالي 560 جنيه",
+      "expect": { "direction": "spent", "amount": 90, "currency": "EGP", "merchant": "SAMPLE GROCERY", "available": 560, "movement": "purchase" }
+    },
+    {
+      "sender": "etisalat cash",
+      "text": "تم سداد فاتورة SAMPLE INTERNET بقيمة 200 جنيه. رصيد محفظتك الحالي 360 جنيه",
+      "expect": { "direction": "spent", "amount": 200, "currency": "EGP", "merchant": "SAMPLE INTERNET", "available": 360, "movement": "bill" }
+    },
+    {
+      "sender": "etisalat cash",
+      "text": "تم شحن رصيد بقيمة 25 جنيه للرقم 010XXXXXXXX. رصيد محفظتك الحالي 335 جنيه",
+      "expect": { "direction": "spent", "amount": 25, "currency": "EGP", "available": 335, "movement": "bill" }
+    },
+    {
+      "sender": "etisalat cash",
+      "text": "تم سحب 500 جنيه من ماكينة ATM SAMPLE BANK. رصيد محفظتك الحالي 300 جنيه",
+      "expect": { "direction": "spent", "amount": 500, "currency": "EGP", "merchant": "ATM SAMPLE BANK", "available": 300, "movement": "atm" }
+    },
+    {
+      "sender": "e& money",
+      "text": "You have received EGP 400 from 010XXXXXXXX. Your e& money balance is EGP 700",
+      "expect": { "direction": "received", "amount": 400, "currency": "EGP", "available": 700, "movement": "transfer" }
+    },
+    {
+      "sender": "e& money",
+      "text": "You have sent EGP 100 to 010XXXXXXXX. Your e& money balance is EGP 600",
+      "expect": { "direction": "spent", "amount": 100, "currency": "EGP", "available": 600, "movement": "transfer" }
+    },
+    {
+      "sender": "e& money",
+      "text": "You have paid EGP 60 to SAMPLE KIOSK. Your e& money balance is EGP 540",
+      "expect": { "direction": "spent", "amount": 60, "currency": "EGP", "merchant": "SAMPLE KIOSK", "available": 540, "movement": "purchase" }
+    },
+    { "sender": "etisalat cash", "text": "كود التحقق الخاص بمحفظتك هو 482913 لا تشاركه مع أي شخص", "expect": { "ignored": "code" } },
+    { "sender": "e& money", "text": "Your e& money OTP is 739102", "expect": { "ignored": "code" } },
+    { "sender": "etisalat cash", "text": "اربح 50 جنيه عند أول تحويل من محفظتك هذا الشهر", "expect": { "ignored": "promotion" } }
+  ]
+}

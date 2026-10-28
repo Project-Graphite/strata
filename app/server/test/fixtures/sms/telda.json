@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Telda",
+  "messages": [
+    {
+      "sender": "Telda",
+      "text": "Telda: You spent EGP 145.00 at SAMPLE CAFE using card ending 1234",
+      "expect": { "direction": "spent", "amount": 145, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE CAFE", "movement": "purchase" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: You spent USD 10.99 at SAMPLE.COM using card ending 1234",
+      "expect": { "direction": "spent", "amount": 10.99, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: You withdrew EGP 500.00 from ATM SAMPLE using card ending 1234",
+      "expect": { "direction": "spent", "amount": 500, "currency": "EGP", "cardDigits": "1234", "merchant": "ATM SAMPLE", "movement": "atm" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: AHMED SAMPLE sent you EGP 300.00",
+      "expect": { "direction": "received", "amount": 300, "currency": "EGP", "merchant": "AHMED SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: You sent EGP 200.00 to @samplehandle",
+      "expect": { "direction": "spent", "amount": 200, "currency": "EGP", "merchant": "@samplehandle", "movement": "transfer" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: You topped up EGP 1,000.00 from your bank card ending 1234",
+      "expect": { "direction": "received", "amount": 1000, "currency": "EGP", "cardDigits": "1234", "movement": "transfer" }
+    },
+    {
+      "sender": "Telda",
+      "text": "Telda: Refund of EGP 145.00 from SAMPLE CAFE",
+      "expect": { "direction": "refund", "amount": 145, "currency": "EGP", "merchant": "SAMPLE CAFE", "movement": "refund" }
+    },
+    {
+      "sender": "Telda",
+      "text": "تيلدا: دفعت 85.00 جنيه في SAMPLE MARKET",
+      "expect": { "direction": "spent", "amount": 85, "currency": "EGP", "merchant": "SAMPLE MARKET", "movement": "purchase" }
+    },
+    {
+      "sender": "Telda",
+      "text": "تيلدا: وصلك 150.00 جنيه من MONA SAMPLE",
+      "expect": { "direction": "received", "amount": 150, "currency": "EGP", "merchant": "MONA SAMPLE", "movement": "transfer" }
+    },
+    { "sender": "Telda", "text": "Telda: Your verification code is 482913. Never share it.", "expect": { "ignored": "code" } },
+    { "sender": "Telda", "text": "تيلدا: رمز التحقق الخاص بك هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "Telda", "text": "Telda: Get 10% back on your first online purchase this week", "expect": { "ignored": "promotion" } }
+  ]
+}

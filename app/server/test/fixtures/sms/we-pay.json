@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "WE Pay",
+  "messages": [
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: وصلك 200 جنيه من 010XXXXXXXX. رصيدك 500 جنيه",
+      "expect": { "direction": "received", "amount": 200, "currency": "EGP", "available": 500, "movement": "transfer" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: تم إرسال 150 جنيه إلى 010XXXXXXXX. رصيدك 350 جنيه",
+      "expect": { "direction": "spent", "amount": 150, "currency": "EGP", "available": 350, "movement": "transfer" }
+    },
+    {
+      "sender": "WEPay",
+      "text": "WE Pay: تم دفع 80 جنيه لـ SAMPLE STORE. رصيدك 270 جنيه",
+      "expect": { "direction": "spent", "amount": 80, "currency": "EGP", "merchant": "SAMPLE STORE", "available": 270, "movement": "purchase" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: تم سداد فاتورة الإنترنت المنزلي بمبلغ 280 جنيه. رصيدك 1,000 جنيه",
+      "expect": { "direction": "spent", "amount": 280, "currency": "EGP", "merchant": "الإنترنت المنزلي", "available": 1000, "movement": "bill" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: تم شحن 50 جنيه للخط 010XXXXXXXX. رصيدك 950 جنيه",
+      "expect": { "direction": "spent", "amount": 50, "currency": "EGP", "available": 950, "movement": "bill" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: تم سحب 300 جنيه من ماكينة ATM SAMPLE. رصيدك 650 جنيه",
+      "expect": { "direction": "spent", "amount": 300, "currency": "EGP", "merchant": "ATM SAMPLE", "available": 650, "movement": "atm" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: You have received EGP 120 from 010XXXXXXXX. Your balance is EGP 770",
+      "expect": { "direction": "received", "amount": 120, "currency": "EGP", "available": 770, "movement": "transfer" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: You have sent EGP 70 to 010XXXXXXXX. Your balance is EGP 700",
+      "expect": { "direction": "spent", "amount": 70, "currency": "EGP", "available": 700, "movement": "transfer" }
+    },
+    {
+      "sender": "WE Pay",
+      "text": "WE Pay: You have paid EGP 40 to SAMPLE KIOSK. Your balance is EGP 660",
+      "expect": { "direction": "spent", "amount": 40, "currency": "EGP", "merchant": "SAMPLE KIOSK", "available": 660, "movement": "purchase" }
+    },
+    { "sender": "WE Pay", "text": "WE Pay: رمز التحقق الخاص بك هو 482913", "expect": { "ignored": "code" } },
+    { "sender": "WE Pay", "text": "WE Pay: Your OTP is 739102. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "WE Pay", "text": "WE Pay: اربح باقة إنترنت مجانية عند الدفع بالمحفظة هذا الأسبوع", "expect": { "ignored": "promotion" } }
+  ]
+}

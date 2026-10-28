@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "valU",
+  "messages": [
+    {
+      "sender": "valU",
+      "text": "valU: Your purchase of EGP 12,000.00 at SAMPLE ELECTRONICS has been confirmed over 12 months",
+      "expect": { "direction": "spent", "amount": 12000, "currency": "EGP", "merchant": "SAMPLE ELECTRONICS", "movement": "purchase" }
+    },
+    {
+      "sender": "valU",
+      "text": "valU: Your Shift purchase of EGP 450.00 at SAMPLE FASHION has been confirmed",
+      "expect": { "direction": "spent", "amount": 450, "currency": "EGP", "merchant": "SAMPLE FASHION", "movement": "purchase" }
+    },
+    {
+      "sender": "valU",
+      "text": "valU: Your instalment of EGP 1,150.00 has been paid successfully",
+      "expect": { "direction": "spent", "amount": 1150, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "valU",
+      "text": "valU: We received your payment of EGP 2,300.00 for your instalments",
+      "expect": { "direction": "spent", "amount": 2300, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "valU",
+      "text": "valU: Refund of EGP 3,000.00 from SAMPLE STORE has been processed to your valU account",
+      "expect": { "direction": "refund", "amount": 3000, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "refund" }
+    },
+    {
+      "sender": "valU",
+      "text": "فاليو: تم تأكيد عملية شراء بقيمة 8,000.00 جنيه من SAMPLE FURNITURE على 6 شهور",
+      "expect": { "direction": "spent", "amount": 8000, "currency": "EGP", "merchant": "SAMPLE FURNITURE", "movement": "purchase" }
+    },
+    {
+      "sender": "valU",
+      "text": "فاليو: تم سداد القسط بقيمة 1,400.00 جنيه بنجاح",
+      "expect": { "direction": "spent", "amount": 1400, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "valU",
+      "text": "فاليو: تم استلام دفعتك بقيمة 2,800.00 جنيه",
+      "expect": { "direction": "spent", "amount": 2800, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "valU",
+      "text": "فاليو: تم استرداد 500.00 جنيه من SAMPLE STORE إلى حسابك",
+      "expect": { "direction": "refund", "amount": 500, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "refund" }
+    },
+    { "sender": "valU", "text": "valU: Your OTP is 482913. Do not share it with anyone.", "expect": { "ignored": "code" } },
+    { "sender": "valU", "text": "فاليو: رمز التحقق الخاص بك هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "valU", "text": "valU: 0% interest on 6 months at partner stores. Offer valid until 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}
