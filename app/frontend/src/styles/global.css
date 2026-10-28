@@ -1251,6 +1251,8 @@ button.habit-day::before {
 
 .agenda-block {
   position: absolute;
+  display: grid;
+  align-content: start;
   border: 0;
   border-left: 3px solid var(--entry-color);
   border-radius: var(--radius-field);
@@ -1278,8 +1280,52 @@ button.habit-day::before {
   background: var(--color-line-soft);
 }
 
+.agenda-block,
+.agenda-chip {
+  --entry-color: var(--tag-color);
+}
+
+.agenda-grid {
+  --agenda-gutter: 4.5rem;
+  --agenda-hour: clamp(2.75rem, calc((100dvh - 12rem) / 12), 4rem);
+}
+
+@media (max-width: 47.99rem) {
+  .agenda-grid {
+    --agenda-gutter: 4.25rem;
+  }
+}
+
+.agenda-body {
+  height: calc(var(--agenda-hour) * 24);
+}
+
 .agenda-hours {
   background-image: linear-gradient(to bottom, var(--color-line-soft) 1px, transparent 1px);
+  background-size: 100% var(--agenda-hour);
+}
+
+.agenda-weekend {
+  background-color: color-mix(in srgb, var(--color-line-soft) 40%, var(--color-paper));
+}
+
+.agenda-block[data-dragging] {
+  opacity: 0.35;
+}
+
+.agenda-ghost {
+  z-index: 4;
+  box-shadow: var(--shadow-popover);
+}
+
+.agenda-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0.4rem;
+  cursor: ns-resize;
+  touch-action: none;
 }
 
 .agenda-now {

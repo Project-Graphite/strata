@@ -26,7 +26,23 @@ export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTi
 export const profileDay = (at: Date | string = new Date()) =>
   new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: profileZone }).format(new Date(at));
 
-const daysAway = (day: string) => (Date.parse(day) - Date.parse(profileDay())) / 86_400_000;
+export const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+
+const daysAway = (day: string) => daysBetween(profileDay(), day);
+
+const minuteFormats = new Map<string | undefined, Intl.DateTimeFormat>();
+
+export function profileMinutes(at: Date | string) {
+  let format = minuteFormats.get(profileZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: profileZone });
+    minuteFormats.set(profileZone, format);
+  }
+  const [hours, minutes] = format.format(new Date(at)).split(':').map(Number) as [number, number];
+  return hours * 60 + minutes;
+}
+
+export const profileClock = (at: Date | string) => clockTime(new Date(at), profileZone);
 
 export function formatDate(day: string, time?: string | null) {
   const away = daysAway(day);
@@ -45,7 +61,7 @@ export function formatDate(day: string, time?: string | null) {
 
 export function formatMoment(at: string) {
   const day = profileDay(at);
-  return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${clockTime(new Date(at), profileZone)}` : formatDate(day);
+  return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${profileClock(at)}` : formatDate(day);
 }
 
 export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);

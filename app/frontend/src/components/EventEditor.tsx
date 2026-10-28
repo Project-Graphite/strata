@@ -11,17 +11,21 @@ import { FormDialog } from './FormDialog';
 const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(value.trim()) ? undefined : 'Use an https:// link.');
 
 export function EventEditor({
+  endTime,
   event,
   onClose,
   onSaved,
   spaceId,
   startsOn,
+  startTime,
 }: {
+  endTime?: string;
   event?: EventDetails;
   onClose: () => void;
   onSaved: (event: EventDetails) => void;
   spaceId?: string;
   startsOn?: string;
+  startTime?: string;
 }) {
   const auth = useAuth();
   const spaces = useSpaces();
@@ -84,9 +88,9 @@ export function EventEditor({
           onChange={form.field('startsOn').onInput}
           optional={false}
         />
-        <TimeField defaultValue={event?.startTime ?? ''} emptyLabel="All day" label="Start time" name="startTime" />
+        <TimeField defaultValue={event?.startTime ?? startTime ?? ''} emptyLabel="All day" label="Start time" name="startTime" />
         <DatePicker defaultValue={event?.endsOn ?? ''} label="Ends" name="endsOn" placeholder="Same day" />
-        <TimeField defaultValue={event?.endTime ?? ''} emptyLabel="No end time" label="End time" name="endTime" />
+        <TimeField defaultValue={event?.endTime ?? endTime ?? ''} emptyLabel="No end time" label="End time" name="endTime" />
         <Select defaultValue={event?.repeatRule ?? ''} label="Repeats" name="repeatRule" options={repeatOptions(event?.repeatRule)} />
         <Select defaultValue={event?.reminderMinutes == null ? '' : String(event.reminderMinutes)} label="Remind me" name="reminderMinutes" options={reminderOptions(event?.reminderMinutes)} />
       </div>
