@@ -2,6 +2,7 @@ import { Controller, HttpException, HttpStatus, MessageEvent, Sse, SseSignal } f
 import { interval, map, merge, Observable, takeUntil, timer } from 'rxjs';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { sseStreams } from '../metrics/metrics';
 import { ChangesService } from './changes.service';
 
 const heartbeatMs = 25_000;
@@ -22,7 +23,9 @@ export class ChangesController {
     }
     streams.add(signal);
     this.openStreams.set(user.id, streams);
+    sseStreams.inc();
     signal.addEventListener('abort', () => {
+      sseStreams.dec();
       streams.delete(signal);
       if (streams.size === 0) this.openStreams.delete(user.id);
     }, { once: true });

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
+import { backgroundJobFailures } from '../metrics/metrics';
 import { PrismaService } from '../prisma/prisma.service';
 
 const pollIntervalMs = 30_000;
@@ -93,6 +94,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
       await this.changes.afterWork(() => handler(job.payload));
       await this.prisma.scheduledJob.update({ where: { id: job.id }, data: { doneAt: new Date(), lastError: null } });
     } catch (error) {
+      backgroundJobFailures.inc({ kind: job.kind });
       const lastError = error instanceof Error ? error.message : 'Unknown error';
       const failed = job.attempts >= maxAttempts;
       await this.prisma.scheduledJob.update({

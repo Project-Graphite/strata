@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, ConflictException, HttpException, Logger, NotFoundException } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/nestjs';
 import type { Request, Response } from 'express';
 
 const logger = new Logger('Errors');
@@ -20,14 +21,17 @@ export class ApiExceptionFilter extends BaseExceptionFilter {
     const request = host.switchToHttp().getRequest<Request>();
     const response = host.switchToHttp().getResponse<Response>();
     const requestId = response.locals.requestId as string | undefined;
+    const userId = (request.user as { id?: string } | undefined)?.id;
+    const route = request.route ? `${request.baseUrl}${String(request.route.path)}` : request.path;
     logger.error({
       requestId,
-      userId: (request.user as { id?: string } | undefined)?.id,
+      userId,
       method: request.method,
-      route: request.route ? `${request.baseUrl}${String(request.route.path)}` : request.path,
+      route,
       status: 500,
       error: exception instanceof Error ? exception.stack : String(exception),
     });
+    Sentry.captureException(exception, { tags: { requestId, route }, user: userId ? { id: userId } : undefined });
     if (response.headersSent) {
       response.end();
       return;

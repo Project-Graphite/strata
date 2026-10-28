@@ -1,3 +1,4 @@
+import './instrument';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ConsoleLogger, Logger, ValidationPipe } from '@nestjs/common';
