@@ -130,7 +130,7 @@ export function AgendaCard({ colour, entry }: { colour: TagColor; entry: AgendaE
     <AgendaEntryLink className="agenda-card" colour={colour} entry={entry}>
       <span className="block text-sm wrap-anywhere text-ink">{entry.title}</span>
       <span className="sr-only"> · </span>
-      <span className="mono-sm block wrap-anywhere text-faint">
+      <span className="block text-small wrap-anywhere text-muted tabular-nums">
         <span className="whitespace-nowrap">{entryTime(entry)}</span>
         {' · '}
         {entry.calendar ?? kindLabels[entry.kind]}

@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router';
 import { useState } from 'react';
-import { ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
+import { ListRow, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -11,6 +11,7 @@ import { LoadError } from '../components/LoadError';
 import { FilterChips, Page } from '../components/Page';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { useSpaces } from '../spaces';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors, webAddress } from '../validation';
@@ -104,7 +105,7 @@ export function BookmarksPage() {
             <ListRow
               href={`/bookmarks/${bookmark.id}`}
               key={bookmark.id}
-              meta={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${timeAgo(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
+              meta={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${formatMoment(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
               title={bookmark.title}
               trail={
                 editable(bookmark) && (

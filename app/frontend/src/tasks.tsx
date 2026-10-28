@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { Avatar, Button, Checkbox, formatDay, ListRow, Pagination } from '@project-graphite/ui';
+import { Avatar, Badge, Button, Checkbox, ListRow, Pagination } from '@project-graphite/ui';
 import type { Page as ResultPage } from './api';
 import type { useAuth } from './auth';
 import { FilterChips } from './components/Page';
-import { clockTime } from './time';
+import { formatDate, profileDay } from './time';
 
 export interface Task {
   id: string;
@@ -66,23 +66,12 @@ export function reminderOptions(current?: number | null) {
 
 const priorityLabels = ['', 'low', 'medium', 'high'];
 
-function localToday() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
 export function dueLabel(task: Task) {
-  if (!task.dueDate) return '';
-  const today = localToday();
-  const day =
-    task.dueDate === today
-      ? 'today'
-      : formatDay(task.dueDate, { weekday: 'short', day: 'numeric', month: 'short' });
-  return task.dueTime ? `${day} ${clockTime(task.dueTime)}` : day;
+  return task.dueDate ? formatDate(task.dueDate, task.dueTime) : '';
 }
 
 export function isOverdue(task: Task) {
-  return Boolean(task.dueDate && !task.completedAt && task.dueDate < localToday());
+  return Boolean(task.dueDate && !task.completedAt && task.dueDate < profileDay());
 }
 
 export function repeatLabel(rule: string | null) {
@@ -102,7 +91,7 @@ export async function completeTask(request: ReturnType<typeof useAuth>['request'
           return '';
         },
       }
-    : `Done for now. ${task.title} is next due ${formatDay(updated.dueDate!)}.`;
+    : `Done for now. ${task.title} is next due ${formatDate(updated.dueDate!)}.`;
 }
 
 export function taskDetails(task: Task, where?: string) {
@@ -140,8 +129,13 @@ export function TaskRow({
       }
       meta={
         details.length > 0 && (
-          <span className={`mono-sm block truncate ${isOverdue(task) ? 'text-danger' : 'text-faint'}`}>
-            {details.join(' · ')}
+          <span className="flex min-w-0 items-center gap-2">
+            {isOverdue(task) && (
+              <Badge icon="alert" tone="danger">
+                Overdue
+              </Badge>
+            )}
+            <span className="truncate tabular-nums">{details.join(' · ')}</span>
           </span>
         )
       }

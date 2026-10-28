@@ -35,6 +35,7 @@ import {
 } from '../spending';
 import { useChosenSpace, type Member } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
+import { formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
@@ -131,7 +132,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
         <ListRow
           key={expense.id}
           meta={[
-            formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
+            formatDate(expense.spentOn),
             expense.direction === 'transfer'
               ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
               : expense.direction === 'received'

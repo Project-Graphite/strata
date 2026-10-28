@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { formatDay, type TagColor } from '@project-graphite/ui';
+import type { TagColor } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, zoneLabel } from './time';
+import { clockTime, formatDate, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -144,25 +144,20 @@ export function entryTime(entry: AgendaEntry) {
 }
 
 export function entryWhen(entry: AgendaEntry) {
-  const day = (at: Date) => formatDay(dayKey(at), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   if (entry.allDay) {
-    const start = day(new Date(`${entry.start}T00:00:00`));
-    return entry.end && entry.end !== entry.start ? `${start} to ${day(new Date(`${entry.end}T00:00:00`))}` : `${start}, all day`;
+    return entry.end && entry.end !== entry.start ? `${formatDate(entry.start)} to ${formatDate(entry.end)}` : `${formatDate(entry.start)}, all day`;
   }
+  const day = (at: string) => formatDate(dayKey(new Date(at)));
   if (entry.end && dayKey(new Date(entry.end)) !== dayKey(new Date(entry.start))) {
-    return `${day(new Date(entry.start))}, ${entryClock(entry.start)} to ${day(new Date(entry.end))}, ${entryClock(entry.end)}`;
+    return `${day(entry.start)} ${entryClock(entry.start)} to ${day(entry.end)} ${entryClock(entry.end)}`;
   }
-  return `${day(new Date(entry.start))}, ${entryTime(entry)}`;
+  return `${day(entry.start)} ${entryTime(entry)}`;
 }
 
 export function eventWhen(event: PublicEvent) {
-  const day = (text: string) =>
-    formatDay(text, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const start = `${day(event.startsOn)}${event.startTime ? `, ${clockTime(event.startTime)}` : ''}`;
-  const end =
-    event.endsOn !== event.startsOn ? ` to ${day(event.endsOn)}${event.endTime ? `, ${clockTime(event.endTime)}` : ''}` : event.endTime ? `–${clockTime(event.endTime)}` : '';
+  const end = event.endsOn !== event.startsOn ? ` to ${formatDate(event.endsOn, event.endTime)}` : event.endTime ? `–${clockTime(event.endTime)}` : '';
   const zone = event.startTime ? zoneLabel(event.timeZone) : '';
-  return `${start}${end}${zone ? ` (${zone})` : ''}`;
+  return `${formatDate(event.startsOn, event.startTime)}${end}${zone ? ` (${zone})` : ''}`;
 }
 
 export const kindLabels: Record<AgendaEntry['kind'], string> = { event: 'event', task: 'due', renewal: 'renews', external: 'calendar', birthday: 'birthday', payment: 'payment' };

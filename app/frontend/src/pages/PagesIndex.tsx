@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { IconButton, Placeholder, timeAgo } from '@project-graphite/ui';
+import { IconButton, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -14,6 +14,7 @@ import { RowText } from '../components/RowText';
 import { ButtonSkeleton, IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, nestedUnder, noteTitle, pageIndent, pagesTabs, type Note, type PagesSection } from '../notes';
 import { useSpaces } from '../spaces';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -48,7 +49,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
       <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={note.id}>
         <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={`/notes/${note.id}`}>
           <NoteMark note={note} />
-          <RowText detail={[spaceNames.get(note.spaceId), timeAgo(note.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
+          <RowText detail={[spaceNames.get(note.spaceId), formatMoment(note.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
         </Link>
         {writable.some((space) => space.id === note.spaceId) && (
           <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
