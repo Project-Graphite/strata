@@ -1,15 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto } from './dto/spaces.dto';
 import { SpacesService } from './spaces.service';
 
 @Controller('spaces')
-@UseGuards(JwtAuthGuard)
 export class SpacesController {
   constructor(private readonly spaces: SpacesService) {}
 

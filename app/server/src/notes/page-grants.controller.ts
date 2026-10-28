@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { SavePageGrantDto } from './dto/page-grants.dto';
 import { PageGrantsService } from './page-grants.service';
 
 @Controller('notes/:id/people')
-@UseGuards(JwtAuthGuard)
 export class PageGrantsController {
   constructor(private readonly grants: PageGrantsService) {}
 

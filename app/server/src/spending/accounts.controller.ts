@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/accounts.dto';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}
 

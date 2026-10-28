@@ -1,9 +1,8 @@
-import { Controller, Get, NotFoundException, Param, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { documentLinks } from '../notes/document-text';
 import { PageAccessService } from '../notes/page-access.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,7 +11,6 @@ import { UuidPipe } from '../validation/uuid.pipe';
 import { fileHeaders, FilesService } from './files.service';
 
 @Controller('notes/:id/files')
-@UseGuards(JwtAuthGuard)
 export class PageFilesController {
   constructor(private readonly files: FilesService, private readonly prisma: PrismaService, private readonly pages: PageAccessService, private readonly realtime: RealtimeService) {}
 

@@ -9,19 +9,16 @@ import {
   Post,
   Put,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateLinkDto, ListItemsDto, SetItemTagsDto, UpdateItemDto } from './dto/items.dto';
 import { ItemsService } from './items.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class ItemsController {
   constructor(private readonly items: ItemsService) {}
 

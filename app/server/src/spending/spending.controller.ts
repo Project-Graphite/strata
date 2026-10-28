@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateExpenseDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
 import { SpendingService } from './spending.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class SpendingController {
   constructor(private readonly spending: SpendingService) {}
 

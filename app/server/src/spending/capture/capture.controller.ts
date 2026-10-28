@@ -1,8 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { Scope } from '../../access-tokens/scopes';
 import { AuthenticatedUser } from '../../auth/auth.types';
 import { CurrentUser } from '../../auth/current-user.decorator';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RateLimit } from '../../redis/rate-limit.guard';
 import { UuidPipe } from '../../validation/uuid.pipe';
 import { CaptureMessageDto } from '../dto/capture.dto';
@@ -10,7 +9,6 @@ import { CreateExpenseDto } from '../dto/spending.dto';
 import { CaptureService } from './capture.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class CaptureController {
   constructor(private readonly captures: CaptureService) {}
 

@@ -1,6 +1,7 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { Public } from '../auth/public.decorator';
 
 @Controller()
 export class HealthController {
@@ -9,11 +10,13 @@ export class HealthController {
     private readonly redis: RedisService,
   ) {}
 
+  @Public()
   @Get('health')
   health() {
     return { status: 'ok' };
   }
 
+  @Public()
   @Get('ready')
   async ready() {
     try {

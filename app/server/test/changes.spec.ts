@@ -1,8 +1,8 @@
 import { Controller, ExecutionContext, Global, INestApplication, Logger, Module, Post } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { firstValueFrom, toArray } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
 import { ChangesController } from '../src/changes/changes.controller';
 import { ChangesModule } from '../src/changes/changes.module';
 import { ChangesService, type Change } from '../src/changes/changes.service';
@@ -167,16 +167,22 @@ describe('GET /me/changes', () => {
   let base: string;
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({ imports: [Infrastructure, ChangesModule], controllers: [ProbeController] })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const request = context.switchToHttp().getRequest<{ headers: Record<string, string>; user: object }>();
-          request.user = { id: request.headers['x-user'] };
-          return true;
+    const module = await Test.createTestingModule({
+      imports: [Infrastructure, ChangesModule],
+      controllers: [ProbeController],
+      providers: [
+        {
+          provide: APP_GUARD,
+          useValue: {
+            canActivate: (context: ExecutionContext) => {
+              const request = context.switchToHttp().getRequest<{ headers: Record<string, string>; user: object }>();
+              request.user = { id: request.headers['x-user'] };
+              return true;
+            },
+          },
         },
-      })
-      .compile();
+      ],
+    }).compile();
     app = module.createNestApplication({ logger: false });
     app.setGlobalPrefix('api/v1');
     app.use(requestLog);

@@ -1,15 +1,13 @@
 import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Query, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Query, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateHabitDto, UpdateHabitDto } from './dto/habits.dto';
 import { HabitsService } from './habits.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class HabitsController {
   constructor(private readonly habits: HabitsService) {}
 

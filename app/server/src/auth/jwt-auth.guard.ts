@@ -4,6 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { scopeKey, tokenPrefix, type TokenScope } from '../access-tokens/scopes';
 import { TokenAuthenticator } from '../access-tokens/token-authenticator';
 import type { AuthenticatedRequest } from './auth.types';
+import { publicKey } from './public.decorator';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -15,6 +16,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   async canActivate(context: ExecutionContext) {
+    if (this.reflector.getAllAndOverride<boolean | undefined>(publicKey, [context.getHandler(), context.getClass()])) return true;
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const header = request.headers.authorization ?? '';
     if (!header.startsWith(`Bearer ${tokenPrefix}`)) {

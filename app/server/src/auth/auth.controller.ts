@@ -6,7 +6,6 @@ import {
   Req,
   Res,
   UnauthorizedException,
-  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
@@ -19,7 +18,7 @@ import { ChangePasswordDto, CompleteSignInDto, EmailDto, ResetPasswordDto } from
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { Public } from './public.decorator';
 
 const refreshCookie = 'strata_refresh';
 const deviceCookie = 'strata_device';
@@ -32,18 +31,21 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
+  @Public()
   @Post('register')
   @RateLimit('register', 5, 3_600)
   register(@Body() input: RegisterDto) {
     return this.auth.register(input);
   }
 
+  @Public()
   @Post('verify-email')
   @RateLimit('verify-email', 20, 3_600)
   verifyEmail(@Body() input: VerifyEmailDto) {
     return this.auth.verifyEmail(input.token);
   }
 
+  @Public()
   @Post('resend-verification')
   @HttpCode(204)
   @RateLimit('resend-verification', 5, 3_600)
@@ -51,6 +53,7 @@ export class AuthController {
     await this.auth.resendVerification(input.email);
   }
 
+  @Public()
   @Post('forgot-password')
   @HttpCode(204)
   @RateLimit('forgot-password', 5, 3_600)
@@ -58,6 +61,7 @@ export class AuthController {
     await this.auth.requestPasswordReset(input.email);
   }
 
+  @Public()
   @Post('reset-password')
   @HttpCode(204)
   @RateLimit('reset-password', 10, 3_600)
@@ -65,6 +69,7 @@ export class AuthController {
     await this.auth.resetPassword(input.token, input.password);
   }
 
+  @Public()
   @Post('login')
   @RateLimit('login', 10, 900)
   async login(
@@ -81,6 +86,7 @@ export class AuthController {
     return { accessToken: result.session.accessToken, user: result.session.user };
   }
 
+  @Public()
   @Post('two-step')
   @RateLimit('two-step', 10, 900)
   async completeTwoStep(
@@ -96,7 +102,6 @@ export class AuthController {
 
   @Post('password')
   @RateLimit('change-password', 10, 3_600)
-  @UseGuards(JwtAuthGuard)
   async changePassword(
     @CurrentUser() user: AuthenticatedUser,
     @Body() input: ChangePasswordDto,
@@ -114,6 +119,7 @@ export class AuthController {
     return { accessToken: session.accessToken, user: session.user };
   }
 
+  @Public()
   @Post('refresh')
   @RateLimit('refresh', 600, 900, { name: refreshCookie, limit: 20 })
   async refresh(
@@ -130,6 +136,7 @@ export class AuthController {
     return { accessToken: session.accessToken, user: session.user };
   }
 
+  @Public()
   @Post('logout')
   async logout(
     @Req() request: Request,

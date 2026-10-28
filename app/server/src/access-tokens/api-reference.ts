@@ -1,7 +1,6 @@
-import { Controller, Get, Injectable, RequestMethod, UseGuards } from '@nestjs/common';
+import { Controller, Get, Injectable, RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { scopeKey, tokenScopes, type TokenScope } from './scopes';
 
 const joined = (...parts: (string | undefined)[]) => `/${parts.flatMap((part) => (part ? part.split('/') : [])).filter(Boolean).join('/')}`;
@@ -40,7 +39,6 @@ export class ApiReference {
 }
 
 @Controller('me/api-reference')
-@UseGuards(JwtAuthGuard)
 export class ApiReferenceController {
   constructor(private readonly reference: ApiReference) {}
 

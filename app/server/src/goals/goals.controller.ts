@@ -1,14 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateGoalDto, GoalHabitsDto, ListGoalsDto, UpdateGoalDto } from './dto/goals.dto';
 import { GoalsService } from './goals.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class GoalsController {
   constructor(private readonly goals: GoalsService) {}
 

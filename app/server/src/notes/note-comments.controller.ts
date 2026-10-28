@@ -1,15 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateCommentDto, UpdateCommentDto } from './dto/notes.dto';
 import { NoteCommentsService } from './note-comments.service';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
 export class NoteCommentsController {
   constructor(private readonly comments: NoteCommentsService) {}
 

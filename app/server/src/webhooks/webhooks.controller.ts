@@ -1,14 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto/webhooks.dto';
 import { WebhooksService } from './webhooks.service';
 
 @Controller('me/webhooks')
-@UseGuards(JwtAuthGuard)
 export class WebhooksController {
   constructor(private readonly webhooks: WebhooksService) {}
 
