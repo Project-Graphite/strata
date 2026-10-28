@@ -10,6 +10,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 const AgendaPage = lazy(() => import('./pages/AgendaPage').then((module) => ({ default: module.AgendaPage })));
+const BoardPage = lazy(() => import('./pages/BoardPage').then((module) => ({ default: module.BoardPage })));
 const BookmarkPage = lazy(() => import('./pages/BookmarkPage').then((module) => ({ default: module.BookmarkPage })));
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage').then((module) => ({ default: module.BookmarksPage })));
 const CalendarsPage = lazy(() => import('./pages/CalendarsPage').then((module) => ({ default: module.CalendarsPage })));
@@ -152,6 +153,7 @@ export function App() {
               <Route path="boards" element={<PagesIndex key="boards" section="boards" />} />
             </Route>
             <Route path="notes/:id" element={<NotePage />} />
+            <Route path="boards/:id" element={<BoardPage />} />
             <Route element={<AppRoute app="bookmarks" />}>
               <Route path="bookmarks" element={<BookmarksPage />} />
               <Route path="bookmarks/:id" element={<BookmarkPage />} />

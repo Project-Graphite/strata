@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { EmptyState, Icon, Skeleton, timeAgo, type IconName } from '@project-graphite/ui';
-import type { Note } from '../notes';
+import { noteHref, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { Subheading } from '../components/Page';
 
@@ -109,7 +109,7 @@ export function PageLinks({ heading, pages }: { heading: string; pages: Note[] }
       <ul className="m-0 grid list-none gap-1.5 p-0">
         {pages.map((page) => (
           <li className="text-sm" key={page.id}>
-            <Link className="text-ink no-underline hover:underline" to={`/notes/${page.id}`}>
+            <Link className="text-ink no-underline hover:underline" to={noteHref(page)}>
               {page.icon ? `${page.icon} ` : ''}
               {page.title || 'Untitled'}
             </Link>

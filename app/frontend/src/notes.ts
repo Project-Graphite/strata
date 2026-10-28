@@ -147,4 +147,6 @@ export const builtInTemplates = [
 
 export const noteTitle = (note: { title: string }) => note.title || 'Untitled';
 
+export const noteHref = (note: { id: string; kind: string }) => `${note.kind === 'board' ? '/boards' : '/notes'}/${note.id}`;
+
 export const pageNoun = (note: Pick<Note, 'kind' | 'quick'>) => (note.kind === 'board' ? 'board' : note.quick ? 'note' : 'page');

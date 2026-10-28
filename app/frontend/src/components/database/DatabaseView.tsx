@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { formatDay, IconButton, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
-import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
+import { databaseViews, noteHref, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
 import type { Member } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -121,7 +121,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       ));
 
   const title = (row: DatabaseRow) => (
-    <Link className="min-w-0 wrap-anywhere text-ink no-underline hover:underline" to={`/notes/${row.id}`}>
+    <Link className="min-w-0 wrap-anywhere text-ink no-underline hover:underline" to={noteHref(row)}>
       {row.icon ? `${row.icon} ` : ''}
       {noteTitle(row)}
     </Link>

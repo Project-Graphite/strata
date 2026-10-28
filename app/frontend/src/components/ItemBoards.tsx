@@ -47,7 +47,7 @@ export function ItemBoards({ editable, itemId, spaceId, title }: { editable: boo
       {boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />
-          <Link className="text-sm" to={`/notes/${item.id}`}>
+          <Link className="text-sm" to={`/boards/${item.id}`}>
             Open {noteTitle(item)}
           </Link>
         </div>

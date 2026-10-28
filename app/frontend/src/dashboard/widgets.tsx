@@ -567,7 +567,7 @@ function Board({ configure, settings }: WidgetProps) {
   const boardId = typeof settings.boardId === 'string' ? settings.boardId : null;
   if (!boardId) return <WidgetEmpty action={configure && <Button label="Choose a board" onClick={configure} />} icon="board" title="No board chosen" />;
   return (
-    <Link className="block no-underline" to={`/notes/${boardId}`}>
+    <Link className="block no-underline" to={`/boards/${boardId}`}>
       <BoardPreview boardId={boardId} key={boardId} label="Board preview" live />
     </Link>
   );

@@ -78,7 +78,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
-  const pageRoute = /^\/(?:(?:notes|share)\/[^/]+|pages)\/?$/.test(pathname);
+  const pageRoute = /^\/(?:(?:notes|boards|share)\/[^/]+|pages)\/?$/.test(pathname);
   const subscribeToOutage = useCallback((listener: () => void) => pageRoute ? () => {} : onOutage(listener), [pageRoute]);
   const unread = inbox.data?.unread ?? 0;
   const [searching, setSearching] = useState(false);

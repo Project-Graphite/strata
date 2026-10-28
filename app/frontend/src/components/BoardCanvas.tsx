@@ -1,20 +1,23 @@
 import '@excalidraw/excalidraw/index.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw, exportToBlob, isInvisiblySmallElement, MainMenu, reconcileElements } from '@excalidraw/excalidraw';
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, ExcalidrawTextElement, FileId } from '@excalidraw/excalidraw/element/types';
 import type { AppState, Collaborator, ExcalidrawImperativeAPI, SocketId } from '@excalidraw/excalidraw/types';
-import { LinesSkeleton, useSnackbar } from '@project-graphite/ui';
+import { IconButton, LinesSkeleton, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { maxUploadBytes, uploadFile } from '../files';
+import { ActionsMenu } from './ActionsMenu';
+import { IconLink } from './Button';
 import { boardImage } from './board-files';
-import { BrainstormBar, countVotes, useBoardSession, votesBy } from './board-session';
+import { brainstormItems, BrainstormStatus, countVotes, useBoardSession, votesBy } from './board-session';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
 import { downloadPageDraft } from '../page-draft';
 import type { CommentAnchors, QuotedBlock } from './NoteComments';
+import type { Back } from './Page';
 
 const boardElementsKey = 'board';
 const syncEveryMs = 80;
@@ -71,6 +74,7 @@ interface BoardComments {
   commentedBlocks: string[];
   onComment?: (block: QuotedBlock) => void;
   onAnchors: (anchors: CommentAnchors) => void;
+  onOpenThread: (blockId: string) => void;
 }
 
 interface BoardMember {
@@ -78,7 +82,14 @@ interface BoardMember {
   spaceId: string;
 }
 
-export function LiveBoard({ boardId, connection, editable, member }: { boardId: string; connection: Connection; editable: boolean; member?: BoardMember }) {
+export interface BoardBar {
+  back?: Back;
+  title: ReactNode;
+  actions?: ReactNode;
+  menu?: MenuItem[];
+}
+
+export function LiveBoard({ bar, boardId, connection, editable, member }: { bar: BoardBar; boardId: string; connection: Connection; editable: boolean; member?: BoardMember }) {
   const auth = useAuth();
   const show = useSnackbar();
   const status = useLiveStatus(connection, editable);
@@ -92,6 +103,7 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
   const [pins, setPins] = useState<Pin[]>([]);
   const session = useBoardSession(connection.document);
   const [myVotes, setMyVotes] = useState(0);
+  const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
   const commentedBlocks = member?.comments.commentedBlocks ?? [];
   const commented = useRef(commentedBlocks);
   commented.current = commentedBlocks;
@@ -159,6 +171,15 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
 
   useEffect(() => () => window.clearTimeout(pending.current), []);
 
+  useEffect(() => {
+    const changed = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', changed);
+    return () => {
+      document.removeEventListener('fullscreenchange', changed);
+      if (document.fullscreenElement) void document.exitFullscreen();
+    };
+  }, []);
+
   const onAnchors = member?.comments.onAnchors;
   useEffect(() => {
     if (!api || !onAnchors) return;
@@ -166,7 +187,6 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
       noun: 'shape',
       label: (id) => shapeLabel(api.getSceneElements(), id),
       show: (id) => {
-        document.querySelector('[aria-label="Board"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const element = api.getSceneElements().find((candidate) => candidate.id === id);
         if (!element) return;
         api.updateScene({ appState: { selectedElementIds: { [id]: true } }, captureUpdate: CaptureUpdateAction.NEVER });
@@ -302,11 +322,35 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
     return uploaded.id as FileId;
   }
 
+  const menu = [
+    member && editable && !blocked ? brainstormItems(session, countRound) : [],
+    editable && !blocked ? boardTemplates.map((template) => ({ label: `Add the ${template.label} template`, onSelect: () => addElements(template.build(), true) })) : [],
+    [
+      { label: 'Export as image', onSelect: () => api?.updateScene({ appState: { openDialog: { name: 'imageExport' } }, captureUpdate: CaptureUpdateAction.NEVER }) },
+      { label: 'Print or save as PDF', onSelect: () => void printBoard() },
+    ],
+    bar.menu ?? [],
+  ]
+    .filter((group) => group.length > 0)
+    .flatMap((group, index) => group.map((item, position) => ({ ...item, separated: index > 0 && position === 0 })));
+
   return (
-    <div className="grid gap-3">
-      <div className="board-editor-header">
-        <BrainstormBar controls={Boolean(member) && editable && !blocked} onCount={countRound} session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
+    <div className="board-stage">
+      <div className="board-bar">
+        {bar.back && <IconLink icon="chevron-left" label={`Back to ${bar.back.label}`} to={bar.back.to} />}
+        {bar.title}
+        <BrainstormStatus session={session} votesLeft={round ? Math.max(0, round.perPerson - myVotes) : 0} />
         <LiveDocumentStatus onDownloadDraft={() => downloadPageDraft(connection.document, 'board', boardId)} status={status} />
+        {bar.actions}
+        {document.fullscreenEnabled && (
+          <IconButton
+            className="max-md:hidden"
+            icon={fullscreen ? 'x' : 'monitor'}
+            label={fullscreen ? 'Exit full screen' : 'Full screen'}
+            onClick={() => void (fullscreen ? document.exitFullscreen() : document.documentElement.requestFullscreen())}
+          />
+        )}
+        <ActionsMenu items={menu} name="Board" />
       </div>
       <div aria-label="Board" className="board-canvas" role="region">
         {editable && !blocked && loaded && empty && (
@@ -324,7 +368,7 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
             aria-label={`Comments on ${api ? shapeLabel(api.getSceneElements(), pin.id) : 'a shape'}`}
             className="board-pin"
             key={pin.id}
-            onClick={() => document.querySelector(`[data-block-id="${CSS.escape(pin.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            onClick={() => member?.comments.onOpenThread(pin.id)}
             style={{ left: pin.left, top: pin.top }}
             type="button"
           />
@@ -374,7 +418,6 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
           <MainMenu>
             <MainMenu.DefaultItems.SaveAsImage />
             <MainMenu.DefaultItems.Export />
-            <MainMenu.Item onSelect={() => void printBoard()}>Print or save as PDF</MainMenu.Item>
             <MainMenu.DefaultItems.SearchMenu />
             <MainMenu.DefaultItems.ChangeCanvasBackground />
             <MainMenu.DefaultItems.Help />
@@ -385,8 +428,8 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
   );
 }
 
-export default function BoardCanvas({ editable, noteId, spaceId, ...comments }: { editable: boolean; noteId: string; spaceId: string } & BoardComments) {
+export default function BoardCanvas({ bar, editable, noteId, spaceId, ...comments }: { bar: BoardBar; editable: boolean; noteId: string; spaceId: string } & BoardComments) {
   const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
-  return <LiveBoard boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;
+  return <LiveBoard bar={bar} boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;
 }

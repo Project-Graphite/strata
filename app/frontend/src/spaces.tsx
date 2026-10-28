@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router';
 import { ColorSwatches, Icon, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
 import { ActiveSpaceContext } from './active-space';
 import { useAuth } from './auth';
+import { noteHref } from './notes';
 import type { Resource } from './useResource';
 import { atMost, required, type Check } from './validation';
 
@@ -110,7 +111,7 @@ export async function addJoinedSpace(
 }
 
 export function itemHref(item: { id: string; kind: string; spaceId: string }) {
-  if (item.kind === 'note' || item.kind === 'board') return `/notes/${item.id}`;
+  if (item.kind === 'note' || item.kind === 'board') return noteHref(item);
   if (item.kind === 'event') return `/events/${item.id}`;
   if (item.kind === 'bookmark') return `/bookmarks/${item.id}`;
   if (item.kind === 'goal') return `/goals/${item.id}`;

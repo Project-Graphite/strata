@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type DragEvent } from '
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { noteTitle, onPagesChanged, type Note } from '../notes';
+import { noteHref, noteTitle, onPagesChanged, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -103,7 +103,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
               <button aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle enabled:cursor-pointer" disabled={!nests} onClick={() => tree.toggle(note.id)} type="button">
                 {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
               </button>
-              <Link aria-current={pathname === `/notes/${note.id}` ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={`/notes/${note.id}`}>
+              <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={noteHref(note)}>
                 <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
               </Link>
               {writable && actions.length > 0 && <ActionsMenu name={noteTitle(note)} items={actions} />}
@@ -131,7 +131,7 @@ export function PageTree() {
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
   const [target, setTarget] = useState<{ id: string; place: Place }>();
-  const reveal = currentPage && pathname === `/notes/${currentPage.id}` && !currentPage.quick && !currentPage.template
+  const reveal = currentPage && pathname === noteHref(currentPage) && !currentPage.quick && !currentPage.template
     ? { spaceId: currentPage.spaceId, path: [...currentPage.path.map((page) => page.id), currentPage.id] }
     : undefined;
   const revealKey = reveal ? `${reveal.spaceId}|${reveal.path.join('|')}` : '';
