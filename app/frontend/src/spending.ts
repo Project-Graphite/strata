@@ -1,6 +1,5 @@
-import { useSyncExternalStore } from 'react';
 import type { TagColor } from '@project-graphite/ui';
-import { useResource } from './useResource';
+import { useResource, type LiveOptions } from './useResource';
 
 export interface SpendingCategory {
   name: string;
@@ -66,6 +65,7 @@ export interface MoneyAccount {
   dueDay: number | null;
   balanceMinor: number;
   missing: string[];
+  archivedAt: string | null;
 }
 
 export interface KnownCard {
@@ -212,6 +212,7 @@ export interface SpendingMonth {
   receivedMinor: number;
   budgetMinor: number | null;
   committedMinor: number;
+  budgetsEnabled: boolean;
   categories: { category: string; spentMinor: number; budgetMinor: number | null; carriedMinor: number }[];
   budgets: { category: string; amountMinor: number; currency: string }[];
   expenses: Expense[];
@@ -237,39 +238,10 @@ export const spendingHref = (tab: SpendingTab, params?: URLSearchParams) => {
 export const spendingTabs = (active: SpendingTab, params: URLSearchParams) =>
   spendingTabList.map(([key, label]) => ({ active: key === active, href: spendingHref(key, params), label }));
 
-const byCategoryKey = 'strata-spending-by-category';
-const byCategoryListeners = new Set<() => void>();
-let byCategoryShown = (() => {
-  try {
-    return localStorage.getItem(byCategoryKey) !== 'hidden';
-  } catch {
-    return true;
-  }
-})();
-
-const showByCategory = (shown: boolean) => {
-  byCategoryShown = shown;
-  try {
-    localStorage.setItem(byCategoryKey, shown ? 'shown' : 'hidden');
-  } catch (error) {
-    if (!(error instanceof DOMException)) throw error;
-  }
-  byCategoryListeners.forEach((listener) => listener());
-};
-
-export function useByCategory() {
-  const shown = useSyncExternalStore(
-    (listener) => {
-      byCategoryListeners.add(listener);
-      return () => byCategoryListeners.delete(listener);
-    },
-    () => byCategoryShown,
-  );
-  return [shown, showByCategory] as const;
-}
+export const spendingLive: LiveOptions = { live: ['spending', 'items'] };
 
 export function useCategories(spaceId: string | null | undefined) {
-  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true);
+  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true, spendingLive);
 }
 
 export const categoryName = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);

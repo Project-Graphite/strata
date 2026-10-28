@@ -109,7 +109,7 @@ export class SpendingService {
 
   private async summary(userId: string, spaceId: string, month?: string) {
     const [user, plan] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true, monthStartDay: true } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true, timeZone: true, monthStartDay: true, budgetsEnabled: true } }),
       this.prisma.spendingPlan.findUnique({ where: { spaceId } }),
     ]);
     const startDay = user.monthStartDay;
@@ -135,7 +135,7 @@ export class SpendingService {
       this.categories.categories(spaceId),
     ]);
     const expenses = rows.map(present);
-    const currency = user.homeCurrency ?? plan?.currency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EUR';
+    const currency = user.homeCurrency ?? plan?.currency ?? budgets[0]?.currency ?? expenses[0]?.currency ?? 'EGP';
     const missing = new Set<string>();
     const shown = (amountMinor: number | bigint, from: string) => {
       if (from === currency) return Number(amountMinor);
@@ -190,6 +190,7 @@ export class SpendingService {
       carriedMinor,
       safeDailyMinor: budgetMinor !== null && today >= from && today < to ? Math.floor(Math.max(0, budgetMinor - spentMinor) / daysBetween(today, to)) : null,
       committedMinor,
+      budgetsEnabled: user.budgetsEnabled,
       categories: totals,
       budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: Number(budget.amountMinor), currency: budget.currency })),
       plan: { budgetMinor: plan?.budgetMinor == null ? null : Number(plan.budgetMinor), currency: plan?.currency ?? null, startDay, rollover: plan?.rollover ?? false },
@@ -252,7 +253,7 @@ export class SpendingService {
       }),
       this.rates.table(),
     ]);
-    const currency = user.homeCurrency ?? plan?.currency ?? expenses[0]?.currency ?? 'EUR';
+    const currency = user.homeCurrency ?? plan?.currency ?? expenses[0]?.currency ?? 'EGP';
     const missing = new Set<string>();
     const shown = (amountMinor: number, from: string) => {
       if (from === currency) return amountMinor;

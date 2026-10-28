@@ -5,7 +5,7 @@ import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { saveBlob } from '../files';
 import { phoneCaptureAttention, useNativeCaptureStatus } from '../native-capture';
-import { spendingTabs, useByCategory, useCategories, type MoneyAccount, type SpendingCategory, type SpendingTab } from '../spending';
+import { spendingTabs, useCategories, type MoneyAccount, type SpendingCategory, type SpendingTab } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -23,7 +23,7 @@ export function SpendingFrame({
   accounts,
   categories,
   children,
-  currency = 'EUR',
+  currency = 'EGP',
   onChanged,
   tab,
   toolbar,
@@ -40,7 +40,6 @@ export function SpendingFrame({
   const action = useAction();
   const [params] = useSearchParams();
   const { spaceId, space, editable } = usePersonalSpace();
-  const [byCategory, showByCategory] = useByCategory();
   const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories' | 'rules'>();
   const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
@@ -64,7 +63,6 @@ export function SpendingFrame({
                       { label: 'Edit rules', onSelect: () => setDialog('rules') },
                     ]
                   : []),
-                { label: byCategory ? 'Hide spending by category' : 'Show spending by category', onSelect: () => showByCategory(!byCategory) },
                 {
                   label: 'Export CSV',
                   onSelect: () =>

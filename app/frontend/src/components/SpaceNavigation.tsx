@@ -23,12 +23,13 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const parents = page?.path.map((parent) => ({ href: `/notes/${parent.id}`, label: parent.title || 'Untitled' })) ?? (current?.back && current.back.to !== root.href ? [{ href: current.back.to, label: current.back.label }] : []);
   const title = page ? noteTitle(page) : /^\/(?:notes|boards)\//.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
+  const personal = active === '/spending' ? spaces.data?.find((candidate) => candidate.kind === 'personal') : undefined;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
   return (
     <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-small text-muted">
       <ol className="m-0 flex min-w-0 list-none items-center gap-1 p-0 sm:gap-2">
         <li className="min-w-0 max-w-[35%] shrink-0 sm:max-w-[45%]">
-          <Menu
+          {personal ? <span className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-1 px-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={personal} /></span><span className="min-w-0 truncate">{personal.name}</span></span> : <Menu
             items={[
               ...(spaces.data ?? []).map((candidate) => ({
                 label: candidate.name,
@@ -44,7 +45,7 @@ export function SpaceNavigation({ active }: { active: string | null }) {
             trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate">{space.name}</span><span className="shrink-0"><Icon name="chevron-down" size={14} /></span></span>}
             triggerClassName="min-h-11 max-w-full min-w-0 px-1"
             triggerLabel={`Switch space: ${space.name}`}
-          />
+          />}
         </li>
         <li className={`${title || tab ? 'hidden sm:flex' : 'flex'} min-w-0 max-w-24 shrink-0 items-center gap-1 sm:max-w-48 sm:gap-2`}>
           <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>

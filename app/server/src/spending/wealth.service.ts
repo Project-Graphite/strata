@@ -78,7 +78,7 @@ export class WealthService {
       this.prisma.installmentPlan.findMany({ where: { spaceId } }),
       this.rates.table(),
     ]);
-    const currency = user.homeCurrency ?? plan?.currency ?? accounts[0]?.currency ?? assets[0]?.currency ?? 'EUR';
+    const currency = user.homeCurrency ?? plan?.currency ?? accounts[0]?.currency ?? assets[0]?.currency ?? 'EGP';
     const missing = new Set<string>();
     const total = (rows: { amountMinor: number | bigint; currency: string }[]) =>
       rows.reduce((sum, row) => {

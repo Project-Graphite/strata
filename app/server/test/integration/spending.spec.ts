@@ -225,7 +225,12 @@ describe('Spending and budgets against Postgres', () => {
       carriedMinor: 96_000,
       safeDailyMinor: null,
       plan: { budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true },
+      budgetsEnabled: true,
     });
+    await owner.call('PATCH', '/me', { budgetsEnabled: false });
+    expect((await owner.call('GET', `/spaces/${home.id}/spending?month=2026-08`)).body.budgetsEnabled).toBe(false);
+    await owner.call('PATCH', '/me', { budgetsEnabled: true });
+    expect((await partner.call('GET', `/spaces/${partner.personalSpaceId}/spending`)).body).toMatchObject({ currency: 'EGP', budgetsEnabled: true });
     expect(august.categories).toEqual([{ category: 'groceries', spentMinor: 8000, budgetMinor: 16_000, carriedMinor: 6000 }]);
 
     const today = new Date().toISOString().slice(0, 10);

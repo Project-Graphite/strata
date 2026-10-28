@@ -10,7 +10,7 @@ import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
-import { assetKindOptions, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
+import { assetKindOptions, spendingLive, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -23,9 +23,9 @@ export function NetWorthPage() {
   const auth = useAuth();
   const action = useAction();
   const { spaceId, space, editable } = usePersonalSpace();
-  const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true);
-  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true);
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true, spendingLive);
+  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true, spendingLive);
+  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
   const [dialog, setDialog] = useState<
     { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { deleteGoal: SavingsGoal } | { deleteAsset: Asset }
   >();

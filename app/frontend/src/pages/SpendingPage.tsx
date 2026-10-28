@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Select, Skeleton, TextField, Toggle } from '@project-graphite/ui';
+import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Select, Skeleton, Stat, StatGrid, TextField, Toggle } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -15,14 +15,14 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
   categoryName,
   expenseCategories,
   spendingHref,
-  useByCategory,
+  spendingLive,
   useCategories,
   type CapturedMessage,
   type Expense,
@@ -41,7 +41,7 @@ import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
 import { CurrencyField } from '../components/CurrencyField';
 import { DayOfMonthField } from '../components/DayOfMonthField';
-import { MissingRates, Stat, Stats } from '../components/Stats';
+import { MissingRates } from '../components/Stats';
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
@@ -56,11 +56,11 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
   const { spaceId, space, editable } = usePersonalSpace();
-  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true);
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true);
-  const captures = useResource<CapturedMessage[]>(spaceId ? `/spaces/${spaceId}/captures` : null, true);
+  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true, spendingLive);
+  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
+  const captures = useResource<CapturedMessage[]>(spaceId && tab === 'overview' ? `/spaces/${spaceId}/captures` : null, true, spendingLive);
   const categories = useCategories(spaceId);
-  const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true);
+  const installments = useResource<InstallmentPlan[]>(spaceId && tab === 'accounts' ? `/spaces/${spaceId}/installments` : null, true, spendingLive);
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
     | 'plan'
@@ -76,32 +76,23 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   >();
   const [opened, setOpened] = useState<string[]>([]);
   const toggleMessage = (id: string) => setOpened((current) => (current.includes(id) ? current.filter((shown) => shown !== id) : [...current, id]));
-  const [byCategory, showByCategory] = useByCategory();
   const shown = summary.data;
-  const currency = shown?.currency ?? 'EUR';
+  const currency = shown?.currency ?? 'EGP';
+  const budgeted = Boolean(shown?.budgetsEnabled && shown.budgetMinor !== null);
+  const openAccounts = accounts.data?.filter((account) => !account.archivedAt);
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
   const cardName = (digits: string, accountId: string | null) => [accountName(accountId), `•••• ${digits}`].filter(Boolean).join(' ');
   const card = params.get('card');
   const listed = (shown?.expenses ?? []).filter((expense) => tab !== 'transactions' || !card || expense.cardDigits === card);
   const cards = [...new Map((shown?.expenses ?? []).filter((expense) => expense.cardDigits).map((expense) => [expense.cardDigits!, cardName(expense.cardDigits!, expense.accountId)])).entries()];
-  const cardTotals = [
-    ...(shown?.expenses ?? [])
-      .filter((expense) => expense.cardDigits && expense.direction === 'spent')
-      .reduce((totals, expense) => {
-        const key = `${expense.cardDigits}-${expense.currency}`;
-        const total = totals.get(key) ?? { key, label: cardName(expense.cardDigits!, expense.accountId), currency: expense.currency, spentMinor: 0 };
-        return totals.set(key, { ...total, spentMinor: total.spentMinor + expense.amountMinor });
-      }, new Map<string, { key: string; label: string; currency: string; spentMinor: number }>())
-      .values(),
-  ];
   const shape = useRememberedShape(
     `spending-${tab}${tab === 'transactions' && card ? '-card' : ''}`,
     shown &&
       (tab === 'overview'
-        ? [
-            shown.budgetMinor === null ? 0 : 1,
-            cardTotals.length,
+        ? openAccounts && [
+            budgeted ? 1 : 0,
             captures.data?.length ?? 0,
+            openAccounts.length,
             Math.min(shown.categories.filter((row) => row.spentMinor > 0).length, chartedCount + 1),
             Math.min(shown.expenses.length, recentCount + 1),
           ]
@@ -110,7 +101,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           : tab === 'budgets'
             ? [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]
             : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
-    tab === 'overview' ? [0, 0, 0, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3] : [2, 0],
+    tab === 'overview' ? [0, 0, 1, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3] : [2, 0],
   );
   const reload = () => {
     summary.reload();
@@ -205,124 +196,94 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
     >
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
-      ) : !shown || (tab === 'accounts' && [accounts, installments].some((resource) => !resource.data && !resource.error)) ? (
+      ) : !shown || ((tab === 'accounts' ? [accounts, installments] : tab === 'overview' ? [accounts] : []).some((resource) => !resource.data && !resource.error)) ? (
         <Placeholder className="grid gap-8" label="Adding up the month">
-          <SpendingSkeleton byCategory={byCategory} editable={!space || editable} shape={shape} tab={tab} />
+          <SpendingSkeleton editable={!space || editable} shape={shape} tab={tab} />
         </Placeholder>
       ) : (
         <>
           {tab === 'overview' && (
-            <Stats>
-              <Stat label="Spent" value={<Amount currency={currency} minor={shown.spentMinor} tween />} />
-              {shown.budgetMinor !== null && (
+            <StatGrid>
+              <Stat
+                detail={shown.receivedMinor > 0 && `${money(shown.receivedMinor, currency)} received`}
+                label="Spent"
+                value={<Amount currency={currency} minor={shown.spentMinor} tween />}
+              />
+              {budgeted && (
                 <>
                   <Stat
                     label="Left to spend"
+                    meter={<Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor! : 1} />}
                     value={
-                      shown.spentMinor > shown.budgetMinor ? (
-                        <Amount currency={currency} danger minor={shown.spentMinor - shown.budgetMinor} tween>
+                      shown.spentMinor > shown.budgetMinor! ? (
+                        <Amount currency={currency} danger minor={shown.spentMinor - shown.budgetMinor!} tween>
                           {' over'}
                         </Amount>
                       ) : (
-                        <Amount currency={currency} minor={shown.budgetMinor - shown.spentMinor} tween />
+                        <Amount currency={currency} minor={shown.budgetMinor! - shown.spentMinor} tween />
                       )
                     }
-                  >
-                    <Meter label="Spent of the whole budget" value={shown.budgetMinor ? shown.spentMinor / shown.budgetMinor : 1} />
-                  </Stat>
+                  />
                   <Stat label="Safe to spend a day" value={shown.safeDailyMinor === null ? '—' : <Amount currency={currency} minor={shown.safeDailyMinor} tween />} />
                 </>
               )}
-              <Stat label="Received" value={<Amount currency={currency} minor={shown.receivedMinor} tween />} />
-            </Stats>
+              <Stat detail="Subscriptions renewing this month" label="Committed" value={<Amount currency={currency} minor={shown.committedMinor} tween />} />
+            </StatGrid>
           )}
           <MissingRates currencies={shown.missing} />
 
-          {tab === 'overview' && cardTotals.length > 0 && (
-            <Section title="By card">
-              <Stats>
-                {cardTotals.map((total) => (
-                  <Stat key={total.key} label={total.label} value={<Amount currency={total.currency} minor={total.spentMinor} tween />} />
+          {tab === 'overview' && Boolean(captures.data?.length) && (
+            <Section title={`To review (${captures.data!.length})`}>
+              <ul className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">
+                {captures.data!.map((message) => (
+                  <ReviewCard
+                    accountName={accountName}
+                    editable={editable}
+                    key={message.id}
+                    message={message}
+                    onAdd={(ready) =>
+                      void action.run(async () => {
+                        await auth.request(`/captures/${message.id}/record`, { method: 'POST', body: JSON.stringify(ready) });
+                        reload();
+                        return `Added ${ready.title}.`;
+                      }, 'Could not add the transaction')
+                    }
+                    onEdit={(report) => setDialog({ capture: message, report })}
+                    onIgnore={(by) =>
+                      by
+                        ? setDialog({ ignoreAlways: message, by })
+                        : void action.run(async () => {
+                            await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                            captures.mutate((current) => current.filter((listed) => listed.id !== message.id));
+                            return `Ignored the message from ${message.suggestion.title ?? message.suggestion.merchant ?? message.sender}.`;
+                          }, 'Could not ignore the message')
+                    }
+                    opened={opened.includes(message.id)}
+                    onToggleMessage={() => toggleMessage(message.id)}
+                  />
                 ))}
-              </Stats>
+              </ul>
             </Section>
           )}
 
-          {tab === 'overview' && Boolean(captures.data?.length) && (
-            <Section title={`To review (${captures.data!.length})`}>
-              <ul className="panel-rows">
-                {captures.data!.map((message) => {
-                  const suggested = message.suggestion;
-                  const name = suggested.title ?? suggested.merchant ?? message.sender;
-                  const ready = quickAdd(message);
-                  return (
+          {tab === 'overview' && (
+            <Section action={Boolean(openAccounts?.length) && <ButtonLink label="All accounts" to={spendingHref('accounts', params)} />} title="By account">
+              {accounts.error ? (
+                <LoadError compact error={accounts.error} onRetry={accounts.reload} />
+              ) : !openAccounts?.length ? (
+                <Hint>No accounts yet. Add your bank accounts, cards and wallets under Accounts to follow their balances here.</Hint>
+              ) : (
+                <ul className="panel-rows">
+                  {openAccounts.map((account) => (
                     <ListRow
-                      key={message.id}
-                      meta={[
-                        formatDate(suggested.occurredOn ?? dayKey(new Date(message.receivedAt))),
-                        suggested.transfer
-                          ? `Transfer from ${accountName(suggested.transfer.fromAccountId) ?? 'Removed account'} to ${accountName(suggested.transfer.toAccountId) ?? 'Removed account'}?`
-                          : [
-                              suggested.direction === 'received' ? 'Received' : suggested.category ? categoryName(suggested.category) : 'No category',
-                              accountName(suggested.accountId) ?? 'No account',
-                            ].join(' · '),
-                        suggested.cardDigits && `•••• ${suggested.cardDigits}`,
-                        suggested.paymentLabel ?? message.sender,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      title={name}
-                      trail={
-                        <>
-                          {suggested.amountMinor !== null && suggested.currency && <Amount currency={suggested.currency} direction={suggested.direction} minor={suggested.amountMinor} />}
-                          {editable && (
-                            <>
-                              <Button
-                                label="Add"
-                                onClick={() =>
-                                  ready
-                                    ? void action.run(async () => {
-                                        await auth.request(`/captures/${message.id}/record`, { method: 'POST', body: JSON.stringify(ready) });
-                                        reload();
-                                        return `Added ${ready.title}.`;
-                                      }, 'Could not add the transaction')
-                                    : setDialog({ capture: message })
-                                }
-                              />
-                              <ActionsMenu
-                                items={[
-                                  { label: 'Edit and add', onSelect: () => setDialog({ capture: message }) },
-                                  { label: opened.includes(message.id) ? 'Hide message' : 'Show message', onSelect: () => toggleMessage(message.id) },
-                                  { label: 'Report parsing', onSelect: () => setDialog({ capture: message, report: true }) },
-                                  {
-                                    label: 'Ignore',
-                                    separated: true,
-                                    onSelect: () =>
-                                      void action.run(async () => {
-                                        await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
-                                        captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
-                                        return `Ignored the message from ${name}.`;
-                                      }, 'Could not ignore the message'),
-                                  },
-                                  ...(suggested.merchant ? [{ label: `Always ignore ${suggested.merchant}`, onSelect: () => setDialog({ ignoreAlways: message, by: 'merchant' }) }] : []),
-                                  { label: `Always ignore ${message.sender}`, onSelect: () => setDialog({ ignoreAlways: message, by: 'sender' }) },
-                                ]}
-                                name={name}
-                              />
-                            </>
-                          )}
-                        </>
-                      }
-                    >
-                      {opened.includes(message.id) && (
-                        <p className="m-0 text-small text-muted" dir="auto">
-                          {message.text}
-                        </p>
-                      )}
-                    </ListRow>
-                  );
-                })}
-              </ul>
+                      key={account.id}
+                      meta={accountKindOptions.find((option) => option.value === account.kind)?.label}
+                      title={account.name}
+                      trail={<AccountBalance account={account} />}
+                    />
+                  ))}
+                </ul>
+              )}
             </Section>
           )}
 
@@ -344,9 +305,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                       title={account.name}
                       trail={
                         <>
-                          <Amount currency={account.currency} minor={account.kind === 'credit_card' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
-                            {account.kind === 'credit_card' && ' owed'}
-                          </Amount>
+                          <AccountBalance account={account} />
                           {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
                         </>
                       }
@@ -414,8 +373,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             </Section>
           )}
 
-          {tab === 'overview' && byCategory && (
-            <Section action={<TextButton label="Hide" onClick={() => showByCategory(false)} />} title="By category">
+          {tab === 'overview' && (
+            <Section title="By category">
               {shown.categories.some((row) => row.spentMinor > 0) ? (
                 <CategoryChart colourOf={colourOf} currency={currency} rows={shown.categories} />
               ) : (
@@ -628,7 +587,108 @@ function quickAdd({ receivedAt, sender, suggestion }: CapturedMessage) {
   };
 }
 
-function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: boolean; editable: boolean; shape: number[]; tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
+function AccountBalance({ account }: { account: MoneyAccount }) {
+  return (
+    <Amount currency={account.currency} minor={account.kind === 'credit_card' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+      {account.kind === 'credit_card' && ' owed'}
+    </Amount>
+  );
+}
+
+function ReviewCard({
+  accountName,
+  editable,
+  message,
+  onAdd,
+  onEdit,
+  onIgnore,
+  onToggleMessage,
+  opened,
+}: {
+  accountName: (id: string | null) => string | undefined;
+  editable: boolean;
+  message: CapturedMessage;
+  onAdd: (ready: NonNullable<ReturnType<typeof quickAdd>>) => void;
+  onEdit: (report: boolean) => void;
+  onIgnore: (by?: 'sender' | 'merchant') => void;
+  onToggleMessage: () => void;
+  opened: boolean;
+}) {
+  const suggested = message.suggestion;
+  const name = suggested.title ?? suggested.merchant ?? message.sender;
+  const ready = quickAdd(message);
+  const fields = [
+    ...(suggested.transfer
+      ? [
+          ['From', accountName(suggested.transfer.fromAccountId) ?? 'Removed account'],
+          ['To', accountName(suggested.transfer.toAccountId) ?? 'Removed account'],
+        ]
+      : [
+          ['Account', accountName(suggested.accountId) ?? 'Not matched'],
+          ['Category', suggested.direction === 'received' ? 'Income' : suggested.category ? categoryName(suggested.category) : 'Not set'],
+        ]),
+    ...(suggested.cardDigits ? [['Card', `•••• ${suggested.cardDigits}`]] : []),
+    ...(suggested.paymentLabel ? [['Paid with', suggested.paymentLabel]] : []),
+    ['Sender', message.sender],
+  ];
+
+  return (
+    <Card as="li" className="gap-3" padding="sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid min-w-0 gap-0.5">
+          <p className="m-0 truncate text-body text-ink" dir="auto">
+            {name}
+          </p>
+          <p className="m-0 text-small text-muted">
+            {[formatDate(suggested.occurredOn ?? dayKey(new Date(message.receivedAt))), suggested.transfer && 'Transfer between your accounts?'].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        {suggested.amountMinor !== null && suggested.currency ? (
+          <span className="text-h3">
+            <Amount currency={suggested.currency} direction={suggested.direction} minor={suggested.amountMinor} />
+          </span>
+        ) : (
+          <span className="shrink-0 text-small text-muted">No amount</span>
+        )}
+      </div>
+      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-small">
+        {fields.map(([label, value]) => (
+          <div className="grid min-w-0" key={label}>
+            <dt className="text-muted">{label}</dt>
+            <dd className="m-0 truncate text-ink" dir="auto">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {opened && (
+        <p className="m-0 rounded-field border border-line-soft p-3 text-small text-muted" dir="auto">
+          {message.text}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {editable && <Button label={ready ? 'Add' : 'Review and add'} onClick={() => (ready ? onAdd(ready) : onEdit(false))} primary={Boolean(ready)} />}
+        <TextButton label={opened ? 'Hide message' : 'Show message'} onClick={onToggleMessage} />
+        {editable && (
+          <span className="ms-auto">
+            <ActionsMenu
+              items={[
+                { label: 'Edit and add', onSelect: () => onEdit(false) },
+                { label: 'Report parsing', onSelect: () => onEdit(true) },
+                { label: 'Ignore', separated: true, onSelect: () => onIgnore() },
+                ...(suggested.merchant ? [{ label: `Always ignore ${suggested.merchant}`, onSelect: () => onIgnore('merchant') }] : []),
+                { label: `Always ignore ${message.sender}`, onSelect: () => onIgnore('sender') },
+              ]}
+              name={name}
+            />
+          </span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
   if (tab === 'transactions') {
     const [rows = 0] = shape;
     return rows ? (
@@ -686,44 +746,68 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
       </>
     );
   }
-  const [budgeted = 0, cardStats = 0, reviewRows = 0, chartParts = 0, recentRows = 0] = shape;
+  const [budgeted = 0, reviewCards = 0, accountRows = 0, chartParts = 0, recentRows = 0] = shape;
   return (
     <>
-      <Stats>
+      <StatGrid>
         {rowsOf(budgeted ? 4 : 2).map((stat) => (
-          <Stat key={stat} label={<SkeletonLine width="w-24" />} value={<SkeletonLine width="w-32" />}>
-            {budgeted > 0 && stat === 1 && <Skeleton className="h-1.5 rounded-full" />}
-          </Stat>
+          <Stat
+            detail={stat === 0 || stat === (budgeted ? 3 : 1) ? <SkeletonLine width="w-40 max-w-full" /> : undefined}
+            key={stat}
+            label={<SkeletonLine width="w-24" />}
+            meter={budgeted > 0 && stat === 1 && <Skeleton className="h-1.5 rounded-full" />}
+            value={<SkeletonLine width="w-32" />}
+          />
         ))}
-      </Stats>
-      {cardStats > 0 && (
-        <Section title="By card">
-          <StatsSkeleton count={cardStats} detail={false} />
+      </StatGrid>
+      {reviewCards > 0 && (
+        <Section title={`To review (${reviewCards})`}>
+          <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">
+            {rowsOf(reviewCards).map((row) => (
+              <Card as="li" className="gap-3" key={row} padding="sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-0.5">
+                    <SkeletonLine width="w-40" />
+                    <SkeletonLine className="text-small" width="w-24" />
+                  </div>
+                  <SkeletonLine className="text-h3" width="w-20" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
+                  {rowsOf(4).map((field) => (
+                    <div className="grid" key={field}>
+                      <SkeletonLine width="w-14" />
+                      <SkeletonLine width="w-24" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  {editable && <ButtonSkeleton width="w-14" />}
+                  <ButtonSkeleton width="w-28" />
+                </div>
+              </Card>
+            ))}
+          </ul>
         </Section>
       )}
-      {reviewRows > 0 && (
-        <Section title={`To review (${reviewRows})`}>
-          <AmountRowsSkeleton rows={reviewRows} trail={editable && <ButtonSkeleton width="w-14" />} />
-        </Section>
-      )}
-      {byCategory && (
-        <Section action={<ButtonSkeleton width="w-12" />} title="By category">
-          {chartParts ? (
-            <div className="grid gap-4">
-              <Skeleton className="h-4 rounded-field" />
-              <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
-                {rowsOf(chartParts).map((part) => (
-                  <li className="flex items-center gap-2 text-sm" key={part}>
-                    <SkeletonLine className="flex-1" width={part % 2 ? 'w-1/2' : 'w-2/3'} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <HintSkeleton />
-          )}
-        </Section>
-      )}
+      <Section action={accountRows > 0 && <ButtonSkeleton width="w-28" />} title="By account">
+        {accountRows ? <AmountRowsSkeleton rows={accountRows} /> : <HintSkeleton />}
+      </Section>
+      <Section title="By category">
+        {chartParts ? (
+          <div className="grid gap-4">
+            <Skeleton className="h-4 rounded-field" />
+            <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              {rowsOf(chartParts).map((part) => (
+                <li className="flex items-center gap-2 text-sm" key={part}>
+                  <SkeletonLine className="flex-1" width={part % 2 ? 'w-1/2' : 'w-2/3'} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <HintSkeleton />
+        )}
+      </Section>
       <Section action={recentRows > recentCount && <ButtonSkeleton width="w-32" />} title="Recent">
         {recentRows ? <AmountRowsSkeleton rows={Math.min(recentRows, recentCount)} /> : <HintSkeleton />}
       </Section>
