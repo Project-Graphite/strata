@@ -74,7 +74,8 @@ export function PollEditor({
   onSave: (options: { startsOn: string; startTime: string | null }[]) => Promise<unknown>;
   onCancel: () => void;
 }) {
-  const [rows, setRows] = useState(() => (options.length ? options : [{ startsOn: '', startTime: null }, { startsOn: '', startTime: null }]));
+  const blank = () => ({ id: crypto.randomUUID(), startsOn: '', startTime: null as string | null });
+  const [rows, setRows] = useState(() => (options.length ? options.map((option) => ({ ...option, id: crypto.randomUUID() })) : [blank(), blank()]));
   const saving = useAction();
   const filled = rows.filter((row) => row.startsOn);
   const update = (index: number, change: Partial<(typeof rows)[number]>) => setRows(rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
@@ -85,13 +86,13 @@ export function PollEditor({
       onSubmit={(event) => {
         event.preventDefault();
         void saving.run(async () => {
-          await onSave(filled);
+          await onSave(filled.map(({ startsOn, startTime }) => ({ startsOn, startTime })));
           return 'Saved the dates.';
         }, 'Could not save the dates');
       }}
     >
       {rows.map((row, index) => (
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto]" key={index}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto]" key={row.id}>
           <DatePicker aria-label={`Date ${index + 1}`} className="max-sm:col-span-2" onChange={(startsOn) => update(index, { startsOn })} value={row.startsOn} />
           <TimeField
             aria-label={`Time ${index + 1} (optional)`}
@@ -103,7 +104,7 @@ export function PollEditor({
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        {rows.length < 10 && <Button icon="plus" label="Add a date" onClick={() => setRows([...rows, { startsOn: '', startTime: null }])} />}
+        {rows.length < 10 && <Button icon="plus" label="Add a date" onClick={() => setRows([...rows, blank()])} />}
         <Button disabled={filled.length < 2 || saving.busy} label={saving.busy ? 'Saving…' : 'Save dates'} primary submit />
         <Button label="Cancel" onClick={onCancel} />
       </div>

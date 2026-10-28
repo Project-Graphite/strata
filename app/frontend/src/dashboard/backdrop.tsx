@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { isAbortError, type TagColor } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -84,7 +85,8 @@ export function SiteBackdrop({ children }: { children: ReactNode }) {
     dashboards.data &&
     (dashboards.data.find((dashboard) => dashboard.id === rememberedDashboard()) ??
       automaticDashboard(dashboards.data, new Date(), window.matchMedia('(max-width: 767px)').matches));
-  const { className, image } = useBackdrop(shown === undefined ? chosen?.layout.background : (shown ?? undefined));
+  const onHome = useLocation().pathname === '/';
+  const { className, image } = useBackdrop(!onHome ? undefined : shown === undefined ? chosen?.layout.background : (shown ?? undefined));
 
   useEffect(() => {
     if (!className) return;

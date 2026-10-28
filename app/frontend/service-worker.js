@@ -55,6 +55,20 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(() => caches.match(offlinePage)));
+  } else if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ??
+          fetch(request).then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              event.waitUntil(caches.open(cacheName).then((cache) => cache.put(request, copy)));
+            }
+            return response;
+          }),
+      ),
+    );
   } else if (precache.includes(url.pathname)) {
     event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
   }
