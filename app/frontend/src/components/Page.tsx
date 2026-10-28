@@ -12,15 +12,18 @@ export interface Back {
   label: string;
 }
 
+const baseTitle = document.title;
+
 export function useDocumentTitle(title: string | undefined, heading?: { title?: string; back?: Back; tab?: TabItem }) {
   const { pathname } = useLocation();
   const setTitle = useContext(HeaderTitleContext)?.setTitle;
   useEffect(() => {
     if (!title) return;
     document.title = `${title} · Strata`;
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', new URL(pathname, window.location.origin).href);
     setTitle?.({ pathname, title: heading?.title ?? title, back: heading?.back, tab: heading?.tab });
     return () => {
-      document.title = 'Strata';
+      document.title = baseTitle;
       setTitle?.((current) => current?.pathname === pathname ? undefined : current);
     };
   }, [title, pathname, setTitle, heading?.title, heading?.back?.to, heading?.back?.label, heading?.tab?.href, heading?.tab?.label]);
