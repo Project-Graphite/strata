@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { AccessModule } from './access/access.module';
 import { AccessTokensModule } from './access-tokens/access-tokens.module';
 import { TokenAuthModule } from './access-tokens/token-auth.module';
@@ -28,6 +29,7 @@ import { InboxModule } from './inbox/inbox.module';
 import { ItemsModule } from './items/items.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -47,6 +49,7 @@ import { WidgetsModule } from './widgets/widgets.module';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
     PrismaModule,
     CryptoModule,
@@ -91,6 +94,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     WebhooksModule,
     WidgetsModule,
     HealthModule,
+    MetricsModule,
   ],
 })
 export class AppModule {}

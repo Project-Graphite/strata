@@ -48,6 +48,19 @@ describe('validateEnvironment', () => {
     expect(() => validateEnvironment({ ...settings, REDIS_URL: 'http://redis:6379' })).toThrow('REDIS_URL');
   });
 
+  it('takes an optional https Sentry address', () => {
+    expect(() => validateEnvironment({ ...settings, SENTRY_DSN: 'https://public-key@o123.ingest.sentry.io/456' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, SENTRY_DSN: '' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, SENTRY_DSN: 'http://public-key@o123.ingest.sentry.io/456' })).toThrow('SENTRY_DSN');
+    expect(() => validateEnvironment({ ...settings, SENTRY_DSN: 'not-an-address' })).toThrow('SENTRY_DSN');
+  });
+
+  it('takes an optional metrics token of at least 32 characters', () => {
+    expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: realSecret })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: '' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: 'too-short' })).toThrow('METRICS_TOKEN');
+  });
+
   it('accepts only an absolute files directory', () => {
     expect(() => validateEnvironment({ ...settings, FILES_ROOT: resolve('files') })).not.toThrow();
     expect(() => validateEnvironment({ ...settings, FILES_ROOT: '' })).not.toThrow();

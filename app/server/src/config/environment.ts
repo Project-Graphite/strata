@@ -69,6 +69,15 @@ class Environment {
   @IsOptional()
   @Matches(/^(mailto:|https:\/\/)\S+$/, { message: 'VAPID_SUBJECT must be a mailto: or https:// address' })
   VAPID_SUBJECT?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  SENTRY_DSN?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(32)
+  METRICS_TOKEN?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>) {

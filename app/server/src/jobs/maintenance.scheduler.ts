@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ChangesService } from '../changes/changes.service';
 import { FilesService } from '../files/files.service';
+import { backgroundJobFailures } from '../metrics/metrics';
 import { PrismaService } from '../prisma/prisma.service';
 
 const runIntervalMs = 5 * 60 * 1000;
@@ -39,6 +40,7 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
     try {
       await this.changes.afterWork(() => this.prune(now));
     } catch (error) {
+      backgroundJobFailures.inc({ kind: 'maintenance' });
       this.logger.error('Maintenance run failed; retrying on the next run', error);
     } finally {
       this.running = false;
