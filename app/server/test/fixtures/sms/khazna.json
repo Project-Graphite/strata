@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Khazna",
+  "messages": [
+    {
+      "sender": "Khazna",
+      "text": "Khazna: Your salary advance of EGP 1,500.00 has been sent to your wallet 010XXXXXXXX",
+      "expect": { "direction": "received", "amount": 1500, "currency": "EGP", "movement": "transfer" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "Khazna: You paid EGP 230.00 for SAMPLE INTERNET bill",
+      "expect": { "direction": "spent", "amount": 230, "currency": "EGP", "merchant": "SAMPLE INTERNET", "movement": "bill" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "Khazna: You paid EGP 120.00 at SAMPLE STORE",
+      "expect": { "direction": "spent", "amount": 120, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "purchase" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "Khazna: EGP 1,500.00 has been settled from your salary for your advances",
+      "expect": { "direction": "spent", "amount": 1500, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "Khazna: Mobile recharge of EGP 50.00 for 010XXXXXXXX was successful",
+      "expect": { "direction": "spent", "amount": 50, "currency": "EGP", "movement": "bill" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "خزنة: تم تحويل سلفة بمبلغ 2,000.00 جنيه إلى محفظتك 010XXXXXXXX",
+      "expect": { "direction": "received", "amount": 2000, "currency": "EGP", "movement": "transfer" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "خزنة: تم سداد فاتورة SAMPLE GAS بمبلغ 140.00 جنيه",
+      "expect": { "direction": "spent", "amount": 140, "currency": "EGP", "merchant": "SAMPLE GAS", "movement": "bill" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "خزنة: تم دفع 95.00 جنيه لدى SAMPLE CAFE",
+      "expect": { "direction": "spent", "amount": 95, "currency": "EGP", "merchant": "SAMPLE CAFE", "movement": "purchase" }
+    },
+    {
+      "sender": "Khazna",
+      "text": "خزنة: تم خصم 2,000.00 جنيه من راتبك لسداد السلف",
+      "expect": { "direction": "spent", "amount": 2000, "currency": "EGP", "movement": "installment" }
+    },
+    { "sender": "Khazna", "text": "Khazna: Your verification code is 482913", "expect": { "ignored": "code" } },
+    { "sender": "Khazna", "text": "خزنة: رمز التحقق الخاص بك هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "Khazna", "text": "Khazna: Enjoy 0% fees on your first salary advance this month", "expect": { "ignored": "promotion" } }
+  ]
+}

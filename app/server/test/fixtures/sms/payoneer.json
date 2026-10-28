@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Payoneer",
+  "messages": [
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: You have received a payment of USD 1,200.00 from SAMPLE MARKETPLACE",
+      "expect": { "direction": "received", "amount": 1200, "currency": "USD", "merchant": "SAMPLE MARKETPLACE", "movement": "income" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: SAMPLE CLIENT has paid you USD 800.00",
+      "expect": { "direction": "received", "amount": 800, "currency": "USD", "merchant": "SAMPLE CLIENT", "movement": "income" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: EUR 500.00 has been received in your EUR balance from SAMPLE AGENCY",
+      "expect": { "direction": "received", "amount": 500, "currency": "EUR", "merchant": "SAMPLE AGENCY", "movement": "income" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: You have received USD 300.00 from MONA SAMPLE",
+      "expect": { "direction": "received", "amount": 300, "currency": "USD", "merchant": "MONA SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: You have sent USD 150.00 to AHMED SAMPLE",
+      "expect": { "direction": "spent", "amount": 150, "currency": "USD", "merchant": "AHMED SAMPLE", "movement": "transfer" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: Your withdrawal of USD 1,000.00 to your bank account ending 1234 has been processed",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "USD", "cardDigits": "1234", "movement": "transfer" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: Your Payoneer card ending 1234 was charged USD 25.00 at SAMPLE.COM",
+      "expect": { "direction": "spent", "amount": 25, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: Your card ending 1234 was used to withdraw USD 100.00 at ATM SAMPLE",
+      "expect": { "direction": "spent", "amount": 100, "currency": "USD", "cardDigits": "1234", "merchant": "ATM SAMPLE", "movement": "atm" }
+    },
+    {
+      "sender": "Payoneer",
+      "text": "Payoneer: A fee of USD 3.00 has been charged for your withdrawal",
+      "expect": { "direction": "spent", "amount": 3, "currency": "USD", "movement": "fee" }
+    },
+    { "sender": "Payoneer", "text": "Payoneer: Your verification code is 482913", "expect": { "ignored": "code" } },
+    { "sender": "Payoneer", "text": "Payoneer: Your one-time password is 739102. It expires in 5 minutes.", "expect": { "ignored": "code" } },
+    { "sender": "Payoneer", "text": "Payoneer: Refer a friend and win up to USD 100 this month", "expect": { "ignored": "promotion" } }
+  ]
+}

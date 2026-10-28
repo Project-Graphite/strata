@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Sympl",
+  "messages": [
+    {
+      "sender": "Sympl",
+      "text": "Sympl: Your order of EGP 3,600.00 at SAMPLE STORE is confirmed in 4 instalments",
+      "expect": { "direction": "spent", "amount": 3600, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "purchase" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "Sympl: Your order of EGP 1,200.00 at SAMPLE PHARMACY is confirmed in 3 instalments",
+      "expect": { "direction": "spent", "amount": 1200, "currency": "EGP", "merchant": "SAMPLE PHARMACY", "movement": "purchase" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "Sympl: Instalment 2 of 4 of EGP 900.00 for SAMPLE STORE has been paid",
+      "expect": { "direction": "spent", "amount": 900, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "installment" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "Sympl: We received your payment of EGP 900.00 for SAMPLE STORE",
+      "expect": { "direction": "spent", "amount": 900, "currency": "EGP", "merchant": "SAMPLE STORE", "movement": "installment" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "Sympl: Refund of EGP 600.00 from SAMPLE FASHION has been processed",
+      "expect": { "direction": "refund", "amount": 600, "currency": "EGP", "merchant": "SAMPLE FASHION", "movement": "refund" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "سيمبل: تم تأكيد طلبك بقيمة 2,400.00 جنيه من SAMPLE ELECTRONICS على 4 أقساط",
+      "expect": { "direction": "spent", "amount": 2400, "currency": "EGP", "merchant": "SAMPLE ELECTRONICS", "movement": "purchase" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "سيمبل: تم سداد القسط بقيمة 600.00 جنيه لطلب SAMPLE ELECTRONICS",
+      "expect": { "direction": "spent", "amount": 600, "currency": "EGP", "merchant": "SAMPLE ELECTRONICS", "movement": "installment" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "سيمبل: تم استلام دفعتك بقيمة 600.00 جنيه",
+      "expect": { "direction": "spent", "amount": 600, "currency": "EGP", "movement": "installment" }
+    },
+    {
+      "sender": "Sympl",
+      "text": "سيمبل: تم استرداد 300.00 جنيه من SAMPLE FASHION",
+      "expect": { "direction": "refund", "amount": 300, "currency": "EGP", "merchant": "SAMPLE FASHION", "movement": "refund" }
+    },
+    { "sender": "Sympl", "text": "Sympl: Your OTP is 482913. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "Sympl", "text": "سيمبل: رمز التحقق الخاص بك هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "Sympl", "text": "Sympl: Split any purchase into 4 with 0% interest at partner stores. Offer valid until 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}

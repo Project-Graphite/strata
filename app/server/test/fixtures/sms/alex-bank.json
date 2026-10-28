@@ -1,0 +1,54 @@
+{
+  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "institution": "Alex Bank",
+  "messages": [
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Card ****1234 purchase EGP 315.50 at SAMPLE STORE on 14/10/2026 11:05. Available EGP 6,684.50",
+      "expect": { "direction": "spent", "amount": 315.5, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE STORE", "available": 6684.5, "movement": "purchase", "occurredOn": "2026-10-14" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Card ****1234 purchase USD 15.00 at SAMPLE.COM on 16/10/2026",
+      "expect": { "direction": "spent", "amount": 15, "currency": "USD", "cardDigits": "1234", "merchant": "SAMPLE.COM", "movement": "purchase", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Card ****1234 ATM withdrawal EGP 2,000.00 at ALEXBANK ATM SAMPLE on 15/10/2026. Available EGP 4,684.50",
+      "expect": { "direction": "spent", "amount": 2000, "currency": "EGP", "cardDigits": "1234", "merchant": "ALEXBANK ATM SAMPLE", "available": 4684.5, "movement": "atm", "occurredOn": "2026-10-15" }
+    },
+    {
+      "sender": "AlexBank",
+      "text": "ALEXBANK: Account ****1234 credited EGP 3,200.00 from AHMED SAMPLE on 17/10/2026. Available EGP 7,884.50",
+      "expect": { "direction": "received", "amount": 3200, "currency": "EGP", "cardDigits": "1234", "merchant": "AHMED SAMPLE", "available": 7884.5, "movement": "transfer", "occurredOn": "2026-10-17" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Account ****1234 debited EGP 1,100.00 transfer to MONA SAMPLE on 18/10/2026. Ref 4412345",
+      "expect": { "direction": "spent", "amount": 1100, "currency": "EGP", "cardDigits": "1234", "merchant": "MONA SAMPLE", "movement": "transfer", "occurredOn": "2026-10-18", "reference": "4412345" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Account ****1234 credited EGP 19,500.00 salary on 25/10/2026",
+      "expect": { "direction": "received", "amount": 19500, "currency": "EGP", "cardDigits": "1234", "movement": "salary", "occurredOn": "2026-10-25" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "ALEXBANK: Credit card ****1234 payment EGP 2,500.00 received on 20/10/2026",
+      "expect": { "direction": "received", "amount": 2500, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-10-20" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "بنك الإسكندرية: تم خصم 210.00 جم من بطاقتك ****1234 لدى SAMPLE PHARMACY بتاريخ 19/10/2026",
+      "expect": { "direction": "spent", "amount": 210, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE PHARMACY", "movement": "purchase", "occurredOn": "2026-10-19" }
+    },
+    {
+      "sender": "ALEXBANK",
+      "text": "بنك الإسكندرية: تم سداد فاتورة SAMPLE INTERNET بمبلغ 250.00 جم من حسابك ****1234 بتاريخ 21/10/2026",
+      "expect": { "direction": "spent", "amount": 250, "currency": "EGP", "cardDigits": "1234", "merchant": "SAMPLE INTERNET", "movement": "bill", "occurredOn": "2026-10-21" }
+    },
+    { "sender": "ALEXBANK", "text": "ALEXBANK: Your OTP is 482913. Do not share it.", "expect": { "ignored": "code" } },
+    { "sender": "ALEXBANK", "text": "رمز التحقق الخاص بك هو 739102", "expect": { "ignored": "code" } },
+    { "sender": "ALEXBANK", "text": "ALEXBANK: Get 5% cashback on groceries with your ALEXBANK card until 31/12/2026", "expect": { "ignored": "promotion" } }
+  ]
+}
