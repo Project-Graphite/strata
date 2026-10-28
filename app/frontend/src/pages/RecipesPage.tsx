@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Placeholder } from '@project-graphite/ui';
+import { useNavigate } from 'react-router';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 
 const empty = { title: 'No recipes yet', hint: 'Write down the recipes you cook, or paste a link to read one from a recipe site.' };
@@ -71,11 +70,7 @@ export function RecipesPage() {
       ) : (
         <ul className="panel-rows">
           {recipes.data.map((recipe) => (
-            <li key={recipe.id}>
-              <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/recipes/${recipe.id}`}>
-                <RowText detail={[recipe.spaceName, recipeFacts(recipe)].filter(Boolean).join(' · ')} title={recipe.title} />
-              </Link>
-            </li>
+            <ListRow href={`/recipes/${recipe.id}`} key={recipe.id} meta={[recipe.spaceName, recipeFacts(recipe)].filter(Boolean).join(' · ')} title={recipe.title} />
           ))}
         </ul>
       )}

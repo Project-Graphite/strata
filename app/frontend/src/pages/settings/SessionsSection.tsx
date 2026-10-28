@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Placeholder, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -7,8 +7,7 @@ import { SecurityLog } from './SecurityLog';
 import { Section } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 import { Button } from '../../components/Button';
-import { RowText } from '../../components/RowText';
-import { ButtonSkeleton, RowTextSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, RowSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
 
 interface Session {
   id: string;
@@ -41,23 +40,19 @@ export function SessionsSection() {
           <Placeholder label="Loading your sessions">
             <ul aria-hidden="true" className="panel-rows">
               {rowsOf(rows).map((row) => (
-                <li className="flex items-center gap-3 panel-row" key={row}>
-                  <RowTextSkeleton row={row} />
-                  {row > 0 && <ButtonSkeleton width="w-18" />}
-                </li>
+                <RowSkeleton key={row} row={row} trail={row > 0 && <ButtonSkeleton width="w-18" />} />
               ))}
             </ul>
           </Placeholder>
         ) : (
           <ul className="panel-rows">
             {sessions.data.map((session) => (
-              <li className="flex items-center gap-3 panel-row" key={session.id}>
-                <RowText
-                  detail={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
-                  title={session.current ? `${session.deviceLabel} · this device` : session.deviceLabel}
-                />
-                {!session.current && <Button label="Sign out" onClick={() => setSigningOut(session)} />}
-              </li>
+              <ListRow
+                key={session.id}
+                meta={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
+                title={session.current ? `${session.deviceLabel} · this device` : session.deviceLabel}
+                trail={!session.current && <Button label="Sign out" onClick={() => setSigningOut(session)} />}
+              />
             ))}
           </ul>
         )}

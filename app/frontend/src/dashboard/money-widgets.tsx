@@ -41,7 +41,7 @@ export function SpendingWidget() {
   return (
     <div className="grid gap-3">
       <p className="m-0 text-2xl text-ink tabular-nums">
-        {money(spentMinor, currency)} <span className="text-sm text-muted">{budgetMinor === null ? 'spent' : `of ${money(budgetMinor, currency)}`}</span>
+        {money(spentMinor, currency)} <span className="text-small text-muted">{budgetMinor === null ? 'spent' : `of ${money(budgetMinor, currency)}`}</span>
       </p>
       {budgetMinor !== null && <Meter label="Spent of the budget" value={budgetMinor ? spentMinor / budgetMinor : 1} />}
       {safeDailyMinor !== null && <Hint>{money(safeDailyMinor, currency)} a day to stay on budget</Hint>}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { Checkbox, formatDay, IconButton, TextField } from '@project-graphite/ui';
+import { useNavigate, useParams } from 'react-router';
+import { Checkbox, formatDay, IconButton, ListRow, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
@@ -11,7 +11,6 @@ import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section, Subheading } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
-import { RowText } from '../components/RowText';
 import { ButtonSkeleton, HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
@@ -152,12 +151,13 @@ export function PersonPage() {
   const eventList = (events: EventLink[]) => (
     <ul className="panel-rows">
       {events.map((event) => (
-        <li className="flex items-center pe-2 hover:bg-line-soft" key={event.linkId}>
-          <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/events/${event.id}`}>
-            <RowText detail={`${formatDay(event.startsOn)}${event.startTime ? ` · ${clockTime(event.startTime)}` : ''}`} title={event.title} />
-          </Link>
-          {editable && <ActionsMenu items={[{ label: `Remove from ${shown.name}’s events`, onSelect: () => unlink(event) }]} name={event.title} />}
-        </li>
+        <ListRow
+          href={`/events/${event.id}`}
+          key={event.linkId}
+          meta={`${formatDay(event.startsOn)}${event.startTime ? ` · ${clockTime(event.startTime)}` : ''}`}
+          title={event.title}
+          trail={editable && <ActionsMenu items={[{ label: `Remove from ${shown.name}’s events`, onSelect: () => unlink(event) }]} name={event.title} />}
+        />
       ))}
     </ul>
   );
@@ -168,7 +168,7 @@ export function PersonPage() {
       birthdayText(shown) && (
         <span className="grid sm:text-right">
           {birthdayText(shown)}
-          <span className="text-sm text-muted">Next: {nextBirthdayText(shown, today)}</span>
+          <span className="text-small text-muted">Next: {nextBirthdayText(shown, today)}</span>
         </span>
       ),
     ],
@@ -217,7 +217,7 @@ export function PersonPage() {
             <dl className="panel-rows m-0">
               {details.map(([label, value]) => (
                 <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1" key={label as string}>
-                  <dt className="text-sm text-muted">{label}</dt>
+                  <dt className="text-small text-muted">{label}</dt>
                   <dd className="m-0 text-ink">{value}</dd>
                 </div>
               ))}

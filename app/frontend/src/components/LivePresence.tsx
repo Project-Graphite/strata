@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Avatar, Dialog } from '@project-graphite/ui';
 import { TextButton } from './Button';
+import { Hint } from './Hint';
 import type { Person } from './live-document';
 
 export interface PresenceActions {
@@ -21,7 +22,7 @@ export function LivePresence({ people, actions }: { people: Person[]; actions?: 
           {people.slice(0, 5).map((person) => <Avatar key={person.id} name={person.name} present={person.activity !== 'idle'} />)}
         </div>
         <TextButton label={`${people.length} ${people.length === 1 ? 'person' : 'people'} here`} onClick={() => setOpen(true)} />
-        {actions?.following && <div className="live-presence-follow"><span className="text-sm text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></div>}
+        {actions?.following && <div className="live-presence-follow"><span className="text-small text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></div>}
       </div>
       {open && (
         <Dialog onClose={() => setOpen(false)} title="People here">
@@ -31,8 +32,8 @@ export function LivePresence({ people, actions }: { people: Person[]; actions?: 
                 <Avatar name={person.name} present={person.activity !== 'idle'} />
                 <div className="min-w-0">
                   <p className="m-0 truncate text-sm text-ink">{person.name}</p>
-                  <p className="m-0 text-sm text-muted">{person.guest ? 'Guest' : 'Member'} · {person.access === 'edit' ? 'Can edit' : 'Can view'}</p>
-                  <p className="m-0 text-sm text-muted">{{ reading: 'Reading', editing: 'Editing', idle: 'Idle' }[person.activity]}</p>
+                  <Hint>{person.guest ? 'Guest' : 'Member'} · {person.access === 'edit' ? 'Can edit' : 'Can view'}</Hint>
+                  <Hint>{{ reading: 'Reading', editing: 'Editing', idle: 'Idle' }[person.activity]}</Hint>
                 </div>
                 {actions?.positions.has(person.id) && <div className="ml-auto flex gap-2" data-block-id={actions.positions.get(person.id)}><TextButton label={`Jump to ${person.name}`} onClick={() => { actions.onJump(person.id); setOpen(false); }} /><TextButton label={`Follow ${person.name}`} onClick={() => { actions.onFollow(person.id); setOpen(false); }} /></div>}
               </li>

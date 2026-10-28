@@ -1,6 +1,5 @@
-import FormLabel from '@mui/material/FormLabel';
 import { useState } from 'react';
-import { Select, TextAreaField, TextField } from '@project-graphite/ui';
+import { Fieldset, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayOptions, monthOptions, type Person } from '../people';
 import type { Space } from '../spaces';
@@ -59,12 +58,11 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />
       {!person && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" placeholder="Friend, sister, colleague" />
-      <fieldset className="m-0 grid gap-4 border-0 p-0 sm:grid-cols-3">
-        <FormLabel className="mb-2" component="legend">Birthday (optional)</FormLabel>
+      <Fieldset className="gap-4 sm:grid-cols-3" legend="Birthday (optional)">
         <Select error={birthdayError} label="Day" onChange={setDay} options={[{ value: '', label: 'None' }, ...dayOptions]} value={day} />
         <Select label="Month" onChange={setMonth} options={[{ value: '', label: 'None' }, ...monthOptions]} value={month} />
         <TextField defaultValue={person?.birthYear ?? ''} inputMode="numeric" label="Year, if known" maxLength={4} {...form.field('birthYear')} />
-      </fieldset>
+      </Fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField autoComplete="off" defaultValue={person?.email ?? ''} inputMode="email" label="Email (optional)" type="email" {...form.field('email')} />
         <TextField autoComplete="off" defaultValue={person?.phone ?? ''} inputMode="tel" label="Phone (optional)" maxLength={40} name="phone" type="tel" />

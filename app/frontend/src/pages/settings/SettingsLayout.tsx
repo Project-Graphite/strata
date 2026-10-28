@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import { ListRow } from '@project-graphite/ui';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
@@ -33,19 +34,11 @@ const tabs = [
 ] as const;
 
 export function SettingsRows({ children }: { children: ReactNode }) {
-  return <div className="panel-rows">{children}</div>;
+  return <ul className="panel-rows">{children}</ul>;
 }
 
 export function SettingsRow({ action, children, label }: { action?: ReactNode; children?: ReactNode; label: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 panel-row">
-      <div className="min-w-0">
-        <p className="m-0 text-ink">{label}</p>
-        {children && <div className="mt-0.5 text-sm text-muted">{children}</div>}
-      </div>
-      {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
-    </div>
-  );
+  return <ListRow meta={children} title={label} trail={action} />;
 }
 
 export function SettingsRowSkeleton({ action, detail = true, row = 0 }: { action?: ReactNode; detail?: boolean; row?: number }) {

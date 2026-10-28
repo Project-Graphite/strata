@@ -1,7 +1,6 @@
-import MuiLink from '@mui/material/Link';
 import { Fragment, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Dialog, Placeholder, type TagColor } from '@project-graphite/ui';
+import { Dialog, Placeholder, type TagColor, TextLink } from '@project-graphite/ui';
 import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
@@ -81,9 +80,7 @@ function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; onClose: 
           )}
           <p className="m-0 text-sm text-faint">
             From {details.data.calendar.name} · {details.data.calendar.host}.{' '}
-            <MuiLink component={Link} to="/agenda/calendars" underline="always">
-              Manage calendars
-            </MuiLink>
+            <TextLink href="/agenda/calendars">Manage calendars</TextLink>
           </p>
         </div>
       )}

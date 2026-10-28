@@ -1,7 +1,5 @@
-import FormLabel from '@mui/material/FormLabel';
-import Alert from '@mui/material/Alert';
 import { useState } from 'react';
-import { Checkbox, ConfirmDialog, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, Checkbox, ConfirmDialog, Fieldset, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../../agenda';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
@@ -119,8 +117,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
           title="New access token"
         >
           <TextField autoFocus label="Name" maxLength={60} placeholder="Backup script" {...form.field('name')} />
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <FormLabel className="mb-2" component="legend">Permissions</FormLabel>
+          <Fieldset legend="Permissions">
             {scopes.map(([scope, description]) => (
               <Checkbox
                 defaultChecked={scope === 'spaces:read' || scope === 'items:read'}
@@ -135,11 +132,9 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
               />
             ))}
             {noScope && (
-              <Alert className="m-0" severity="error">
-                Choose at least one permission.
-              </Alert>
+              <Banner tone="danger">Choose at least one permission.</Banner>
             )}
-          </fieldset>
+          </Fieldset>
           <Select
             defaultValue="90"
             label="Expires after"

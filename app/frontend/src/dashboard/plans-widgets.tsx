@@ -8,6 +8,7 @@ import { countdown, tripDates, type Trip } from '../trips';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
+import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
@@ -34,7 +35,7 @@ export function Journal() {
           ))}
         </div>
         <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-8 w-36 rounded-lg" />
+        <Skeleton className="h-8 w-36 rounded-field" />
       </Placeholder>
     );
   }
@@ -59,7 +60,7 @@ export function Journal() {
 
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-sm text-muted">
+      <Hint>
         {todayEntry?.mood ? (
           <>
             Today was <span className="text-ink">{moods[todayEntry.mood - 1]!.toLowerCase()}</span>
@@ -67,7 +68,7 @@ export function Journal() {
         ) : (
           'How was today?'
         )}
-      </p>
+      </Hint>
       <div aria-label="Today’s mood" className="flex flex-wrap gap-1.5" role="group">
         {moods.map((label, index) => (
           <button

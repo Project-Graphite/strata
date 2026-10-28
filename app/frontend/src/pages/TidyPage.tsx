@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDay, Placeholder, Skeleton, timeAgo } from '@project-graphite/ui';
+import { formatDay, ListRow, Placeholder, Skeleton, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -14,7 +14,6 @@ import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { Button } from '../components/Button';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 
@@ -27,7 +26,7 @@ const unusedSubscriptions = { title: 'Unused subscriptions', description: 'Nobod
 const duplicateSubscriptions = { title: 'Duplicate subscriptions', description: 'Subscriptions with the same name, perhaps paid twice.' };
 const choiceLead = (
   <span className="grid size-9.5 shrink-0 place-items-center">
-    <Skeleton className="size-4 rounded-sm" />
+    <Skeleton className="size-4 rounded-mark" />
   </span>
 );
 
@@ -307,31 +306,33 @@ function TidyHistory() {
   ) : (
     <ul className="panel-rows">
       {history.data.map((batch) => (
-        <li className="panel-row flex items-center gap-3" key={batch.id}>
-          <RowText
-            detail={[
-              timeAgo(batch.createdAt),
-              batch.rule && `by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`,
-              batch.undoneAt ? 'undone' : batch.remaining < batch.itemCount && `${itemsText(batch.itemCount - batch.remaining)} since deleted`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            title={batchSummary(batch)}
-          />
-          {!batch.undoneAt && batch.remaining > 0 && (
-            <Button
-              disabled={undoing.busy}
-              label="Undo"
-              onClick={() =>
-                void undoing.run(async () => {
-                  const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
-                  history.reload();
-                  return undoSummary(result);
-                }, 'Could not undo')
-              }
-            />
-          )}
-        </li>
+        <ListRow
+          key={batch.id}
+          meta={[
+            timeAgo(batch.createdAt),
+            batch.rule && `by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`,
+            batch.undoneAt ? 'undone' : batch.remaining < batch.itemCount && `${itemsText(batch.itemCount - batch.remaining)} since deleted`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          title={batchSummary(batch)}
+          trail={
+            !batch.undoneAt &&
+            batch.remaining > 0 && (
+              <Button
+                disabled={undoing.busy}
+                label="Undo"
+                onClick={() =>
+                  void undoing.run(async () => {
+                    const result = await auth.request<UndoResult>(`/tidy/history/${batch.id}/undo`, { method: 'POST' });
+                    history.reload();
+                    return undoSummary(result);
+                  }, 'Could not undo')
+                }
+              />
+            )
+          }
+        />
       ))}
     </ul>
   );

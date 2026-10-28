@@ -41,7 +41,7 @@ export function useStatementFile(onCurrency: (code: string) => void) {
     picker: (
       <div className="flex flex-wrap items-center gap-3">
         <FileButton accept=".csv,text/csv" inputLabel="Statement file" label={rows ? 'Choose another file' : 'Choose a CSV file'} onFiles={(files) => void read(files[0]!)} />
-        {fileName && <span className="truncate text-sm text-muted">{fileName}</span>}
+        {fileName && <span className="truncate text-small text-muted">{fileName}</span>}
       </div>
     ),
     columns: rows && (

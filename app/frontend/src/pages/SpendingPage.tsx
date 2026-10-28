@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, formatDay, Meter, Placeholder, Select, Skeleton, TextField, Toggle } from '@project-graphite/ui';
+import { ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Select, Skeleton, TextField, Toggle } from '@project-graphite/ui';
 import { shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -13,10 +13,9 @@ import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { MoneyRow } from '../components/MoneyRow';
 import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { ButtonSkeleton, HintSkeleton, MoneyRowsSkeleton, rowsOf, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { SplitEditor } from '../components/SplitEditor';
 import {
@@ -129,9 +128,9 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   const expenseRows = (expenses: Expense[]) => (
     <ul className="panel-rows">
       {expenses.map((expense) => (
-        <MoneyRow
-          amount={<Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />}
-          detail={[
+        <ListRow
+          key={expense.id}
+          meta={[
             formatDay(expense.spentOn, { weekday: 'short', day: 'numeric', month: 'short' }),
             expense.direction === 'transfer'
               ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
@@ -144,14 +143,17 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
           ]
             .filter(Boolean)
             .join(' · ')}
-          key={expense.id}
-          onOpen={editable ? () => setDialog({ expense }) : undefined}
+          onClick={editable ? () => setDialog({ expense }) : undefined}
           title={expense.title}
-        >
-          {editable && space?.kind === 'shared' && members.data && (
-            <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
-          )}
-        </MoneyRow>
+          trail={
+            <>
+              <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
+              {editable && space?.kind === 'shared' && members.data && (
+                <ActionsMenu items={[{ label: expense.split ? 'Change the split' : 'Split it', onSelect: () => setDialog({ split: expense }) }]} name={expense.title} />
+              )}
+            </>
+          }
+        />
       ))}
     </ul>
   );
@@ -192,7 +194,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               }
               unit="month"
             />
-            {tab === 'transactions' && !shown && (card || shape[1]! > 0) && <Skeleton className="h-10 w-36 rounded-lg" />}
+            {tab === 'transactions' && !shown && (card || shape[1]! > 0) && <Skeleton className="h-10 w-36 rounded-field" />}
             {tab === 'transactions' && shown && (cards.length > 0 || card) && (
               <Select
                 aria-label="Card"
@@ -266,42 +268,43 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             <Section title={`To review (${captures.data!.length})`}>
               <ul className="panel-rows">
                 {captures.data!.map((message) => (
-                  <MoneyRow
-                    amount={
-                      message.suggestion.amountMinor !== null &&
-                      message.suggestion.currency && <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />
-                    }
-                    detail={
+                  <ListRow
+                    key={message.id}
+                    meta={
                       <>
                         {message.suggestion.paymentLabel && `${message.suggestion.paymentLabel} · `}
                         {message.suggestion.cardDigits && `•••• ${message.suggestion.cardDigits} · `}
                         <span dir="auto">{message.text}</span>
                       </>
                     }
-                    key={message.id}
                     title={message.suggestion.merchant ?? message.sender}
-                  >
-                    {editable && (
+                    trail={
                       <>
-                        <Button label="Add" onClick={() => setDialog({ capture: message })} />
-                        <ActionsMenu
-                          items={[
-                            {
-                              label: 'Ignore',
-                              onSelect: () =>
-                                void action.run(async () => {
-                                  await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
-                                  captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
-                                  return `Ignored the message from ${message.suggestion.merchant ?? message.sender}.`;
-                                }, 'Could not ignore the message'),
-                            },
-                            ...(message.suggestion.merchant ? [{ label: 'Always ignore', onSelect: () => setDialog({ ignoreMerchant: message }) }] : []),
-                          ]}
-                          name={message.suggestion.merchant ?? message.sender}
-                        />
+                        {message.suggestion.amountMinor !== null &&
+                          message.suggestion.currency && <Amount currency={message.suggestion.currency} direction={message.suggestion.direction} minor={message.suggestion.amountMinor} />}
+                        {editable && (
+                          <>
+                            <Button label="Add" onClick={() => setDialog({ capture: message })} />
+                            <ActionsMenu
+                              items={[
+                                {
+                                  label: 'Ignore',
+                                  onSelect: () =>
+                                    void action.run(async () => {
+                                      await auth.request(`/captures/${message.id}/ignore`, { method: 'POST' });
+                                      captures.mutate((current) => current.filter((shown) => shown.id !== message.id));
+                                      return `Ignored the message from ${message.suggestion.merchant ?? message.sender}.`;
+                                    }, 'Could not ignore the message'),
+                                },
+                                ...(message.suggestion.merchant ? [{ label: 'Always ignore', onSelect: () => setDialog({ ignoreMerchant: message }) }] : []),
+                              ]}
+                              name={message.suggestion.merchant ?? message.sender}
+                            />
+                          </>
+                        )}
                       </>
-                    )}
-                  </MoneyRow>
+                    }
+                  />
                 ))}
               </ul>
             </Section>
@@ -318,19 +321,20 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               ) : (
                 <ul className="panel-rows">
                   {accounts.data.map((account) => (
-                    <MoneyRow
-                      amount={
-                        <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
-                          {account.kind === 'credit' && ' owed'}
-                        </Amount>
-                      }
-                      detail={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
+                    <ListRow
                       key={account.id}
-                      onOpen={editable ? () => setDialog({ account }) : undefined}
+                      meta={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
+                      onClick={editable ? () => setDialog({ account }) : undefined}
                       title={account.name}
-                    >
-                      {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
-                    </MoneyRow>
+                      trail={
+                        <>
+                          <Amount currency={account.currency} minor={account.kind === 'credit' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+                            {account.kind === 'credit' && ' owed'}
+                          </Amount>
+                          {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
+                        </>
+                      }
+                    />
                   ))}
                 </ul>
               )}
@@ -346,46 +350,48 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               ) : (
                 <ul className="panel-rows">
                   {installments.data.map((plan) => (
-                    <MoneyRow
-                      amount={
-                        <span className="mono-sm shrink-0 text-faint">
-                          {plan.paidCount} of {plan.count}
-                        </span>
-                      }
-                      detail={
+                    <ListRow
+                      key={plan.id}
+                      meta={
                         <span className={plan.status === 'missed' ? 'text-danger' : undefined}>
                           {plan.status === 'done'
                             ? 'Paid off'
                             : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
                         </span>
                       }
-                      key={plan.id}
-                      meter={<Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />}
-                      onOpen={editable ? () => setDialog({ installment: plan }) : undefined}
+                      onClick={editable ? () => setDialog({ installment: plan }) : undefined}
                       title={plan.name}
+                      trail={
+                        <>
+                          <span className="mono-sm shrink-0 text-faint">
+                            {plan.paidCount} of {plan.count}
+                          </span>
+                          {editable && (
+                            <ActionsMenu
+                              items={[
+                                ...(plan.status === 'done'
+                                  ? []
+                                  : [
+                                      {
+                                        label: 'Mark next payment paid',
+                                        onSelect: () =>
+                                          void action.run(async () => {
+                                            const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
+                                            installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
+                                            return `Marked a ${plan.name} payment paid.`;
+                                          }, 'Could not mark the payment'),
+                                      },
+                                    ]),
+                                { label: 'Delete', separated: true, onSelect: () => setDialog({ deletePlan: plan }) },
+                              ]}
+                              name={plan.name}
+                            />
+                          )}
+                        </>
+                      }
                     >
-                      {editable && (
-                        <ActionsMenu
-                          items={[
-                            ...(plan.status === 'done'
-                              ? []
-                              : [
-                                  {
-                                    label: 'Mark next payment paid',
-                                    onSelect: () =>
-                                      void action.run(async () => {
-                                        const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
-                                        installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
-                                        return `Marked a ${plan.name} payment paid.`;
-                                      }, 'Could not mark the payment'),
-                                  },
-                                ]),
-                            { label: 'Delete', separated: true, onSelect: () => setDialog({ deletePlan: plan }) },
-                          ]}
-                          name={plan.name}
-                        />
-                      )}
-                    </MoneyRow>
+                      <Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />
+                    </ListRow>
                   ))}
                 </ul>
               )}
@@ -425,25 +431,27 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                   {shown.categories
                     .filter((row) => row.budgetMinor !== null)
                     .map((row) => (
-                      <MoneyRow
-                        amount={
-                          <Amount currency={currency} danger={row.spentMinor > row.budgetMinor!} minor={row.spentMinor}>
-                            {` of ${money(row.budgetMinor!, currency)}`}
-                            {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
-                          </Amount>
-                        }
+                      <ListRow
                         key={row.category}
-                        meter={<Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
-                        onOpen={editable ? () => setDialog({ budget: row.category }) : undefined}
+                        onClick={editable ? () => setDialog({ budget: row.category }) : undefined}
                         title={
                           <span className="flex items-center gap-2">
                             <span aria-hidden="true" className={`swatch-dot tag-${colourOf(row.category)}`} />
                             {categoryName(row.category)}
                           </span>
                         }
+                        trail={
+                          <>
+                            <Amount currency={currency} danger={row.spentMinor > row.budgetMinor!} minor={row.spentMinor}>
+                              {` of ${money(row.budgetMinor!, currency)}`}
+                              {row.carriedMinor !== 0 && `, ${money(row.carriedMinor, currency)} carried over`}
+                            </Amount>
+                            {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteBudget: row.category }) }]} name={categoryName(row.category)} />}
+                          </>
+                        }
                       >
-                        {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteBudget: row.category }) }]} name={categoryName(row.category)} />}
-                      </MoneyRow>
+                        <Meter label={`${categoryName(row.category)} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />
+                      </ListRow>
                     ))}
                 </ul>
               )}
@@ -454,13 +462,12 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             <Section title="Merchant rules">
               <ul className="panel-rows">
                 {rules.data!.map((rule) => (
-                  <MoneyRow
-                    detail={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
+                  <ListRow
                     key={rule.id}
+                    meta={rule.ignore ? 'Ignored' : [rule.rename, rule.category && categoryName(rule.category)].filter(Boolean).join(' · ')}
                     title={rule.match}
-                  >
-                    {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteRule: rule }) }]} name={rule.match} />}
-                  </MoneyRow>
+                    trail={editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteRule: rule }) }]} name={rule.match} />}
+                  />
                 ))}
               </ul>
             </Section>
@@ -627,7 +634,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
   if (tab === 'transactions') {
     const [rows = 0] = shape;
     return rows ? (
-      <MoneyRowsSkeleton rows={rows} />
+      <AmountRowsSkeleton rows={rows} />
     ) : (
       <Empty loading title={emptyTransactions.title}>
         {emptyTransactions.hint}
@@ -640,7 +647,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
       <>
         <Section action={editable && <ButtonSkeleton large width="w-36" />} title="Accounts">
           {accountRows ? (
-            <MoneyRowsSkeleton rows={accountRows} />
+            <AmountRowsSkeleton rows={accountRows} />
           ) : (
             <Empty loading title={emptyAccounts.title}>
               {emptyAccounts.hint}
@@ -648,7 +655,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
           )}
         </Section>
         <Section action={editable && <ButtonSkeleton large />} title="Installments">
-          {planRows ? <MoneyRowsSkeleton metered={planRows} rows={planRows} /> : <HintSkeleton />}
+          {planRows ? <AmountRowsSkeleton metered={planRows} rows={planRows} /> : <HintSkeleton />}
         </Section>
       </>
     );
@@ -673,14 +680,14 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
               {emptyBudgets.hint}
             </Empty>
           ) : budgetRows ? (
-            <MoneyRowsSkeleton detailed={0} metered={budgetRows} rows={budgetRows} />
+            <AmountRowsSkeleton detailed={0} metered={budgetRows} rows={budgetRows} />
           ) : (
             <HintSkeleton />
           )}
         </Section>
         {ruleRows > 0 && (
           <Section title="Merchant rules">
-            <MoneyRowsSkeleton detailed={detailedRules} rows={ruleRows} />
+            <AmountRowsSkeleton detailed={detailedRules} rows={ruleRows} />
           </Section>
         )}
       </>
@@ -703,7 +710,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
       )}
       {reviewRows > 0 && (
         <Section title={`To review (${reviewRows})`}>
-          <MoneyRowsSkeleton rows={reviewRows} trail={editable && <ButtonSkeleton width="w-14" />} />
+          <AmountRowsSkeleton rows={reviewRows} trail={editable && <ButtonSkeleton width="w-14" />} />
         </Section>
       )}
       {byCategory && (
@@ -725,7 +732,7 @@ function SpendingSkeleton({ byCategory, editable, shape, tab }: { byCategory: bo
         </Section>
       )}
       <Section action={recentRows > recentCount && <ButtonSkeleton width="w-32" />} title="Recent">
-        {recentRows ? <MoneyRowsSkeleton rows={Math.min(recentRows, recentCount)} /> : <HintSkeleton />}
+        {recentRows ? <AmountRowsSkeleton rows={Math.min(recentRows, recentCount)} /> : <HintSkeleton />}
       </Section>
     </>
   );

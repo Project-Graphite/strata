@@ -1,7 +1,5 @@
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
 import { useState } from 'react';
-import { Dialog, Icon, TextField } from '@project-graphite/ui';
+import { Card, Dialog, Icon, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
 import { Button } from '../components/Button';
@@ -32,16 +30,16 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
                 <Subheading>{group}</Subheading>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {inGroup.map((type) => (
-                    <Card key={type} variant="outlined">
-                      <CardActionArea className="grid h-full grid-cols-[auto_minmax(0,1fr)] content-start items-start gap-3 p-3 text-left" onClick={() => onAdd(type)}>
+                    <Card className="p-0" interactive key={type}>
+                      <button className="grid h-full w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] content-start items-start gap-3 p-3 text-left" onClick={() => onAdd(type)} type="button">
                         <span aria-hidden="true" className="widget-icon">
                           <Icon name={widgetKinds[type].icon} size={15} />
                         </span>
                         <span className="grid gap-0.5">
                           <span className="text-ink">{widgetKinds[type].title}</span>
-                          <span className="text-sm text-muted">{widgetKinds[type].description}</span>
+                          <span className="text-small text-muted">{widgetKinds[type].description}</span>
                         </span>
-                      </CardActionArea>
+                      </button>
                     </Card>
                   ))}
                 </div>

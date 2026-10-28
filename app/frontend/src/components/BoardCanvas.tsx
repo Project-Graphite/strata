@@ -311,7 +311,7 @@ export function LiveBoard({ boardId, connection, editable, member }: { boardId: 
       <div aria-label="Board" className="board-canvas" role="region">
         {editable && !blocked && loaded && empty && (
           <div aria-label="Templates" className="board-templates" role="group">
-            <span className="text-sm text-muted">Start from a template</span>
+            <span className="text-small text-muted">Start from a template</span>
             {boardTemplates.map((template) => (
               <button className="board-action" key={template.id} onClick={() => addElements(template.build(), true)} type="button">
                 {template.label}

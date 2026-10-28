@@ -86,8 +86,8 @@ export function TasksPage() {
         <Placeholder className="grid gap-8" label="Loading your tasks">
           {!completed && (
             <div className="flex gap-2">
-              <Skeleton className="h-14 flex-1 rounded-lg" />
-              <Skeleton className="h-14 w-16 rounded-lg" />
+              <Skeleton className="h-14 flex-1 rounded-field" />
+              <Skeleton className="h-14 w-16 rounded-field" />
             </div>
           )}
           {taskRows ? (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -12,7 +12,6 @@ import { useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { RowText } from '../components/RowText';
 import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 interface FollowedCalendar {
@@ -62,35 +61,37 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
           {calendars.data.map((calendar) => {
             const space = spaces.data?.find((candidate) => candidate.id === calendar.spaceId);
             return (
-              <li className="panel-row flex flex-wrap items-center justify-between gap-3" key={calendar.id}>
-                <RowText
-                  detail={
-                    <>
-                      {space?.name} · {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
-                      {calendar.lastFetchedAt ? ` · checked ${timeAgo(calendar.lastFetchedAt)}` : ''}
-                    </>
-                  }
-                  title={calendar.name}
-                >
-                  {calendar.lastError && <span className="text-sm text-danger">The last check failed: {calendar.lastError}</span>}
-                </RowText>
-                {space && space.role !== 'viewer' && (
-                  <ActionsMenu
-                    items={[
-                      {
-                        label: 'Check now',
-                        onSelect: () =>
-                          void action.run(async () => {
-                            replace(await auth.request<FollowedCalendar>(`/calendars/${calendar.id}/refresh`, { method: 'POST' }));
-                            return `Checked ${calendar.name}.`;
-                          }, 'Could not check the calendar'),
-                      },
-                      { label: 'Stop following', separated: true, onSelect: () => setStopping(calendar) },
-                    ]}
-                    name={calendar.name}
-                  />
-                )}
-              </li>
+              <ListRow
+                key={calendar.id}
+                meta={
+                  <>
+                    {space?.name} · {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
+                    {calendar.lastFetchedAt ? ` · checked ${timeAgo(calendar.lastFetchedAt)}` : ''}
+                  </>
+                }
+                title={calendar.name}
+                trail={
+                  space &&
+                  space.role !== 'viewer' && (
+                    <ActionsMenu
+                      items={[
+                        {
+                          label: 'Check now',
+                          onSelect: () =>
+                            void action.run(async () => {
+                              replace(await auth.request<FollowedCalendar>(`/calendars/${calendar.id}/refresh`, { method: 'POST' }));
+                              return `Checked ${calendar.name}.`;
+                            }, 'Could not check the calendar'),
+                        },
+                        { label: 'Stop following', separated: true, onSelect: () => setStopping(calendar) },
+                      ]}
+                      name={calendar.name}
+                    />
+                  )
+                }
+              >
+                {calendar.lastError && <span className="text-sm text-danger">The last check failed: {calendar.lastError}</span>}
+              </ListRow>
             );
           })}
         </ul>

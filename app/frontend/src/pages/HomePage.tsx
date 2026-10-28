@@ -38,11 +38,11 @@ export function HomePage() {
       <ul className="stagger-in mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map(([icon, name, description]) => (
           <li className="rounded-panel border border-line bg-surface p-4 transition-colors hover:border-muted" key={name}>
-            <h2 className="m-0 flex items-center gap-2 text-lg font-medium">
+            <h2 className="m-0 flex items-center gap-2 text-h2">
               <Icon name={icon} size={18} />
               {name}
             </h2>
-            <p className="mt-2 mb-0 text-sm text-muted">{description}</p>
+            <p className="mt-2 mb-0 text-small text-muted">{description}</p>
           </li>
         ))}
       </ul>

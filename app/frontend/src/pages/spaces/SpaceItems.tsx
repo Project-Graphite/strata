@@ -1,6 +1,5 @@
-import Chip from '@mui/material/Chip';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, Pagination, Placeholder, timeAgo, type MenuItem } from '@project-graphite/ui';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Pagination, Placeholder, TagChip, timeAgo, type MenuItem } from '@project-graphite/ui';
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { fileSize, saveBlob, uploadFiles } from '../../files';
@@ -100,19 +99,7 @@ export function SpaceItems() {
           ]}
           label="Items"
         >
-          {tag && (
-            <Chip
-              aria-current="page"
-              aria-label={`Clear the ${tagName} filter`}
-              clickable
-              component={Link}
-              deleteIcon={<Icon name="x" size={14} />}
-              label={tagName}
-              onDelete={() => navigate(link({ tag: null }))}
-              title="Clear"
-              to={link({ tag: null })}
-            />
-          )}
+          {tag && <TagChip href={link({ tag: null })} label={tagName} onRemove={() => navigate(link({ tag: null }))} />}
         </FilterChips>
       </Toolbar>
       {items.error ? (

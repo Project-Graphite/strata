@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Placeholder } from '@project-graphite/ui';
+import { useNavigate } from 'react-router';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { TripEditor } from '../components/TripEditor';
 import { useSpaces } from '../spaces';
@@ -59,12 +58,13 @@ export function TripsPage() {
             <Section key={label} title={label}>
               <ul className="panel-rows">
                 {shown.map((trip) => (
-                  <li key={trip.id}>
-                    <Link className="panel-row flex items-center gap-3 text-ink no-underline hover:bg-line-soft" to={`/trips/${trip.id}`}>
-                      <RowText detail={[trip.destination, tripDates(trip), trip.spaceName].filter(Boolean).join(' · ')} title={trip.title} />
-                      {countdown(trip, today) && <span className="shrink-0 text-sm text-muted">{countdown(trip, today)}</span>}
-                    </Link>
-                  </li>
+                  <ListRow
+                    href={`/trips/${trip.id}`}
+                    key={trip.id}
+                    meta={[trip.destination, tripDates(trip), trip.spaceName].filter(Boolean).join(' · ')}
+                    title={trip.title}
+                    trail={countdown(trip, today) && <span className="text-small">{countdown(trip, today)}</span>}
+                  />
                 ))}
               </ul>
             </Section>

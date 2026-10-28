@@ -54,7 +54,7 @@ export function SecurityLog() {
               <span className={`min-w-0 text-ink ${event.action === 'sign_in_failed' ? 'font-medium' : ''}`}>
                 {actions[event.action] ?? event.action}
                 {(event.data.device || event.data.reason || event.data.name) && (
-                  <span className="text-sm text-muted">
+                  <span className="text-small text-muted">
                     {' · '}
                     {[event.data.reason && reasons[event.data.reason], event.data.device, event.data.name]
                       .filter(Boolean)

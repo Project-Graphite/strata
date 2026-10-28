@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Placeholder } from '@project-graphite/ui';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Amount } from '../../components/Amount';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
-import { MoneyRow } from '../../components/MoneyRow';
-import { ButtonSkeleton, IconButtonSkeleton, MoneyRowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { SplitEditor } from '../../components/SplitEditor';
 import { SubscriptionEditor } from '../../components/SubscriptionEditor';
 import type { Member } from '../../spaces';
@@ -90,7 +89,7 @@ export function SpaceSubscriptions() {
       ) : !subscriptions.data ? (
         <Placeholder label="Loading the subscriptions in this space">
           {rows ? (
-            <MoneyRowsSkeleton rows={rows} trail={editable && (cancelled ? <ButtonSkeleton width="w-20" /> : <IconButtonSkeleton />)} />
+            <AmountRowsSkeleton rows={rows} trail={editable && (cancelled ? <ButtonSkeleton width="w-20" /> : <IconButtonSkeleton />)} />
           ) : (
             <Empty loading title={empty.title}>
               {empty.hint}
@@ -102,9 +101,9 @@ export function SpaceSubscriptions() {
       ) : (
         <ul className="panel-rows">
           {subscriptions.data.map((subscription) => (
-            <MoneyRow
-              amount={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
-              detail={[
+            <ListRow
+              key={subscription.id}
+              meta={[
                 cycleLabel(subscription.repeatRule),
                 subscription.category,
                 cancelled ? `cancelled ${shortDate(subscription.cancelledOn!)}` : `renews ${shortDate(subscription.nextRenewal)}`,
@@ -114,25 +113,28 @@ export function SpaceSubscriptions() {
               ]
                 .filter(Boolean)
                 .join(' · ')}
-              key={subscription.id}
-              onOpen={editable ? () => setEditing(subscription) : undefined}
+              onClick={editable ? () => setEditing(subscription) : undefined}
               title={subscription.name}
-            >
-              {editable &&
-                (cancelled ? (
-                  <Button disabled={action.busy} label="Resume" onClick={() => act(subscription, 'resume', `Resumed ${subscription.name}.`)} />
-                ) : (
-                  <ActionsMenu
-                    items={[
-                      ...(shared && members.data && members.data.length > 1 ? [{ label: 'Split', onSelect: () => setSplitting(subscription) }] : []),
-                      { label: 'I used this', onSelect: () => act(subscription, 'used', `Noted that you used ${subscription.name}.`) },
-                      { label: 'Mark cancelled', onSelect: () => act(subscription, 'cancel', `Marked ${subscription.name} cancelled.`) },
-                      ...(subscription.cancelUrl ? [{ label: 'Cancel link', href: subscription.cancelUrl, separated: true }] : []),
-                    ]}
-                    name={subscription.name}
-                  />
-                ))}
-            </MoneyRow>
+              trail={
+                <>
+                  <Amount currency={subscription.currency} minor={subscription.amountMinor} />
+                  {editable &&
+                    (cancelled ? (
+                      <Button disabled={action.busy} label="Resume" onClick={() => act(subscription, 'resume', `Resumed ${subscription.name}.`)} />
+                    ) : (
+                      <ActionsMenu
+                        items={[
+                          ...(shared && members.data && members.data.length > 1 ? [{ label: 'Split', onSelect: () => setSplitting(subscription) }] : []),
+                          { label: 'I used this', onSelect: () => act(subscription, 'used', `Noted that you used ${subscription.name}.`) },
+                          { label: 'Mark cancelled', onSelect: () => act(subscription, 'cancel', `Marked ${subscription.name} cancelled.`) },
+                          ...(subscription.cancelUrl ? [{ label: 'Cancel link', href: subscription.cancelUrl, separated: true }] : []),
+                        ]}
+                        name={subscription.name}
+                      />
+                    ))}
+                </>
+              }
+            />
           ))}
         </ul>
       )}

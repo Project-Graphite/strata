@@ -1,4 +1,4 @@
-import { formatDay, Placeholder, Skeleton } from '@project-graphite/ui';
+import { formatDay, ListRow, Placeholder, Skeleton } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -9,7 +9,6 @@ import { categoryName, type SpendingInsights } from '../spending';
 import { useChosenSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { RowText } from '../components/RowText';
 import { MissingRates } from '../components/Stats';
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
@@ -190,13 +189,12 @@ function Insights({ insights }: { insights: SpendingInsights }) {
           ) : (
             <ul className="panel-rows">
               {merchants.map((merchant) => (
-                <li className="panel-row flex items-center gap-3" key={merchant.merchant}>
-                  <RowText
-                    detail={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
-                    title={merchant.merchant}
-                  />
-                  <Amount currency={currency} minor={merchant.totalMinor} />
-                </li>
+                <ListRow
+                  key={merchant.merchant}
+                  meta={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
+                  title={merchant.merchant}
+                  trail={<Amount currency={currency} minor={merchant.totalMinor} />}
+                />
               ))}
             </ul>
           )}

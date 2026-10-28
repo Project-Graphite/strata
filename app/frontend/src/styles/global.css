@@ -1092,7 +1092,7 @@ button.habit-day::before {
 
 .dashboard-empty-art > span {
   border: 1px solid var(--color-line);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-mark);
   background: linear-gradient(180deg, color-mix(in srgb, var(--color-ink) 7%, var(--color-surface)), var(--color-surface));
 }
 
@@ -1168,26 +1168,6 @@ button.habit-day::before {
   list-style: none;
 }
 
-.widget-empty {
-  display: grid;
-  justify-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 0.5rem;
-  text-align: center;
-}
-
-.widget-empty-icon {
-  display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  place-items: center;
-  margin-bottom: 0.375rem;
-  color: var(--color-muted);
-}
-
-.card-accent .widget-empty-icon {
-  color: var(--tag-color);
-}
 
 .widget-shortcut {
   display: grid;

@@ -1,7 +1,6 @@
-import ButtonBase from '@mui/material/ButtonBase';
 import { Fragment, lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, IconButton, LinesSkeleton, Skeleton, type MenuItem } from '@project-graphite/ui';
+import { useNavigate, useParams } from 'react-router';
+import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
@@ -18,7 +17,6 @@ import { NoteComments, type CommentAnchors, type QuotedBlock } from '../componen
 import { NoteHistory } from '../components/NoteHistory';
 import { NoteMark } from '../components/NoteMark';
 import { DetailState, Section, useDocumentTitle } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { OpenTask } from '../components/TaskEditor';
@@ -41,8 +39,6 @@ const widePages = (() => {
     return new Set<string>();
   }
 })();
-
-const linkRow = 'flex w-full items-center gap-3 panel-row text-left text-ink no-underline hover:bg-line-soft';
 
 export function NotePage() {
   const { id = '' } = useParams();
@@ -291,12 +287,7 @@ export function NotePage() {
           {children.length > 0 ? (
             <ul className="panel-rows">
               {children.map((child) => (
-                <li key={child.id}>
-                  <Link className={linkRow} to={`/notes/${child.id}`}>
-                    <NoteMark note={child} />
-                    <RowText title={noteTitle(child)} />
-                  </Link>
-                </li>
+                <ListRow href={`/notes/${child.id}`} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />
               ))}
             </ul>
           ) : (
@@ -309,19 +300,14 @@ export function NotePage() {
           <ul className="panel-rows">
             {backlinks.map(({ id: linkId, item }) => {
               const kind = itemKindName(item);
-              const text = <RowText detail={`${kind.charAt(0).toUpperCase()}${kind.slice(1)}`} title={noteTitle(item)} />;
               return (
-                <li key={linkId}>
-                  {item.kind === 'task' ? (
-                    <ButtonBase className={`${linkRow} justify-start`} onClick={() => setOpenTask(item.id)}>
-                      {text}
-                    </ButtonBase>
-                  ) : (
-                    <Link className={linkRow} to={itemHref(item) ?? `/spaces/${item.spaceId}`}>
-                      {text}
-                    </Link>
-                  )}
-                </li>
+                <ListRow
+                  href={item.kind === 'task' ? undefined : (itemHref(item) ?? `/spaces/${item.spaceId}`)}
+                  key={linkId}
+                  meta={`${kind.charAt(0).toUpperCase()}${kind.slice(1)}`}
+                  onClick={item.kind === 'task' ? () => setOpenTask(item.id) : undefined}
+                  title={noteTitle(item)}
+                />
               );
             })}
           </ul>

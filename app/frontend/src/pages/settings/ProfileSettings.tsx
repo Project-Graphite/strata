@@ -52,10 +52,10 @@ export function ProfileSettings() {
           </SettingsRows>
         </Section>
         <Section title="Notifications">
-          <SettingsRows>
+          <div className="panel-rows">
             {auth.user?.features.includes('tidy') && <ToggleSkeleton description />}
             <ToggleSkeleton description />
-          </SettingsRows>
+          </div>
           <DevicePushSkeleton />
         </Section>
       </Placeholder>
@@ -141,7 +141,7 @@ export function ProfileSettings() {
       </Section>
 
       <Section title="Notifications">
-        <SettingsRows>
+        <div className="panel-rows">
           {auth.user?.features.includes('tidy') && (
             <Toggle
               checked={current.tidySummary}
@@ -170,7 +170,7 @@ export function ProfileSettings() {
               }, 'Could not change the setting')
             }
           />
-        </SettingsRows>
+        </div>
         <DevicePush />
       </Section>
 

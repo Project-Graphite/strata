@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { noteChecks, type SentInvitation } from '../../invitations';
 import { roleOptions, type Space } from '../../spaces';
@@ -10,7 +10,6 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { RowText } from '../../components/RowText';
 import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const invitee = (invitation: SentInvitation) => (invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : (invitation.email ?? 'Invite link'));
@@ -40,13 +39,12 @@ export function SpaceInvitations({ space }: { space: Space }) {
       ) : (
         <ul className="panel-rows">
           {pending.data.map((invitation) => (
-            <li className="flex items-center gap-3 panel-row" key={invitation.id}>
-              <RowText
-                detail={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
-                title={invitee(invitation)}
-              />
-              <ActionsMenu items={[{ label: 'Withdraw', onSelect: () => setWithdrawing(invitation) }]} name={invitee(invitation)} />
-            </li>
+            <ListRow
+              key={invitation.id}
+              meta={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
+              title={invitee(invitation)}
+              trail={<ActionsMenu items={[{ label: 'Withdraw', onSelect: () => setWithdrawing(invitation) }]} name={invitee(invitation)} />}
+            />
           ))}
         </ul>
       )}

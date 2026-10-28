@@ -1,8 +1,6 @@
-import Alert from '@mui/material/Alert';
-import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { errorMessage, Placeholder, TextField } from '@project-graphite/ui';
+import { useSearchParams } from 'react-router';
+import { Banner, errorMessage, Placeholder, TextField, TextLink } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Page } from '../components/Page';
@@ -111,8 +109,8 @@ export function RegisterPage() {
         title="Sign-up is closed for now"
         variant="panel"
       >
-        <p className="mt-6 text-sm text-muted">
-          Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
+        <p className="mt-6 text-small text-muted">
+          Already registered? <TextLink href="/login">Sign in</TextLink>
         </p>
       </Page>
     );
@@ -120,7 +118,7 @@ export function RegisterPage() {
 
   return (
     <Page description={invite.data && `${invitedLine(invite.data)}.`} title="Create your account" variant="panel">
-      {invite.error && <Alert className="mt-4 mb-0" severity="error">{invite.error}</Alert>}
+      {invite.error && <Banner className="mt-4" tone="danger">{invite.error}</Banner>}
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />
         <TextField
@@ -146,15 +144,12 @@ export function RegisterPage() {
           type="password"
           {...form.field('password')}
         />
-        {error && (
-          <Alert className="m-0" severity="error">
-            {error}
-          </Alert>
-        )}
+        {error && <Banner tone="danger">{error}</Banner>}
+
         <Button disabled={busy} label={busy ? 'Creating…' : 'Create account'} large primary submit />
       </form>
-      <p className="mt-6 text-sm text-muted">
-        Already registered? <MuiLink component={Link} to="/login" underline="always">Sign in</MuiLink>
+      <p className="mt-6 text-small text-muted">
+        Already registered? <TextLink href="/login">Sign in</TextLink>
       </p>
     </Page>
   );

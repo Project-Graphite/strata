@@ -1,8 +1,5 @@
-import Alert from '@mui/material/Alert';
-import MuiLink from '@mui/material/Link';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
-import { CodeInput, errorMessage, TextField } from '@project-graphite/ui';
+import { Banner, CodeInput, errorMessage, TextField, TextLink } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Page } from '../components/Page';
@@ -55,22 +52,16 @@ function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: (
         ) : (
           <CodeInput autoFocus label="Six-digit code" {...form.field('code')} />
         )}
-        {error && (
-          <Alert className="m-0" severity="error">
-            {error}
-          </Alert>
-        )}
+        {error && <Banner tone="danger">{error}</Banner>}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
-      <p className="mt-6 text-sm text-muted">
-        <MuiLink component="button" onClick={() => setRecovery((current) => !current)} type="button" underline="always">
+      <p className="mt-6 text-small text-muted">
+        <TextLink onClick={() => setRecovery((current) => !current)}>
           {recovery ? 'Use the authenticator app instead' : 'Use a recovery code instead'}
-        </MuiLink>
+        </TextLink>
       </p>
-      <p className="mt-2 text-sm text-muted">
-        <MuiLink component="button" onClick={onRestart} type="button" underline="always">
-          Start again
-        </MuiLink>
+      <p className="mt-2 text-small text-muted">
+        <TextLink onClick={onRestart}>Start again</TextLink>
       </p>
     </Page>
   );
@@ -120,19 +111,15 @@ export function LoginPage() {
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
-        {error && (
-          <Alert className="m-0" severity="error">
-            {error}
-          </Alert>
-        )}
+        {error && <Banner tone="danger">{error}</Banner>}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
       {error === unverified && <ResendVerification email={email} key={email} />}
-      <p className="mt-6 text-sm text-muted">
-        <MuiLink component={Link} to="/forgot-password" underline="always">Forgot your password?</MuiLink>
+      <p className="mt-6 text-small text-muted">
+        <TextLink href="/forgot-password">Forgot your password?</TextLink>
       </p>
-      <p className="mt-2 text-sm text-muted">
-        New here? <MuiLink component={Link} to="/register" underline="always">Create account</MuiLink>
+      <p className="mt-2 text-small text-muted">
+        New here? <TextLink href="/register">Create account</TextLink>
       </p>
     </Page>
   );

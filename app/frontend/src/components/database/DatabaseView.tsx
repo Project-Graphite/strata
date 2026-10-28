@@ -1,8 +1,6 @@
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, IconButton, Placeholder, Select, Skeleton } from '@project-graphite/ui';
+import { formatDay, IconButton, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -36,7 +34,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
     return (
       <Placeholder className="grid gap-4 border-t border-line-soft pt-6" label="Loading the database">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-[2.421875rem] w-64 rounded-lg" />
+          <Skeleton className="h-[2.421875rem] w-64 rounded-field" />
           {editable && (
             <div className="flex items-center gap-4">
               <ButtonSkeleton width="w-28" />
@@ -117,7 +115,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       .filter(([, display]) => !blank(display))
       .slice(0, 3)
       .map(([property, display]) => (
-        <span className="inline-flex min-w-0 flex-wrap items-center gap-1 wrap-anywhere text-sm text-muted" key={property.id}>
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-1 wrap-anywhere text-small text-muted" key={property.id}>
           {display}
         </span>
       ));
@@ -131,7 +129,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
 
   const chooser = (label: string, options: Property[], chosen: Property | undefined, key: 'groupBy' | 'dateBy') =>
     options.length > 1 && (
-      <div className="flex items-center gap-2 text-sm text-muted">
+      <div className="flex items-center gap-2 text-small text-muted">
         {label}
         <Select
           aria-label={label}
@@ -166,7 +164,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                     if (row && (row.values[group.id] ?? '') !== column.id) setValues(row.id, { [group.id]: column.id || null });
                   }}
                 >
-                  <h3 className="m-0 flex items-center justify-between text-sm font-medium text-muted">
+                  <h3 className="m-0 flex items-center justify-between text-h3 text-muted">
                     {column.name}
                     <span className="mono-sm text-faint">{cards.length}</span>
                   </h3>
@@ -305,19 +303,12 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
     <section aria-label="Database" className="grid min-w-0 grid-cols-1 gap-4 border-t border-line-soft pt-6">
       {database.refreshError && <LoadError compact error={database.refreshError} onRetry={database.reload} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleButtonGroup
-          aria-label="Database view"
-          exclusive
-          onChange={(_, view: typeof data.view | null) => view && void saveSchema({ view })}
-          size="small"
+        <SegmentedControl
+          label="Database view"
+          onChange={(view) => void saveSchema({ view })}
+          options={databaseViews.map(([value, label]) => ({ label, value }))}
           value={data.view}
-        >
-          {databaseViews.map(([view, label]) => (
-            <ToggleButton key={view} value={view}>
-              {label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        />
         {editable && (
           <div className="flex items-center gap-4">
             <TextButton label="Edit properties" onClick={() => setEditing(data)} />

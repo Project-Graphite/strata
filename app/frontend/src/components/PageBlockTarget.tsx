@@ -32,5 +32,5 @@ export function PageBlockTarget({ editor, provider }: { editor: Editor; provider
     };
   }, [editor, provider, hash]);
 
-  return missing ? <p className="m-0 text-sm text-muted" role="status">This linked block is no longer on this page.</p> : null;
+  return missing ? <p className="m-0 text-small text-muted" role="status">This linked block is no longer on this page.</p> : null;
 }

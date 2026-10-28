@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
+import { useNavigate, useParams } from 'react-router';
+import { formatDay, Icon, IconButton, ListRow, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -12,7 +12,6 @@ import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { DetailState, Page, Section, Subheading } from '../components/Page';
-import { RowText } from '../components/RowText';
 import { ButtonSkeleton, HintSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { MissingRates } from '../components/Stats';
 import { OpenTask } from '../components/TaskEditor';
@@ -188,15 +187,13 @@ export function TripPage() {
                   {itinerary
                     .filter((entry) => entry.startsOn === day)
                     .map((entry) => (
-                      <li className="flex items-center pe-2 hover:bg-line-soft" key={entry.linkId}>
-                        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/events/${entry.id}`}>
-                          <RowText
-                            detail={[entry.startTime ? `${clockTime(entry.startTime)}${entry.endTime ? `–${clockTime(entry.endTime)}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}
-                            title={entry.title}
-                          />
-                        </Link>
-                        {linkedMenu(entry)}
-                      </li>
+                      <ListRow
+                        href={`/events/${entry.id}`}
+                        key={entry.linkId}
+                        meta={[entry.startTime ? `${clockTime(entry.startTime)}${entry.endTime ? `–${clockTime(entry.endTime)}` : ''}` : 'All day', entry.location].filter(Boolean).join(' · ')}
+                        title={entry.title}
+                        trail={linkedMenu(entry)}
+                      />
                     ))}
                 </ul>
               </div>
@@ -247,14 +244,17 @@ export function TripPage() {
         {shown.expenses.length > 0 && (
           <ul className="panel-rows">
             {shown.expenses.map((expense) => (
-              <li className="panel-row flex items-center gap-3" key={expense.linkId}>
-                <RowText
-                  detail={<>{formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}</>}
-                  title={expense.title}
-                />
-                <Amount currency={expense.currency} minor={expense.amountMinor} />
-                {linkedMenu(expense)}
-              </li>
+              <ListRow
+                key={expense.linkId}
+                meta={<>{formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}</>}
+                title={expense.title}
+                trail={
+                  <>
+                    <Amount currency={expense.currency} minor={expense.amountMinor} />
+                    {linkedMenu(expense)}
+                  </>
+                }
+              />
             ))}
           </ul>
         )}
@@ -293,10 +293,12 @@ export function TripPage() {
         ) : (
           <ul className="panel-rows">
             {shown.documents.map((document) => (
-              <li className="panel-row flex items-center gap-3" key={document.linkId}>
-                <Icon name="file" size={18} />
-                <RowText detail={document.sizeBytes !== null && fileSize(document.sizeBytes)} title={document.title} />
-                {linkedMenu(document, [
+              <ListRow
+                key={document.linkId}
+                lead={<Icon name="file" size={18} />}
+                meta={document.sizeBytes !== null && fileSize(document.sizeBytes)}
+                title={document.title}
+                trail={linkedMenu(document, [
                   {
                     label: 'Download',
                     onSelect: () =>
@@ -306,7 +308,7 @@ export function TripPage() {
                       }, 'Could not download that file'),
                   },
                 ])}
-              </li>
+              />
             ))}
           </ul>
         )}
@@ -337,13 +339,13 @@ export function TripPage() {
         ) : (
           <ul className="panel-rows">
             {shown.pages.map((page) => (
-              <li className="flex items-center pe-2 hover:bg-line-soft" key={page.linkId}>
-                <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" to={`/notes/${page.id}`}>
-                  <Icon name="file" size={18} />
-                  <RowText title={page.title || 'Untitled'} />
-                </Link>
-                {linkedMenu({ ...page, title: page.title || 'Untitled' })}
-              </li>
+              <ListRow
+                href={`/notes/${page.id}`}
+                key={page.linkId}
+                lead={<Icon name="file" size={18} />}
+                title={page.title || 'Untitled'}
+                trail={linkedMenu({ ...page, title: page.title || 'Untitled' })}
+              />
             ))}
           </ul>
         )}

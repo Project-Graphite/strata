@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { formatDay, Icon, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
+import { formatDay, Icon, ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -13,7 +13,6 @@ import { Page } from '../components/Page';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { RowText } from '../components/RowText';
 import { HintSkeleton, IconButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const empty = { title: 'No files yet', hint: 'Files in this space show up here.' };
@@ -106,47 +105,46 @@ export function FilesPage() {
           ) : (
             <ul className="panel-rows">
               {shown.files.map((file) => (
-                <li className="panel-row flex items-center gap-3" key={file.id}>
-                  <span className="shrink-0 text-muted">
-                    <Icon name="file" size={18} />
-                  </span>
-                  <RowText
-                    detail={[fileSize(file.sizeBytes), formatDay(dayKey(new Date(file.createdAt)), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
-                      .filter(Boolean)
-                      .join(' · ')}
-                    title={file.name}
-                  />
-                  <ActionsMenu
-                    items={[
-                      {
-                        label: 'Download',
-                        onSelect: () =>
-                          void action.run(async () => {
-                            saveBlob(await auth.request<Blob>(`/files/${file.id}`, {}, readBlob), file.name);
-                            return '';
-                          }, 'Could not download the file'),
-                      },
-                      ...(writable.some((space) => space.id === file.spaceId) ? [{
-                        label: 'Move to trash',
-                        separated: true,
-                        onSelect: () =>
-                          void action.run(async () => {
-                            await auth.request(`/items/${file.id}/trash`, { method: 'POST' });
-                            storage.reload();
-                            return {
-                              message: `Moved ${file.name} to the trash.`,
-                              undo: async () => {
-                                await auth.request(`/items/${file.id}/restore`, { method: 'POST' });
-                                storage.reload();
-                                return '';
-                              },
-                            };
-                          }, 'Could not move the file to the trash'),
-                      }] : []),
-                    ]}
-                    name={file.name}
-                  />
-                </li>
+                <ListRow
+                  key={file.id}
+                  lead={<Icon name="file" size={18} />}
+                  meta={[fileSize(file.sizeBytes), formatDay(dayKey(new Date(file.createdAt)), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  title={file.name}
+                  trail={
+                    <ActionsMenu
+                      items={[
+                        {
+                          label: 'Download',
+                          onSelect: () =>
+                            void action.run(async () => {
+                              saveBlob(await auth.request<Blob>(`/files/${file.id}`, {}, readBlob), file.name);
+                              return '';
+                            }, 'Could not download the file'),
+                        },
+                        ...(writable.some((space) => space.id === file.spaceId) ? [{
+                          label: 'Move to trash',
+                          separated: true,
+                          onSelect: () =>
+                            void action.run(async () => {
+                              await auth.request(`/items/${file.id}/trash`, { method: 'POST' });
+                              storage.reload();
+                              return {
+                                message: `Moved ${file.name} to the trash.`,
+                                undo: async () => {
+                                  await auth.request(`/items/${file.id}/restore`, { method: 'POST' });
+                                  storage.reload();
+                                  return '';
+                                },
+                              };
+                            }, 'Could not move the file to the trash'),
+                        }] : []),
+                      ]}
+                      name={file.name}
+                    />
+                  }
+                />
               ))}
             </ul>
           )}

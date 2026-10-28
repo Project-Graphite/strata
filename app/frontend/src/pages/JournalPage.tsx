@@ -196,7 +196,7 @@ function JournalMoods({ busy, journal, mutate, onWrite }: { busy: boolean; journ
             );
           })}
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-small text-muted">
           <span className="flex items-center gap-1">
             {moods[0]}
             {moods.map((label, index) => (

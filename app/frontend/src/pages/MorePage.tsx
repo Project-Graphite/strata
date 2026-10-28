@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router';
-import { Icon, type IconName } from '@project-graphite/ui';
+import { useLocation } from 'react-router';
+import { Icon, ListRow, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { AboutLinks } from '../components/AboutLinks';
 import { Page, Subheading } from '../components/Page';
@@ -17,17 +17,13 @@ export function MorePage() {
           {section.label && <Subheading level={2}>{section.label}</Subheading>}
           <ul className="panel-rows">
             {section.items.map((item) => (
-              <li key={item.href}>
-                <Link className="flex items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft" to={item.href}>
-                  <span className="sidebar-icon text-muted">
-                    <Icon name={item.icon as IconName} size={18} />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  <span className="text-faint">
-                    <Icon name="chevron-right" size={16} />
-                  </span>
-                </Link>
-              </li>
+              <ListRow
+                href={item.href}
+                key={item.href}
+                lead={<Icon name={item.icon as IconName} size={18} />}
+                title={item.label}
+                trail={<Icon name="chevron-right" size={16} />}
+              />
             ))}
           </ul>
         </nav>

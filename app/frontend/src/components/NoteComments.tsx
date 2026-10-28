@@ -1,4 +1,3 @@
-import ButtonBase from '@mui/material/ButtonBase';
 import { useEffect, useState } from 'react';
 import { ConfirmDialog, TextAreaField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -148,9 +147,9 @@ export function NoteComments({
           {comment.editedAt ? ' · edited' : ''}
         </p>
         {comment.blockId && (
-          <ButtonBase className="comment-block-quote justify-start text-left" onClick={() => anchors.show(comment.blockId!)}>
+          <button className="comment-block-quote cursor-pointer text-left" onClick={() => anchors.show(comment.blockId!)} type="button">
             {anchors.label(comment.blockId)}
-          </ButtonBase>
+          </button>
         )}
         <p className="m-0 whitespace-pre-wrap break-words text-sm text-ink">{comment.body}</p>
         <div className="flex flex-wrap gap-3 text-sm">

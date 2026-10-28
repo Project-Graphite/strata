@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, Placeholder, Toggle } from '@project-graphite/ui';
+import { errorMessage, ListRow, Placeholder, Toggle } from '@project-graphite/ui';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
-import { RowText } from './RowText';
-import { rowsOf, RowTextSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
+import { rowsOf, RowSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
 import { allPushKinds, pushGroups, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -19,16 +18,16 @@ const useDevicePushShape = (shape?: [number]) => useRememberedShape('device-push
 
 export function DevicePushSkeleton() {
   const [toggleRows] = useDevicePushShape();
-  return (
+  return toggleRows ? (
     <div aria-hidden="true" className="panel-rows">
-      {toggleRows ? (
-        rowsOf(toggleRows).map((row) => <ToggleSkeleton description={!row} key={row} />)
-      ) : (
-        <div className="panel-row">
-          <RowTextSkeleton />
-        </div>
-      )}
+      {rowsOf(toggleRows).map((row) => (
+        <ToggleSkeleton description={!row} key={row} />
+      ))}
     </div>
+  ) : (
+    <ul aria-hidden="true" className="panel-rows">
+      <RowSkeleton />
+    </ul>
   );
 }
 
@@ -60,11 +59,9 @@ export function DevicePush() {
   }, [request, checks]);
 
   const note = (text: string) => (
-    <div className="panel-rows">
-      <div className="panel-row">
-        <RowText detail={text} title="Notifications on this device" />
-      </div>
-    </div>
+    <ul className="panel-rows">
+      <ListRow meta={text} title="Notifications on this device" />
+    </ul>
   );
   if (key.error || checkError) {
     return (

@@ -155,7 +155,7 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
       </div>
       {found && (
         <List dense disablePadding>
-          {found.length === 0 && <li className="text-sm text-muted">No places match.</li>}
+          {found.length === 0 && <li className="text-small text-muted">No places match.</li>}
           {found.map((option) => (
             <ListItemButton
               key={`${option.latitude},${option.longitude}`}

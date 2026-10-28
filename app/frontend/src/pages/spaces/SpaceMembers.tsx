@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, ConfirmDialog, Placeholder, Select, Skeleton, timeAgo } from '@project-graphite/ui';
+import { Avatar, ConfirmDialog, ListRow, Placeholder, Select, Skeleton, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { roleOptions, useAllSpaces, type SpaceRole } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -10,7 +10,6 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
-import { RowText } from '../../components/RowText';
 import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 interface Member {
@@ -56,30 +55,33 @@ export function SpaceMembers() {
         <LoadError error={members.error} onRetry={members.reload} />
       ) : !members.data ? (
         <Placeholder label="Loading the members of this space">
-          <RowsSkeleton lead={<AvatarSkeleton />} rows={rows} trail={manages && <Skeleton className="h-10 w-32 shrink-0 rounded-lg" />} />
+          <RowsSkeleton lead={<AvatarSkeleton />} rows={rows} trail={manages && <Skeleton className="h-10 w-32 shrink-0 rounded-field" />} />
         </Placeholder>
       ) : (
         <ul className="panel-rows">
           {members.data.map((member) => (
-            <li className="flex items-center gap-3 panel-row" key={member.userId}>
-              <Avatar name={member.displayName} />
-              <RowText
-                detail={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${timeAgo(member.joinedAt)}`].filter(Boolean).join(' · ')}
-                title={member.userId === self ? `${member.displayName} · you` : member.displayName}
-              />
-              {manages && (
-                <Select
-                  aria-label={`Role of ${member.displayName}`}
-                  className="w-32"
-                  disabled={action.busy}
-                  onChange={(role) => changeRole(member, role)}
-                  options={roleOptions}
-                  size="small"
-                  value={member.role}
-                />
-              )}
-              {manages && member.userId !== self && <ActionsMenu items={[{ label: 'Remove', onSelect: () => setRemoving(member) }]} name={member.displayName} />}
-            </li>
+            <ListRow
+              key={member.userId}
+              lead={<Avatar name={member.displayName} />}
+              meta={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${timeAgo(member.joinedAt)}`].filter(Boolean).join(' · ')}
+              title={member.userId === self ? `${member.displayName} · you` : member.displayName}
+              trail={
+                manages && (
+                  <>
+                    <Select
+                      aria-label={`Role of ${member.displayName}`}
+                      className="w-32"
+                      disabled={action.busy}
+                      onChange={(role) => changeRole(member, role)}
+                      options={roleOptions}
+                      size="small"
+                      value={member.role}
+                    />
+                    {member.userId !== self && <ActionsMenu items={[{ label: 'Remove', onSelect: () => setRemoving(member) }]} name={member.displayName} />}
+                  </>
+                )
+              }
+            />
           ))}
         </ul>
       )}

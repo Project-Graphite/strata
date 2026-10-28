@@ -1,7 +1,6 @@
-import Chip from '@mui/material/Chip';
 import { useContext, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
-import { Icon, PageActionsRow, PageHeader, Placeholder, Tabs, type TabItem } from '@project-graphite/ui';
+import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from './Skeletons';
@@ -165,21 +164,7 @@ export function FilterChips({ children, items, label }: { children?: ReactNode; 
   return (
     <nav aria-label={label} className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
       {items.map((item) => (
-        <Chip
-          aria-current={item.active ? 'page' : undefined}
-          clickable
-          component={Link}
-          key={item.href}
-          label={
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate">{item.label}</span>
-              {item.count !== undefined && <span className="shrink-0 text-faint">{item.count}</span>}
-            </span>
-          }
-          title={item.label}
-          to={item.href}
-          variant={item.active ? 'filled' : 'outlined'}
-        />
+        <FilterChip active={item.active} count={item.count} href={item.href} key={item.href} label={item.label} />
       ))}
       {children}
     </nav>
@@ -188,19 +173,13 @@ export function FilterChips({ children, items, label }: { children?: ReactNode; 
 
 export function Subheading({ children, level = 3 }: { children: ReactNode; level?: 2 | 3 }) {
   const Heading = level === 2 ? 'h2' : 'h3';
-  return <Heading className="m-0 text-sm font-medium text-muted">{children}</Heading>;
+  return <Heading className="m-0 text-h3 text-ink">{children}</Heading>;
 }
 
 export function Section({ action, children, description, title }: { action?: ReactNode; children: ReactNode; description?: ReactNode; title: string }) {
   return (
     <section className="grid min-w-0 grid-cols-1 gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="m-0 text-lg font-medium">{title}</h2>
-          {description && <p className="m-0 mt-1 text-sm text-muted">{description}</p>}
-        </div>
-        {action}
-      </div>
+      <SectionHeading action={action} description={description} title={title} />
       {children}
     </section>
   );

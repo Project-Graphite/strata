@@ -1,7 +1,6 @@
-import FormLabel from '@mui/material/FormLabel';
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, Toggle, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, Toggle, type TagColor } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
@@ -84,9 +83,7 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
 
   render() {
     return this.state.failed ? (
-      <WidgetEmpty icon="alert" title="This widget stopped working">
-        Reload the page to try again.
-      </WidgetEmpty>
+      <WidgetEmpty icon="alert" title="This widget stopped working, reload the page" />
     ) : (
       this.props.children
     );
@@ -99,10 +96,7 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
     <Dialog onClose={onClose} title={`${cardTitle(widget)} settings`}>
       <div className="mt-5 grid gap-6">
         {Settings && <Settings onChange={(settings) => onChange({ settings })} settings={widget.settings} />}
-        <fieldset className="m-0 grid gap-4 border-0 p-0">
-          <FormLabel className="mb-2" component="legend">
-            Card
-          </FormLabel>
+        <Fieldset className="gap-4" legend="Card">
           <TextField
             label="Title"
             maxLength={40}
@@ -129,7 +123,7 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
               value={widget.h ? String(widget.h) : ''}
             />
           </div>
-        </fieldset>
+        </Fieldset>
         <DialogActions>
           <Button label="Done" large onClick={onClose} primary />
         </DialogActions>
@@ -199,7 +193,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
-      {mayDim && <p className="mt-4 mb-0 text-sm text-muted">This browser may still let the screen turn itself off.</p>}
+      {mayDim && <p className="mt-4 mb-0 text-small text-muted">This browser may still let the screen turn itself off.</p>}
       <div className="mt-8 text-lg">
         <DashboardGrid
           card={(widget) => {
@@ -347,8 +341,8 @@ export function DashboardHome() {
             <span />
             <span />
           </div>
-          <h2 className="m-0 text-xl font-medium text-ink">Make this dashboard yours</h2>
-          <p className="m-0 max-w-md text-sm text-muted">Pick widgets for your day, your money, your notes and the world around you.</p>
+          <h2 className="m-0 text-h2 text-ink">Make this dashboard yours</h2>
+          <p className="m-0 max-w-md text-small text-muted">Pick widgets for your day, your money, your notes and the world around you.</p>
           <div className="mt-3">
             <Button
               icon="plus"
@@ -440,8 +434,7 @@ export function DashboardHome() {
         <Dialog onClose={() => setConfiguring(false)} title="Dashboard settings">
           <div className="mt-5 grid gap-5">
             <TextField label="Name" maxLength={40} onChange={(event) => setName(event.currentTarget.value)} value={name} />
-            <fieldset className="m-0 grid gap-3 border-0 p-0">
-              <FormLabel className="mb-2" component="legend">Opens by itself</FormLabel>
+            <Fieldset className="gap-3" legend="Opens by itself">
               <div className="grid gap-4 sm:grid-cols-3">
                 <TimeField emptyLabel="Any time" label="From" onChange={(from) => setSchedule({ ...schedule, from })} value={schedule.from} />
                 <TimeField emptyLabel="Any time" label="Until" onChange={(until) => setSchedule({ ...schedule, until })} value={schedule.until} />
@@ -456,7 +449,7 @@ export function DashboardHome() {
                   value={schedule.on}
                 />
               </div>
-            </fieldset>
+            </Fieldset>
             <div className="grid gap-3">
               <ColorSwatches label="Background" name="background" onChange={(colour) => change({ background: { colour } })} value={layout.background?.colour ?? null} />
               <div className="flex flex-wrap items-center gap-3">
@@ -523,8 +516,7 @@ export function DashboardHome() {
           title="New dashboard"
         >
           <TextField autoFocus defaultValue="Morning briefing" label="Name" maxLength={40} {...addForm.field('name')} />
-          <fieldset className="m-0 grid gap-2 border-0 p-0">
-            <FormLabel className="mb-2" component="legend">Start from</FormLabel>
+          <Fieldset legend="Start from">
             {templates.map(([value, label, contents]) => (
               <Radio
                 className="choice-card m-0"
@@ -533,7 +525,7 @@ export function DashboardHome() {
                 label={
                   <span className="grid gap-0.5">
                     <span className="text-ink">{label}</span>
-                    <span className="text-sm text-muted">{contents}</span>
+                    <span className="text-small text-muted">{contents}</span>
                   </span>
                 }
                 name="template"
@@ -544,7 +536,7 @@ export function DashboardHome() {
                 value={value}
               />
             ))}
-          </fieldset>
+          </Fieldset>
         </FormDialog>
       )}
       {deleting && (
