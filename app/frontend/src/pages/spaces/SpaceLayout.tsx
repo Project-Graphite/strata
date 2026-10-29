@@ -137,21 +137,26 @@ export function useSpaceActions(onInvited?: () => void) {
 export function SpaceLayout() {
   const { id } = useParams();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const spaces = useAllSpaces();
   const [invited, setInvited] = useState(0);
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;
+  const sections = [
+    [`${base}/recurring`, 'Recurring'],
+    [`${base}/habits`, 'Habits'],
+    [`${base}/tags`, 'Tags'],
+    [`${base}/activity`, 'Activity'],
+  ] as const;
+  const opened = [...sections, [`${base}/items`, 'Items'] as const].find(([href]) => pathname === href);
   const tabs = (
     [
-      [base, 'Items'],
+      [base, 'Overview'],
       [`${base}/pages`, 'Pages'],
       [`${base}/tasks`, 'Tasks'],
-      [`${base}/recurring`, 'Recurring'],
-      [`${base}/habits`, 'Habits'],
-      [`${base}/tags`, 'Tags'],
       [`${base}/members`, 'Members'],
-      [`${base}/activity`, 'Activity'],
-    ] as const
+      ...(opened ? [opened] : []),
+    ] as (readonly [string, string])[]
   ).map(([href, label]) => ({ active: pathname === href, href, label }));
 
   if (spaces.error) return <DetailState resource={spaces} thing="Space" />;
@@ -184,7 +189,15 @@ export function SpaceLayout() {
 
   return (
     <Page
-      actions={<ActionsMenu items={actions.items(space)} name={space.name} />}
+      actions={
+        <ActionsMenu
+          items={[
+            ...sections.map(([href, label]) => ({ label, onSelect: () => navigate(href) })),
+            ...actions.items(space).map((item, index) => (index === 0 ? { ...item, separated: true } : item)),
+          ]}
+          name={space.name}
+        />
+      }
       description={spaceDescription(space)}
       documentTitle={space.name}
       tabs={tabs}

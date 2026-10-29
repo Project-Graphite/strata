@@ -3,11 +3,12 @@ import { Link } from 'react-router';
 import { formatDay, IconButton, Meter, type TagColor } from '@project-graphite/ui';
 import { addDays, dayKey, entryDay, monthDays, shiftMonth, useAgenda } from '../agenda';
 import { LoadError } from '../components/LoadError';
+import { useWeekStart } from '../tasks';
 
 export function CalendarWidget() {
   const today = dayKey(new Date());
   const [month, setMonth] = useState(today.slice(0, 7));
-  const { from, to } = monthDays(`${month}-01`);
+  const { from, to } = monthDays(`${month}-01`, useWeekStart() ?? 0);
   const agenda = useAgenda(from, to);
   const busy = new Map<string, TagColor[]>();
   for (const entry of agenda.data ?? []) busy.set(entryDay(entry), [...(busy.get(entryDay(entry)) ?? []), agenda.colourOf(entry)]);

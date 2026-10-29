@@ -3,8 +3,8 @@ import { errorMessage, ListRow, Placeholder, Toggle } from '@project-graphite/ui
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
-import { rowsOf, RowSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
-import { allPushKinds, pushGroups, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
+import { RowSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
+import { allPushKinds, pushRegistration, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -17,12 +17,10 @@ interface Device {
 const useDevicePushShape = (shape?: [number]) => useRememberedShape('device-push', shape, [1]);
 
 export function DevicePushSkeleton() {
-  const [toggleRows] = useDevicePushShape();
-  return toggleRows ? (
+  const [toggle] = useDevicePushShape();
+  return toggle ? (
     <div aria-hidden="true" className="panel-rows">
-      {rowsOf(toggleRows).map((row) => (
-        <ToggleSkeleton description={!row} key={row} />
-      ))}
+      <ToggleSkeleton description />
     </div>
   ) : (
     <ul aria-hidden="true" className="panel-rows">
@@ -38,7 +36,7 @@ export function DevicePush() {
   const [device, setDevice] = useState<Device | null>();
   const [checkError, setCheckError] = useState('');
   const [checks, setChecks] = useState(0);
-  useDevicePushShape(key.data && device !== undefined ? [key.data.publicKey === null || device === null ? 0 : device.kinds === null ? 1 : 1 + pushGroups.length] : undefined);
+  useDevicePushShape(key.data && device !== undefined ? [key.data.publicKey === null || device === null ? 0 : 1] : undefined);
 
   useEffect(() => {
     void (async () => {
@@ -91,14 +89,6 @@ export function DevicePush() {
   const { registration, subscription, kinds } = device;
   const publicKey = key.data.publicKey;
 
-  function choose(group: string[], on: boolean) {
-    const next = on ? [...new Set([...kinds!, ...group])] : kinds!.filter((kind) => !group.includes(kind));
-    void acting.run(async () => {
-      setDevice({ ...device!, kinds: (await savePush(request, subscription!, next)).kinds });
-      return '';
-    }, 'Could not change the notifications');
-  }
-
   return (
     <div className="panel-rows">
       <Toggle
@@ -119,16 +109,6 @@ export function DevicePush() {
           }, 'Could not change the notifications')
         }
       />
-      {kinds !== null &&
-        pushGroups.map((group) => (
-          <Toggle
-            checked={group.kinds.every((kind) => kinds.includes(kind))}
-            disabled={acting.busy}
-            key={group.label}
-            label={group.label}
-            onChange={(on) => choose(group.kinds, on)}
-          />
-        ))}
     </div>
   );
 }

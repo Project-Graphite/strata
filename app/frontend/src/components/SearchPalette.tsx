@@ -66,14 +66,14 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
       hint: `${itemKindName(item)} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
-      href: itemHref(item) ?? `/spaces/${item.spaceId}${item.archived ? '?archived=true' : ''}`,
+      href: itemHref(item) ?? `/spaces/${item.spaceId}/items${item.archived ? '?archived=true' : ''}`,
       id: `item-${item.id}`,
       label: item.title || 'Untitled',
     })),
     ...(results?.tags ?? []).map((tag) => ({
       group: 'Tags',
       hint: spaceName(tag.spaceId),
-      href: `/spaces/${tag.spaceId}?tag=${tag.id}`,
+      href: `/spaces/${tag.spaceId}/items?tag=${tag.id}`,
       id: `tag-${tag.id}`,
       label: tag.name,
     })),

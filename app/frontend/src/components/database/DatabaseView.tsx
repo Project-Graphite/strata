@@ -5,6 +5,7 @@ import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteHref, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
 import type { Member } from '../../spaces';
+import { useWeekStart } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { LoadError } from '../LoadError';
@@ -27,6 +28,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   const adding = useAction();
   const [editing, setEditing] = useState<NoteDatabase>();
   const [month, setMonth] = useState(() => dayKey(new Date()));
+  const weekStart = useWeekStart();
   const [rows, columns] = useRememberedShape(`database-${noteId}`, database.data && [database.data.rows.length, database.data.properties.length], [3, 2]);
 
   if (database.error) return <LoadError error={database.error} onRetry={database.reload} />;
@@ -196,7 +198,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
     }
     if (data.view === 'calendar') {
       if (!dateProperty) return <Hint>Add a date property to place pages on a calendar.</Hint>;
-      const { from, days } = monthDays(month);
+      const { from, days } = monthDays(month, weekStart ?? 0);
       const shown = new Date(`${month}T00:00:00`);
       const shift = (direction: number) => setMonth(dayKey(new Date(shown.getFullYear(), shown.getMonth() + direction, 1)));
       const byDay = new Map<string, DatabaseRow[]>();

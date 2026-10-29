@@ -3,23 +3,11 @@ import { Dialog, formatDay, IconButton, PickerField, Button as UiButton } from '
 import { Button, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
-export type TimeFormat = 'auto' | '12h' | '24h';
-
-export const timeFormatOptions: { value: TimeFormat; label: string }[] = [
-  { value: 'auto', label: 'Same as this device' },
-  { value: '12h', label: '12-hour (1:30 PM)' },
-  { value: '24h', label: '24-hour (13:30)' },
-];
-
-let hour12: boolean | undefined;
 let profileZone: string | undefined;
 
-export function applyTimePreferences(format: TimeFormat | undefined, zone: string | undefined) {
-  hour12 = format === '12h' ? true : format === '24h' ? false : undefined;
+export function applyTimeZone(zone: string | undefined) {
   profileZone = zone;
 }
-
-export const timeOptions = (): Intl.DateTimeFormatOptions => (hour12 === undefined ? {} : { hour12 });
 
 export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? '' : zone.replaceAll('_', ' '));
 
@@ -64,11 +52,11 @@ export function formatMoment(at: string) {
   return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${profileClock(at)}` : formatDate(day);
 }
 
-export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
+export const usesTwelveHours = () => Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 
 export function clockTime(time: string | Date, timeZone?: string) {
   const at = typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time;
-  return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...timeOptions() });
+  return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone });
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
