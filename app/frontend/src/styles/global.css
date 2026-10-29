@@ -1904,7 +1904,7 @@ button.habit-day::before {
   filter: blur(12px);
 }
 
-:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .app-tile:not(.app-tile-off), .form-panel, .panel-rows, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .app-tile:not(.app-tile-off), .card, .stat, .banner, .form-panel, .panel-rows, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
   background: color-mix(in srgb, var(--color-surface) 84%, transparent);
 }
 
