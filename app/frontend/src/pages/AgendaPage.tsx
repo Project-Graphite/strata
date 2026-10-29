@@ -592,5 +592,12 @@ function Agenda({ view }: { view: View }) {
 
 export function AgendaPage({ view }: { view?: View }) {
   const { search } = useLocation();
-  return view ? <Agenda view={view} /> : <Navigate replace to={`/agenda/${rememberedView()}${search}`} />;
+  if (view) return <Agenda view={view} />;
+  const remembered = rememberedView();
+  return (
+    <>
+      <Navigate replace to={`/agenda/${remembered}${search}`} />
+      <Agenda view={remembered} />
+    </>
+  );
 }

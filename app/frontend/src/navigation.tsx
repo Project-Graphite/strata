@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import type { IconName, ShellTab, SidebarSection } from '@project-graphite/ui';
 import { appCatalogue, type AppEntry } from './apps';
 import { SpaceMark, type Space } from './spaces';
@@ -23,6 +23,25 @@ export function areaOf(pathname: string) {
   if (pathname === '/') return '/';
   const app = appCatalogue.find((candidate) => [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)));
   return app?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
+}
+
+function onNavigation(changed: () => void) {
+  window.navigation?.addEventListener('currententrychange', changed);
+  return () => window.navigation?.removeEventListener('currententrychange', changed);
+}
+
+export function useSlowNavigation(shown: string) {
+  const latest = useSyncExternalStore(onNavigation, () => window.location.pathname);
+  const [slow, setSlow] = useState<string>();
+  useEffect(() => {
+    if (latest === shown) {
+      setSlow(undefined);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlow(latest), 300);
+    return () => window.clearTimeout(timer);
+  }, [latest, shown]);
+  return latest !== shown && slow === latest;
 }
 
 export const AreaContext = createContext<{ setArea: (area: string | null) => void }>({ setArea: () => {} });

@@ -2,10 +2,15 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
-import { cp, readFile } from 'node:fs/promises';
+import { cp, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
+import { promisify } from 'node:util';
+import { brotliCompress, constants } from 'node:zlib';
 import { defineConfig, type Plugin } from 'vite';
+import { routePages } from './src/route-pages.ts';
+
+const compress = promisify(brotliCompress);
 
 function excalidrawFonts(): Plugin {
   const fonts = join(dirname(createRequire(import.meta.url).resolve('@excalidraw/excalidraw')), 'fonts');
@@ -21,6 +26,23 @@ function excalidrawFonts(): Plugin {
     },
     async writeBundle({ dir }) {
       await cp(fonts, join(dir!, 'excalidraw', 'fonts'), { recursive: true });
+    },
+  };
+}
+
+function brotliAssets(): Plugin {
+  return {
+    name: 'strata-brotli-assets',
+    apply: 'build',
+    async writeBundle({ dir }, bundle) {
+      await Promise.all(
+        Object.keys(bundle)
+          .filter((name) => name.startsWith('assets/') && /\.(js|css)$/.test(name))
+          .map(async (name) => {
+            const source = await readFile(join(dir!, name));
+            await writeFile(join(dir!, `${name}.br`), await compress(source, { params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_SIZE_HINT]: source.length } }));
+          }),
+      );
     },
   };
 }
@@ -54,8 +76,49 @@ function serviceWorker(): Plugin {
   };
 }
 
+function routePreload(): Plugin {
+  return {
+    name: 'strata-route-preload',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const files = (name: string, skip: Set<string>, found = new Set<string>()) => {
+        const output = bundle[name];
+        if (found.has(name) || skip.has(name) || output?.type !== 'chunk') return found;
+        found.add(name);
+        output.imports.forEach((imported) => files(imported, skip, found));
+        return found;
+      };
+      const chunks = Object.values(bundle).flatMap((output) => (output.type === 'chunk' ? [output] : []));
+      const initial = chunks.filter((chunk) => chunk.isEntry).reduce((found, chunk) => files(chunk.fileName, new Set(), found), new Set<string>());
+      const routes = routePages.flatMap(([pattern, page]) => {
+        const chunk = chunks.find((candidate) => candidate.isDynamicEntry && candidate.facadeModuleId?.replaceAll('\\', '/').endsWith(`/src/${page}.tsx`));
+        return chunk ? [[pattern, [...files(chunk.fileName, initial)].map((name) => `/${name}`)]] : [];
+      });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'route-preload.js',
+        source: `(() => {
+  try {
+    if (localStorage.getItem('strata-signed-in') !== '1') return;
+  } catch {
+    return;
+  }
+  const path = location.pathname.replace(/(.)\\/$/, '$1');
+  const route = ${JSON.stringify(routes)}.find(([pattern]) => new RegExp(pattern).test(path));
+  for (const href of route?.[1] ?? []) {
+    const link = Object.assign(document.createElement('link'), { rel: 'preload', as: 'script', href, crossOrigin: '', fetchPriority: 'low' });
+    document.head.append(link);
+  }
+})();
+`,
+      });
+    },
+    transformIndexHtml: () => [{ tag: 'script', attrs: { type: 'module', async: true, src: '/route-preload.js' }, injectTo: 'head-prepend' }],
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorker(), excalidrawFonts()],
+  plugins: [react(), tailwindcss(), serviceWorker(), excalidrawFonts(), routePreload(), brotliAssets()],
   resolve: {
     alias: { '@excalidraw/mermaid-to-excalidraw': join(import.meta.dirname, 'src/stubs/mermaid-to-excalidraw.ts') },
   },
@@ -65,7 +128,8 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
-            { name: 'ui', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/ },
+            { name: 'ui', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/, tags: ['$initial'] },
+            { name: 'ui-more', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/ },
           ],
         },
       },

@@ -14,8 +14,9 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
   const adding = useAction();
   const hintId = useId();
   const suggestionsId = useId();
-  const tags = useResource<Tag[]>(`/spaces/${spaceId}/tags`, true);
   const [text, setText] = useState('');
+  const [focused, setFocused] = useState(false);
+  const tags = useResource<Tag[]>(focused ? `/spaces/${spaceId}/tags` : null, true);
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState('');
   const known = (tags.data ?? []).map((tag) => tag.name);
@@ -60,6 +61,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
             label="Add a task"
             maxLength={300}
             onBlur={() => setDismissed(text)}
+            onFocus={() => setFocused(true)}
             onChange={(event) => {
               setText(event.currentTarget.value);
               setActive(0);

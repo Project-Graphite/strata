@@ -1,5 +1,6 @@
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -83,6 +84,8 @@ function restoreSession() {
   return refreshSession(() => requestSession());
 }
 
+export const initialSession = restoreSession();
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>();
   const [ready, setReady] = useState(false);
@@ -95,12 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    restoreSession()
-      .then(applySession)
-      .then(
-        () => setReady(true),
-        (reason: unknown) => setRestoreError(errorMessage(reason, 'Strata could not restore your session.')),
-      );
+    initialSession.then(
+      (restored) =>
+        startTransition(() => {
+          applySession(restored);
+          setReady(true);
+        }),
+      (reason: unknown) => setRestoreError(errorMessage(reason, 'Strata could not restore your session.')),
+    );
   }, [applySession]);
 
   useEffect(() => {
