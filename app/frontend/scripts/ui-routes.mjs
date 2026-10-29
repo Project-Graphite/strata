@@ -45,7 +45,8 @@ export async function signIn(page) {
 export async function open(page, url) {
   const pending = new Set();
   const finish = (request) => pending.delete(request);
-  page.on('request', (request) => request.resourceType() !== 'eventsource' && pending.add(request));
+  page.on('request', (request) => pending.add(request));
+  page.on('response', (response) => response.headers()['content-type']?.startsWith('text/event-stream') && finish(response.request()));
   page.on('requestfinished', finish);
   page.on('requestfailed', finish);
   await page.goto(url);
