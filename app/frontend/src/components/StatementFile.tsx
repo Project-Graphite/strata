@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Select } from '@project-graphite/ui';
-import { dateOrder, guessColumns, parseCsv, readCharges, statementCurrency, withoutPreamble, type DateOrder, type StatementColumns } from '../statement';
+import { dateOrder, guessColumns, parseCsv, readCharges, readEntries, statementCurrency, withoutPreamble, type DateOrder, type StatementColumns } from '../statement';
 import { FileButton } from './FileButton';
 
 const orders: { value: DateOrder; label: string; hint: string }[] = [
@@ -9,14 +9,23 @@ const orders: { value: DateOrder; label: string; hint: string }[] = [
   { value: 'ymd', label: 'Year first', hint: '2026-01-31' },
 ];
 
+const isPdf = (file: File) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
 export function useStatementFile(onCurrency: (code: string) => void) {
   const [rows, setRows] = useState<string[][]>();
   const [fileName, setFileName] = useState('');
-  const [columns, setColumns] = useState<StatementColumns>({ date: 0, description: 0, amount: 0 });
+  const [failed, setFailed] = useState('');
+  const [columns, setColumns] = useState<StatementColumns>({ date: 0, description: 0, amount: 0, credit: null, reference: null });
   const [order, setOrder] = useState<DateOrder>('dmy');
 
   async function read(file: File) {
-    const parsed = withoutPreamble(parseCsv(await file.text()));
+    setFailed('');
+    const text = isPdf(file) ? await (await import('../statement-pdf')).pdfRows(file).catch(() => null) : parseCsv(await file.text());
+    if (!text) {
+      setFailed(`Could not read ${file.name}. Choose a statement PDF with selectable text, or a CSV export.`);
+      return;
+    }
+    const parsed = withoutPreamble(text);
     const guessed = guessColumns(parsed);
     const currency = statementCurrency(parsed, guessed.amount);
     if (currency) onCurrency(currency);
@@ -26,29 +35,48 @@ export function useStatementFile(onCurrency: (code: string) => void) {
     setOrder(dateOrder(parsed.slice(1, 50).map((row) => row[guessed.date] ?? '')));
   }
 
-  const columnSelect = (label: string, key: keyof StatementColumns) => (
+  const options = (rows?.[0] ?? []).map((title, index) => ({ value: String(index), label: title || `Column ${index + 1}` }));
+  const columnSelect = (label: string, key: 'date' | 'description' | 'amount') => (
+    <Select label={label} onChange={(index) => setColumns({ ...columns, [key]: Number(index) })} options={options} value={String(columns[key])} />
+  );
+  const optionalSelect = (label: string, key: 'credit' | 'reference') => (
     <Select
       label={label}
-      onChange={(index) => setColumns({ ...columns, [key]: Number(index) })}
-      options={(rows?.[0] ?? []).map((title, index) => ({ value: String(index), label: title || `Column ${index + 1}` }))}
-      value={String(columns[key])}
+      onChange={(index) => setColumns({ ...columns, [key]: index === '' ? null : Number(index) })}
+      options={[{ value: '', label: 'None' }, ...options]}
+      value={columns[key] === null ? '' : String(columns[key])}
     />
   );
 
   return {
     charges: rows ? readCharges(rows, columns, order) : [],
+    entries: rows ? readEntries(rows, columns, order) : [],
     loaded: Boolean(rows),
     picker: (
-      <div className="flex flex-wrap items-center gap-3">
-        <FileButton accept=".csv,text/csv" inputLabel="Statement file" label={rows ? 'Choose another file' : 'Choose a CSV file'} onFiles={(files) => void read(files[0]!)} />
-        {fileName && <span className="truncate text-small text-muted">{fileName}</span>}
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FileButton
+            accept=".csv,text/csv,.pdf,application/pdf"
+            inputLabel="Statement file"
+            label={rows ? 'Choose another file' : 'Choose a CSV or PDF file'}
+            onFiles={(files) => void read(files[0]!)}
+          />
+          {fileName && <span className="truncate text-small text-muted">{fileName}</span>}
+        </div>
+        {failed && (
+          <p className="m-0 text-small text-danger" role="alert">
+            {failed}
+          </p>
+        )}
       </div>
     ),
     columns: rows && (
       <div className="grid gap-4 sm:grid-cols-2">
         {columnSelect('Date column', 'date')}
         {columnSelect('Description column', 'description')}
-        {columnSelect('Amount column', 'amount')}
+        {columnSelect('Amount or debit column', 'amount')}
+        {optionalSelect('Credit column', 'credit')}
+        {optionalSelect('Reference column', 'reference')}
         <Select label="Dates are written" onChange={setOrder} options={orders} value={order} />
       </div>
     ),

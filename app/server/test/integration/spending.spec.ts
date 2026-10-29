@@ -328,6 +328,37 @@ describe('Spending and budgets against Postgres', () => {
     expect(now.categories[0]).toMatchObject({ category: 'groceries', pace: { overOn: null } });
   });
 
+  it('flags statement rows that are already recorded and links imported rows to their merchant', async () => {
+    const owner = await member('statement-reader');
+    const stranger = await member('statement-stranger');
+    const home = owner.personalSpaceId;
+    const bank = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB', currency: 'EGP' })).body;
+    const wallet = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Wallet', kind: 'wallet', currency: 'EGP' })).body;
+    await owner.call('POST', `/spaces/${home}/merchant-rules`, { match: 'CARREFOUR', rename: 'Carrefour', category: 'groceries' });
+    const recorded = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', accountId: bank.id };
+    await owner.call('POST', `/spaces/${home}/expenses`, recorded);
+    await owner.call('POST', `/spaces/${home}/expenses`, { ...recorded, title: 'Salary', amountMinor: 900_000, direction: 'received', category: 'salary', reference: 'FT2610' });
+
+    const rows = [
+      { ...recorded, title: 'CARREFOUR MAADI', merchant: 'CARREFOUR MAADI', spentOn: '2026-10-15' },
+      { ...recorded, title: 'CARREFOUR MAADI', merchant: 'CARREFOUR MAADI', spentOn: '2026-10-15' },
+      { ...recorded, title: 'CARREFOUR MAADI', spentOn: '2026-10-17' },
+      { ...recorded, title: 'CARREFOUR MAADI', accountId: wallet.id },
+      { ...recorded, title: 'CARREFOUR MAADI', direction: 'refund' },
+      { ...recorded, title: 'Payroll', amountMinor: 900_000, direction: 'received', category: 'salary', reference: 'FT2610' },
+      { ...recorded, title: 'Payroll', amountMinor: 900_000, direction: 'received', category: 'salary', reference: 'FT2611', spentOn: '2026-10-28' },
+    ];
+    expect((await stranger.call('POST', `/spaces/${home}/expenses/import/check`, { expenses: rows })).status).toBe(404);
+    expect((await owner.call('POST', `/spaces/${home}/expenses/import/check`, { expenses: rows })).body).toEqual({ duplicates: [0, 5] });
+
+    expect((await owner.call('POST', `/spaces/${home}/expenses/import`, { expenses: [rows[1], rows[6]] })).body).toEqual({ added: 2 });
+    const imported = await strata.prisma.expense.findMany({ where: { item: { spaceId: home }, source: 'import' }, orderBy: { spentOn: 'asc' }, select: { reference: true, direction: true, knownMerchant: { select: { name: true } } } });
+    expect(imported).toEqual([
+      { reference: null, direction: 'spent', knownMerchant: { name: 'Carrefour' } },
+      { reference: 'FT2611', direction: 'received', knownMerchant: null },
+    ]);
+  });
+
   it('keeps amounts far beyond the old 32-bit limit and returns them as plain numbers', async () => {
     const owner = await member('tycoon');
     const home = owner.personalSpaceId;
@@ -349,9 +380,9 @@ describe('Spending and budgets against Postgres', () => {
     const add = (body: object) => owner.call('POST', `/spaces/${home.id}/expenses`, { currency: 'EGP', spentOn: today, category: 'eating out', ...body });
     await add({ title: 'Talabat', amountMinor: 30_000, merchant: 'Talabat' });
     await add({ title: 'Talabat again', amountMinor: 20_000, merchant: 'TALABAT' });
-    await add({ title: 'Lunch, with "friends"', amountMinor: 5000, accountId: bank.id });
-    await add({ title: '=cmd()', amountMinor: 1000, category: 'other' });
-    await add({ title: 'Salary', amountMinor: 900_000, direction: 'received', accountId: bank.id });
+    const lunch = (await add({ title: 'Lunch, with "friends"', amountMinor: 5000, accountId: bank.id, paymentLabel: 'Visa ending 4512', cardDigits: '4512' })).body;
+    const command = (await add({ title: '=cmd()', amountMinor: 1000, category: 'other' })).body;
+    const salary = (await add({ title: 'Salary', amountMinor: 900_000, direction: 'received', accountId: bank.id })).body;
 
     expect((await owner.call('GET', `/spaces/${home.id}/spending/insights?months=30`)).status).toBe(400);
     expect((await outsider.call('GET', `/spaces/${home.id}/spending/insights`)).status).toBe(404);
@@ -373,10 +404,14 @@ describe('Spending and budgets against Postgres', () => {
     const response = await fetch(`${strata.base}/spaces/${home.id}/expenses/export`, { headers: { Authorization: `Bearer ${owner.token}` } });
     expect(response.headers.get('content-type')).toContain('text/csv');
     const lines = (await response.text()).trim().split('\r\n');
-    expect(lines[0]).toBe('date,title,merchant,type,amount,currency,category,account,to account,note');
-    expect(lines).toContain(`${today},"Lunch, with ""friends""",,spent,50.00,EGP,eating out,NBE,,`);
-    expect(lines).toContain(`${today},'=cmd(),,spent,10.00,EGP,other,,,`);
-    expect(lines).toContain(`${today},Salary,,received,9000.00,EGP,,NBE,,`);
+    expect(lines[0]).toBe('date,title,merchant,type,amount,currency,category,account,to account,note,card,label,source,id');
+    expect(lines).toContain(`${today},"Lunch, with ""friends""",,spent,50.00,EGP,eating out,NBE,,,4512,Visa ending 4512,manual,${lunch.id}`);
+    expect(lines).toContain(`${today},'=cmd(),,spent,10.00,EGP,other,,,,,,manual,${command.id}`);
+    expect(lines).toContain(`${today},Salary,,received,9000.00,EGP,,NBE,,,,,manual,${salary.id}`);
+    const exported = (range: string) => fetch(`${strata.base}/spaces/${home.id}/expenses/export?${range}`, { headers: { Authorization: `Bearer ${owner.token}` } });
+    expect((await (await exported('from=2000-01-01&until=2000-12-31')).text()).trim().split('\r\n')).toHaveLength(1);
+    expect((await (await exported(`from=${today}&until=${today}`)).text()).trim().split('\r\n')).toHaveLength(6);
+    expect((await exported('from=yesterday')).status).toBe(400);
   });
 
   it('pages through transactions by cursor with filters, day totals, running balances and bulk changes', async () => {

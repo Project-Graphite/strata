@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Banner, Icon } from '@project-graphite/ui';
+import { Banner, DatePicker, Icon } from '@project-graphite/ui';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -15,6 +15,8 @@ import { AddTransaction } from './AddTransaction';
 import { Button } from './Button';
 import { CategoriesEditor } from './CategoriesEditor';
 import { ExpenseImport } from './ExpenseImport';
+import { FormDialog } from './FormDialog';
+import { Hint } from './Hint';
 import { Page } from './Page';
 import { PhoneSetup } from './PhoneSetup';
 import { RulesEditor } from './RulesEditor';
@@ -36,12 +38,10 @@ export function SpendingFrame({
   tab: SpendingTab;
   toolbar?: ReactNode;
 }) {
-  const auth = useAuth();
-  const action = useAction();
   const [params] = useSearchParams();
   const { spaceId, space, editable } = usePersonalSpace();
-  const [dialog, setDialog] = useState<'new' | 'import' | 'phone' | 'categories' | 'rules'>();
-  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
+  const [dialog, setDialog] = useState<'new' | 'import' | 'export' | 'phone' | 'categories' | 'rules'>();
+  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'import' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
   const editedCategories = categories ?? loadedCategories.data;
   const me = useResource<{ budgetsEnabled: boolean }>('/me', true);
@@ -58,20 +58,13 @@ export function SpendingFrame({
               items={[
                 ...(editable
                   ? [
-                      { label: 'Import expenses from a statement', onSelect: () => setDialog('import') },
+                      { label: 'Import a statement', onSelect: () => setDialog('import') },
                       { label: 'Connect your phone', onSelect: () => setDialog('phone') },
                       { label: 'Edit categories', onSelect: () => setDialog('categories') },
                       { label: 'Edit rules', onSelect: () => setDialog('rules') },
                     ]
                   : []),
-                {
-                  label: 'Export CSV',
-                  onSelect: () =>
-                    void action.run(async () => {
-                      saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export`, {}, readBlob), 'transactions.csv');
-                      return '';
-                    }, 'Could not export the transactions'),
-                },
+                { label: 'Export CSV', onSelect: () => setDialog('export') },
               ]}
               name="spending"
             />
@@ -109,7 +102,8 @@ export function SpendingFrame({
       {spaceId && dialog === 'new' && (
         <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
       )}
-      {spaceId && dialog === 'import' && <ExpenseImport currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+      {spaceId && dialog === 'import' && <ExpenseImport accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+      {spaceId && dialog === 'export' && <ExportDialog onClose={() => setDialog(undefined)} spaceId={spaceId} />}
       {spaceId && space && dialog === 'phone' && (
         <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => { setDialog(undefined); nativeCapture.refresh(); }} spaceId={spaceId} spaceName={space.name} />
       )}
@@ -118,5 +112,38 @@ export function SpendingFrame({
       )}
       {spaceId && dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
     </Page>
+  );
+}
+
+function ExportDialog({ onClose, spaceId }: { onClose: () => void; spaceId: string }) {
+  const auth = useAuth();
+  const saving = useAction();
+  const [from, setFrom] = useState('');
+  const [until, setUntil] = useState('');
+  const range = new URLSearchParams([...(from ? [['from', from]] : []), ...(until ? [['until', until]] : [])]).toString();
+
+  return (
+    <FormDialog
+      busy={saving.busy}
+      busyLabel="Exporting…"
+      onClose={onClose}
+      onSubmit={() =>
+        void saving
+          .run(async () => {
+            saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export${range ? `?${range}` : ''}`, {}, readBlob), `transactions${from ? `-${from}` : ''}${until ? `-to-${until}` : ''}.csv`);
+            return '';
+          }, 'Could not export the transactions')
+          .then((done) => done && onClose())
+      }
+      submitDisabled={Boolean(from && until && from > until)}
+      submitLabel="Export CSV"
+      title="Export transactions"
+    >
+      <Hint>Leave a date empty to export from the first or up to the last transaction.</Hint>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <DatePicker label="From" max={until || undefined} onChange={setFrom} value={from} />
+        <DatePicker label="Until" min={from || undefined} onChange={setUntil} value={until} />
+      </div>
+    </FormDialog>
   );
 }
