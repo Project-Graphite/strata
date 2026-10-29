@@ -371,7 +371,7 @@ function Period({
                   </Link>
                 </Subheading>
                 {day <= today && (
-                  <Link className="mono-sm text-faint" to="/journal">
+                  <Link className="mono-sm text-muted" to="/journal">
                     Journal
                   </Link>
                 )}
@@ -415,7 +415,7 @@ function Period({
       <>
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
           {allDays.slice(0, 7).map((day) => (
-            <p className={`m-0 px-2 py-1 text-xs text-faint ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
+            <p className={`m-0 px-2 py-1 text-xs text-muted ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
               {formatDay(day, { weekday: 'short' })}
             </p>
           ))}
@@ -427,7 +427,7 @@ function Period({
               <button
                 aria-label={label}
                 aria-pressed={day === picked}
-                className={`grid min-h-14 min-w-0 content-start justify-items-center gap-1 p-1 text-faint ${outside ? 'opacity-50' : ''} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'} ${day === picked ? 'outline-2 -outline-offset-2 outline-ink' : ''}`}
+                className={`grid min-h-14 min-w-0 content-start justify-items-center gap-1 p-1 ${outside ? 'text-muted' : 'text-ink'} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'} ${day === picked ? 'outline-2 -outline-offset-2 outline-ink' : ''}`}
                 key={day}
                 onClick={() => setPicked(day)}
                 type="button"
@@ -440,19 +440,19 @@ function Period({
                 </span>
               </button>
             ) : (
-              <div className={`relative min-h-24 min-w-0 p-1.5 ${outside ? 'opacity-50' : ''} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={day}>
-                <Link aria-current={day === today ? 'date' : undefined} aria-label={label} className="block w-fit text-faint no-underline after:absolute after:inset-0" to={link({ view: 'day', date: day })}>
+              <div className={`relative min-h-24 min-w-0 p-1.5 ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={day}>
+                <Link aria-current={day === today ? 'date' : undefined} aria-label={label} className={`block w-fit no-underline after:absolute after:inset-0 ${outside ? 'text-muted' : 'text-ink'}`} to={link({ view: 'day', date: day })}>
                   <DayNumber day={day} today={today} />
                 </Link>
                 <div className="relative mt-1 grid gap-0.5">
                   {entries.slice(0, 3).map((entry) => (
                     <AgendaEntryLink className="agenda-chip" colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)} onOpen={(target) => onPeek(entry, target)}>
-                      {!entry.allDay && <span className="text-muted">{entryClock(entry.start)} </span>}
+                      {!entry.allDay && <span className="text-ink/80">{entryClock(entry.start)} </span>}
                       {entry.title}
                     </AgendaEntryLink>
                   ))}
                   {entries.length > 3 && (
-                    <Link className="mono-sm px-1 text-faint" to={link({ view: 'day', date: day })}>
+                    <Link className="mono-sm px-1 text-muted" to={link({ view: 'day', date: day })}>
                       +{entries.length - 3} more
                     </Link>
                   )}
