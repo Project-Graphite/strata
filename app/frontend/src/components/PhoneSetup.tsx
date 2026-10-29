@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Checkbox, Dialog, TextField } from '@project-graphite/ui';
+import { useState } from 'react';
+import { Banner, Checkbox, Dialog, Fieldset, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import {
   androidReleaseUrl,
@@ -7,16 +7,18 @@ import {
   digitalAppOptions,
   isNativeAndroid,
   loadCapturePreferences,
-  packagesForApps,
   parseChatList,
+  phoneCaptureAttention,
   saveCapturePreferences,
   serverOrigin,
   StrataCapture,
+  useNativeCaptureStatus,
   type DigitalAppId,
-  type NativeCaptureStatus,
+  type FinanceApp,
 } from '../native-capture';
 import type { TwoStepStatus } from '../pages/settings/SettingsLayout';
 import type { MoneyAccount } from '../spending';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
@@ -29,158 +31,213 @@ import { ProofFields, proofFrom } from './ProofFields';
 export const forwarderUrl = 'https://f-droid.org/packages/tech.bogomolov.incomingsmsgateway/';
 export const notificationForwarderUrl = 'https://f-droid.org/packages/life.andre.message487/';
 
-export function PhoneSetup({
-  accounts = [],
-  onChanged,
-  onClose,
-  spaceId,
-  spaceName,
-}: {
+interface PhoneSetupProps {
   accounts?: MoneyAccount[];
   onChanged?: () => void;
   onClose: () => void;
   spaceId: string;
   spaceName: string;
-}) {
+}
+
+const appGroups: FinanceApp['group'][] = ['Banks', 'Wallets', 'Apps'];
+const squash = (value: string) => value.toLowerCase().replace(/[\s\-_.]+/g, '');
+const messages = (count: number) => `${count} message${count === 1 ? '' : 's'}`;
+const proofRules = (twoStep: boolean) => ({ password: [required('Enter your password to confirm.')], ...(twoStep ? { code: [required('Enter a code to confirm.')] } : {}) });
+
+export function PhoneSetup(props: PhoneSetupProps) {
+  return isNativeAndroid() ? <PhoneCaptureSettings {...props} /> : <PhoneTokenSetup {...props} />;
+}
+
+function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: PhoneSetupProps) {
   const auth = useAuth();
-  const nativeAndroid = isNativeAndroid();
-  const twoStep = useResource<TwoStepStatus>(nativeAndroid ? null : '/me/two-step', true);
+  const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
   const saving = useAction();
   const nativeAction = useAction();
+  const form = useFormErrors();
+  const { status, setStatus, refresh } = useNativeCaptureStatus();
+  const [chatsText, setChatsText] = useState<string>();
+  const [enabledPackages, setEnabledPackages] = useState<string[]>();
+  if (!status) return null;
+
+  const endpointUrl = `${serverOrigin()}/api/v1/spaces/${spaceId}/captures`;
+  const accountWords = accounts.flatMap((account) => [account.name, account.institution ?? '', ...account.senders]).map(squash).filter(Boolean);
+  const seededChats = [...new Set(accounts.flatMap((account) => [...account.senders, account.institution ?? '']).map((sender) => sender.trim()).filter(Boolean))];
+  const chats = chatsText ?? (status.allowedChats.length > 0 ? status.allowedChats : seededChats).join(', ');
+  const packages =
+    enabledPackages ??
+    (status.configured ? status.enabledPackages : status.installedApps.filter((app) => accountWords.some((word) => word.includes(squash(app.label)))).map((app) => app.packageName));
+  const attention = phoneCaptureAttention(status);
+  const needsToken = !status.configured || status.endpointUrl !== endpointUrl || attention === 'reconnect' || attention === 'renew';
+  const twoStepOn = Boolean(twoStep.data?.enabled);
+
+  return (
+    <FormDialog
+      busy={saving.busy}
+      busyLabel="Saving…"
+      onClose={onClose}
+      onSubmit={(target) => {
+        if (needsToken && !form.check(target, proofRules(twoStepOn))) return;
+        void saving.run(async () => {
+          const minted = needsToken
+            ? await auth.request<{ token: string; expiresAt: string }>(`/spaces/${spaceId}/captures/device`, { method: 'POST', body: JSON.stringify(proofFrom(target)) })
+            : null;
+          const next = await StrataCapture.configure({
+            endpointUrl,
+            ...(minted ? { token: minted.token, tokenExpiresAt: minted.expiresAt } : {}),
+            allowedChats: parseChatList(chats),
+            enabledPackages: packages,
+          });
+          setStatus(next);
+          if (next.notificationsGranted) await StrataCapture.scanNotifications();
+          await StrataCapture.flushOutbox();
+          onChanged?.();
+          onClose();
+          return next.notificationsGranted ? 'Phone capture saved and active.' : 'Phone capture saved. Allow notification access to start reading messages.';
+        }, 'Could not save phone capture settings');
+      }}
+      submitLabel={needsToken && status.configured ? 'Reconnect' : 'Save'}
+      title="Connect this phone"
+    >
+      {attention === 'reconnect' && (
+        <Banner title="Reconnect your phone" tone="warning">
+          Strata stopped accepting messages from this phone. Confirm your password to reconnect; {messages(status.queuedCount)} waiting on the phone will be sent.
+        </Banner>
+      )}
+      {attention === 'renew' && (
+        <Banner title="Renew this phone's connection" tone="warning">
+          The connection ends {formatMoment(status.tokenExpiresAt)}. Confirm your password to renew it for 90 days.
+        </Banner>
+      )}
+      <div className="grid gap-2 rounded-field border border-line p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="grid gap-0.5">
+            <span className="text-body font-medium text-ink">
+              {status.notificationsGranted ? 'Notification access is on' : 'Allow Strata to read transaction notifications'}
+            </span>
+            <span className="text-small text-muted">
+              {status.notificationsGranted
+                ? 'Strata reads only texts from the senders below and notifications from the apps you switch on.'
+                : 'Required once in Android Settings. If the switch is greyed out, open Settings → Apps → Strata → ⋮ → Allow restricted settings.'}
+            </span>
+          </div>
+          <Button
+            label={status.notificationsGranted ? 'Notification settings' : 'Allow notification access'}
+            onClick={() =>
+              void nativeAction.run(async () => {
+                await StrataCapture.openNotificationSettings();
+                return '';
+              }, 'Could not open notification settings')
+            }
+            primary={!status.notificationsGranted}
+          />
+        </div>
+        {status.notificationsGranted && status.configured && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button
+              label="Read current notifications now"
+              onClick={() =>
+                void nativeAction.run(async () => {
+                  const scanned = await StrataCapture.scanNotifications();
+                  refresh();
+                  onChanged?.();
+                  return `Checked ${scanned.scanned} notifications and queued ${scanned.forwarded}.`;
+                }, 'Could not read notifications')
+              }
+            />
+          </div>
+        )}
+      </div>
+      <TextField
+        autoComplete="off"
+        hint="Comma-separated sender names exactly as your messages app shows them. Texts from anyone else are never read or sent."
+        label="SMS senders to read"
+        name="allowedChats"
+        onChange={(event) => setChatsText(event.target.value)}
+        placeholder="CIB, NBE, VF-Cash"
+        value={chats}
+      />
+      {status.installedApps.length === 0 ? (
+        <p className="m-0 text-small text-muted">No supported bank, wallet or payment app is installed on this phone.</p>
+      ) : (
+        appGroups.map((group) => {
+          const apps = status.installedApps.filter((app) => app.group === group);
+          return (
+            apps.length > 0 && (
+              <Fieldset key={group} legend={group}>
+                {apps.map((app) => (
+                  <Toggle
+                    checked={packages.includes(app.packageName)}
+                    key={app.packageName}
+                    label={app.label}
+                    onChange={(checked) => setEnabledPackages(checked ? [...packages, app.packageName] : packages.filter((name) => name !== app.packageName))}
+                  />
+                ))}
+              </Fieldset>
+            )
+          );
+        })
+      )}
+      {status.smsBackfillAvailable && status.configured && (
+        <div className="grid gap-1">
+          <Button
+            label={status.smsGranted ? 'Read texts from the last 90 days' : 'Allow reading past texts'}
+            onClick={() =>
+              void nativeAction.run(async () => {
+                if (!status.smsGranted) {
+                  await StrataCapture.requestSmsAccess();
+                  return '';
+                }
+                const read = await StrataCapture.backfillInbox();
+                refresh();
+                return `Checked ${read.scanned} texts and queued ${messages(read.queued)} from your saved senders.`;
+              }, 'Could not read past texts')
+            }
+          />
+          <span className="text-small text-muted">Only texts from the saved senders above are sent. Strata skips messages it already has.</span>
+        </div>
+      )}
+      {status.queuedCount > 0 && <p className="m-0 text-small text-muted">{messages(status.queuedCount)} waiting to send. They go out when the phone is online.</p>}
+      {status.evictedCount > 0 && <p className="m-0 text-small text-muted">{messages(status.evictedCount)} were dropped because too many were waiting.</p>}
+      {status.rejectedCount > 0 && (
+        <Banner
+          action={
+            <Button
+              label="Try again"
+              onClick={() =>
+                void nativeAction.run(async () => {
+                  setStatus(await StrataCapture.retryRejected());
+                  return '';
+                }, 'Could not retry the refused messages')
+              }
+            />
+          }
+          title={`Strata refused ${messages(status.rejectedCount)}`}
+          tone="warning"
+        >
+          {status.lastError}
+        </Banner>
+      )}
+      {needsToken && <ProofFields form={form} twoStep={twoStepOn} />}
+    </FormDialog>
+  );
+}
+
+function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSetupProps) {
+  const auth = useAuth();
+  const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
+  const saving = useAction();
   const form = useFormErrors();
   const accountSenders = accounts.flatMap((account) => account.senders);
   const initialPrefs = loadCapturePreferences(spaceId, accountSenders);
   const [chatsText, setChatsText] = useState(() => initialPrefs.allowedChats.join(', '));
   const [enabledApps, setEnabledApps] = useState<DigitalAppId[]>(initialPrefs.enabledApps);
   const [token, setToken] = useState('');
-  const [nativeStatus, setNativeStatus] = useState<NativeCaptureStatus | null>(null);
   const endpointUrl = `${serverOrigin()}/api/v1/spaces/${spaceId}/captures`;
-  const allowedChats = parseChatList(chatsText);
-  const allowedSources = combinedAllowedSources(allowedChats, enabledApps);
-
-  const refreshNativeStatus = useCallback(() => {
-    if (!nativeAndroid) return;
-    void StrataCapture.getStatus()
-      .then(setNativeStatus)
-      .catch(() => null);
-  }, [nativeAndroid]);
-
-  useEffect(() => {
-    if (!nativeAndroid) return;
-    refreshNativeStatus();
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refreshNativeStatus();
-    };
-    window.addEventListener('focus', refreshNativeStatus);
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('focus', refreshNativeStatus);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [nativeAndroid, refreshNativeStatus]);
+  const allowedSources = combinedAllowedSources(parseChatList(chatsText), enabledApps);
 
   const toggleApp = (appId: DigitalAppId, checked: boolean) => {
     setEnabledApps((current) => (checked ? [...new Set([...current, appId])] : current.filter((item) => item !== appId)));
   };
-
-  if (nativeAndroid) {
-    const notificationsEnabled = Boolean(nativeStatus?.notificationsGranted);
-    return (
-      <FormDialog
-        busy={saving.busy}
-        busyLabel="Saving…"
-        onClose={onClose}
-        onSubmit={() => {
-          const nextChats = parseChatList(chatsText);
-          saveCapturePreferences(spaceId, { allowedChats: nextChats, enabledApps });
-          void saving.run(async () => {
-            const reuseExistingToken = Boolean(nativeStatus?.configured && nativeStatus.endpointUrl === endpointUrl);
-            const deviceToken = reuseExistingToken
-              ? undefined
-              : (await auth.request<{ token: string }>(`/spaces/${spaceId}/captures/device`, { method: 'POST' })).token;
-            const status = await StrataCapture.configure({
-              endpointUrl,
-              token: deviceToken,
-              allowedChats: nextChats,
-              enabledApps,
-              enabledPackages: packagesForApps(enabledApps),
-            });
-            setNativeStatus(status);
-            if (status.notificationsGranted) {
-              await StrataCapture.syncInboxSms({ allowedChats: nextChats, limit: 100 }).catch(() => null);
-              await StrataCapture.flushOutbox().catch(() => null);
-            }
-            onChanged?.();
-            onClose();
-            return status.notificationsGranted ? 'Phone capture saved and active.' : 'Phone capture preferences saved. Enable notification access to start reading messages.';
-          }, 'Could not save phone capture settings');
-        }}
-        submitLabel="Save"
-        title="Connect this phone"
-      >
-        <div className="grid gap-2 rounded-field border border-line p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="grid gap-0.5">
-              <span className="text-sm font-medium text-ink">
-                {notificationsEnabled ? 'Notification access is enabled' : 'Allow Strata to read transaction notifications'}
-              </span>
-              <span className="text-xs text-muted">
-                {notificationsEnabled
-                  ? 'Strata is listening for matching bank SMS and payment app notifications.'
-                  : 'Required once in Android Settings. If the toggle is greyed out, open Settings → Apps → Strata → ⋮ → Allow restricted settings.'}
-              </span>
-            </div>
-            <Button
-              label={notificationsEnabled ? 'Notification settings' : 'Grant notification access'}
-              onClick={() =>
-                void nativeAction.run(async () => {
-                  await StrataCapture.openNotificationSettings();
-                  return '';
-                }, 'Could not open notification settings')
-              }
-              primary={!notificationsEnabled}
-            />
-          </div>
-          {notificationsEnabled && nativeStatus?.configured && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                label="Scan active notifications now"
-                onClick={() =>
-                  void nativeAction.run(async () => {
-                    const nextChats = parseChatList(chatsText);
-                    saveCapturePreferences(spaceId, { allowedChats: nextChats, enabledApps });
-                    const synced = await StrataCapture.syncInboxSms({ allowedChats: nextChats, limit: 100 });
-                    onChanged?.();
-                    return `Scanned ${synced.scanned} notifications and captured ${synced.forwarded}.`;
-                  }, 'Could not scan notifications')
-                }
-              />
-            </div>
-          )}
-        </div>
-        <TextField
-          autoComplete="off"
-          hint="Comma-separated SMS sender IDs or chat names to read. Personal chats outside this list are skipped."
-          label="Specific SMS chats (optional)"
-          name="allowedChats"
-          onChange={(event) => setChatsText(event.target.value)}
-          placeholder="BanK-AlAhly, CIB, VF-Cash"
-          value={chatsText}
-        />
-        <div className="grid gap-2">
-          <span className="text-sm font-medium text-ink">Digital transaction apps (non-SMS notifications)</span>
-          {digitalAppOptions.map((app) => (
-            <Checkbox
-              checked={enabledApps.includes(app.id)}
-              key={app.id}
-              label={`${app.label} — ${app.hint}`}
-              onChange={(event) => toggleApp(app.id, event.target.checked)}
-            />
-          ))}
-        </div>
-      </FormDialog>
-    );
-  }
 
   if (token) {
     return (
@@ -223,13 +280,13 @@ export function PhoneSetup({
       busyLabel="Creating…"
       onClose={onClose}
       onSubmit={(target) => {
-        if (!form.check(target, { password: [required('Enter your password to confirm.')], ...(twoStep.data?.enabled ? { code: [required('Enter a code to confirm.')] } : {}) })) return;
+        if (!form.check(target, proofRules(Boolean(twoStep.data?.enabled)))) return;
         const nextChats = parseChatList(chatsText);
         saveCapturePreferences(spaceId, { allowedChats: nextChats, enabledApps });
         void saving.run(async () => {
           const created = await auth.request<{ token: string }>('/me/tokens', {
             method: 'POST',
-            body: JSON.stringify({ name: `Phone texts for ${spaceName}`.slice(0, 60), scopes: ['spending:capture'], expiresInDays: 365, ...proofFrom(target) }),
+            body: JSON.stringify({ name: `Phone texts for ${spaceName}`.slice(0, 60), scopes: ['spending:capture'], expiresInDays: 90, ...proofFrom(target) }),
           });
           setToken(created.token);
           return '';

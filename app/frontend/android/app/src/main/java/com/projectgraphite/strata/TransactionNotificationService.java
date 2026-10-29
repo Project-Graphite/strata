@@ -8,13 +8,14 @@ import android.provider.Telephony;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class TransactionNotificationService extends NotificationListenerService {
@@ -27,9 +28,7 @@ public class TransactionNotificationService extends NotificationListenerService 
             "com.samsung.android.messaging",
             "com.android.mms",
             "com.miui.mms",
-            "com.oneplus.mms",
-            "com.whatsapp",
-            "org.telegram.messenger"
+            "com.oneplus.mms"
         )
     );
 
@@ -56,39 +55,28 @@ public class TransactionNotificationService extends NotificationListenerService 
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
-        processStatusBarNotification(sbn, null, true);
+        processStatusBarNotification(sbn, true);
     }
 
-    public static int[] scanActiveNotifications(Context context, List<String> overrideChats) {
+    public static int[] scanActiveNotifications() {
         TransactionNotificationService service = instance;
         if (service == null) {
             return new int[] { 0, 0 };
         }
-        StatusBarNotification[] active;
-        try {
-            active = service.getActiveNotifications();
-        } catch (Exception e) {
-            return new int[] { 0, 0 };
-        }
+        StatusBarNotification[] active = service.getActiveNotifications();
         if (active == null) {
             return new int[] { 0, 0 };
         }
-        int scanned = 0;
         int forwarded = 0;
         for (StatusBarNotification sbn : active) {
-            scanned++;
-            if (service.processStatusBarNotification(sbn, overrideChats, false)) {
+            if (service.processStatusBarNotification(sbn, false)) {
                 forwarded++;
             }
         }
-        return new int[] { scanned, forwarded };
+        return new int[] { active.length, forwarded };
     }
 
-    private boolean processStatusBarNotification(
-        StatusBarNotification sbn,
-        List<String> overrideChats,
-        boolean async
-    ) {
+    private boolean processStatusBarNotification(StatusBarNotification sbn, boolean async) {
         if (sbn == null || sbn.isOngoing()) return false;
         Notification notification = sbn.getNotification();
         if (notification == null || (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0) {
@@ -120,29 +108,21 @@ public class TransactionNotificationService extends NotificationListenerService 
         }
         if (body.isEmpty()) return false;
 
-        String digitalAppLabel = CaptureForwarder.digitalAppLabelForPackage(packageName);
-        boolean isDigitalTransactionApp = digitalAppLabel != null && CaptureForwarder.isDigitalAppEnabled(appContext, packageName);
-        boolean isMessagingApp = isMessagingPackage(appContext, packageName);
+        FinanceApps.App financeApp = FinanceApps.find(packageName);
 
-        String sender;
-        String chat;
-        String fullText;
-        String channelApp;
+        final String sender;
+        final String chat;
+        final String fullText;
+        final String channelApp;
 
-        if (isDigitalTransactionApp) {
-            sender = digitalAppLabel;
-            chat = title.isEmpty() ? digitalAppLabel : title;
-            fullText = (!title.isEmpty() && !title.equalsIgnoreCase(digitalAppLabel) && !body.contains(title))
+        if (financeApp != null && CaptureForwarder.isAppEnabled(appContext, packageName)) {
+            sender = financeApp.label;
+            chat = title.isEmpty() ? financeApp.label : title;
+            fullText = (!title.isEmpty() && !title.equalsIgnoreCase(financeApp.label) && !body.contains(title))
                 ? (title + ": " + body)
                 : body;
             channelApp = packageName;
-        } else if (isMessagingApp && !title.isEmpty()) {
-            List<String> allowedChats = overrideChats != null
-                ? overrideChats
-                : CaptureForwarder.getAllowedChats(appContext);
-            if (!CaptureForwarder.isChatAllowed(appContext, title, allowedChats)) {
-                return false;
-            }
+        } else if (isMessagingPackage(appContext, packageName) && CaptureForwarder.isChatAllowed(appContext, title)) {
             sender = title;
             chat = title;
             fullText = body;
@@ -163,45 +143,37 @@ public class TransactionNotificationService extends NotificationListenerService 
 
         final long postTime = sbn.getPostTime() > 0 ? sbn.getPostTime() : now;
         if (async) {
-            EXECUTOR.execute(() -> {
-                try {
-                    JSONObject payload = CaptureForwarder.buildPayload(appContext, sender, fullText, channelApp, chat, postTime);
-                    CaptureForwarder.enqueueAndFlush(appContext, payload);
-                } catch (Exception ignored) {
-                }
-            });
+            EXECUTOR.execute(() -> queue(appContext, sender, fullText, channelApp, chat, postTime));
             return true;
-        } else {
-            try {
-                JSONObject payload = CaptureForwarder.buildPayload(appContext, sender, fullText, channelApp, chat, postTime);
-                return CaptureForwarder.enqueueAndFlush(appContext, payload);
-            } catch (Exception e) {
-                return false;
-            }
         }
+        return queue(appContext, sender, fullText, channelApp, chat, postTime);
+    }
+
+    private static boolean queue(Context context, String sender, String text, String app, String chat, long postTime) {
+        try {
+            JSONObject payload = CaptureForwarder.buildPayload(sender, text, app, chat, postTime, 0);
+            CaptureForwarder.enqueue(context, Collections.singletonList(payload));
+        } catch (JSONException e) {
+            return false;
+        }
+        CaptureUploadWorker.schedule(context);
+        return true;
     }
 
     private static String extractMessagingStyleText(Bundle extras) {
-        try {
-            Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);
-            if (messages == null || messages.length == 0) return "";
-            Parcelable last = messages[messages.length - 1];
-            if (last instanceof Bundle) {
-                CharSequence text = ((Bundle) last).getCharSequence("text");
-                if (text != null) return text.toString().trim();
-            }
-        } catch (Exception ignored) {
+        Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);
+        if (messages == null || messages.length == 0) return "";
+        Parcelable last = messages[messages.length - 1];
+        if (last instanceof Bundle) {
+            CharSequence text = ((Bundle) last).getCharSequence("text");
+            if (text != null) return text.toString().trim();
         }
         return "";
     }
 
     private static boolean isMessagingPackage(Context context, String packageName) {
         if (MESSAGING_PACKAGES.contains(packageName)) return true;
-        try {
-            String defaultSms = Telephony.Sms.getDefaultSmsPackage(context);
-            return defaultSms != null && defaultSms.equals(packageName);
-        } catch (Exception e) {
-            return false;
-        }
+        String defaultSms = Telephony.Sms.getDefaultSmsPackage(context);
+        return defaultSms != null && defaultSms.equals(packageName);
     }
 }

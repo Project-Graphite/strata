@@ -27,6 +27,8 @@ const actions: Record<string, string> = {
   other_sessions_signed_out: 'Every other device was signed out',
   access_token_created: 'Access token created',
   access_token_revoked: 'Access token revoked',
+  capture_device_connected: 'Phone connected for spending capture',
+  capture_device_revoked: 'Earlier phone connection revoked',
   calendar_feed_reset: 'Calendar link created or reset',
   calendar_feed_disabled: 'Calendar link turned off',
 };

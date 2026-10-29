@@ -15,12 +15,12 @@ export class CaptureMessageDto {
 
   @IsOptional()
   @stampText
-  @Matches(/^\d{0,15}$/, { message: 'Times are milliseconds since 1970.' })
+  @Matches(/^[1-9]\d{11,14}$/, { message: 'Times are milliseconds since 1970.' })
   sentStamp?: string;
 
   @IsOptional()
   @stampText
-  @Matches(/^\d{0,15}$/, { message: 'Times are milliseconds since 1970.' })
+  @Matches(/^[1-9]\d{11,14}$/, { message: 'Times are milliseconds since 1970.' })
   receivedStamp?: string;
 
   @IsOptional()

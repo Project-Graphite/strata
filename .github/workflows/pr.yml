@@ -87,6 +87,65 @@ jobs:
       - run: npm run build --workspace frontend
       - run: npm run check:bundle --workspace frontend
 
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: changes
+        name: Detect Android changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --name-only "$BASE" HEAD | grep -qE '^app/frontend/android/|^app/frontend/src/native-capture\.ts$'; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.changes.outputs.android == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - if: steps.changes.outputs.android == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - if: steps.changes.outputs.android == 'true'
+        name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+      - if: steps.changes.outputs.android == 'true'
+        name: Build web assets and sync Capacitor
+        working-directory: app
+        run: |
+          npm ci
+          npm run android:build --workspace frontend
+
+      - if: steps.changes.outputs.android == 'true'
+        name: Build both APK flavours
+        working-directory: app/frontend/android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew assemblePlayRelease assembleSideloadRelease --no-daemon
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)aapt2"
+          "$aapt2" dump permissions app/build/outputs/apk/play/release/app-play-release.apk > "$RUNNER_TEMP/play-permissions.txt"
+          "$aapt2" dump permissions app/build/outputs/apk/sideload/release/app-sideload-release.apk > "$RUNNER_TEMP/sideload-permissions.txt"
+          if grep -q READ_SMS "$RUNNER_TEMP/play-permissions.txt"; then
+            echo "::error::The Play flavour must not ask for READ_SMS."
+            exit 1
+          fi
+          grep -q READ_SMS "$RUNNER_TEMP/sideload-permissions.txt"
+
   images:
     name: Images
     runs-on: ubuntu-latest

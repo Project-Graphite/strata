@@ -7,6 +7,7 @@ export interface AuthenticatedUser {
   isAdmin: boolean;
   isSystemManager: boolean;
   scopes: TokenScope[] | null;
+  tokenSpaceId?: string | null;
 }
 
 export interface AuthenticatedRequest extends Request {

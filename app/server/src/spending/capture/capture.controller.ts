@@ -3,6 +3,7 @@ import { AdminGuard } from '../../admin/admin.guard';
 import { Scope } from '../../access-tokens/scopes';
 import { AuthenticatedUser } from '../../auth/auth.types';
 import { CurrentUser } from '../../auth/current-user.decorator';
+import { ProofDto } from '../../auth/dto/account.dto';
 import { RateLimit } from '../../redis/rate-limit.guard';
 import { UuidPipe } from '../../validation/uuid.pipe';
 import { CaptureMessageDto, IgnoreCaptureDto, RecordCaptureDto, UpdateSenderRuleDto } from '../dto/capture.dto';
@@ -21,13 +22,13 @@ export class CaptureController {
   @RateLimit('captures', 300, 3_600)
   @HttpCode(200)
   receive(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CaptureMessageDto) {
-    return this.captures.receive(user.id, spaceId, input);
+    return this.captures.receive(user.id, spaceId, input, user.tokenSpaceId);
   }
 
   @Post('spaces/:spaceId/captures/device')
   @RateLimit('capture-device', 30, 3_600)
-  connectDevice(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.captures.connectDevice(user.id, spaceId);
+  connectDevice(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() proof: ProofDto) {
+    return this.captures.connectDevice(user.id, spaceId, proof);
   }
 
   @Get('spaces/:spaceId/captures')

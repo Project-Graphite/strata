@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { ExchangeRatesModule } from '../exchange-rates/exchange-rates.module';
 import { AccountsController } from './accounts.controller';
 import { AccountsService } from './accounts.service';
@@ -15,7 +16,7 @@ import { WealthController } from './wealth.controller';
 import { WealthService } from './wealth.service';
 
 @Module({
-  imports: [ExchangeRatesModule],
+  imports: [AuthModule, ExchangeRatesModule],
   controllers: [SpendingController, AccountsController, CaptureController, CategoriesController, InstallmentsController, WealthController],
   providers: [SpendingService, AccountsService, CaptureService, SenderRulesService, CategoriesService, InstallmentsService, WealthService],
   exports: [SpendingService, InstallmentsService],
