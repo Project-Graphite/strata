@@ -133,7 +133,7 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
   return (
     <div className="grid gap-3">
       <Hint>{place ? `Showing ${place.name}.` : 'No place chosen yet.'}</Hint>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-stretch gap-2">
         <TextField
           className="min-w-0 grow basis-40"
           label="Search for a place"

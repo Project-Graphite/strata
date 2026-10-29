@@ -85,7 +85,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
     >
       <ul className="m-0 grid list-none gap-2 p-0">
         {rows.map((row, index) => (
-          <li className="flex flex-wrap items-end gap-2" key={row.key}>
+          <li className="flex flex-wrap items-center gap-2" key={row.key}>
             <TextField
               aria-label={`Name of category ${index + 1}`}
               className="min-w-0 flex-1 max-sm:basis-full"
@@ -95,7 +95,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
               onChange={(event) => change(row.key, { name: event.target.value })}
               value={row.previous === 'other' ? 'Other' : row.name}
             />
-            <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} size="small" value={row.colour} />
+            <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} value={row.colour} />
             <IconButton disabled={index === 0} icon="chevron-up" label={`Move ${row.name} up`} onClick={() => move(index, -1)} />
             <IconButton disabled={index === rows.length - 1} icon="chevron-down" label={`Move ${row.name} down`} onClick={() => move(index, 1)} />
             <IconButton disabled={row.previous === 'other'} icon="x" label={`Remove ${row.name}`} onClick={() => setRows((current) => current.filter((shown) => shown.key !== row.key))} />

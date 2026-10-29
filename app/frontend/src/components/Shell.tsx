@@ -1,5 +1,5 @@
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import {
   AppShell,
@@ -19,9 +19,10 @@ import { watchChanges } from '../changes';
 import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
 import { enabledApps } from '../apps';
-import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
+import { AreaContext, areaOf, phoneTabBar, sidebarSections, useSlowNavigation } from '../navigation';
 import { ActiveSpaceProvider, SpacesContext, useChosenSpace, type Space } from '../spaces';
 import { PageNavigationProvider } from '../page-navigation';
+import { pageScroller } from '../page-scroll';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AboutLinks } from './AboutLinks';
@@ -29,13 +30,13 @@ import { AccountMenu } from './AccountMenu';
 import { ButtonLink, IconLink } from './Button';
 import { CrashBoundary } from './CrashBoundary';
 import { PageTree } from './PageTree';
-import { SearchPalette } from './SearchPalette';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
 import { SiteBackdrop } from '../dashboard/backdrop';
 import { SpaceNavigation } from './SpaceNavigation';
 import { HeaderTitleProvider } from '../header-title';
 
+const SearchPalette = lazy(() => import('./SearchPalette').then((module) => ({ default: module.SearchPalette })));
 const sessionHintKey = 'strata-signed-in';
 
 function hadSession() {
@@ -67,7 +68,7 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   const area = /^\/(?:spaces\/[^/]+|settings|spending|agenda|pages|recipes|tidy)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    pageScroller().scrollTo({ top: 0, behavior: 'instant' });
   }, [area]);
   return null;
 }
@@ -99,7 +100,17 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   useEffect(() => (signedIn ? watchChanges(auth.request) : undefined), [auth.request, signedIn]);
 
   const showSidebar = auth.user || (!auth.ready && expectSession);
-  const content = <CrashBoundary key={spaceId}><Suspense fallback={<PageSkeleton label="Loading page" />}><Outlet /></Suspense></CrashBoundary>;
+  const slowNavigation = useSlowNavigation(pathname);
+  const content = useMemo(
+    () => (
+      <CrashBoundary key={spaceId}>
+        <Suspense fallback={<PageSkeleton label="Loading page" />}>
+          {transitions ? <PageTransition page={pathname}><Outlet /></PageTransition> : <Fragment key={pathname}><Outlet /></Fragment>}
+        </Suspense>
+      </CrashBoundary>
+    ),
+    [pathname, spaceId, transitions],
+  );
 
   return (
     <>
@@ -163,12 +174,16 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
             </ErrorState>
           ) : (
             <AreaContext.Provider value={areaContext}>
-              {transitions ? <PageTransition page={pathname}>{content}</PageTransition> : <Fragment key={pathname}>{content}</Fragment>}
+              {slowNavigation ? <PageSkeleton label="Loading page" /> : content}
             </AreaContext.Provider>
           )}
         </OutageGate>
       </AppShell>
-      {searching && <SearchPalette key={spaceId} onClose={() => setSearching(false)} />}
+      {searching && (
+        <Suspense fallback={null}>
+          <SearchPalette key={spaceId} onClose={() => setSearching(false)} />
+        </Suspense>
+      )}
       <UpdatePrompt />
     </>
   );

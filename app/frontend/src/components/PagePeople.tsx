@@ -36,9 +36,9 @@ export function PagePeople({ itemId }: { itemId: string }) {
       <Copyable compact value={`${window.location.origin}/notes/${itemId}`} />
     </div>
     {people.error ? <LoadError compact error={people.error} onRetry={people.reload} /> : people.data && <>
-      <form className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto]" onSubmit={(event) => { event.preventDefault(); void save(email, role).then((saved) => { if (saved) setEmail(''); }); }}>
+      <form className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto]" onSubmit={(event) => { event.preventDefault(); void save(email, role).then((saved) => { if (saved) setEmail(''); }); }}>
         <div className="col-span-2 min-w-0 sm:col-span-1"><TextField label="Account email" maxLength={320} onChange={(event) => setEmail(event.currentTarget.value)} type="email" value={email} /></div>
-        <Select label="Access" onChange={setRole} options={roles} size="small" value={role} />
+        <Select label="Access" onChange={setRole} options={roles} value={role} />
         <Button disabled={action.busy || !email.trim()} label={action.busy ? 'Saving…' : 'Add'} submit />
       </form>
       {people.data.people.length > 0 && <ul className="m-0 grid list-none gap-3 p-0">{people.data.people.map((person) => <li className="grid gap-2 border-t border-line pt-3" key={person.userId}>

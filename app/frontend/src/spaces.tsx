@@ -60,21 +60,32 @@ export function useSpaces() {
   return active ? { ...spaces, data: spaces.data?.filter((space) => space.id === active.space?.id) } : spaces;
 }
 
+const spaceKey = (role: 'active' | 'personal', userId: string) => `strata-${role}-space:${userId}`;
+
+export function storedSpace(role: 'active' | 'personal', userId: string) {
+  try {
+    return localStorage.getItem(spaceKey(role, userId)) ?? undefined;
+  } catch (reason) {
+    if (!(reason instanceof DOMException)) throw reason;
+    return undefined;
+  }
+}
+
+function storeSpace(role: 'active' | 'personal', userId: string, spaceId: string) {
+  try {
+    localStorage.setItem(spaceKey(role, userId), spaceId);
+  } catch (reason) {
+    if (!(reason instanceof DOMException)) throw reason;
+  }
+}
+
 export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
   const spaces = useAllSpaces();
   const { user } = useAuth();
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
-  const key = user ? `strata-active-space:${user.id}` : undefined;
-  const [chosen, setChosen] = useState<string | undefined>(() => {
-    if (!key) return undefined;
-    try {
-      return localStorage.getItem(key) ?? undefined;
-    } catch (reason) {
-      if (!(reason instanceof DOMException)) throw reason;
-      return undefined;
-    }
-  });
+  const userId = user?.id;
+  const [chosen, setChosen] = useState(() => (userId ? storedSpace('active', userId) : undefined));
   const routed = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1] ?? params.get('space');
   const space = spaces.data?.find((space) => space.id === (routed ?? chosen)) ?? spaces.data?.find((space) => space.kind === 'personal') ?? spaces.data?.[0];
   const choose = useCallback((spaceId: string) => {
@@ -82,12 +93,10 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
   }, [spaces.data]);
 
   useEffect(() => {
-    if (!key || !space) return;
-    try {
-      localStorage.setItem(key, space.id);
-    } catch (reason) {
-      if (!(reason instanceof DOMException)) throw reason;
-    }
+    if (!userId || !space) return;
+    storeSpace('active', userId, space.id);
+    const personal = spaces.data?.find((candidate) => candidate.kind === 'personal');
+    if (personal) storeSpace('personal', userId, personal.id);
     if (routed && routed === space.id) setChosen(space.id);
     if (params.has('space') && spaces.data) {
       setParams((current) => {
@@ -96,7 +105,7 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
         return next;
       }, { replace: true });
     }
-  }, [key, space, routed, params, setParams, spaces.data]);
+  }, [userId, space, routed, params, setParams, spaces.data]);
 
   return <ActiveSpaceContext.Provider value={{ space, choose }}>{children}</ActiveSpaceContext.Provider>;
 }

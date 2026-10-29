@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, Icon, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Amount } from '../components/Amount';
@@ -28,6 +27,8 @@ import {
   type MoneyAccount,
   type TransactionsPage as Page,
 } from '../spending';
+import { pageScroller } from '../page-scroll';
+import { usePageVirtualizer } from '../page-virtualizer';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useSwipe } from '../swipe';
@@ -227,7 +228,7 @@ export function TransactionsPage() {
       tab="transactions"
       toolbar={
         <div className="grid w-full min-w-0 gap-3">
-          <div className="flex min-w-0 items-start gap-2">
+          <div className="flex min-w-0 items-stretch gap-2">
             <div className="min-w-0 flex-1 sm:max-w-96">
               <TextField autoComplete="off" label="Search transactions" onChange={(event) => setSearch(event.currentTarget.value)} type="search" value={search} />
             </div>
@@ -397,9 +398,9 @@ function Ledger({
     return found;
   }, [listing.rows]);
   useLayoutEffect(() => {
-    if (list.current) setMargin(list.current.getBoundingClientRect().top + window.scrollY);
+    if (list.current) setMargin(list.current.getBoundingClientRect().top + pageScroller().scrollTop);
   });
-  const virtualizer = useWindowVirtualizer({
+  const virtualizer = usePageVirtualizer({
     count: entries.length,
     estimateSize: (index) => {
       const entry = entries[index]!;

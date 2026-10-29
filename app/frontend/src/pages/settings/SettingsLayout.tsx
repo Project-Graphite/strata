@@ -4,7 +4,6 @@ import { ListRow } from '@project-graphite/ui';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
-import { isNativeAndroid } from '../../native-capture';
 
 export interface Me {
   id: string;
@@ -60,7 +59,7 @@ export function SettingsLayout() {
       <div className="grid max-w-narrow gap-8">
         <Outlet />
       </div>
-      {!isNativeAndroid() && <AboutLinks legal={false} />}
+      <AboutLinks />
     </Page>
   );
 }

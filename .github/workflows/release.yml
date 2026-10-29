@@ -58,29 +58,52 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
+      - id: changes
+        name: Check for Android changes since the previous release
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          previous="$(git tag --list 'v*' --sort=-version:refname | grep -vx "$TAG" | head -n 1 || true)"
+          if [ "$EVENT" = "workflow_dispatch" ] || [ -z "$previous" ]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          elif ! git diff --quiet "$previous" "$TAG" -- app/frontend/android app/frontend/capacitor.config.ts \
+            || git diff "$previous" "$TAG" -- app/frontend/package.json | grep -q '^[+-].*"@capacitor/'; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "No Android changes since $previous; this release ships without an APK."
+          fi
+
       - uses: actions/setup-node@v7
+        if: steps.changes.outputs.android == 'true'
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: app/package-lock.json
 
       - uses: actions/setup-java@v5
+        if: steps.changes.outputs.android == 'true'
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
 
       - name: Accept Android SDK licenses
+        if: steps.changes.outputs.android == 'true'
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
       - name: Build web assets and sync Capacitor
+        if: steps.changes.outputs.android == 'true'
         working-directory: app
         run: |
           npm ci
           npm run android:build --workspace frontend
 
       - name: Build signed Android APK
+        if: steps.changes.outputs.android == 'true'
         working-directory: app/frontend/android
         env:
           STRATA_VERSION_NAME: ${{ steps.version.outputs.version }}
@@ -102,6 +125,7 @@ jobs:
           cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
 
       - uses: actions/attest-build-provenance@v4
+        if: steps.changes.outputs.android == 'true'
         with:
           subject-path: ${{ runner.temp }}/strata.apk
 
@@ -112,15 +136,25 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           APK: ${{ runner.temp }}/strata.apk
           VERSIONED_APK: ${{ runner.temp }}/strata-${{ steps.version.outputs.version }}.apk
+          ANDROID: ${{ steps.changes.outputs.android }}
         run: |
           set -euo pipefail
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" "$VERSIONED_APK" --clobber
-            gh release edit "$TAG" --draft=false --latest
+          if [ "$ANDROID" = "true" ]; then
+            assets=("$APK" "$VERSIONED_APK")
+            latest=--latest
           else
-            gh release create "$TAG" "$APK" "$VERSIONED_APK" \
+            assets=()
+            latest=--latest=false
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "${#assets[@]}" -gt 0 ]; then
+              gh release upload "$TAG" "${assets[@]}" --clobber
+            fi
+            gh release edit "$TAG" --draft=false "$latest"
+          else
+            gh release create "$TAG" "${assets[@]}" \
               --verify-tag \
               --title "Strata $TAG" \
               --generate-notes \
-              --latest
+              "$latest"
           fi

@@ -2,6 +2,7 @@ import { formatDay, type TagColor } from '@project-graphite/ui';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
 import { Link } from 'react-router';
 import { entryClock, entryKey, entryTime, type AgendaEntry } from '../agenda';
+import { pageScroller } from '../page-scroll';
 import { clockTime, daysBetween, profileDay, profileMinutes } from '../time';
 
 const dayMinutes = 24 * 60;
@@ -231,8 +232,9 @@ export function TimeGrid({
     if (!loaded || !scrollOnOpen || scrolledTo.current === period || !body.current || !head.current) return;
     scrolledTo.current = period;
     const sticky = head.current.getBoundingClientRect().height + parseFloat(getComputedStyle(head.current).top);
-    const line = body.current.getBoundingClientRect().top + window.scrollY + (Math.max(0, target - 30) / dayMinutes) * body.current.offsetHeight;
-    window.scrollTo({ top: Math.max(0, line - sticky) });
+    const scroller = pageScroller();
+    const line = body.current.getBoundingClientRect().top + scroller.scrollTop + (Math.max(0, target - 30) / dayMinutes) * body.current.offsetHeight;
+    scroller.scrollTo({ top: Math.max(0, line - sticky) });
   }, [days.length, first, loaded, scrollOnOpen, target]);
 
   const point = (x: number, y: number, fixed?: number) => {

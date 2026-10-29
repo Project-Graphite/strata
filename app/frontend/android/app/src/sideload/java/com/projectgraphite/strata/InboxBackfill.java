@@ -8,6 +8,7 @@ import android.database.Cursor;
 import android.provider.Telephony;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -28,6 +29,7 @@ public final class InboxBackfill {
 
     public static int[] run(Context context) throws JSONException {
         List<JSONObject> payloads = new ArrayList<>();
+        Set<String> allowedChats = CaptureForwarder.getAllowedChatTokens(context);
         int scanned = 0;
         try (Cursor cursor = context.getContentResolver().query(
             Telephony.Sms.Inbox.CONTENT_URI,
@@ -40,7 +42,7 @@ public final class InboxBackfill {
                 scanned++;
                 String address = cursor.getString(0);
                 String body = cursor.getString(1);
-                if (address == null || body == null || body.trim().isEmpty() || !CaptureForwarder.isChatAllowed(context, address)) continue;
+                if (address == null || body == null || body.trim().isEmpty() || !CaptureForwarder.isChatAllowed(allowedChats, address)) continue;
                 payloads.add(CaptureForwarder.buildPayload(address, body, "sms", address, cursor.getLong(2), cursor.getLong(3)));
             }
         }

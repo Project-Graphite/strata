@@ -4,9 +4,11 @@ import android.app.Notification;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.os.SystemClock;
 import android.provider.Telephony;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -19,9 +21,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class TransactionNotificationService extends NotificationListenerService {
-    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static final long DEDUPE_WINDOW_MS = 60_000L;
-    private static volatile TransactionNotificationService instance;
+    private static final long DEFAULT_SMS_REFRESH_MS = 60_000L;
+    private static volatile WeakReference<TransactionNotificationService> connected = new WeakReference<>(null);
     private static final Set<String> MESSAGING_PACKAGES = new HashSet<>(
         Arrays.asList(
             "com.google.android.apps.messaging",
@@ -31,6 +33,10 @@ public class TransactionNotificationService extends NotificationListenerService 
             "com.oneplus.mms"
         )
     );
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private volatile String defaultSmsPackage;
+    private volatile long defaultSmsCheckedAt;
 
     private final Map<String, Long> recentSignatures = new LinkedHashMap<String, Long>(64, 0.75f, true) {
         @Override
@@ -42,24 +48,31 @@ public class TransactionNotificationService extends NotificationListenerService 
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
-        instance = this;
+        connected = new WeakReference<>(this);
     }
 
     @Override
     public void onListenerDisconnected() {
-        if (instance == this) {
-            instance = null;
+        if (connected.get() == this) {
+            connected = new WeakReference<>(null);
         }
         super.onListenerDisconnected();
     }
 
     @Override
+    public void onDestroy() {
+        executor.shutdown();
+        super.onDestroy();
+    }
+
+    @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
-        processStatusBarNotification(sbn, true);
+        if (sbn == null || !mayCapture(sbn.getPackageName())) return;
+        executor.execute(() -> capture(sbn));
     }
 
     public static int[] scanActiveNotifications() {
-        TransactionNotificationService service = instance;
+        TransactionNotificationService service = connected.get();
         if (service == null) {
             return new int[] { 0, 0 };
         }
@@ -69,15 +82,29 @@ public class TransactionNotificationService extends NotificationListenerService 
         }
         int forwarded = 0;
         for (StatusBarNotification sbn : active) {
-            if (service.processStatusBarNotification(sbn, false)) {
+            if (service.mayCapture(sbn.getPackageName()) && service.capture(sbn)) {
                 forwarded++;
             }
         }
         return new int[] { active.length, forwarded };
     }
 
-    private boolean processStatusBarNotification(StatusBarNotification sbn, boolean async) {
-        if (sbn == null || sbn.isOngoing()) return false;
+    private boolean mayCapture(String packageName) {
+        return FinanceApps.find(packageName) != null || isMessagingPackage(packageName);
+    }
+
+    private boolean isMessagingPackage(String packageName) {
+        if (MESSAGING_PACKAGES.contains(packageName)) return true;
+        long now = SystemClock.elapsedRealtime();
+        if (defaultSmsCheckedAt == 0 || now - defaultSmsCheckedAt > DEFAULT_SMS_REFRESH_MS) {
+            defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this);
+            defaultSmsCheckedAt = now;
+        }
+        return packageName != null && packageName.equals(defaultSmsPackage);
+    }
+
+    private boolean capture(StatusBarNotification sbn) {
+        if (sbn.isOngoing()) return false;
         Notification notification = sbn.getNotification();
         if (notification == null || (notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0) {
             return false;
@@ -87,7 +114,6 @@ public class TransactionNotificationService extends NotificationListenerService 
         if (!CaptureForwarder.isConfigured(appContext)) return false;
 
         String packageName = sbn.getPackageName();
-        if (packageName == null || packageName.equals(appContext.getPackageName())) return false;
 
         Bundle extras = notification.extras;
         if (extras == null) return false;
@@ -122,7 +148,7 @@ public class TransactionNotificationService extends NotificationListenerService 
                 ? (title + ": " + body)
                 : body;
             channelApp = packageName;
-        } else if (isMessagingPackage(appContext, packageName) && CaptureForwarder.isChatAllowed(appContext, title)) {
+        } else if (isMessagingPackage(packageName) && CaptureForwarder.isChatAllowed(appContext, title)) {
             sender = title;
             chat = title;
             fullText = body;
@@ -141,12 +167,7 @@ public class TransactionNotificationService extends NotificationListenerService 
             recentSignatures.put(signature, now);
         }
 
-        final long postTime = sbn.getPostTime() > 0 ? sbn.getPostTime() : now;
-        if (async) {
-            EXECUTOR.execute(() -> queue(appContext, sender, fullText, channelApp, chat, postTime));
-            return true;
-        }
-        return queue(appContext, sender, fullText, channelApp, chat, postTime);
+        return queue(appContext, sender, fullText, channelApp, chat, sbn.getPostTime() > 0 ? sbn.getPostTime() : now);
     }
 
     private static boolean queue(Context context, String sender, String text, String app, String chat, long postTime) {
@@ -169,11 +190,5 @@ public class TransactionNotificationService extends NotificationListenerService 
             if (text != null) return text.toString().trim();
         }
         return "";
-    }
-
-    private static boolean isMessagingPackage(Context context, String packageName) {
-        if (MESSAGING_PACKAGES.contains(packageName)) return true;
-        String defaultSms = Telephony.Sms.getDefaultSmsPackage(context);
-        return defaultSms != null && defaultSms.equals(packageName);
     }
 }
