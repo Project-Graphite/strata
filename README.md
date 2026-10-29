@@ -7,21 +7,24 @@ and files, built by Project Graphite.
 
 - **Home**: dashboards of widgets (agenda, tasks, pages, weather, news feeds, countdown, focus timer,
   app status and more), picked by time of day and device, and a wall display.
-- **Tasks**: task lists with repeating tasks, assignment and reminders, a quick-add box that reads
-  dates, tags and priority, and the Today and To-do pages. Ticking off a task can be undone.
-- **Agenda**: events with guest RSVPs and date polls, followed outside calendars and a private
-  calendar link.
+- **Tasks**: grouped task lists and a board view, with status, descriptions, comments,
+  attachments, repeating tasks, assignment and reminders, and a quick-add box that reads dates,
+  tags and priority. Ticking off a task can be undone.
+- **Agenda**: Day, Week, Month and List views with drag to create, move and resize, events with
+  guest RSVPs and date polls, followed outside calendars and a private calendar link.
 - **Pages**: notes with live co-editing, offline drafts, version history, templates, mentions,
   comments and database views. Pages and boards can be moved to the trash.
-- **Boards**: whiteboards drawn with Excalidraw, with templates and dot votes, embeddable in pages
-  and events and editable by guests through a share link.
+- **Boards**: full-screen whiteboards drawn with Excalidraw, with templates, sticky notes and
+  following a collaborator, embeddable in pages and events and editable by guests through a share
+  link.
 - **Bookmarks**: saved links with a read-later list and a reader view.
 - **Journal**: a daily journal with a mood, and a one-click weekly review page.
 - **Recurring**: subscriptions with renewals, price history, reminders, home-currency totals at ECB
   rates, bank statement suggestions and shared splits; habits with check-ins and streaks.
-- **Spending**: accounts and cards, budgets, installment plans, insights, net worth with assets and
-  savings goals, bank texts and digital payment notifications (InstaPay, nSave and PayPal) to
-  review, and statement import and CSV export.
+- **Spending**, private to each user: accounts and cards with balance history, budgets,
+  installment plans, insights, net worth with assets and savings goals, statement import and CSV
+  export. The Android app captures bank texts and payment app notifications from allow-listed
+  senders; confident ones are recorded, the rest wait for review.
 - **Files**: uploads, previews and downloads, with metadata stripped.
 - **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
 - **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
@@ -75,7 +78,7 @@ and files, built by Project Graphite.
 
 - React 19, Vite, Tailwind CSS 4 and `@project-graphite/ui`.
 - NestJS 12, Prisma 7 and PostgreSQL 18.
-- Redis 8 for rate limits, widget caching and the health check.
+- Redis 8 for rate limits, widget caching and the health check; required in production.
 - One container serves the built frontend and the `/api/v1` API, and runs migrations when it
   starts.
 
@@ -97,10 +100,18 @@ Vite does not see edits through a Windows bind mount, so restart the container a
 docker compose restart app frontend
 ```
 
-Checks run from `app/`:
+`node_modules` lives in anonymous volumes filled from the image, so after a dependency change
+rebuild and renew them:
+
+```sh
+docker compose up -d --build -V app frontend
+```
+
+Checks run from `app/`. The last one keeps the frontend inside its bundle budget:
 
 ```sh
 npm ci && npm run lint && npm test && npm run build
+npm run check:bundle --workspace frontend
 ```
 
 Give an account the system manager role from inside the running container. Add `--transfer` to
@@ -133,7 +144,12 @@ Build the frontend and sync the Capacitor Android project from `app/`:
 npm run android:build --workspace frontend
 ```
 
-Tagged releases (`v*`) build and attach `strata.apk` to the GitHub release via `.github/workflows/release.yml`, linked from the Strata home page and phone setup dialog.
+There are two flavours, built from `app/frontend/android` with `./gradlew assemblePlayRelease` or
+`./gradlew assembleSideloadRelease`. Both read notifications from allow-listed finance apps and
+SMS senders; only `sideload` asks for `READ_SMS` to read the last 90 days of texts, and CI fails if
+`play` does. Tagged releases (`v*`) attach the `sideload` build as `strata.apk` to the GitHub
+release via `.github/workflows/release.yml`, linked from the Strata home page and phone setup
+dialog.
 
 ## Production
 
@@ -151,8 +167,16 @@ These values live only in the organisation's secrets repository:
   without re-encrypting the stored secrets, or every two-step sign-in breaks.
 - `EMAIL_HOST` and `DEFAULT_FROM_EMAIL`
 
+The server refuses to start in production without `REDIS_URL`.
+
 Optional: `EMAIL_PORT` (default `587`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `BACKUP_KEEP_DAYS` (default `14`).
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `BACKUP_KEEP_DAYS` (default `14`), and:
+- `TRUST_PROXY`, the number of proxy hops whose `X-Forwarded-For` is trusted for client addresses
+  (`0` to `5`, default `1`);
+- `SENTRY_DSN`, which turns on error reports for unexpected 500s, scrubbed of cookies, tokens,
+  bodies and query strings;
+- `METRICS_TOKEN`, at least 32 characters, which serves Prometheus metrics at `/api/v1/metrics`
+  to `Authorization: Bearer <token>`.
 
 ## Conventions
 
