@@ -7,6 +7,7 @@ module.exports = {
       url: ['/', '/login', '/tasks', '/spending', '/agenda/week'].map((path) => `${base}${path}`),
       chromePath: chromium.executablePath(),
       puppeteerScript: 'scripts/lighthouse-sign-in.cjs',
+      puppeteerLaunchOptions: { args: ['--no-sandbox'] },
     },
     assert: {
       assertMatrix: [

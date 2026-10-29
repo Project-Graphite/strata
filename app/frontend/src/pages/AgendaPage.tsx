@@ -371,7 +371,7 @@ function Period({
                   </Link>
                 </Subheading>
                 {day <= today && (
-                  <Link className="mono-sm text-faint" to="/journal">
+                  <Link className="mono-sm text-muted" to="/journal">
                     Journal
                   </Link>
                 )}
@@ -452,7 +452,7 @@ function Period({
                     </AgendaEntryLink>
                   ))}
                   {entries.length > 3 && (
-                    <Link className="mono-sm px-1 text-faint" to={link({ view: 'day', date: day })}>
+                    <Link className="mono-sm px-1 text-muted" to={link({ view: 'day', date: day })}>
                       +{entries.length - 3} more
                     </Link>
                   )}

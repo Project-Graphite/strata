@@ -11,7 +11,7 @@ await sweep(async (page, { url, name }) => {
   const count = (impact) => violations.filter((violation) => violation.impact === impact).length;
   pages.push({ page: name, critical: count('critical'), serious: count('serious'), moderate: count('moderate'), minor: count('minor') });
   for (const violation of violations.filter((violation) => blocking.includes(violation.impact))) {
-    issues.push({ page: name, impact: violation.impact, rule: violation.id, nodes: violation.nodes.length, first: violation.nodes[0]?.target.join(' ') });
+    issues.push({ page: name, impact: violation.impact, rule: violation.id, nodes: violation.nodes.length, first: violation.nodes[0]?.target.join(' '), why: violation.nodes[0]?.failureSummary?.split('\n').at(-1)?.trim() });
   }
 });
 
