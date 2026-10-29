@@ -6,6 +6,7 @@ import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { inlineTypes } from '../files/file-inspection';
 import { valueMap } from './database';
 import { boardThumbnail } from './board-thumbnail';
 import { boardElementsKey, documentText, pageKinds } from './document-text';
@@ -21,7 +22,7 @@ export const noteFields = {
   title: true,
   createdAt: true,
   updatedAt: true,
-  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true } },
+  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true, narrow: true, coverId: true, coverAlt: true } },
   databaseSchema: { select: { itemId: true } },
   _count: { select: { journalEntries: true } },
 } satisfies Prisma.ItemSelect;
@@ -46,6 +47,8 @@ export function present(row: NoteRow) {
     pinnedAt: row.note?.pinnedAt ?? null,
     template: row.note?.template ?? false,
     quick: row.note?.quick ?? false,
+    narrow: row.note?.narrow ?? false,
+    cover: row.note?.coverId ? { id: row.note.coverId, alt: row.note.coverAlt } : null,
     database: Boolean(row.databaseSchema),
     journal: row._count.journalEntries > 0,
     createdAt: row.createdAt,
@@ -223,13 +226,17 @@ export class NotesService {
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {
     const found = await this.note(userId, noteId, 'edit');
-    if (!found.permissions.organize && (input.parentId !== undefined || input.position !== undefined || input.relativeTo !== undefined || input.template !== undefined || input.quick !== undefined || input.pinned !== undefined)) throw new ForbiddenException('Space editing access is required to organize pages');
+    if (!found.permissions.organize && (input.parentId !== undefined || input.position !== undefined || input.relativeTo !== undefined || input.template !== undefined || input.quick !== undefined || input.pinned !== undefined || input.cover !== undefined)) throw new ForbiddenException('Space editing access is required to organize pages');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     if (input.expectedTitle !== undefined && input.title === undefined) throw new BadRequestException('Include a title when checking its previous value');
     if (input.template && found.kind === ItemKind.BOARD) throw new BadRequestException('A board cannot be a template');
     if (found.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
     if (found.quick && input.template) throw new BadRequestException('A note cannot be a template');
     if (found.quick && input.icon) throw new BadRequestException('A note cannot have an icon');
+    if (found.quick && input.cover) throw new BadRequestException('A note cannot have a cover');
+    if (input.cover && !(await this.prisma.item.findFirst({ where: { id: input.cover, spaceId: found.spaceId, kind: ItemKind.FILE, trashedAt: null, file: { mimeType: { in: [...inlineTypes] } } }, select: { id: true } }))) {
+      throw new BadRequestException('Choose an image from this space');
+    }
     if (Boolean(input.relativeTo) !== Boolean(input.placement) || (input.relativeTo && (input.parentId !== undefined || input.position !== undefined))) {
       throw new BadRequestException('Choose either a destination page or a sibling placement');
     }
@@ -290,11 +297,17 @@ export class NotesService {
           icon: input.icon ?? null,
           pinnedAt: input.pinned ? new Date() : null,
           template: input.template ?? false,
+          narrow: input.narrow ?? false,
+          coverId: input.cover ?? null,
+          coverAlt: input.coverAlt ?? '',
         },
         update: {
           parentId,
           position,
           icon: input.icon,
+          narrow: input.narrow,
+          coverId: input.cover,
+          coverAlt: input.cover === null ? '' : input.coverAlt,
           pinnedAt: input.pinned === undefined ? undefined : input.pinned ? new Date() : null,
           template: input.template,
           quick: input.quick,

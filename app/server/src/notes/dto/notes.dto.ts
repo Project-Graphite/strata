@@ -79,6 +79,21 @@ export class UpdateNoteDto {
   @MaxLength(8, { message: 'An icon is a single emoji.' })
   icon?: string | null;
 
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsUUID('all', { message: 'Choose an image from this space.' })
+  cover?: string | null;
+
+  @IsOptionalNotNull()
+  @Trimmed()
+  @IsString()
+  @MaxLength(500, { message: 'Descriptions are at most 500 characters long.' })
+  coverAlt?: string;
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  narrow?: boolean;
+
   @IsOptionalNotNull()
   @IsBoolean()
   pinned?: boolean;

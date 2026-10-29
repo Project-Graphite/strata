@@ -19,7 +19,8 @@ export class PageFilesController {
   async download(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('fileId', UuidPipe) fileId: string, @Res({ passthrough: true }) response: Response) {
     const page = await this.pages.assertPage(user.id, id, 'read');
     const document = this.realtime.hocuspocus.documents.get(id);
-    if (document ? !documentLinks(document).files.has(fileId) : !await this.prisma.itemLink.findFirst({ where: { sourceItemId: id, targetItemId: fileId, kind: 'ATTACHMENT' }, select: { id: true } })) throw new NotFoundException('That file is not attached to this page');
+    const cover = await this.prisma.note.findFirst({ where: { itemId: id, coverId: fileId }, select: { itemId: true } });
+    if (!cover && (document ?!documentLinks(document).files.has(fileId) : !await this.prisma.itemLink.findFirst({ where: { sourceItemId: id, targetItemId: fileId, kind: 'ATTACHMENT' }, select: { id: true } }))) throw new NotFoundException('That file is not attached to this page');
     if (!await this.prisma.item.findFirst({ where: { id: fileId, spaceId: page.spaceId, kind: 'FILE', trashedAt: null }, select: { id: true } })) throw new NotFoundException('That file is not attached to this page');
     const file = await this.files.read(fileId);
     response.set(fileHeaders(file));

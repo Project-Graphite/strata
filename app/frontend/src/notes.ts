@@ -12,10 +12,21 @@ export interface Note {
   pinnedAt: string | null;
   template: boolean;
   quick: boolean;
+  narrow: boolean;
+  cover: { id: string; alt: string } | null;
   database: boolean;
   journal: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ChildPages {
+  pages: Note[];
+  nextCursor: string | null;
+}
+
+export function childPagesPath(spaceId: string, parentId: string | null, cursor?: string) {
+  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`;
 }
 
 export function nestedUnder(pages: Note[], parentId: string | null) {

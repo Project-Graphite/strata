@@ -114,6 +114,9 @@ export function NoteComments({
   anchors = pageAnchors,
   people,
   focused,
+  onAnchorDropped,
+  hideWhenEmpty = false,
+  composing = false,
 }: {
   noteId: string;
   editable: boolean;
@@ -125,6 +128,9 @@ export function NoteComments({
   anchors?: CommentAnchors;
   people?: Member[];
   focused?: { id: string };
+  onAnchorDropped?: (blockId: string) => void;
+  hideWhenEmpty?: boolean;
+  composing?: boolean;
 }) {
   const auth = useAuth();
   const comments = useResource<NoteComment[]>(`/notes/${noteId}/comments`, true, { live: ['page-comments', 'spaces'], itemIds: [noteId] });
@@ -132,7 +138,7 @@ export function NoteComments({
   const [replying, setReplying] = useState<string>();
   const [editing, setEditing] = useState<string>();
   const [showResolved, setShowResolved] = useState(false);
-  const [deleting, setDeleting] = useState<{ id: string; replies: number }>();
+  const [deleting, setDeleting] = useState<{ id: string; replies: number; blockId: string | null }>();
   const commented = (comments.data ?? [])
     .filter((comment) => comment.blockId && !comment.parentId && !comment.resolvedAt)
     .map((comment) => comment.blockId!)
@@ -151,6 +157,7 @@ export function NoteComments({
   if (!comments.data) return null;
   const all = comments.data;
   const threads = all.filter((comment) => !comment.parentId);
+  if (hideWhenEmpty && threads.length === 0 && !quoting && !composing) return null;
   const resolved = threads.filter((thread) => thread.resolvedAt).length;
   const shown = threads.filter((thread) => showResolved || !thread.resolvedAt);
 
@@ -204,7 +211,7 @@ export function NoteComments({
             <TextButton
               disabled={action.busy}
               label="Delete"
-              onClick={() => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length })}
+              onClick={() => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length, blockId: comment.parentId ? null : comment.blockId })}
             />
           )}
         </div>
@@ -226,12 +233,22 @@ export function NoteComments({
           </article>
         ))}
         {commentable && (quoting ? (
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-block-id={quoting.id}>
             <p className="comment-block-quote m-0">{quoting.excerpt || `An empty ${anchors.noun}`}</p>
-            <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} people={people} />
+            <CommentForm
+              autoFocus
+              key={quoting.id}
+              label={`Comment on this ${anchors.noun}`}
+              onCancel={() => {
+                onAnchorDropped?.(quoting.id);
+                onQuoteDone();
+              }}
+              onSave={(body) => add(body, undefined, quoting.id)}
+              people={people}
+            />
           </div>
         ) : (
-          <CommentForm label="Comment" onSave={(body) => add(body)} people={people} />
+          <CommentForm autoFocus={composing} label="Comment" onSave={(body) => add(body)} people={people} />
         ))}
         {deleting && (
           <ConfirmDialog
@@ -242,6 +259,7 @@ export function NoteComments({
             onConfirm={async () => {
               await auth.request(`/comments/${deleting.id}`, { method: 'DELETE' });
               comments.mutate((current) => current.filter((comment) => comment.id !== deleting.id && comment.parentId !== deleting.id));
+              if (deleting.blockId) onAnchorDropped?.(deleting.blockId);
               action.report('Deleted the comment.');
             }}
             title="Delete this comment?"

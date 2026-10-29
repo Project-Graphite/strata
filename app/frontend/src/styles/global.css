@@ -78,11 +78,20 @@
 }
 
 .note-editor-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  display: flex;
   min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.note-editor-header > .live-document-status {
+  flex: 1 1 0;
+}
+
+.note-editor-header > .note-find {
+  flex-basis: 100%;
 }
 
 .live-document-status {
@@ -174,6 +183,23 @@
   .page-header:has(.note-title) .page-header-actions {
     justify-self: end;
   }
+
+  .page-header:has(.note-status) .page-header-actions {
+    justify-self: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .note-status {
+    flex: 1;
+  }
+
+  .note-status .live-save-status {
+    min-width: 0;
+  }
+}
+
+.note-status {
+  min-width: 0;
 }
 
 @keyframes live-save-spin {
@@ -1313,11 +1339,13 @@ button.habit-day::before {
   min-height: 6rem;
 }
 
-.task-activity > summary {
+.task-activity > summary,
+.note-backlinks > summary {
   cursor: pointer;
 }
 
-.task-activity[open] > summary {
+.task-activity[open] > summary,
+.note-backlinks[open] > summary {
   margin-bottom: var(--space-3);
 }
 
@@ -1537,6 +1565,52 @@ button.habit-day::before {
   color: var(--color-ink);
 }
 
+.pages-tree,
+.pages-tree [role='group'] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pages-tree {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  outline: none;
+}
+
+.pages-tree-row,
+.pages-tree-note {
+  display: flex;
+  min-width: 0;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid var(--color-line-soft);
+  padding-inline-end: 0.5rem;
+}
+
+.pages-tree > li:first-child > .pages-tree-row {
+  border-top: 0;
+}
+
+.pages-tree-note {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.pages-tree-row:hover {
+  background: var(--color-line-soft);
+}
+
+.pages-tree [role='treeitem'] {
+  outline: none;
+}
+
+.pages-tree [role='treeitem']:focus-visible > .pages-tree-row {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
 .note-mark {
   display: inline-grid;
   width: 1.25rem;
@@ -1669,15 +1743,63 @@ button.habit-day::before {
   }
 
   .note-comments-margin {
-    position: sticky;
-    top: calc(var(--header-height) + 1rem);
     order: 0;
-    max-height: calc(100dvh - var(--header-height) - 2rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+  }
+
+  .note-comments-margin section > form:last-child {
+    order: 1000;
+  }
+
+  .note-body:has(> .note-comments-margin:empty) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .note-narrow:has(.note-comments-margin:not(:empty)) {
+    max-width: 65.5rem;
   }
 }
 
+.note-narrow {
+  max-width: 44rem;
+}
+
+.page-cover {
+  position: relative;
+  height: clamp(8rem, 22vw, 15rem);
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.page-cover > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page-cover-actions {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  gap: 0.75rem;
+  border-radius: var(--radius-field);
+  background: color-mix(in srgb, var(--color-paper) 85%, transparent);
+  padding: 0.3rem 0.6rem;
+  opacity: 0;
+}
+
+.page-cover:hover .page-cover-actions,
+.page-cover:focus-within .page-cover-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .page-cover-actions {
+    opacity: 1;
+  }
+}
 @media print {
   :root {
     --color-paper: #ffffff;
@@ -1708,6 +1830,8 @@ button.habit-day::before {
   .note-editor-header,
   .note-comments-margin,
   .note-page > section,
+  .note-backlinks,
+  .page-cover-actions,
   .note-block-handle,
   .note-image-caption:placeholder-shown {
     display: none !important;
