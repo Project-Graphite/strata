@@ -3,8 +3,9 @@ package com.projectgraphite.strata;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class FinanceApps {
     public static final class App {
@@ -19,7 +20,7 @@ public final class FinanceApps {
         }
     }
 
-    private static final List<App> KNOWN = Arrays.asList(
+    private static final Map<String, App> KNOWN = byPackage(
         new App("com.cibeg.ddc1.digitalbanking.live", "CIB", "Banks"),
         new App("com.ofss.obdx.and.nbe.com.eg", "NBE", "Banks"),
         new App("com.BanqueMisr.MobileBanking", "Banque Misr", "Banks"),
@@ -49,17 +50,20 @@ public final class FinanceApps {
 
     private FinanceApps() {}
 
+    private static Map<String, App> byPackage(App... apps) {
+        Map<String, App> map = new LinkedHashMap<>();
+        for (App app : apps) map.put(app.packageName, app);
+        return map;
+    }
+
     public static App find(String packageName) {
-        for (App app : KNOWN) {
-            if (app.packageName.equals(packageName)) return app;
-        }
-        return null;
+        return KNOWN.get(packageName);
     }
 
     public static List<App> installed(Context context) {
         PackageManager packages = context.getPackageManager();
         List<App> installed = new ArrayList<>();
-        for (App app : KNOWN) {
+        for (App app : KNOWN.values()) {
             try {
                 packages.getApplicationInfo(app.packageName, 0);
                 installed.add(app);

@@ -10,7 +10,7 @@
     "check:bundle": "node scripts/check-bundle.mjs",
     "cap:sync": "cap sync android",
     "cap:open": "cap open android",
-    "android:build": "npm run build && cap sync android"
+    "android:build": "cap sync android"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",

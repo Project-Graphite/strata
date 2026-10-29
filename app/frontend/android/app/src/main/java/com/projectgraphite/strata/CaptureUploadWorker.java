@@ -26,10 +26,11 @@ public class CaptureUploadWorker extends Worker {
     }
 
     public static void schedule(Context context) {
+        if (CaptureForwarder.getOutboxCounts(context)[0] == 0) return;
         OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(CaptureUploadWorker.class)
             .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build();
-        WorkManager.getInstance(context.getApplicationContext()).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request);
+        WorkManager.getInstance(context.getApplicationContext()).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request);
     }
 }

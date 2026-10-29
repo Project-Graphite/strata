@@ -124,7 +124,7 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
       - if: steps.changes.outputs.android == 'true'
-        name: Build web assets and sync Capacitor
+        name: Sync Capacitor
         working-directory: app
         run: |
           npm ci
@@ -148,9 +148,25 @@ jobs:
           grep -q READ_SMS "$RUNNER_TEMP/sideload-permissions.txt"
 
       - if: steps.changes.outputs.android == 'true'
+        name: Inspect release build (temporary)
+        working-directory: app/frontend/android
+        run: |
+          map=app/build/outputs/mapping/sideloadRelease/mapping.txt
+          apk=app/build/outputs/apk/sideload/release/app-sideload-release.apk
+          grep -E "^(com\.projectgraphite\.strata\.|com\.getcapacitor\.(MessageHandler|Bridge|BridgeActivity|Plugin|annotation\.CapacitorPlugin|PluginMethod) |androidx\.work\.impl\.background\.systemjob\.SystemJobService |androidx\.work\.impl\.WorkManagerInitializer )" "$map" || true
+          grep -A12 -E "^com\.getcapacitor\.MessageHandler " "$map" || true
+          grep -A30 -E "^com\.projectgraphite\.strata\.StrataCapturePlugin " "$map" || true
+          grep -A6 -E "^com\.projectgraphite\.strata\.CaptureUploadWorker " "$map" || true
+          unzip -l "$apk" | sort -k1 -n -r | head -25
+          unzip -l "$apk" | grep -c "assets/public/" || true
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)aapt2"
+          "$aapt2" dump xmltree --file AndroidManifest.xml "$apk" | grep -E -A3 "E: (service|meta-data|receiver|provider|uses-feature)"
+          cat app/build/outputs/mapping/sideloadRelease/missing_rules.txt 2>/dev/null || true
+
+      - if: steps.changes.outputs.android == 'true'
         name: Lint both flavours
         working-directory: app/frontend/android
-        run: ./gradlew lintPlayRelease lintSideloadRelease --no-daemon
+        run: ./gradlew lintPlayRelease lintSideloadRelease --no-daemon --continue || { cat app/build/reports/lint-results-*.txt; exit 1; }
 
   images:
     name: Images
