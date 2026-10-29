@@ -136,6 +136,18 @@ describe('ChangesController', () => {
     expect(sent.slice(1)).toHaveLength(35);
     expect(sent.slice(1).every((event) => event.comment === 'heartbeat')).toBe(true);
   });
+
+  it('frees the stream place when the server ends a stream, not only when the client leaves', async () => {
+    vi.useFakeTimers();
+    const controller = new ChangesController(new ChangesService(members as never, withoutRedis as never));
+    const open = () => controller.stream({ id: 'member-a' } as never, new AbortController().signal);
+    const lifetimes = Array.from({ length: 5 }, () => firstValueFrom(open().pipe(toArray())));
+    expect(open).toThrow('Too many open live update streams');
+    await vi.advanceTimersByTimeAsync(15 * 60_000);
+    await Promise.all(lifetimes);
+
+    expect(() => controller.stream({ id: 'member-a' } as never, new AbortController().signal)).not.toThrow();
+  });
 });
 
 let release = () => undefined as void;
