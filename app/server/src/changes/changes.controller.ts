@@ -1,5 +1,5 @@
 import { Controller, HttpException, HttpStatus, MessageEvent, Sse, SseSignal } from '@nestjs/common';
-import { interval, map, merge, Observable, takeUntil, timer } from 'rxjs';
+import { finalize, interval, map, merge, Observable, takeUntil, timer } from 'rxjs';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { sseStreams } from '../metrics/metrics';
@@ -24,14 +24,15 @@ export class ChangesController {
     streams.add(signal);
     this.openStreams.set(user.id, streams);
     sseStreams.inc();
-    signal.addEventListener('abort', () => {
+    const release = () => {
+      if (!streams.delete(signal)) return;
       sseStreams.dec();
-      streams.delete(signal);
       if (streams.size === 0) this.openStreams.delete(user.id);
-    }, { once: true });
+    };
+    signal.addEventListener('abort', release, { once: true });
     return merge(
       this.changes.of(user.id).pipe(map((change) => ({ data: change }))),
       interval(heartbeatMs).pipe(map(() => ({ comment: 'heartbeat' }))),
-    ).pipe(takeUntil(timer(streamLifetimeMs)));
+    ).pipe(takeUntil(timer(streamLifetimeMs)), finalize(release));
   }
 }
