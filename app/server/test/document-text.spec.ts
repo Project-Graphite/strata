@@ -46,6 +46,20 @@ describe('documentText', () => {
 
     expect([...documentLinks(document).mentions]).toEqual(['seating-board']);
   });
+
+  it('links attached files and page links, and leaves people mentions out', () => {
+    const document = new Y.Doc();
+    const attachment = new Y.XmlElement('fileAttachment');
+    attachment.setAttribute('fileId', 'minutes-pdf');
+    const pageLink = new Y.XmlElement('mention');
+    pageLink.setAttribute('id', 'budget-page');
+    pageLink.setAttribute('mentionSuggestionChar', '[[');
+    const person = new Y.XmlElement('personMention');
+    person.setAttribute('id', 'user-1');
+    document.getXmlFragment('default').push([attachment, block('paragraph', pageLink, person)]);
+
+    expect(documentLinks(document)).toEqual({ mentions: new Set(['budget-page']), files: new Set(['minutes-pdf']) });
+  });
 });
 
 describe('updateLinks', () => {
@@ -89,5 +103,19 @@ describe('updateLinks', () => {
       (client.getXmlFragment('default').get(1) as Y.XmlElement).setAttribute('id', 'new-block');
     });
     expect(updateLinks(server, swapped)).toEqual({ mentions: new Set(), files: new Set(['private-file']) });
+  });
+
+  it('reads the files that attachment blocks add, but not people mentions', () => {
+    const server = new Y.Doc();
+    const update = edit(server, (client) => {
+      const attachment = new Y.XmlElement('fileAttachment');
+      attachment.setAttribute('fileId', 'private-file');
+      attachment.setAttribute('name', 'notes.pdf');
+      const person = new Y.XmlElement('personMention');
+      person.setAttribute('id', 'user-1');
+      client.getXmlFragment('default').push([attachment, block('paragraph', person)]);
+    });
+
+    expect(updateLinks(server, update)).toEqual({ mentions: new Set(), files: new Set(['private-file']) });
   });
 });

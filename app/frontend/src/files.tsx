@@ -28,7 +28,7 @@ export async function preparedUpload(file: File): Promise<Blob> {
 }
 
 export async function uploadFile(request: ReturnType<typeof useAuth>['request'], spaceId: string, file: File) {
-  return request<{ id: string }>(`/spaces/${spaceId}/files`, {
+  return request<Item>(`/spaces/${spaceId}/files`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
     body: await preparedUpload(file),

@@ -13,5 +13,8 @@ export function sharedFiles(code: string): FileSource {
 export function useFileSource(): FileSource {
   const shared = useContext(FileSourceContext);
   const { request } = useAuth();
-  return useMemo(() => shared ?? ((fileId: string) => request<Blob>(`/files/${fileId}`, {}, readBlob)), [shared, request]);
+  return useMemo(() => {
+    const load = shared ?? ((fileId: string) => request<Blob>(`/files/${fileId}`, {}, readBlob));
+    return (fileId: string) => load(fileId).catch(() => new Promise((settle) => window.setTimeout(settle, 1_500)).then(() => load(fileId)));
+  }, [shared, request]);
 }

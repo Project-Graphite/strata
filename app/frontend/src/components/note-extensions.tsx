@@ -2,29 +2,29 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from '@project-graphite/ui';
-import { Extension, Node, type ChainedCommands, type Editor } from '@tiptap/core';
+import { Extension, Mark, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import Highlight from '@tiptap/extension-highlight';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
+import TextAlign from '@tiptap/extension-text-align';
 import { Color, TextStyle } from '@tiptap/extension-text-style';
 import UniqueID from '@tiptap/extension-unique-id';
 import StarterKit from '@tiptap/starter-kit';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import Image from '@tiptap/extension-image';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
 import type { useAuth } from '../auth';
-import { itemHref, itemKindName } from '../spaces';
+import { itemHref, itemKindName, type Member } from '../spaces';
 import { BoardPreview } from './BoardPreview';
 import { Callout, changedBlocks, CodeHighlight, Column, Columns, columnsOf, enterFirstColumn } from './editor-blocks';
-import { useFileSource } from './file-source';
 import { Hint } from './Hint';
+import { FileAttachmentExtension, LinkCard, StoredImageExtension, TableOfContentsBlock, uuidOrNull, Video } from './media-blocks';
 
 interface Candidate {
   id: string;
@@ -36,7 +36,8 @@ interface Candidate {
 }
 
 export interface MentionCandidate extends Candidate {
-  href: string;
+  href?: string;
+  person?: boolean;
 }
 
 export interface BlockChoice extends Candidate {
@@ -133,11 +134,6 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
 
 export const internalPath = (href: unknown) => (typeof href === 'string' && /^\/(?![/\\])/.test(href) ? href : null);
 
-const uuidOrNull = (value: unknown) =>
-  typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
-
-export const storedFileId = uuidOrNull;
-
 function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<SuggestionOptions<Item>['render']>> {
   let renderer: ReactRenderer<ListHandle, SuggestionProps<Candidate>> | undefined;
   const place = (props: SuggestionProps<Item>) => {
@@ -175,7 +171,35 @@ function suggestionPopup<Item extends Candidate>(): ReturnType<NonNullable<Sugge
   };
 }
 
-export function mentionExtension(request: Request | undefined, noteId: string) {
+export function mentionExtension(request: Request | undefined, noteId: string, peopleSpaceId?: string) {
+  let members: Promise<Member[]> | undefined;
+  const people = async (query: string): Promise<MentionCandidate[]> => {
+    if (!request || !peopleSpaceId) return [];
+    members ??= request<Member[]>(`/spaces/${peopleSpaceId}/members`).catch(() => {
+      members = undefined;
+      return [];
+    });
+    const wanted = query.trim().toLocaleLowerCase();
+    return (await members)
+      .filter((member) => member.displayName.toLocaleLowerCase().includes(wanted))
+      .slice(0, 5)
+      .map((member) => ({ id: member.userId, label: member.displayName, hint: 'member', group: 'People', icon: 'user', person: true }));
+  };
+  const items = async (query: string, pagesOnly: boolean): Promise<MentionCandidate[]> => {
+    if (!request || query.trim().length < (pagesOnly ? 1 : 2)) return [];
+    const reply = await request<SearchReply>(`/search?q=${encodeURIComponent(query.trim())}`).catch(() => ({ items: [] }));
+    return reply.items
+      .filter((item) => item.id !== noteId && (!pagesOnly || (item.kind === 'note' && !item.quick)))
+      .slice(0, 8)
+      .map((item) => ({
+        id: item.id,
+        label: item.title || 'Untitled',
+        href: itemHref(item) ?? `/spaces/${item.spaceId}`,
+        hint: pagesOnly ? item.spaceName : `${itemKindName(item)} · ${item.spaceName}`,
+        group: pagesOnly ? undefined : 'Pages and items',
+      }));
+  };
+  const named = (node: ProseMirrorNode) => String(node.attrs.label ?? node.attrs.id);
   return Mention.extend({
     addAttributes() {
       return {
@@ -189,89 +213,59 @@ export function mentionExtension(request: Request | undefined, noteId: string) {
     },
   }).configure({
     HTMLAttributes: { class: 'mention' },
-    renderText: ({ node }) => `@${node.attrs.label ?? node.attrs.id}`,
-    renderHTML: ({ node, options }) => ['span', { ...options.HTMLAttributes, 'data-href': node.attrs.href }, `@${node.attrs.label ?? node.attrs.id}`],
-    suggestion: {
-      items: async ({ query }) => {
-        if (!request || query.trim().length < 2) return [];
-        const reply = await request<SearchReply>(`/search?q=${encodeURIComponent(query.trim())}`).catch(() => ({ items: [] }));
-        return reply.items
-          .filter((item) => item.id !== noteId)
-          .slice(0, 8)
-          .map((item) => ({ id: item.id, label: item.title || 'Untitled', href: itemHref(item) ?? `/spaces/${item.spaceId}`, hint: `${itemKindName(item)} · ${item.spaceName}` }));
+    renderText: ({ node }) => (node.attrs.mentionSuggestionChar === '[[' ? named(node) : `@${named(node)}`),
+    renderHTML: ({ node, options }) =>
+      node.attrs.mentionSuggestionChar === '[['
+        ? ['span', { class: 'mention mention-page', 'data-href': node.attrs.href }, named(node)]
+        : ['span', { ...options.HTMLAttributes, 'data-href': node.attrs.href }, `@${named(node)}`],
+    suggestions: [
+      {
+        char: '@',
+        items: async ({ query }) => [...(await people(query)), ...(await items(query, false))],
+        command: ({ editor, range, props }) => {
+          const candidate = props as MentionCandidate;
+          if (editor.state.selection.$to.nodeAfter?.text?.startsWith(' ')) range.to += 1;
+          const mention = candidate.person
+            ? { type: 'personMention', attrs: { id: candidate.id, label: candidate.label } }
+            : { type: 'mention', attrs: { id: candidate.id, label: candidate.label, href: candidate.href } };
+          editor.chain().focus().insertContentAt(range, [mention, { type: 'text', text: ' ' }]).run();
+        },
+        render: suggestionPopup,
       },
-      render: suggestionPopup,
-    },
+      {
+        char: '[[',
+        allowSpaces: true,
+        items: ({ query }) => items(query, true),
+        command: ({ editor, range, props }) => {
+          const candidate = props as MentionCandidate;
+          editor.chain().focus().insertContentAt(range, [{ type: 'mention', attrs: { id: candidate.id, label: candidate.label, href: candidate.href, mentionSuggestionChar: '[[' } }, { type: 'text', text: ' ' }]).run();
+        },
+        render: suggestionPopup,
+      },
+    ],
   });
 }
 
-function StoredImage({ node, selected }: NodeViewProps) {
-  const load = useFileSource();
-  const [source, setSource] = useState<string>();
-  const [failed, setFailed] = useState(false);
-  const fileId = storedFileId(node.attrs.fileId);
-
-  useEffect(() => {
-    if (!fileId) return;
-    let url = '';
-    let cancelled = false;
-    load(fileId).then(
-      (blob) => {
-        if (cancelled) return;
-        url = URL.createObjectURL(blob);
-        setSource(url);
-      },
-      () => !cancelled && setFailed(true),
-    );
-    return () => {
-      cancelled = true;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [fileId, load]);
-
-  return (
-    <NodeViewWrapper className={`note-image ${selected ? 'is-selected' : ''}`}>
-      {failed || !fileId ? (
-        <span className="text-small text-muted">This image is no longer available.</span>
-      ) : source ? (
-        <img alt={(node.attrs.alt as string) ?? ''} src={source} />
-      ) : (
-        <span aria-hidden="true" className="skeleton block h-40 w-full" />
-      )}
-    </NodeViewWrapper>
-  );
-}
-
-export const StoredImageExtension = Image.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      fileId: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute('data-file-id'),
-        renderHTML: (attributes: { fileId?: string | null }) => (attributes.fileId ? { 'data-file-id': attributes.fileId } : {}),
-      },
-    };
-  },
-  addNodeView() {
-    return ReactNodeViewRenderer(StoredImage);
-  },
+export const PersonMention = Mention.extend({ name: 'personMention', addProseMirrorPlugins: () => [] }).configure({
+  HTMLAttributes: { class: 'mention mention-person' },
+  renderText: ({ node }) => `@${node.attrs.label ?? node.attrs.id}`,
 });
 
 export interface BlockActions {
-  onImages?: (view: Editor['view'], files: File[]) => void;
+  onFiles?: (view: Editor['view'], files: File[]) => void;
+  onEmbed?: (editor: Editor) => void;
   onBoard?: (editor: Editor) => void;
   onCopyBlock?: (id: string) => void;
   pageLinks?: boolean;
 }
 
-export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActions): BlockChoice[] {
-  const chooseImages = (editor: Editor) => {
+export function blockChoices({ onFiles, onEmbed, onBoard, pageLinks = true }: BlockActions): BlockChoice[] {
+  const chooseFiles = (editor: Editor, accept: string) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    input.accept = accept;
     input.multiple = true;
-    input.onchange = () => onImages?.(editor.view, [...(input.files ?? [])]);
+    input.onchange = () => onFiles?.(editor.view, [...(input.files ?? [])]);
     input.click();
   };
   return [
@@ -286,19 +280,49 @@ export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActio
     { id: 'numbers', group: 'Lists', icon: 'list-ordered', label: 'Numbered list', hint: '1.', words: 'numbered list ordered numbers', run: (chain) => chain.toggleOrderedList().run() },
     { id: 'checklist', group: 'Lists', icon: 'checklist', label: 'Checklist', hint: '[]', words: 'checklist todo tasks checkbox', run: (chain) => chain.toggleTaskList().run() },
     { id: 'toggle', group: 'Lists', icon: 'chevron-right', label: 'Toggle', hint: 'fold', words: 'toggle collapse fold details', run: (chain) => chain.setDetails().run() },
-    ...(onImages
-      ? [{
-          id: 'image',
-          group: 'Media' as const,
-          icon: 'upload' as const,
-          label: 'Image',
-          hint: 'upload',
-          words: 'image picture photo upload',
-          run: (chain: ChainedCommands, editor: Editor) => {
-            chain.run();
-            chooseImages(editor);
+    ...(onFiles
+      ? [
+          {
+            id: 'image',
+            group: 'Media' as const,
+            icon: 'upload' as const,
+            label: 'Image',
+            hint: 'upload',
+            words: 'image picture photo upload',
+            run: (chain: ChainedCommands, editor: Editor) => {
+              chain.run();
+              chooseFiles(editor, 'image/*');
+            },
           },
-        }]
+          {
+            id: 'file',
+            group: 'Media' as const,
+            icon: 'file' as const,
+            label: 'File',
+            hint: 'PDF, document',
+            words: 'file attachment pdf document upload',
+            run: (chain: ChainedCommands, editor: Editor) => {
+              chain.run();
+              chooseFiles(editor, '');
+            },
+          },
+        ]
+      : []),
+    ...(onEmbed
+      ? [
+          {
+            id: 'embed',
+            group: 'Media' as const,
+            icon: 'external' as const,
+            label: 'Embed a link',
+            hint: 'YouTube, web page',
+            words: 'embed video youtube link card bookmark web',
+            run: (chain: ChainedCommands, editor: Editor) => {
+              chain.run();
+              onEmbed(editor);
+            },
+          },
+        ]
       : []),
     ...(onBoard
       ? [
@@ -320,7 +344,13 @@ export function blockChoices({ onImages, onBoard, pageLinks = true }: BlockActio
     { id: 'table', group: 'Advanced', glyph: '▦', label: 'Table', hint: '3 × 3', words: 'table grid rows cells', run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { id: 'columns2', group: 'Advanced', icon: 'panel', label: '2 columns', hint: 'side by side', words: 'columns two layout side', run: (chain) => chain.insertContent(columnsOf(2)).command(({ tr }) => enterFirstColumn(tr)).run() },
     { id: 'columns3', group: 'Advanced', icon: 'panel', label: '3 columns', hint: 'side by side', words: 'columns three layout side', run: (chain) => chain.insertContent(columnsOf(3)).command(({ tr }) => enterFirstColumn(tr)).run() },
-    ...(pageLinks ? [{ id: 'link', group: 'Advanced' as const, icon: 'link' as const, label: 'Link to a page', hint: '@', words: 'link page mention reference', run: (chain: ChainedCommands) => chain.insertContent('@').run() }] : []),
+    { id: 'contents', group: 'Advanced', icon: 'list', label: 'Table of contents', hint: 'headings', words: 'table of contents toc outline headings', run: (chain) => chain.insertContent({ type: 'tableOfContents' }).run() },
+    ...(pageLinks
+      ? [
+          { id: 'link', group: 'Advanced' as const, icon: 'link' as const, label: 'Link to a page', hint: '[[', words: 'link page reference', run: (chain: ChainedCommands) => chain.insertContent('[[').run() },
+          { id: 'person', group: 'Advanced' as const, icon: 'user' as const, label: 'Mention a person', hint: '@', words: 'mention person people member someone', run: (chain: ChainedCommands) => chain.insertContent('@').run() },
+        ]
+      : []),
   ];
 }
 
@@ -392,9 +422,31 @@ function commentMarks(doc: ProseMirrorNode, ids: Set<string>, from = 0, to = doc
   const marks: Decoration[] = [];
   doc.nodesBetween(from, to, (node, pos) => {
     if (typeof node.attrs.id === 'string' && ids.has(node.attrs.id)) marks.push(Decoration.node(pos, pos + node.nodeSize, { class: 'has-comments' }));
+    if (node.isText && node.marks.some((mark) => mark.type.name === 'comment' && ids.has(mark.attrs.id))) marks.push(Decoration.inline(pos, pos + node.nodeSize, { class: 'has-comment' }));
   });
   return marks;
 }
+
+export function openComment(state: EditorState, pos: number) {
+  const ids = commentedBlocksKey.getState(state)?.ids;
+  const mark = ids?.size ? state.doc.resolve(pos).marks().find((candidate) => candidate.type.name === 'comment' && ids.has(candidate.attrs.id)) : undefined;
+  return mark ? String(mark.attrs.id) : undefined;
+}
+
+export const CommentAnchor = Mark.create({
+  name: 'comment',
+  excludes: '',
+  inclusive: false,
+  addAttributes: () => ({
+    id: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute('data-comment'),
+      renderHTML: (attributes: { id?: string | null }) => ({ 'data-comment': attributes.id }),
+    },
+  }),
+  parseHTML: () => [{ tag: 'span[data-comment]' }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes, 0],
+});
 
 export const CommentedBlocks = Extension.create({
   name: 'commentedBlocks',
@@ -421,9 +473,9 @@ export const CommentedBlocks = Extension.create({
   ],
 });
 
-const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule', 'columns'];
+const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule', 'columns', 'fileAttachment', 'linkCard', 'youtube', 'tableOfContents'];
 
-export function pageContent(request: Request | undefined, noteId: string) {
+export function pageContent(request: Request | undefined, noteId: string, peopleSpaceId?: string) {
   return [
     StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
     TaskList,
@@ -439,9 +491,16 @@ export function pageContent(request: Request | undefined, noteId: string) {
     DetailsSummary,
     DetailsContent,
     TableKit.configure({ table: { resizable: false, cellMinWidth: 96 } }),
-    mentionExtension(request, noteId),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    mentionExtension(request, noteId, peopleSpaceId),
+    PersonMention,
     BoardEmbedExtension.configure({ shared: !request }),
     StoredImageExtension,
+    FileAttachmentExtension,
+    LinkCard,
+    Video,
+    TableOfContentsBlock,
+    CommentAnchor,
     UniqueID.configure({ types: blockTypes, filterTransaction: (transaction) => !isChangeOrigin(transaction) }),
   ];
 }
