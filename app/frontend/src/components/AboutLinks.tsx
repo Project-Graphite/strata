@@ -15,12 +15,12 @@ export function AboutLinks({ className = '', legal = true }: { className?: strin
   return (
     <nav aria-label="About" className={`mono-sm flex gap-5 ${className}`}>
       {!isNativeAndroid() && (
-        <a className="text-faint no-underline hover:text-ink" href={androidReleasesPageUrl} rel="noreferrer" target="_blank">
+        <a className="inline-flex items-center text-faint no-underline hover:text-ink pointer-coarse:min-h-11" href={androidReleasesPageUrl} rel="noreferrer" target="_blank">
           Android app
         </a>
       )}
       {links.map(([to, label]) => (
-        <Link className="text-faint no-underline hover:text-ink" key={to} to={to}>
+        <Link className="inline-flex items-center text-faint no-underline hover:text-ink pointer-coarse:min-h-11" key={to} to={to}>
           {label}
         </Link>
       ))}

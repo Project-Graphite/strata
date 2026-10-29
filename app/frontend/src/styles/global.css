@@ -2403,7 +2403,16 @@ header.backdrop-blur-md {
 
 @media (max-width: 47.99rem) {
   .app-header:has(.space-navigation) .shell-bar > a {
-    display: none;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .app-header:has(.space-navigation) .shell-bar > a > svg {
+    width: 1.75rem;
+    height: 1.75rem;
   }
 
   .app-header:has(.space-navigation) .shell-bar > .ml-auto {
@@ -2498,5 +2507,112 @@ header.backdrop-blur-md {
 
 .page-header {
   min-height: 2.28125rem;
+}
+
+.page-actions-row:has(> .page-tabs) {
+  flex-wrap: wrap-reverse;
+  align-items: flex-start;
+}
+
+.page-actions-row:has(> .page-actions-end .MuiButton-root) > .page-tabs {
+  flex-basis: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .page-actions-row:not(:has(> .page-actions-end .MuiButton-root:not(.page-primary-action *))) > .page-tabs {
+    flex-basis: 0;
+  }
+}
+
+.page-actions-start {
+  flex-basis: auto;
+}
+
+.page-actions-end {
+  max-width: 100%;
+  justify-content: flex-end;
+}
+
+.list-row-text {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@supports (animation-timeline: scroll()) {
+  .page-tabs .MuiTabs-scroller {
+    mask-image: linear-gradient(to right, transparent, #000 var(--scroll-x-start), #000 calc(100% - var(--scroll-x-end)), transparent);
+    animation: scroll-x-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@layer base {
+  .MuiChip-clickable {
+    position: relative;
+  }
+}
+
+@media (pointer: coarse) {
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select, textarea):not(.note-content *) {
+    font-size: max(1rem, 1em);
+  }
+
+  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root)::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 2.75rem);
+    height: max(100%, 2.75rem);
+    transform: translate(-50%, -50%);
+    content: '';
+  }
+
+  .MuiToggleButton-root {
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  header.backdrop-blur-md {
+    background: color-mix(in srgb, var(--color-paper) 96%, transparent);
+    backdrop-filter: none;
+  }
+
+  :root:has(:is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), textarea, [contenteditable='true']):focus) :is(.tab-bar, .fab) {
+    display: none;
+  }
+
+  .MuiDialog-paper.MuiDialog-paperFullWidth {
+    width: calc(100% - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100% - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: calc(1rem + env(safe-area-inset-top)) calc(0.75rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom)) calc(0.75rem + env(safe-area-inset-left));
+  }
+
+  .sheet-body:last-child {
+    padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .MuiDialog-paper > .p-5 > :first-child {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: -1.25rem -1.25rem 0;
+    background: var(--color-paper);
+    padding: 1.25rem 1.25rem 0.5rem;
+  }
+
+  .MuiDialog-paper :is(.dialog-actions, .p-5 > .mt-6.flex.justify-end:last-child) {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-inline: -1.25rem;
+    background: var(--color-paper);
+    padding: 0.75rem 1.25rem;
+  }
+
+  :is(.dashboard-backdrop-color, .dashboard-backdrop-image) .MuiDialog-paper :is(.p-5 > :first-child, .dialog-actions, .p-5 > .mt-6.flex.justify-end:last-child) {
+    background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  }
 }
 

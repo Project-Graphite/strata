@@ -1,5 +1,5 @@
-import { useContext, useEffect, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
@@ -37,6 +37,101 @@ export function BackLink({ back }: { back: Back }) {
   );
 }
 
+const swipeIgnored =
+  'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, .task-row, .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
+let swipedFrom: 1 | -1 | undefined;
+
+function stillMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function scrollsSideways(target: Element, boundary: Element) {
+  for (let node: Element | null = target; node && node !== boundary; node = node.parentElement) {
+    if (node.scrollWidth > node.clientWidth && /auto|scroll/.test(getComputedStyle(node).overflowX)) return true;
+  }
+  return false;
+}
+
+function useTabSwipe(tabs: TabItem[] | undefined) {
+  const navigate = useNavigate();
+  const { key } = useLocation();
+  const area = useRef<HTMLElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const index = tabs?.findIndex((tab) => tab.active) ?? -1;
+  const previous = index > 0 ? tabs?.[index - 1].href : undefined;
+  const next = index >= 0 ? tabs?.[index + 1]?.href : undefined;
+
+  useLayoutEffect(() => {
+    const direction = swipedFrom;
+    swipedFrom = undefined;
+    if (!direction || stillMotion()) return;
+    content.current?.animate([{ opacity: 0, transform: `translateX(${direction * 2}rem)` }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+  }, [key]);
+
+  useEffect(() => {
+    const surface = area.current;
+    const element = content.current;
+    if (!surface || !element || (!previous && !next)) return;
+    let start: { x: number; y: number; time: number } | undefined;
+    let sideways: boolean | undefined;
+    let offset = 0;
+    const settle = () => {
+      if (offset && !stillMotion()) element.animate([{ transform: element.style.transform }, { transform: 'none' }], { duration: 180, easing: 'ease-out' });
+      element.style.transform = '';
+      start = undefined;
+      offset = 0;
+    };
+    const begin = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      const target = event.target as Element;
+      start =
+        event.touches.length === 1 && touch.clientX > 24 && touch.clientX < window.innerWidth - 24 && !target.closest(swipeIgnored) && !scrollsSideways(target, surface)
+          ? { x: touch.clientX, y: touch.clientY, time: event.timeStamp }
+          : undefined;
+      sideways = undefined;
+      offset = 0;
+    };
+    const move = (event: TouchEvent) => {
+      if (!start || sideways === false) return;
+      const across = event.touches[0].clientX - start.x;
+      const down = event.touches[0].clientY - start.y;
+      if (sideways === undefined) {
+        if (Math.hypot(across, down) < 12) return;
+        sideways = Math.abs(across) > Math.abs(down) * 1.5;
+        if (!sideways) return;
+      }
+      offset = across;
+      if (!stillMotion()) element.style.transform = `translateX(${Math.round(across * ((across < 0 ? next : previous) ? 0.3 : 0.08))}px)`;
+    };
+    const end = (event: TouchEvent) => {
+      const href = offset < 0 ? next : previous;
+      const flicked = start && Math.abs(offset) > 40 && event.timeStamp - start.time < 200;
+      if (sideways && href && (Math.abs(offset) > 72 || flicked)) {
+        element.style.transform = '';
+        swipedFrom = offset < 0 ? 1 : -1;
+        start = undefined;
+        offset = 0;
+        navigate(href);
+      } else {
+        settle();
+      }
+    };
+    const options = { passive: true };
+    surface.addEventListener('touchstart', begin, options);
+    surface.addEventListener('touchmove', move, options);
+    surface.addEventListener('touchend', end, options);
+    surface.addEventListener('touchcancel', settle, options);
+    return () => {
+      surface.removeEventListener('touchstart', begin);
+      surface.removeEventListener('touchmove', move);
+      surface.removeEventListener('touchend', end);
+      surface.removeEventListener('touchcancel', settle);
+    };
+  }, [navigate, next, previous]);
+
+  return { area, content };
+}
+
 export function Page({
   actions,
   back,
@@ -65,6 +160,7 @@ export function Page({
   const named = documentTitle ?? (typeof title === 'string' ? title : undefined);
   const tab = tabs?.find((item) => item.active);
   const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named) && variant === 'app';
+  const swipe = useTabSwipe(tabs);
   useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named, { title: named, back, tab });
   if (variant === 'panel') {
     return (
@@ -78,7 +174,7 @@ export function Page({
   }
   const descriptionLine = description && <div className="max-w-2xl text-small text-muted">{description}</div>;
   return (
-    <section className="page-enter grid grid-cols-1 content-start gap-8">
+    <section className="page-enter grid grid-cols-1 content-start gap-8" ref={swipe.area}>
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
       ) : titleInHeader ? (
@@ -102,7 +198,13 @@ export function Page({
           {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
         </div>
       )}
-      {children}
+      {tabs ? (
+        <div className="grid grid-cols-1 content-start gap-8" ref={swipe.content}>
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </section>
   );
 }
