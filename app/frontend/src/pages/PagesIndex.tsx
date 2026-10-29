@@ -22,18 +22,17 @@ const emptyStates = {
   pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.' },
   'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.' },
   journal: { title: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
-  boards: { title: 'No boards yet', hint: 'A board is a blank canvas to draw, sketch and plan on together.' },
 };
 
 function CreateButton({ busy, label, onCreate, primary = false, spaceId }: { busy: boolean; label: string; onCreate: (spaceId: string) => void; primary?: boolean; spaceId: string }) {
   return <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaceId)} primary={primary} />;
 }
 
-export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
+export function PagesIndex({ section }: { section: PagesSection }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>(`/me/notes?kind=${section === 'boards' ? 'board' : section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
+  const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const creating = useAction();
   const [importing, setImporting] = useState(false);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
@@ -59,7 +58,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
     ]);
   }
 
-  function create(spaceId: string, body: { board?: true; quick?: true }, noun: string) {
+  function create(spaceId: string, body: { quick?: true }, noun: string) {
     void creating.run(async () => {
       const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(body) });
       navigate(noteHref(created));
@@ -70,18 +69,15 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
   return (
     <Page
       actions={
-        writable.length > 0 &&
-        (section === 'boards' ? (
-          <CreateButton busy={creating.busy} label="New board" onCreate={(spaceId) => create(spaceId, { board: true }, 'board')} primary spaceId={writable[0]!.id} />
-        ) : (
+        writable.length > 0 && (
           <>
             <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />
             <CreateButton busy={creating.busy} label="New page" onCreate={(spaceId) => create(spaceId, {}, 'page')} primary spaceId={writable[0]!.id} />
           </>
-        ))
+        )
       }
-      tabs={section === 'boards' ? undefined : pagesTabs(section)}
-      title={section === 'boards' ? 'Boards' : 'Pages'}
+      tabs={pagesTabs(section)}
+      title="Pages"
       toolbarEnd={
         section === 'quick-notes' &&
         (!spaces.data ? (
@@ -104,7 +100,7 @@ export function PagesIndex({ section }: { section: PagesSection | 'boards' }) {
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
-        <Placeholder label={`Loading your ${section === 'boards' ? 'boards' : 'pages'}`}>
+        <Placeholder label="Loading your pages">
           {pageRows ? (
             <RowsSkeleton lead={<IconSkeleton />} rows={pageRows} />
           ) : (

@@ -221,6 +221,51 @@
   object-fit: contain;
 }
 
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-card {
+  position: relative;
+}
+
+.board-card-link {
+  display: grid;
+  gap: var(--space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.board-card-link > :last-child {
+  padding-inline-end: 2.5rem;
+}
+
+.board-card .board-preview,
+.board-card-skeleton {
+  display: flex;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-card .board-preview-drawing {
+  height: 100%;
+  max-height: none;
+}
+
+.board-card-menu {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+}
+
 .note-board-open {
   width: fit-content;
   color: var(--color-muted);
@@ -235,24 +280,19 @@
   font-size: 0.85rem;
 }
 
-.board-templates {
+.board-tools {
   position: absolute;
-  bottom: 4.5rem;
+  bottom: 1rem;
   left: 50%;
   z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: max-content;
-  max-width: calc(100% - 2rem);
   transform: translateX(-50%);
-  border: 1px solid #dee2e6;
-  border-radius: var(--radius-panel);
-  background: #ffffff;
-  padding: 0.6rem 0.8rem;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.board-swatch {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid rgb(0 0 0 / 20%);
+  border-radius: var(--radius-mark);
 }
 
 .board-limit {
@@ -317,12 +357,6 @@
   font-weight: 600;
 }
 
-.board-results {
-  position: absolute;
-  top: calc(100% + 4rem);
-  right: 0;
-  width: min(18rem, 100%);
-}
 
 .board-canvas {
   --sat: calc(var(--board-bar-height) + 0.5rem + env(safe-area-inset-top));
@@ -353,6 +387,14 @@
 
   .board-bar .live-save-status {
     min-width: 0;
+  }
+
+  .board-tools {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  }
+
+  .board-limit {
+    bottom: calc(7.5rem + env(safe-area-inset-bottom));
   }
 
   .board-comments {
