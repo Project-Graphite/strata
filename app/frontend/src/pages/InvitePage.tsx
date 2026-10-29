@@ -7,7 +7,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { Page, useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, SkeletonLine } from '../components/Skeletons';
 
@@ -19,7 +19,6 @@ export function InvitePage() {
   const spaces = useSpaces();
   const invite = useResource<InviteDetails>(`/invitations/lookup/${encodeURIComponent(code)}`);
   const joining = useAction();
-  useDocumentTitle(auth.ready && !invite.loading && invite.status === 404 ? 'Invitation' : undefined);
 
   if (!auth.ready || invite.loading) {
     return (
@@ -40,9 +39,11 @@ export function InvitePage() {
   }
   if (invite.status === 404) {
     return (
-      <Empty title="This invite can’t be used">
-        {invite.error} Ask the person who invited you for a new link.
-      </Empty>
+      <Page title="Invitation" titleHidden>
+        <Empty title="This invite can’t be used" variant="page">
+          {invite.error} Ask the person who invited you for a new link.
+        </Empty>
+      </Page>
     );
   }
   if (!invite.data) {

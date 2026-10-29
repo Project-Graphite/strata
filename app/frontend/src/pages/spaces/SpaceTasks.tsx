@@ -51,9 +51,9 @@ export function SpaceTasks() {
         {lists.data ? (
           <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editable ? () => setListDialog('new') : undefined} />
         ) : (
-          <ChipsSkeleton count={listCount + (editable ? 2 : 1)} />
+          !lists.error && <ChipsSkeleton count={listCount + (editable ? 2 : 1)} />
         )}
-        {editable && listId && !lists.data && <IconButtonSkeleton />}
+        {editable && listId && !lists.data && !lists.error && <IconButtonSkeleton />}
         {editable && shownList && (
           <ActionsMenu
             items={[

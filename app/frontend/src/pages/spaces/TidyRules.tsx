@@ -3,7 +3,7 @@ import { ConfirmDialog, ListRow, Placeholder, Select, TagChip, TextField } from 
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
-import { Hint } from '../../components/Hint';
+import { Empty } from '../../components/Empty';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
 import type { Tag } from '../../spaces';
@@ -14,7 +14,9 @@ import { useSpace } from './SpaceLayout';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, HintSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+
+const emptyRules = 'No tagging rules yet';
 
 interface Rule {
   id: string;
@@ -57,6 +59,7 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
   const [adding, setAdding] = useState(false);
   const editable = space.role !== 'viewer';
   const [ruleRows] = useRememberedShape(`tidy-rules-${space.id}`, rules.data && [rules.data.length], [0]);
+  const emptyRulesHint = editable && tags?.length === 0 ? 'Add a tag first, then make a rule for it.' : 'Rules tag new items in this space as they are added.';
 
   function findMatches(rule: Rule) {
     void changing.run(async () => {
@@ -84,9 +87,17 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
       {rules.error ? (
         <LoadError compact error={rules.error} onRetry={rules.reload} />
       ) : !rules.data ? (
-        <Placeholder label="Loading the tagging rules">{ruleRows ? <RowsSkeleton rows={ruleRows} /> : <HintSkeleton />}</Placeholder>
+        <Placeholder label="Loading the tagging rules">
+          {ruleRows ? (
+            <RowsSkeleton rows={ruleRows} />
+          ) : (
+            <Empty loading title={emptyRules}>
+              {emptyRulesHint}
+            </Empty>
+          )}
+        </Placeholder>
       ) : rules.data.length === 0 ? (
-        <Hint>{editable && tags?.length === 0 ? 'Add a tag first, then make a rule for it.' : 'No rules yet.'}</Hint>
+        <Empty title={emptyRules}>{emptyRulesHint}</Empty>
       ) : (
         <ul className="panel-rows">
           {rules.data.map((rule) => (

@@ -5,7 +5,6 @@ import type { Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { Hint } from '../components/Hint';
 import { Button } from '../components/Button';
 import { LoadError } from '../components/LoadError';
 import { PageLinks, PageLinksSkeleton, WidgetEmpty } from './widget-parts';
@@ -66,7 +65,7 @@ export function Capture() {
           <PageLinksSkeleton rows={3} />
         </Placeholder>
       ) : (
-        <div className="fade-in">{notes.data.length === 0 ? <Hint>No quick notes yet.</Hint> : <PageLinks heading="Recent notes" pages={notes.data.slice(0, 3)} />}</div>
+        <div className="fade-in">{notes.data.length === 0 ? <WidgetEmpty icon="file" title="No quick notes yet" /> : <PageLinks heading="Recent notes" pages={notes.data.slice(0, 3)} />}</div>
       )}
     </div>
   );

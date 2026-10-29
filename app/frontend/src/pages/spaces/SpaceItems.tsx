@@ -32,9 +32,11 @@ export function SpaceItems() {
   const editable = space.role !== 'viewer';
   const tagName = tags.data?.find((shown) => shown.id === tag)?.name ?? 'Tag';
   const shape = useRememberedShape(`space-items-${space.id}${filters}`, items.data && itemsShape(items.data.results), [4, 0, 0]);
-  const empty = archived
-    ? { title: 'Nothing archived yet', hint: 'Things you archive in this space wait here.' }
-    : { title: 'Nothing here yet', hint: 'Pages, tasks, files and everything else you add to this space show up here.' };
+  const empty = tag
+    ? { title: `Nothing ${archived ? 'archived' : 'here'} is tagged ${tagName}`, hint: 'Remove the tag to see everything else.', variant: 'filtered' as const }
+    : archived
+      ? { title: 'Nothing archived yet', hint: 'Things you archive in this space wait here.' }
+      : { title: 'Nothing here yet', hint: 'Pages, tasks, files and everything else you add to this space show up here.' };
   const link = (next: { archived?: boolean; tag?: null; page?: number }) => {
     const query = new URLSearchParams();
     if (next.archived ?? archived) query.set('archived', 'true');
@@ -109,13 +111,13 @@ export function SpaceItems() {
           {shape[0] ? (
             <ItemRowsSkeleton shape={shape} />
           ) : (
-            <Empty loading title={empty.title}>
+            <Empty loading title={empty.title} variant={empty.variant}>
               {empty.hint}
             </Empty>
           )}
         </Placeholder>
       ) : items.data.results.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
+        <Empty title={empty.title} variant={empty.variant}>{empty.hint}</Empty>
       ) : (
         <>
           <ItemList

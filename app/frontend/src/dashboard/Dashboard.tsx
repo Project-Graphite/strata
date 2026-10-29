@@ -128,7 +128,13 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
 export function WallPage() {
   const [params] = useSearchParams();
   const dashboards = useResource<Dashboard[]>('/me/dashboards', true, { live: ['dashboards'] });
-  if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
+  if (dashboards.error) {
+    return (
+      <Page title="Wall display" titleHidden>
+        <LoadError error={dashboards.error} onRetry={dashboards.reload} />
+      </Page>
+    );
+  }
   if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
   return <WallDisplay dashboard={chosenDashboard(dashboards.data, params.get('d'))} />;
 }
@@ -176,7 +182,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
     <div className={`fixed inset-0 z-50 overflow-y-auto bg-paper [scrollbar-gutter:stable] p-6 sm:p-10 ${backdrop.className}`} style={backdrop.image ? ({ '--backdrop-image': backdrop.image } as CSSProperties) : undefined}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Hint>{dashboard.name}</Hint>
+          <h1 className="m-0 text-small font-normal text-muted">{dashboard.name}</h1>
           <p className="m-0 text-5xl text-ink">{clockTime(now, user?.timeZone)}</p>
           <p className="mono-sm m-0 mt-1 text-faint">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
@@ -231,7 +237,13 @@ export function DashboardHome() {
   }, [chosen]);
 
   if (params.get('display') === 'wall') return <Navigate replace to={`/wall${chosen ? `?d=${chosen}` : ''}`} />;
-  if (dashboards.error) return <LoadError error={dashboards.error} onRetry={dashboards.reload} />;
+  if (dashboards.error) {
+    return (
+      <Page title="Home" titleHidden>
+        <LoadError error={dashboards.error} onRetry={dashboards.reload} />
+      </Page>
+    );
+  }
   if (!dashboards.data) return <PageSkeleton label="Loading your dashboard" />;
   const current = chosenDashboard(dashboards.data, chosen);
   const layout = draft ?? layoutOf(current);

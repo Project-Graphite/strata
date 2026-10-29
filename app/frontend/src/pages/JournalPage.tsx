@@ -4,6 +4,7 @@ import { formatDay, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, ButtonLink } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { Page, Section } from '../components/Page';
@@ -172,6 +173,9 @@ function JournalMoods({ busy, journal, mutate, onWrite }: { busy: boolean; journ
           ))}
         </div>
       </Section>
+      {!days.some((entry) => entry.mood || entry.noteId) && (
+        <Empty title={`No journal entries in ${shown}`}>Pick a mood or write a page, and the day lights up in the year below.</Empty>
+      )}
       <div className="grid gap-3">
         <div aria-label={`Moods in ${shown}`} className="journal-year" ref={yearGrid} role="group">
           {Array.from({ length: leading }, (_, index) => (
