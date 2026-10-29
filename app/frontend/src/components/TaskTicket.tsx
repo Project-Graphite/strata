@@ -16,6 +16,7 @@ import { useResource } from '../useResource';
 import { Button, TextButton } from './Button';
 import { FileButton } from './FileButton';
 import { Hint } from './Hint';
+import { cspNonce } from '../csp-nonce';
 
 type Description = Record<string, unknown> | null;
 
@@ -47,6 +48,7 @@ export function DescriptionEditor({ editable, onSave, value }: { editable: boole
   const editor = useEditor({
     content: value ?? undefined,
     editable,
+    injectNonce: cspNonce(),
     extensions: [
       StarterKit.configure({ link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
       TaskList,
