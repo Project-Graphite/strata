@@ -5,7 +5,6 @@ import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
-import { timeOptions } from '../time';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
@@ -58,7 +57,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
                     onClick={() => setChosen(version.id)}
                     selected={chosen === version.id}
                   >
-                    <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...timeOptions() })}</span>
+                    <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
                     <span className="text-faint">
                       {version.createdBy ?? 'Someone'} · {timeAgo(version.createdAt)}
                     </span>

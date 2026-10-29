@@ -1,18 +1,21 @@
 type Request = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-export const pushGroups = [
-  { label: 'Tasks that are due or assigned to you', kinds: ['task_due', 'task_assigned'] },
-  { label: 'Events about to start', kinds: ['event_soon'] },
-  { label: 'Birthdays tomorrow', kinds: ['birthday'] },
-  { label: 'Renewals and trials ending', kinds: ['subscription_due'] },
-  { label: 'Budgets nearly or fully used', kinds: ['budget_alert'] },
-  { label: 'Installments and card payments due', kinds: ['payment_due'] },
-  { label: 'Comments on your pages', kinds: ['comment'] },
-  { label: 'Invitations and changes to your spaces', kinds: ['invitation', 'member_joined', 'role_changed', 'removed_from_space'] },
-  { label: 'Weekly review and Tidy summary', kinds: ['weekly_review', 'tidy_summary'] },
+export const allPushKinds = [
+  'task_due',
+  'task_assigned',
+  'event_soon',
+  'birthday',
+  'subscription_due',
+  'budget_alert',
+  'payment_due',
+  'comment',
+  'invitation',
+  'member_joined',
+  'role_changed',
+  'removed_from_space',
+  'weekly_review',
+  'tidy_summary',
 ];
-
-export const allPushKinds = pushGroups.flatMap((group) => group.kinds);
 
 const keyBytes = (key: string) =>
   Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (key.length % 4)) % 4)), (character) => character.charCodeAt(0));

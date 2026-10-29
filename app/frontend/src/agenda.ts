@@ -126,7 +126,7 @@ export function shiftMonth(month: string, by: number) {
 
 export const weekOf = (day: string, weekStart: number) => addDays(day, -((new Date(`${day}T00:00:00`).getDay() - weekStart + 7) % 7));
 
-export function monthDays(anchor: string, weekStart = 1) {
+export function monthDays(anchor: string, weekStart: number) {
   const date = new Date(`${anchor}T00:00:00`);
   const from = weekOf(dayKey(new Date(date.getFullYear(), date.getMonth(), 1)), weekStart);
   return { from, to: addDays(from, 42), days: 42 };

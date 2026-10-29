@@ -13,9 +13,11 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
+import { NotificationToggle } from '../components/NotificationToggle';
 import { Page, Section, Subheading } from '../components/Page';
 import { Button } from '../components/Button';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { clockTime } from '../time';
 
 const emptySuggestions = { title: 'Nothing to tidy', hint: 'There are no duplicate, large or old uploads, and no subscriptions that look unused.' };
 const emptyHistory = { title: 'Nothing tidied yet', hint: 'Changes stay here for 90 days, so you can undo them.' };
@@ -349,6 +351,15 @@ export function TidyPage({ section }: { section: 'suggestions' | 'folder' | 'his
       title="Tidy"
     >
       {section === 'history' ? <TidyHistory /> : section === 'folder' ? <FolderScan /> : <TidySuggestions />}
+      {section === 'suggestions' && (
+        <NotificationToggle
+          description={`Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}
+          field="tidySummary"
+          label="Weekly Tidy summary"
+          offMessage="Weekly Tidy summaries are off."
+          onMessage="You will get a Tidy summary on Mondays."
+        />
+      )}
     </Page>
   );
 }
