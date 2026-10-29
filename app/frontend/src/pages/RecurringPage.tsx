@@ -41,7 +41,7 @@ const unusedDescription = 'Nobody has marked these as used in two months.';
 export function RecurringPage() {
   const auth = useAuth();
   const spaces = useSpaces();
-  const summary = useResource<Summary>('/subscriptions/summary', true);
+  const summary = useResource<Summary>('/subscriptions/summary', true, { live: ['subscriptions', 'spending'] });
   const action = useAction();
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Subscription | 'new'>();
@@ -50,7 +50,7 @@ export function RecurringPage() {
   const [params, setParams] = useSearchParams();
   const linked = useResource<Subscription>(params.get('subscription') ? `/subscriptions/${params.get('subscription')}` : null, true);
   const opened = editing ?? (linked.data && opener(linked.data) ? linked.data : undefined);
-  const currency = summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EUR';
+  const currency = summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EGP';
   const [statCount, trialRows, renewalRows, categoryRows, unusedRows] = useRememberedShape(
     'recurring',
     summary.data && [

@@ -1,6 +1,5 @@
-import { useSyncExternalStore } from 'react';
 import type { TagColor } from '@project-graphite/ui';
-import { useResource } from './useResource';
+import { useResource, type LiveOptions } from './useResource';
 
 export interface SpendingCategory {
   name: string;
@@ -11,6 +10,8 @@ export interface SpendingCategory {
 }
 
 export const expenseCategories = (categories: SpendingCategory[] | undefined) => (categories ?? []).filter((category) => category.kind !== 'income');
+
+export const mostUsedCategory = (categories: SpendingCategory[]) => [...categories].sort((a, b) => (b.uses ?? 0) - (a.uses ?? 0))[0]?.name ?? 'other';
 
 export interface MerchantRule {
   id: string;
@@ -66,6 +67,7 @@ export interface MoneyAccount {
   dueDay: number | null;
   balanceMinor: number;
   missing: string[];
+  archivedAt: string | null;
 }
 
 export interface KnownCard {
@@ -83,6 +85,21 @@ export const paymentMethods: [string, string][] = [
   ['Cash', 'In person'],
 ];
 
+export type ExpenseKind = 'purchase' | 'atm' | 'fee' | 'bill' | 'transfer' | 'card_payment' | 'installment' | 'salary' | 'refund' | 'income';
+
+export const expenseKindOptions: { value: ExpenseKind; label: string }[] = [
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'bill', label: 'Bill' },
+  { value: 'atm', label: 'Cash withdrawal' },
+  { value: 'fee', label: 'Fee' },
+  { value: 'installment', label: 'Installment' },
+  { value: 'card_payment', label: 'Card payment' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'refund', label: 'Refund' },
+  { value: 'salary', label: 'Salary' },
+  { value: 'income', label: 'Other income' },
+];
+
 export interface Expense {
   id: string;
   spaceId: string;
@@ -90,17 +107,31 @@ export interface Expense {
   amountMinor: number;
   currency: string;
   spentOn: string;
+  occurredAt: string | null;
   category: string;
   paymentLabel: string | null;
   note: string;
   direction: ExpenseDirection;
+  kind: ExpenseKind;
+  status: 'pending' | 'posted';
   merchant: string | null;
   source: 'manual' | 'import' | 'sms';
+  reference: string | null;
   accountId: string | null;
   toAccountId: string | null;
+  cardId: string | null;
   cardDigits: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TransactionsPage {
+  currency: string;
+  missing: string[];
+  count: number | null;
+  next: string | null;
+  days: { day: string; spentMinor: number; receivedMinor: number }[];
+  expenses: (Expense & { balanceMinor: number | null })[];
 }
 
 export interface InstallmentPlan {
@@ -212,6 +243,7 @@ export interface SpendingMonth {
   receivedMinor: number;
   budgetMinor: number | null;
   committedMinor: number;
+  budgetsEnabled: boolean;
   categories: { category: string; spentMinor: number; budgetMinor: number | null; carriedMinor: number }[];
   budgets: { category: string; amountMinor: number; currency: string }[];
   expenses: Expense[];
@@ -237,39 +269,10 @@ export const spendingHref = (tab: SpendingTab, params?: URLSearchParams) => {
 export const spendingTabs = (active: SpendingTab, params: URLSearchParams) =>
   spendingTabList.map(([key, label]) => ({ active: key === active, href: spendingHref(key, params), label }));
 
-const byCategoryKey = 'strata-spending-by-category';
-const byCategoryListeners = new Set<() => void>();
-let byCategoryShown = (() => {
-  try {
-    return localStorage.getItem(byCategoryKey) !== 'hidden';
-  } catch {
-    return true;
-  }
-})();
-
-const showByCategory = (shown: boolean) => {
-  byCategoryShown = shown;
-  try {
-    localStorage.setItem(byCategoryKey, shown ? 'shown' : 'hidden');
-  } catch (error) {
-    if (!(error instanceof DOMException)) throw error;
-  }
-  byCategoryListeners.forEach((listener) => listener());
-};
-
-export function useByCategory() {
-  const shown = useSyncExternalStore(
-    (listener) => {
-      byCategoryListeners.add(listener);
-      return () => byCategoryListeners.delete(listener);
-    },
-    () => byCategoryShown,
-  );
-  return [shown, showByCategory] as const;
-}
+export const spendingLive: LiveOptions = { live: ['spending', 'items'] };
 
 export function useCategories(spaceId: string | null | undefined) {
-  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true);
+  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true, spendingLive);
 }
 
 export const categoryName = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);

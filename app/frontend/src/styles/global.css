@@ -1140,21 +1140,21 @@ button.habit-day::before {
   background-size: 100% 1px;
 }
 
-.task-row {
+.swipe-row {
   position: relative;
   touch-action: pan-y;
 }
 
-.task-row[data-swiping] {
+.swipe-row[data-swiping] {
   overflow: hidden;
   background: var(--color-line-soft);
 }
 
-.task-row[data-swiping] > :not(.task-swipe) {
+.swipe-row[data-swiping] > :not(.swipe-hint) {
   transform: translateX(var(--swipe));
 }
 
-.task-swipe {
+.swipe-hint {
   position: absolute;
   inset-block: 0;
   left: var(--space-4);
@@ -1163,6 +1163,57 @@ button.habit-day::before {
   gap: var(--space-2);
   color: var(--color-ink);
   font-size: var(--text-small);
+}
+
+.swipe-hint[data-side='left'] {
+  right: var(--space-4);
+  left: auto;
+}
+
+.amount-field input {
+  font-size: var(--text-h2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger {
+  position: relative;
+  overflow-anchor: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger > li {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.ledger-day {
+  height: 3.25rem;
+}
+
+.ledger-day[data-first] {
+  height: 2rem;
+}
+
+.ledger-row {
+  height: 4rem;
+  border-inline: 1px solid var(--color-line);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.ledger-row[data-first] {
+  border-top-color: var(--color-line);
+  border-start-start-radius: var(--radius-panel);
+  border-start-end-radius: var(--radius-panel);
+}
+
+.ledger-row[data-last] {
+  border-bottom: 1px solid var(--color-line);
+  border-end-start-radius: var(--radius-panel);
+  border-end-end-radius: var(--radius-panel);
 }
 
 .task-row[data-drop='before'] {
@@ -2197,7 +2248,7 @@ button.habit-day::before {
   filter: blur(12px);
 }
 
-:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .card, .stat, .banner, .form-panel, .panel-rows, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .card, .stat, .banner, .form-panel, .panel-rows, .ledger-row, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
   background: color-mix(in srgb, var(--color-surface) 84%, transparent);
 }
 

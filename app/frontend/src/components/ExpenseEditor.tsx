@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Checkbox, DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
-import { directionOptions, expenseCategories, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
+import { directionOptions, expenseCategories, mostUsedCategory, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { atMost, moneyAmount, notCardNumber, required, useFormErrors } from '../validation';
+import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { TextButton } from './Button';
 import { FormDialog } from './FormDialog';
 import { CategoryChips } from './CategoryChips';
@@ -48,7 +48,7 @@ export function ExpenseEditor({
   const categories = expenseCategories(useCategories(spaceId).data);
   const suggested = capture?.suggestion;
   const [category, setCategory] = useState(expense?.category ?? suggested?.category ?? '');
-  const chosenCategory = category || categories[0]?.name || 'other';
+  const chosenCategory = category || mostUsedCategory(categories);
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? suggested?.occurredOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
   const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? (suggested?.transfer ? 'transfer' : suggested?.direction) ?? 'spent');
   const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.transfer?.fromAccountId ?? suggested?.accountId ?? '');
@@ -59,9 +59,7 @@ export function ExpenseEditor({
   const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
   const startCard = expense?.cardDigits ?? suggested?.cardDigits ?? null;
   const startLabel = expense?.paymentLabel ?? suggested?.paymentLabel ?? null;
-  const [paidWith, setPaidWith] = useState(
-    startCard ? `card:${startCard}` : !startLabel ? '' : paymentMethods.some(([method]) => method === startLabel) ? `method:${startLabel}` : 'other',
-  );
+  const [paidWith, setPaidWith] = useState(startCard ? `card:${startCard}` : startLabel ? `method:${startLabel}` : '');
   const knownCards = [
     ...(cards.data ?? []),
     ...(startCard && !cards.data?.some((card) => card.digits === startCard) ? [{ digits: startCard, accountId: expense?.accountId ?? suggested?.accountId ?? null }] : []),
@@ -70,8 +68,8 @@ export function ExpenseEditor({
     { value: '', label: 'Not set' },
     ...knownCards.map((card) => ({ value: `card:${card.digits}`, label: `•••• ${card.digits}`, hint: accounts.find((account) => account.id === card.accountId)?.name ?? 'Card' })),
     ...paymentMethods.map(([method, hint]) => ({ value: `method:${method}`, label: method, hint })),
+    ...(startLabel && !paymentMethods.some(([method]) => method === startLabel) ? [{ value: `method:${startLabel}`, label: startLabel }] : []),
     { value: 'new-card', label: 'Add a card…' },
-    { value: 'other', label: 'Other…' },
   ];
   const choosePaidWith = (next: string) => {
     setPaidWith(next);
@@ -89,7 +87,6 @@ export function ExpenseEditor({
           !form.check(target, {
             title: [required('Say what it was for.'), atMost(200, 'Use at most 200 characters.')],
             amount: [required('Enter the amount.'), moneyAmount],
-            paymentLabel: [atMost(40, 'Use at most 40 characters.'), notCardNumber],
             ...(paidWith === 'new-card' ? { cardDigits: [(value) => (/^\d{4}$/.test(value.trim()) ? undefined : 'Enter the last 4 digits of the card.')] } : {}),
           }) ||
           (transfer && !form.check(target, { from: [() => (accountId && toAccountId && accountId !== toAccountId ? undefined : 'Choose two different accounts.')] }))
@@ -105,7 +102,7 @@ export function ExpenseEditor({
           currency: chosen,
           spentOn,
           category: chosenCategory,
-          paymentLabel: paidWith.startsWith('method:') ? paidWith.slice('method:'.length) : paidWith === 'other' ? text('paymentLabel') || null : null,
+          paymentLabel: paidWith.startsWith('method:') ? paidWith.slice('method:'.length) : null,
           cardDigits: paidWith.startsWith('card:') ? paidWith.slice('card:'.length) : paidWith === 'new-card' ? text('cardDigits') : null,
           note: text('note'),
           direction,
@@ -176,9 +173,6 @@ export function ExpenseEditor({
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
           {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
-          {paidWith === 'other' && (
-            <TextField defaultValue={startLabel ?? ''} hint="Such as a gift card. Never a card number." label="What you paid with" maxLength={40} {...form.field('paymentLabel')} />
-          )}
         </div>
       )}
       {capture && <Checkbox defaultChecked={reportParsing} label="Report parsing with an anonymised copy of this message" name="report" />}

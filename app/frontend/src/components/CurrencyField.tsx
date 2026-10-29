@@ -1,7 +1,7 @@
 import { Select } from '@project-graphite/ui';
 import { allCurrencies, currencyName } from '../choices';
 
-const famous = ['USD', 'EUR', 'EGP'];
+const famous = ['EGP', 'USD', 'EUR'];
 
 export function CurrencyField({
   codes = allCurrencies,

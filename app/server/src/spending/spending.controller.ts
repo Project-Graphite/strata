@@ -3,7 +3,7 @@ import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateExpenseDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
+import { CreateExpenseDto, ExpenseIdsDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
 import { SpendingService } from './spending.service';
 
 @Controller()
@@ -34,6 +34,32 @@ export class SpendingController {
   @Scope('items:write')
   savePlan(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: SavePlanDto) {
     return this.spending.savePlan(user.id, spaceId, input);
+  }
+
+  @Get('spaces/:spaceId/expenses')
+  @Scope('items:read')
+  transactions(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: TransactionsDto) {
+    return this.spending.transactions(user.id, spaceId, query);
+  }
+
+  @Patch('spaces/:spaceId/expenses')
+  @Scope('items:write')
+  updateMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: UpdateExpensesDto) {
+    return this.spending.updateMany(user.id, spaceId, input);
+  }
+
+  @Post('spaces/:spaceId/expenses/trash')
+  @Scope('items:write')
+  @HttpCode(200)
+  trashMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ExpenseIdsDto) {
+    return this.spending.trashMany(user.id, spaceId, input.ids, true);
+  }
+
+  @Post('spaces/:spaceId/expenses/restore')
+  @Scope('items:write')
+  @HttpCode(200)
+  restoreMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ExpenseIdsDto) {
+    return this.spending.trashMany(user.id, spaceId, input.ids, false);
   }
 
   @Post('spaces/:spaceId/expenses')

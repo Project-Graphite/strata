@@ -5,7 +5,7 @@ import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
-import { categoryName, type SpendingInsights } from '../spending';
+import { categoryName, spendingLive, type SpendingInsights } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
@@ -18,7 +18,7 @@ const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00
 
 export function SpendingInsightsPage() {
   const { spaceId } = usePersonalSpace();
-  const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true);
+  const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true, spendingLive);
   const shown = insights.data;
   const [periodRows, categoryRows, merchantRows, leadCells, dayCells] = useRememberedShape(
     'spending-insights',
