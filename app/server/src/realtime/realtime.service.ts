@@ -96,6 +96,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       quiet: true,
       debounce: 2_000,
       maxDebounce: 10_000,
+      flushDelay: 50,
       onAuthenticate: async ({ connectionConfig, documentName, requestParameters, socketId, token }) => {
         if (Number(requestParameters.get('format')) < editorFormat) throw Object.assign(new Error('outdated'), { reason: 'outdated' });
         const { context, readOnly } = token.startsWith(guestTokenPrefix)

@@ -239,6 +239,21 @@ describe('live shared documents', () => {
     await vi.waitFor(() => expect(host.messages.filter((message) => message.type === 'presence').at(-1)?.people).toHaveLength(2));
   });
 
+  it('sends a burst of collaborator pointer moves to each connection as a few batched frames', async () => {
+    const host = await open('member', 'board');
+    const collaborators = await Promise.all([1, 2, 3].map(() => open(guest('board-EDIT'), 'board')));
+    let frames = 0;
+    host.socket.on('message', () => (frames += 1));
+    for (let move = 1; move <= 20; move += 1) {
+      for (const collaborator of collaborators) collaborator.provider.setAwarenessField('pointer', { x: move, y: move });
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    await vi.waitFor(() => {
+      for (const collaborator of collaborators) expect(host.provider.awareness!.getStates().get(collaborator.provider.awareness!.clientID)?.pointer).toEqual({ x: 20, y: 20 });
+    });
+    expect(frames).toBeLessThan(8);
+  });
+
   it('reports editing from accepted writes and keeps a member active while another tab is reading', async () => {
     const host = await open('member');
     const otherTab = await open('member');

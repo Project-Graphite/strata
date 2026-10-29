@@ -12,6 +12,7 @@
     "pretest:integration": "prisma generate",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:load": "node test/load.mjs",
+    "test:soak": "node test/soak.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
