@@ -29,6 +29,7 @@ import { AlignGlyph, alignments, GlyphButton, webAddress } from './media-blocks'
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
 import { FindBar, FindInPage } from './find-in-page';
 import { usePageFollowing } from './page-following';
+import { cspNonce } from '../csp-nonce';
 
 const turnInto = new Set(['text', 'heading1', 'heading2', 'heading3', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 const blockKinds: Record<string, [string, Record<string, unknown>?]> = {
@@ -437,6 +438,7 @@ export function CollaborativeEditor({
   const editor = useEditor(
     {
       editable: editable && !blocked,
+      injectNonce: cspNonce(),
       extensions: [
         ...pageContent(connection.guest ? undefined : auth.request, noteId, peopleSpaceId),
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
