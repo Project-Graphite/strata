@@ -42,8 +42,8 @@ export function SpaceNavigation({ active }: { active: string | null }) {
               { label: 'Manage spaces', separated: true, onSelect: () => navigate('/spaces') },
             ]}
             label="Switch space"
-            trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate">{space.name}</span><span className="shrink-0"><Icon name="chevron-down" size={14} /></span></span>}
-            triggerClassName="min-h-11 max-w-full min-w-0 px-1"
+            trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate">{space.name}</span></span>}
+            triggerClassName="relative inline-flex min-h-9 max-w-full min-w-0 items-center rounded-field border border-line px-2 transition-colors after:absolute after:inset-x-0 after:-inset-y-1 hover:border-muted aria-expanded:border-muted"
             triggerLabel={`Switch space: ${space.name}`}
           />}
         </li>
