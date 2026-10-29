@@ -14,9 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,6 +32,8 @@ public final class CaptureForwarder {
     private static final String KEY_ALLOWED_CHATS = "allowed_chats";
     private static final String KEY_ENABLED_PACKAGES = "enabled_packages";
     private static final String KEY_OUTBOX = "outbox";
+    private static final String KEY_QUEUED_COUNT = "queued_count";
+    private static final String KEY_REJECTED_COUNT = "rejected_count";
     private static final String KEY_NEEDS_RECONNECT = "needs_reconnect";
     private static final String KEY_EVICTED = "evicted_count";
     private static final String KEY_LAST_ERROR = "last_error";
@@ -75,6 +79,7 @@ public final class CaptureForwarder {
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             );
             moveLegacyPrefs(context, secure);
+            if (!secure.contains(KEY_QUEUED_COUNT)) putOutbox(secure.edit(), objectsOf(secure.getString(KEY_OUTBOX, "[]"))).commit();
             return secure;
         } catch (GeneralSecurityException | IOException e) {
             throw new IllegalStateException("Could not open the encrypted capture settings", e);
@@ -93,7 +98,7 @@ public final class CaptureForwarder {
         if (outbox instanceof String) {
             List<JSONObject> items = new ArrayList<>();
             for (JSONObject payload : objectsOf((String) outbox)) items.add(wrap(payload));
-            editor.putString(KEY_OUTBOX, new JSONArray(items).toString());
+            putOutbox(editor, items);
         }
         editor.commit();
         context.deleteSharedPreferences(LEGACY_PREFS_NAME);
@@ -170,13 +175,19 @@ public final class CaptureForwarder {
         return value.trim().toLowerCase(Locale.ROOT).replaceAll("[\\s\\-_.]+", "");
     }
 
+    public static Set<String> getAllowedChatTokens(Context context) {
+        Set<String> tokens = new HashSet<>();
+        for (String allowed : getAllowedChats(context)) tokens.add(normaliseToken(allowed));
+        tokens.remove("");
+        return tokens;
+    }
+
+    public static boolean isChatAllowed(Set<String> allowedChatTokens, String sender) {
+        return allowedChatTokens.contains(normaliseToken(sender));
+    }
+
     public static boolean isChatAllowed(Context context, String sender) {
-        String candidate = normaliseToken(sender);
-        if (candidate.isEmpty()) return false;
-        for (String allowed : getAllowedChats(context)) {
-            if (candidate.equals(normaliseToken(allowed))) return true;
-        }
-        return false;
+        return isChatAllowed(getAllowedChatTokens(context), sender);
     }
 
     public static boolean isAppEnabled(Context context, String packageName) {
@@ -231,6 +242,17 @@ public final class CaptureForwarder {
         return objectsOf(prefs(context).getString(KEY_OUTBOX, "[]"));
     }
 
+    private static SharedPreferences.Editor putOutbox(SharedPreferences.Editor editor, List<JSONObject> items) {
+        int rejected = 0;
+        for (JSONObject item : items) {
+            if (item.has(ITEM_REJECTED)) rejected++;
+        }
+        return editor
+            .putString(KEY_OUTBOX, new JSONArray(items).toString())
+            .putInt(KEY_QUEUED_COUNT, items.size() - rejected)
+            .putInt(KEY_REJECTED_COUNT, rejected);
+    }
+
     public static synchronized void enqueue(Context context, List<JSONObject> payloads) {
         if (payloads.isEmpty()) return;
         List<JSONObject> items = readOutbox(context);
@@ -241,28 +263,23 @@ public final class CaptureForwarder {
             items = items.subList(overflow, items.size());
             editor.putInt(KEY_EVICTED, getEvictedCount(context) + overflow);
         }
-        editor.putString(KEY_OUTBOX, new JSONArray(items).toString()).commit();
+        putOutbox(editor, items).commit();
     }
 
-    public static synchronized int[] getOutboxCounts(Context context) {
-        int queued = 0;
-        int rejected = 0;
-        for (JSONObject item : readOutbox(context)) {
-            if (item.has(ITEM_REJECTED)) rejected++;
-            else queued++;
-        }
-        return new int[] { queued, rejected };
+    public static int[] getOutboxCounts(Context context) {
+        SharedPreferences sp = prefs(context);
+        return new int[] { sp.getInt(KEY_QUEUED_COUNT, 0), sp.getInt(KEY_REJECTED_COUNT, 0) };
     }
 
     public static synchronized void retryRejected(Context context) {
         List<JSONObject> items = readOutbox(context);
         for (JSONObject item : items) item.remove(ITEM_REJECTED);
-        prefs(context).edit().putString(KEY_OUTBOX, new JSONArray(items).toString()).putString(KEY_LAST_ERROR, "").commit();
+        putOutbox(prefs(context).edit(), items).putString(KEY_LAST_ERROR, "").commit();
     }
 
     public static synchronized FlushResult flushOutbox(Context context) {
         FlushResult result = new FlushResult();
-        if (!isConfigured(context) || needsReconnect(context)) return result;
+        if (!isConfigured(context) || needsReconnect(context) || getOutboxCounts(context)[0] == 0) return result;
         SharedPreferences sp = prefs(context);
         String endpoint = sp.getString(KEY_ENDPOINT, "");
         String token = sp.getString(KEY_TOKEN, "");
@@ -298,8 +315,7 @@ public final class CaptureForwarder {
                 stopped = true;
             }
         }
-        sp.edit()
-            .putString(KEY_OUTBOX, new JSONArray(remaining).toString())
+        putOutbox(sp.edit(), remaining)
             .putBoolean(KEY_NEEDS_RECONNECT, needsReconnect)
             .putString(KEY_LAST_ERROR, lastError)
             .commit();
@@ -320,7 +336,9 @@ public final class CaptureForwarder {
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
             }
             int status = conn.getResponseCode();
-            return new Response(status, status >= 400 ? errorMessage(status, conn.getErrorStream()) : "");
+            if (status >= 400) return new Response(status, errorMessage(status, conn.getErrorStream()));
+            readBody(conn.getInputStream());
+            return new Response(status, "");
         } catch (IOException e) {
             return new Response(0, "");
         } finally {
@@ -328,15 +346,19 @@ public final class CaptureForwarder {
         }
     }
 
-    private static String errorMessage(int status, InputStream stream) throws IOException {
-        if (stream == null) return "HTTP " + status;
+    private static String readBody(InputStream stream) throws IOException {
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         try (InputStream in = stream) {
             byte[] buffer = new byte[1024];
             int read;
             while ((read = in.read(buffer)) != -1 && body.size() < 4096) body.write(buffer, 0, read);
         }
-        String text = body.toString("UTF-8");
+        return body.toString("UTF-8");
+    }
+
+    private static String errorMessage(int status, InputStream stream) throws IOException {
+        if (stream == null) return "HTTP " + status;
+        String text = readBody(stream);
         try {
             Object message = new JSONObject(text).opt("message");
             if (message instanceof JSONArray) return ((JSONArray) message).join("; ").replace("\"", "");
