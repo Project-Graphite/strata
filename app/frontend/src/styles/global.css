@@ -2577,6 +2577,10 @@ header.backdrop-blur-md {
     backdrop-filter: none;
   }
 
+  :root:has(:is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), textarea, [contenteditable='true']):focus) {
+    --tab-bar-space: 0px;
+  }
+
   :root:has(:is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), textarea, [contenteditable='true']):focus) :is(.tab-bar, .fab) {
     display: none;
   }
@@ -2589,6 +2593,26 @@ header.backdrop-blur-md {
 
   .sheet-body:last-child {
     padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  }
+}
+
+@media screen and (max-width: 47.99rem) {
+  :root:has(.tab-bar) {
+    overflow: hidden;
+  }
+
+  :has(> .app-header) {
+    height: calc(100dvh - var(--tab-bar-space, var(--tab-bar-height) + env(safe-area-inset-bottom)));
+    min-height: 0;
+    padding-bottom: 0;
+    overflow-y: auto;
+    scroll-padding-top: 5rem;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .app-header {
+      animation-timeline: scroll(nearest block);
+    }
   }
 }
 

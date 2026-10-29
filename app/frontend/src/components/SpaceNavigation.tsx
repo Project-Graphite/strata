@@ -1,7 +1,8 @@
-import { useContext } from 'react';
+import { Fragment, useContext } from 'react';
 import { Icon, Menu, Skeleton } from '@project-graphite/ui';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { appCatalogue } from '../apps';
+import { collapseCrumbs } from '../breadcrumbs';
 import { HeaderTitleContext } from '../header-title';
 import { areaOf } from '../navigation';
 import { noteHref, noteTitle } from '../notes';
@@ -24,12 +25,14 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const title = page ? noteTitle(page) : /^\/(?:notes|boards)\//.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
   const personal = active === '/spending' ? spaces.data?.find((candidate) => candidate.kind === 'personal') : undefined;
+  const { shown, hidden } = collapseCrumbs([root, ...parents, ...(title ? [{ label: title }] : []), ...(tab ? [tab] : [])]);
+  const currentCrumb = shown.at(-1)!;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
   return (
     <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-small text-muted">
-      <ol className="m-0 flex min-w-0 list-none items-center gap-1 p-0 sm:gap-2">
-        <li className="min-w-0 max-w-[35%] shrink-0 sm:max-w-[45%]">
-          {personal ? <span className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-1 px-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={personal} /></span><span className="min-w-0 truncate">{personal.name}</span></span> : <Menu
+      <ol className="m-0 flex min-w-0 list-none items-center gap-2 p-0">
+        <li className="min-w-0 max-w-[50%] shrink-0 md:max-w-[30%]">
+          {personal ? <span className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-1 px-1 md:gap-2"><span className="hidden md:inline-flex"><SpaceMark space={personal} /></span><span className="min-w-0 truncate" title={personal.name}>{personal.name}</span></span> : <Menu
             items={[
               ...(spaces.data ?? []).map((candidate) => ({
                 label: candidate.name,
@@ -42,31 +45,29 @@ export function SpaceNavigation({ active }: { active: string | null }) {
               { label: 'Manage spaces', separated: true, onSelect: () => navigate('/spaces') },
             ]}
             label="Switch space"
-            trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 sm:gap-2"><span className="hidden sm:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate">{space.name}</span></span>}
+            trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 md:gap-2"><span className="hidden md:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate" title={space.name}>{space.name}</span></span>}
             triggerClassName="relative inline-flex min-h-9 max-w-full min-w-0 items-center rounded-field border border-line px-2 transition-colors after:absolute after:inset-x-0 after:-inset-y-1 hover:border-muted aria-expanded:border-muted"
             triggerLabel={`Switch space: ${space.name}`}
           />}
         </li>
-        <li className={`${title || tab ? 'hidden sm:flex' : 'flex'} min-w-0 max-w-24 shrink-0 items-center gap-1 sm:max-w-48 sm:gap-2`}>
-          <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
-          {title || tab || parents.length > 0 ? <Link className="truncate text-muted no-underline hover:underline" title={root.label} to={root.href}>{root.label}</Link> : <span aria-current="page" className="truncate text-ink" title={root.label}>{root.label}</span>}
-        </li>
-        {(title || tab || parents.length > 0) && <li className={`flex shrink-0 items-center gap-1 sm:gap-2 ${parents.length > 1 ? '' : parents.length === 1 ? 'lg:hidden' : 'sm:hidden'}`}>
-          <span aria-hidden="true"><Icon name="chevron-right" size={14} /></span>
-          <Menu items={[root, ...parents].map((parent) => ({ label: parent.label, onSelect: () => navigate(parent.href) }))} label="Breadcrumb navigation" trigger="…" triggerLabel="Show parent pages" triggerClassName="min-h-11 min-w-8 px-1" />
-        </li>}
-        {parents.length > 0 && <li className="hidden min-w-0 max-w-40 items-center gap-2 lg:flex">
-          <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
-          <Link className="truncate text-muted no-underline hover:underline" title={parents.at(-1)!.label} to={parents.at(-1)!.href}>{parents.at(-1)!.label}</Link>
-        </li>}
-        {title && <li className="flex min-w-0 items-center gap-1 sm:gap-2">
-          <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
-          <span aria-current={tab ? undefined : 'page'} className="truncate text-ink" title={title}>{title}</span>
-        </li>}
-        {tab && <li className="flex min-w-0 items-center gap-1 sm:gap-2">
-          <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
-          <span aria-current="page" className="truncate text-ink" title={tab.label}>{tab.label}</span>
-        </li>}
+        {shown.map((crumb, index) => (
+          <Fragment key={`${index}-${crumb.label}`}>
+            {index === 1 && hidden.length > 0 && <li className="hidden shrink-0 items-center gap-2 md:flex">
+              <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
+              <Menu items={hidden.map((parent) => ({ label: parent.label, onSelect: () => navigate(parent.href!) }))} label="Breadcrumb navigation" trigger="…" triggerLabel="Show parent pages" triggerClassName="min-h-11 min-w-8 px-1" />
+            </li>}
+            <li className={crumb === currentCrumb ? 'flex min-w-0 items-center gap-2' : 'hidden min-w-0 max-w-40 shrink-[2] items-center gap-2 md:flex'}>
+              <span aria-hidden="true" className="hidden shrink-0 md:inline-flex"><Icon name="chevron-right" size={14} /></span>
+              {crumb === currentCrumb ? (
+                <span aria-current="page" className="truncate text-ink" title={crumb.label}>{crumb.label}</span>
+              ) : crumb.href ? (
+                <Link className="truncate text-muted no-underline hover:underline" title={crumb.label} to={crumb.href}>{crumb.label}</Link>
+              ) : (
+                <span className="truncate" title={crumb.label}>{crumb.label}</span>
+              )}
+            </li>
+          </Fragment>
+        ))}
       </ol>
     </nav>
   );
