@@ -3,7 +3,7 @@ import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
-import { convertMinor, ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
+import { convertMinor, ExchangeRatesService, ratesSourcesOf } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
@@ -338,7 +338,7 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   private async homeTotal(currency: string, totals: { currency: string; yearlyMinor: number }[]) {
-    const { publishedOn, rates } = await this.exchangeRates.table();
+    const { publishedOn, rates, sources } = await this.exchangeRates.table();
     let yearlyMinor = 0;
     const missing: string[] = [];
     for (const total of totals) {
@@ -346,7 +346,15 @@ export class SubscriptionsService implements OnModuleInit {
       if (converted === null) missing.push(total.currency);
       else yearlyMinor += converted;
     }
-    return { currency, yearlyMinor, monthlyMinor: Math.round(yearlyMinor / 12), ratesOn: publishedOn, missing };
+    const converted = totals.filter((total) => total.currency !== currency && !missing.includes(total.currency)).map((total) => total.currency);
+    return {
+      currency,
+      yearlyMinor,
+      monthlyMinor: Math.round(yearlyMinor / 12),
+      ratesOn: publishedOn,
+      ratesFrom: converted.length ? ratesSourcesOf(sources, [currency, ...converted]) : [],
+      missing,
+    };
   }
 
   async advanceRenewals(now: Date) {

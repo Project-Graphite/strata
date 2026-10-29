@@ -106,7 +106,7 @@ export function SubscriptionEditor({
           label="Price"
           {...form.field('amount')}
         />
-        <CurrencyField defaultValue={subscription?.currency ?? 'EUR'} name="currency" />
+        <CurrencyField defaultValue={subscription?.currency ?? 'EGP'} name="currency" />
         <Select
           defaultValue={subscription?.repeatRule ?? 'FREQ=MONTHLY'}
           label="Billed"

@@ -1,72 +1,129 @@
-import { formatDay, ListRow, Placeholder, Skeleton } from '@project-graphite/ui';
+import { useSearchParams } from 'react-router';
+import { formatDay, ListRow, Placeholder, SegmentedControl, Skeleton, Stat, StatGrid, TextLink } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
+import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
-import { categoryName, spendingLive, type SpendingInsights } from '../spending';
+import { categoryName, spendingHref, spendingLive, type SpendingInsights } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
 import { MissingRates } from '../components/Stats';
 
-const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
+const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 78)}%, var(--color-surface))`;
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
+const spans = ['3', '6', '12', '24'] as const;
+const emptyInsights = { title: 'Nothing to look back on yet', hint: 'Add or import transactions, or connect your phone, to see how your spending moves from month to month.' };
+const labelOf = (period: SpendingInsights['periods'][number]) => monthLabel.format(new Date(`${period.until}T00:00:00Z`));
 
 export function SpendingInsightsPage() {
   const { spaceId } = usePersonalSpace();
-  const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=6` : null, true, spendingLive);
+  const [params, setParams] = useSearchParams();
+  const span = spans.find((value) => value === params.get('months')) ?? '6';
+  const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=${span}` : null, true, spendingLive);
   const shown = insights.data;
-  const [periodRows, categoryRows, merchantRows, leadCells, dayCells] = useRememberedShape(
-    'spending-insights',
+  const [periodRows, categoryRows, merchantRows, leadCells, dayCells, empty] = useRememberedShape(
+    `spending-insights-${span}`,
     shown && [
       shown.periods.length,
       new Set(shown.periods.slice(-2).flatMap((period) => period.categories.map((row) => row.category))).size,
       shown.merchants.length,
       leadOf(shown.days),
       shown.days.length,
+      quiet(shown) ? 1 : 0,
     ],
-    [6, 4, 5, 3, 31],
+    [Number(span), 4, 5, 3, 31, 0],
   );
 
   return (
-    <SpendingFrame currency={shown?.currency} onChanged={insights.reload} tab="insights">
+    <SpendingFrame
+      currency={shown?.currency}
+      onChanged={insights.reload}
+      tab="insights"
+      toolbar={
+        <SegmentedControl
+          label="Look back over"
+          onChange={(value) =>
+            setParams((current) => {
+              const next = new URLSearchParams(current);
+              next.set('months', value);
+              return next;
+            })
+          }
+          options={spans.map((value) => ({ value, label: `${value} months` }))}
+          size="small"
+          value={span}
+        />
+      }
+    >
       {insights.error ? (
         <LoadError error={insights.error} onRetry={insights.reload} />
       ) : !shown ? (
-        <Placeholder className="grid items-start gap-8 lg:grid-cols-2" label="Looking back over your spending">
-          <Section title="Spent each month">
-            <div className="grid gap-1">
-              <Skeleton className="h-36" />
-              <SkeletonLine className="mono-sm" width="w-full" />
-            </div>
-            <TableSkeleton columns={3} rows={periodRows} />
-          </Section>
-          <Section title="Compared with the month before">{categoryRows ? <TableSkeleton columns={4} rows={categoryRows} /> : <HintSkeleton />}</Section>
-          <Section title="Where it went">{merchantRows ? <RowsSkeleton rows={merchantRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} /> : <HintSkeleton />}</Section>
-          <Section title="Day by day">
-            <div className="grid grid-cols-7 gap-0.5 text-xs">
-              {weekdays.map((weekday) => (
-                <SkeletonLine className="justify-center" key={weekday} width="w-6" />
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-0.5">
-              {rowsOf(leadCells).map((cell) => (
-                <span key={`lead-${cell}`} />
-              ))}
-              {rowsOf(dayCells).map((cell) => (
-                <Skeleton className="aspect-square h-auto rounded-field" key={cell} />
-              ))}
-            </div>
-          </Section>
+        <Placeholder className="grid gap-8" label="Looking back over your spending">
+          {empty ? (
+            <Empty loading title={emptyInsights.title}>
+              {emptyInsights.hint}
+            </Empty>
+          ) : (
+            <>
+              <StatGrid>
+                {rowsOf(3).map((stat) => (
+                  <Stat detail={stat === 2 ? <SkeletonLine width="w-24" /> : undefined} key={stat} label={<SkeletonLine width="w-24" />} value={<SkeletonLine width="w-32" />} />
+                ))}
+              </StatGrid>
+              <div className="grid items-start gap-8 lg:grid-cols-2">
+                <Section title="Spent each month">
+                  <MonthBarsSkeleton rows={periodRows} />
+                  <TableSkeleton columns={3} rows={periodRows} />
+                </Section>
+                <Section title="Compared with the month before">{categoryRows ? <TableSkeleton columns={4} rows={categoryRows} /> : <HintSkeleton />}</Section>
+                <Section title="Where it went">{merchantRows ? <RowsSkeleton rows={merchantRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} /> : <HintSkeleton />}</Section>
+                <Section title="Day by day">
+                  <div className="grid grid-cols-7 gap-0.5 text-xs">
+                    {weekdays.map((weekday) => (
+                      <SkeletonLine className="justify-center" key={weekday} width="w-6" />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {rowsOf(leadCells).map((cell) => (
+                      <span key={`lead-${cell}`} />
+                    ))}
+                    {rowsOf(dayCells).map((cell) => (
+                      <Skeleton className="aspect-square h-auto rounded-field" key={cell} />
+                    ))}
+                  </div>
+                </Section>
+              </div>
+            </>
+          )}
         </Placeholder>
+      ) : quiet(shown) ? (
+        <Empty title={emptyInsights.title}>{emptyInsights.hint}</Empty>
       ) : (
         <Insights insights={shown} />
       )}
     </SpendingFrame>
+  );
+}
+
+const quiet = (insights: SpendingInsights) => insights.periods.every((period) => period.spentMinor === 0 && period.receivedMinor === 0);
+
+function MonthBarsSkeleton({ rows }: { rows: number }) {
+  return (
+    <ul aria-hidden="true" className="m-0 grid list-none gap-2 p-0">
+      {rowsOf(rows).map((row) => (
+        <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={row}>
+          <SkeletonLine width="w-12" />
+          <Skeleton className="h-2 rounded-full" />
+          <SkeletonLine width="w-20" />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -96,6 +153,8 @@ function TableSkeleton({ columns, rows }: { columns: number; rows: number }) {
 function Insights({ insights }: { insights: SpendingInsights }) {
   const { currency, periods, merchants, days } = insights;
   const highest = Math.max(1, ...periods.map((period) => period.spentMinor));
+  const busiestMonth = periods.reduce((best, period) => (period.spentMinor > best.spentMinor ? period : best), periods[0]!);
+  const totalMinor = periods.reduce((total, period) => total + period.spentMinor, 0);
   const [previous, current] = periods.slice(-2) as [SpendingInsights['periods'][number], SpendingInsights['periods'][number]];
   const categories = [...new Set([...current.categories, ...previous.categories].map((row) => row.category))].map((category) => {
     const now = current.categories.find((row) => row.category === category)?.spentMinor ?? 0;
@@ -107,29 +166,25 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
   return (
     <>
+      <StatGrid>
+        <Stat label={`Spent over ${periods.length} months`} value={<Amount currency={currency} minor={totalMinor} />} />
+        <Stat label="Average a month" value={<Amount currency={currency} minor={Math.round(totalMinor / periods.length)} />} />
+        <Stat detail={labelOf(busiestMonth)} label="Highest month" value={<Amount currency={currency} minor={busiestMonth.spentMinor} />} />
+      </StatGrid>
       <MissingRates currencies={insights.missing} />
       <div className="grid items-start gap-8 lg:grid-cols-2">
         <Section title="Spent each month">
-          <div aria-hidden="true" className="grid gap-1">
-            <div className="flex h-36 items-end gap-2 border-b border-line">
-              {periods.map((period) => (
-                <div
-                  className="flex h-full flex-1 items-end justify-center"
-                  key={period.month}
-                  title={`${monthLabel.format(new Date(`${period.until}T00:00:00Z`))}: ${money(period.spentMinor, currency)}`}
-                >
-                  <div className="w-full max-w-8 rounded-t bg-ink" style={{ height: `${(period.spentMinor / highest) * 100}%`, minHeight: period.spentMinor ? 2 : 0 }} />
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              {periods.map((period) => (
-                <span className="mono-sm flex-1 text-center text-faint" key={period.month}>
-                  {monthLabel.format(new Date(`${period.until}T00:00:00Z`))}
+          <ul aria-hidden="true" className="m-0 grid list-none gap-2 p-0">
+            {periods.map((period) => (
+              <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={period.month}>
+                <span className="text-muted">{labelOf(period)}</span>
+                <span className="h-2 overflow-hidden rounded-full bg-line-soft">
+                  <span className="block h-full rounded-full bg-ink" style={{ width: `${(period.spentMinor / highest) * 100}%` }} />
                 </span>
-              ))}
-            </div>
-          </div>
+                <span className="text-right tabular-nums text-ink">{money(period.spentMinor, currency)}</span>
+              </li>
+            ))}
+          </ul>
           <div className="overflow-x-auto">
             <table className="insights-table">
               <thead>
@@ -171,7 +226,9 @@ function Insights({ insights }: { insights: SpendingInsights }) {
                     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
                     .map((row) => (
                       <tr key={row.category}>
-                        <th scope="row">{categoryName(row.category)}</th>
+                        <th scope="row">
+                          <TextLink href={`${spendingHref('transactions')}?category=${encodeURIComponent(row.category)}`}>{categoryName(row.category)}</TextLink>
+                        </th>
                         <td>{money(row.now, currency)}</td>
                         <td>{money(row.before, currency)}</td>
                         <td>{`${row.change > 0 ? '+' : row.change < 0 ? '−' : ''}${money(Math.abs(row.change), currency)}`}</td>
@@ -190,7 +247,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
             <ul className="panel-rows">
               {merchants.map((merchant) => (
                 <ListRow
-                  key={merchant.merchant}
+                  key={merchant.merchantId ?? merchant.merchant}
                   meta={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
                   title={merchant.merchant}
                   trail={<Amount currency={currency} minor={merchant.totalMinor} />}

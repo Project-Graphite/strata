@@ -18,6 +18,7 @@ export interface Me {
   weekStart: number;
   weekendDays: number[];
   monthStartDay: number;
+  budgetsEnabled: boolean;
   role: string;
 }
 

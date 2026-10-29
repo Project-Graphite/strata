@@ -229,7 +229,7 @@ export interface SpendingInsights {
   currency: string;
   missing: string[];
   periods: { month: string; from: string; until: string; spentMinor: number; receivedMinor: number; categories: { category: string; spentMinor: number }[] }[];
-  merchants: { merchant: string; count: number; totalMinor: number; averageMinor: number; lastOn: string }[];
+  merchants: { merchantId: string | null; merchant: string; count: number; totalMinor: number; averageMinor: number; lastOn: string }[];
   days: { day: string; spentMinor: number }[];
 }
 
@@ -260,6 +260,11 @@ export interface SpendingPlan {
   rollover: boolean;
 }
 
+export interface Pace {
+  projectedMinor: number;
+  overOn: string | null;
+}
+
 export interface SpendingMonth {
   month: string;
   from: string;
@@ -274,8 +279,10 @@ export interface SpendingMonth {
   receivedMinor: number;
   budgetMinor: number | null;
   committedMinor: number;
+  upcomingMinor: number;
+  pace: Pace | null;
   budgetsEnabled: boolean;
-  categories: { category: string; spentMinor: number; budgetMinor: number | null; carriedMinor: number }[];
+  categories: { category: string; spentMinor: number; budgetMinor: number | null; carriedMinor: number; committedMinor: number; pace: Pace | null }[];
   budgets: { category: string; amountMinor: number; currency: string }[];
   expenses: Expense[];
 }
@@ -297,8 +304,8 @@ export const spendingHref = (tab: SpendingTab, params?: URLSearchParams) => {
   return `/spending${tab === 'overview' ? '' : `/${tab}`}${kept ? `?${kept}` : ''}`;
 };
 
-export const spendingTabs = (active: SpendingTab, params: URLSearchParams) =>
-  spendingTabList.map(([key, label]) => ({ active: key === active, href: spendingHref(key, params), label }));
+export const spendingTabs = (active: SpendingTab, params: URLSearchParams, budgets: boolean) =>
+  spendingTabList.filter(([key]) => budgets || key !== 'budgets' || active === 'budgets').map(([key, label]) => ({ active: key === active, href: spendingHref(key, params), label }));
 
 export const spendingLive: LiveOptions = { live: ['spending', 'items'] };
 

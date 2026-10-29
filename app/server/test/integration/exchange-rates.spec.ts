@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { egyptRatesUrl, ExchangeRatesService, ratesUrl } from '../../src/exchange-rates/exchange-rates.service';
+import { egyptFallbackUrl, egyptRatesUrl, ExchangeRatesService, ratesUrl } from '../../src/exchange-rates/exchange-rates.service';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp } from './harness';
 
@@ -52,12 +52,43 @@ describe('Home currency totals against Postgres', () => {
       yearlyMinor: 2000,
       monthlyMinor: 167,
       ratesOn: '2026-10-05',
+      ratesFrom: ['ECB'],
       missing: ['XAU'],
     });
 
     expect((await owner.call('PATCH', '/me', { homeCurrency: 'EGP' })).body.homeCurrency).toBe('EGP');
-    expect((await owner.call('GET', '/subscriptions/summary')).body.home).toMatchObject({ currency: 'EGP', yearlyMinor: 120_200, missing: ['XAU'] });
+    expect((await owner.call('GET', '/subscriptions/summary')).body.home).toMatchObject({ currency: 'EGP', yearlyMinor: 120_200, ratesFrom: ['CBE', 'ECB'], missing: ['XAU'] });
 
     expect((await owner.call('PATCH', '/me', { homeCurrency: null })).body.homeCurrency).toBeNull();
+  });
+
+  it('falls back to open.er-api.com for the pound when the CBE page fails, and keeps a rate per day', async () => {
+    const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
+    await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
+    await strata.prisma.exchangeRate.deleteMany();
+    let updated = Date.parse('2026-10-14T00:00:01Z') / 1000;
+    const fallback = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ result: 'success', time_last_update_unix: updated, rates: { EGP: 59.5 } }), { status: 200 })));
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) =>
+      String(input) === ratesUrl
+        ? Promise.resolve(new Response(xml, { status: 200 }))
+        : String(input) === egyptRatesUrl
+          ? Promise.resolve(new Response('The requested URL was rejected.', { status: 200 }))
+          : String(input) === egyptFallbackUrl
+            ? fallback()
+            : realFetch(input, init),
+    );
+    const rates = strata.service(ExchangeRatesService);
+    await rates.refresh(new Date(Date.now() + 13 * 60 * 60 * 1000));
+    updated += 86_400;
+    await rates.refresh(new Date(Date.now() + 26 * 60 * 60 * 1000));
+    expect(fallback).toHaveBeenCalledTimes(2);
+    expect(await strata.prisma.exchangeRate.findMany({ where: { currency: 'EGP' }, orderBy: { publishedOn: 'asc' }, select: { publishedOn: true, source: true } })).toEqual([
+      { publishedOn: new Date('2026-10-14'), source: 'open.er-api.com' },
+      { publishedOn: new Date('2026-10-15'), source: 'open.er-api.com' },
+    ]);
+    const table = await rates.table();
+    expect(table.rates.get('EGP')).toBe(59.5);
+    expect(table.sources.get('EGP')).toBe('open.er-api.com');
+    expect(table.sources.get('USD')).toBe('ECB');
   });
 });

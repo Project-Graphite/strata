@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, DatePicker, formatDay, ListRow, Meter, Placeholder, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, formatDay, ListRow, Meter, Placeholder, Select, Stat, StatGrid, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
@@ -8,7 +8,7 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, spendingLive, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { usePersonalSpace } from '../spaces';
@@ -17,7 +17,10 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
 import { CurrencyField } from '../components/CurrencyField';
-import { MissingRates, Stat, Stats } from '../components/Stats';
+import { MissingRates } from '../components/Stats';
+import { Empty } from '../components/Empty';
+
+const emptyWorth = { title: 'Nothing to add up yet', hint: 'Add your accounts under Accounts, and assets such as gold, certificates or property below, to see what you own minus what you owe.' };
 
 export function NetWorthPage() {
   const auth = useAuth();
@@ -38,10 +41,17 @@ export function NetWorthPage() {
     ]
       .filter(Boolean)
       .join(' · ');
-  const [goalRows, detailedGoals, assetRows] = useRememberedShape(
+  const [goalRows, detailedGoals, assetRows, empty] = useRememberedShape(
     'net-worth',
-    worth.data && goals.data && [goals.data.length, goals.data.filter(goalDetail).length, worth.data.assets.length],
-    [1, 1, 2],
+    worth.data &&
+      goals.data &&
+      accounts.data && [
+        goals.data.length,
+        goals.data.filter(goalDetail).length,
+        worth.data.assets.length,
+        accounts.data.length === 0 && worth.data.assets.length === 0 && goals.data.length === 0 && worth.data.installmentsMinor === 0 ? 1 : 0,
+      ],
+    [1, 1, 2, 0],
   );
 
   return (
@@ -58,7 +68,17 @@ export function NetWorthPage() {
         <LoadError error={failed} onRetry={worth.error ? worth.reload : goals.reload} />
       ) : !worth.data || !goals.data ? (
         <Placeholder className="grid gap-8" label="Adding up what you own">
-          <StatsSkeleton count={4} detail={false} />
+          {empty ? (
+            <Empty loading title={emptyWorth.title}>
+              {emptyWorth.hint}
+            </Empty>
+          ) : (
+            <StatGrid>
+              {rowsOf(4).map((stat) => (
+                <Stat key={stat} label={<SkeletonLine width="w-24" />} value={<SkeletonLine width="w-32" />} />
+              ))}
+            </StatGrid>
+          )}
           <Section action={(!space || editable) && <ButtonSkeleton large width="w-44" />} title="Savings goals">
             {goalRows ? <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} /> : <HintSkeleton />}
           </Section>
@@ -68,12 +88,16 @@ export function NetWorthPage() {
         </Placeholder>
       ) : (
         <>
-          <Stats>
-            <Stat label="Net worth" value={<Amount currency={worth.data.currency} minor={worth.data.totalMinor} />} />
-            <Stat label="Accounts" value={<Amount currency={worth.data.currency} minor={worth.data.accountsMinor} />} />
-            <Stat label="Assets" value={<Amount currency={worth.data.currency} minor={worth.data.assetsMinor} />} />
-            <Stat label="Installments owed" value={<Amount currency={worth.data.currency} minor={worth.data.installmentsMinor} />} />
-          </Stats>
+          {accounts.data?.length === 0 && worth.data.assets.length === 0 && goals.data.length === 0 && worth.data.installmentsMinor === 0 ? (
+            <Empty title={emptyWorth.title}>{emptyWorth.hint}</Empty>
+          ) : (
+            <StatGrid>
+              <Stat label="Net worth" value={<Amount currency={worth.data.currency} minor={worth.data.totalMinor} />} />
+              <Stat label="Accounts" value={<Amount currency={worth.data.currency} minor={worth.data.accountsMinor} />} />
+              <Stat label="Assets" value={<Amount currency={worth.data.currency} minor={worth.data.assetsMinor} />} />
+              <Stat label="Installments owed" value={<Amount currency={worth.data.currency} minor={worth.data.installmentsMinor} />} />
+            </StatGrid>
+          )}
           <MissingRates currencies={worth.data.missing} />
 
           <Section action={editable && <Button icon="plus" label="New savings goal" large onClick={() => setDialog({ goal: null })} />} title="Savings goals">
