@@ -8,6 +8,7 @@ import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace, useSpaceInvites } from './SpaceLayout';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { Toolbar } from '../../components/Page';
 import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
@@ -85,6 +86,12 @@ export function SpaceMembers() {
           ))}
         </ul>
       )}
+      {members.data?.length === 1 &&
+        (space.kind === 'personal' ? (
+          <Empty title="Only you can see this space">To work with other people, make a shared space from Spaces.</Empty>
+        ) : (
+          <Empty title="No one else here yet">Invite people by email or @handle. They join when they accept.</Empty>
+        ))}
       {manages && <SpaceInvitations key={invited} space={space} />}
 
       {removing && (

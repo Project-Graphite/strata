@@ -107,7 +107,11 @@ export function RsvpPage() {
   if (invitation.loading) return <RsvpSkeleton />;
   if (invitation.status === 404) {
     return (
-      <Empty title="This invitation is no longer open">Ask the person who invited you for a new link.</Empty>
+      <Page title="Your invitation" titleHidden>
+        <Empty title="This invitation is no longer open" variant="page">
+          Ask the person who invited you for a new link.
+        </Empty>
+      </Page>
     );
   }
   if (!invitation.data) {
@@ -145,6 +149,7 @@ export function RsvpPage() {
         }}
       >
         <p className="m-0 text-ink">Hi {guest.name}.</p>
+        {poll.error && <LoadError compact error={poll.error} onRetry={poll.reload} />}
         {poll.data && poll.data.options.length > 0 && (
           <div className="grid gap-2">
             <p className="m-0 text-small text-muted">The date isn’t fixed yet. Which of these work for you?</p>
@@ -199,7 +204,13 @@ export function SharePage() {
       </section>
     );
   }
-  if (shared.status === 404) return <ClosedShareLink />;
+  if (shared.status === 404) {
+    return (
+      <Page title="Shared with you" titleHidden>
+        <ClosedShareLink />
+      </Page>
+    );
+  }
   if (!shared.data) {
     return (
       <Page title="Shared with you" variant="panel">

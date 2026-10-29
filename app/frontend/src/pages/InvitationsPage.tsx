@@ -10,11 +10,12 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
 import { DialogActions } from '../components/DialogActions';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
-import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton, useRememberedShape } from '../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton, useRememberedShape } from '../components/Skeletons';
 import { NewSpace } from './spaces/SpacesPage';
 
 const statusLabels: Record<SentInvitation['status'], string> = {
@@ -23,6 +24,9 @@ const statusLabels: Record<SentInvitation['status'], string> = {
   expired: 'expired',
   withdrawn: 'withdrawn',
 };
+
+const emptyReceived = { title: 'No invitations for you', hint: 'When someone invites you to a space, you can accept it here.' };
+const emptySent = { title: 'No invitations sent yet', hint: 'Invite someone to Strata by email or with a link you send yourself.' };
 
 export function InvitationsPage() {
   const auth = useAuth();
@@ -69,11 +73,13 @@ export function InvitationsPage() {
                 }
               />
             ) : (
-              <HintSkeleton />
+              <Empty loading title={emptyReceived.title}>
+                {emptyReceived.hint}
+              </Empty>
             )}
           </Placeholder>
         ) : received.data.length === 0 ? (
-          <Hint>No invitations for you yet.</Hint>
+          <Empty title={emptyReceived.title}>{emptyReceived.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {received.data.map((invitation) => (
@@ -100,9 +106,17 @@ export function InvitationsPage() {
         {sent.error ? (
           <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
-          <Placeholder label="Loading the invites you sent">{sentRows ? <RowsSkeleton rows={sentRows} /> : <HintSkeleton />}</Placeholder>
+          <Placeholder label="Loading the invites you sent">
+            {sentRows ? (
+              <RowsSkeleton rows={sentRows} />
+            ) : (
+              <Empty loading title={emptySent.title}>
+                {emptySent.hint}
+              </Empty>
+            )}
+          </Placeholder>
         ) : sent.data.length === 0 ? (
-          <Hint>No sent invitations yet.</Hint>
+          <Empty title={emptySent.title}>{emptySent.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {sent.data.map((invitation) => (

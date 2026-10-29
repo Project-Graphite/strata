@@ -158,9 +158,11 @@ export function EventSections({
     <>
       {details.description && <p className="m-0 whitespace-pre-wrap text-ink">{details.description}</p>}
 
-      {pollShown && (
+      {(pollShown || poll.error) && (
         <Section title="Date poll">
-          {planning ? (
+          {poll.error ? (
+            <LoadError compact error={poll.error} onRetry={poll.reload} />
+          ) : planning ? (
             <PollEditor
               onCancel={() => setPlanning(false)}
               onSave={async (chosen) => {

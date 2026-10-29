@@ -9,7 +9,7 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { DetailState, Page } from '../../components/Page';
-import { IconButtonSkeleton, SkeletonLine, SpaceMarkSkeleton } from '../../components/Skeletons';
+import { IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton } from '../../components/Skeletons';
 import { InviteToSpaceDialog } from './SpaceInvitations';
 
 interface SpaceOutlet {
@@ -174,7 +174,9 @@ export function SpaceLayout() {
           </span>
         }
       >
-        <Placeholder label="Loading this space">{null}</Placeholder>
+        <Placeholder label="Loading this space">
+          <RowsSkeleton rows={3} />
+        </Placeholder>
       </Page>
     );
   }

@@ -4,6 +4,7 @@ import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, Butt
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
 import { Button } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
@@ -126,52 +127,59 @@ export function MealPlanPage() {
           </ul>
         </Placeholder>
       ) : (
-        <ul className="panel-rows">
-          {days.map((day) => (
-            <li className={dayRow} key={day}>
-              <DayLabel day={day} today={today} />
-              {meals.map(({ value, label }) => {
-                const planned = plan.data!.filter((entry) => entry.day === day && entry.meal === value);
-                return (
-                  <div className="grid min-w-0 content-start gap-1" key={value}>
-                    <span className="text-sm text-faint">{label}</span>
-                    {planned.map((entry) => (
-                      <span className="flex min-w-0 items-center gap-1" key={entry.id}>
-                        {entry.recipe ? (
-                          <Link className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate" to={`/recipes/${entry.recipe.id}`}>
-                            {entry.recipe.title}
-                          </Link>
-                        ) : (
-                          <span className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate">{entry.note || 'A recipe that was removed'}</span>
-                        )}
+        <>
+          {plan.data.length === 0 && (
+            <Empty title="Nothing planned this week">{editable ? 'Add a recipe or a note to any meal below.' : 'Meals planned for this week show up here.'}</Empty>
+          )}
+          {(editable || plan.data.length > 0) && (
+            <ul className="panel-rows">
+              {days.map((day) => (
+                <li className={dayRow} key={day}>
+                  <DayLabel day={day} today={today} />
+                  {meals.map(({ value, label }) => {
+                    const planned = plan.data!.filter((entry) => entry.day === day && entry.meal === value);
+                    return (
+                      <div className="grid min-w-0 content-start gap-1" key={value}>
+                        <span className="text-sm text-faint">{label}</span>
+                        {planned.map((entry) => (
+                          <span className="flex min-w-0 items-center gap-1" key={entry.id}>
+                            {entry.recipe ? (
+                              <Link className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate" to={`/recipes/${entry.recipe.id}`}>
+                                {entry.recipe.title}
+                              </Link>
+                            ) : (
+                              <span className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate">{entry.note || 'A recipe that was removed'}</span>
+                            )}
+                            {editable && (
+                              <IconButton
+                                disabled={action.busy}
+                                icon="x"
+                                label={`Remove ${entry.recipe?.title ?? entry.note} from ${label.toLowerCase()} on ${formatDay(day)}`}
+                                onClick={() => remove(entry)}
+                              />
+                            )}
+                          </span>
+                        ))}
                         {editable && (
-                          <IconButton
-                            disabled={action.busy}
-                            icon="x"
-                            label={`Remove ${entry.recipe?.title ?? entry.note} from ${label.toLowerCase()} on ${formatDay(day)}`}
-                            onClick={() => remove(entry)}
-                          />
+                          <UiButton
+                            aria-label={`Add ${label.toLowerCase()} on ${formatDay(day)}`}
+                            className="w-fit"
+                            icon="plus"
+                            onClick={() => setAdding({ day, meal: value })}
+                            size="small"
+                            variant="text"
+                          >
+                            Add
+                          </UiButton>
                         )}
-                      </span>
-                    ))}
-                    {editable && (
-                      <UiButton
-                        aria-label={`Add ${label.toLowerCase()} on ${formatDay(day)}`}
-                        className="w-fit"
-                        icon="plus"
-                        onClick={() => setAdding({ day, meal: value })}
-                        size="small"
-                        variant="text"
-                      >
-                        Add
-                      </UiButton>
-                    )}
-                  </div>
-                );
-              })}
-            </li>
-          ))}
-        </ul>
+                      </div>
+                    );
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
       {adding && spaceId && (
         <PlanMealDialog

@@ -4,6 +4,7 @@ import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
@@ -62,18 +63,23 @@ export function SpacesPage() {
           <RowsSkeleton lead={<SpaceMarkSkeleton />} rows={rows} />
         </Placeholder>
       ) : (
-        <ul className="panel-rows">
-          {spaces.data.map((space) => (
-            <ListRow
-              href={`/spaces/${space.id}`}
-              key={space.id}
-              lead={<SpaceMark space={space} />}
-              meta={spaceDescription(space)}
-              title={space.name}
-              trail={<ActionsMenu items={actions.items(space)} name={space.name} />}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="panel-rows">
+            {spaces.data.map((space) => (
+              <ListRow
+                href={`/spaces/${space.id}`}
+                key={space.id}
+                lead={<SpaceMark space={space} />}
+                meta={spaceDescription(space)}
+                title={space.name}
+                trail={<ActionsMenu items={actions.items(space)} name={space.name} />}
+              />
+            ))}
+          </ul>
+          {spaces.data.every((space) => space.kind === 'personal') && (
+            <Empty title="No shared spaces yet">A shared space holds pages, tasks and an agenda you keep with other people. Make one, or accept an invitation.</Empty>
+          )}
+        </>
       )}
       {actions.dialog}
     </Page>

@@ -35,7 +35,7 @@ export function SpaceOverview() {
             <RowsSkeleton lead={<IconSkeleton />} rows={3} />
           </Placeholder>
         ) : recent.length === 0 ? (
-          <Empty level={3} title="No pages yet">Pages and boards you add to this space show up here.</Empty>
+          <Empty title="No pages yet">Pages and boards you add to this space show up here.</Empty>
         ) : (
           <ul className="panel-rows">
             {recent.map((note) => (
@@ -59,7 +59,7 @@ export function SpaceOverview() {
             <TaskRowsSkeleton rows={3} />
           </Placeholder>
         ) : open.length === 0 ? (
-          <Empty level={3} title="No open tasks">Tasks you add to this space show up here until they are done.</Empty>
+          <Empty title="No open tasks">Tasks you add to this space show up here until they are done.</Empty>
         ) : (
           <ul className="panel-rows">
             {open.map((task) => (

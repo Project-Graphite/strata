@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -12,7 +13,9 @@ import { useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+
+const emptyCalendars = { title: 'No calendars followed yet', hint: 'Calendars you follow show up here, with when they were last checked.' };
 
 interface FollowedCalendar {
   id: string;
@@ -45,7 +48,9 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
         {rows ? (
           <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-3/5" />} belowRows={failedRows} rows={rows} trail={editable.length > 0 && <IconButtonSkeleton />} />
         ) : (
-          <HintSkeleton />
+          <Empty loading title={emptyCalendars.title}>
+            {emptyCalendars.hint}
+          </Empty>
         )}
       </Placeholder>
     );
@@ -55,7 +60,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
   return (
     <>
       {calendars.data.length === 0 ? (
-        <Hint>You don’t follow any calendars yet.</Hint>
+        <Empty title={emptyCalendars.title}>{emptyCalendars.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {calendars.data.map((calendar) => {

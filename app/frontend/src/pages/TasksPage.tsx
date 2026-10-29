@@ -63,7 +63,7 @@ export function TasksPage() {
         lists.data ? (
           <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
         ) : (
-          <ChipsSkeleton count={listCount + 2} />
+          !lists.error && <ChipsSkeleton count={listCount + 2} />
         )
       }
       toolbarEnd={

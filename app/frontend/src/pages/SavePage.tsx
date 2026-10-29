@@ -10,7 +10,7 @@ import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
-import { Page, useDocumentTitle } from '../components/Page';
+import { Page } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, FieldSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 
@@ -59,7 +59,6 @@ export function SavePage() {
   const form = useFormErrors();
   const [shared, setShared] = useState<Shared | null>();
   const [asTask, setAsTask] = useState(false);
-  useDocumentTitle(shared === null && spaces.data ? 'Save what you shared' : undefined);
 
   useEffect(() => {
     void readShare().then(setShared);
@@ -96,9 +95,11 @@ export function SavePage() {
   }
   if (!shared) {
     return (
-      <Empty title="Nothing to save">
-        Share a link, some text or files to Strata from another app on this device, and they appear here.
-      </Empty>
+      <Page title="Save what you shared" titleHidden>
+        <Empty title="Nothing to save" variant="page">
+          Share a link, some text or files to Strata from another app on this device, and they appear here.
+        </Empty>
+      </Page>
     );
   }
   const editable = spaces.data.filter((space) => space.role !== 'viewer');
