@@ -6,6 +6,8 @@ import { AmountMinor, CurrencyCode, moneyCapMinor } from '../../validation/money
 import { Trimmed } from '../../validation/trimmed.decorator';
 
 export const accountKinds = ['bank_current', 'bank_savings', 'credit_card', 'prepaid', 'wallet', 'online', 'bnpl', 'loan', 'cash', 'investment'] as const;
+export const cardNetworks = ['visa', 'mastercard', 'meeza'] as const;
+export const cardKinds = ['debit', 'credit', 'prepaid', 'virtual'] as const;
 
 const nullable = (_input: object, value: unknown) => value !== null;
 const Name = () => applyDecorators(Trimmed(), IsString(), Length(1, 60, { message: 'Name the account in 1 to 60 characters.' }));
@@ -25,6 +27,54 @@ const Institution = () => applyDecorators(Trimmed(), IsString(), MaxLength(60, {
 const Handle = () => applyDecorators(Trimmed(), IsString(), MaxLength(120, { message: 'Use at most 120 characters for the payment address.' }));
 const AccountId = () => IsUUID('all', { message: 'Choose an account from the list.' });
 const IconName = () => applyDecorators(IsString(), MaxLength(40));
+const Last4 = () => Matches(/^\d{4}$/, { message: 'Card endings are the last 4 digits.' });
+const Network = () => IsIn(cardNetworks, { message: 'Choose Visa, Mastercard or Meeza.' });
+const CardKind = () => IsIn(cardKinds, { message: 'Choose debit, credit, prepaid or virtual.' });
+const CardLabel = () => applyDecorators(Trimmed(), IsString(), MaxLength(40, { message: 'Use at most 40 characters for the card name.' }));
+
+export class CreateCardDto {
+  @Last4()
+  last4!: string;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Network()
+  network?: (typeof cardNetworks)[number] | null;
+
+  @IsOptional()
+  @CardKind()
+  kind?: (typeof cardKinds)[number];
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @CardLabel()
+  label?: string | null;
+}
+
+export class UpdateCardDto {
+  @IsOptionalNotNull()
+  @Last4()
+  last4?: string;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Network()
+  network?: (typeof cardNetworks)[number] | null;
+
+  @IsOptionalNotNull()
+  @CardKind()
+  kind?: (typeof cardKinds)[number];
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @CardLabel()
+  label?: string | null;
+}
+
+export class ReconcileAccountDto {
+  @Balance()
+  balanceMinor!: number;
+}
 
 export class CreateAccountDto {
   @Name()

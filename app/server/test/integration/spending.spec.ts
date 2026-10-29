@@ -147,6 +147,38 @@ describe('Spending and budgets against Postgres', () => {
     expect((await owner.call('GET', `/spaces/${home.id}/accounts`)).body.map((account: { name: string }) => account.name)).toEqual(['CIB', 'Travel card']);
   });
 
+  it('edits the cards of an account and reconciles its balance with a history row', async () => {
+    const owner = await member('card-keeper');
+    const stranger = await member('card-stranger');
+    const home = { id: owner.personalSpaceId };
+    const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'NBE', currency: 'EGP', balanceMinor: 100_000 })).body;
+    const coffee = (await owner.call('POST', `/spaces/${home.id}/expenses`, { title: 'Coffee', amountMinor: 5000, currency: 'EGP', spentOn: '2026-10-10', category: 'eating out', accountId: bank.id, cardDigits: '4512' })).body;
+    expect(coffee.cardId).toBeNull();
+
+    expect((await owner.call('POST', `/accounts/${bank.id}/cards`, { last4: '451' })).status).toBe(400);
+    expect((await owner.call('POST', `/accounts/${bank.id}/cards`, { last4: '4512', network: 'amex' })).status).toBe(400);
+    expect((await stranger.call('POST', `/accounts/${bank.id}/cards`, { last4: '4512' })).status).toBe(404);
+    const debit = (await owner.call('POST', `/accounts/${bank.id}/cards`, { last4: '4512', network: 'meeza', label: ' Daily ' })).body;
+    expect(debit).toMatchObject({ last4: '4512', network: 'meeza', kind: 'debit', label: 'Daily' });
+    expect((await owner.call('POST', `/accounts/${bank.id}/cards`, { last4: '4512' })).status).toBe(409);
+    expect((await owner.call('GET', `/expenses/${coffee.id}`)).body.cardId).toBe(debit.id);
+
+    expect((await stranger.call('PATCH', `/cards/${debit.id}`, { label: 'Mine' })).status).toBe(404);
+    expect((await owner.call('PATCH', `/cards/${debit.id}`, { last4: '9876', kind: 'virtual', network: null, label: '' })).body).toMatchObject({ last4: '9876', kind: 'virtual', network: null, label: null });
+    expect((await owner.call('GET', `/expenses/${coffee.id}`)).body).toMatchObject({ cardId: debit.id, cardDigits: '9876' });
+    expect((await owner.call('GET', `/spaces/${home.id}/accounts`)).body[0]).toMatchObject({ cardDigits: ['9876'], cards: [{ id: debit.id, last4: '9876', kind: 'virtual' }] });
+    expect((await owner.call('DELETE', `/cards/${debit.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/expenses/${coffee.id}`)).body).toMatchObject({ cardId: null, cardDigits: '9876' });
+
+    expect((await stranger.call('POST', `/accounts/${bank.id}/reconcile`, { balanceMinor: 0 })).status).toBe(404);
+    const reconciled = (await owner.call('POST', `/accounts/${bank.id}/reconcile`, { balanceMinor: 120_000 })).body;
+    expect(reconciled).toMatchObject({ differenceMinor: 120_000 - 95_000, account: { balanceMinor: 120_000 } });
+    expect(reconciled.account.history.map((point: { balanceMinor: number; source: string }) => [point.balanceMinor, point.source])).toEqual([
+      [100_000, 'manual'],
+      [120_000, 'reconcile'],
+    ]);
+  });
+
   it('lets a space rename, recolour, add and remove spending categories without losing expenses', async () => {
     const owner = await member('categoriser');
     const viewer = await member('category-watcher');

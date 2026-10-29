@@ -30,6 +30,7 @@ const MealPlanPage = lazy(() => import('./pages/MealPlanPage').then((module) => 
 const RecipePage = lazy(() => import('./pages/RecipePage').then((module) => ({ default: module.RecipePage })));
 const RecipesPage = lazy(() => import('./pages/RecipesPage').then((module) => ({ default: module.RecipesPage })));
 const NetWorthPage = lazy(() => import('./pages/NetWorthPage').then((module) => ({ default: module.NetWorthPage })));
+const SpendingAccountsPage = lazy(() => import('./pages/SpendingAccountsPage').then((module) => ({ default: module.SpendingAccountsPage })));
 const SpendingInsightsPage = lazy(() => import('./pages/SpendingInsightsPage').then((module) => ({ default: module.SpendingInsightsPage })));
 const SpendingPage = lazy(() => import('./pages/SpendingPage').then((module) => ({ default: module.SpendingPage })));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
@@ -175,7 +176,7 @@ export function App() {
               <Route path="spending">
                 <Route index element={<SpendingPage key="overview" tab="overview" />} />
                 <Route path="transactions" element={<TransactionsPage />} />
-                <Route path="accounts" element={<SpendingPage key="accounts" tab="accounts" />} />
+                <Route path="accounts" element={<SpendingAccountsPage />} />
                 <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
                 <Route path="recurring" element={<RecurringPage />} />
                 <Route path="insights" element={<SpendingInsightsPage />} />

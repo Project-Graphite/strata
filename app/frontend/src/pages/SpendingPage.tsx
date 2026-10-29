@@ -3,14 +3,12 @@ import { useSearchParams } from 'react-router';
 import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, TextLink, Toggle } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
-import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Amount } from '../components/Amount';
+import { AccountBalance, Amount } from '../components/Amount';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { Hint } from '../components/Hint';
-import { InstallmentEditor } from '../components/InstallmentEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
@@ -26,7 +24,6 @@ import {
   useCategories,
   type CapturedMessage,
   type Expense,
-  type InstallmentPlan,
   type MoneyAccount,
   type SpendingCategory,
   type SpendingMonth,
@@ -45,10 +42,9 @@ import { MissingRates } from '../components/Stats';
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 const chartedCount = 7;
-const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.' };
 const emptyBudgets = { title: 'No budgets yet', hint: 'Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.' };
 
-export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets' }) {
+export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
   const auth = useAuth();
   const action = useAction();
   const [params, setParams] = useSearchParams();
@@ -58,18 +54,13 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
   const captures = useResource<CapturedMessage[]>(spaceId && tab === 'overview' ? `/spaces/${spaceId}/captures` : null, true, spendingLive);
   const categories = useCategories(spaceId);
-  const installments = useResource<InstallmentPlan[]>(spaceId && tab === 'accounts' ? `/spaces/${spaceId}/installments` : null, true, spendingLive);
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
     | 'plan'
     | { budget: string | null }
     | { expense: Expense }
-    | { account: MoneyAccount | null }
     | { capture: CapturedMessage; report?: boolean }
-    | { installment: InstallmentPlan | null }
     | { ignoreAlways: CapturedMessage; by: 'sender' | 'merchant' }
-    | { deleteAccount: MoneyAccount }
-    | { deletePlan: InstallmentPlan }
     | { deleteBudget: string }
   >();
   const [opened, setOpened] = useState<string[]>([]);
@@ -90,10 +81,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
             Math.min(shown.categories.filter((row) => row.spentMinor > 0).length, chartedCount + 1),
             Math.min(shown.expenses.length, recentCount + 1),
           ]
-        : tab === 'budgets'
-          ? [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]
-          : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
-    tab === 'overview' ? [0, 0, 1, 0, recentCount] : tab === 'budgets' ? [1, 3] : [2, 0],
+        : [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]),
+    tab === 'overview' ? [0, 0, 1, 0, recentCount] : [1, 3],
   );
   const reload = () => {
     summary.reload();
@@ -136,36 +125,34 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
       }}
       tab={tab}
       toolbar={
-        tab !== 'accounts' && (
-          <PeriodNav
-            current={tab === 'overview' ? undefined : {
-              label: 'This month',
-              onSelect: () =>
-                setParams((current) => {
-                  const next = new URLSearchParams(current);
-                  next.delete('month');
-                  return next;
-                }),
-            }}
-            disabled={!shown}
-            onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
-            title={
-              !shown ? (
-                <SkeletonLine width="w-28" />
-              ) : shown.plan.startDay === 1 ? (
-                monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-              ) : (
-                `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
-              )
-            }
-            unit="month"
-          />
-        )
+        <PeriodNav
+          current={tab === 'overview' ? undefined : {
+            label: 'This month',
+            onSelect: () =>
+              setParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete('month');
+                return next;
+              }),
+          }}
+          disabled={!shown}
+          onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
+          title={
+            !shown ? (
+              <SkeletonLine width="w-28" />
+            ) : shown.plan.startDay === 1 ? (
+              monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+            ) : (
+              `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
+            )
+          }
+          unit="month"
+        />
       }
     >
       {summary.error ? (
         <LoadError error={summary.error} onRetry={summary.reload} />
-      ) : !shown || ((tab === 'accounts' ? [accounts, installments] : tab === 'overview' ? [accounts] : []).some((resource) => !resource.data && !resource.error)) ? (
+      ) : !shown || (tab === 'overview' && !accounts.data && !accounts.error) ? (
         <Placeholder className="grid gap-8" label="Adding up the month">
           <SpendingSkeleton editable={!space || editable} shape={shape} tab={tab} />
         </Placeholder>
@@ -251,92 +238,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
                       title={account.name}
                       trail={<AccountBalance account={account} />}
                     />
-                  ))}
-                </ul>
-              )}
-            </Section>
-          )}
-
-          {tab === 'accounts' && (
-            <Section action={editable && <Button icon="plus" label="New account" large onClick={() => setDialog({ account: null })} />} title="Accounts">
-              {!accounts.data ? (
-                <LoadError compact error={accounts.error} onRetry={accounts.reload} />
-              ) : accounts.data.length === 0 ? (
-                <Empty level={3} title={emptyAccounts.title}>
-                  {emptyAccounts.hint}
-                </Empty>
-              ) : (
-                <ul className="panel-rows">
-                  {accounts.data.map((account) => (
-                    <ListRow
-                      key={account.id}
-                      meta={[accountKindOptions.find((option) => option.value === account.kind)?.label, ...account.cardDigits.map((digits) => `•••• ${digits}`)].join(' · ')}
-                      onClick={editable ? () => setDialog({ account }) : undefined}
-                      title={account.name}
-                      trail={
-                        <>
-                          <AccountBalance account={account} />
-                          {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAccount: account }) }]} name={account.name} />}
-                        </>
-                      }
-                    />
-                  ))}
-                </ul>
-              )}
-            </Section>
-          )}
-
-          {tab === 'accounts' && (
-            <Section action={editable && <Button icon="plus" label="New plan" large onClick={() => setDialog({ installment: null })} />} title="Installments">
-              {installments.error ? (
-                <LoadError compact error={installments.error} onRetry={installments.reload} />
-              ) : !installments.data?.length ? (
-                <Hint>No installment plans yet.</Hint>
-              ) : (
-                <ul className="panel-rows">
-                  {installments.data.map((plan) => (
-                    <ListRow
-                      key={plan.id}
-                      meta={
-                        <span className={plan.status === 'missed' ? 'text-danger' : undefined}>
-                          {plan.status === 'done'
-                            ? 'Paid off'
-                            : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
-                        </span>
-                      }
-                      onClick={editable ? () => setDialog({ installment: plan }) : undefined}
-                      title={plan.name}
-                      trail={
-                        <>
-                          <span className="mono-sm shrink-0 text-faint">
-                            {plan.paidCount} of {plan.count}
-                          </span>
-                          {editable && (
-                            <ActionsMenu
-                              items={[
-                                ...(plan.status === 'done'
-                                  ? []
-                                  : [
-                                      {
-                                        label: 'Mark next payment paid',
-                                        onSelect: () =>
-                                          void action.run(async () => {
-                                            const updated = await auth.request<InstallmentPlan>(`/installments/${plan.id}/paid`, { method: 'POST' });
-                                            installments.mutate((current) => current.map((shown) => (shown.id === plan.id ? updated : shown)));
-                                            return `Marked a ${plan.name} payment paid.`;
-                                          }, 'Could not mark the payment'),
-                                      },
-                                    ]),
-                                { label: 'Delete', separated: true, onSelect: () => setDialog({ deletePlan: plan }) },
-                              ]}
-                              name={plan.name}
-                            />
-                          )}
-                        </>
-                      }
-                    >
-                      <Meter label={`${plan.name} paid`} value={plan.paidCount / plan.count} />
-                    </ListRow>
                   ))}
                 </ul>
               )}
@@ -436,9 +337,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
           spaceId={spaceId}
         />
       )}
-      {spaceId && typeof dialog === 'object' && 'account' in dialog && (
-        <AccountEditor account={dialog.account ?? undefined} currency={currency} onClose={() => setDialog(undefined)} onSaved={reload} spaceId={spaceId} />
-      )}
       {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
         <BudgetDialog
           categories={expenseCategories(categories.data)}
@@ -448,16 +346,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
           onSaved={() => summary.reload()}
           spaceId={spaceId}
           summary={shown}
-        />
-      )}
-      {spaceId && typeof dialog === 'object' && 'installment' in dialog && (
-        <InstallmentEditor
-          accounts={accounts.data ?? []}
-          currency={currency}
-          onClose={() => setDialog(undefined)}
-          onSaved={installments.reload}
-          plan={dialog.installment ?? undefined}
-          spaceId={spaceId}
         />
       )}
       {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
@@ -476,40 +364,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets'
           tone="danger"
         >
           This message and every later one {dialog.by === 'sender' ? 'from' : 'naming'} {ignoredName(dialog)} are skipped. You can delete the rule under Edit rules.
-        </ConfirmDialog>
-      )}
-      {typeof dialog === 'object' && 'deleteAccount' in dialog && (
-        <ConfirmDialog
-          busyLabel="Deleting…"
-          confirmLabel="Delete account"
-          errorFallback="Could not delete the account"
-          onClose={() => setDialog(undefined)}
-          onConfirm={async () => {
-            await auth.request(`/accounts/${dialog.deleteAccount.id}`, { method: 'DELETE' });
-            reload();
-            action.report(`Deleted ${dialog.deleteAccount.name}.`);
-          }}
-          title={`Delete ${dialog.deleteAccount.name}?`}
-          tone="danger"
-        >
-          Its transactions stay, but no longer belong to an account. Transfers show “Removed account” instead.
-        </ConfirmDialog>
-      )}
-      {typeof dialog === 'object' && 'deletePlan' in dialog && (
-        <ConfirmDialog
-          busyLabel="Deleting…"
-          confirmLabel="Delete plan"
-          errorFallback="Could not delete the plan"
-          onClose={() => setDialog(undefined)}
-          onConfirm={async () => {
-            await auth.request(`/installments/${dialog.deletePlan.id}`, { method: 'DELETE' });
-            installments.mutate((current) => current.filter((shown) => shown.id !== dialog.deletePlan.id));
-            action.report(`Deleted ${dialog.deletePlan.name}.`);
-          }}
-          title={`Delete ${dialog.deletePlan.name}?`}
-          tone="danger"
-        >
-          Its reminders stop and the payments marked so far are forgotten.
         </ConfirmDialog>
       )}
       {typeof dialog === 'object' && 'deleteBudget' in dialog && (
@@ -549,14 +403,6 @@ function quickAdd({ receivedAt, sender, suggestion }: CapturedMessage) {
     cardDigits: suggestion.cardDigits,
     ...(suggestion.paymentLabel ? { paymentLabel: suggestion.paymentLabel } : {}),
   };
-}
-
-function AccountBalance({ account }: { account: MoneyAccount }) {
-  return (
-    <Amount currency={account.currency} minor={account.kind === 'credit_card' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
-      {account.kind === 'credit_card' && ' owed'}
-    </Amount>
-  );
 }
 
 function ReviewCard({
@@ -652,26 +498,7 @@ function ReviewCard({
   );
 }
 
-function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'accounts' | 'budgets' }) {
-  if (tab === 'accounts') {
-    const [accountRows = 0, planRows = 0] = shape;
-    return (
-      <>
-        <Section action={editable && <ButtonSkeleton large width="w-36" />} title="Accounts">
-          {accountRows ? (
-            <AmountRowsSkeleton rows={accountRows} />
-          ) : (
-            <Empty loading title={emptyAccounts.title}>
-              {emptyAccounts.hint}
-            </Empty>
-          )}
-        </Section>
-        <Section action={editable && <ButtonSkeleton large />} title="Installments">
-          {planRows ? <AmountRowsSkeleton metered={planRows} rows={planRows} /> : <HintSkeleton />}
-        </Section>
-      </>
-    );
-  }
+function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'budgets' }) {
   if (tab === 'budgets') {
     const [budgeted = 0, budgetRows = 0] = shape;
     return (

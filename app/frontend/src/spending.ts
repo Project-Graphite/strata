@@ -1,4 +1,4 @@
-import type { TagColor } from '@project-graphite/ui';
+import type { IconName, TagColor } from '@project-graphite/ui';
 import { useResource, type LiveOptions } from './useResource';
 
 export interface SpendingCategory {
@@ -41,18 +41,43 @@ export const directionOptions: { value: ExpenseDirection; label: string }[] = [
 
 export type AccountKind = 'bank_current' | 'bank_savings' | 'credit_card' | 'prepaid' | 'wallet' | 'online' | 'bnpl' | 'loan' | 'cash' | 'investment';
 
-export const accountKindOptions: { value: AccountKind; label: string }[] = [
-  { value: 'bank_current', label: 'Bank account' },
-  { value: 'bank_savings', label: 'Savings account' },
-  { value: 'credit_card', label: 'Credit card' },
-  { value: 'prepaid', label: 'Prepaid card' },
-  { value: 'wallet', label: 'Wallet' },
-  { value: 'online', label: 'Online account' },
-  { value: 'bnpl', label: 'Buy now, pay later' },
-  { value: 'loan', label: 'Loan' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'investment', label: 'Investment' },
+export const accountKindOptions: { value: AccountKind; label: string; plural: string; icon: IconName }[] = [
+  { value: 'bank_current', label: 'Bank account', plural: 'Bank accounts', icon: 'home' },
+  { value: 'bank_savings', label: 'Savings account', plural: 'Savings accounts', icon: 'lock' },
+  { value: 'credit_card', label: 'Credit card', plural: 'Credit cards', icon: 'wallet' },
+  { value: 'prepaid', label: 'Prepaid card', plural: 'Prepaid cards', icon: 'wallet' },
+  { value: 'wallet', label: 'Wallet', plural: 'Wallets', icon: 'wallet' },
+  { value: 'online', label: 'Online account', plural: 'Online accounts', icon: 'monitor' },
+  { value: 'bnpl', label: 'Buy now, pay later', plural: 'Buy now, pay later', icon: 'clock' },
+  { value: 'loan', label: 'Loan', plural: 'Loans', icon: 'key' },
+  { value: 'cash', label: 'Cash', plural: 'Cash', icon: 'wallet' },
+  { value: 'investment', label: 'Investment', plural: 'Investments', icon: 'target' },
 ];
+
+export type CardNetwork = 'visa' | 'mastercard' | 'meeza';
+export type CardKind = 'debit' | 'credit' | 'prepaid' | 'virtual';
+
+export const cardNetworkOptions: { value: CardNetwork | ''; label: string }[] = [
+  { value: '', label: 'Not set' },
+  { value: 'visa', label: 'Visa' },
+  { value: 'mastercard', label: 'Mastercard' },
+  { value: 'meeza', label: 'Meeza' },
+];
+
+export const cardKindOptions: { value: CardKind; label: string }[] = [
+  { value: 'debit', label: 'Debit' },
+  { value: 'credit', label: 'Credit' },
+  { value: 'prepaid', label: 'Prepaid' },
+  { value: 'virtual', label: 'Virtual' },
+];
+
+export interface AccountCard {
+  id: string;
+  last4: string;
+  network: CardNetwork | null;
+  kind: CardKind;
+  label: string | null;
+}
 
 export interface MoneyAccount {
   id: string;
@@ -61,7 +86,13 @@ export interface MoneyAccount {
   kind: AccountKind;
   currency: string;
   institution: string | null;
+  handle: string | null;
+  fundedByAccountId: string | null;
+  colour: TagColor | null;
+  icon: IconName | null;
   cardDigits: string[];
+  cards: AccountCard[];
+  history: { at: string; balanceMinor: number; source: string }[];
   senders: string[];
   creditLimitMinor: number | null;
   dueDay: number | null;
