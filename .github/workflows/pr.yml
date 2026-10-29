@@ -154,7 +154,9 @@ jobs:
           map=app/build/outputs/mapping/sideloadRelease/mapping.txt
           apk=app/build/outputs/apk/sideload/release/app-sideload-release.apk
           grep -E "^(com\.projectgraphite\.strata\.|com\.getcapacitor\.(MessageHandler|Bridge|BridgeActivity|Plugin|annotation\.CapacitorPlugin|PluginMethod) |androidx\.work\.impl\.background\.systemjob\.SystemJobService |androidx\.work\.impl\.WorkManagerInitializer )" "$map" || true
-          grep -A12 -E "^com\.getcapacitor\.MessageHandler " "$map" || true
+          grep -o -E " -> (postMessage|getStatus|configure|scanNotifications|backfillInbox|flushOutbox|retryRejected|requestSmsAccess|openNotificationSettings|onNotificationPosted|onListenerConnected|onListenerDisconnected|doWork)$" "$map" | sort | uniq -c || true
+          awk '/^com\.getcapacitor\.MessageHandler /{f=1;next} /^[^ ]/{f=0} f' "$map" | grep postMessage | head -3 || true
+          grep -n -B1 -A2 "JavascriptInterface" app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-* || true
           grep -A30 -E "^com\.projectgraphite\.strata\.StrataCapturePlugin " "$map" || true
           grep -A6 -E "^com\.projectgraphite\.strata\.CaptureUploadWorker " "$map" || true
           unzip -l "$apk" | sort -k1 -n -r | head -25
