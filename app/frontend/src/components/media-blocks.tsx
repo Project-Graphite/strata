@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { FloatingToolbar, Icon, IconButton, TextField, ToolbarButton, useSnackbar } from '@project-graphite/ui';
+import { FloatingToolbar, Icon, IconButton, ToolbarButton, useSnackbar } from '@project-graphite/ui';
 import { Node } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Youtube from '@tiptap/extension-youtube';
@@ -7,8 +7,8 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { NodeViewWrapper, ReactNodeViewRenderer, type Editor, type NodeViewProps } from '@tiptap/react';
 import { fileSize, saveBlob } from '../files';
 import { Button } from './Button';
+import { AltTextDialog } from './AltTextDialog';
 import { useFileSource } from './file-source';
-import { FormDialog } from './FormDialog';
 import { showPageBlock } from './page-blocks';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
@@ -41,24 +41,6 @@ export function GlyphButton({ active, children, label, onClick }: { active?: boo
       <span aria-hidden="true" className="inline-flex items-center gap-1">{children}</span>
       <span className="sr-only">{label}</span>
     </ToolbarButton>
-  );
-}
-
-export function AltTextDialog({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (alt: string) => void }) {
-  return (
-    <FormDialog
-      busy={false}
-      busyLabel=""
-      onClose={onClose}
-      onSubmit={(form) => {
-        onSave(String(new FormData(form).get('alt')).trim());
-        onClose();
-      }}
-      submitLabel="Save description"
-      title="Describe this image"
-    >
-      <TextField autoFocus defaultValue={initial} hint="Screen readers read this aloud in place of the image." label="Description" maxLength={500} name="alt" />
-    </FormDialog>
   );
 }
 

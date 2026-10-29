@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type DragEvent } from '
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { noteHref, noteTitle, onPagesChanged, type Note } from '../notes';
+import { childPagesPath, noteHref, noteTitle, onPagesChanged, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -50,10 +50,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
   const tree = useContext(TreeContext);
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
-  const listed = useResource<{ pages: Note[]; nextCursor: string | null; nextPage: Note | null }>(
-    `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`,
-    true, { live: ['page-details', 'items', 'spaces'], spaceId },
-  );
+  const listed = useResource<ChildPages & { nextPage: Note | null }>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId });
   const reload = listed.reload;
   useEffect(() => onPagesChanged(reload), [reload]);
   const parentIndex = tree.reveal?.path.indexOf(parentId ?? '') ?? -1;

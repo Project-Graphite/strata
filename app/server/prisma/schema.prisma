@@ -311,6 +311,7 @@ model Item {
   guests         EventGuest[]
   note           Note?               @relation("NoteItem")
   childNotes     Note[]              @relation("NoteParent")
+  coveredNotes   Note[]              @relation("NoteCover")
   noteDocument   NoteDocument?
   noteVersions   NoteVersion[]
   databaseSchema DatabaseSchema?
@@ -787,10 +788,15 @@ model Note {
   pinnedAt DateTime? @map("pinned_at")
   template Boolean   @default(false)
   quick    Boolean   @default(false)
+  narrow   Boolean   @default(false)
+  coverId  String?   @map("cover_id") @db.Uuid
+  coverAlt String    @default("") @map("cover_alt")
   item     Item      @relation("NoteItem", fields: [itemId], references: [id], onDelete: Cascade)
   parent   Item?     @relation("NoteParent", fields: [parentId], references: [id], onDelete: SetNull)
+  cover    Item?     @relation("NoteCover", fields: [coverId], references: [id], onDelete: SetNull)
 
   @@index([parentId])
+  @@index([coverId])
   @@map("notes")
 }
 

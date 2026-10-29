@@ -1,16 +1,16 @@
-import { Fragment, lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { saveBlob } from '../files';
+import { saveBlob, uploadFile } from '../files';
 import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AltTextDialog } from '../components/AltTextDialog';
+import { Button, TextButton } from '../components/Button';
 import { CommitInput } from '../components/CommitInput';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
-import { Hint } from '../components/Hint';
 import { IconPicker } from '../components/IconPicker';
 import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
@@ -18,6 +18,7 @@ import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { NoteMark } from '../components/NoteMark';
 import type { EditorTools } from '../components/NoteEditor';
+import { useAlignedThreads } from '../components/page-blocks';
 import { pageMarkdown } from '../components/page-markdown';
 import { DetailState, Section, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
@@ -25,30 +26,36 @@ import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeleton
 import { OpenTask } from '../components/OpenTask';
 import { useInArea } from '../navigation';
 import { usePageNavigation } from '../page-navigation';
-import { announcePagesChanged, noteArea, noteHref, noteParent, noteTitle, pageNoun, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { announcePagesChanged, childPagesPath, noteArea, noteHref, noteParent, noteTitle, pageNoun, type ChildPages, type Note, type NoteDetails, type PropertyValues } from '../notes';
 import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 
 const NoteEditor = lazy(() => import('../components/NoteEditor'));
 
-const wideKey = 'strata-wide-pages';
-
-const widePages = (() => {
-  try {
-    return new Set<string>(JSON.parse(localStorage.getItem(wideKey) ?? '[]') as string[]);
-  } catch {
-    return new Set<string>();
-  }
-})();
-
-interface ChildPages {
-  pages: Note[];
-  nextCursor: string | null;
-}
-
-function childPagesPath(spaceId: string, parentId: string, cursor?: string) {
-  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ parentId, ...(cursor ? { cursor } : {}) })}`;
+function PageCover({ actions, cover, load }: { actions?: ReactNode; cover: { id: string; alt: string }; load: (fileId: string) => Promise<Blob> }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    let created = '';
+    let current = true;
+    void load(cover.id)
+      .then((blob) => {
+        if (!current) return;
+        created = URL.createObjectURL(blob);
+        setUrl(created);
+      })
+      .catch(() => setUrl(''));
+    return () => {
+      current = false;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [cover.id, load]);
+  return (
+    <div className="page-cover">
+      {url && <img alt={cover.alt} src={url} />}
+      {actions && <div className="page-cover-actions">{actions}</div>}
+    </div>
+  );
 }
 
 function ChildPageRows({ pages }: { pages: Note[] }) {
@@ -76,9 +83,13 @@ export function NotePage() {
   const navigate = useNavigate();
   const note = useResource<NoteDetails>(`/notes/${id}`, true, { live: ['page-details', 'items', 'spaces'], itemIds: [id] });
   useLiveRefresh(note.reload, { live: ['page-databases'], itemIds: [id, ...(note.data?.parentId ? [note.data.parentId] : [])], spaceId: note.data?.spaceId });
-  const [wide, setWide] = useState(() => widePages.has(id));
-  if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
+  const [commenting, setCommenting] = useState<string>();
+  const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
+  const [margin, setMargin] = useState<HTMLElement | null>(null);
+  const [describingCover, setDescribingCover] = useState<string>();
+  const coverInput = useRef<HTMLInputElement>(null);
+  useAlignedThreads(margin);
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [thread, setThread] = useState<{ id: string }>();
   const [tools, setTools] = useState<EditorTools>();
@@ -115,7 +126,7 @@ export function NotePage() {
   if (note.error) return <DetailState back={back} resource={note} thing="Page" />;
   if (!note.data || note.data.id !== id) {
     return (
-      <article className={`page-enter grid gap-8 ${wide ? 'max-w-none' : 'max-w-3xl'}`}>
+      <article className="page-enter grid max-w-none gap-8">
         <header className="page-header">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-3">
@@ -140,11 +151,35 @@ export function NotePage() {
   const pageOnly = !details.quick;
 
   function quote(block: QuotedBlock) {
+    if (quoting && quoting.id !== block.id) tools?.removeComment(quoting.id);
     setQuoting({ ...block, noteId: details.id });
-    window.setTimeout(() => document.querySelector('section[aria-label="Comments"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => document.querySelector(`.note-comments-margin [data-block-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
+    );
   }
 
-  function save(change: Partial<Note> & { expectedTitle?: string }, done: (saved: Note) => string, fallback: string) {
+  function addPageInside() {
+    void adding.run(async () => {
+      const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ parentId: details.id }),
+      });
+      navigate(`/notes/${created.id}`);
+      return '';
+    }, 'Could not add the page');
+  }
+
+  function chooseCover(file: File) {
+    void run(async () => {
+      const uploaded = await uploadFile(auth.request, details.spaceId, file);
+      const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify({ cover: uploaded.id, coverAlt: '' }) });
+      note.mutate((current) => ({ ...current, ...saved }));
+      setDescribingCover(file.name);
+      return '';
+    }, 'Could not add the cover image');
+  }
+
+  function save(change: Partial<Note> & { expectedTitle?: string; coverAlt?: string }, done: (saved: Note) => string, fallback: string) {
     return run(async () => {
       const saved = await auth.request<Note>(`/notes/${details.id}`, { method: 'PATCH', body: JSON.stringify(change) });
       note.mutate((current) => ({ ...current, ...saved }));
@@ -154,16 +189,6 @@ export function NotePage() {
       if (!saved) note.reload();
       return saved;
     });
-  }
-
-  function toggleWide() {
-    if (!widePages.delete(details.id)) widePages.add(details.id);
-    setWide(widePages.has(details.id));
-    try {
-      localStorage.setItem(wideKey, JSON.stringify([...widePages]));
-    } catch (error) {
-      if (!(error instanceof DOMException)) throw error;
-    }
   }
 
   function turnIntoDatabase() {
@@ -211,7 +236,12 @@ export function NotePage() {
           },
         ]
       : []),
-    ...(pageOnly && !details.database ? [{ label: wide ? 'Standard width' : 'Full width', onSelect: toggleWide }] : []),
+    ...(pageOnly && details.permissions.organize && !details.cover ? [{ label: 'Add a cover image', onSelect: () => coverInput.current?.click() }] : []),
+    ...(pageOnly && details.permissions.organize && !details.database && children.length === 0 ? [{ label: 'Add a page inside', onSelect: addPageInside }] : []),
+    ...(pageOnly && details.permissions.comment ? [{ label: 'Add a comment', onSelect: () => setCommenting(details.id) }] : []),
+    ...(pageOnly && details.editable && !details.database
+      ? [{ label: details.narrow ? 'Full width' : 'Narrow (44 rem)', onSelect: () => save({ narrow: !details.narrow }, () => '', 'Could not change the width') }]
+      : []),
     ...(tools
       ? [
           { label: 'Find in page', onSelect: tools.find, separated: true },
@@ -225,7 +255,36 @@ export function NotePage() {
     : options;
 
   return (
-    <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : details.quick ? 'max-w-3xl' : 'max-w-3xl xl:max-w-[70rem]'}`}>
+    <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick ? 'max-w-3xl' : details.narrow && !details.database ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
+      {details.permissions.organize && pageOnly && (
+        <input
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) chooseCover(file);
+          }}
+          ref={coverInput}
+          tabIndex={-1}
+          type="file"
+        />
+      )}
+      {details.cover && pageOnly && (
+        <PageCover
+          actions={
+            details.permissions.organize && (
+              <>
+                <TextButton label="Change cover" onClick={() => coverInput.current?.click()} />
+                <TextButton label="Describe" onClick={() => setDescribingCover(details.cover!.alt)} />
+                <TextButton label="Remove" onClick={() => save({ cover: null }, () => '', 'Could not remove the cover image')} />
+              </>
+            )
+          }
+          cover={details.cover}
+          load={loadFile}
+        />
+      )}
       <header className="page-header">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
@@ -248,6 +307,7 @@ export function NotePage() {
           </div>
         </div>
         <div className="page-header-actions">
+          <div className="note-status" ref={setStatusSlot} />
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
           {!details.quick && details.permissions.history && <IconButton icon="clock" label="History" onClick={() => setOpen('history')} />}
           {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
@@ -285,16 +345,20 @@ export function NotePage() {
             peopleSpaceId={details.permissions.spaceRole ? details.spaceId : undefined}
             quick={details.quick}
             spaceId={details.permissions.organize ? details.spaceId : ''}
+            statusSlot={statusSlot ?? undefined}
           />
         </Suspense></FileSourceContext>
         {!details.quick && (
-          <div className="note-comments-margin">
+          <div className="note-comments-margin" ref={setMargin}>
             <NoteComments
               commentable={details.permissions.comment}
+              composing={commenting === details.id}
               editable={details.editable}
               focused={thread}
+              hideWhenEmpty
               key={`comments-${details.id}`}
               noteId={details.id}
+              onAnchorDropped={tools?.removeComment}
               onBlocks={setCommentedBlocks}
               onQuoteDone={() => setQuoting(undefined)}
               owner={space?.role === 'owner'}
@@ -305,42 +369,17 @@ export function NotePage() {
         )}
       </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {pageOnly && !details.database && (children.length > 0 || details.permissions.organize) && (
-        <Section
-          action={
-            details.permissions.organize && (
-              <Button
-                disabled={adding.busy}
-                icon="plus"
-                label="New page"
-                large
-                onClick={() =>
-                  void adding.run(async () => {
-                    const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {
-                      method: 'POST',
-                      body: JSON.stringify({ parentId: details.id }),
-                    });
-                    navigate(`/notes/${created.id}`);
-                    return '';
-                  }, 'Could not add the page')
-                }
-              />
-            )
-          }
-          title="Pages inside"
-        >
-          {children.length > 0 ? (
-            <ul className="panel-rows">
-              <ChildPageRows pages={children} />
-              {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}
-            </ul>
-          ) : (
-            <Hint>No pages inside yet.</Hint>
-          )}
+      {pageOnly && !details.database && children.length > 0 && (
+        <Section action={details.permissions.organize && <Button disabled={adding.busy} icon="plus" label="New page" large onClick={addPageInside} />} title="Pages inside">
+          <ul className="panel-rows">
+            <ChildPageRows pages={children} />
+            {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}
+          </ul>
         </Section>
       )}
       {backlinks.length > 0 && (
-        <Section title="Linked from">
+        <details className="note-backlinks">
+          <summary className="text-h3 text-ink">Linked from {backlinks.length === 1 ? '1 place' : `${backlinks.length} places`}</summary>
           <ul className="panel-rows">
             {backlinks.map(({ id: linkId, item }) => {
               const kind = itemKindName(item);
@@ -355,7 +394,10 @@ export function NotePage() {
               );
             })}
           </ul>
-        </Section>
+        </details>
+      )}
+      {describingCover !== undefined && details.cover && (
+        <AltTextDialog initial={describingCover} onClose={() => setDescribingCover(undefined)} onSave={(alt) => void save({ coverAlt: alt }, () => '', 'Could not describe the cover image')} />
       )}
       {open === 'unconvert' && (
         <ConfirmDialog

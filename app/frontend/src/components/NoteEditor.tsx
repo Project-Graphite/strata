@@ -11,6 +11,7 @@ import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
 import { previewLink } from '../bookmarks';
@@ -23,7 +24,8 @@ import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
-import { AlignGlyph, alignments, AltTextDialog, GlyphButton, webAddress } from './media-blocks';
+import { AltTextDialog } from './AltTextDialog';
+import { AlignGlyph, alignments, GlyphButton, webAddress } from './media-blocks';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
 import { FindBar, FindInPage } from './find-in-page';
 import { usePageFollowing } from './page-following';
@@ -382,11 +384,13 @@ interface CommentHooks {
   onThread?: (id: string) => void;
   commentedBlocks?: string[];
   onTools?: (tools: EditorTools) => void;
+  statusSlot?: HTMLElement;
 }
 
 export interface EditorTools {
   find: () => void;
   document: () => JSONContent;
+  removeComment: (id: string) => void;
 }
 
 function LiveStatus({ connection, editable, editor, noteId, onBlocked }: { connection: Connection; editable: boolean; editor: Editor; noteId: string; onBlocked: (blocked: boolean) => void }) {
@@ -407,6 +411,7 @@ export function CollaborativeEditor({
   onThread,
   commentedBlocks,
   onTools,
+  statusSlot,
 }: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string; peopleSpaceId?: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
@@ -518,7 +523,13 @@ export function CollaborativeEditor({
   }, [editor, editable, blocked]);
 
   useEffect(() => {
-    if (editor) onTools?.({ find: () => setFinding(true), document: () => editor.getJSON() });
+    if (editor) {
+      onTools?.({
+        find: () => setFinding(true),
+        document: () => editor.getJSON(),
+        removeComment: (id) => editor.view.dispatch(editor.state.tr.removeMark(0, editor.state.doc.content.size, editor.schema.marks.comment!.create({ id })).setMeta('addToHistory', false)),
+      });
+    }
   }, [editor, onTools]);
 
   const commented = (commentedBlocks ?? []).join(' ');
@@ -527,13 +538,17 @@ export function CollaborativeEditor({
   }, [editor, commented]);
 
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
+  const status = <LiveStatus connection={connection} editable={editable} editor={editor} noteId={noteId} onBlocked={setBlocked} />;
   return (
     <div className="note-editor relative grid min-w-0 grid-cols-1 gap-3" onDragStartCapture={(event) => event.preventDefault()}>
-      <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
-        <LiveStatus connection={connection} editable={editable} editor={editor} noteId={noteId} onBlocked={setBlocked} />
-        {editable && !blocked && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
-        {finding && <FindBar editor={editor} onClose={() => setFinding(false)} />}
-      </div>
+      {statusSlot && createPortal(status, statusSlot)}
+      {(!statusSlot || (editable && !blocked) || finding) && (
+        <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
+          {!statusSlot && status}
+          {editable && !blocked && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
+          {finding && <FindBar editor={editor} onClose={() => setFinding(false)} />}
+        </div>
+      )}
       {editable && !blocked && <SelectionMenu actions={actions} editor={editor} onComment={onComment} />}
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <PageBlockTarget editor={editor} provider={connection.provider} />
