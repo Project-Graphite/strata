@@ -1,10 +1,11 @@
 import { Component, type ReactNode } from 'react';
 import { Button, ErrorState } from '@project-graphite/ui';
+import { newIssueUrl } from '../project-links';
 import { ButtonAnchor } from './Button';
 
 function reportUrl(error: Error) {
   const body = [`Page: ${window.location.pathname}`, `Error: ${error.name}: ${error.message}`, `Browser: ${navigator.userAgent}`, '', 'What were you doing when it happened?'].join('\n');
-  return `https://github.com/Project-Graphite/strata/issues/new?${new URLSearchParams({ title: `Crash: ${error.message.slice(0, 80)}`, body })}`;
+  return `${newIssueUrl}?${new URLSearchParams({ title: `Crash: ${error.message.slice(0, 80)}`, body })}`;
 }
 
 export class CrashBoundary extends Component<{ children: ReactNode }, { error?: Error }> {

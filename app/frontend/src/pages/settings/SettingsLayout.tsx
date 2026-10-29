@@ -4,6 +4,7 @@ import { ListRow } from '@project-graphite/ui';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
+import { isNativeAndroid } from '../../native-capture';
 
 export interface Me {
   id: string;
@@ -32,6 +33,7 @@ const tabs = [
   ['/settings/developer', 'Developer'],
   ['/settings/data', 'Your data'],
   ['/settings/trash', 'Trash'],
+  ['/settings/legal', 'Legal'],
 ] as const;
 
 export function SettingsRows({ children }: { children: ReactNode }) {
@@ -53,11 +55,11 @@ export function SettingsRowSkeleton({ action, detail = true, row = 0 }: { action
 export function SettingsLayout() {
   const { pathname } = useLocation();
   return (
-    <Page tabs={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} title="Settings">
+    <Page tabs={tabs.map(([href, label]) => ({ active: pathname === href || (href === '/settings/legal' && pathname.startsWith(`${href}/`)), href, label }))} title="Settings">
       <div className="grid max-w-narrow gap-8">
         <Outlet />
       </div>
-      <AboutLinks />
+      {!isNativeAndroid() && <AboutLinks legal={false} />}
     </Page>
   );
 }
