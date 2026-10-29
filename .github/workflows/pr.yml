@@ -138,12 +138,9 @@ jobs:
           - 1025:1025
           - 8025:8025
     env:
-      NODE_ENV: production
       DATABASE_URL: postgresql://strata:strata@localhost:5432/strata
       REDIS_URL: redis://localhost:6379
-      AUTH_ACCESS_TOKEN_SECRET: ci-only-access-token-secret-for-lighthouse
       AUTH_TRUSTED_ORIGINS: http://localhost:3000
-      DATA_ENCRYPTION_KEY: c3RyYXRhLWNpLWxpZ2h0aG91c2UtYW5kLWF4ZS1rZXk=
       APP_URL: http://localhost:3000
       DEFAULT_FROM_EMAIL: Strata <strata@localhost>
       EMAIL_HOST: localhost
@@ -170,7 +167,10 @@ jobs:
       - run: npm run prisma:migrate:deploy
       - run: npm run build
       - name: Start the API serving the production frontend
+        env:
+          NODE_ENV: production
         run: |
+          export AUTH_ACCESS_TOKEN_SECRET="$(openssl rand -hex 32)" DATA_ENCRYPTION_KEY="$(openssl rand -base64 32)"
           nohup node server/dist/main.js > "$RUNNER_TEMP/server.log" 2>&1 &
           for attempt in $(seq 60); do
             curl -fs http://localhost:3000/api/v1/ready > /dev/null && exit 0
