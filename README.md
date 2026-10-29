@@ -176,7 +176,9 @@ Optional: `EMAIL_PORT` (default `587`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
 - `SENTRY_DSN`, which turns on error reports for unexpected 500s, scrubbed of cookies, tokens,
   bodies and query strings;
 - `METRICS_TOKEN`, at least 32 characters, which serves Prometheus metrics at `/api/v1/metrics`
-  to `Authorization: Bearer <token>`.
+  to `Authorization: Bearer <token>`;
+- `IP_HASH_SALT`, at least 32 characters, the salt for the client address hashes stored with
+  sign-in events (default: derived from `DATA_ENCRYPTION_KEY`).
 
 ## Conventions
 
