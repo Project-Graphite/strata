@@ -18,6 +18,8 @@ export type AuditAction =
   | 'other_sessions_signed_out'
   | 'access_token_created'
   | 'access_token_revoked'
+  | 'capture_device_connected'
+  | 'capture_device_revoked'
   | 'calendar_feed_reset'
   | 'calendar_feed_disabled';
 

@@ -1,11 +1,11 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { useCallback, useEffect, useState } from 'react';
 
 export type DigitalAppId = 'instapay' | 'nsave' | 'paypal';
 
 export interface DigitalAppOption {
   id: DigitalAppId;
   label: 'InstaPay' | 'nSave' | 'PayPal';
-  packages: string[];
   hint: string;
 }
 
@@ -13,19 +13,16 @@ export const digitalAppOptions: DigitalAppOption[] = [
   {
     id: 'instapay',
     label: 'InstaPay',
-    packages: ['com.egyptianbanks.instapay'],
     hint: 'Instant transfers and IPN notifications',
   },
   {
     id: 'nsave',
     label: 'nSave',
-    packages: ['com.nsave.app', 'tech.nsave.app'],
     hint: 'Card spend, transfers and multi-currency deposits',
   },
   {
     id: 'paypal',
     label: 'PayPal',
-    packages: ['com.paypal.android.p2pmobile'],
     hint: 'Online payments, transfers and refunds',
   },
 ];
@@ -35,29 +32,38 @@ export interface CapturePreferences {
   enabledApps: DigitalAppId[];
 }
 
+export interface FinanceApp {
+  packageName: string;
+  label: string;
+  group: 'Banks' | 'Wallets' | 'Apps';
+}
+
 export interface NativeCaptureStatus {
-  smsGranted: boolean;
   notificationsGranted: boolean;
+  smsBackfillAvailable: boolean;
+  smsGranted: boolean;
   configured: boolean;
-  endpointUrl?: string;
+  needsReconnect: boolean;
+  endpointUrl: string;
+  tokenExpiresAt: string;
   allowedChats: string[];
-  enabledApps: DigitalAppId[];
+  enabledPackages: string[];
+  installedApps: FinanceApp[];
   queuedCount: number;
+  rejectedCount: number;
+  evictedCount: number;
+  lastError: string;
 }
 
 export interface StrataCapturePlugin {
   getStatus(): Promise<NativeCaptureStatus>;
-  configure(options: {
-    endpointUrl: string;
-    token?: string;
-    allowedChats: string[];
-    enabledApps: DigitalAppId[];
-    enabledPackages: string[];
-  }): Promise<NativeCaptureStatus>;
-  requestSmsPermissions(): Promise<{ granted: boolean }>;
+  configure(options: { endpointUrl: string; token?: string; tokenExpiresAt?: string; allowedChats: string[]; enabledPackages: string[] }): Promise<NativeCaptureStatus>;
   openNotificationSettings(): Promise<void>;
-  syncInboxSms(options?: { allowedChats?: string[]; limit?: number; sinceStamp?: number }): Promise<{ scanned: number; forwarded: number }>;
+  scanNotifications(): Promise<{ scanned: number; forwarded: number }>;
+  requestSmsAccess(): Promise<void>;
+  backfillInbox(): Promise<{ scanned: number; queued: number }>;
   flushOutbox(): Promise<{ sent: number; remaining: number }>;
+  retryRejected(): Promise<NativeCaptureStatus>;
 }
 
 export const StrataCapture = registerPlugin<StrataCapturePlugin>('StrataCapture');
@@ -65,6 +71,7 @@ export const StrataCapture = registerPlugin<StrataCapturePlugin>('StrataCapture'
 const serverOriginKey = 'strata-server-origin';
 const prefsPrefix = 'strata-capture-prefs:';
 const defaultServerOrigin = 'https://strata.project-graphite.com';
+const renewWithinMs = 14 * 24 * 60 * 60 * 1000;
 
 export const androidReleaseUrl = 'https://github.com/Project-Graphite/strata/releases/latest/download/strata.apk';
 export const androidReleasesPageUrl = 'https://github.com/Project-Graphite/strata/releases/latest';
@@ -124,12 +131,41 @@ export function saveCapturePreferences(spaceId: string, prefs: CapturePreference
   }
 }
 
-export function packagesForApps(enabledApps: DigitalAppId[]) {
-  return digitalAppOptions.filter((option) => enabledApps.includes(option.id)).flatMap((option) => option.packages);
-}
-
 export function combinedAllowedSources(allowedChats: string[], enabledApps: DigitalAppId[]) {
   const appLabels = digitalAppOptions.filter((option) => enabledApps.includes(option.id)).map((option) => option.label);
   return [...new Set([...allowedChats.map((chat) => chat.trim()).filter(Boolean), ...appLabels])];
 }
 
+export function phoneCaptureAttention(status: NativeCaptureStatus) {
+  if (!status.configured) return null;
+  if (status.needsReconnect) return 'reconnect';
+  if (status.tokenExpiresAt && Date.parse(status.tokenExpiresAt) - Date.now() < renewWithinMs) return 'renew';
+  if (status.allowedChats.length === 0 && status.enabledPackages.length === 0) return 'paused';
+  return null;
+}
+
+export function useNativeCaptureStatus() {
+  const nativeAndroid = isNativeAndroid();
+  const [status, setStatus] = useState<NativeCaptureStatus | null>(null);
+
+  const refresh = useCallback(() => {
+    if (!nativeAndroid) return;
+    void StrataCapture.getStatus().then(setStatus);
+  }, [nativeAndroid]);
+
+  useEffect(() => {
+    if (!nativeAndroid) return;
+    refresh();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [nativeAndroid, refresh]);
+
+  return { status, setStatus, refresh };
+}

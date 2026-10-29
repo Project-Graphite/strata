@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -44,6 +45,34 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
     </application>
+
+    <queries>
+        <package android:name="com.cibeg.ddc1.digitalbanking.live" />
+        <package android:name="com.ofss.obdx.and.nbe.com.eg" />
+        <package android:name="com.BanqueMisr.MobileBanking" />
+        <package android:name="eg.com.qnb.eazymobile" />
+        <package android:name="com.ADIBEgyptPhone" />
+        <package android:name="com.htsu.hsbcpersonalbanking" />
+        <package android:name="com.aaib" />
+        <package android:name="com.bdc.eg.mobile" />
+        <package android:name="hr.asseco.android.intesa.isbd.mbanking.alex" />
+        <package android:name="enbd.mobilebanking.egyptmobile" />
+        <package android:name="com.emeint.android.myservices" />
+        <package android:name="com.etisalat.flous" />
+        <package android:name="com.orange.mobinilandme" />
+        <package android:name="com.TE.WEWallet" />
+        <package android:name="com.emeint.android.mwallet" />
+        <package android:name="com.egyptianbanks.instapay" />
+        <package android:name="io.telda.app" />
+        <package android:name="com.nsave.app" />
+        <package android:name="com.fawry.myfawry" />
+        <package android:name="com.amansuperapp" />
+        <package android:name="com.paypal.android.p2pmobile" />
+        <package android:name="com.payoneer.android" />
+        <package android:name="com.efgh.customer" />
+        <package android:name="com.sympl" />
+        <package android:name="com.project.imperialcreation.khaznaproject" />
+    </queries>
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />

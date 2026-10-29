@@ -14,7 +14,7 @@ export class TokenAuthenticator {
     const now = new Date();
     const token = await this.prisma.accessToken.findUnique({
       where: { tokenHash: linkTokenHash(raw) },
-      select: { id: true, userId: true, scopes: true, revokedAt: true, expiresAt: true, user: { select: { isActive: true } } },
+      select: { id: true, userId: true, spaceId: true, scopes: true, revokedAt: true, expiresAt: true, user: { select: { isActive: true } } },
     });
     if (!token || token.revokedAt || token.expiresAt <= now || !token.user.isActive) {
       return null;
@@ -32,6 +32,7 @@ export class TokenAuthenticator {
       isAdmin: false,
       isSystemManager: false,
       scopes: token.scopes as TokenScope[],
+      tokenSpaceId: token.spaceId,
     };
   }
 }

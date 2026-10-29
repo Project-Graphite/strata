@@ -1,5 +1,6 @@
 import { SpaceRole, UserRole } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
+import { linkTokenHash } from '../../src/crypto/link-token';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { integrationApp, password } from './harness';
 
@@ -28,7 +29,7 @@ describe('Bank messages from a phone against Postgres', () => {
 
     expect((await withToken(token, 'GET', `/spaces/${home.id}/spending?month=2026-10`)).status).toBe(403);
     expect((await withToken(token, 'POST', `/spaces/${shared.id}/captures`, { from: 'BanK-AlAhly', text: 'تم خصم 10.00جم من بطاقة رقم ****1234 لدى SHOP' })).status).toBe(403);
-    expect((await owner.call('POST', `/spaces/${shared.id}/captures/device`)).status).toBe(403);
+    expect((await owner.call('POST', `/spaces/${shared.id}/captures/device`, { password })).status).toBe(403);
     expect((await send('BanK-AlAhly', 'رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد')).body).toEqual({ status: 'ignored', reason: 'code' });
     expect(await strata.prisma.capturedMessage.count({ where: { spaceId: home.id } })).toBe(0);
 
@@ -43,7 +44,7 @@ describe('Bank messages from a phone against Postgres', () => {
     expect(waiting).toMatchObject({
       sender: 'BanK-AlAhly',
       text: purchase,
-      receivedAt: '2026-10-14T10:00:00.000Z',
+      receivedAt: '2026-10-14T09:59:50.000Z',
       suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
     });
     const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI', cardDigits: '1234' };
@@ -59,7 +60,7 @@ describe('Bank messages from a phone against Postgres', () => {
       amountMinor: 8000,
       category: 'groceries',
       spentOn: '2026-10-14',
-      occurredAt: '2026-10-14T10:00:00.000Z',
+      occurredAt: '2026-10-14T09:59:50.000Z',
       kind: 'purchase',
       accountId: bank.id,
       cardDigits: '1234',
@@ -104,6 +105,42 @@ describe('Bank messages from a phone against Postgres', () => {
       { digits: '5555', accountId: null },
       { digits: '1234', accountId: bank.id },
     ]);
+  });
+
+  it('connects a phone only after re-authentication, for 90 days, bound to the personal space and audited', async () => {
+    const owner = await member('phone-owner');
+    const home = owner.personalSpaceId;
+    const shared = (await owner.call('POST', '/spaces', { name: 'Not for money' })).body;
+    const message = { from: 'CIB', text: 'Your card **1234 was charged for EGP 10.00 at SHOP' };
+    const send = (token: string, body: object, spaceId = home) => withToken(token, 'POST', `/spaces/${spaceId}/captures`, body);
+
+    expect((await owner.call('POST', `/spaces/${home}/captures/device`, {})).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${home}/captures/device`, { password: 'wrong-password-123' })).status).toBe(403);
+    const first = await owner.call('POST', `/spaces/${home}/captures/device`, { password });
+    expect(first.status).toBe(201);
+    const days = (new Date(first.body.expiresAt).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(89.9);
+    expect(days).toBeLessThanOrEqual(90);
+    expect(await strata.prisma.accessToken.findMany({ where: { userId: owner.id, revokedAt: null }, select: { spaceId: true, scopes: true } })).toEqual([{ spaceId: home, scopes: ['spending:capture'] }]);
+
+    expect((await send(first.body.token, { ...message, receivedStamp: '' })).status).toBe(400);
+    expect((await send(first.body.token, { ...message, receivedStamp: 0 })).status).toBe(400);
+    expect((await send(first.body.token, { ...message, sentStamp: '' })).status).toBe(400);
+    expect((await send(first.body.token, message)).status).toBe(200);
+    expect((await send(first.body.token, message, shared.id)).status).toBe(403);
+
+    const second = await owner.call('POST', `/spaces/${home}/captures/device`, { password });
+    expect((await send(first.body.token, message)).status).toBe(401);
+    expect((await send(second.body.token, message)).status).toBe(200);
+
+    const elsewhere = 'strata_pat_bound-elsewhere-token-for-the-capture-spec';
+    await strata.prisma.accessToken.create({
+      data: { userId: owner.id, spaceId: shared.id, name: 'Bound elsewhere', tokenHash: linkTokenHash(elsewhere), scopes: ['spending:capture'], expiresAt: new Date(Date.now() + 86_400_000) },
+    });
+    expect((await send(elsewhere, message)).status).toBe(403);
+
+    const actions = (await owner.call('GET', '/me/audit')).body.results.map((event: { action: string }) => event.action);
+    expect(actions.filter((action: string) => action.startsWith('capture_device')).sort()).toEqual(['capture_device_connected', 'capture_device_connected', 'capture_device_revoked']);
   });
 
   it('renames, categorises and drops messages by merchant rules', async () => {

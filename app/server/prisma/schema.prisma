@@ -262,6 +262,7 @@ model Space {
   installments    InstallmentPlan[]
   savingsGoals    SavingsGoal[]
   assets          Asset[]
+  accessTokens    AccessToken[]
 
   @@map("spaces")
 }
@@ -548,6 +549,7 @@ model File {
 model AccessToken {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
+  spaceId    String?   @map("space_id") @db.Uuid
   name       String
   tokenHash  String    @unique @map("token_hash")
   scopes     String[]
@@ -556,8 +558,10 @@ model AccessToken {
   revokedAt  DateTime? @map("revoked_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space      Space?    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([spaceId])
   @@map("access_tokens")
 }
 

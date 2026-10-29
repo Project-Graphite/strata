@@ -96,10 +96,10 @@ jobs:
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/strata-release.jks"
           fi
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleSideloadRelease --no-daemon
           rm -f "$RUNNER_TEMP/strata-release.jks"
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
+          cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$RUNNER_TEMP/strata.apk"
+          cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
 
       - uses: actions/attest-build-provenance@v4
         with:

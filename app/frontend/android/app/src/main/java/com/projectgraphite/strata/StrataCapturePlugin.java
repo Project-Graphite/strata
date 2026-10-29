@@ -23,57 +23,39 @@ public class StrataCapturePlugin extends Plugin {
 
     @PluginMethod
     public void configure(PluginCall call) {
-        String endpointUrl = call.getString("endpointUrl", "");
-        String token = call.getString("token", "");
-        List<String> allowedChats = toStringList(call.getArray("allowedChats"));
-        List<String> enabledApps = toStringList(call.getArray("enabledApps"));
-        List<String> enabledPackages = toStringList(call.getArray("enabledPackages"));
-
-        CaptureForwarder.saveConfig(getContext(), endpointUrl, token, allowedChats, enabledApps, enabledPackages);
+        try {
+            CaptureForwarder.saveConfig(
+                getContext(),
+                call.getString("endpointUrl", ""),
+                call.getString("token", ""),
+                call.getString("tokenExpiresAt", ""),
+                toStringList(call.getArray("allowedChats")),
+                toStringList(call.getArray("enabledPackages"))
+            );
+        } catch (JSONException e) {
+            call.reject("Could not read the capture settings", e);
+            return;
+        }
+        CaptureUploadWorker.schedule(getContext());
         call.resolve(buildStatusObject());
     }
 
     @PluginMethod
-    public void requestSmsPermissions(PluginCall call) {
-        openNotificationListenerSettings(call, true);
-    }
-
-    @PluginMethod
     public void openNotificationSettings(PluginCall call) {
-        openNotificationListenerSettings(call, false);
-    }
-
-    private void openNotificationListenerSettings(PluginCall call, boolean returnGrantedResult) {
-        Context context = getContext();
-        try {
-            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-            if (returnGrantedResult) {
-                JSObject ret = new JSObject();
-                ret.put("granted", isNotificationListenerEnabled(context));
-                call.resolve(ret);
-            } else {
-                call.resolve();
-            }
-        } catch (Exception e) {
-            call.reject("Could not open notification listener settings", e);
-        }
+        Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        call.resolve();
     }
 
     @PluginMethod
-    public void syncInboxSms(PluginCall call) {
-        Context context = getContext();
-        if (!isNotificationListenerEnabled(context)) {
+    public void scanNotifications(PluginCall call) {
+        if (!isNotificationListenerEnabled(getContext())) {
             call.reject("Notification access is not enabled");
             return;
         }
-        List<String> overrideChats = call.getArray("allowedChats") != null
-            ? toStringList(call.getArray("allowedChats"))
-            : CaptureForwarder.getAllowedChats(context);
-
         getBridge().execute(() -> {
-            int[] counts = TransactionNotificationService.scanActiveNotifications(context, overrideChats);
+            int[] counts = TransactionNotificationService.scanActiveNotifications();
             JSObject result = new JSObject();
             result.put("scanned", counts[0]);
             result.put("forwarded", counts[1]);
@@ -82,28 +64,85 @@ public class StrataCapturePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void requestSmsAccess(PluginCall call) {
+        if (!InboxBackfill.AVAILABLE) {
+            call.unavailable("Reading past texts is only in the Strata app from GitHub");
+            return;
+        }
+        InboxBackfill.requestAccess(getActivity());
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void backfillInbox(PluginCall call) {
+        Context context = getContext();
+        if (!InboxBackfill.AVAILABLE) {
+            call.unavailable("Reading past texts is only in the Strata app from GitHub");
+            return;
+        }
+        if (!InboxBackfill.granted(context)) {
+            call.reject("Allow Strata to read your texts first");
+            return;
+        }
+        getBridge().execute(() -> {
+            try {
+                int[] counts = InboxBackfill.run(context);
+                JSObject result = new JSObject();
+                result.put("scanned", counts[0]);
+                result.put("queued", counts[1]);
+                call.resolve(result);
+            } catch (JSONException e) {
+                call.reject("Could not read past texts", e);
+            }
+        });
+    }
+
+    @PluginMethod
     public void flushOutbox(PluginCall call) {
         getBridge().execute(() -> {
-            int sent = CaptureForwarder.flushOutbox(getContext());
-            int remaining = CaptureForwarder.getOutboxCount(getContext());
+            Context context = getContext();
+            CaptureForwarder.FlushResult flushed = CaptureForwarder.flushOutbox(context);
+            if (flushed.retry) CaptureUploadWorker.schedule(context);
             JSObject result = new JSObject();
-            result.put("sent", sent);
-            result.put("remaining", remaining);
+            result.put("sent", flushed.sent);
+            result.put("remaining", CaptureForwarder.getOutboxCounts(context)[0]);
             call.resolve(result);
         });
     }
 
+    @PluginMethod
+    public void retryRejected(PluginCall call) {
+        CaptureForwarder.retryRejected(getContext());
+        CaptureUploadWorker.schedule(getContext());
+        call.resolve(buildStatusObject());
+    }
+
     private JSObject buildStatusObject() {
         Context context = getContext();
-        boolean notificationEnabled = isNotificationListenerEnabled(context);
+        int[] outbox = CaptureForwarder.getOutboxCounts(context);
+        JSArray installedApps = new JSArray();
+        for (FinanceApps.App app : FinanceApps.installed(context)) {
+            JSObject entry = new JSObject();
+            entry.put("packageName", app.packageName);
+            entry.put("label", app.label);
+            entry.put("group", app.group);
+            installedApps.put(entry);
+        }
         JSObject status = new JSObject();
-        status.put("smsGranted", notificationEnabled);
-        status.put("notificationsGranted", notificationEnabled);
+        status.put("notificationsGranted", isNotificationListenerEnabled(context));
+        status.put("smsBackfillAvailable", InboxBackfill.AVAILABLE);
+        status.put("smsGranted", InboxBackfill.granted(context));
         status.put("configured", CaptureForwarder.isConfigured(context));
+        status.put("needsReconnect", CaptureForwarder.needsReconnect(context));
         status.put("endpointUrl", CaptureForwarder.getEndpoint(context));
+        status.put("tokenExpiresAt", CaptureForwarder.getTokenExpiresAt(context));
         status.put("allowedChats", new JSArray(CaptureForwarder.getAllowedChats(context)));
-        status.put("enabledApps", new JSArray(CaptureForwarder.getEnabledApps(context)));
-        status.put("queuedCount", CaptureForwarder.getOutboxCount(context));
+        status.put("enabledPackages", new JSArray(CaptureForwarder.getEnabledPackages(context)));
+        status.put("installedApps", installedApps);
+        status.put("queuedCount", outbox[0]);
+        status.put("rejectedCount", outbox[1]);
+        status.put("evictedCount", CaptureForwarder.getEvictedCount(context));
+        status.put("lastError", CaptureForwarder.getLastError(context));
         return status;
     }
 
@@ -111,23 +150,15 @@ public class StrataCapturePlugin extends Plugin {
         String flat = Settings.Secure.getString(context.getContentResolver(), "enabled_notification_listeners");
         if (flat == null || flat.isEmpty()) return false;
         ComponentName cn = new ComponentName(context, TransactionNotificationService.class);
-        String flatName = cn.flattenToString();
-        String shortName = cn.flattenToShortString();
-        return flat.contains(flatName) || flat.contains(shortName);
+        return flat.contains(cn.flattenToString()) || flat.contains(cn.flattenToShortString());
     }
 
-    private static List<String> toStringList(JSArray array) {
+    private static List<String> toStringList(JSArray array) throws JSONException {
         List<String> list = new ArrayList<>();
         if (array == null) return list;
-        try {
-            List<Object> raw = array.toList();
-            for (Object item : raw) {
-                if (item != null) {
-                    String s = String.valueOf(item).trim();
-                    if (!s.isEmpty()) list.add(s);
-                }
-            }
-        } catch (JSONException ignored) {
+        for (Object item : array.toList()) {
+            String value = String.valueOf(item).trim();
+            if (!value.isEmpty()) list.add(value);
         }
         return list;
     }

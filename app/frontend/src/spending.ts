@@ -59,6 +59,7 @@ export interface MoneyAccount {
   name: string;
   kind: AccountKind;
   currency: string;
+  institution: string | null;
   cardDigits: string[];
   senders: string[];
   creditLimitMinor: number | null;

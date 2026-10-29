@@ -1,8 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CapturedMessage, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { AccessService } from '../../access/access.service';
 import { tokenPrefix } from '../../access-tokens/scopes';
+import { AuditService } from '../../audit/audit.service';
+import { AuthService } from '../../auth/auth.service';
+import { ProofDto } from '../../auth/dto/account.dto';
 import { ChangesService } from '../../changes/changes.service';
 import { linkTokenHash } from '../../crypto/link-token';
 import { SecretBox } from '../../crypto/secret-box.service';
@@ -21,7 +24,9 @@ import { SenderRulesService } from './sender-rules.service';
 import { MovementKind } from './senders/template';
 import { parserVersion, parseMessage } from './sms-parser';
 
-const keepTextForMs = 90 * 24 * 60 * 60 * 1000;
+const dayMs = 24 * 60 * 60 * 1000;
+const keepTextForMs = 90 * dayMs;
+const deviceTokenMs = 90 * dayMs;
 
 export interface Suggestion {
   direction: MessageDirection | null;
@@ -72,6 +77,8 @@ export class CaptureService implements OnModuleInit {
     private readonly senderRules: SenderRulesService,
     private readonly maintenance: MaintenanceScheduler,
     private readonly changes: ChangesService,
+    private readonly auth: AuthService,
+    private readonly audit: AuditService,
   ) {}
 
   onModuleInit() {
@@ -82,27 +89,26 @@ export class CaptureService implements OnModuleInit {
     });
   }
 
-  async connectDevice(userId: string, spaceId: string) {
+  async connectDevice(userId: string, spaceId: string, proof: ProofDto) {
     await this.access.assertPersonalSpace(userId, spaceId);
+    await this.auth.reauthenticate(userId, proof);
     const name = `Android phone (${spaceId.slice(0, 8)})`;
-    await this.prisma.accessToken.updateMany({
-      where: { userId, name, revokedAt: null },
+    const replaced = await this.prisma.accessToken.updateMany({
+      where: { userId, revokedAt: null, OR: [{ spaceId }, { name }] },
       data: { revokedAt: new Date() },
     });
     const token = `${tokenPrefix}${randomBytes(32).toString('base64url')}`;
+    const expiresAt = new Date(Date.now() + deviceTokenMs);
     await this.prisma.accessToken.create({
-      data: {
-        userId,
-        name,
-        tokenHash: linkTokenHash(token),
-        scopes: ['spending:capture'],
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      },
+      data: { userId, spaceId, name, tokenHash: linkTokenHash(token), scopes: ['spending:capture'], expiresAt },
     });
-    return { token };
+    if (replaced.count > 0) await this.audit.record(userId, 'capture_device_revoked', { name });
+    await this.audit.record(userId, 'capture_device_connected', { name });
+    return { token, expiresAt };
   }
 
-  async receive(userId: string, spaceId: string, input: CaptureMessageDto) {
+  async receive(userId: string, spaceId: string, input: CaptureMessageDto, tokenSpaceId?: string | null) {
+    if (tokenSpaceId && tokenSpaceId !== spaceId) throw new ForbiddenException('This phone is connected to another space');
     await this.access.assertPersonalSpace(userId, spaceId);
     const sender = input.from.trim();
     if (!chatAllowed(sender, input.allowedChats, input.app, input.text, input.chat)) {
@@ -126,7 +132,8 @@ export class CaptureService implements OnModuleInit {
     if (known?.ignore) return { status: 'ignored', reason: 'rule' };
     const account = accountFor(accounts, rules, sender, read.cardDigits, paymentLabel, input.chat ?? null);
     const currency = read.currency ?? account?.currency ?? null;
-    const receivedAt = input.receivedStamp ? new Date(Number(input.receivedStamp)) : new Date();
+    const stamp = input.sentStamp ?? input.receivedStamp;
+    const receivedAt = stamp ? new Date(Number(stamp)) : new Date();
     const suggestion: Suggestion = {
       direction: read.direction,
       amountMinor: read.amount !== null && currency ? toMinor(read.amount, currency) : null,
