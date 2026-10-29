@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Menu, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
 import { isValidYoutubeUrl } from '@tiptap/extension-youtube';
-import { Extension } from '@tiptap/core';
+import { Extension, type JSONContent } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import type { Node as BlockNode, Slice } from '@tiptap/pm/model';
@@ -24,7 +24,8 @@ import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './liv
 import type { QuotedBlock } from './NoteComments';
 import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
 import { AlignGlyph, alignments, AltTextDialog, GlyphButton, webAddress } from './media-blocks';
-import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
+import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
+import { FindBar, FindInPage } from './find-in-page';
 import { usePageFollowing } from './page-following';
 
 const turnInto = new Set(['text', 'heading1', 'heading2', 'heading3', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
@@ -278,8 +279,10 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
   };
   const current = choices.find((choice) => choice.id === state.kind);
   const comment = onComment && (() => {
-    const block = quoted(selectedBlock(editor));
-    if (block) onComment(block);
+    const { from, to } = editor.state.selection;
+    const id = crypto.randomUUID();
+    editor.chain().focus().setMark('comment', { id }).run();
+    onComment({ id, excerpt: editor.state.doc.textBetween(from, to, ' ').trim().slice(0, 80) });
   });
 
   return (
@@ -314,7 +317,7 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
                 {current?.label ?? 'Text'}
                 <Icon name="chevron-down" size={14} />
               </GlyphButton>
-              {comment && <ToolbarButton label="Comment on this block" onClick={comment}>Comment</ToolbarButton>}
+              {comment && <ToolbarButton label="Comment on the selection" onClick={comment}>Comment</ToolbarButton>}
             </FloatingToolbar>
           ) : panel === 'colour' ? (
             <FloatingToolbar className="note-bubble flex-col items-start" label="Text and highlight colour" ref={toolbar}>
@@ -376,7 +379,14 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
 
 interface CommentHooks {
   onComment?: (block: QuotedBlock) => void;
+  onThread?: (id: string) => void;
   commentedBlocks?: string[];
+  onTools?: (tools: EditorTools) => void;
+}
+
+export interface EditorTools {
+  find: () => void;
+  document: () => JSONContent;
 }
 
 function LiveStatus({ connection, editable, editor, noteId, onBlocked }: { connection: Connection; editable: boolean; editor: Editor; noteId: string; onBlocked: (blocked: boolean) => void }) {
@@ -394,7 +404,9 @@ export function CollaborativeEditor({
   spaceId,
   peopleSpaceId,
   onComment,
+  onThread,
   commentedBlocks,
+  onTools,
 }: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string; peopleSpaceId?: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
@@ -403,9 +415,10 @@ export function CollaborativeEditor({
   const [blocked, setBlocked] = useState(true);
   const [embedding, setEmbedding] = useState<Editor>();
   const [describing, setDescribing] = useState<{ fileId: string; name: string }[]>([]);
+  const [finding, setFinding] = useState(false);
   const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
-  const handlers = useRef({ addBoard, copyBlock, insert, insertFiles });
-  handlers.current = { addBoard, copyBlock, insert, insertFiles };
+  const handlers = useRef({ addBoard, copyBlock, insert, insertFiles, onThread });
+  handlers.current = { addBoard, copyBlock, insert, insertFiles, onThread };
   const { guest } = connection;
 
   const actions = useMemo<BlockActions>(() => ({
@@ -427,9 +440,15 @@ export function CollaborativeEditor({
         blockMenuExtension(actions),
         BlockMoves,
         CommentedBlocks,
+        FindInPage.configure({ onFind: () => setFinding(true) }),
       ],
       editorProps: {
         attributes: { 'aria-label': 'Page content', class: 'note-content' },
+        handleClick: (view, pos) => {
+          const thread = openComment(view.state, pos);
+          if (thread) handlers.current.onThread?.(thread);
+          return false;
+        },
         handleClickOn: (_view, _position, node) => {
           const path = internalPath(node.attrs.href);
           if (connection.guest || node.type.name !== 'mention' || !path) return false;
@@ -498,6 +517,10 @@ export function CollaborativeEditor({
     editor?.setEditable(editable && !blocked);
   }, [editor, editable, blocked]);
 
+  useEffect(() => {
+    if (editor) onTools?.({ find: () => setFinding(true), document: () => editor.getJSON() });
+  }, [editor, onTools]);
+
   const commented = (commentedBlocks ?? []).join(' ');
   useEffect(() => {
     if (editor) editor.view.dispatch(editor.state.tr.setMeta(commentedBlocksKey, new Set(commented ? commented.split(' ') : [])).setMeta('addToHistory', false));
@@ -509,6 +532,7 @@ export function CollaborativeEditor({
       <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
         <LiveStatus connection={connection} editable={editable} editor={editor} noteId={noteId} onBlocked={setBlocked} />
         {editable && !blocked && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
+        {finding && <FindBar editor={editor} onClose={() => setFinding(false)} />}
       </div>
       {editable && !blocked && <SelectionMenu actions={actions} editor={editor} onComment={onComment} />}
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}

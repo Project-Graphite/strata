@@ -8,6 +8,16 @@ import { NotesService } from './notes.service';
 
 const maxComments = 500;
 
+export function mentions(body: string, name: string) {
+  const text = body.toLocaleLowerCase();
+  const tag = `@${name.trim().toLocaleLowerCase()}`;
+  if (tag.length < 2) return false;
+  for (let at = text.indexOf(tag); at >= 0; at = text.indexOf(tag, at + 1)) {
+    if (!/[\p{L}\p{N}]/u.test(text[at + tag.length] ?? '')) return true;
+  }
+  return false;
+}
+
 const commentFields = {
   id: true,
   parentId: true,
@@ -47,17 +57,18 @@ export class NoteCommentsService {
         data: { itemId: noteId, parentId: input.parentId ?? null, authorId: userId, body: input.body, blockId: input.parentId ? null : (input.blockId ?? null) },
         select: commentFields,
       });
-      const recipients = await this.recipients(transaction, noteId, found.spaceId, userId);
-      await this.inbox.notify(
-        transaction,
-        recipients.map((recipient) => ({
-          userId: recipient,
-          kind: 'comment',
-          title: `${created.author?.displayName} commented on ${found.title || 'Untitled'}`,
-          body: created.body.slice(0, 200),
-          link: `/notes/${noteId}`,
-        })),
-      );
+      const mentioned = await this.mentioned(transaction, noteId, found.spaceId, userId, created.body);
+      const recipients = (await this.recipients(transaction, noteId, found.spaceId, userId)).filter((recipient) => !mentioned.includes(recipient));
+      await this.inbox.notify(transaction, [
+        ...mentioned.map((recipient) => ({ recipient, verb: 'mentioned you on' })),
+        ...recipients.map((recipient) => ({ recipient, verb: 'commented on' })),
+      ].map(({ recipient, verb }) => ({
+        userId: recipient,
+        kind: 'comment' as const,
+        title: `${created.author?.displayName} ${verb} ${found.title || 'Untitled'}`,
+        body: created.body.slice(0, 200),
+        link: `/notes/${noteId}`,
+      })));
       return created;
     });
     this.changes.notify('page-comments', { spaceId: found.spaceId, itemId: noteId });
@@ -99,6 +110,15 @@ export class NoteCommentsService {
     if (!comment) throw new NotFoundException('Comment not found');
     const { role, spaceId } = await this.notes.note(userId, comment.itemId, 'comment');
     return { ...comment, role, spaceId };
+  }
+
+  private async mentioned(transaction: Prisma.TransactionClient, noteId: string, spaceId: string, writerId: string, body: string) {
+    if (!body.includes('@')) return [];
+    const people = [
+      ...(await transaction.spaceMember.findMany({ where: { spaceId }, select: { userId: true, user: { select: { displayName: true } } } })),
+      ...(await transaction.pageGrant.findMany({ where: { itemId: noteId, item: { trashedAt: null, archivedAt: null } }, select: { userId: true, user: { select: { displayName: true } } } })),
+    ];
+    return [...new Set(people.filter((person) => person.userId !== writerId && mentions(body, person.user.displayName)).map((person) => person.userId))];
   }
 
   private async recipients(transaction: Prisma.TransactionClient, noteId: string, spaceId: string, writerId: string) {

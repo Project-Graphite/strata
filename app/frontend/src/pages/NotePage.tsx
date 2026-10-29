@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useCallback, useEffect, useState } from 'reac
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { saveBlob } from '../files';
 import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -16,6 +17,8 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import { NoteMark } from '../components/NoteMark';
+import type { EditorTools } from '../components/NoteEditor';
+import { pageMarkdown } from '../components/page-markdown';
 import { DetailState, Section, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
@@ -77,6 +80,9 @@ export function NotePage() {
   if (wide !== widePages.has(id)) setWide(widePages.has(id));
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
+  const [thread, setThread] = useState<{ id: string }>();
+  const [tools, setTools] = useState<EditorTools>();
+  const openThread = useCallback((threadId: string) => setThread({ id: threadId }), []);
   const inside = useResource<ChildPages>(note.data && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -84,7 +90,7 @@ export function NotePage() {
     { live: ['page-details', 'pages', 'items'], spaceId: note.data?.spaceId },
   );
   const members = useResource<Member[]>(
-    note.data?.permissions.spaceRole && note.data?.row?.properties.some((property) => property.type === 'person') ? `/spaces/${note.data.spaceId}/members` : null,
+    note.data?.permissions.spaceRole && (note.data.permissions.comment || note.data.row?.properties.some((property) => property.type === 'person')) ? `/spaces/${note.data.spaceId}/members` : null,
     true,
   );
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
@@ -206,13 +212,20 @@ export function NotePage() {
         ]
       : []),
     ...(pageOnly && !details.database ? [{ label: wide ? 'Standard width' : 'Full width', onSelect: toggleWide }] : []),
+    ...(tools
+      ? [
+          { label: 'Find in page', onSelect: tools.find, separated: true },
+          { label: 'Download as Markdown', onSelect: () => saveBlob(new Blob([pageMarkdown(tools.document(), { title: noteTitle(details), pageUrl: `${window.location.origin}/notes/${details.id}` })], { type: 'text/markdown;charset=utf-8' }), `${noteTitle(details).replace(/[\\/:*?"<>|]+/g, '-')}.md`) },
+          { label: 'Print or save as PDF', onSelect: () => window.print() },
+        ]
+      : []),
   ];
   const menu: MenuItem[] = details.permissions.organize
     ? [...options, { label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: options.length > 0 }]
     : options;
 
   return (
-    <article className={`page-enter grid min-w-0 grid-cols-1 gap-8 ${wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : 'max-w-3xl'}`}>
+    <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${wide ? 'max-w-none' : details.database ? 'database-page max-w-6xl' : details.quick ? 'max-w-3xl' : 'max-w-3xl xl:max-w-[70rem]'}`}>
       <header className="page-header">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
@@ -259,18 +272,38 @@ export function NotePage() {
           ))}
         </dl>
       )}
-      <FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
-        <NoteEditor
-          commentedBlocks={commentedBlocks}
-          editable={details.editable}
-          key={details.id}
-          noteId={details.id}
-          onComment={details.quick || !details.permissions.comment ? undefined : quote}
-          peopleSpaceId={details.permissions.spaceRole ? details.spaceId : undefined}
-          quick={details.quick}
-          spaceId={details.permissions.organize ? details.spaceId : ''}
-        />
-      </Suspense></FileSourceContext>
+      <div className="note-body">
+        <FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
+          <NoteEditor
+            commentedBlocks={commentedBlocks}
+            editable={details.editable}
+            key={details.id}
+            noteId={details.id}
+            onComment={details.quick || !details.permissions.comment ? undefined : quote}
+            onThread={openThread}
+            onTools={setTools}
+            peopleSpaceId={details.permissions.spaceRole ? details.spaceId : undefined}
+            quick={details.quick}
+            spaceId={details.permissions.organize ? details.spaceId : ''}
+          />
+        </Suspense></FileSourceContext>
+        {!details.quick && (
+          <div className="note-comments-margin">
+            <NoteComments
+              commentable={details.permissions.comment}
+              editable={details.editable}
+              focused={thread}
+              key={`comments-${details.id}`}
+              noteId={details.id}
+              onBlocks={setCommentedBlocks}
+              onQuoteDone={() => setQuoting(undefined)}
+              owner={space?.role === 'owner'}
+              people={members.data}
+              quoting={quoting?.noteId === details.id ? quoting : undefined}
+            />
+          </div>
+        )}
+      </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {pageOnly && !details.database && (children.length > 0 || details.permissions.organize) && (
         <Section
@@ -323,18 +356,6 @@ export function NotePage() {
             })}
           </ul>
         </Section>
-      )}
-      {!details.quick && (
-        <NoteComments
-          commentable={details.permissions.comment}
-          editable={details.editable}
-          key={`comments-${details.id}`}
-          noteId={details.id}
-          onBlocks={setCommentedBlocks}
-          onQuoteDone={() => setQuoting(undefined)}
-          owner={space?.role === 'owner'}
-          quoting={quoting?.noteId === details.id ? quoting : undefined}
-        />
       )}
       {open === 'unconvert' && (
         <ConfirmDialog

@@ -6,7 +6,8 @@ import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
 import { Section } from './Page';
-import { pageBlock, showPageBlock } from './page-blocks';
+import type { Member } from '../spaces';
+import { pageAnchorText, showPageBlock } from './page-blocks';
 
 interface NoteComment {
   id: string;
@@ -31,10 +32,27 @@ export interface CommentAnchors {
 }
 
 const pageAnchors: CommentAnchors = {
-  noun: 'block',
-  label: (blockId) => pageBlock(blockId)?.textContent?.trim().slice(0, 80) || 'A block that was removed',
+  noun: 'text',
+  label: (blockId) => pageAnchorText(blockId)?.trim().slice(0, 80) || 'Text that was removed',
   show: showPageBlock,
 };
+
+function AnchorLabel({ anchors, id }: { anchors: CommentAnchors; id: string }) {
+  const [label, setLabel] = useState(() => anchors.label(id));
+  useEffect(() => {
+    const missing = anchors.label('');
+    const found = () => {
+      const current = anchors.label(id);
+      setLabel(current);
+      return current !== missing;
+    };
+    if (found()) return;
+    const observer = new MutationObserver(() => found() && observer.disconnect());
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [anchors, id]);
+  return label;
+}
 
 function CommentForm({
   label,
@@ -42,15 +60,19 @@ function CommentForm({
   initial = '',
   onCancel,
   autoFocus,
+  people = [],
 }: {
   label: string;
   onSave: (body: string) => Promise<boolean>;
   initial?: string;
   onCancel?: () => void;
   autoFocus?: boolean;
+  people?: Member[];
 }) {
   const [body, setBody] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const typed = /(?:^|\s)@([^\s@]*)$/u.exec(body)?.[1];
+  const suggested = typed === undefined ? [] : people.filter((person) => person.displayName.toLocaleLowerCase().includes(typed.toLocaleLowerCase())).slice(0, 5);
   return (
     <form
       className="grid gap-2"
@@ -64,6 +86,13 @@ function CommentForm({
       }}
     >
       <TextAreaField autoFocus={autoFocus} label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} rows={2} value={body} />
+      {suggested.length > 0 && (
+        <div aria-label="Mention someone" className="flex flex-wrap gap-x-3 gap-y-1 text-sm" role="group">
+          {suggested.map((person) => (
+            <TextButton key={person.userId} label={`@${person.displayName}`} onClick={() => setBody(`${body.slice(0, body.length - typed!.length)}${person.displayName} `)} />
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
         <Button disabled={!body.trim() || busy} label={label} submit />
         {onCancel && (
@@ -83,6 +112,8 @@ export function NoteComments({
   onQuoteDone,
   onBlocks,
   anchors = pageAnchors,
+  people,
+  focused,
 }: {
   noteId: string;
   editable: boolean;
@@ -92,6 +123,8 @@ export function NoteComments({
   onQuoteDone: () => void;
   onBlocks: (blockIds: string[]) => void;
   anchors?: CommentAnchors;
+  people?: Member[];
+  focused?: { id: string };
 }) {
   const auth = useAuth();
   const comments = useResource<NoteComment[]>(`/notes/${noteId}/comments`, true, { live: ['page-comments', 'spaces'], itemIds: [noteId] });
@@ -106,6 +139,13 @@ export function NoteComments({
     .join(' ');
 
   useEffect(() => onBlocks(commented ? commented.split(' ') : []), [commented, onBlocks]);
+
+  useEffect(() => {
+    const thread = focused && document.querySelector<HTMLElement>(`article[data-block-id="${CSS.escape(focused.id)}"]`);
+    if (!thread) return;
+    thread.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'nearest' });
+    thread.animate([{ backgroundColor: 'var(--color-line-soft)' }, { backgroundColor: 'transparent' }], { duration: 1600 });
+  }, [focused]);
 
   if (comments.error) return <LoadError compact error={comments.error} onRetry={comments.reload} />;
   if (!comments.data) return null;
@@ -138,7 +178,7 @@ export function NoteComments({
   function renderComment(comment: NoteComment) {
     const mine = comment.author?.id === auth.user?.id;
     if (editing === comment.id) {
-      return <CommentForm initial={comment.body} key={comment.id} label="Save comment" onCancel={() => setEditing(undefined)} onSave={(body) => edit(comment.id, body)} />;
+      return <CommentForm initial={comment.body} key={comment.id} label="Save comment" onCancel={() => setEditing(undefined)} onSave={(body) => edit(comment.id, body)} people={people} />;
     }
     return (
       <div className="grid gap-1" key={comment.id}>
@@ -148,7 +188,7 @@ export function NoteComments({
         </p>
         {comment.blockId && (
           <button className="comment-block-quote cursor-pointer text-left" onClick={() => anchors.show(comment.blockId!)} type="button">
-            {anchors.label(comment.blockId)}
+            <AnchorLabel anchors={anchors} id={comment.blockId} />
           </button>
         )}
         <p className="m-0 whitespace-pre-wrap break-words text-sm text-ink">{comment.body}</p>
@@ -181,17 +221,17 @@ export function NoteComments({
             {renderComment(thread)}
             <div className="grid gap-3 border-l border-line pl-4">
               {all.filter((comment) => comment.parentId === thread.id).map(renderComment)}
-              {replying === thread.id && <CommentForm label="Reply" onCancel={() => setReplying(undefined)} onSave={(body) => add(body, thread.id)} />}
+              {replying === thread.id && <CommentForm label="Reply" onCancel={() => setReplying(undefined)} onSave={(body) => add(body, thread.id)} people={people} />}
             </div>
           </article>
         ))}
         {commentable && (quoting ? (
           <div className="grid gap-2">
             <p className="comment-block-quote m-0">{quoting.excerpt || `An empty ${anchors.noun}`}</p>
-            <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} />
+            <CommentForm autoFocus key={quoting.id} label={`Comment on this ${anchors.noun}`} onCancel={onQuoteDone} onSave={(body) => add(body, undefined, quoting.id)} people={people} />
           </div>
         ) : (
-          <CommentForm label="Comment" onSave={(body) => add(body)} />
+          <CommentForm label="Comment" onSave={(body) => add(body)} people={people} />
         ))}
         {deleting && (
           <ConfirmDialog

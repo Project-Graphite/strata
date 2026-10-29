@@ -50,6 +50,28 @@ describe('Page comments against Postgres', () => {
     expect((await owner.call('GET', `/notes/${note.id}/comments`)).body).toEqual([]);
   });
 
+  it('tells the people a comment mentions, once, and only people who can read the page', async () => {
+    const owner = await member('mention-owner');
+    const editor = await member('mention-editor');
+    const bystander = await member('mention-bystander');
+    const outsider = await member('mention-outsider');
+    const space = (await owner.call('POST', '/spaces', { name: 'Orchard' })).body;
+    await strata.join(space.id, editor, SpaceRole.EDITOR);
+    await strata.join(space.id, bystander, SpaceRole.VIEWER);
+    const note = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Pruning' })).body;
+    const inbox = async (as: typeof owner) => (await as.call('GET', '/me/inbox?page=1')).body.results.filter((entry: { kind: string }) => entry.kind === 'comment').map((entry: { title: string }) => entry.title);
+
+    await owner.call('POST', `/notes/${note.id}/comments`, { body: 'Can @Mention-Editor check the pears? cc @mention-outsider @mention-editorial', blockId: 'f6a8c1de-35e5-4d0c-9a5b-2f1c0e7d8a90' });
+
+    expect(await inbox(editor)).toEqual(['mention-owner mentioned you on Pruning']);
+    expect(await inbox(bystander)).toEqual([]);
+    expect(await inbox(outsider)).toEqual([]);
+
+    await editor.call('POST', `/notes/${note.id}/comments`, { body: 'Done, @mention-owner and @mention-editor' });
+    expect(await inbox(owner)).toEqual(['mention-editor mentioned you on Pruning']);
+    expect(await inbox(editor)).toEqual(['mention-owner mentioned you on Pruning']);
+  });
+
   it('ties a comment to a block, keeping replies in the thread', async () => {
     const owner = await member('block-owner');
     const space = (await owner.call('POST', '/spaces', { name: 'Allotment' })).body;
