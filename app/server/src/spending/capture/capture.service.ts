@@ -22,6 +22,7 @@ import { accountFor, autoRecordable, ignoredSender, matchWindowMs, Movement, pai
 import { CorrectedFields, fixturesOf, ParsedFields, reportOf } from './parser-reports';
 import { SenderRulesService } from './sender-rules.service';
 import { MovementKind } from './senders/template';
+import { openSuggestion, sealSuggestion } from './sealed-suggestion';
 import { parserVersion, parseMessage } from './sms-parser';
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -86,6 +87,10 @@ export class CaptureService implements OnModuleInit {
       const before = new Date(now.getTime() - keepTextForMs);
       await this.prisma.capturedMessage.updateMany({ where: { createdAt: { lt: before }, expenseId: { not: null }, textSealed: { not: null } }, data: { textSealed: null } });
       await this.prisma.capturedMessage.deleteMany({ where: { createdAt: { lt: before }, expenseId: null } });
+      const legacy = await this.prisma.capturedMessage.findMany({ where: { suggestion: { path: ['sealed'], equals: Prisma.AnyNull } }, select: { id: true, suggestion: true }, take: 500 });
+      for (const row of legacy) {
+        await this.prisma.capturedMessage.update({ where: { id: row.id }, data: { suggestion: sealSuggestion(this.box, row.suggestion) } });
+      }
     });
   }
 
@@ -166,7 +171,7 @@ export class CaptureService implements OnModuleInit {
     const pair = ready && !duplicate ? pairFor(own, await this.nearby(spaceId, own), new Map(accounts.map((listed) => [listed.id, listed.handle])), rules) : null;
     if (pair && !pair.confirmed) suggestion.transfer = { expenseId: pair.expenseId, fromAccountId: pair.fromAccountId, toAccountId: pair.toAccountId };
     const message = await this.prisma.capturedMessage
-      .create({ data: { spaceId, userId, sender, textSealed: this.box.seal(input.text), hash, receivedAt, suggestion: { ...suggestion }, parserVersion, templateId: read.templateId, confidence: read.confidence } })
+      .create({ data: { spaceId, userId, sender, textSealed: this.box.seal(input.text), hash, receivedAt, suggestion: sealSuggestion(this.box, suggestion), parserVersion, templateId: read.templateId, confidence: read.confidence } })
       .catch((error: unknown) => {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return null;
         throw error;
@@ -198,7 +203,7 @@ export class CaptureService implements OnModuleInit {
   async pending(userId: string, spaceId: string) {
     await this.access.assertPersonalSpace(userId, spaceId);
     const rows = await this.prisma.capturedMessage.findMany({ where: { spaceId, status: 'review', textSealed: { not: null } }, orderBy: { receivedAt: 'desc' }, take: 100 });
-    return rows.map((row) => ({ id: row.id, sender: row.sender, text: this.box.open(row.textSealed!), receivedAt: row.receivedAt, suggestion: row.suggestion as unknown as Suggestion }));
+    return rows.map((row) => ({ id: row.id, sender: row.sender, text: this.box.open(row.textSealed!), receivedAt: row.receivedAt, suggestion: openSuggestion(this.box, row.suggestion) }));
   }
 
   async recordReviewed(userId: string, id: string, { remember, report, ...input }: RecordCaptureDto) {
@@ -211,7 +216,7 @@ export class CaptureService implements OnModuleInit {
 
   async ignore(userId: string, id: string, input: IgnoreCaptureDto) {
     const message = await this.waiting(userId, id);
-    const { merchant } = message.suggestion as unknown as Suggestion;
+    const { merchant } = openSuggestion(this.box, message.suggestion);
     if (input.always === 'merchant' && !merchant) throw new BadRequestException('This message names no merchant to ignore');
     if (input.always === 'sender') await this.senderRules.ignore(message.spaceId, message.sender);
     if (input.always === 'merchant') await this.categories.saveRule(userId, message.spaceId, { match: merchant!.toLowerCase(), ignore: true });
@@ -233,7 +238,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   private async record(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
-    const { accountId, availableMinor, paymentLabel, movement, direction, reference } = message.suggestion as unknown as Suggestion;
+    const { accountId, availableMinor, paymentLabel, movement, direction, reference } = openSuggestion(this.box, message.suggestion);
     const enriched: CreateExpenseDto = {
       ...input,
       ...(input.paymentLabel === undefined && paymentLabel ? { paymentLabel } : {}),
@@ -328,7 +333,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   private async learn(userId: string, message: CapturedMessage, input: CreateExpenseDto) {
-    const suggestion = message.suggestion as unknown as Suggestion;
+    const suggestion = openSuggestion(this.box, message.suggestion);
     if (input.direction === 'transfer') {
       if (input.accountId && input.toAccountId) await this.senderRules.learnTransfer(message.spaceId, message.sender, input.accountId, input.toAccountId);
       return;
@@ -340,7 +345,7 @@ export class CaptureService implements OnModuleInit {
   }
 
   private async report(userId: string, message: CapturedMessage, input: CreateExpenseDto, expenseId: string) {
-    const suggestion = message.suggestion as unknown as Suggestion;
+    const suggestion = openSuggestion(this.box, message.suggestion);
     const { kind } = await this.prisma.expense.findUniqueOrThrow({ where: { itemId: expenseId }, select: { kind: true } });
     const stored = reportOf(
       message.sender,

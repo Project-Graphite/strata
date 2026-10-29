@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { Prisma } from '@prisma/client';
 import { createHmac, randomBytes } from 'node:crypto';
 import { AccessService } from '../access/access.service';
+import { AuditService } from '../audit/audit.service';
 import { SecretBox } from '../crypto/secret-box.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
@@ -46,6 +47,7 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
     private readonly box: SecretBox,
     private readonly jobs: JobsService,
     private readonly maintenance: MaintenanceScheduler,
+    private readonly audit: AuditService,
   ) {}
 
   onModuleInit() {
@@ -82,6 +84,7 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
       },
       select: webhookFields,
     });
+    await this.audit.record(userId, 'webhook_created', { webhookId: created.id, host });
     return { ...present(created), secret };
   }
 
@@ -92,12 +95,14 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
       data: { active: input.active, events: input.events && [...new Set(input.events)], ...(input.active ? { cursor: new Date() } : {}) },
       select: webhookFields,
     });
+    await this.audit.record(userId, 'webhook_updated', { webhookId: id, active: updated.active, events: updated.events });
     return present(updated);
   }
 
   async remove(userId: string, id: string) {
     await this.owned(userId, id);
     await this.prisma.webhook.deleteMany({ where: { id } });
+    await this.audit.record(userId, 'webhook_deleted', { webhookId: id });
   }
 
   async deliveries(userId: string, id: string) {

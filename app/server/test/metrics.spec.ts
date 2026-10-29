@@ -1,13 +1,21 @@
 import { Controller, Get, INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { requestLog } from '../src/http/request-log';
 import { MetricsController } from '../src/metrics/metrics.controller';
 import { RealtimeService } from '../src/realtime/realtime.service';
 import { RedisService } from '../src/redis/redis.service';
 
 const token = 'metrics-token-that-is-long-enough-to-pass';
+
+beforeAll(() => {
+  vi.stubEnv('IP_HASH_SALT', 'ip-hash-salt-that-is-long-enough-to-pass');
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 @Controller('probe')
 class ProbeController {

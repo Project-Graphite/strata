@@ -1,4 +1,5 @@
 import { UserRole } from '@prisma/client';
+import { auditEvent } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export async function grantAdmin(prisma: PrismaService, email: string, revoke: boolean) {
@@ -19,6 +20,7 @@ export async function grantAdmin(prisma: PrismaService, email: string, revoke: b
     }
     await transaction.user.update({ where: { id: user.id }, data: { role } });
     await transaction.refreshSession.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await transaction.auditEvent.create({ data: auditEvent(user.id, revoke ? 'admin_revoked' : 'admin_granted', {}, null) });
     return revoke ? `${user.handle} is no longer an admin` : `${user.handle} is now an admin`;
   });
 }

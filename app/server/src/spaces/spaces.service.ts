@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma, SpaceRole } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
+import { auditEvent } from '../audit/audit.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto } from './dto/spaces.dto';
@@ -136,6 +137,7 @@ export class SpacesService {
         verb: 'member.role_changed',
         data: { member: member.user.displayName, role: input.role },
       });
+      await transaction.auditEvent.create({ data: auditEvent(userId, 'member_role_changed', { spaceId, memberId, role: input.role }) });
       if (memberId !== userId) {
         await this.inbox.notify(transaction, [
           {

@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   OnModuleInit,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -11,7 +12,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, SpaceRole, TokenPurpose, UserRole } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, auditEvent } from '../audit/audit.service';
+import { requestContext } from '../http/request-context';
 import { InvitationsService } from '../invitations/invitations.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
@@ -28,6 +30,7 @@ import { TwoStepService } from './two-step.service';
 export const refreshLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 export const signInLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 export const refreshReuseGraceMs = 30 * 1000;
+const reuseAlertIntervalMs = 60 * 60 * 1000;
 const challengeLifetimeMs = 5 * 60 * 1000;
 const challengeAttempts = 5;
 const tokenLifetimesMs: Record<TokenPurpose, number> = {
@@ -65,6 +68,7 @@ function emailUnavailable() {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
   private unknownAccountHash?: Promise<string>;
 
   constructor(
@@ -294,6 +298,7 @@ export class AuthService implements OnModuleInit {
           where: { userId: session.userId, revokedAt: null },
           data: { revokedAt: now },
         });
+        await this.refreshReused(session, now);
       }
       throw new UnauthorizedException('Refresh session is invalid');
     }
@@ -446,6 +451,7 @@ export class AuthService implements OnModuleInit {
       this.prisma.shareLink.updateMany({ where: { createdById: userId, revokedAt: null }, data: { revokedAt } }),
       this.prisma.invitation.updateMany({ where: { inviterId: userId, revokedAt: null }, data: { revokedAt } }),
       this.prisma.user.delete({ where: { id: userId } }),
+      this.prisma.auditEvent.create({ data: auditEvent(null, 'account_deleted', { userId }) }),
     ]);
   }
 
@@ -471,6 +477,38 @@ export class AuthService implements OnModuleInit {
   private async reauthenticationFailed(user: { id: string; email: string }, reason: 'password' | 'code') {
     await this.audit.record(user.id, 'sign_in_failed', { reason, confirming: true });
     await this.attempts.failed(user.email);
+  }
+
+  private async refreshReused(
+    session: { id: string; userId: string; deviceLabel: string; user: { email: string; displayName: string } },
+    now: Date,
+  ) {
+    this.logger.warn({ requestId: requestContext.getStore()?.requestId, userId: session.userId, sessionId: session.id, message: 'A rotated refresh token was used again; every session was signed out' });
+    const alerted = await this.prisma.auditEvent.count({
+      where: {
+        userId: session.userId,
+        action: 'refresh_token_reused',
+        createdAt: { gt: new Date(now.getTime() - reuseAlertIntervalMs) },
+        data: { path: ['emailed'], equals: true },
+      },
+    });
+    const emailed =
+      alerted === 0 &&
+      (await this.mail.trySend({
+        to: session.user.email,
+        subject: 'Someone may have your session',
+        text: [
+          `Hi ${session.user.displayName},`,
+          '',
+          `A sign-in to your Strata account on ${session.deviceLabel} was used again after it had already been renewed, at ${now.toUTCString()}. That usually means someone else has a copy of it, so every device was signed out.`,
+          '',
+          'If you do not recognise this, reset your password now and check your security log:',
+          '',
+          this.mail.link('/forgot-password'),
+          this.mail.link('/settings/security'),
+        ].join('\n'),
+      }));
+    await this.audit.record(session.userId, 'refresh_token_reused', { device: session.deviceLabel, emailed });
   }
 
   private async issueSession(

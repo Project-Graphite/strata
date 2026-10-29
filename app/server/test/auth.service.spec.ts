@@ -15,26 +15,29 @@ const user = {
   timeZone: 'Etc/UTC',
 };
 
-function serviceWith(session: Record<string, unknown> | null, rotated = 1) {
+function serviceWith(session: Record<string, unknown> | null, rotated = 1, emailedWithinHour = 0) {
   const refreshSession = {
     findUnique: vi.fn().mockResolvedValue(session && { user, ...session }),
     updateMany: vi.fn().mockResolvedValue({ count: rotated }),
     create: vi.fn().mockResolvedValue({ id: 'new-session-id' }),
   };
+  const auditEvent = { count: vi.fn().mockResolvedValue(emailedWithinHour) };
+  const mail = { trySend: vi.fn().mockResolvedValue(true), link: (path: string) => `https://strata.test${path}` };
+  const audit = { record: vi.fn() };
   const service = new AuthService(
-    { refreshSession } as never,
+    { refreshSession, auditEvent } as never,
     new JwtService(),
     new ConfigService({ AUTH_ACCESS_TOKEN_SECRET: 'test-secret' }),
+    mail as never,
     {} as never,
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
-    {} as never,
+    audit as never,
     {} as never,
     {} as never,
   );
-  return { refreshSession, service };
+  return { refreshSession, auditEvent, mail, audit, service };
 }
 
 describe('AuthService refresh', () => {
@@ -93,8 +96,41 @@ describe('AuthService refresh', () => {
     expect(refreshSession.create).not.toHaveBeenCalled();
   });
 
+  it('records a replayed token and emails the owner at most once an hour', async () => {
+    const replayed = {
+      id: 'session-id',
+      userId: 'user-id',
+      deviceLabel: 'Firefox on Linux',
+      revokedAt: new Date(Date.now() - 5 * 60_000),
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    const first = serviceWith(replayed);
+
+    await expect(first.service.refresh('raw-token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(first.auditEvent.count).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-id',
+        action: 'refresh_token_reused',
+        createdAt: { gt: expect.any(Date) },
+        data: { path: ['emailed'], equals: true },
+      },
+    });
+    const since: Date = first.auditEvent.count.mock.calls[0]![0].where.createdAt.gt;
+    expect(Date.now() - since.getTime()).toBeGreaterThanOrEqual(60 * 60_000 - 1_000);
+    expect(Date.now() - since.getTime()).toBeLessThanOrEqual(60 * 60_000 + 1_000);
+    expect(first.mail.trySend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'reader@example.com', subject: 'Someone may have your session', text: expect.stringContaining('Firefox on Linux') }),
+    );
+    expect(first.audit.record).toHaveBeenCalledWith('user-id', 'refresh_token_reused', { device: 'Firefox on Linux', emailed: true });
+
+    const again = serviceWith(replayed, 1, 1);
+    await expect(again.service.refresh('raw-token')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(again.mail.trySend).not.toHaveBeenCalled();
+    expect(again.audit.record).toHaveBeenCalledWith('user-id', 'refresh_token_reused', { device: 'Firefox on Linux', emailed: false });
+  });
+
   it('rejects a token rotated moments ago without revoking other sessions', async () => {
-    const { refreshSession, service } = serviceWith({
+    const { refreshSession, audit, mail, service } = serviceWith({
       id: 'session-id',
       userId: 'user-id',
       revokedAt: new Date(),
@@ -105,6 +141,8 @@ describe('AuthService refresh', () => {
       UnauthorizedException,
     );
     expect(refreshSession.updateMany).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(mail.trySend).not.toHaveBeenCalled();
   });
 
   it('refuses a device that was signed out without signing out the others', async () => {
