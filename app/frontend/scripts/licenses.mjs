@@ -33,6 +33,7 @@ function linkOf({ homepage, repository }) {
 }
 
 function visit(name, from) {
+  if (name.includes('babel-plugin')) return;
   const directory = locate(name, from);
   if (!directory || visited.has(directory)) return;
   visited.add(directory);
