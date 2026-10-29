@@ -62,7 +62,7 @@ export function SpaceTags() {
         <ul className="panel-rows">
           {tags.data.map((tag) => (
             <li className="flex items-center pe-2 hover:bg-line-soft" key={tag.id}>
-              <Link aria-label={`Items tagged ${tag.name}`} className="flex min-w-0 flex-1 items-center panel-row no-underline" to={`/spaces/${space.id}?tag=${tag.id}`}>
+              <Link aria-label={`Items tagged ${tag.name}`} className="flex min-w-0 flex-1 items-center panel-row no-underline" to={`/spaces/${space.id}/items?tag=${tag.id}`}>
                 <TagChip color={tag.color} label={tag.name} />
               </Link>
               {editable && (

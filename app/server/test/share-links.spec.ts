@@ -7,6 +7,7 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
   const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, createdAt: new Date() }));
   const documents = new Map<string, Y.Doc>();
   const read = vi.fn(async () => Buffer.from('image'));
+  const audit = { record: vi.fn() };
   return {
     create,
     documents,
@@ -31,7 +32,9 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
       { linkToken: (id: string) => id } as never,
       { hocuspocus: { documents } } as never,
       { assertPage: async () => ({ trashedAt }) } as never,
+      audit as never,
     ),
+    audit,
   };
 }
 
@@ -40,6 +43,7 @@ describe('page share links', () => {
     const shared = service(kind);
     expect(await shared.links.create('member', 'page', { access: 'edit', expiresInDays: 7 })).toMatchObject({ access: 'edit', link: expect.stringContaining('/share/') });
     expect(shared.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ itemId: 'page', access: 'EDIT', createdById: 'member' }) }));
+    expect(shared.audit.record).toHaveBeenCalledWith('member', 'share_link_created', { itemId: 'page', linkId: expect.any(String), access: 'edit' });
   });
 
   it('continues to reject edit links for events and trashed pages', async () => {

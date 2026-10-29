@@ -28,7 +28,7 @@ export function SpaceItems() {
   const tags = useResource<Tag[]>(tag ? `/spaces/${space.id}/tags` : null, true);
   const action = useAction();
   const uploading = useAction();
-  const base = `/spaces/${space.id}`;
+  const base = `/spaces/${space.id}/items`;
   const editable = space.role !== 'viewer';
   const tagName = tags.data?.find((shown) => shown.id === tag)?.name ?? 'Tag';
   const shape = useRememberedShape(`space-items-${space.id}${filters}`, items.data && itemsShape(items.data.results), [4, 0, 0]);

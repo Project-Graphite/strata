@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { auditEvent } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const cacheMs = 30_000;
@@ -24,15 +25,17 @@ export class SiteSettingsService {
     return this.remember(stored ?? { inviteOnly: false, fileQuotaMb: 150 });
   }
 
-  async update(settings: Partial<SiteSettings>) {
-    return this.remember(
-      await this.prisma.siteSettings.upsert({
+  async update(userId: string, settings: Partial<SiteSettings>) {
+    const [saved] = await this.prisma.$transaction([
+      this.prisma.siteSettings.upsert({
         where: { id: 1 },
         update: settings,
         create: settings,
         select: settingsFields,
       }),
-    );
+      this.prisma.auditEvent.create({ data: auditEvent(userId, 'site_settings_changed', { ...settings }) }),
+    ]);
+    return this.remember(saved);
   }
 
   private remember(settings: SiteSettings) {

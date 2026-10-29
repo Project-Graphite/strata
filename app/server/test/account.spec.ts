@@ -76,6 +76,9 @@ function setup(overrides: Record<string, object> = {}) {
     webhook: {
       updateMany: vi.fn().mockReturnValue('webhook-disable'),
     },
+    auditEvent: {
+      create: vi.fn().mockReturnValue('audit-record'),
+    },
     $transaction: vi.fn((work: unknown) =>
       typeof work === 'function' ? (work as (client: unknown) => unknown)(prisma) : work,
     ),
@@ -419,6 +422,8 @@ describe('Account email flows', () => {
     expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: user.id } });
     expect(prisma.shareLink.updateMany).toHaveBeenCalledWith({ where: { createdById: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
     expect(prisma.invitation.updateMany).toHaveBeenCalledWith({ where: { inviterId: user.id, revokedAt: null }, data: { revokedAt: expect.any(Date) } });
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith({ data: { userId: null, actorId: null, action: 'account_deleted', data: { userId: user.id } } });
+    expect(prisma.$transaction.mock.calls.at(-1)![0]).toContain('audit-record');
   });
 
   it('never reveals whether another account uses the new address, and warns the old one', async () => {

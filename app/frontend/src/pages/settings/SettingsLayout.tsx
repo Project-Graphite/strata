@@ -4,7 +4,6 @@ import { ListRow } from '@project-graphite/ui';
 import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
-import type { TimeFormat } from '../../time';
 
 export interface Me {
   id: string;
@@ -12,12 +11,12 @@ export interface Me {
   handle: string;
   displayName: string;
   timeZone: string;
-  timeFormat: TimeFormat;
   tidySummary: boolean;
   weeklyReview: boolean;
   homeCurrency: string | null;
   weekStart: number;
   weekendDays: number[];
+  monthStartDay: number;
   role: string;
 }
 
@@ -55,7 +54,7 @@ export function SettingsLayout() {
   const { pathname } = useLocation();
   return (
     <Page tabs={tabs.map(([href, label]) => ({ active: pathname === href, href, label }))} title="Settings">
-      <div className="grid max-w-3xl gap-8">
+      <div className="grid max-w-narrow gap-8">
         <Outlet />
       </div>
       <AboutLinks />

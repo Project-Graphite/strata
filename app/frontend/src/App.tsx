@@ -56,6 +56,7 @@ const SpaceItems = lazy(() => import('./pages/spaces/SpaceItems').then((module) 
 const SpaceLayout = lazy(() => import('./pages/spaces/SpaceLayout').then((module) => ({ default: module.SpaceLayout })));
 const SpaceMembers = lazy(() => import('./pages/spaces/SpaceMembers').then((module) => ({ default: module.SpaceMembers })));
 const SpaceHabits = lazy(() => import('./pages/spaces/SpaceHabits').then((module) => ({ default: module.SpaceHabits })));
+const SpaceOverview = lazy(() => import('./pages/spaces/SpaceOverview').then((module) => ({ default: module.SpaceOverview })));
 const SpaceNotes = lazy(() => import('./pages/spaces/SpaceNotes').then((module) => ({ default: module.SpaceNotes })));
 const SpacesPage = lazy(() => import('./pages/spaces/SpacesPage').then((module) => ({ default: module.SpacesPage })));
 const SpaceSubscriptions = lazy(() => import('./pages/spaces/SpaceSubscriptions').then((module) => ({ default: module.SpaceSubscriptions })));
@@ -184,7 +185,8 @@ export function App() {
               <Route index element={<SpacesPage />} />
               <Route path="invitations" element={<InvitationsPage />} />
               <Route path=":id" element={<SpaceLayout />}>
-                <Route index element={<SpaceItems />} />
+                <Route index element={<SpaceOverview />} />
+                <Route path="items" element={<SpaceItems />} />
                 <Route path="pages" element={<SpaceNotes />} />
                 <Route path="tasks" element={<SpaceTasks />} />
                 <Route path="recurring" element={<SpaceSubscriptions />} />

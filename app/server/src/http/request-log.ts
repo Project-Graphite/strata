@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { authFailures, httpDuration, httpRequests, httpServerErrors } from '../metrics/metrics';
+import { networkOf } from './request-context';
 
 const logger = new Logger('Http');
 
@@ -19,7 +20,8 @@ export function requestLog(request: Request, response: Response, next: NextFunct
     httpRequests.inc(labels);
     httpDuration.observe(labels, durationMs / 1000);
     if (status >= 500) httpServerErrors.inc({ method: request.method, route });
-    if (status === 401 || status === 403 || status === 429) authFailures.inc({ status: String(status) });
+    const denied = status === 401 || status === 403 || status === 429;
+    if (denied) authFailures.inc({ status: String(status) });
     logger.log({
       requestId,
       method: request.method,
@@ -27,6 +29,7 @@ export function requestLog(request: Request, response: Response, next: NextFunct
       status,
       durationMs,
       userId: (request.user as { id?: string } | undefined)?.id,
+      ...(denied || request.path.startsWith('/api/v1/auth/') ? networkOf(request) : {}),
     });
   });
   next();

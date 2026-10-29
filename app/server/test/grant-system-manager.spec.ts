@@ -11,6 +11,7 @@ describe('granting the system manager', () => {
         update: vi.fn(),
       },
       refreshSession: { updateMany: vi.fn() },
+      auditEvent: { create: vi.fn() },
     };
     return {
       transaction,
@@ -45,6 +46,9 @@ describe('granting the system manager', () => {
       where: { userId: 'user-id', revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+    expect(transaction.auditEvent.create).toHaveBeenCalledWith({
+      data: { userId: 'user-id', actorId: null, action: 'system_manager_granted', data: {} },
+    });
   });
 
   it('hands the role over only when asked to, demoting the previous manager', async () => {
@@ -63,6 +67,10 @@ describe('granting the system manager', () => {
     expect(transferred.transaction.user.update.mock.calls).toEqual([
       [{ where: { id: 'manager-id' }, data: { role: UserRole.MEMBER } }],
       [{ where: { id: 'user-id' }, data: { role: UserRole.SYSTEM_MANAGER } }],
+    ]);
+    expect(transferred.transaction.auditEvent.create.mock.calls.map(([call]) => call.data)).toEqual([
+      { userId: 'manager-id', actorId: null, action: 'system_manager_revoked', data: {} },
+      { userId: 'user-id', actorId: null, action: 'system_manager_granted', data: {} },
     ]);
   });
 

@@ -167,6 +167,7 @@ describe('GET /me/changes', () => {
   let base: string;
 
   beforeAll(async () => {
+    vi.stubEnv('IP_HASH_SALT', 'ip-hash-salt-that-is-long-enough-to-pass');
     const module = await Test.createTestingModule({
       imports: [Infrastructure, ChangesModule],
       controllers: [ProbeController],
@@ -190,7 +191,10 @@ describe('GET /me/changes', () => {
     base = `${await app.getUrl()}/api/v1`;
   });
 
-  afterAll(() => app.close());
+  afterAll(async () => {
+    await app.close();
+    vi.unstubAllEnvs();
+  });
 
   async function open(userId: string) {
     const controller = new AbortController();

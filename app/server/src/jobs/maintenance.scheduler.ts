@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { authActions } from '../audit/audit.service';
 import { ChangesService } from '../changes/changes.service';
 import { FilesService } from '../files/files.service';
 import { backgroundJobFailures } from '../metrics/metrics';
@@ -61,7 +62,8 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
     await this.prisma.shareLink.deleteMany({
       where: { OR: [{ expiresAt: { lt: ago(30) } }, { revokedAt: { lt: ago(30) } }] },
     });
-    await this.prisma.auditEvent.deleteMany({ where: { createdAt: { lt: ago(90) } } });
+    await this.prisma.auditEvent.deleteMany({ where: { createdAt: { lt: ago(90) }, action: { notIn: [...authActions] } } });
+    await this.prisma.auditEvent.deleteMany({ where: { createdAt: { lt: ago(365) } } });
     await this.prisma.inboxNotification.deleteMany({
       where: { OR: [{ readAt: { lt: ago(90) } }, { createdAt: { lt: ago(180) } }] },
     });

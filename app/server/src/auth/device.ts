@@ -14,6 +14,12 @@ const browsers: Array<[RegExp, string]> = [
   [/Safari\//, 'Safari'],
 ];
 
+const clients: Array<[RegExp, string]> = [
+  [/bot|crawler|spider/i, 'Bot'],
+  ...browsers,
+  [/curl|wget|python|go-http-client|okhttp|java\/|node/i, 'Script'],
+];
+
 const systems: Array<[RegExp, string]> = [
   [/Windows/, 'Windows'],
   [/iPhone|iPad|iPod/, 'iOS'],
@@ -28,6 +34,11 @@ export function deviceLabel(userAgent: string | undefined) {
   const system = systems.find(([pattern]) => pattern.test(userAgent ?? ''))?.[1];
   if (browser && system) return `${browser} on ${system}`;
   return browser ?? system ?? 'Unknown device';
+}
+
+export function agentFamily(userAgent: string | undefined) {
+  if (!userAgent) return 'Unknown';
+  return clients.find(([pattern]) => pattern.test(userAgent))?.[1] ?? 'Other';
 }
 
 export function newDeviceId() {

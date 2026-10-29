@@ -1198,8 +1198,7 @@ button.habit-day::before {
   }
 
   .habit-check,
-  .habit-day,
-  .app-tile-check {
+  .habit-day {
     transition:
       background-color 200ms ease,
       border-color 200ms ease,
@@ -1885,101 +1884,6 @@ button.habit-day::before {
   background: var(--tag-color);
 }
 
-.app-tiles {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-tile {
-  position: relative;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface);
-  user-select: none;
-  -webkit-touch-callout: none;
-  transition:
-    border-color 150ms,
-    opacity 150ms;
-}
-
-.app-tile > button {
-  display: grid;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.875rem;
-  border-radius: inherit;
-  color: var(--color-ink);
-  text-align: left;
-  cursor: grab;
-}
-
-.app-tile > button:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
-}
-
-.app-tile > button:disabled {
-  cursor: progress;
-}
-
-.app-tile-off {
-  border-style: dashed;
-  background: transparent;
-}
-
-.app-tile-off > button {
-  color: var(--color-faint);
-  cursor: pointer;
-}
-
-.app-tile:hover:not(.app-tile-moving) {
-  border-color: var(--color-muted);
-}
-
-.app-tile-icon {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  border-radius: var(--radius-field);
-  background: var(--color-line-soft);
-}
-
-.app-tile-check {
-  display: grid;
-  width: 1.25rem;
-  height: 1.25rem;
-  place-items: center;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-}
-
-.app-tile:not(.app-tile-off) .app-tile-check {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-paper);
-}
-
-.app-tile-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.app-tile-moving {
-  z-index: 2;
-  border-color: var(--color-muted);
-  box-shadow: var(--shadow-popover);
-}
-
-.app-tile-moving > button {
-  cursor: grabbing;
-}
-
 .dashboard-backdrop-color,
 .dashboard-backdrop-image {
   background: transparent;
@@ -2008,7 +1912,7 @@ button.habit-day::before {
   filter: blur(12px);
 }
 
-:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .app-tile:not(.app-tile-off), .card, .stat, .banner, .form-panel, .panel-rows, .ledger-row, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .card, .stat, .banner, .form-panel, .panel-rows, .ledger-row, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
   background: color-mix(in srgb, var(--color-surface) 84%, transparent);
 }
 

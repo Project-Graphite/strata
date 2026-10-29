@@ -175,7 +175,7 @@ async function request(request, response) {
     const accessToken = fixtureJwt.sign({ sub: identity, sid: 'session', jti: String(++tokenSequence) }, { expiresIn: identity === 'renewal' ? 2 : 15 * 60 });
     if (identity === 'renewal' && renewalFailedAt) renewalResumedAt = Date.now();
     issuedTokens.set(identity, accessToken);
-    return json(response, { accessToken, user: { id: identity, email: `${identity}@example.com`, handle: identity, displayName: identity, role: 'member', timeZone: 'UTC', features: ['pages', 'boards'], timeFormat: '24h' } });
+    return json(response, { accessToken, user: { id: identity, email: `${identity}@example.com`, handle: identity, displayName: identity, role: 'member', timeZone: 'UTC', features: ['pages', 'boards'] } });
   }
   if (route === '/spaces') return json(response, [{ id: 'space', name: 'Test space', role: 'owner', personal: true }]);
   if (route === '/me/inbox/summary') return json(response, { unread: 0 });

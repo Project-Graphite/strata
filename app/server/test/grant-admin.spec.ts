@@ -7,6 +7,7 @@ describe('granting admin rights', () => {
     const transaction = {
       user: { findUnique: vi.fn().mockResolvedValue(user), update: vi.fn() },
       refreshSession: { updateMany: vi.fn() },
+      auditEvent: { create: vi.fn() },
     };
     return { transaction, prisma: { $transaction: vi.fn((run: (client: typeof transaction) => unknown) => run(transaction)) } };
   }
@@ -18,18 +19,21 @@ describe('granting admin rights', () => {
     expect(transaction.user.findUnique).toHaveBeenCalledWith({ where: { email: 'reader@example.com' } });
     expect(transaction.user.update).toHaveBeenCalledWith({ where: { id: 'user-id' }, data: { role: UserRole.ADMIN } });
     expect(transaction.refreshSession.updateMany).toHaveBeenCalledWith({ where: { userId: 'user-id', revokedAt: null }, data: { revokedAt: expect.any(Date) } });
+    expect(transaction.auditEvent.create).toHaveBeenCalledWith({ data: { userId: 'user-id', actorId: null, action: 'admin_granted', data: {} } });
   });
 
   it('takes admin rights away again', async () => {
     const { prisma, transaction } = prismaWith({ ...member, role: UserRole.ADMIN });
     await expect(grantAdmin(prisma as never, 'reader@example.com', true)).resolves.toBe('reader is no longer an admin');
     expect(transaction.user.update).toHaveBeenCalledWith({ where: { id: 'user-id' }, data: { role: UserRole.MEMBER } });
+    expect(transaction.auditEvent.create).toHaveBeenCalledWith({ data: { userId: 'user-id', actorId: null, action: 'admin_revoked', data: {} } });
   });
 
   it('leaves the account alone when nothing would change', async () => {
     const { prisma, transaction } = prismaWith({ ...member, role: UserRole.ADMIN });
     await expect(grantAdmin(prisma as never, 'reader@example.com', false)).resolves.toBe('reader is already an admin');
     expect(transaction.user.update).not.toHaveBeenCalled();
+    expect(transaction.auditEvent.create).not.toHaveBeenCalled();
   });
 
   it.each([

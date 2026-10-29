@@ -14,7 +14,6 @@ export class UsersService {
       handle: user.handle,
       displayName: user.displayName,
       timeZone: user.timeZone,
-      timeFormat: user.timeFormat,
       tidySummary: user.tidySummary,
       weeklyReview: user.weeklyReview,
       homeCurrency: user.homeCurrency,
@@ -33,7 +32,6 @@ export class UsersService {
       data: {
         displayName: input.displayName,
         timeZone: input.timeZone,
-        timeFormat: input.timeFormat,
         tidySummary: input.tidySummary,
         weeklyReview: input.weeklyReview,
         homeCurrency: input.homeCurrency,

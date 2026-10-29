@@ -5,9 +5,11 @@ import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button, ButtonLink } from '../components/Button';
 import { LoadError } from '../components/LoadError';
+import { NotificationToggle } from '../components/NotificationToggle';
 import { Page, Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
+import { clockTime } from '../time';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 
@@ -121,6 +123,13 @@ export function JournalPage() {
       ) : (
         <JournalMoods busy={opening.busy} journal={data} mutate={journal.mutate} onWrite={writeDay} />
       )}
+      <NotificationToggle
+        description={`Sundays at ${clockTime('18:00')}, with a link that writes the review page for you.`}
+        field="weeklyReview"
+        label="Weekly review reminder"
+        offMessage="Weekly review reminders are off."
+        onMessage="You will be reminded on Sundays."
+      />
     </Page>
   );
 }

@@ -1,4 +1,5 @@
 import { Prisma, UserRole } from '@prisma/client';
+import { auditEvent } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export async function grantSystemManager(prisma: PrismaService, email: string, transfer: boolean) {
@@ -30,6 +31,7 @@ export async function grantSystemManager(prisma: PrismaService, email: string, t
           where: { id: current.id },
           data: { role: UserRole.MEMBER },
         });
+        await transaction.auditEvent.create({ data: auditEvent(current.id, 'system_manager_revoked', {}, null) });
       }
       await transaction.user.update({
         where: { id: user.id },
@@ -39,6 +41,7 @@ export async function grantSystemManager(prisma: PrismaService, email: string, t
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      await transaction.auditEvent.create({ data: auditEvent(user.id, 'system_manager_granted', {}, null) });
       return current
         ? `${user.handle} is now the system manager; ${current.handle} is now a member`
         : `${user.handle} is now the system manager`;
