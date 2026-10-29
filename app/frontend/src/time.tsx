@@ -11,8 +11,16 @@ export function applyTimeZone(zone: string | undefined) {
 
 export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? '' : zone.replaceAll('_', ' '));
 
-export const profileDay = (at: Date | string = new Date()) =>
-  new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: profileZone }).format(new Date(at));
+const dayFormats = new Map<string | undefined, Intl.DateTimeFormat>();
+
+export function profileDay(at: Date | string = new Date()) {
+  let format = dayFormats.get(profileZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: profileZone });
+    dayFormats.set(profileZone, format);
+  }
+  return format.format(new Date(at));
+}
 
 export const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 

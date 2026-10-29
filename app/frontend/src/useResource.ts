@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { startTransition, useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { errorMessage, isAbortError, useSettled } from '@project-graphite/ui';
 import { ApiError } from './api';
 import { useAuth } from './auth';
@@ -40,6 +40,23 @@ function sharedRequest<T>(key: string, load: () => Promise<T>, since: number) {
 export function clearResourceCache() {
   cache.clear();
 }
+
+function resolveResource(path: string | null, authenticated: boolean, userId: string | undefined, activeSpaceId: string | undefined) {
+  const scoped = authenticated && path !== null && isSpaceResource(path);
+  const spaceId = scoped ? activeSpaceId : undefined;
+  const resolved = !path || (scoped && !spaceId) ? null : authenticated ? inActiveSpace(path, spaceId) : path;
+  const key = !resolved ? null : authenticated ? (userId ? `${userId}|${spaceId ?? ''}|${resolved}` : null) : resolved;
+  return { key, path: resolved, spaceId };
+}
+
+export const resourceKey = (path: string, userId: string, activeSpaceId: string | undefined) => resolveResource(path, true, userId, activeSpaceId).key;
+
+export function cachedRequest<T>(request: <R>(path: string) => Promise<R>, userId: string, path: string, activeSpaceId: string | undefined, notBefore = 0) {
+  const { key, path: resolved } = resolveResource(path, true, userId, activeSpaceId);
+  return key && resolved ? sharedRequest(key, () => request<T>(resolved), Math.max(Date.now() - freshFor, notBefore)) : undefined;
+}
+
+export const cachedData = <T>(key: string | null) => (key ? (cache.get(key)?.data as T | undefined) : undefined);
 
 export interface LiveOptions {
   live?: Topic[];
@@ -86,12 +103,11 @@ export function useLiveRefresh(refresh: () => void, { every, live, spaceId, item
 export function useResource<T>(path: string | null, authenticated = false, live?: LiveOptions) {
   const auth = useAuth();
   const active = useContext(ActiveSpaceContext);
-  const scoped = authenticated && path !== null && isSpaceResource(path);
-  const spaceId = scoped ? active?.space?.id : undefined;
-  path = scoped && !spaceId ? null : authenticated && path ? inActiveSpace(path, spaceId) : path;
   const { request } = auth;
   const userId = auth.user?.id;
-  const key = !path ? null : authenticated ? (userId ? `${userId}|${spaceId ?? ''}|${path}` : null) : path;
+  const resolved = resolveResource(path, authenticated, userId, active?.space?.id);
+  const { key, spaceId } = resolved;
+  path = resolved.path;
   const [state, setState] = useState<ResourceState<T>>({ key: null, error: '' });
   const [version, setVersion] = useState(0);
   const inFlight = useRef<AbortController>(undefined);
@@ -104,7 +120,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
     inFlight.current = controller;
     void sharedRequest(key, () => request<T>(path), Math.max(Date.now() - freshFor, reloadedAt.current - burst))
       .then((data) => {
-        if (!controller.signal.aborted) setState({ key, data, error: '' });
+        if (!controller.signal.aborted) startTransition(() => setState({ key, data, error: '' }));
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted && !isAbortError(reason)) {
@@ -150,8 +166,9 @@ export function useResource<T>(path: string | null, authenticated = false, live?
 
   const current = key && state.key === key ? state : undefined;
   const sameViewer = authenticated ? Boolean(userId && state.key?.startsWith(`${userId}|${spaceId ?? ''}|`)) : true;
-  const cached = key ? (cache.get(key)?.data as T | undefined) : undefined;
-  const data = useSettled(current ? current.data : (cached ?? (key && sameViewer ? state.data : undefined)));
+  const cached = cachedData<T>(key);
+  const settled = useSettled(key ? (current ? current.data : (cached ?? (sameViewer ? state.data : undefined))) : null);
+  const data = key ? (settled as T | undefined) : undefined;
   useEffect(() => {
     if (path && /^\/(notes|tasks|events|goals|trips|people|recipes|bookmarks|subscriptions)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
   }, [path, data, active]);

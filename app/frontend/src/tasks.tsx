@@ -1,6 +1,6 @@
-import { useCallback, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, isAbortError, Pagination } from '@project-graphite/ui';
-import { inActiveSpace, isSpaceResource, ActiveSpaceContext } from './active-space';
+import { startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, Pagination } from '@project-graphite/ui';
+import { ActiveSpaceContext } from './active-space';
 import type { Page as ResultPage } from './api';
 import { useAuth } from './auth';
 import { FilterChips } from './components/Page';
@@ -8,7 +8,8 @@ import { priorityNames } from './quick-add';
 import { useSwipe } from './swipe';
 import type { Tag } from './spaces';
 import { formatDate, profileDay } from './time';
-import { useLiveRefresh, useResource } from './useResource';
+import { taskPage } from './route-data';
+import { cachedData, cachedRequest, resourceKey, useLiveRefresh, useResource } from './useResource';
 
 export interface Task {
   id: string;
@@ -264,32 +265,45 @@ export function useWeekStart() {
 const maxTaskPages = 10;
 
 export function useAllTasks(path: string | null) {
-  const { request } = useAuth();
-  const active = useContext(ActiveSpaceContext);
-  const scoped = path !== null && isSpaceResource(path);
-  const spaceId = scoped ? active?.space?.id : undefined;
-  const resolved = !path || (scoped && !spaceId) ? null : inActiveSpace(path, spaceId);
-  const [state, setState] = useState<{ path: string; tasks?: Task[]; error: string; more: boolean }>();
+  const { request, user } = useAuth();
+  const spaceId = useContext(ActiveSpaceContext)?.space?.id;
+  const userId = user?.id;
+  const pageKey = (number: number) => (path && userId ? resourceKey(taskPage(path, number), userId, spaceId) : null);
+  const firstKey = pageKey(1);
+  const [state, setState] = useState<{ key: string; tasks?: Task[]; error: string; more: boolean }>();
   const [version, setVersion] = useState(0);
-  const reload = useCallback(() => setVersion((current) => current + 1), []);
+  const reloadedAt = useRef(0);
+  const reload = useCallback(() => {
+    reloadedAt.current = Date.now();
+    setVersion((current) => current + 1);
+  }, []);
   useLiveRefresh(reload, { live: ['tasks', 'items'] });
 
   useEffect(() => {
-    if (!resolved) return;
-    const controller = new AbortController();
-    const page = (number: number) => request<ResultPage<Task>>(`${resolved}${resolved.includes('?') ? '&' : '?'}page=${number}`, { signal: controller.signal });
+    if (!path || !userId || !firstKey) return;
+    let stale = false;
+    const page = (number: number) => cachedRequest<ResultPage<Task>>(request, userId, taskPage(path, number), spaceId, reloadedAt.current)!;
     void page(1)
       .then(async (first) => {
         const rest = await Promise.all(Array.from({ length: Math.min(first.totalPages, maxTaskPages) - 1 }, (_, index) => page(index + 2)));
-        setState({ path: resolved, tasks: [first, ...rest].flatMap((result) => result.results), error: '', more: first.totalPages > maxTaskPages });
+        if (!stale) startTransition(() => setState({ key: firstKey, tasks: [first, ...rest].flatMap((result) => result.results), error: '', more: first.totalPages > maxTaskPages }));
       })
       .catch((reason: unknown) => {
-        if (!isAbortError(reason)) setState((current) => ({ path: resolved, tasks: current?.path === resolved ? current.tasks : undefined, error: errorMessage(reason, 'Could not load your tasks'), more: false }));
+        if (!stale) setState((current) => ({ key: firstKey, tasks: current?.key === firstKey ? current.tasks : undefined, error: errorMessage(reason, 'Could not load your tasks'), more: false }));
       });
-    return () => controller.abort();
-  }, [request, resolved, version]);
+    return () => {
+      stale = true;
+    };
+  }, [firstKey, path, request, spaceId, userId, version]);
 
-  const current = state?.path === resolved ? state : undefined;
-  const mutate = useCallback((update: (tasks: Task[]) => Task[]) => setState((shown) => (shown?.tasks ? { ...shown, tasks: update(shown.tasks) } : shown)), []);
-  return { data: current?.tasks, error: current?.tasks ? '' : (current?.error ?? ''), more: Boolean(current?.more), mutate, reload };
+  const current = state?.key === firstKey ? state : undefined;
+  const cached = useMemo(() => {
+    const first = cachedData<ResultPage<Task>>(firstKey);
+    if (!first) return undefined;
+    const pages = [first, ...Array.from({ length: Math.min(first.totalPages, maxTaskPages) - 1 }, (_, index) => cachedData<ResultPage<Task>>(pageKey(index + 2)))];
+    return pages.every(Boolean) ? { tasks: pages.flatMap((result) => result!.results), more: first.totalPages > maxTaskPages } : undefined;
+  }, [firstKey]);
+  const shown = current?.tasks ? current : cached;
+  const mutate = useCallback((update: (tasks: Task[]) => Task[]) => setState((latest) => (latest?.tasks ? { ...latest, tasks: update(latest.tasks) } : latest)), []);
+  return { data: shown?.tasks, error: shown ? '' : (current?.error ?? ''), more: Boolean(shown?.more), mutate, reload };
 }

@@ -1,12 +1,13 @@
 import { lazy } from 'react';
 import { Link, Navigate, Outlet, Route, Routes, useLocation, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
+import { enabledApps } from './apps';
 import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { HomePage } from './pages/HomePage';
-import { PrivacyPage, TermsPage } from './pages/LegalPages';
+import { phoneTabBar } from './navigation';
 import { LoginPage } from './pages/LoginPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+import { prefetchRoute, usePrefetchRoutes } from './route-data';
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 const AgendaPage = lazy(() => import('./pages/AgendaPage').then((module) => ({ default: module.AgendaPage })));
@@ -29,6 +30,7 @@ const PersonPage = lazy(() => import('./pages/PersonPage').then((module) => ({ d
 const MealPlanPage = lazy(() => import('./pages/MealPlanPage').then((module) => ({ default: module.MealPlanPage })));
 const RecipePage = lazy(() => import('./pages/RecipePage').then((module) => ({ default: module.RecipePage })));
 const RecipesPage = lazy(() => import('./pages/RecipesPage').then((module) => ({ default: module.RecipesPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 const NetWorthPage = lazy(() => import('./pages/NetWorthPage').then((module) => ({ default: module.NetWorthPage })));
 const SpendingAccountsPage = lazy(() => import('./pages/SpendingAccountsPage').then((module) => ({ default: module.SpendingAccountsPage })));
 const SpendingInsightsPage = lazy(() => import('./pages/SpendingInsightsPage').then((module) => ({ default: module.SpendingInsightsPage })));
@@ -36,6 +38,7 @@ const SpendingPage = lazy(() => import('./pages/SpendingPage').then((module) => 
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
 const TripPage = lazy(() => import('./pages/TripPage').then((module) => ({ default: module.TripPage })));
 const TripsPage = lazy(() => import('./pages/TripsPage').then((module) => ({ default: module.TripsPage })));
+const PrivacyPage = lazy(() => import('./pages/LegalPages').then((module) => ({ default: module.PrivacyPage })));
 const RecurringPage = lazy(() => import('./pages/RecurringPage').then((module) => ({ default: module.RecurringPage })));
 const MorePage = lazy(() => import('./pages/MorePage').then((module) => ({ default: module.MorePage })));
 const NotePage = lazy(() => import('./pages/NotePage').then((module) => ({ default: module.NotePage })));
@@ -65,6 +68,7 @@ const SpaceSubscriptions = lazy(() => import('./pages/spaces/SpaceSubscriptions'
 const SpaceTags = lazy(() => import('./pages/spaces/SpaceTags').then((module) => ({ default: module.SpaceTags })));
 const SpaceTasks = lazy(() => import('./pages/spaces/SpaceTasks').then((module) => ({ default: module.SpaceTasks })));
 const TasksPage = lazy(() => import('./pages/TasksPage').then((module) => ({ default: module.TasksPage })));
+const TermsPage = lazy(() => import('./pages/LegalPages').then((module) => ({ default: module.TermsPage })));
 const TidyPage = lazy(() => import('./pages/TidyPage').then((module) => ({ default: module.TidyPage })));
 const VerifyPage = lazy(() => import('./pages/VerifyPage').then((module) => ({ default: module.VerifyPage })));
 const WallPage = lazy(() => import('./dashboard/Dashboard').then((module) => ({ default: module.WallPage })));
@@ -110,11 +114,27 @@ const legacyRoutes = [
   ['trash', '/settings/trash'],
 ] as const;
 
-function RouterLink({ href, ...props }: UiLinkProps) {
-  return <Link to={href} {...props} />;
+function RouterLink({ href, onMouseEnter, onPointerDown, ...props }: UiLinkProps) {
+  const { request, user } = useAuth();
+  return (
+    <Link
+      onMouseEnter={(event) => {
+        prefetchRoute(href);
+        onMouseEnter?.(event);
+      }}
+      onPointerDown={(event) => {
+        prefetchRoute(href, user && { id: user.id, request });
+        onPointerDown?.(event);
+      }}
+      to={href}
+      {...props}
+    />
+  );
 }
 
 export function App() {
+  const { user } = useAuth();
+  usePrefetchRoutes(user && phoneTabBar(null, enabledApps(user.features)).map((tab) => tab.href));
   return (
     <UiProvider link={RouterLink}>
       <Routes>

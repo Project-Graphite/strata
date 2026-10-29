@@ -9,6 +9,7 @@ import cookieParser from 'cookie-parser';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './http/api-exception.filter';
+import { brotliAssets } from './http/brotli-assets';
 import { requestLog } from './http/request-log';
 import { securityHeaders } from './http/security-headers';
 
@@ -46,6 +47,7 @@ async function bootstrap() {
     origin: process.env.AUTH_TRUSTED_ORIGINS?.split(',') ?? [],
   });
   const frontendRoot = join(__dirname, '..', '..', 'frontend', 'dist');
+  app.use('/assets', brotliAssets(join(frontendRoot, 'assets')));
   app.useStaticAssets(join(frontendRoot, 'assets'), {
     prefix: '/assets',
     immutable: true,
