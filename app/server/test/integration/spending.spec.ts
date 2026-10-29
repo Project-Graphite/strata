@@ -310,4 +310,63 @@ describe('Spending and budgets against Postgres', () => {
     expect(lines).toContain(`${today},'=cmd(),,spent,10.00,EGP,other,,,`);
     expect(lines).toContain(`${today},Salary,,received,9000.00,EGP,,NBE,,`);
   });
+
+  it('pages through transactions by cursor with filters, day totals, running balances and bulk changes', async () => {
+    const owner = await member('ledger');
+    const outsider = await member('ledger-outsider');
+    const home = owner.personalSpaceId;
+    const shared = (await owner.call('POST', '/spaces', { name: 'Ledger club' })).body;
+    const bank = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB', currency: 'EGP', balanceMinor: 100_000, cardDigits: ['4512'] })).body;
+    const wallet = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Wallet', kind: 'wallet', currency: 'EGP' })).body;
+    const add = (title: string, amountMinor: number, spentOn: string, body: object = {}) =>
+      owner.call('POST', `/spaces/${home}/expenses`, { title, amountMinor, currency: 'EGP', spentOn, category: 'groceries', accountId: bank.id, ...body });
+    const market = (await add('Market', 4000, '2026-10-01')).body;
+    const uber = (await add('Uber ride', 1500, '2026-10-02', { category: 'transport', cardDigits: '4512', note: 'airport' })).body;
+    await add('Salary', 50_000, '2026-10-02', { direction: 'received' });
+    await add('Top-up', 2000, '2026-10-03', { direction: 'transfer', toAccountId: wallet.id });
+    const lunch = (await add('Lunch', 900, '2026-10-03', { accountId: wallet.id })).body;
+    const list = async (query = '') => (await owner.call('GET', `/spaces/${home}/expenses${query}`)).body;
+
+    expect((await outsider.call('GET', `/spaces/${home}/expenses`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${shared.id}/expenses`)).status).toBe(403);
+    expect((await owner.call('GET', `/spaces/${home}/expenses?cursor=nope`)).status).toBe(400);
+    const first = await list('?limit=2');
+    expect(first).toMatchObject({ currency: 'EGP', count: 5, days: [{ day: '2026-10-03', spentMinor: 900, receivedMinor: 0 }] });
+    expect(first.expenses.map((expense: { title: string }) => expense.title)).toEqual(['Lunch', 'Top-up']);
+    const second = await list(`?limit=2&cursor=${first.next}`);
+    expect(second.count).toBeNull();
+    expect(second.expenses.map((expense: { title: string }) => expense.title)).toEqual(['Salary', 'Uber ride']);
+    expect(second.days).toEqual([{ day: '2026-10-02', spentMinor: 1500, receivedMinor: 50_000 }]);
+    const third = await list(`?limit=2&cursor=${second.next}`);
+    expect(third.expenses.map((expense: { title: string }) => expense.title)).toEqual(['Market']);
+    expect(third.next).toBeNull();
+
+    expect((await list('?q=AIRPORT')).expenses.map((expense: { id: string }) => expense.id)).toEqual([uber.id]);
+    expect((await list('?card=4512')).expenses.map((expense: { id: string }) => expense.id)).toEqual([uber.id]);
+    expect((await list('?direction=received')).count).toBe(1);
+    expect((await list('?min=1000&max=2000')).count).toBe(2);
+    expect((await list('?category=groceries')).count).toBe(2);
+    const banked = await list(`?account=${bank.id}`);
+    expect(banked.expenses.map((expense: { title: string; balanceMinor: number }) => [expense.title, expense.balanceMinor])).toEqual([
+      ['Top-up', 142_500],
+      ['Salary', 144_500],
+      ['Uber ride', 94_500],
+      ['Market', 96_000],
+    ]);
+    expect((await list()).expenses[0].balanceMinor).toBeNull();
+
+    expect((await owner.call('PATCH', `/spaces/${home}/expenses`, { ids: [market.id] })).status).toBe(400);
+    expect((await owner.call('PATCH', `/spaces/${home}/expenses`, { ids: [market.id], category: 'yachts' })).status).toBe(400);
+    expect((await outsider.call('PATCH', `/spaces/${home}/expenses`, { ids: [market.id], category: 'health' })).status).toBe(404);
+    expect((await owner.call('PATCH', `/spaces/${home}/expenses`, { ids: [market.id, lunch.id], category: 'health' })).body).toEqual({ updated: 2 });
+    expect((await owner.call('PATCH', `/spaces/${home}/expenses`, { ids: [uber.id], accountId: wallet.id })).body).toEqual({ updated: 1 });
+    expect((await owner.call('GET', `/expenses/${uber.id}`)).body).toMatchObject({ accountId: wallet.id, cardId: null, cardDigits: '4512' });
+    expect((await list('?category=health')).count).toBe(2);
+
+    expect((await outsider.call('POST', `/spaces/${home}/expenses/trash`, { ids: [market.id] })).status).toBe(404);
+    expect((await owner.call('POST', `/spaces/${home}/expenses/trash`, { ids: [market.id, lunch.id] })).body).toEqual({ trashed: 2 });
+    expect((await list()).count).toBe(3);
+    expect((await owner.call('POST', `/spaces/${home}/expenses/restore`, { ids: [market.id, lunch.id] })).body).toEqual({ restored: 2 });
+    expect((await list()).count).toBe(5);
+  });
 });

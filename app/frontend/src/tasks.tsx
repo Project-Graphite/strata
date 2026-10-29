@@ -1,10 +1,11 @@
-import { useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, isAbortError, Pagination } from '@project-graphite/ui';
 import { inActiveSpace, isSpaceResource, ActiveSpaceContext } from './active-space';
 import type { Page as ResultPage } from './api';
 import { useAuth } from './auth';
 import { FilterChips } from './components/Page';
 import { priorityNames } from './quick-add';
+import { useSwipe } from './swipe';
 import type { Tag } from './spaces';
 import { formatDate, profileDay } from './time';
 import { useLiveRefresh, useResource } from './useResource';
@@ -121,8 +122,6 @@ export function taskDetails(task: Task, where?: string) {
   ].filter(Boolean);
 }
 
-const swipeDistance = 96;
-
 export function TaskRow({
   actions,
   disabled,
@@ -146,46 +145,13 @@ export function TaskRow({
 }) {
   const done = Boolean(task.completedAt);
   const details = taskDetails(task, where);
-  const start = useRef<{ x: number; y: number }>(undefined);
-  const swiped = useRef(false);
-  const [offset, setOffset] = useState(0);
-  const settle = () => {
-    start.current = undefined;
-    setOffset(0);
-  };
+  const swipe = useSwipe({ enabled: swipeable && !disabled, onRight: onToggle });
   return (
-    <li
-      {...rowProps}
-      className={`list-row task-row ${rowProps?.className ?? ''}`}
-      data-swiping={offset > 0 || undefined}
-      onClickCapture={(event) => {
-        if (!swiped.current) return;
-        swiped.current = false;
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onPointerCancel={settle}
-      onPointerDown={(event) => {
-        swiped.current = false;
-        if (swipeable && !disabled && event.pointerType === 'touch') start.current = { x: event.clientX, y: event.clientY };
-      }}
-      onPointerMove={(event) => {
-        if (!start.current) return;
-        const across = event.clientX - start.current.x;
-        if (offset === 0 && Math.abs(event.clientY - start.current.y) > Math.abs(across)) return settle();
-        if (across > 8) setOffset(Math.min(across, swipeDistance * 1.5));
-      }}
-      onPointerUp={() => {
-        if (offset > 8) swiped.current = true;
-        if (offset >= swipeDistance) onToggle();
-        settle();
-      }}
-      style={{ ...rowProps?.style, ...(offset > 0 ? { '--swipe': `${offset}px` } : {}) }}
-    >
-      {offset > 0 && (
-        <span aria-hidden="true" className="task-swipe">
+    <li {...rowProps} {...swipe.props} className={`list-row task-row swipe-row ${rowProps?.className ?? ''}`} style={{ ...rowProps?.style, ...swipe.props.style }}>
+      {swipe.offset > 0 && (
+        <span aria-hidden="true" className="swipe-hint">
           <Icon name="check" size={18} />
-          {offset >= swipeDistance ? (done ? 'Release to reopen' : 'Release to complete') : done ? 'Reopen' : 'Complete'}
+          {swipe.passed ? (done ? 'Release to reopen' : 'Release to complete') : done ? 'Reopen' : 'Complete'}
         </span>
       )}
       {handle}

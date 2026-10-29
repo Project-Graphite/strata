@@ -1,4 +1,5 @@
 import { formatDay } from '@project-graphite/ui';
+import { amountText } from './validation';
 
 export interface CostSplit {
   payerId: string;
@@ -63,7 +64,7 @@ export function money(amountMinor: number, currency: string) {
 }
 
 export function toMinor(amount: string, currency: string) {
-  return Math.round(Number(amount.replace(',', '.')) * 10 ** fractionDigits(currency));
+  return Math.round(Number(amountText(amount) ?? amount) * 10 ** fractionDigits(currency));
 }
 
 export function fromMinor(amountMinor: number, currency: string) {

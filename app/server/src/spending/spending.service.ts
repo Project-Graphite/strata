@@ -1,16 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ItemKind, Prisma } from '@prisma/client';
+import { ItemKind, MoneyAccount, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
-import { convertMinor, ExchangeRatesService, fractionDigits } from '../exchange-rates/exchange-rates.service';
+import { convertMinor, ExchangeRatesService, fractionDigits, RateTable } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { renewalsBetween } from '../subscriptions/subscriptions.service';
+import { AccountsService } from './accounts.service';
 import { CategoriesService } from './categories.service';
-import { CreateExpenseDto, SaveBudgetDto, SavePlanDto, UpdateExpenseDto } from './dto/spending.dto';
+import { CreateExpenseDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
 import { dayBefore, daysBetween, monthOf, periodOf, previousMonth } from './periods';
+import { after, cursorOf, readCursor, runningBalances, transactionOrder, transactionsWhere } from './transactions';
 
 const expenseFields = {
   id: true,
@@ -88,6 +90,7 @@ export class SpendingService {
     private readonly categories: CategoriesService,
     private readonly inbox: InboxService,
     private readonly changes: ChangesService,
+    private readonly accounts: AccountsService,
   ) {}
 
   async month(userId: string, spaceId: string, month?: string) {
@@ -334,6 +337,103 @@ export class SpendingService {
         .join(','),
     );
     return `${['date', 'title', 'merchant', 'type', 'amount', 'currency', 'category', 'account', 'to account', 'note'].join(',')}\r\n${lines.map((line) => `${line}\r\n`).join('')}`;
+  }
+
+  async transactions(userId: string, spaceId: string, { cursor, limit = 100, ...filters }: TransactionsDto) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    const where = transactionsWhere(spaceId, filters);
+    const [rows, count, user, rates, account] = await Promise.all([
+      this.prisma.item.findMany({ where: cursor ? { AND: [where, after(readCursor(cursor))] } : where, orderBy: transactionOrder, take: limit + 1, select: expenseFields }),
+      cursor ? null : this.prisma.item.count({ where }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { homeCurrency: true } }),
+      this.rates.table(),
+      filters.account ? this.prisma.moneyAccount.findFirst({ where: { id: filters.account, spaceId } }) : null,
+    ]);
+    const expenses = rows.slice(0, limit).map(present);
+    const last = rows.length > limit ? expenses.at(-1)! : null;
+    const currency = user.homeCurrency ?? 'EGP';
+    const missing = new Set<string>();
+    const shown = (amountMinor: number, from: string) => {
+      if (from === currency) return amountMinor;
+      const converted = convertMinor(amountMinor, from, currency, rates.rates);
+      if (converted === null) missing.add(from);
+      return converted;
+    };
+    const days = [...new Set(expenses.map((expense) => expense.spentOn))];
+    const [sameDays, balances] = await Promise.all([
+      days.length
+        ? this.prisma.item.findMany({ where: { AND: [where, { expense: { spentOn: { in: days.map(dateValue) } } }] }, select: { expense: { select: { amountMinor: true, currency: true, direction: true, spentOn: true } } } })
+        : [],
+      account ? this.balancesAfter(account, rates.rates) : null,
+    ]);
+    const totals = new Map(days.map((day) => [day, { day, spentMinor: 0, receivedMinor: 0 }]));
+    for (const { expense } of sameDays) {
+      const total = totals.get(dateText(expense!.spentOn))!;
+      const amount = shown(Number(expense!.amountMinor), expense!.currency) ?? 0;
+      if (expense!.direction === 'spent') total.spentMinor += amount;
+      if (expense!.direction === 'refund') total.spentMinor -= amount;
+      if (expense!.direction === 'received') total.receivedMinor += amount;
+    }
+    return {
+      currency,
+      missing: [...missing].sort(),
+      count,
+      next: last && cursorOf(last),
+      days: [...totals.values()],
+      expenses: expenses.map((expense) => ({ ...expense, balanceMinor: balances?.get(expense.id) ?? null })),
+    };
+  }
+
+  private async balancesAfter(account: MoneyAccount, rates: RateTable) {
+    const [[current], flows] = await Promise.all([
+      this.accounts.balances([account]),
+      this.prisma.item.findMany({
+        where: { spaceId: account.spaceId, kind: ItemKind.EXPENSE, trashedAt: null, expense: { OR: [{ accountId: account.id }, { toAccountId: account.id }] } },
+        orderBy: transactionOrder,
+        select: { id: true, expense: { select: { amountMinor: true, currency: true, direction: true, accountId: true, toAccountId: true } } },
+      }),
+    ]);
+    return runningBalances(
+      account.id,
+      current!.balanceMinor,
+      flows.map(({ id, expense }) => ({ ...expense!, itemId: id, amountMinor: Number(expense!.amountMinor) })),
+      (amountMinor, from) => (from === account.currency ? amountMinor : convertMinor(amountMinor, from, account.currency, rates)),
+    );
+  }
+
+  async updateMany(userId: string, spaceId: string, { ids, category, accountId }: UpdateExpensesDto) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    if (category === undefined && accountId === undefined) throw new BadRequestException('Choose a category or an account to change');
+    await this.categories.assertCategory(spaceId, category);
+    await this.checkAccounts(spaceId, [{ direction: 'spent', accountId: accountId ?? null, toAccountId: null }]);
+    const chosen = { itemId: { in: ids }, item: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null } } satisfies Prisma.ExpenseWhereInput;
+    const cards = accountId ? await this.prisma.card.findMany({ where: { accountId }, select: { id: true, last4: true } }) : [];
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const recategorised = category === undefined ? 0 : (await transaction.expense.updateMany({ where: { ...chosen, direction: { in: ['spent', 'refund'] } }, data: { category } })).count;
+      const moved = accountId === undefined ? 0 : (await transaction.expense.updateMany({ where: { ...chosen, direction: { not: 'transfer' } }, data: { accountId, cardId: null } })).count;
+      for (const card of cards) await transaction.expense.updateMany({ where: { ...chosen, accountId, cardDigits: card.last4 }, data: { cardId: card.id } });
+      const count = Math.max(recategorised, moved);
+      if (count) {
+        await transaction.item.updateMany({ where: { id: { in: ids }, spaceId }, data: { updatedById: userId } });
+        await this.activity.record(transaction, { spaceId, actorId: userId, verb: 'item.updated', data: { title: `${count} transactions` } });
+      }
+      return count;
+    });
+    await this.alert(userId, spaceId);
+    return { updated };
+  }
+
+  async trashMany(userId: string, spaceId: string, ids: string[], trashed: boolean) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    const changed = await this.prisma.$transaction(async (transaction) => {
+      const { count } = await transaction.item.updateMany({
+        where: { id: { in: ids }, spaceId, kind: ItemKind.EXPENSE, trashedAt: trashed ? null : { not: null } },
+        data: { trashedAt: trashed ? new Date() : null, updatedById: userId },
+      });
+      if (count) await this.activity.record(transaction, { spaceId, actorId: userId, verb: trashed ? 'item.trashed' : 'item.restored', data: { title: `${count} transactions` } });
+      return count;
+    });
+    return { [trashed ? 'trashed' : 'restored']: changed };
   }
 
   async create(userId: string, spaceId: string, input: CreateExpenseDto) {
