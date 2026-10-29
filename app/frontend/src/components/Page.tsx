@@ -38,7 +38,7 @@ export function BackLink({ back }: { back: Back }) {
 }
 
 const swipeIgnored =
-  'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, .task-row, .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
+  'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, [data-swipeable], .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
 let swipedFrom: 1 | -1 | undefined;
 
 function stillMotion() {

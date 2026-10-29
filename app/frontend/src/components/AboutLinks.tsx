@@ -2,16 +2,15 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth';
 import { androidReleasesPageUrl, isNativeAndroid } from '../native-capture';
 
-export function AboutLinks({ className = '', legal = true }: { className?: string; legal?: boolean }) {
+export function AboutLinks({ className = '' }: { className?: string }) {
   const auth = useAuth();
-  const links = !legal
+  const links = auth.user
     ? []
-    : auth.user
-      ? [['/settings/legal', 'Legal']]
-      : [
-          ['/privacy', 'Privacy'],
-          ['/terms', 'Terms'],
-        ];
+    : [
+        ['/privacy', 'Privacy'],
+        ['/terms', 'Terms'],
+      ];
+  if (isNativeAndroid() && !links.length) return null;
   return (
     <nav aria-label="About" className={`mono-sm flex gap-5 ${className}`}>
       {!isNativeAndroid() && (

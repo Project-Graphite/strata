@@ -22,6 +22,7 @@ import { enabledApps } from '../apps';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections } from '../navigation';
 import { ActiveSpaceProvider, SpacesContext, useChosenSpace, type Space } from '../spaces';
 import { PageNavigationProvider } from '../page-navigation';
+import { pageScroller } from '../page-scroll';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { AboutLinks } from './AboutLinks';
@@ -67,7 +68,7 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   const area = /^\/(?:spaces\/[^/]+|settings|spending|agenda|pages|recipes|tidy)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    pageScroller().scrollTo({ top: 0, behavior: 'instant' });
   }, [area]);
   return null;
 }

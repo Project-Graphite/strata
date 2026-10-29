@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
 import { Avatar, Badge, Card, SectionHeading } from '@project-graphite/ui';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useAuth } from '../auth';
+import { pageScroller } from '../page-scroll';
+import { usePageVirtualizer } from '../page-virtualizer';
 import { groupTasks, reorderTask } from '../task-groups';
 import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task } from '../tasks';
 import { profileDay } from '../time';
@@ -98,9 +99,9 @@ function GroupRows({
   const [dragging, setDragging] = useState<string>();
   const [over, setOver] = useState<string>();
   useLayoutEffect(() => {
-    if (virtual && list.current) setMargin(list.current.getBoundingClientRect().top + window.scrollY);
+    if (virtual && list.current) setMargin(list.current.getBoundingClientRect().top + pageScroller().scrollTop);
   });
-  const virtualizer = useWindowVirtualizer({ count: tasks.length, enabled: virtual, estimateSize: () => 64, overscan: 10, scrollMargin: margin });
+  const virtualizer = usePageVirtualizer({ count: tasks.length, enabled: virtual, estimateSize: () => 64, overscan: 10, scrollMargin: margin });
 
   function reorder(task: Task, to: number) {
     const target = reorderTask(tasks, task.id, to);

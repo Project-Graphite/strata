@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { Dialog, Placeholder, type TagColor, TextLink } from '@project-graphite/ui';
 import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
+import { pageScroller } from '../page-scroll';
 import { repeatLabel } from '../tasks';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
@@ -171,14 +172,15 @@ export function EntryPeek({ anchor, entry, onClose, onEdit, onOpen }: { anchor: 
   useEffect(() => {
     const close = (event: Event) => {
       if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Escape') return;
+      if (event.type === 'scroll' && event.target !== document && event.target !== pageScroller()) return;
       onClose();
       anchor.focus({ preventScroll: true });
     };
     window.addEventListener('keydown', close);
-    window.addEventListener('scroll', close, { passive: true });
+    window.addEventListener('scroll', close, { passive: true, capture: true });
     return () => {
       window.removeEventListener('keydown', close);
-      window.removeEventListener('scroll', close);
+      window.removeEventListener('scroll', close, true);
     };
   }, [anchor, onClose]);
 

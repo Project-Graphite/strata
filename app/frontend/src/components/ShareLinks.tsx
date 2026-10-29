@@ -72,7 +72,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
             <Subheading>Anyone with the link</Subheading>
             {page && <Hint>This page only</Hint>}
           </div>
-          <div className={`grid grid-cols-1 items-end gap-3 ${editLinks ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}>
+          <div className={`grid grid-cols-1 items-stretch gap-3 ${editLinks ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}>
             {editLinks && <Select label="Access" onChange={setAccess} options={accessOptions} size="small" value={access} />}
             <Select label="Expires in" onChange={setDays} options={durationOptions} size="small" value={days} />
             <Button
