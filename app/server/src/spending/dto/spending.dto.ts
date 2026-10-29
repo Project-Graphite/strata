@@ -244,10 +244,11 @@ export class SavePlanDto {
   @CurrencyCode()
   currency!: string | null;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(28, { message: 'Months start on day 1 to 28.' })
-  startDay!: number;
+  startDay?: number;
 
   @IsBoolean()
   rollover!: boolean;

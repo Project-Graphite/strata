@@ -102,12 +102,12 @@ export class SpendingService {
     await this.access.assertPersonalSpace(userId, spaceId);
     if ((input.budgetMinor === null) !== (input.currency === null)) throw new BadRequestException('Give the monthly budget an amount and a currency');
     const { startDay, ...settings } = input;
-    const [plan] = await this.prisma.$transaction([
+    const [plan, user] = await this.prisma.$transaction([
       this.prisma.spendingPlan.upsert({ where: { spaceId }, create: { spaceId, ...settings }, update: settings }),
-      this.prisma.user.update({ where: { id: userId }, data: { monthStartDay: startDay } }),
+      this.prisma.user.update({ where: { id: userId }, data: { monthStartDay: startDay }, select: { monthStartDay: true } }),
     ]);
     this.changes.notify('spending', { spaceId });
-    return { budgetMinor: plan.budgetMinor === null ? null : Number(plan.budgetMinor), currency: plan.currency, startDay, rollover: plan.rollover };
+    return { budgetMinor: plan.budgetMinor === null ? null : Number(plan.budgetMinor), currency: plan.currency, startDay: user.monthStartDay, rollover: plan.rollover };
   }
 
   private async summary(userId: string, spaceId: string, month?: string) {

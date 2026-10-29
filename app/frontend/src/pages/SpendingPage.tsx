@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, Toggle } from '@project-graphite/ui';
+import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, TextLink, Toggle } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -40,7 +40,6 @@ import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
 import { CurrencyField } from '../components/CurrencyField';
-import { DayOfMonthField } from '../components/DayOfMonthField';
 import { MissingRates } from '../components/Stats';
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -884,7 +883,6 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         const body = {
           budgetMinor: budget ? toMinor(budget, chosenCurrency) : null,
           currency: budget ? chosenCurrency : null,
-          startDay: Number(new FormData(target).get('startDay')) || 1,
           rollover,
         };
         void saving
@@ -909,7 +907,9 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
-      <DayOfMonthField defaultValue={plan.startDay === 1 ? '' : String(plan.startDay)} emptyLabel="The 1st (calendar month)" label="Months start on" last={28} name="startDay" />
+      <Hint>
+        Months start on {plan.startDay === 1 ? 'the 1st' : `day ${plan.startDay}`}. Change it in <TextLink href="/settings">Settings › Profile</TextLink>.
+      </Hint>
       <Toggle checked={rollover} label="Carry what’s left into next month" onChange={setRollover} />
     </FormDialog>
   );

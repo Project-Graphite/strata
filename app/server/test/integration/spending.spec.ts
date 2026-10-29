@@ -206,6 +206,7 @@ describe('Spending and budgets against Postgres', () => {
     expect((await plan({ budgetMinor: 100_000, currency: 'EGP', startDay: 29, rollover: true })).status).toBe(400);
     expect((await viewer.call('PUT', `/spaces/${home.id}/spending-plan`, { budgetMinor: null, currency: null, startDay: 1, rollover: false })).status).toBe(404);
     expect((await plan({ budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true })).body).toEqual({ budgetMinor: 100_000, currency: 'EGP', startDay: 25, rollover: true });
+    expect((await plan({ budgetMinor: 100_000, currency: 'EGP', rollover: true })).body.startDay).toBe(25);
     expect((await owner.call('GET', '/me')).body).toMatchObject({ monthStartDay: 25, budgetsEnabled: true });
     expect((await partner.call('GET', '/me')).body.monthStartDay).toBe(1);
     await owner.call('PUT', `/spaces/${home.id}/budgets/groceries`, { amountMinor: 10_000, currency: 'EGP' });
