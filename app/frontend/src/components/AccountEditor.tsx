@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Select, TextField } from '@project-graphite/ui';
+import { Icon, Select, tagColors, TextField, type IconName, type TagColor } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { accountKindOptions, type AccountKind, type MoneyAccount } from '../spending';
+import { accountKindOptions, categoryName, type AccountKind, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { atMost, moneyAmount, required, useFormErrors, type Check } from '../validation';
@@ -17,15 +17,23 @@ const listOf = (text: string) =>
 
 const cardEndings: Check = (value) => (listOf(value).every((part) => /^\d{4}$/.test(part)) ? undefined : 'Enter the last 4 digits of each card, separated by commas.');
 const optionalAmount: Check = (value) => (value.trim() ? moneyAmount(value) : undefined);
+const colourOptions = [
+  { value: '' as const, label: 'No colour' },
+  ...tagColors.map((colour) => ({ value: colour, label: categoryName(colour), leading: <span aria-hidden="true" className={`swatch-dot tag-${colour}`} /> })),
+];
+const accountIcons: IconName[] = ['wallet', 'home', 'lock', 'shield', 'monitor', 'target', 'key', 'clock', 'gift', 'plane', 'user', 'tag'];
+const iconOptions = [{ value: '' as const, label: 'By type' }, ...accountIcons.map((icon) => ({ value: icon, label: categoryName(icon), leading: <Icon name={icon} size={16} /> }))];
 
 export function AccountEditor({
   account,
+  accounts,
   currency,
   onClose,
   onSaved,
   spaceId,
 }: {
   account?: MoneyAccount;
+  accounts: MoneyAccount[];
   currency: string;
   onClose: () => void;
   onSaved: () => void;
@@ -36,8 +44,12 @@ export function AccountEditor({
   const form = useFormErrors();
   const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank_current');
   const [chosenCurrency, setChosenCurrency] = useState(account?.currency ?? currency);
+  const [fundedBy, setFundedBy] = useState(account?.fundedByAccountId ?? '');
+  const [colour, setColour] = useState<TagColor | ''>(account?.colour ?? '');
+  const [icon, setIcon] = useState<IconName | ''>(account?.icon ?? '');
   const owed = kind === 'credit_card';
   const shownBalance = account ? fromMinor(Math.abs(account.balanceMinor), account.currency) : '';
+  const funders = accounts.filter((other) => other.id !== account?.id && (!other.archivedAt || other.id === fundedBy));
 
   return (
     <FormDialog
@@ -48,9 +60,11 @@ export function AccountEditor({
         if (
           !form.check(target, {
             name: [required('Name the account.'), atMost(60, 'Use at most 60 characters.')],
+            institution: [atMost(60, 'Use at most 60 characters.')],
+            handle: [atMost(120, 'Use at most 120 characters.')],
             balance: [optionalAmount],
             creditLimit: [optionalAmount],
-            cardDigits: [cardEndings],
+            ...(account ? {} : { cardDigits: [cardEndings] }),
           })
         ) {
           return;
@@ -62,7 +76,12 @@ export function AccountEditor({
           name: text('name'),
           kind,
           currency: chosenCurrency,
-          cardDigits: listOf(text('cardDigits')),
+          institution: text('institution') || null,
+          handle: text('handle') || null,
+          fundedByAccountId: fundedBy || null,
+          colour: colour || null,
+          icon: icon || null,
+          ...(account ? {} : { cardDigits: listOf(text('cardDigits')) }),
           senders: listOf(text('senders')),
           creditLimitMinor: owed && text('creditLimit') ? toMinor(text('creditLimit'), chosenCurrency) : null,
           dueDay: owed && text('dueDay') ? Number(text('dueDay')) : null,
@@ -97,10 +116,32 @@ export function AccountEditor({
             presets={[{ label: 'Last day', value: '31' }]}
           />
         )}
+        <TextField autoComplete="off" defaultValue={account?.institution ?? ''} label="Bank or provider (optional)" maxLength={60} placeholder="CIB, Vodafone, valU" {...form.field('institution')} />
+        {kind !== 'cash' && (
+          <TextField
+            autoComplete="off"
+            defaultValue={account?.handle ?? ''}
+            dir="auto"
+            label="InstaPay address or wallet number (optional)"
+            maxLength={120}
+            placeholder="name@instapay or 010…"
+            {...form.field('handle')}
+          />
+        )}
+        {funders.length > 0 && (
+          <Select
+            label="Funded by"
+            onChange={setFundedBy}
+            options={[{ value: '', label: 'Nothing' }, ...funders.map((other) => ({ value: other.id, label: other.name }))]}
+            value={fundedBy}
+          />
+        )}
+        <Select label="Colour" onChange={setColour} options={colourOptions} value={colour} />
+        <Select label="Icon" onChange={setIcon} options={iconOptions} value={icon} />
       </div>
       {kind !== 'cash' && (
         <>
-          <TextField defaultValue={account?.cardDigits.join(', ')} inputMode="numeric" label="Card endings (optional)" placeholder="1234, 5678" {...form.field('cardDigits')} />
+          {!account && <TextField inputMode="numeric" label="Card endings (optional)" placeholder="1234, 5678" {...form.field('cardDigits')} />}
           <TextField defaultValue={account?.senders.join(', ')} label="SMS chats or apps (optional)" placeholder="CIB, InstaPay, nSave, PayPal" {...form.field('senders')} />
         </>
       )}

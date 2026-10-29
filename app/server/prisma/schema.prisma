@@ -772,11 +772,13 @@ model TidyRule {
 }
 
 model ExchangeRate {
-  currency    String   @id
+  currency    String
   perEuro     Float    @map("per_euro")
   publishedOn DateTime @map("published_on") @db.Date
+  source      String   @default("ECB")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  @@id([currency, publishedOn])
   @@map("exchange_rates")
 }
 

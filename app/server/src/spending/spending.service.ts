@@ -6,12 +6,12 @@ import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService, fractionDigits, RateTable } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
+import { dateText, dateValue, dayMs, localDate, nextMonth } from '../recurrence/dates';
 import { renewalsBetween } from '../subscriptions/subscriptions.service';
 import { AccountsService } from './accounts.service';
-import { CategoriesService } from './categories.service';
-import { CreateExpenseDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
-import { dayBefore, daysBetween, monthOf, periodOf, previousMonth } from './periods';
+import { CategoriesService, merchantFor } from './categories.service';
+import { CreateExpenseDto, ExportDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
+import { dayAfter, dayBefore, daysBetween, monthOf, periodOf, previousMonth } from './periods';
 import { after, cursorOf, readCursor, runningBalances, transactionOrder, transactionsWhere } from './transactions';
 
 const expenseFields = {
@@ -56,6 +56,20 @@ function present(row: ExpenseRow) {
 
 type Movement = { direction: string; accountId: string | null; toAccountId: string | null };
 
+const rolloverMonths = 12;
+const renewalWindowDays = 3;
+
+const paysRenewal = (expense: ReturnType<typeof present>, subscription: { amountMinor: number; currency: string; item: { title: string } }, day: string) => {
+  const name = subscription.item.title.toLowerCase();
+  return (
+    expense.direction === 'spent' &&
+    expense.currency === subscription.currency &&
+    Math.abs(expense.amountMinor - subscription.amountMinor) * 10 <= subscription.amountMinor &&
+    Math.abs(daysBetween(expense.spentOn, day)) <= renewalWindowDays &&
+    [expense.merchant, expense.title].some((text) => text && (text.toLowerCase().includes(name) || name.includes(text.toLowerCase())))
+  );
+};
+
 const movementOf = (input: Pick<CreateExpenseDto, 'direction' | 'accountId' | 'toAccountId'>): Movement => {
   const direction = input.direction ?? 'spent';
   return { direction, accountId: input.accountId ?? null, toAccountId: direction === 'transfer' ? (input.toAccountId ?? null) : null };
@@ -74,6 +88,7 @@ const expenseData = (input: CreateExpenseDto, source: string) => {
     note: input.note ?? '',
     merchant: input.merchant || null,
     cardDigits: input.cardDigits ?? null,
+    reference: input.reference || null,
     source,
     kind: input.kind ?? kindOf(movement.direction),
     ...movement,
@@ -107,6 +122,7 @@ export class SpendingService {
       this.prisma.user.update({ where: { id: userId }, data: { monthStartDay: startDay }, select: { monthStartDay: true } }),
     ]);
     this.changes.notify('spending', { spaceId });
+    await this.alert(userId, spaceId);
     return { budgetMinor: plan.budgetMinor === null ? null : Number(plan.budgetMinor), currency: plan.currency, startDay: user.monthStartDay, rollover: plan.rollover };
   }
 
@@ -119,7 +135,7 @@ export class SpendingService {
     const today = localDate(user.timeZone);
     const shownMonth = month ?? monthOf(today, startDay);
     const { from, to } = periodOf(shownMonth, startDay);
-    const previous = periodOf(previousMonth(shownMonth), startDay);
+    const oldest = Array.from({ length: rolloverMonths }).reduce<string>((at) => previousMonth(at), shownMonth);
     const [rows, earlier, budgets, subscriptions, rates, categories] = await Promise.all([
       this.prisma.item.findMany({
         where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null, expense: { spentOn: { gte: dateValue(from), lt: dateValue(to) } } },
@@ -128,12 +144,12 @@ export class SpendingService {
       }),
       plan?.rollover
         ? this.prisma.expense.findMany({
-            where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(previous.from), lt: dateValue(previous.to) } },
-            select: { amountMinor: true, currency: true, direction: true, category: true },
+            where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(periodOf(oldest, startDay).from), lt: dateValue(from) } },
+            select: { amountMinor: true, currency: true, direction: true, category: true, spentOn: true },
           })
         : [],
       this.prisma.budget.findMany({ where: { spaceId }, orderBy: { category: 'asc' } }),
-      this.prisma.subscription.findMany({ where: { cancelledOn: null, item: { spaceId, trashedAt: null } } }),
+      this.prisma.subscription.findMany({ where: { cancelledOn: null, item: { spaceId, trashedAt: null } }, include: { item: { select: { title: true } } } }),
       this.rates.table(),
       this.categories.categories(spaceId),
     ]);
@@ -157,28 +173,70 @@ export class SpendingService {
     };
     const sum = (values: Iterable<number>) => [...values].reduce((total, amount) => total + amount, 0);
     const spent = spentBy(expenses);
-    const before = spentBy(earlier);
+    const earlierByMonth = new Map<string, (typeof earlier)[number][]>();
+    for (const expense of earlier) {
+      const key = monthOf(dateText(expense.spentOn), startDay);
+      earlierByMonth.set(key, earlierByMonth.get(key) ?? []);
+      earlierByMonth.get(key)!.push(expense);
+    }
+    const history = new Map([...earlierByMonth].map(([key, list]) => [key, spentBy(list)]));
+    const firstMonth = [...history.keys()].sort()[0];
+    const carried = (amount: number, category?: string) => {
+      let carry = 0;
+      if (!firstMonth) return carry;
+      for (let at = firstMonth; at < shownMonth; at = nextMonth(at)) {
+        const totals = history.get(at);
+        carry = Math.max(0, carry + amount - (category === undefined ? sum(totals?.values() ?? []) : (totals?.get(category) ?? 0)));
+      }
+      return carry;
+    };
     const receivedMinor = sum(expenses.filter((expense) => expense.direction === 'received').map((expense) => shown(expense.amountMinor, expense.currency)));
-    const carried = (amount: number, spentBefore: number) => (plan?.rollover ? amount - spentBefore : 0);
     const budgeted = new Map(
       budgets.map((budget) => {
         const amount = shown(budget.amountMinor, budget.currency);
-        const carriedMinor = carried(amount, before.get(budget.category) ?? 0);
+        const carriedMinor = carried(amount, budget.category);
         return [budget.category, { budgetMinor: amount + carriedMinor, carriedMinor }];
       }),
     );
     const planned = plan?.budgetMinor != null && plan.currency ? shown(plan.budgetMinor, plan.currency) : null;
-    const carriedMinor = planned === null ? sum([...budgeted.values()].map((budget) => budget.carriedMinor)) : carried(planned, sum(before.values()));
+    const carriedMinor = planned === null ? sum([...budgeted.values()].map((budget) => budget.carriedMinor)) : carried(planned);
     const budgetMinor = planned !== null ? planned + carriedMinor : budgets.length ? sum([...budgeted.values()].map((budget) => budget.budgetMinor)) : null;
     const spentMinor = sum(spent.values());
-    const committedMinor = subscriptions.reduce(
-      (total, subscription) => total + renewalsBetween(subscription, from, to).filter((day) => day >= from).length * shown(subscription.amountMinor, subscription.currency),
-      0,
+    const current = today >= from && today < to;
+    const renewals = subscriptions.flatMap((subscription) =>
+      renewalsBetween(subscription, from, to)
+        .filter((day) => day >= from && !expenses.some((expense) => paysRenewal(expense, subscription, day)))
+        .map((day) => ({ day, category: subscription.category, amountMinor: shown(subscription.amountMinor, subscription.currency) })),
     );
+    const upcoming = renewals.filter((renewal) => current && renewal.day >= today);
+    const committedMinor = sum(renewals.map((renewal) => renewal.amountMinor));
+    const upcomingMinor = sum(upcoming.map((renewal) => renewal.amountMinor));
+    const elapsed = daysBetween(from, today) + 1;
+    const length = daysBetween(from, to);
+    const paceOf = (spentSoFar: number, budget: number | null, still: number) => {
+      if (budget === null || !current) return null;
+      const daily = spentSoFar / elapsed;
+      const projectedMinor = Math.round(spentSoFar + daily * (length - elapsed) + still);
+      const room = budget - spentSoFar - still;
+      if (projectedMinor <= budget) return { projectedMinor, overOn: null };
+      return { projectedMinor, overOn: room <= 0 ? today : dateText(new Date(dateValue(today).getTime() + Math.ceil(room / daily) * dayMs)) };
+    };
+    const upcomingIn = (category: string) => sum(upcoming.filter((renewal) => renewal.category === category).map((renewal) => renewal.amountMinor));
     const totals = categories
       .map(({ name }) => name)
       .filter((category) => spent.has(category) || budgeted.has(category))
-      .map((category) => ({ category, spentMinor: spent.get(category) ?? 0, budgetMinor: budgeted.get(category)?.budgetMinor ?? null, carriedMinor: budgeted.get(category)?.carriedMinor ?? 0 }))
+      .map((category) => {
+        const budget = budgeted.get(category);
+        const categorySpent = spent.get(category) ?? 0;
+        return {
+          category,
+          spentMinor: categorySpent,
+          budgetMinor: budget?.budgetMinor ?? null,
+          carriedMinor: budget?.carriedMinor ?? 0,
+          committedMinor: upcomingIn(category),
+          pace: paceOf(categorySpent, budget?.budgetMinor ?? null, upcomingIn(category)),
+        };
+      })
       .sort((a, b) => b.spentMinor - a.spentMinor);
     return {
       month: shownMonth,
@@ -191,8 +249,10 @@ export class SpendingService {
       receivedMinor,
       budgetMinor,
       carriedMinor,
-      safeDailyMinor: budgetMinor !== null && today >= from && today < to ? Math.floor(Math.max(0, budgetMinor - spentMinor) / daysBetween(today, to)) : null,
+      safeDailyMinor: budgetMinor !== null && current ? Math.floor(Math.max(0, budgetMinor - spentMinor - upcomingMinor) / daysBetween(today, to)) : null,
       committedMinor,
+      upcomingMinor,
+      pace: paceOf(spentMinor, budgetMinor, upcomingMinor),
       budgetsEnabled: user.budgetsEnabled,
       categories: totals,
       budgets: budgets.map((budget) => ({ category: budget.category, amountMinor: Number(budget.amountMinor), currency: budget.currency })),
@@ -200,9 +260,9 @@ export class SpendingService {
       expenses,
     };
   }
-
   private async alert(userId: string, spaceId: string) {
     const summary = await this.summary(userId, spaceId);
+    if (!summary.budgetsEnabled) return;
     const reached = (spent: number, budget: number) => [80, 100].filter((level) => (budget > 0 ? spent * 100 >= budget * level : spent > 0));
     const targets = [
       ...(summary.budgetMinor === null ? [] : [{ category: '', spent: summary.spentMinor, budget: summary.budgetMinor }]),
@@ -248,13 +308,14 @@ export class SpendingService {
     const months = [current];
     while (months.length < count) months.unshift(previousMonth(months[0]!));
     const periods = months.map((month) => ({ month, ...periodOf(month, startDay) }));
-    const [expenses, rates] = await Promise.all([
+    const [expenses, rates, known] = await Promise.all([
       this.prisma.expense.findMany({
         where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(periods[0]!.from), lt: dateValue(periods.at(-1)!.to) } },
-        select: { amountMinor: true, currency: true, direction: true, category: true, merchant: true, spentOn: true, item: { select: { title: true } } },
+        select: { amountMinor: true, currency: true, direction: true, category: true, merchant: true, knownMerchant: { select: { id: true, name: true } }, spentOn: true, item: { select: { title: true } } },
         orderBy: { spentOn: 'asc' },
       }),
       this.rates.table(),
+      this.prisma.merchant.findMany({ where: { spaceId }, select: { id: true, name: true, aliases: true } }),
     ]);
     const currency = user.homeCurrency ?? plan?.currency ?? expenses[0]?.currency ?? 'EGP';
     const missing = new Set<string>();
@@ -270,11 +331,13 @@ export class SpendingService {
       amount: shown(Number(expense.amountMinor), expense.currency) * (expense.direction === 'refund' ? -1 : 1),
       spending: expense.direction === 'spent' || expense.direction === 'refund',
     }));
-    const merchants = new Map<string, { merchant: string; count: number; totalMinor: number; lastOn: string }>();
+    const merchants = new Map<string, { merchantId: string | null; merchant: string; count: number; totalMinor: number; lastOn: string }>();
     for (const row of rows.filter((candidate) => candidate.direction === 'spent')) {
-      const merchant = (row.merchant ?? row.item.title).trim();
-      const known = merchants.get(merchant.toLowerCase()) ?? { merchant, count: 0, totalMinor: 0, lastOn: row.day };
-      merchants.set(merchant.toLowerCase(), { ...known, count: known.count + 1, totalMinor: known.totalMinor + row.amount, lastOn: row.day });
+      const text = (row.merchant ?? row.item.title).trim();
+      const entity = row.knownMerchant ?? merchantFor(known, text);
+      const key = entity?.id ?? text.toLowerCase();
+      const seen = merchants.get(key) ?? { merchantId: entity?.id ?? null, merchant: entity?.name ?? text, count: 0, totalMinor: 0, lastOn: row.day };
+      merchants.set(key, { ...seen, count: seen.count + 1, totalMinor: seen.totalMinor + row.amount, lastOn: row.day });
     }
     const latest = periods.at(-1)!;
     const days: { day: string; spentMinor: number }[] = [];
@@ -305,11 +368,11 @@ export class SpendingService {
     };
   }
 
-  async export(userId: string, spaceId: string) {
+  async export(userId: string, spaceId: string, { from, until }: ExportDto) {
     await this.access.assertPersonalSpace(userId, spaceId);
     const [rows, accounts] = await Promise.all([
       this.prisma.item.findMany({
-        where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null },
+        where: { spaceId, kind: ItemKind.EXPENSE, trashedAt: null, expense: { spentOn: { gte: from ? dateValue(from) : undefined, lte: until ? dateValue(until) : undefined } } },
         orderBy: [{ expense: { spentOn: 'asc' } }, { createdAt: 'asc' }],
         select: expenseFields,
       }),
@@ -332,11 +395,15 @@ export class SpendingService {
         accountName(expense.accountId),
         accountName(expense.toAccountId),
         expense.note,
+        expense.cardDigits ?? '',
+        expense.paymentLabel ?? '',
+        expense.source,
+        expense.id,
       ]
         .map(cell)
         .join(','),
     );
-    return `${['date', 'title', 'merchant', 'type', 'amount', 'currency', 'category', 'account', 'to account', 'note'].join(',')}\r\n${lines.map((line) => `${line}\r\n`).join('')}`;
+    return `${['date', 'title', 'merchant', 'type', 'amount', 'currency', 'category', 'account', 'to account', 'note', 'card', 'label', 'source', 'id'].join(',')}\r\n${lines.map((line) => `${line}\r\n`).join('')}`;
   }
 
   async transactions(userId: string, spaceId: string, { cursor, limit = 100, ...filters }: TransactionsDto) {
@@ -433,6 +500,7 @@ export class SpendingService {
       if (count) await this.activity.record(transaction, { spaceId, actorId: userId, verb: trashed ? 'item.trashed' : 'item.restored', data: { title: `${count} transactions` } });
       return count;
     });
+    if (!trashed && changed) await this.alert(userId, spaceId);
     return { [trashed ? 'trashed' : 'restored']: changed };
   }
 
@@ -452,6 +520,33 @@ export class SpendingService {
     return id!;
   }
 
+  async duplicates(userId: string, spaceId: string, inputs: CreateExpenseDto[]) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    const days = inputs.map((input) => input.spentOn).sort();
+    const existing = await this.prisma.expense.findMany({
+      where: { item: { spaceId, trashedAt: null }, spentOn: { gte: dateValue(dayBefore(days[0]!)), lte: dateValue(dayAfter(days.at(-1)!)) } },
+      select: { itemId: true, amountMinor: true, currency: true, direction: true, accountId: true, spentOn: true, reference: true },
+    });
+    const used = new Set<string>();
+    const duplicates: number[] = [];
+    inputs.forEach((input, index) => {
+      const match = existing.find(
+        (row) =>
+          !used.has(row.itemId) &&
+          (row.reference && input.reference
+            ? row.reference === input.reference
+            : row.direction === (input.direction ?? 'spent') &&
+              Number(row.amountMinor) === input.amountMinor &&
+              row.currency === input.currency &&
+              (!input.accountId || row.accountId === input.accountId) &&
+              Math.abs(daysBetween(dateText(row.spentOn), input.spentOn)) <= 1),
+      );
+      if (!match) return;
+      used.add(match.itemId);
+      duplicates.push(index);
+    });
+    return { duplicates };
+  }
   async get(userId: string, itemId: string) {
     return present(await this.row(userId, itemId));
   }
@@ -506,6 +601,7 @@ export class SpendingService {
       update: { amountMinor: input.amountMinor, currency: input.currency },
     });
     this.changes.notify('spending', { spaceId });
+    await this.alert(userId, spaceId);
     return { category: budget.category, amountMinor: Number(budget.amountMinor), currency: budget.currency };
   }
 
@@ -529,13 +625,16 @@ export class SpendingService {
   private async insert(userId: string, spaceId: string, inputs: CreateExpenseDto[], source: string) {
     await this.checkAccounts(spaceId, inputs.map(movementOf));
     for (const category of new Set(inputs.map((input) => input.category))) await this.categories.assertCategory(spaceId, category);
-    const cards = await this.prisma.card.findMany({ where: { account: { spaceId } }, select: { id: true, accountId: true, last4: true } });
+    const [cards, merchants] = await Promise.all([
+      this.prisma.card.findMany({ where: { account: { spaceId } }, select: { id: true, accountId: true, last4: true } }),
+      this.prisma.merchant.findMany({ where: { spaceId }, select: { id: true, aliases: true } }),
+    ]);
     const cardIdOf = (input: CreateExpenseDto) => cards.find((card) => card.accountId === input.accountId && card.last4 === input.cardDigits)?.id ?? null;
     const ids = await this.prisma.$transaction(async (transaction) => {
       const created: string[] = [];
       for (const input of inputs) {
         const item = await transaction.item.create({
-          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: { ...expenseData(input, source), cardId: cardIdOf(input) } } },
+          data: { spaceId, kind: ItemKind.EXPENSE, title: input.title, createdById: userId, updatedById: userId, expense: { create: { ...expenseData(input, source), cardId: cardIdOf(input), merchantId: merchantFor(merchants, input.merchant ?? input.title)?.id ?? null } } },
           select: { id: true },
         });
         created.push(item.id);

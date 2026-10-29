@@ -7,8 +7,8 @@ describe('Savings goals and net worth against Postgres', () => {
   const { member } = strata;
 
   it('tracks goals by hand or by account and adds up net worth from accounts, assets and installments', async () => {
-    await strata.prisma.exchangeRate.upsert({ where: { currency: 'EGP' }, create: { currency: 'EGP', perEuro: 50, publishedOn: new Date('2026-10-09') }, update: { perEuro: 50 } });
-    await strata.prisma.exchangeRate.upsert({ where: { currency: 'EUR' }, create: { currency: 'EUR', perEuro: 1, publishedOn: new Date('2026-10-09') }, update: { perEuro: 1 } });
+    await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency: 'EGP', publishedOn: new Date('2100-01-01') } }, create: { currency: 'EGP', perEuro: 50, publishedOn: new Date('2100-01-01') }, update: { perEuro: 50 } });
+    await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency: 'EUR', publishedOn: new Date('2100-01-01') } }, create: { currency: 'EUR', perEuro: 1, publishedOn: new Date('2100-01-01') }, update: { perEuro: 1 } });
     const owner = await member('saver-of-wealth');
     const viewer = await member('wealth-viewer');
     const home = { id: owner.personalSpaceId };

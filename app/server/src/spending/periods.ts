@@ -13,4 +13,6 @@ export const monthOf = (day: string, startDay: number) => (Number(day.slice(8)) 
 
 export const dayBefore = (day: string) => dateText(new Date(dateValue(day).getTime() - dayMs));
 
+export const dayAfter = (day: string) => dateText(new Date(dateValue(day).getTime() + dayMs));
+
 export const daysBetween = (from: string, to: string) => Math.round((dateValue(to).getTime() - dateValue(from).getTime()) / dayMs);

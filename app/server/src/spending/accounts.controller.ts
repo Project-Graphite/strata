@@ -4,7 +4,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { AccountsService } from './accounts.service';
-import { CreateAccountDto, UpdateAccountDto } from './dto/accounts.dto';
+import { CreateAccountDto, CreateCardDto, ReconcileAccountDto, UpdateAccountDto, UpdateCardDto } from './dto/accounts.dto';
 
 @Controller()
 export class AccountsController {
@@ -39,5 +39,30 @@ export class AccountsController {
   @HttpCode(204)
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.accounts.remove(user.id, id);
+  }
+
+  @Post('accounts/:id/reconcile')
+  @Scope('items:write')
+  reconcile(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: ReconcileAccountDto) {
+    return this.accounts.reconcile(user.id, id, input.balanceMinor);
+  }
+
+  @Post('accounts/:id/cards')
+  @Scope('items:write')
+  addCard(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: CreateCardDto) {
+    return this.accounts.addCard(user.id, id, input);
+  }
+
+  @Patch('cards/:id')
+  @Scope('items:write')
+  updateCard(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateCardDto) {
+    return this.accounts.updateCard(user.id, id, input);
+  }
+
+  @Delete('cards/:id')
+  @Scope('items:write')
+  @HttpCode(204)
+  removeCard(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.accounts.removeCard(user.id, id);
   }
 }

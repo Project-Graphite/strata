@@ -7,8 +7,8 @@ describe('Trips against Postgres', () => {
   const { member, upload } = strata;
 
   it('keeps a trip with its packing list, itinerary, documents, notes and spending in one place', async () => {
-    await strata.prisma.exchangeRate.upsert({ where: { currency: 'EUR' }, create: { currency: 'EUR', perEuro: 1, publishedOn: new Date('2026-10-09') }, update: { perEuro: 1 } });
-    await strata.prisma.exchangeRate.upsert({ where: { currency: 'USD' }, create: { currency: 'USD', perEuro: 1.25, publishedOn: new Date('2026-10-09') }, update: { perEuro: 1.25 } });
+    await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency: 'EUR', publishedOn: new Date('2100-01-01') } }, create: { currency: 'EUR', perEuro: 1, publishedOn: new Date('2100-01-01') }, update: { perEuro: 1 } });
+    await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency: 'USD', publishedOn: new Date('2100-01-01') } }, create: { currency: 'USD', perEuro: 1.25, publishedOn: new Date('2100-01-01') }, update: { perEuro: 1.25 } });
     const owner = await member('traveller');
     const friend = await member('companion');
     const outsider = await member('stay-at-home');

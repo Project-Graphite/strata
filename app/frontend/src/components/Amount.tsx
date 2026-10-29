@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ExpenseDirection } from '../spending';
+import type { ExpenseDirection, MoneyAccount } from '../spending';
 import { money } from '../subscriptions';
 
 function useTween(target: number, enabled: boolean) {
@@ -32,5 +32,13 @@ export function Amount({ children, currency, danger, direction, minor, tween = f
       {money(shown, currency)}
       {children}
     </span>
+  );
+}
+
+export function AccountBalance({ account }: { account: MoneyAccount }) {
+  return (
+    <Amount currency={account.currency} minor={account.kind === 'credit_card' ? Math.max(0, -account.balanceMinor) : account.balanceMinor}>
+      {account.kind === 'credit_card' && ' owed'}
+    </Amount>
   );
 }
