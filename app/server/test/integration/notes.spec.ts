@@ -73,6 +73,8 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(board.status).toBe(201);
     expect(board.body.kind).toBe('board');
     expect((await owner.call('GET', `/notes/${board.body.id}/board`)).body.elements).toEqual([{ id: 'shape', type: 'rectangle', x: 10, y: 20, version: 1 }]);
+    expect((await owner.call('GET', `/notes/${board.body.id}/board/thumbnail`)).body.thumbnail).toContain('<rect x="10" y="20"');
+    expect((await strata.prisma.noteDocument.findUniqueOrThrow({ where: { itemId: board.body.id } })).thumbnail).toContain('<rect x="10" y="20"');
     expect(board.body.id).not.toBe(recovered.body.id);
     original.destroy();
     copy.destroy();
@@ -395,6 +397,8 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(stored?.bodyText).toBe('Top table');
     expect((await friend.call('GET', `/notes/${board.id}/board`)).body.elements).toEqual([expect.objectContaining({ id: 'table-1', text: 'Top table' })]);
     expect((await friend.call('GET', `/notes/${page.id}/board`)).status).toBe(404);
+    expect((await friend.call('GET', `/notes/${board.id}/board/thumbnail`)).body.thumbnail).toContain('>Top table</tspan>');
+    expect((await friend.call('GET', `/notes/${page.id}/board/thumbnail`)).status).toBe(404);
 
     theirs.provider.destroy();
     mine.provider.destroy();

@@ -33,6 +33,8 @@ describe('live shared documents', () => {
   let realtime: RealtimeService;
   let base: string;
   let stored: Map<string, Buffer>;
+  let thumbnails: Map<string, string | undefined>;
+  let accessQueries: number;
   let links: Map<string, { id: string; itemId: string; access: ShareAccess; expiresAt: Date; revokedAt: Date | null }>;
   let commit: (operations: Promise<unknown>[]) => Promise<unknown[]>;
   let lastEditor: string | null | undefined;
@@ -40,7 +42,10 @@ describe('live shared documents', () => {
 
   beforeEach(async () => {
     stored = new Map();
+    thumbnails = new Map();
+    accessQueries = 0;
     lastEditor = undefined;
+    const signedInAt = new Date();
     links = new Map(['page', 'board'].flatMap((itemId) => [ShareAccess.VIEW, ShareAccess.EDIT].map((access) => [
       linkTokenHash(`${itemId}-${access}`),
       { id: `${itemId}-${access}`, itemId, access, expiresAt: new Date(Date.now() + 60_000), revokedAt: null },
@@ -55,11 +60,17 @@ describe('live shared documents', () => {
             const link = links.get(where.tokenHash);
             return link && link.itemId === where.itemId && !link.revokedAt && link.expiresAt > new Date() ? link : null;
           },
-          count: async ({ where }: { where: { id: string } }) => Number([...links.values()].some((link) => link.id === where.id && !link.revokedAt && link.expiresAt > new Date())),
+          findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+            accessQueries += 1;
+            return [...links.values()].filter((link) => where.id.in.includes(link.id) && !link.revokedAt && link.expiresAt > new Date()).map(({ id }) => ({ id }));
+          },
         },
         noteDocument: {
           findUnique: async ({ where }: { where: { itemId: string } }) => stored.has(where.itemId) ? { state: stored.get(where.itemId) } : null,
-          upsert: async ({ where, update }: { where: { itemId: string }; update: { state: Buffer } }) => ({ itemId: where.itemId, state: update.state }),
+          upsert: async ({ where, update }: { where: { itemId: string }; update: { state: Buffer; thumbnail?: string } }) => {
+            thumbnails.set(where.itemId, update.thumbnail);
+            return { itemId: where.itemId, state: update.state };
+          },
         },
         searchDocument: { updateMany: async () => ({ count: 1 }) },
         item: {
@@ -71,8 +82,11 @@ describe('live shared documents', () => {
           },
         },
         refreshSession: {
-          findUniqueOrThrow: async () => ({ signedInAt: new Date(), user: { displayName: 'Member' } }),
-          count: async () => 1,
+          findUniqueOrThrow: async () => ({ signedInAt, user: { displayName: 'Member' } }),
+          findMany: async ({ where }: { where: { userId: { in: string[] } } }) => {
+            accessQueries += 1;
+            return where.userId.in.map((userId) => ({ userId, signedInAt }));
+          },
         },
         itemLink: { findMany: async () => [] },
         noteVersion: { findFirst: async () => null, create: async () => ({}) },
@@ -88,7 +102,13 @@ describe('live shared documents', () => {
       { validate: async ({ sub }: { sub: string }) => ({ id: sub }) } as never,
       { notify: () => undefined } as never,
       new ConfigService({ AUTH_TRUSTED_ORIGINS: 'http://localhost:4104', AUTH_ACCESS_TOKEN_SECRET: 'test-realtime-secret' }),
-      { assertPage: async () => ({ role: SpaceRole.OWNER, trashedAt: null, permissions: { organize: true } }) } as never,
+      {
+        assertPage: async () => ({ role: SpaceRole.OWNER, trashedAt: null, permissions: { organize: true } }),
+        openPageAccess: async () => {
+          accessQueries += 1;
+          return () => ({ role: SpaceRole.OWNER, permissions: { organize: true } });
+        },
+      } as never,
     );
     realtime.onApplicationBootstrap();
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -106,8 +126,7 @@ describe('live shared documents', () => {
     await vi.waitFor(() => expect(realtime.hocuspocus.documents.size).toBe(0));
   });
 
-  function open(token: string, name = 'page') {
-    const document = new Y.Doc();
+  function open(token: string, name = 'page', document = new Y.Doc()) {
     const messages: Peer['messages'] = [];
     const closed: string[] = [];
     const socket = new HocuspocusProviderWebsocket({ url: base, WebSocketPolyfill: TrustedSocket });
@@ -388,5 +407,43 @@ describe('live shared documents', () => {
     const editor = await open(guest('board-EDIT'), 'board');
     editor.document.getMap('board').set('box', { type: 'rectangle', version: 1 });
     await vi.waitFor(() => expect(host.document.getMap('board').get('box')).toEqual({ type: 'rectangle', version: 1 }));
+  });
+
+  it('stores a thumbnail with each board save and leaves pages without one', async () => {
+    const board = await open('member', 'board');
+    board.document.getMap('board').set('box', { id: 'box', type: 'rectangle', x: 0, y: 0, width: 40, height: 20, version: 1 });
+    await vi.waitFor(() => expect(realtime.hocuspocus.documents.get('board')!.getMap('board').has('box')).toBe(true));
+    realtime.hocuspocus.flushPendingStores();
+    await vi.waitFor(() => expect(thumbnails.get('board')).toContain('<rect x="0" y="0" width="40" height="20"'));
+    const page = await open('member');
+    write(page.document, 'No drawing here');
+    await vi.waitFor(() => expect(realtime.hocuspocus.documents.get('page')!.getXmlFragment('default').length).toBe(1));
+    realtime.hocuspocus.flushPendingStores();
+    await vi.waitFor(() => expect(thumbnails.has('page')).toBe(true));
+    expect(thumbnails.get('page')).toBeUndefined();
+  });
+
+  it('accepts a near-limit board sent whole after reconnecting instead of refusing the frame', async () => {
+    const offline = new Y.Doc();
+    const elements = offline.getMap('board');
+    offline.transact(() => {
+      for (let index = 0; index < 1_400; index += 1) elements.set(`stroke-${index}`, { id: `stroke-${index}`, type: 'freedraw', version: 1, points: Array.from({ length: 200 }, (_, point) => [point + 0.5, point + 0.25]) });
+    });
+    expect(Y.encodeStateAsUpdate(offline).byteLength).toBeGreaterThan(3 * 1024 * 1024);
+    const editor = await open('member', 'board', offline);
+    await vi.waitFor(() => expect(realtime.hocuspocus.documents.get('board')!.getMap('board').size).toBe(1_400), { timeout: 5_000 });
+    expect(editor.closed).toEqual([]);
+  });
+
+  it('rechecks every open connection with one query per kind of access', async () => {
+    const host = await open('member');
+    await open('member');
+    await open('colleague', 'board');
+    const viewer = await open(guest('page-VIEW'));
+    accessQueries = 0;
+    await realtime.recheckAccess();
+    expect(accessQueries).toBe(3);
+    expect(host.closed).toEqual([]);
+    expect(viewer.closed).toEqual([]);
   });
 });

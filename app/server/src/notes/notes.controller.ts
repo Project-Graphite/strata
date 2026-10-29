@@ -75,6 +75,12 @@ export class NotesController {
     return this.notes.board(user.id, id);
   }
 
+  @Get('notes/:id/board/thumbnail')
+  @Scope('items:read')
+  boardThumbnail(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.notes.boardThumbnail(user.id, id);
+  }
+
   @Get('notes/:id/versions')
   @Scope('items:read')
   listVersions(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {

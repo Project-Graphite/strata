@@ -15,6 +15,7 @@ import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
 import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash } from '../crypto/link-token';
 import { boardElementsKey, documentLinks, documentText, pageKinds, updateLinks } from '../notes/document-text';
+import { boardThumbnail } from '../notes/board-thumbnail';
 import { maxDocumentBytes } from '../notes/document-limits';
 import { editorFormat } from '../notes/editor-format';
 import { PageAccessService } from '../notes/page-access.service';
@@ -22,12 +23,13 @@ export { editorFormat } from '../notes/editor-format';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const realtimePath = '/api/v1/realtime';
-const maxUpdateBytes = 2 * 1024 * 1024;
+const maxUpdateBytes = maxDocumentBytes + 256 * 1024;
 const maxDocumentsPerUser = 40;
 const maxGuestsPerLink = 100;
 const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
+const editingMs = 5_000;
 
 interface BoardVersion {
   version?: number;
@@ -51,6 +53,10 @@ function candidateLinks(document: Y.Doc, update: Uint8Array) {
   } finally {
     candidate.destroy();
   }
+}
+
+function sessionKey({ userId, signedInAt }: { userId: string; signedInAt?: Date | null }) {
+  return `${userId}/${signedInAt?.toISOString()}`;
 }
 
 function rejectUpgrade(socket: Duplex, status: number, reason: string) {
@@ -169,15 +175,17 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (context) this.lastEditors.set(documentName, context);
         const activity = connection && this.activity.get(connection);
         if (activity && !connection.readOnly) {
+          const wasEditing = !activity.idle && Date.now() - activity.editedAt < editingMs;
           activity.activeAt = Date.now();
           activity.editedAt = Date.now();
           activity.idle = false;
-          this.sendPresence(document, true);
+          if (!wasEditing) this.sendPresence(document, true);
         }
       },
       onStoreDocument: async ({ clientsCount, document, documentName, lastContext }) => {
         const state = Y.encodeStateAsUpdate(document);
         const snapshot = Y.snapshot(document);
+        const thumbnail = document.getMap(boardElementsKey).size > 0 ? boardThumbnail(document) : undefined;
         if (state.byteLength > maxDocumentBytes) {
           this.logger.warn(`Note ${documentName} is over the size limit and was not saved`);
           document.broadcastStateless(JSON.stringify({ type: 'too-large' }));
@@ -187,8 +195,8 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         const [, , item] = await this.prisma.$transaction([
           this.prisma.noteDocument.upsert({
             where: { itemId: documentName },
-            create: { itemId: documentName, state: Buffer.from(state) },
-            update: { state: Buffer.from(state) },
+            create: { itemId: documentName, state: Buffer.from(state), thumbnail },
+            update: { state: Buffer.from(state), thumbnail },
           }),
           this.prisma.searchDocument.updateMany({ where: { itemId: documentName }, data: { bodyText: documentText(document), updatedAt: new Date() } }),
           this.prisma.item.update({
@@ -228,7 +236,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       const context = connection.context as RealtimeContext;
       const id = context.userId === null ? `guest/${connection.socketId}` : `member/${context.userId}`;
       const activity = this.activity.get(connection);
-      const state = !activity || activity.idle || Date.now() - activity.activeAt > 45_000 ? 'idle' : !connection.readOnly && Date.now() - activity.editedAt < 5_000 ? 'editing' : 'reading';
+      const state = !activity || activity.idle || Date.now() - activity.activeAt > 45_000 ? 'idle' : !connection.readOnly && Date.now() - activity.editedAt < editingMs ? 'editing' : 'reading';
       const previous = people.get(id);
       people.set(id, {
         id, name: context.userId === null ? 'Guest' : context.name ?? 'Member',
@@ -381,27 +389,26 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   }
 
   async recheckAccess() {
-    const signedIn = new Map<string, Promise<boolean>>();
-    for (const [name, document] of this.hocuspocus.documents) {
-      for (const connection of document.connections.keys()) {
-        const context = connection.context as RealtimeContext | undefined;
-        if (!context) continue;
-        if (context.userId === null) {
-          if (!(await this.liveShareLink(context.shareLinkId))) connection.close({ code: 4403, reason: 'Access changed' });
-          continue;
-        }
-        const sessionKey = `${context.userId}/${context.signedInAt?.toISOString()}`;
-        if (!signedIn.has(sessionKey)) signedIn.set(sessionKey, this.stillSignedIn(context));
-        if (!(await signedIn.get(sessionKey))) {
-          connection.close({ code: 4401, reason: 'Signed out' });
-          continue;
-        }
-        const page = await this.pages
-          .assertPage(context.userId, name, 'read')
-          .then((found) => (found.trashedAt ? null : { role: found.role, restrictedReferences: !found.permissions.organize }))
-          .catch(() => null);
-        if (page?.role !== context.role || page?.restrictedReferences !== context.restrictedReferences) connection.close({ code: 4403, reason: 'Access changed' });
+    const open = [...this.hocuspocus.documents].flatMap(([name, document]) =>
+      [...document.connections.keys()].flatMap((connection) => (connection.context ? [{ name, connection, context: connection.context as RealtimeContext }] : [])),
+    );
+    const members = open.flatMap(({ context }) => (context.userId === null ? [] : [context]));
+    const [liveLinks, signedIn, access] = await Promise.all([
+      this.liveShareLinks([...new Set(open.flatMap(({ context }) => (context.userId === null ? [context.shareLinkId] : [])))]),
+      this.signedInSessions(members),
+      this.pages.openPageAccess([...new Set(open.map(({ name }) => name))], [...new Set(members.map((member) => member.userId))]),
+    ]);
+    for (const { name, connection, context } of open) {
+      if (context.userId === null) {
+        if (!liveLinks.has(context.shareLinkId)) connection.close({ code: 4403, reason: 'Access changed' });
+        continue;
       }
+      if (!signedIn.has(sessionKey(context))) {
+        connection.close({ code: 4401, reason: 'Signed out' });
+        continue;
+      }
+      const page = access(name, context.userId);
+      if (page?.role !== context.role || !page.permissions.organize !== context.restrictedReferences) connection.close({ code: 4403, reason: 'Access changed' });
     }
   }
 
@@ -439,22 +446,25 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     return { context: { userId: null, shareLinkId: link.id }, readOnly: link.access !== ShareAccess.EDIT };
   }
 
-  private async liveShareLink(id: string) {
-    return (await this.prisma.shareLink.count({ where: { id, revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } } })) > 0;
+  private async liveShareLinks(ids: string[]) {
+    if (ids.length === 0) return new Set<string>();
+    const live = await this.prisma.shareLink.findMany({ where: { id: { in: ids }, revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } }, select: { id: true } });
+    return new Set(live.map((link) => link.id));
   }
 
-  private async stillSignedIn({ userId, signedInAt }: { userId: string; signedInAt?: Date }) {
+  private async signedInSessions(members: { userId: string; signedInAt?: Date }[]) {
+    if (members.length === 0) return new Set<string>();
     const now = Date.now();
-    const live = await this.prisma.refreshSession.count({
+    const live = await this.prisma.refreshSession.findMany({
       where: {
-        userId,
-        signedInAt,
+        userId: { in: [...new Set(members.map((member) => member.userId))] },
         expiresAt: { gt: new Date(now) },
         OR: [{ revokedAt: null }, { revokedAt: { gt: new Date(now - refreshReuseGraceMs) } }],
         user: { isActive: true },
       },
+      select: { userId: true, signedInAt: true },
     });
-    return live > 0;
+    return new Set(live.flatMap((session) => [sessionKey(session), sessionKey({ userId: session.userId })]));
   }
 
   private upgrade(request: IncomingMessage, socket: Duplex, head: Buffer) {

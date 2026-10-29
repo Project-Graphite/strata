@@ -793,6 +793,7 @@ model Note {
 model NoteDocument {
   itemId    String   @id @map("item_id") @db.Uuid
   state     Bytes
+  thumbnail String?
   updatedAt DateTime @updatedAt @map("updated_at")
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
