@@ -176,10 +176,10 @@ export function Subheading({ children, level = 3 }: { children: ReactNode; level
   return <Heading className="m-0 text-h3 text-ink">{children}</Heading>;
 }
 
-export function Section({ action, children, description, title }: { action?: ReactNode; children: ReactNode; description?: ReactNode; title: string }) {
+export function Section({ action, children, description, level, title }: { action?: ReactNode; children: ReactNode; description?: ReactNode; level?: 2 | 3; title: string }) {
   return (
     <section className="grid min-w-0 grid-cols-1 gap-3">
-      <SectionHeading action={action} description={description} title={title} />
+      <SectionHeading action={action} description={description} level={level} title={title} />
       {children}
     </section>
   );

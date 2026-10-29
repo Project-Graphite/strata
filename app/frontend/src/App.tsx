@@ -45,6 +45,7 @@ const RsvpPage = lazy(() => import('./pages/RsvpPages').then((module) => ({ defa
 const SharePage = lazy(() => import('./pages/RsvpPages').then((module) => ({ default: module.SharePage })));
 const SavePage = lazy(() => import('./pages/SavePage').then((module) => ({ default: module.SavePage })));
 const DataSettings = lazy(() => import('./pages/settings/DataSettings').then((module) => ({ default: module.DataSettings })));
+const LegalSettings = lazy(() => import('./pages/settings/LegalSettings').then((module) => ({ default: module.LegalSettings })));
 const DeveloperSettings = lazy(() => import('./pages/settings/DeveloperSettings').then((module) => ({ default: module.DeveloperSettings })));
 const AppsSettings = lazy(() => import('./pages/settings/AppsSettings').then((module) => ({ default: module.AppsSettings })));
 const ProfileSettings = lazy(() => import('./pages/settings/ProfileSettings').then((module) => ({ default: module.ProfileSettings })));
@@ -229,6 +230,13 @@ export function App() {
               <Route path="developer" element={<DeveloperSettings />} />
               <Route path="data" element={<DataSettings />} />
               <Route path="trash" element={<TrashSettings />} />
+              <Route path="legal">
+                <Route index element={<LegalSettings />} />
+                <Route path="terms" element={<LegalSettings page="terms" />} />
+                <Route path="privacy" element={<LegalSettings page="privacy" />} />
+                <Route path="licenses" element={<LegalSettings page="licenses" />} />
+                <Route path="support" element={<LegalSettings page="support" />} />
+              </Route>
             </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />

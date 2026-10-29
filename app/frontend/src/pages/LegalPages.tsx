@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
+import { Navigate } from 'react-router';
 import { TextLink } from '@project-graphite/ui';
+import { useAuth } from '../auth';
 import { Page, Section } from '../components/Page';
+import { repositoryUrl, securityPolicyUrl } from '../project-links';
 
-const repository = 'https://github.com/Project-Graphite/strata';
-const security = 'https://github.com/Project-Graphite/.github/blob/main/SECURITY.md';
-
-function LegalPage({ children, title }: { children: ReactNode; title: string }) {
+function LegalPage({ children, path, title }: { children: ReactNode; path: string; title: string }) {
+  const auth = useAuth();
+  if (auth.user) return <Navigate replace to={`/settings/legal/${path}`} />;
   return (
     <Page title={title}>
       <div className="grid max-w-3xl gap-8">{children}</div>
@@ -23,8 +25,24 @@ function External({ children, href }: { children: ReactNode; href: string }) {
 
 export function PrivacyPage() {
   return (
-    <LegalPage title="Privacy">
-      <Section title="What is stored">
+    <LegalPage path="privacy" title="Privacy">
+      <Privacy />
+    </LegalPage>
+  );
+}
+
+export function TermsPage() {
+  return (
+    <LegalPage path="terms" title="Terms">
+      <Terms />
+    </LegalPage>
+  );
+}
+
+export function Privacy({ level }: { level?: 2 | 3 }) {
+  return (
+    <>
+      <Section level={level} title="What is stored">
         <p className="m-0 text-muted">
           Your account details: email address, handle, display name, time zone and a salted, slow
           hash of your password. Each signed-in device holds a sign-in cookie that scripts cannot
@@ -48,7 +66,7 @@ export function PrivacyPage() {
           server's logs of sign-in requests and refused requests record the same two things.
         </p>
       </Section>
-      <Section title="Who can see it">
+      <Section level={level} title="Who can see it">
         <p className="m-0 text-muted">
           You, and the members of the spaces you share it with. Anyone you give a share link can see
           the item it links to. Administrators can see account names, handles and email addresses to
@@ -60,7 +78,7 @@ export function PrivacyPage() {
           live only in your personal space, so members of the spaces you share never see them.
         </p>
       </Section>
-      <Section title="The Android app">
+      <Section level={level} title="The Android app">
         <p className="m-0 text-muted">
           The app reads transaction messages through Android's notification access. It looks only at
           notifications from the bank, wallet and payment apps you switch on, and at texts from the
@@ -82,7 +100,7 @@ export function PrivacyPage() {
           keeps only a hash of it, and you can revoke it at any time in Settings, Developer.
         </p>
       </Section>
-      <Section title="Captured messages">
+      <Section level={level} title="Captured messages">
         <p className="m-0 text-muted">
           The text of each message is encrypted before it is stored, with a key kept outside the
           database. The details read from it, such as the amount, the merchant and a card's last four
@@ -104,7 +122,7 @@ export function PrivacyPage() {
           account.
         </p>
       </Section>
-      <Section title="How long it is kept">
+      <Section level={level} title="How long it is kept">
         <p className="m-0 text-muted">
           Sign-in cookies last 30 days and phone connections 90 days. The security log keeps sign-in
           and account security events for 365 days and other events for 90 days. When an account
@@ -114,7 +132,7 @@ export function PrivacyPage() {
           delete it or your account.
         </p>
       </Section>
-      <Section title="Other services">
+      <Section level={level} title="Other services">
         <p className="m-0 text-muted">
           There are no ads, no analytics, no tracking cookies and no third-party scripts. Email is
           sent through an SMTP provider. When you connect a service such as Google Calendar, Strata
@@ -128,57 +146,57 @@ export function PrivacyPage() {
           includes your email address, what you sent or anything you have written.
         </p>
       </Section>
-      <Section title="Your control">
+      <Section level={level} title="Your control">
         <p className="m-0 text-muted">
           You can export everything Strata holds about you, and deleting your account removes it
           from the database straight away, apart from the deletion note above, and from backups as
           they rotate out.
         </p>
       </Section>
-      <Section title="Contact">
+      <Section level={level} title="Contact">
         <p className="m-0 text-muted">
-          Strata is open source at <External href={repository}>GitHub</External>. Report a security
-          problem through the <External href={security}>Project Graphite security policy</External>.
+          Strata is open source at <External href={repositoryUrl}>GitHub</External>. Report a security
+          problem through the <External href={securityPolicyUrl}>Project Graphite security policy</External>.
         </p>
       </Section>
-    </LegalPage>
+    </>
   );
 }
 
-export function TermsPage() {
+export function Terms({ level }: { level?: 2 | 3 }) {
   return (
-    <LegalPage title="Terms">
-      <Section title="The service">
+    <>
+      <Section level={level} title="The service">
         <p className="m-0 text-muted">
           Strata is a free personal workspace built by Project Graphite. It is provided as is, without
           any warranty, and may change, pause or stop. Keep your own copy of anything important by
           exporting it.
         </p>
       </Section>
-      <Section title="Your account">
+      <Section level={level} title="Your account">
         <p className="m-0 text-muted">
           You need a verified email address to use Strata. Keep your password to yourself. You are
           responsible for what happens in your account and in the spaces you share.
         </p>
       </Section>
-      <Section title="Fair use">
+      <Section level={level} title="Fair use">
         <p className="m-0 text-muted">
           Do not use Strata to break the law, harass people, send spam, store material you have no
           right to, or overload or probe the service. Accounts that do may be suspended or removed.
           Storage and usage limits keep the service fast for everyone.
         </p>
       </Section>
-      <Section title="Your content">
+      <Section level={level} title="Your content">
         <p className="m-0 text-muted">
           What you put in Strata stays yours. Strata only stores and shows it so the service works for
           you and the people you share it with.
         </p>
       </Section>
-      <Section title="The code">
+      <Section level={level} title="The code">
         <p className="m-0 text-muted">
-          The source is MIT-licensed at <External href={repository}>GitHub</External>.
+          The source is MIT-licensed at <External href={repositoryUrl}>GitHub</External>.
         </p>
       </Section>
-    </LegalPage>
+    </>
   );
 }

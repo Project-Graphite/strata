@@ -90,6 +90,7 @@ export function searchableAreas(apps: AppEntry[], admin: boolean): { href: strin
     { href: '/settings/developer', label: 'Developer', hint: 'Settings' },
     { href: '/settings/data', label: 'Your data', hint: 'Settings' },
     { href: '/settings/trash', label: 'Trash', hint: 'Settings' },
+    { href: '/settings/legal', label: 'Legal', hint: 'Settings' },
     ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 }
