@@ -5,6 +5,7 @@ import { dateText, dateValue } from '../recurrence/dates';
 
 export const ratesUrl = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
 export const egyptRatesUrl = 'https://www.cbe.org.eg/en/economic-research/statistics/cbe-exchange-rates';
+export const egyptFallbackUrl = 'https://open.er-api.com/v6/latest/EUR';
 const refreshAfterMs = 12 * 60 * 60 * 1000;
 
 export type RateTable = Map<string, number>;
@@ -26,16 +27,33 @@ export function parseEgyptRates(html: string) {
   return { publishedOn: `${day[3]}-${day[2]}-${day[1]}`, rates: [{ currency: 'EGP', perEuro }] };
 }
 
-const sources: { name: string; url: string; headers: Record<string, string>; read: typeof parseRates; marker: string }[] = [
-  { name: 'ECB', url: ratesUrl, headers: {}, read: parseRates, marker: 'EUR' },
+export function parseOpenRates(json: string) {
+  const feed = JSON.parse(json) as { result?: string; time_last_update_unix?: number; rates?: Record<string, number> };
+  const perEuro = feed.rates?.EGP ?? NaN;
+  if (feed.result !== 'success' || !feed.time_last_update_unix || !(perEuro > 0)) throw new Error('The open.er-api.com feed had no Egyptian pound rate');
+  return { publishedOn: dateText(new Date(feed.time_last_update_unix * 1000)), rates: [{ currency: 'EGP', perEuro }] };
+}
+
+type Feed = { name: string; url: string; headers: Record<string, string>; read: typeof parseRates };
+
+const sources: { marker: string; feeds: Feed[] }[] = [
+  { marker: 'EUR', feeds: [{ name: 'ECB', url: ratesUrl, headers: {}, read: parseRates }] },
   {
-    name: 'CBE',
-    url: egyptRatesUrl,
-    headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' },
-    read: parseEgyptRates,
     marker: 'EGP',
+    feeds: [
+      {
+        name: 'CBE',
+        url: egyptRatesUrl,
+        headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' },
+        read: parseEgyptRates,
+      },
+      { name: 'open.er-api.com', url: egyptFallbackUrl, headers: {}, read: parseOpenRates },
+    ],
   },
 ];
+
+export const ratesSourcesOf = (sources: Map<string, string>, currencies: string[]) =>
+  [...new Set(currencies.filter((currency) => currency !== 'EUR').map((currency) => sources.get(currency) ?? 'ECB'))].sort();
 
 export function fractionDigits(currency: string) {
   return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
@@ -66,30 +84,49 @@ export class ExchangeRatesService implements OnModuleInit {
     for (const source of sources) await this.refreshFrom(source, now);
   }
 
-  private async refreshFrom({ name, url, headers, read, marker }: (typeof sources)[number], now: Date) {
-    const latest = await this.prisma.exchangeRate.findUnique({ where: { currency: marker }, select: { updatedAt: true } });
+  private async refreshFrom({ marker, feeds }: (typeof sources)[number], now: Date) {
+    const latest = await this.prisma.exchangeRate.findFirst({ where: { currency: marker }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } });
     if (latest && now.getTime() - latest.updatedAt.getTime() < refreshAfterMs) return;
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) }).catch((error: Error) => error);
-    if (response instanceof Error || !response.ok) {
-      this.logger.warn(`Could not reach the ${name} rates; trying again on the next run`);
+    for (const feed of feeds) {
+      const read = await this.readFeed(feed);
+      if (!read) continue;
+      await this.prisma.$transaction(
+        read.rates.map(({ currency, perEuro }) => {
+          const publishedOn = dateValue(read.publishedOn);
+          return this.prisma.exchangeRate.upsert({
+            where: { currency_publishedOn: { currency, publishedOn } },
+            create: { currency, perEuro, publishedOn, source: feed.name },
+            update: { perEuro, source: feed.name },
+          });
+        }),
+      );
       return;
     }
-    const { publishedOn, rates } = read(await response.text());
-    await this.prisma.$transaction(
-      rates.map(({ currency, perEuro }) =>
-        this.prisma.exchangeRate.upsert({
-          where: { currency },
-          create: { currency, perEuro, publishedOn: dateValue(publishedOn) },
-          update: { perEuro, publishedOn: dateValue(publishedOn) },
-        }),
-      ),
-    );
+    this.logger.warn(`Could not refresh the ${marker} rates from ${feeds.map((feed) => feed.name).join(' or ')}; trying again on the next run`);
+  }
+
+  private async readFeed({ name, url, headers, read }: Feed) {
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) }).catch((error: Error) => error);
+    if (response instanceof Error || !response.ok) {
+      this.logger.warn(`Could not reach the ${name} rates`);
+      return null;
+    }
+    try {
+      return read(await response.text());
+    } catch (error) {
+      this.logger.warn(`Could not read the ${name} rates: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   async table() {
-    const rows = await this.prisma.exchangeRate.findMany({ orderBy: { currency: 'asc' } });
+    const rows = await this.prisma.$queryRaw<{ currency: string; perEuro: number; publishedOn: Date; source: string }[]>`
+      SELECT DISTINCT ON (currency) currency, per_euro AS "perEuro", published_on AS "publishedOn", source
+      FROM exchange_rates
+      ORDER BY currency, published_on DESC`;
     return {
       rates: new Map(rows.map((row) => [row.currency, row.perEuro])) as RateTable,
+      sources: new Map(rows.map((row) => [row.currency, row.source])),
       publishedOn: rows.length ? dateText(new Date(Math.max(...rows.map((row) => row.publishedOn.getTime())))) : null,
     };
   }

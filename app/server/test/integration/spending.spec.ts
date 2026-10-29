@@ -11,7 +11,7 @@ describe('Spending and budgets against Postgres', () => {
       ['EUR', 1],
       ['USD', 1.25],
     ] as const) {
-      await strata.prisma.exchangeRate.upsert({ where: { currency }, create: { currency, perEuro, publishedOn: new Date('2026-10-09') }, update: { perEuro } });
+      await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency, publishedOn: new Date('2100-01-01') } }, create: { currency, perEuro, publishedOn: new Date('2100-01-01') }, update: { perEuro } });
     }
     const owner = await member('saver');
     const partner = await member('spender');
@@ -82,7 +82,7 @@ describe('Spending and budgets against Postgres', () => {
   });
 
   it('keeps account balances from spending, income, refunds and transfers, and leaves transfers out of the month', async () => {
-    await strata.prisma.exchangeRate.upsert({ where: { currency: 'EGP' }, create: { currency: 'EGP', perEuro: 50, publishedOn: new Date('2026-10-09') }, update: { perEuro: 50 } });
+    await strata.prisma.exchangeRate.upsert({ where: { currency_publishedOn: { currency: 'EGP', publishedOn: new Date('2100-01-01') } }, create: { currency: 'EGP', perEuro: 50, publishedOn: new Date('2100-01-01') }, update: { perEuro: 50 } });
     const owner = await member('account-keeper');
     const viewer = await member('account-peeker');
     const outsider = await member('account-stranger');
@@ -125,9 +125,9 @@ describe('Spending and budgets against Postgres', () => {
     const month = (await owner.call('GET', `/spaces/${home.id}/spending?month=2026-10`)).body;
     expect(month).toMatchObject({ currency: 'EGP', spentMinor: 250_000 - 50_000 + 200_000 + 30_000, receivedMinor: 3_000_000 });
     expect(month.categories).toEqual([
-      { category: 'groceries', spentMinor: 200_000, budgetMinor: null, carriedMinor: 0 },
-      { category: 'eating out', spentMinor: 200_000, budgetMinor: null, carriedMinor: 0 },
-      { category: 'transport', spentMinor: 30_000, budgetMinor: null, carriedMinor: 0 },
+      { category: 'groceries', spentMinor: 200_000, budgetMinor: null, carriedMinor: 0, committedMinor: 0, pace: null },
+      { category: 'eating out', spentMinor: 200_000, budgetMinor: null, carriedMinor: 0, committedMinor: 0, pace: null },
+      { category: 'transport', spentMinor: 30_000, budgetMinor: null, carriedMinor: 0, committedMinor: 0, pace: null },
     ]);
 
     expect((await owner.call('PATCH', `/expenses/${groceries.id}`, { direction: 'transfer' })).status).toBe(400);
@@ -264,7 +264,7 @@ describe('Spending and budgets against Postgres', () => {
     expect((await owner.call('GET', `/spaces/${home.id}/spending?month=2026-08`)).body.budgetsEnabled).toBe(false);
     await owner.call('PATCH', '/me', { budgetsEnabled: true });
     expect((await partner.call('GET', `/spaces/${partner.personalSpaceId}/spending`)).body).toMatchObject({ currency: 'EGP', budgetsEnabled: true });
-    expect(august.categories).toEqual([{ category: 'groceries', spentMinor: 8000, budgetMinor: 16_000, carriedMinor: 6000 }]);
+    expect(august.categories).toEqual([{ category: 'groceries', spentMinor: 8000, budgetMinor: 16_000, carriedMinor: 6000, committedMinor: 0, pace: null }]);
 
     const today = new Date().toISOString().slice(0, 10);
     const current = (await owner.call('GET', `/spaces/${home.id}/spending`)).body;
@@ -291,6 +291,41 @@ describe('Spending and budgets against Postgres', () => {
     expect((await alerts(alerted)).map((alert) => alert.title)).toEqual(['80% of the monthly budget used', 'Over the monthly budget']);
     expect(await alerts(partner)).toEqual([]);
     expect(await alerts(viewer)).toEqual([]);
+  });
+
+  it('carries leftovers over several months, leaves paid renewals out of what is committed, projects the pace and alerts when a budget changes', async () => {
+    const owner = await member('roller');
+    const home = owner.personalSpaceId;
+    const add = (title: string, amountMinor: number, spentOn: string, category = 'groceries') => owner.call('POST', `/spaces/${home}/expenses`, { title, amountMinor, currency: 'EGP', spentOn, category });
+    await owner.call('PUT', `/spaces/${home}/spending-plan`, { budgetMinor: 100_000, currency: 'EGP', startDay: 1, rollover: true });
+    await owner.call('PUT', `/spaces/${home}/budgets/groceries`, { amountMinor: 10_000, currency: 'EGP' });
+    await owner.call('PUT', `/spaces/${home}/budgets/transport`, { amountMinor: 1000, currency: 'EGP' });
+    await add('June market', 4000, '2026-06-10');
+    await add('June taxi', 5000, '2026-06-12', 'transport');
+    await add('July market', 12_000, '2026-07-10');
+    await add('August market', 1000, '2026-08-10');
+    for (const [name, amountMinor, startDate] of [['Netflix', 25_000, '2026-09-05'], ['Gym', 50_000, '2026-09-20']] as const) {
+      await owner.call('POST', `/spaces/${home}/subscriptions`, { name, amountMinor, currency: 'EGP', repeatRule: 'FREQ=MONTHLY', startDate });
+    }
+    await add('NETFLIX.COM', 25_000, '2026-09-06', 'entertainment');
+
+    const september = (await owner.call('GET', `/spaces/${home}/spending?month=2026-09`)).body;
+    expect(september).toMatchObject({ carriedMinor: 91_000 + 88_000 + 99_000, budgetMinor: 100_000 + 278_000, committedMinor: 50_000, upcomingMinor: 0, pace: null });
+    expect(september.categories.find((row: { category: string }) => row.category === 'groceries')).toMatchObject({ budgetMinor: 23_000, carriedMinor: 13_000 });
+    expect(september.categories.find((row: { category: string }) => row.category === 'transport')).toMatchObject({ budgetMinor: 1000 + 2000, carriedMinor: 2000 });
+
+    const planner = await member('pace-keeper');
+    const own = planner.personalSpaceId;
+    const today = new Date().toISOString().slice(0, 10);
+    await planner.call('POST', `/spaces/${own}/expenses`, { title: 'Market', amountMinor: 40_000, currency: 'EGP', spentOn: today, category: 'groceries' });
+    await planner.call('PUT', `/spaces/${own}/budgets/groceries`, { amountMinor: 10_000_000, currency: 'EGP' });
+    expect(await strata.prisma.inboxNotification.count({ where: { userId: planner.id, kind: 'budget_alert' } })).toBe(0);
+    await planner.call('PUT', `/spaces/${own}/spending-plan`, { budgetMinor: 30_000, currency: 'EGP', startDay: 1, rollover: false });
+    expect(await strata.prisma.inboxNotification.findMany({ where: { userId: planner.id, kind: 'budget_alert' }, select: { title: true } })).toEqual([{ title: 'Over the monthly budget' }]);
+    const now = (await planner.call('GET', `/spaces/${own}/spending`)).body;
+    expect(now.pace).toEqual({ projectedMinor: expect.any(Number), overOn: today });
+    expect(now.pace.projectedMinor).toBeGreaterThanOrEqual(40_000);
+    expect(now.categories[0]).toMatchObject({ category: 'groceries', pace: { overOn: null } });
   });
 
   it('keeps amounts far beyond the old 32-bit limit and returns them as plain numbers', async () => {
@@ -331,7 +366,7 @@ describe('Spending and budgets against Postgres', () => {
       ],
     });
     expect(insights.periods[0]).toMatchObject({ spentMinor: 0, categories: [] });
-    expect(insights.merchants[0]).toEqual({ merchant: 'Talabat', count: 2, totalMinor: 50_000, averageMinor: 25_000, lastOn: today });
+    expect(insights.merchants[0]).toEqual({ merchantId: null, merchant: 'Talabat', count: 2, totalMinor: 50_000, averageMinor: 25_000, lastOn: today });
     expect(insights.days.find((day: { day: string }) => day.day === today).spentMinor).toBe(56_000);
     expect(insights.days[0].day).toBe(insights.periods.at(-1).from);
 

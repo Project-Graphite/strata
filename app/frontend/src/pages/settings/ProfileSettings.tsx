@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Fieldset, FilterChip, Placeholder, Select, TextField } from '@project-graphite/ui';
+import { Fieldset, FilterChip, Placeholder, Select, TextField, Toggle } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
 import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
@@ -30,6 +30,7 @@ export function ProfileSettings() {
   const emailForm = useFormErrors();
   const [changingEmail, setChangingEmail] = useState(false);
   const [weekend, setWeekend] = useState<number[]>();
+  const [budgets, setBudgets] = useState<boolean>();
 
   if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
@@ -67,6 +68,7 @@ export function ProfileSettings() {
   }
   const current = me.data;
   const weekendDays = weekend ?? current.weekendDays;
+  const budgetsEnabled = budgets ?? current.budgetsEnabled;
 
   return (
     <>
@@ -94,6 +96,7 @@ export function ProfileSettings() {
                 weekStart: Number(values.get('weekStart')),
                 weekendDays,
                 monthStartDay: Number(values.get('monthStartDay')),
+                budgetsEnabled,
               }),
             });
             me.mutate(() => next);
@@ -147,6 +150,7 @@ export function ProfileSettings() {
               name="monthStartDay"
               options={monthStartOptions}
             />
+            <Toggle checked={budgetsEnabled} description="Shows the Budgets tab and what is left to spend this month." label="Use budgets" onChange={setBudgets} />
           </div>
         </Section>
         <div>

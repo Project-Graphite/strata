@@ -44,6 +44,7 @@ export function SpendingFrame({
   const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
   const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
   const editedCategories = categories ?? loadedCategories.data;
+  const me = useResource<{ budgetsEnabled: boolean }>('/me', true);
   const nativeCapture = useNativeCaptureStatus();
   const phone = nativeCapture.status;
   const attention = phone && editable ? phoneCaptureAttention(phone) : null;
@@ -82,7 +83,7 @@ export function SpendingFrame({
           </>
         )
       }
-      tabs={spendingTabs(tab, params)}
+      tabs={spendingTabs(tab, params, me.data?.budgetsEnabled !== false)}
       title="Spending"
       toolbar={toolbar}
     >

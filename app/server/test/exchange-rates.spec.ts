@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convertMinor, parseEgyptRates, parseRates } from '../src/exchange-rates/exchange-rates.service';
+import { convertMinor, parseEgyptRates, parseOpenRates, parseRates, ratesSourcesOf } from '../src/exchange-rates/exchange-rates.service';
 
 const xml = `<gesmes:Envelope><Cube><Cube time='2026-10-05'>
   <Cube currency='USD' rate='1.1204'/><Cube currency='JPY' rate='177.28'/><Cube currency='GBP' rate='0.84720'/>
@@ -43,5 +43,23 @@ describe('CBE official rates', () => {
       </td></tr></tbody></table>`;
     expect(parseEgyptRates(html)).toEqual({ publishedOn: '2026-10-14', rates: [{ currency: 'EGP', perEuro: 59.42935 }] });
     expect(() => parseEgyptRates('The requested URL was rejected.')).toThrow('no euro rate');
+  });
+});
+
+describe('open.er-api.com fallback for the Egyptian pound', () => {
+  it('reads the pound against the euro and dates it from the last update', () => {
+    const feed = JSON.stringify({ result: 'success', base_code: 'EUR', time_last_update_unix: 1_791_936_001, rates: { EUR: 1, EGP: 59.71, USD: 1.12 } });
+    expect(parseOpenRates(feed)).toEqual({ publishedOn: '2026-10-14', rates: [{ currency: 'EGP', perEuro: 59.71 }] });
+    expect(() => parseOpenRates(JSON.stringify({ result: 'error', 'error-type': 'quota-reached' }))).toThrow('no Egyptian pound rate');
+    expect(() => parseOpenRates('<html>down</html>')).toThrow();
+  });
+});
+
+describe('where the rates came from', () => {
+  it('names each source once, leaving out the euro base', () => {
+    const sources = new Map([['EUR', 'ECB'], ['USD', 'ECB'], ['EGP', 'open.er-api.com']]);
+    expect(ratesSourcesOf(sources, ['EGP', 'USD', 'EUR'])).toEqual(['ECB', 'open.er-api.com']);
+    expect(ratesSourcesOf(sources, ['EUR'])).toEqual([]);
+    expect(ratesSourcesOf(new Map([['EGP', 'CBE']]), ['EGP'])).toEqual(['CBE']);
   });
 });

@@ -27,7 +27,7 @@ interface Total {
 }
 
 interface Summary {
-  home: (Total & { ratesOn: string | null; missing: string[] }) | null;
+  home: (Total & { ratesOn: string | null; ratesFrom: string[]; missing: string[] }) | null;
   totals: Total[];
   categories: (Total & { category: string })[];
   upcoming: Subscription[];
@@ -36,6 +36,7 @@ interface Summary {
 }
 
 const empty = { title: 'No subscriptions yet', hint: 'Add the subscriptions and bills you pay regularly to see what they cost each month and when they renew.' };
+const sourceList = new Intl.ListFormat('en', { type: 'conjunction' });
 const unusedDescription = 'Nobody has marked these as used in two months.';
 
 export function RecurringPage() {
@@ -130,7 +131,7 @@ export function RecurringPage() {
             <Stats>
               {summary.data.home && summary.data.totals.length > 1 && (
                 <Stat
-                  detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn ? ` · ECB rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
+                  detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn && summary.data.home.ratesFrom.length ? ` · ${sourceList.format(summary.data.home.ratesFrom)} rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
                   label={`All together, in ${currencyName(summary.data.home.currency)}`}
                   value={
                     <span>
