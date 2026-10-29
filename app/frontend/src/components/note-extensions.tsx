@@ -2,7 +2,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from '@project-graphite/ui';
-import { Extension, Node, type ChainedCommands, type Editor } from '@tiptap/core';
+import { Extension, Mark, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import Highlight from '@tiptap/extension-highlight';
@@ -13,7 +13,7 @@ import { Color, TextStyle } from '@tiptap/extension-text-style';
 import UniqueID from '@tiptap/extension-unique-id';
 import StarterKit from '@tiptap/starter-kit';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import Mention from '@tiptap/extension-mention';
 import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewProps } from '@tiptap/react';
@@ -422,9 +422,31 @@ function commentMarks(doc: ProseMirrorNode, ids: Set<string>, from = 0, to = doc
   const marks: Decoration[] = [];
   doc.nodesBetween(from, to, (node, pos) => {
     if (typeof node.attrs.id === 'string' && ids.has(node.attrs.id)) marks.push(Decoration.node(pos, pos + node.nodeSize, { class: 'has-comments' }));
+    if (node.isText && node.marks.some((mark) => mark.type.name === 'comment' && ids.has(mark.attrs.id))) marks.push(Decoration.inline(pos, pos + node.nodeSize, { class: 'has-comment' }));
   });
   return marks;
 }
+
+export function openComment(state: EditorState, pos: number) {
+  const ids = commentedBlocksKey.getState(state)?.ids;
+  const mark = ids?.size ? state.doc.resolve(pos).marks().find((candidate) => candidate.type.name === 'comment' && ids.has(candidate.attrs.id)) : undefined;
+  return mark ? String(mark.attrs.id) : undefined;
+}
+
+export const CommentAnchor = Mark.create({
+  name: 'comment',
+  excludes: '',
+  inclusive: false,
+  addAttributes: () => ({
+    id: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute('data-comment'),
+      renderHTML: (attributes: { id?: string | null }) => ({ 'data-comment': attributes.id }),
+    },
+  }),
+  parseHTML: () => [{ tag: 'span[data-comment]' }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes, 0],
+});
 
 export const CommentedBlocks = Extension.create({
   name: 'commentedBlocks',
@@ -478,6 +500,7 @@ export function pageContent(request: Request | undefined, noteId: string, people
     LinkCard,
     Video,
     TableOfContentsBlock,
+    CommentAnchor,
     UniqueID.configure({ types: blockTypes, filterTransaction: (transaction) => !isChangeOrigin(transaction) }),
   ];
 }
