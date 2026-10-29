@@ -8,10 +8,20 @@ import { PrivacyPage, TermsPage } from './pages/LegalPages';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
+const areaPages = {
+  agenda: () => import('./pages/AgendaPage'),
+  boards: () => import('./pages/BoardsIndex'),
+  pages: () => import('./pages/PagesIndex'),
+  spending: () => import('./pages/SpendingPage'),
+  tasks: () => import('./pages/TasksPage'),
+};
+const area = location.pathname.split('/')[1];
+if (area && area in areaPages) void areaPages[area as keyof typeof areaPages]();
+
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
-const AgendaPage = lazy(() => import('./pages/AgendaPage').then((module) => ({ default: module.AgendaPage })));
+const AgendaPage = lazy(() => areaPages.agenda().then((module) => ({ default: module.AgendaPage })));
 const BoardPage = lazy(() => import('./pages/BoardPage').then((module) => ({ default: module.BoardPage })));
-const BoardsIndex = lazy(() => import('./pages/BoardsIndex').then((module) => ({ default: module.BoardsIndex })));
+const BoardsIndex = lazy(() => areaPages.boards().then((module) => ({ default: module.BoardsIndex })));
 const BookmarkPage = lazy(() => import('./pages/BookmarkPage').then((module) => ({ default: module.BookmarkPage })));
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage').then((module) => ({ default: module.BookmarksPage })));
 const CalendarsPage = lazy(() => import('./pages/CalendarsPage').then((module) => ({ default: module.CalendarsPage })));
@@ -23,7 +33,7 @@ const InboxPage = lazy(() => import('./pages/InboxPage').then((module) => ({ def
 const InvitationsPage = lazy(() => import('./pages/InvitationsPage').then((module) => ({ default: module.InvitationsPage })));
 const InvitePage = lazy(() => import('./pages/InvitePage').then((module) => ({ default: module.InvitePage })));
 const JournalPage = lazy(() => import('./pages/JournalPage').then((module) => ({ default: module.JournalPage })));
-const PagesIndex = lazy(() => import('./pages/PagesIndex').then((module) => ({ default: module.PagesIndex })));
+const PagesIndex = lazy(() => areaPages.pages().then((module) => ({ default: module.PagesIndex })));
 const PeoplePage = lazy(() => import('./pages/PeoplePage').then((module) => ({ default: module.PeoplePage })));
 const PersonPage = lazy(() => import('./pages/PersonPage').then((module) => ({ default: module.PersonPage })));
 const MealPlanPage = lazy(() => import('./pages/MealPlanPage').then((module) => ({ default: module.MealPlanPage })));
@@ -32,7 +42,7 @@ const RecipesPage = lazy(() => import('./pages/RecipesPage').then((module) => ({
 const NetWorthPage = lazy(() => import('./pages/NetWorthPage').then((module) => ({ default: module.NetWorthPage })));
 const SpendingAccountsPage = lazy(() => import('./pages/SpendingAccountsPage').then((module) => ({ default: module.SpendingAccountsPage })));
 const SpendingInsightsPage = lazy(() => import('./pages/SpendingInsightsPage').then((module) => ({ default: module.SpendingInsightsPage })));
-const SpendingPage = lazy(() => import('./pages/SpendingPage').then((module) => ({ default: module.SpendingPage })));
+const SpendingPage = lazy(() => areaPages.spending().then((module) => ({ default: module.SpendingPage })));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
 const TripPage = lazy(() => import('./pages/TripPage').then((module) => ({ default: module.TripPage })));
 const TripsPage = lazy(() => import('./pages/TripsPage').then((module) => ({ default: module.TripsPage })));
@@ -64,7 +74,7 @@ const SpacesPage = lazy(() => import('./pages/spaces/SpacesPage').then((module) 
 const SpaceSubscriptions = lazy(() => import('./pages/spaces/SpaceSubscriptions').then((module) => ({ default: module.SpaceSubscriptions })));
 const SpaceTags = lazy(() => import('./pages/spaces/SpaceTags').then((module) => ({ default: module.SpaceTags })));
 const SpaceTasks = lazy(() => import('./pages/spaces/SpaceTasks').then((module) => ({ default: module.SpaceTasks })));
-const TasksPage = lazy(() => import('./pages/TasksPage').then((module) => ({ default: module.TasksPage })));
+const TasksPage = lazy(() => areaPages.tasks().then((module) => ({ default: module.TasksPage })));
 const TidyPage = lazy(() => import('./pages/TidyPage').then((module) => ({ default: module.TidyPage })));
 const VerifyPage = lazy(() => import('./pages/VerifyPage').then((module) => ({ default: module.VerifyPage })));
 const WallPage = lazy(() => import('./dashboard/Dashboard').then((module) => ({ default: module.WallPage })));

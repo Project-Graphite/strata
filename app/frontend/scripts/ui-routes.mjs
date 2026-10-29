@@ -68,7 +68,7 @@ export async function sweep(visit) {
       [390, 844],
     ]) {
       const phone = width < 600;
-      const context = await browser.newContext({ viewport: { width, height }, isMobile: phone, hasTouch: phone, colorScheme: 'dark' });
+      const context = await browser.newContext({ viewport: { width, height }, isMobile: phone, hasTouch: phone, colorScheme: 'dark', reducedMotion: 'reduce' });
       let signedIn = false;
       for (const route of routes.filter((route) => only.length === 0 || only.includes(route.path))) {
         if (route.signedIn && !signedIn) {
