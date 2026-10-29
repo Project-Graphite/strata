@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ItemKind, LinkKind, Prisma, ShareAccess } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { AccessService } from '../access/access.service';
+import { AuditService } from '../audit/audit.service';
 import { linkTokenHash } from '../crypto/link-token';
 import { SecretBox } from '../crypto/secret-box.service';
 import { publicEvent } from '../events/events.service';
@@ -27,6 +28,7 @@ export class ShareLinksService {
     private readonly box: SecretBox,
     private readonly realtime: RealtimeService,
     private readonly pages: PageAccessService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(userId: string, itemId: string, input: CreateShareLinkDto) {
@@ -49,6 +51,7 @@ export class ShareLinksService {
       },
       select: linkFields,
     });
+    await this.audit.record(userId, 'share_link_created', { itemId, linkId: id, access: input.access });
     return this.present(link);
   }
 
@@ -71,6 +74,7 @@ export class ShareLinksService {
     if (revoked.count === 0) {
       throw new NotFoundException('That link is already turned off');
     }
+    await this.audit.record(userId, 'share_link_revoked', { itemId, linkId });
     this.realtime.closeShareLink(linkId);
   }
 

@@ -42,6 +42,11 @@ class Environment {
   @Matches(/^[A-Za-z0-9+/]{43}=$/, { message: 'DATA_ENCRYPTION_KEY must be 32 random bytes in base64' })
   DATA_ENCRYPTION_KEY!: string;
 
+  @IsOptional()
+  @IsString()
+  @MinLength(32)
+  IP_HASH_SALT?: string;
+
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   APP_URL!: string;
 
@@ -88,9 +93,9 @@ export function validateEnvironment(config: Record<string, unknown>) {
   }
   if (
     config.NODE_ENV === 'production' &&
-    [String(config.AUTH_ACCESS_TOKEN_SECRET), Buffer.from(String(config.DATA_ENCRYPTION_KEY), 'base64').toString()].some((secret) => /change-me/i.test(secret))
+    [String(config.AUTH_ACCESS_TOKEN_SECRET), Buffer.from(String(config.DATA_ENCRYPTION_KEY), 'base64').toString(), String(config.IP_HASH_SALT)].some((secret) => /change-me/i.test(secret))
   ) {
-    throw new Error('AUTH_ACCESS_TOKEN_SECRET and DATA_ENCRYPTION_KEY still hold the development defaults. Set real secrets for production.');
+    throw new Error('AUTH_ACCESS_TOKEN_SECRET, DATA_ENCRYPTION_KEY or IP_HASH_SALT still hold the development defaults. Set real secrets for production.');
   }
   return config;
 }

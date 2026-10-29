@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../admin/admin.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { UpdateSiteSettingsDto } from './dto/site.dto';
 import { SiteSettingsService } from './site-settings.service';
 import { Public } from '../auth/public.decorator';
@@ -16,7 +18,7 @@ export class SiteController {
 
   @Patch('admin/site')
   @UseGuards(AdminGuard)
-  update(@Body() input: UpdateSiteSettingsDto) {
-    return this.site.update(input);
+  update(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateSiteSettingsDto) {
+    return this.site.update(user.id, input);
   }
 }

@@ -55,6 +55,17 @@ describe('validateEnvironment', () => {
     expect(() => validateEnvironment({ ...settings, SENTRY_DSN: 'not-an-address' })).toThrow('SENTRY_DSN');
   });
 
+  it('takes an optional address hashing salt of at least 32 characters and refuses the development one in production', () => {
+    const secrets = { AUTH_ACCESS_TOKEN_SECRET: realSecret, DATA_ENCRYPTION_KEY: realKey };
+    expect(() => validateEnvironment({ ...settings, IP_HASH_SALT: realSecret })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, IP_HASH_SALT: '' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, IP_HASH_SALT: 'too-short' })).toThrow('IP_HASH_SALT');
+    expect(() => validateEnvironment({ ...settings, IP_HASH_SALT: 'local-ip-hash-salt-change-me-please' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, ...production, ...secrets, IP_HASH_SALT: 'local-ip-hash-salt-change-me-please' })).toThrow('development defaults');
+    expect(() => validateEnvironment({ ...settings, ...production, ...secrets, IP_HASH_SALT: realSecret })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, ...production, ...secrets })).not.toThrow();
+  });
+
   it('takes an optional metrics token of at least 32 characters', () => {
     expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: realSecret })).not.toThrow();
     expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: '' })).not.toThrow();

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PageRole, Prisma } from '@prisma/client';
+import { auditEvent } from '../audit/audit.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -30,6 +31,7 @@ export class PageGrantsService {
       if (!recipient) throw new NotFoundException('Use the email address of an existing Strata account');
       if (recipient.id === userId) throw new BadRequestException('Ask another page manager to change your access');
       if (!(await transaction.pageGrant.findUnique({ where: { itemId_userId: { itemId, userId: recipient.id } }, select: { userId: true } })) && await transaction.pageGrant.count({ where: { itemId } }) >= 100) throw new ConflictException('A page can be shared directly with 100 people');
+      await transaction.auditEvent.create({ data: auditEvent(userId, 'page_grant_saved', { itemId, recipientId: recipient.id, role: input.role }) });
       return transaction.pageGrant.upsert({ where: { itemId_userId: { itemId, userId: recipient.id } }, create: { itemId, userId: recipient.id, role: input.role.toUpperCase() as PageRole, createdById: userId }, update: { role: input.role.toUpperCase() as PageRole }, select: grantFields });
     });
     this.realtime.closePageMember(itemId, grant.userId);
@@ -44,6 +46,7 @@ export class PageGrantsService {
       await this.pages.assertPage(userId, itemId, 'share', transaction);
       if (userId === recipientId) throw new BadRequestException('Ask another page manager to change your access');
       if (!(await transaction.pageGrant.deleteMany({ where: { itemId, userId: recipientId } })).count) throw new NotFoundException('That page grant is already removed');
+      await transaction.auditEvent.create({ data: auditEvent(userId, 'page_grant_removed', { itemId, recipientId }) });
     });
     this.realtime.closePageMember(itemId, recipientId);
     this.changes.notify('pages', { userId: recipientId, itemId });

@@ -31,6 +31,20 @@ const actions: Record<string, string> = {
   capture_device_revoked: 'Earlier phone connection revoked',
   calendar_feed_reset: 'Calendar link created or reset',
   calendar_feed_disabled: 'Calendar link turned off',
+  refresh_token_reused: 'An old sign-in was reused, so every device was signed out',
+  share_link_created: 'Share link created',
+  share_link_revoked: 'Share link turned off',
+  page_grant_saved: 'Page shared with someone',
+  page_grant_removed: 'Page access removed',
+  webhook_created: 'Webhook created',
+  webhook_updated: 'Webhook changed',
+  webhook_deleted: 'Webhook deleted',
+  member_role_changed: 'Space member role changed',
+  admin_granted: 'Made an administrator',
+  admin_revoked: 'No longer an administrator',
+  system_manager_granted: 'Made the system manager',
+  system_manager_revoked: 'No longer the system manager',
+  site_settings_changed: 'Site settings changed',
 };
 
 const reasons: Record<string, string> = { password: 'wrong password', code: 'wrong code' };

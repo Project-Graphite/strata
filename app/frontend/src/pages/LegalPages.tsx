@@ -39,8 +39,13 @@ export function PrivacyPage() {
           files you upload.
         </p>
         <p className="m-0 text-muted">
-          A security log of sign-ins, password changes and other account events, which you can see
-          in Settings.
+          A security log of sign-ins, password changes and other account events, including changes
+          to share links, page access, webhooks and space roles, which you can see in Settings.
+        </p>
+        <p className="m-0 text-muted">
+          Sign-in and account security events also store the browser family, such as Firefox, and a
+          hash of the network address made with a secret salt, never the address itself. The
+          server's logs of sign-in requests and refused requests record the same two things.
         </p>
       </Section>
       <Section title="Who can see it">
@@ -81,7 +86,10 @@ export function PrivacyPage() {
         <p className="m-0 text-muted">
           The text of each message is encrypted before it is stored, with a key kept outside the
           database. The details read from it, such as the amount, the merchant and a card's last four
-          digits, are stored with your spending like anything you enter yourself. Messages that are
+          digits, are encrypted the same way while the message is kept; messages stored by earlier
+          versions with these details in the clear are encrypted by a background task. Once a
+          message becomes a transaction, those details are stored with your spending like anything
+          you enter yourself. Messages that are
           not transactions, or that come from a sender or merchant you chose to ignore, are dropped
           without being stored.
         </p>
@@ -98,9 +106,12 @@ export function PrivacyPage() {
       </Section>
       <Section title="How long it is kept">
         <p className="m-0 text-muted">
-          Sign-in cookies last 30 days and phone connections 90 days. The security log keeps 90
-          days of events. Captured message text is deleted after 90 days, and anything in the trash
-          is deleted for good after 30 days. What you add stays until you delete it or your account.
+          Sign-in cookies last 30 days and phone connections 90 days. The security log keeps sign-in
+          and account security events for 365 days and other events for 90 days. When an account
+          is deleted, a note of the deletion with the account's internal id, the hashed address and
+          the browser family is kept for 365 days. Captured message text is deleted after 90 days,
+          and anything in the trash is deleted for good after 30 days. What you add stays until you
+          delete it or your account.
         </p>
       </Section>
       <Section title="Other services">
@@ -120,7 +131,8 @@ export function PrivacyPage() {
       <Section title="Your control">
         <p className="m-0 text-muted">
           You can export everything Strata holds about you, and deleting your account removes it
-          from the database straight away and from backups as they rotate out.
+          from the database straight away, apart from the deletion note above, and from backups as
+          they rotate out.
         </p>
       </Section>
       <Section title="Contact">
