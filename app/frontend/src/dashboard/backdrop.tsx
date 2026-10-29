@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { useLocation } from 'react-router';
 import { isAbortError, type TagColor } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -72,8 +71,7 @@ export function SiteBackdrop({ children }: { children: ReactNode }) {
   const dashboards = useResource<Choice[]>('/me/dashboards', true, { live: ['dashboards'] });
   const [shown, setShown] = useState<Background | null>();
   const chosen = dashboards.data && chosenDashboard(dashboards.data);
-  const onHome = useLocation().pathname === '/';
-  const { className, image } = useBackdrop(!onHome ? undefined : shown === undefined ? chosen?.layout.background : (shown ?? undefined));
+  const { className, image } = useBackdrop(shown === undefined ? chosen?.layout.background : (shown ?? undefined));
 
   useEffect(() => {
     if (!className) return;
