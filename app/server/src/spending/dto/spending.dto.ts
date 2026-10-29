@@ -80,6 +80,13 @@ export class CreateExpenseDto {
   @ValidateIf(nullable)
   @CardDigits()
   cardDigits?: string | null;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @Trimmed()
+  @IsString()
+  @MaxLength(80, { message: 'Use at most 80 characters for the reference.' })
+  reference?: string | null;
 }
 
 export class UpdateExpenseDto {
@@ -219,6 +226,16 @@ export class UpdateExpensesDto extends ExpenseIdsDto {
   @ValidateIf(nullable)
   @AccountId()
   accountId?: string | null;
+}
+
+export class ExportDto {
+  @IsOptional()
+  @DayText()
+  from?: string;
+
+  @IsOptional()
+  @DayText()
+  until?: string;
 }
 
 export class MonthDto {

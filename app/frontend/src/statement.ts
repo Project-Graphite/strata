@@ -5,6 +5,8 @@ export interface StatementColumns {
   date: number;
   description: number;
   amount: number;
+  credit: number | null;
+  reference: number | null;
 }
 
 export type DateOrder = 'ymd' | 'dmy' | 'mdy';
@@ -13,6 +15,16 @@ export interface Charge {
   date: string;
   description: string;
   amount: number;
+}
+
+export interface Entry extends Charge {
+  reference: string | null;
+}
+
+export interface PlacedText {
+  text: string;
+  x: number;
+  width: number;
 }
 
 export interface Suggestion {
@@ -77,6 +89,9 @@ const columnNames = {
   description: /description|payee|merchant|details|narrative|counterparty|name|memo|reference|beschreibung|libell|البيان|الوصف|التفاصيل/i,
 };
 
+const creditName = /credit|deposit|دائن/i;
+const referenceName = /^ref|reference|transaction id|رقم المرجع/i;
+
 function namedDate(value: string) {
   for (const { pattern, day, month } of namedDates) {
     const match = pattern.exec(value);
@@ -88,9 +103,26 @@ function namedDate(value: string) {
 
 const looksLikeDate = (value: string) => datePattern.test(value) || namedDate(value) !== null;
 
+const isHeader = (row: string[]) => Object.values(columnNames).filter((pattern) => row.some((cell) => pattern.test(cell))).length >= 2;
+
 export function withoutPreamble(rows: string[][]) {
-  const header = rows.slice(0, 20).findIndex((row) => Object.values(columnNames).filter((pattern) => row.some((cell) => pattern.test(cell))).length >= 2);
+  const header = rows.slice(0, 20).findIndex(isHeader);
   return header > 0 ? rows.slice(header) : rows;
+}
+
+export function tableOf(lines: PlacedText[][]) {
+  const header = lines.findIndex((line) => isHeader(line.map((cell) => cell.text)));
+  if (header < 0) return lines.map((line) => line.map((cell) => cell.text));
+  const centres = lines[header]!.map((cell) => cell.x + cell.width / 2);
+  return lines.slice(header).map((line) => {
+    const row = centres.map(() => '');
+    for (const cell of line) {
+      const centre = cell.x + cell.width / 2;
+      const column = centres.reduce((best, other, index) => (Math.abs(other - centre) < Math.abs(centres[best]! - centre) ? index : best), 0);
+      row[column] = `${row[column]} ${cell.text}`.trim();
+    }
+    return row;
+  });
 }
 
 export function dateOrder(values: string[]): DateOrder {
@@ -134,15 +166,18 @@ export function parseAmount(value: string) {
 export function guessColumns(rows: string[][]): StatementColumns {
   const [header = [], ...body] = rows;
   const sample = body.slice(0, 20);
-  const column = (pattern: RegExp, fits: (value: string) => boolean) => {
-    const named = header.findIndex((title) => pattern.test(title));
-    if (named > -1) return named;
-    return header.findIndex((_title, index) => sample.length > 0 && sample.every((row) => fits(row[index] ?? '')));
+  const named = (pattern: RegExp, taken: number[] = []) => header.findIndex((title, index) => !taken.includes(index) && pattern.test(title));
+  const column = (pattern: RegExp, fits: (value: string) => boolean, taken: number[] = []) => {
+    const found = named(pattern, taken);
+    if (found > -1) return found;
+    return header.findIndex((_title, index) => !taken.includes(index) && sample.length > 0 && sample.every((row) => fits(row[index] ?? '')));
   };
+  const reference = named(referenceName);
   const date = column(columnNames.date, looksLikeDate);
   const amount = column(columnNames.amount, (value) => parseAmount(value) !== null && !looksLikeDate(value));
-  const description = column(columnNames.description, (value) => /[a-zء-ي]{3}/i.test(value));
-  return { date: Math.max(date, 0), description: Math.max(description, 0), amount: Math.max(amount, 0) };
+  const credit = named(creditName, [amount]);
+  const description = column(columnNames.description, (value) => /[a-zء-ي]{3}/i.test(value), [reference]);
+  return { date: Math.max(date, 0), description: Math.max(description, 0), amount: Math.max(amount, 0), credit: credit > -1 ? credit : null, reference: reference > -1 ? reference : null };
 }
 
 export function statementCurrency(rows: string[][], column: number) {
@@ -151,13 +186,27 @@ export function statementCurrency(rows: string[][], column: number) {
   return codes.size === 1 && allCurrencies.includes(code!) ? code! : null;
 }
 
-export function readCharges(rows: string[][], columns: StatementColumns, order: DateOrder): Charge[] {
+export function readEntries(rows: string[][], columns: StatementColumns, order: DateOrder): Entry[] {
   const entries = rows
     .slice(1)
-    .map((row) => ({ date: parseDate(row[columns.date] ?? '', order), description: (row[columns.description] ?? '').replace(/\s+/g, ' '), amount: parseAmount(row[columns.amount] ?? '') }))
-    .filter((entry): entry is Charge => entry.date !== null && entry.amount !== null && entry.amount !== 0 && entry.description !== '');
-  const outgoing = entries.some((entry) => entry.amount < 0) ? entries.filter((entry) => entry.amount < 0) : entries;
-  return outgoing.map((entry) => ({ ...entry, amount: Math.abs(entry.amount) }));
+    .map((row) => {
+      const debit = parseAmount(row[columns.amount] ?? '');
+      const credit = columns.credit === null ? null : parseAmount(row[columns.credit] ?? '');
+      return {
+        date: parseDate(row[columns.date] ?? '', order),
+        description: (row[columns.description] ?? '').replace(/\s+/g, ' '),
+        amount: credit ? Math.abs(credit) : debit !== null && columns.credit !== null ? -Math.abs(debit) : debit,
+        reference: columns.reference === null ? null : (row[columns.reference] ?? '').trim() || null,
+      };
+    })
+    .filter((entry): entry is Entry => entry.date !== null && entry.amount !== null && entry.amount !== 0 && entry.description !== '');
+  return columns.credit !== null || entries.some((entry) => entry.amount < 0) ? entries : entries.map((entry) => ({ ...entry, amount: -entry.amount }));
+}
+
+export function readCharges(rows: string[][], columns: StatementColumns, order: DateOrder): Charge[] {
+  return readEntries(rows, columns, order)
+    .filter((entry) => entry.amount < 0)
+    .map(({ date, description, amount }) => ({ date, description, amount: -amount }));
 }
 
 const fillerWords = new Set(['card', 'payment', 'purchase', 'pos', 'debit', 'credit', 'visa', 'mastercard', 'direct', 'dd', 'sepa', 'ref', 'to', 'from', 'www', 'com', 'net', 'the', 'inc', 'ltd', 'llc', 'شراء', 'دفع', 'بطاقة']);

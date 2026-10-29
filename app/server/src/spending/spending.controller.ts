@@ -3,7 +3,7 @@ import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateExpenseDto, ExpenseIdsDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
+import { CreateExpenseDto, ExpenseIdsDto, ExportDto, ImportExpensesDto, InsightsDto, MonthDto, SaveBudgetDto, SavePlanDto, TransactionsDto, UpdateExpenseDto, UpdateExpensesDto } from './dto/spending.dto';
 import { SpendingService } from './spending.service';
 
 @Controller()
@@ -26,8 +26,8 @@ export class SpendingController {
   @Scope('items:read')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="transactions.csv"')
-  export(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.spending.export(user.id, spaceId);
+  export(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: ExportDto) {
+    return this.spending.export(user.id, spaceId, query);
   }
 
   @Put('spaces/:spaceId/spending-plan')
@@ -72,6 +72,13 @@ export class SpendingController {
   @Scope('items:write')
   importExpenses(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ImportExpensesDto) {
     return this.spending.import(user.id, spaceId, input.expenses);
+  }
+
+  @Post('spaces/:spaceId/expenses/import/check')
+  @Scope('items:read')
+  @HttpCode(200)
+  checkImport(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ImportExpensesDto) {
+    return this.spending.duplicates(user.id, spaceId, input.expenses);
   }
 
   @Get('expenses/:id')
