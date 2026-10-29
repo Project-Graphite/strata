@@ -266,6 +266,7 @@ export function NotePage() {
           key={details.id}
           noteId={details.id}
           onComment={details.quick || !details.permissions.comment ? undefined : quote}
+          peopleSpaceId={details.permissions.spaceRole ? details.spaceId : undefined}
           quick={details.quick}
           spaceId={details.permissions.organize ? details.spaceId : ''}
         />

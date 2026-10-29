@@ -7,6 +7,7 @@ const contentSecurityPolicy = (nonce: string) => [
   `style-src 'self' 'nonce-${nonce}'`,
   "img-src 'self' data: blob:",
   "connect-src 'self'",
+  'frame-src https://www.youtube-nocookie.com',
   "font-src 'self'",
   "worker-src 'self'",
   "manifest-src 'self'",

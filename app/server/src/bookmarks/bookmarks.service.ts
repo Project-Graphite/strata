@@ -57,7 +57,7 @@ export class BookmarksService {
       await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title } });
       return item.id;
     });
-    return { bookmark: await this.get(userId, id), ...(await this.page(input.url)) };
+    return { bookmark: await this.get(userId, id), ...(await this.preview(input.url)) };
   }
 
   async list(userId: string, query: ListBookmarksDto) {
@@ -94,7 +94,7 @@ export class BookmarksService {
   }
 
   async fetchAgain(userId: string, itemId: string) {
-    return this.page((await this.editable(userId, itemId)).url);
+    return this.preview((await this.editable(userId, itemId)).url);
   }
 
   async saveArticle(userId: string, itemId: string, input: SaveArticleDto) {
@@ -120,7 +120,7 @@ export class BookmarksService {
     return this.get(userId, itemId);
   }
 
-  private async page(url: string) {
+  async preview(url: string) {
     try {
       return { html: await fetchPublic(url, { accept: 'text/html, application/xhtml+xml;q=0.9', maxBytes: 2_000_000, timeoutMs: 10_000 }), fetchError: null };
     } catch (error) {

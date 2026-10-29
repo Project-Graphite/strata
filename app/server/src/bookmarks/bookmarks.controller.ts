@@ -24,6 +24,13 @@ export class BookmarksController {
     return this.bookmarks.create(user.id, spaceId, input);
   }
 
+  @Post('bookmarks/preview')
+  @Scope('items:read')
+  @RateLimit('bookmark-fetch', 60, 3_600)
+  preview(@Body() input: CreateBookmarkDto) {
+    return this.bookmarks.preview(input.url);
+  }
+
   @Get('bookmarks/:id')
   @Scope('items:read')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {

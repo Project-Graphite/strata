@@ -50,7 +50,7 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
     let renewalFailures = 0;
     let renewalDelay = 1_000;
     let renewalTimer: number | undefined;
-    const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-v${editorFormat}-${userId}-${noteId}`, document, [`strata-note-v4-${userId}-${noteId}`, `strata-note-${userId}-${noteId}`]) : undefined;
+    const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-v${editorFormat}-${userId}-${noteId}`, document, [`strata-note-v5-${userId}-${noteId}`, `strata-note-v4-${userId}-${noteId}`,`strata-note-${userId}-${noteId}`]) : undefined;
     const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
     const provider = new HocuspocusProvider({
       name: noteId,

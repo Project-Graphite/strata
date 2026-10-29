@@ -1,5 +1,6 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Menu, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { isValidYoutubeUrl } from '@tiptap/extension-youtube';
 import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
@@ -12,7 +13,8 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import { BubbleMenu } from '@tiptap/react/menus';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
-import { maxUploadBytes, saveBlob, uploadFile } from '../files';
+import { previewLink } from '../bookmarks';
+import { hasPreview, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { FormDialog } from './FormDialog';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
 import { PageBlockTarget } from './PageBlockTarget';
@@ -21,6 +23,7 @@ import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
+import { AlignGlyph, alignments, AltTextDialog, GlyphButton, webAddress } from './media-blocks';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
 import { usePageFollowing } from './page-following';
 
@@ -177,6 +180,46 @@ function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }
   );
 }
 
+function EmbedDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+  const { request } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <FormDialog
+      busy={busy}
+      busyLabel="Reading the page…"
+      onClose={onClose}
+      onSubmit={(form) => {
+        const typed = String(new FormData(form).get('url')).trim();
+        const url = webAddress(/^[a-z][a-z\d+.-]*:/i.test(typed) ? typed : `https://${typed}`);
+        if (!typed || !url) return setError('Enter a web address, like https://example.com.');
+        if (isValidYoutubeUrl(url.href)) {
+          editor.chain().focus().setYoutubeVideo({ src: url.href }).run();
+          return onClose();
+        }
+        setBusy(true);
+        void previewLink(request, url.href).then((card) => {
+          editor.chain().focus().insertContent({ type: 'linkCard', attrs: card }).run();
+          onClose();
+        });
+      }}
+      submitLabel="Embed"
+      title="Embed a link"
+    >
+      <TextField autoFocus error={error} hint="YouTube videos play in the page. Other links show as a card." inputMode="url" label="Address" name="url" placeholder="https://" />
+    </FormDialog>
+  );
+}
+
+function describeImage(editor: Editor, fileId: string, alt: string) {
+  editor.chain().command(({ tr }) => {
+    tr.doc.descendants((node, pos) => {
+      if (node.type.name === 'image' && node.attrs.fileId === fileId) tr.setNodeAttribute(pos, 'alt', alt);
+    });
+    return true;
+  }).run();
+}
+
 function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
   const block = useEditorState({
     editor,
@@ -184,15 +227,6 @@ function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActi
     equalityFn: (a, b) => a?.node === b?.node && a?.pos === b?.pos,
   });
   return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerLabel="Change this block" triggerVariant="text" />;
-}
-
-function GlyphButton({ active, children, label, onClick }: { active?: boolean; children: ReactNode; label: string; onClick: () => void }) {
-  return (
-    <ToolbarButton active={active} label={label} onClick={onClick}>
-      <span aria-hidden="true" className="inline-flex items-center gap-1">{children}</span>
-      <span className="sr-only">{label}</span>
-    </ToolbarButton>
-  );
 }
 
 function showBubble({ editor, element, view, state }: { editor: Editor; element: HTMLElement; view: EditorView; state: EditorState }) {
@@ -218,6 +252,7 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
       color: current.getAttributes('textStyle').color as string | undefined,
       highlight: current.isActive('highlight') ? ((current.getAttributes('highlight').color as string | undefined) ?? 'default') : undefined,
       kind: Object.keys(blockKinds).reverse().find((id) => current.isActive(...blockKinds[id]!)) ?? 'text',
+      align: alignments.find(([align]) => current.isActive({ textAlign: align }))?.[0] ?? 'left',
     }),
   });
 
@@ -320,6 +355,16 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
                   </GlyphButton>
                 ),
               )}
+              {['text', 'heading1', 'heading2', 'heading3'].includes(state.kind) && (
+                <>
+                  <ToolbarSeparator />
+                  {alignments.map(([align, label]) => (
+                    <GlyphButton active={state.align === align} key={align} label={label} onClick={() => (align === 'left' ? editor.chain().focus().unsetTextAlign().run() : editor.chain().focus().setTextAlign(align).run())}>
+                      <AlignGlyph align={align} />
+                    </GlyphButton>
+                  ))}
+                </>
+              )}
             </FloatingToolbar>
           )}
         </div>
@@ -347,21 +392,25 @@ export function CollaborativeEditor({
   noteId,
   quick,
   spaceId,
+  peopleSpaceId,
   onComment,
   commentedBlocks,
-}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string } & CommentHooks) {
+}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string; peopleSpaceId?: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
   const [blockLink, setBlockLink] = useState<string>();
   const [blocked, setBlocked] = useState(true);
+  const [embedding, setEmbedding] = useState<Editor>();
+  const [describing, setDescribing] = useState<{ fileId: string; name: string }[]>([]);
   const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
-  const handlers = useRef({ addBoard, copyBlock, insert, insertImages });
-  handlers.current = { addBoard, copyBlock, insert, insertImages };
+  const handlers = useRef({ addBoard, copyBlock, insert, insertFiles });
+  handlers.current = { addBoard, copyBlock, insert, insertFiles };
   const { guest } = connection;
 
   const actions = useMemo<BlockActions>(() => ({
-    onImages: guest || !spaceId ? undefined : (view, files) => handlers.current.insertImages(view, files),
+    onFiles: guest || !spaceId ? undefined : (view, files) => handlers.current.insertFiles(view, files),
+    onEmbed: guest ? undefined : setEmbedding,
     onBoard: quick || guest || !spaceId ? undefined : (target) => handlers.current.addBoard(target),
     pageLinks: !guest,
     onCopyBlock: (id) => handlers.current.copyBlock(id),
@@ -371,7 +420,7 @@ export function CollaborativeEditor({
     {
       editable: editable && !blocked,
       extensions: [
-        ...pageContent(connection.guest ? undefined : auth.request, noteId),
+        ...pageContent(connection.guest ? undefined : auth.request, noteId, peopleSpaceId),
         Placeholder.configure({ placeholder: editable ? 'Start writing…' : '' }),
         Collaboration.configure({ document: connection.document }),
         CollaborationCaret.configure({ provider: connection.provider, user: { name: user.displayName, color: colorFor(user.id) } }),
@@ -415,25 +464,28 @@ export function CollaborativeEditor({
   }
 
   function insert(view: EditorView, files: File[], slice: Slice) {
-    if (insertImages(view, files)) return true;
+    if (insertFiles(view, files)) return true;
     if (new Blob([JSON.stringify(slice.content.toJSON())]).size <= maxInsertBytes) return false;
     show({ message: 'That is too much to add at once. Add it in smaller parts.', tone: 'error' });
     return true;
   }
 
-  function insertImages(view: EditorView, files: File[]) {
-    const images = files.filter((file) => file.type.startsWith('image/'));
-    if (!editable || connection.guest || !spaceId || images.length === 0) return false;
+  function insertFiles(view: EditorView, files: File[]) {
+    if (!editable || connection.guest || !spaceId || files.length === 0) return false;
     void (async () => {
-      for (const file of images) {
+      for (const file of files) {
         if (file.size > maxUploadBytes) {
           show({ message: `${file.name} is over 25 MB.`, tone: 'error' });
           continue;
         }
         try {
           const uploaded = await uploadFile(auth.request, spaceId, file);
-          const image = view.state.schema.nodes.image!.create({ fileId: uploaded.id, alt: file.name });
-          view.dispatch(view.state.tr.replaceSelectionWith(image));
+          const mimeType = uploaded.file?.mimeType ?? file.type;
+          const node = hasPreview(uploaded)
+            ? view.state.schema.nodes.image!.create({ fileId: uploaded.id, alt: file.name })
+            : view.state.schema.nodes.fileAttachment!.create({ fileId: uploaded.id, name: file.name, size: uploaded.file?.sizeBytes ?? file.size, mimeType, preview: mimeType === 'application/pdf' });
+          view.dispatch(view.state.tr.replaceSelectionWith(node));
+          if (node.type.name === 'image') setDescribing((current) => [...current, { fileId: uploaded.id, name: file.name }]);
         } catch {
           show({ message: `Could not upload ${file.name}.`, tone: 'error' });
         }
@@ -463,6 +515,15 @@ export function CollaborativeEditor({
       <PageBlockTarget editor={editor} provider={connection.provider} />
       <EditorContent editor={editor} />
       {blockLink && <Dialog onClose={() => setBlockLink(undefined)} title="Link to block"><div className="mt-5"><Copyable value={blockLink} /></div></Dialog>}
+      {embedding && <EmbedDialog editor={embedding} onClose={() => setEmbedding(undefined)} />}
+      {describing[0] && (
+        <AltTextDialog
+          initial={describing[0].name}
+          key={describing[0].fileId}
+          onClose={() => setDescribing((current) => current.slice(1))}
+          onSave={(alt) => describeImage(editor, describing[0]!.fileId, alt)}
+        />
+      )}
     </div>
   );
 }
@@ -540,8 +601,8 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
   );
 });
 
-export default function NoteEditor({ editable, noteId, quick, spaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string } & CommentHooks) {
+export default function NoteEditor({ editable, noteId, quick, spaceId, peopleSpaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string; peopleSpaceId?: string } & CommentHooks) {
   const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
-  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={quick} spaceId={spaceId} {...hooks} />;
+  return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} peopleSpaceId={peopleSpaceId} quick={quick} spaceId={spaceId} {...hooks} />;
 }

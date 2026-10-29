@@ -1,1 +1,1 @@
-export const editorFormat = 5;
+export const editorFormat = 6;

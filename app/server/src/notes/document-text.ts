@@ -42,12 +42,18 @@ export function documentText(document: Y.Doc, maxLength = 100_000) {
     .slice(0, maxLength);
 }
 
+const linkAttributes = new Map<string, [string, 'mentions' | 'files']>([
+  ['mention', ['id', 'mentions']],
+  ['boardEmbed', ['boardId', 'mentions']],
+  ['image', ['fileId', 'files']],
+  ['fileAttachment', ['fileId', 'files']],
+]);
+
 function collect(node: Y.XmlElement | Y.XmlFragment, found: { mentions: Set<string>; files: Set<string> }) {
   for (const child of node.toArray()) {
     if (!(child instanceof Y.XmlElement)) continue;
-    if (child.nodeName === 'mention' && child.getAttribute('id')) found.mentions.add(String(child.getAttribute('id')));
-    if (child.nodeName === 'boardEmbed' && child.getAttribute('boardId')) found.mentions.add(String(child.getAttribute('boardId')));
-    if (child.nodeName === 'image' && child.getAttribute('fileId')) found.files.add(String(child.getAttribute('fileId')));
+    const link = linkAttributes.get(child.nodeName);
+    if (link && child.getAttribute(link[0])) found[link[1]].add(String(child.getAttribute(link[0])));
     collect(child, found);
   }
   return found;
@@ -58,12 +64,6 @@ export function documentLinks(document: Y.Doc) {
   for (const element of boardElements(document)) if (element.type === 'image' && element.fileId) found.files.add(element.fileId);
   return found;
 }
-
-const linkAttributes = new Map<string, { node: string; kind: 'mentions' | 'files' }>([
-  ['id', { node: 'mention', kind: 'mentions' }],
-  ['boardId', { node: 'boardEmbed', kind: 'mentions' }],
-  ['fileId', { node: 'image', kind: 'files' }],
-]);
 
 export function updateLinks(document: Y.Doc, update: Uint8Array) {
   const found = { mentions: new Set<string>(), files: new Set<string>() };
@@ -88,8 +88,8 @@ export function updateLinks(document: Y.Doc, update: Uint8Array) {
     if (typeof value !== 'string' || !value) continue;
     const place = placeOf(item);
     if (!place) return undefined;
-    const link = place.key === null ? undefined : linkAttributes.get(place.key);
-    if (link && place.parent instanceof Y.XmlElement && place.parent.nodeName === link.node) found[link.kind].add(value);
+    const link = place.parent instanceof Y.XmlElement ? linkAttributes.get(place.parent.nodeName) : undefined;
+    if (link && place.key === link[0]) found[link[1]].add(value);
   }
   return found;
 }

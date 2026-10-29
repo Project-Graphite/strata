@@ -39,6 +39,14 @@ export async function keepArticle(request: Request, bookmark: Bookmark, html: st
   return request<BookmarkDetails>(`/bookmarks/${bookmark.id}/article`, { method: 'PUT', body: JSON.stringify(readArticle(html, bookmark.url)) });
 }
 
+export async function previewLink(request: Request, url: string) {
+  const page = await request<FetchedPage>('/bookmarks/preview', { method: 'POST', body: JSON.stringify({ url }) }).catch(() => ({ html: null }));
+  if (!page.html) return { url };
+  const { readArticle } = await import('./article-reader');
+  const { title, siteName, description } = readArticle(page.html, url);
+  return { url, title: title ?? null, siteName: siteName || null, description: description || null };
+}
+
 export async function saveBookmark(request: Request, spaceId: string, url: string) {
   const saved = await request<FetchedPage & { bookmark: BookmarkDetails }>(`/spaces/${spaceId}/bookmarks`, { method: 'POST', body: JSON.stringify({ url }) });
   return {

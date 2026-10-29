@@ -38,6 +38,18 @@ describe('Bookmarks and read-later against Postgres', () => {
     expect(unfetched.body).toMatchObject({ bookmark: { title: 'plain.example' }, html: null, fetchError: 'Only https:// addresses are allowed' });
   });
 
+  it('previews a link for a page link card without saving a bookmark', async () => {
+    const writer = await member('card-maker');
+    const space = (await writer.call('POST', '/spaces', { name: 'Cards' })).body;
+    vi.mocked(fetchPublic).mockResolvedValue(page);
+
+    expect((await writer.call('POST', '/bookmarks/preview', { url: 'javascript:alert(1)' })).status).toBe(400);
+    const preview = await writer.call('POST', '/bookmarks/preview', { url: 'https://bread.example/card' });
+    expect(preview.status).toBe(201);
+    expect(preview.body).toEqual({ html: page, fetchError: null });
+    expect((await writer.call('GET', `/me/bookmarks?spaceId=${space.id}`)).body).toEqual([]);
+  });
+
   it('keeps the article as plain blocks, finds it in search and shows it to readers', async () => {
     const owner = await member('reader');
     const viewer = await member('peeker');
