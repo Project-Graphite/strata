@@ -41,6 +41,10 @@ android {
             dimension = "distribution"
         }
     }
+    lint {
+        textReport = true
+        textOutput = file('stdout')
+    }
     buildTypes {
         release {
             minifyEnabled false
