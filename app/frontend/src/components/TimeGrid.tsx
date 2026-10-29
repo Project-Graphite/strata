@@ -122,8 +122,8 @@ function Block({ item }: { item: Placed }) {
     <button className={`agenda-block tag-${item.colour}`} data-entry={item.key} style={item.style} title={item.entry.title} type="button">
       <span className={`min-w-0 ${short ? 'truncate' : ''}`}>
         <span className={`font-medium ${short ? '' : 'block truncate'}`}>{item.entry.title}</span>
-        <span className={short ? 'text-muted' : 'sr-only'}> · </span>
-        <span className={`text-muted ${short ? '' : 'block truncate'}`}>
+        <span className={short ? 'text-ink/80' : 'sr-only'}> · </span>
+        <span className={`text-ink/80 ${short ? '' : 'block truncate'}`}>
           {entryTime(item.entry)}
           {item.entry.location ? ` · ${item.entry.location}` : ''}
         </span>
@@ -152,7 +152,7 @@ function Lane({ columns, days, entries, label, colourOf, timed }: { columns: CSS
         <div className="grid min-w-0 content-start gap-0.5 border-l border-line p-1" key={day}>
           {(entries.get(day) ?? []).map((entry) => (
             <button className={`agenda-chip tag-${colourOf(entry)}`} data-entry={entryKey(entry)} key={entryKey(entry)} title={entry.title} type="button">
-              {timed && !entry.allDay && <span className="text-muted">{entryClock(entry.start)} </span>}
+              {timed && !entry.allDay && <span className="text-ink/80">{entryClock(entry.start)} </span>}
               {entry.title}
             </button>
           ))}
@@ -357,7 +357,7 @@ export function TimeGrid({
           <div className="pointer-events-none absolute inset-y-0" style={{ left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${ghost.index / days.length})`, width: `calc((100% - var(--agenda-gutter)) / ${days.length})` }}>
             <div aria-hidden="true" className={`agenda-block agenda-ghost tag-${ghost.colour}`} style={{ top: percent(Math.max(0, ghost.start)), height: `calc(${percent(Math.min(dayMinutes, ghost.end) - Math.max(0, ghost.start))} - 2px)`, left: 2, right: 2 }}>
               <span className="block truncate font-medium">{ghost.title}</span>
-              <span className="block truncate text-muted">
+              <span className="block truncate text-ink/80">
                 {clockTime(new Date(2000, 0, 1, 0, Math.max(0, ghost.start)))}–{clockTime(new Date(2000, 0, 1, 0, Math.min(dayMinutes, ghost.end)))}
               </span>
             </div>

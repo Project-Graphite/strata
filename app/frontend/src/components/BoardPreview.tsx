@@ -24,11 +24,11 @@ export function BoardPreview({ boardId, label, live = false }: { boardId: string
   return (
     <div aria-label={label} className="board-preview" role="img">
       {failed ? (
-        <p className="m-0 p-6 text-center text-small text-muted">This board could not be shown</p>
+        <p className="m-0 p-6 text-center text-small">This board could not be shown</p>
       ) : thumbnail === undefined ? (
         <Skeleton className="h-40 w-full" />
       ) : thumbnail === null ? (
-        <p className="m-0 p-6 text-center text-small text-muted">Nothing drawn yet</p>
+        <p className="m-0 p-6 text-center text-small">Nothing drawn yet</p>
       ) : (
         <img alt="" className="board-preview-drawing" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(thumbnail)}`} />
       )}

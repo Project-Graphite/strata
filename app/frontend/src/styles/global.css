@@ -239,6 +239,10 @@
   background: #ffffff;
 }
 
+.board-preview > p {
+  color: #55555c;
+}
+
 .board-preview-drawing {
   display: block;
   width: 100%;
@@ -1606,7 +1610,7 @@ button.habit-day::before {
   outline: none;
 }
 
-.pages-tree [role='treeitem']:focus-visible > .pages-tree-row {
+.pages-tree [role='treeitem']:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: -2px;
 }

@@ -66,8 +66,8 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
       {pages.map((page) => {
         const expanded = tree.open.has(page.id);
         return (
-          <li aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${edited(page).toLowerCase()}`} aria-level={depth + 1} data-href={noteHref(page)} data-tree-id={page.id} key={page.id} role="treeitem" tabIndex={-1}>
-            <div className="pages-tree-row" style={pageIndent(depth)}>
+          <li key={page.id} role="none">
+            <div aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${edited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
               <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
                 <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
               </button>
@@ -78,7 +78,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
               {writable && <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => tree.trash(page) }]} name={noteTitle(page)} />}
             </div>
             {expanded && (
-              <ul role="group">
+              <ul id={`pages-group-${page.id}`} role="group">
                 <TreeLevel depth={depth + 1} parentId={page.id} spaceId={spaceId} writable={writable} />
               </ul>
             )}
@@ -120,7 +120,7 @@ function PagesTree() {
     const index = items.indexOf(item);
     const id = item.dataset.treeId!;
     const expanded = item.getAttribute('aria-expanded') === 'true';
-    const parentOf = (candidate?: HTMLElement) => candidate?.parentElement?.closest<HTMLElement>('[role="treeitem"]');
+    const parentOf = (candidate?: HTMLElement) => candidate?.parentElement?.parentElement?.closest('li')?.querySelector<HTMLElement>(':scope > [role="treeitem"]');
     const focus = (target?: HTMLElement | null) => {
       event.preventDefault();
       target?.focus();
@@ -167,8 +167,8 @@ function PagesTree() {
           const key = `space:${space.id}`;
           const expanded = !open.has(key);
           return (
-            <li aria-expanded={expanded} aria-label={space.name} aria-level={1} data-tree-id={key} key={space.id} role="treeitem" tabIndex={-1}>
-              <div className="pages-tree-row" style={pageIndent(0)}>
+            <li key={space.id} role="none">
+              <div aria-expanded={expanded} aria-label={space.name} aria-level={1} aria-owns={expanded ? `pages-group-${key}` : undefined} className="pages-tree-row" data-tree-id={key} role="treeitem" style={pageIndent(0)} tabIndex={-1}>
                 <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} tabIndex={-1} type="button">
                   <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
                 </button>
@@ -178,7 +178,7 @@ function PagesTree() {
                 </button>
               </div>
               {expanded && (
-                <ul role="group">
+                <ul id={`pages-group-${key}`} role="group">
                   <TreeLevel depth={1} parentId={null} spaceId={space.id} writable={space.role !== 'viewer'} />
                 </ul>
               )}

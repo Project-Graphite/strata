@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Button } from '@project-graphite/ui';
 
 export function FileButton({
@@ -19,9 +20,12 @@ export function FileButton({
   onFiles: (files: File[]) => void;
   primary?: boolean;
 }) {
+  const input = useRef<HTMLInputElement>(null);
   return (
-    <Button className="w-fit shrink-0" component="label" disabled={busy} icon="upload" size="small" variant={primary ? 'primary' : 'secondary'}>
-      {label}
+    <>
+      <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size="small" variant={primary ? 'primary' : 'secondary'}>
+        {label}
+      </Button>
       <input
         accept={accept}
         aria-label={inputLabel}
@@ -33,9 +37,11 @@ export function FileButton({
           event.currentTarget.value = '';
           if (files.length) onFiles(files);
         }}
+        ref={input}
+        tabIndex={-1}
         type="file"
         {...(folder ? { webkitdirectory: '' } : {})}
       />
-    </Button>
+    </>
   );
 }
