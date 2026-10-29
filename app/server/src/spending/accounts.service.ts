@@ -17,12 +17,15 @@ export interface AccountFlow {
 
 export const cardKindOf = (accountKind: string) => (accountKind === 'credit_card' ? 'credit' : accountKind === 'prepaid' ? 'prepaid' : 'debit');
 
+export const flowSign = (accountId: string, flow: Pick<AccountFlow, 'direction' | 'accountId' | 'toAccountId'>) =>
+  flow.accountId === accountId ? (flow.direction === 'received' || flow.direction === 'refund' ? 1 : -1) : flow.toAccountId === accountId ? 1 : 0;
+
 export function balanceOf(account: Pick<MoneyAccount, 'id' | 'currency' | 'balanceMinor' | 'balanceAt'>, flows: AccountFlow[], rates: RateTable) {
   const missing = new Set<string>();
   let balanceMinor = Number(account.balanceMinor);
   for (const flow of flows) {
     if (flow.item.createdAt <= account.balanceAt) continue;
-    const sign = flow.accountId === account.id ? (flow.direction === 'received' || flow.direction === 'refund' ? 1 : -1) : flow.toAccountId === account.id ? 1 : 0;
+    const sign = flowSign(account.id, flow);
     if (!sign) continue;
     const amount = flow.currency === account.currency ? Number(flow.amountMinor) : convertMinor(Number(flow.amountMinor), flow.currency, account.currency, rates);
     if (amount === null) missing.add(flow.currency);

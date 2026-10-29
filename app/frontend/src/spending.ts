@@ -11,6 +11,8 @@ export interface SpendingCategory {
 
 export const expenseCategories = (categories: SpendingCategory[] | undefined) => (categories ?? []).filter((category) => category.kind !== 'income');
 
+export const mostUsedCategory = (categories: SpendingCategory[]) => [...categories].sort((a, b) => (b.uses ?? 0) - (a.uses ?? 0))[0]?.name ?? 'other';
+
 export interface MerchantRule {
   id: string;
   match: string;
@@ -83,6 +85,21 @@ export const paymentMethods: [string, string][] = [
   ['Cash', 'In person'],
 ];
 
+export type ExpenseKind = 'purchase' | 'atm' | 'fee' | 'bill' | 'transfer' | 'card_payment' | 'installment' | 'salary' | 'refund' | 'income';
+
+export const expenseKindOptions: { value: ExpenseKind; label: string }[] = [
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'bill', label: 'Bill' },
+  { value: 'atm', label: 'Cash withdrawal' },
+  { value: 'fee', label: 'Fee' },
+  { value: 'installment', label: 'Installment' },
+  { value: 'card_payment', label: 'Card payment' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'refund', label: 'Refund' },
+  { value: 'salary', label: 'Salary' },
+  { value: 'income', label: 'Other income' },
+];
+
 export interface Expense {
   id: string;
   spaceId: string;
@@ -90,17 +107,31 @@ export interface Expense {
   amountMinor: number;
   currency: string;
   spentOn: string;
+  occurredAt: string | null;
   category: string;
   paymentLabel: string | null;
   note: string;
   direction: ExpenseDirection;
+  kind: ExpenseKind;
+  status: 'pending' | 'posted';
   merchant: string | null;
   source: 'manual' | 'import' | 'sms';
+  reference: string | null;
   accountId: string | null;
   toAccountId: string | null;
+  cardId: string | null;
   cardDigits: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TransactionsPage {
+  currency: string;
+  missing: string[];
+  count: number | null;
+  next: string | null;
+  days: { day: string; spentMinor: number; receivedMinor: number }[];
+  expenses: (Expense & { balanceMinor: number | null })[];
 }
 
 export interface InstallmentPlan {

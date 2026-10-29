@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Select, Skeleton, Stat, StatGrid, TextField, Toggle } from '@project-graphite/ui';
+import { Card, ConfirmDialog, formatDay, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, Toggle } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
@@ -48,9 +48,8 @@ const recentCount = 5;
 const chartedCount = 7;
 const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.' };
 const emptyBudgets = { title: 'No budgets yet', hint: 'Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.' };
-const emptyTransactions = { title: 'No transactions this month', hint: 'Add an expense, import a statement or connect your phone to see this month’s spending here.' };
 
-export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
+export function SpendingPage({ tab }: { tab: 'overview' | 'accounts' | 'budgets' }) {
   const auth = useAuth();
   const action = useAction();
   const [params, setParams] = useSearchParams();
@@ -81,12 +80,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
   const budgeted = Boolean(shown?.budgetsEnabled && shown.budgetMinor !== null);
   const openAccounts = accounts.data?.filter((account) => !account.archivedAt);
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
-  const cardName = (digits: string, accountId: string | null) => [accountName(accountId), `•••• ${digits}`].filter(Boolean).join(' ');
-  const card = params.get('card');
-  const listed = (shown?.expenses ?? []).filter((expense) => tab !== 'transactions' || !card || expense.cardDigits === card);
-  const cards = [...new Map((shown?.expenses ?? []).filter((expense) => expense.cardDigits).map((expense) => [expense.cardDigits!, cardName(expense.cardDigits!, expense.accountId)])).entries()];
   const shape = useRememberedShape(
-    `spending-${tab}${tab === 'transactions' && card ? '-card' : ''}`,
+    `spending-${tab}`,
     shown &&
       (tab === 'overview'
         ? openAccounts && [
@@ -96,12 +91,10 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             Math.min(shown.categories.filter((row) => row.spentMinor > 0).length, chartedCount + 1),
             Math.min(shown.expenses.length, recentCount + 1),
           ]
-        : tab === 'transactions'
-          ? [listed.length, cards.length]
-          : tab === 'budgets'
-            ? [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]
-            : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
-    tab === 'overview' ? [0, 0, 1, 0, recentCount] : tab === 'transactions' ? [recentCount, 0] : tab === 'budgets' ? [1, 3] : [2, 0],
+        : tab === 'budgets'
+          ? [shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0, shown.categories.filter((row) => row.budgetMinor !== null).length]
+          : accounts.data && installments.data && [accounts.data.length, installments.data.length]),
+    tab === 'overview' ? [0, 0, 1, 0, recentCount] : tab === 'budgets' ? [1, 3] : [2, 0],
   );
   const reload = () => {
     summary.reload();
@@ -120,7 +113,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
               : expense.direction === 'received'
                 ? 'Received'
                 : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
-            expense.direction !== 'transfer' && (expense.cardDigits ? cardName(expense.cardDigits, expense.accountId) : accountName(expense.accountId)),
+            expense.direction !== 'transfer' && [accountName(expense.accountId), expense.cardDigits && `•••• ${expense.cardDigits}`].filter(Boolean).join(' '),
             expense.paymentLabel,
           ]
             .filter(Boolean)
@@ -145,52 +138,29 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
       tab={tab}
       toolbar={
         tab !== 'accounts' && (
-          <>
-            <PeriodNav
-              current={tab === 'overview' ? undefined : {
-                label: 'This month',
-                onSelect: () =>
-                  setParams((current) => {
-                    const next = new URLSearchParams(current);
-                    next.delete('month');
-                    return next;
-                  }),
-              }}
-              disabled={!shown}
-              onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
-              title={
-                !shown ? (
-                  <SkeletonLine width="w-28" />
-                ) : shown.plan.startDay === 1 ? (
-                  monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
-                ) : (
-                  `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
-                )
-              }
-              unit="month"
-            />
-            {tab === 'transactions' && !shown && (card || shape[1]! > 0) && <Skeleton className="h-10 w-36 rounded-field" />}
-            {tab === 'transactions' && shown && (cards.length > 0 || card) && (
-              <Select
-                aria-label="Card"
-                onChange={(next: string) =>
-                  setParams((current) => {
-                    const query = new URLSearchParams(current);
-                    if (next) query.set('card', next);
-                    else query.delete('card');
-                    return query;
-                  })
-                }
-                options={[
-                  { value: '', label: 'All cards' },
-                  ...cards.map(([digits, label]) => ({ value: digits, label })),
-                  ...(card && !cards.some(([digits]) => digits === card) ? [{ value: card, label: `•••• ${card}` }] : []),
-                ]}
-                size="small"
-                value={card ?? ''}
-              />
-            )}
-          </>
+          <PeriodNav
+            current={tab === 'overview' ? undefined : {
+              label: 'This month',
+              onSelect: () =>
+                setParams((current) => {
+                  const next = new URLSearchParams(current);
+                  next.delete('month');
+                  return next;
+                }),
+            }}
+            disabled={!shown}
+            onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
+            title={
+              !shown ? (
+                <SkeletonLine width="w-28" />
+              ) : shown.plan.startDay === 1 ? (
+                monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+              ) : (
+                `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
+              )
+            }
+            unit="month"
+          />
         )
       }
     >
@@ -276,6 +246,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
                 <ul className="panel-rows">
                   {openAccounts.map((account) => (
                     <ListRow
+                      href={`/spending/transactions?account=${account.id}`}
                       key={account.id}
                       meta={accountKindOptions.find((option) => option.value === account.kind)?.label}
                       title={account.name}
@@ -439,12 +410,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'transactions' | 'acco
             </Section>
           )}
 
-          {tab === 'transactions' &&
-            (listed.length === 0 ? (
-              <Empty title={emptyTransactions.title}>{emptyTransactions.hint}</Empty>
-            ) : (
-              expenseRows(listed)
-            ))}
         </>
       )}
 
@@ -688,17 +653,7 @@ function ReviewCard({
   );
 }
 
-function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'transactions' | 'accounts' | 'budgets' }) {
-  if (tab === 'transactions') {
-    const [rows = 0] = shape;
-    return rows ? (
-      <AmountRowsSkeleton rows={rows} />
-    ) : (
-      <Empty loading title={emptyTransactions.title}>
-        {emptyTransactions.hint}
-      </Empty>
-    );
-  }
+function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'accounts' | 'budgets' }) {
   if (tab === 'accounts') {
     const [accountRows = 0, planRows = 0] = shape;
     return (

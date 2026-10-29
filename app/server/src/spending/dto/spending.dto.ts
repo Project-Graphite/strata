@@ -152,6 +152,75 @@ export class ImportExpensesDto {
   expenses!: CreateExpenseDto[];
 }
 
+export class TransactionsDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200, { message: 'Load at most 200 transactions at a time.' })
+  limit?: number;
+
+  @IsOptional()
+  @Trimmed()
+  @IsString()
+  @MaxLength(100, { message: 'Search with at most 100 characters.' })
+  q?: string;
+
+  @IsOptional()
+  @AccountId()
+  account?: string;
+
+  @IsOptional()
+  @CardDigits()
+  card?: string;
+
+  @IsOptional()
+  @Category()
+  category?: string;
+
+  @IsOptional()
+  @Kind()
+  kind?: (typeof expenseKinds)[number];
+
+  @IsOptional()
+  @Direction()
+  direction?: (typeof expenseDirections)[number];
+
+  @IsOptional()
+  @Type(() => Number)
+  @AmountMinor(moneyCapMinor)
+  min?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @AmountMinor(moneyCapMinor)
+  max?: number;
+}
+
+export class ExpenseIdsDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Choose at least one transaction.' })
+  @ArrayMaxSize(500, { message: 'Change at most 500 transactions at a time.' })
+  @IsUUID('all', { each: true, message: 'Choose transactions from the list.' })
+  ids!: string[];
+}
+
+export class UpdateExpensesDto extends ExpenseIdsDto {
+  @IsOptionalNotNull()
+  @Category()
+  category?: string;
+
+  @IsOptional()
+  @ValidateIf(nullable)
+  @AccountId()
+  accountId?: string | null;
+}
+
 export class MonthDto {
   @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'Months look like 2026-10.' })

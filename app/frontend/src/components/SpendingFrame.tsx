@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Banner } from '@project-graphite/ui';
+import { Banner, Icon } from '@project-graphite/ui';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
@@ -11,9 +11,9 @@ import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
+import { AddTransaction } from './AddTransaction';
 import { Button } from './Button';
 import { CategoriesEditor } from './CategoriesEditor';
-import { ExpenseEditor } from './ExpenseEditor';
 import { ExpenseImport } from './ExpenseImport';
 import { Page } from './Page';
 import { PhoneSetup } from './PhoneSetup';
@@ -74,7 +74,11 @@ export function SpendingFrame({
               ]}
               name="spending"
             />
-            {editable && <Button icon="plus" label="New expense" large onClick={() => setDialog('new')} primary />}
+            {editable && (
+              <span className="page-primary-action">
+                <Button icon="plus" label="New transaction" large onClick={() => setDialog('new')} primary />
+              </span>
+            )}
           </>
         )
       }
@@ -96,8 +100,13 @@ export function SpendingFrame({
         </Banner>
       )}
       {children}
+      {editable && (
+        <button aria-label="New transaction" className="fab" onClick={() => setDialog('new')} type="button">
+          <Icon name="plus" size={20} />
+        </button>
+      )}
       {spaceId && dialog === 'new' && (
-        <ExpenseEditor accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
+        <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
       )}
       {spaceId && dialog === 'import' && <ExpenseImport currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
       {spaceId && space && dialog === 'phone' && (
