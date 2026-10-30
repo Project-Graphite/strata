@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, IconButton, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
+import { formatDay, IconButton, ListRow, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteHref, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
@@ -15,9 +15,16 @@ import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
 import { Button, TextButton } from '../Button';
 import { ActionsMenu } from '../ActionsMenu';
-import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../Skeletons';
+import { Empty } from '../Empty';
+import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../Skeletons';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
+
+const emptyState = (loading: boolean) => (
+  <Empty loading={loading} title="No pages yet">
+    Pages you add here share these properties.
+  </Empty>
+);
 
 export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
   const auth = useAuth();
@@ -34,12 +41,12 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   if (database.error) return <LoadError error={database.error} onRetry={database.reload} />;
   if (!database.data) {
     return (
-      <Placeholder className="grid gap-4 border-t border-line-soft pt-6" label="Loading the database">
+      <Placeholder className="grid gap-4" label="Loading the database">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-[2.421875rem] w-64 rounded-field" />
+          <Skeleton className="h-9 w-64 rounded-field" />
           {editable && (
-            <div className="flex items-center gap-4">
-              <ButtonSkeleton width="w-28" />
+            <div className="flex items-center gap-2">
+              <IconButtonSkeleton />
               <ButtonSkeleton width="w-24" />
             </div>
           )}
@@ -62,7 +69,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
             </tbody>
           </table>
         ) : (
-          <HintSkeleton />
+          emptyState(true)
         )}
       </Placeholder>
     );
@@ -143,8 +150,6 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
       </div>
     );
 
-  const empty = <Hint>No pages in this database yet.</Hint>;
-
   function body() {
     if (data.view === 'board') {
       if (!group) return <Hint>Add a select property to sort pages into columns.</Hint>;
@@ -168,7 +173,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                 >
                   <h3 className="m-0 flex items-center justify-between text-h3 text-muted">
                     {column.name}
-                    <span className="mono-sm text-faint">{cards.length}</span>
+                    <span className="text-small text-muted tabular-nums">{cards.length}</span>
                   </h3>
                   {cards.map((card) => (
                     <article className="database-card" draggable={editable} key={card.id} onDragStart={(event) => event.dataTransfer.setData('text/plain', card.id)}>
@@ -216,7 +221,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
           </div>
           <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
             {Array.from({ length: 7 }, (_, index) => addDays(from, index)).map((day) => (
-              <p className="m-0 bg-paper px-2 py-1 text-xs text-faint" key={`head-${day}`}>
+              <p className="m-0 bg-paper px-2 py-1 text-small text-muted" key={`head-${day}`}>
                 {formatDay(day, { weekday: 'short' })}
               </p>
             ))}
@@ -228,13 +233,13 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                 role="group"
               >
                 <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between">
-                  <span className={`mono-sm ${day === today ? 'font-medium text-ink' : 'text-faint'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
+                  <span className={`text-small tabular-nums ${day === today ? 'text-ink' : 'text-muted'}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
                   {editable && (
                     <IconButton className="max-sm:min-h-10" disabled={adding.busy} icon="plus" label="Add a page on this day" onClick={() => addRow({ [dateProperty.id]: day })} size="small" />
                   )}
                 </div>
                 {(byDay.get(day) ?? []).map((row) => (
-                  <span className="block truncate text-sm" key={row.id}>
+                  <span className="block truncate" key={row.id}>
                     {title(row)}
                   </span>
                 ))}
@@ -242,7 +247,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
             ))}
           </div>
           {undated.length > 0 && (
-            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-1">
               <span className="text-muted">No date:</span>
               {undated.map((row) => (
                 <span key={row.id}>{title(row)}</span>
@@ -252,16 +257,14 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
         </>
       );
     }
-    if (data.rows.length === 0) return empty;
+    if (data.rows.length === 0) return emptyState(false);
     if (data.view === 'list') {
       return (
-        <ul className="m-0 grid min-w-0 grid-cols-1 list-none gap-1.5 p-0">
-          {data.rows.map((row) => (
-            <li className="flex flex-wrap items-center gap-x-3 gap-y-1" key={row.id}>
-              {title(row)}
-              {chips(row)}
-            </li>
-          ))}
+        <ul className="panel-rows">
+          {data.rows.map((row) => {
+            const shown = chips(row);
+            return <ListRow key={row.id} meta={shown.length > 0 && <span className="flex gap-2">{shown}</span>} title={title(row)} />;
+          })}
         </ul>
       );
     }
@@ -302,18 +305,19 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
   }
 
   return (
-    <section aria-label="Database" className="grid min-w-0 grid-cols-1 gap-4 border-t border-line-soft pt-6">
+    <section aria-label="Database" className="grid min-w-0 grid-cols-1 gap-4">
       {database.refreshError && <LoadError compact error={database.refreshError} onRetry={database.reload} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
           label="Database view"
           onChange={(view) => void saveSchema({ view })}
           options={databaseViews.map(([value, label]) => ({ label, value }))}
+          size="small"
           value={data.view}
         />
         {editable && (
-          <div className="flex items-center gap-4">
-            <TextButton label="Edit properties" onClick={() => setEditing(data)} />
+          <div className="flex items-center gap-2">
+            <ActionsMenu items={[{ label: 'Edit properties', onSelect: () => setEditing(data) }]} name="database" />
             <Button disabled={adding.busy} icon="plus" label="New page" onClick={() => addRow()} />
           </div>
         )}

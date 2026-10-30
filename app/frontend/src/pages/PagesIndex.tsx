@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Icon, IconButton, Placeholder, TextField } from '@project-graphite/ui';
+import { Icon, ListRow, Placeholder, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, TextButton } from '../components/Button';
+import { Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
@@ -11,20 +11,17 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
-import { ButtonSkeleton, IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { announcePagesChanged, childPagesPath, nestedUnder, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
+import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { announcePagesChanged, childPagesPath, nestedUnder, noteEdited, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
 import { SpaceMark, useSpaces } from '../spaces';
-import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-const emptyStates = {
-  pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.' },
-  'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.' },
-  journal: { title: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.' },
+const emptyStates: Record<PagesSection, { title: string; hint: string; icon: IconName }> = {
+  pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.', icon: 'file' },
+  'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.', icon: 'file' },
+  journal: { title: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.', icon: 'pencil' },
 };
-
-const edited = (note: Note) => `Edited ${formatMoment(note.updatedAt)}`;
 
 interface PagesTreeControls {
   open: Set<string>;
@@ -34,8 +31,8 @@ interface PagesTreeControls {
 
 const PagesTreeContext = createContext<PagesTreeControls>(null!);
 
-function CreateButton({ busy, label, onCreate, primary = false, spaceId }: { busy: boolean; label: string; onCreate: (spaceId: string) => void; primary?: boolean; spaceId: string }) {
-  return <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaceId)} primary={primary} />;
+function CreateButton({ busy, label, large = false, onCreate, spaceId }: { busy: boolean; label: string; large?: boolean; onCreate: (spaceId: string) => void; spaceId: string }) {
+  return <Button disabled={busy} icon="plus" label={label} large={large} onClick={() => onCreate(spaceId)} primary />;
 }
 
 function TreeNote({ children, depth }: { children: ReactNode; depth: number }) {
@@ -67,13 +64,13 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
         const expanded = tree.open.has(page.id);
         return (
           <li key={page.id} role="none">
-            <div aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${edited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
+            <div aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${noteEdited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
               <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
-                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
+                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
               </button>
               <Link className="flex min-w-0 flex-1 items-center gap-3 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
                 <NoteMark note={page} />
-                <RowText detail={edited(page)} title={noteTitle(page)} />
+                <RowText detail={noteEdited(page)} title={noteTitle(page)} />
               </Link>
               {writable && <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => tree.trash(page) }]} name={noteTitle(page)} />}
             </div>
@@ -97,8 +94,9 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
   );
 }
 
-function PagesTree() {
+function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   const spaces = useSpaces();
+  const notes = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const navigate = useNavigate();
   const [open, setOpen] = useState(() => new Set<string>());
   const [inside, setInside] = useState(false);
@@ -144,7 +142,14 @@ function PagesTree() {
     }
   }
 
-  if (!spaces.data) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
+  if (!spaces.data || (!notes.data && !notes.error)) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
+  if (notes.data && !notes.data.some((note) => !note.journal)) {
+    return (
+      <Empty action={firstRun} icon={emptyStates.pages.icon} title={emptyStates.pages.title} variant="page">
+        {emptyStates.pages.hint}
+      </Empty>
+    );
+  }
   return (
     <PagesTreeContext value={{ open, toggle, trash: (note) => moveToTrash(note, 0) }}>
       <ul
@@ -170,9 +175,9 @@ function PagesTree() {
             <li key={space.id} role="none">
               <div aria-expanded={expanded} aria-label={space.name} aria-level={1} aria-owns={expanded ? `pages-group-${key}` : undefined} className="pages-tree-row" data-tree-id={key} role="treeitem" style={pageIndent(0)} tabIndex={-1}>
                 <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} tabIndex={-1} type="button">
-                  <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />
+                  <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
                 </button>
-                <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 text-left font-medium text-ink" onClick={() => toggle(key)} tabIndex={-1} type="button">
+                <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 text-left text-ink" onClick={() => toggle(key)} tabIndex={-1} type="button">
                   <SpaceMark space={space} />
                   <span className="min-w-0 truncate">{space.name}</span>
                 </button>
@@ -202,18 +207,19 @@ function PageSearch({ query }: { query: string }) {
   return (
     <ul aria-label="Matching pages" className="panel-rows">
       {found.map((note) => (
-        <li key={note.id}>
-          <Link className="flex min-w-0 items-center gap-3 panel-row text-ink no-underline hover:bg-line-soft" to={noteHref(note)}>
-            <NoteMark note={note} />
-            <RowText detail={[spaceNames.get(note.spaceId), edited(note)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
-          </Link>
-        </li>
+        <ListRow
+          href={noteHref(note)}
+          key={note.id}
+          lead={<NoteMark note={note} />}
+          meta={[spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+          title={noteTitle(note)}
+        />
       ))}
     </ul>
   );
 }
 
-function NoteList({ section }: { section: Exclude<PagesSection, 'pages'> }) {
+function NoteList({ firstRun, section }: { firstRun: ReactNode; section: Exclude<PagesSection, 'pages'> }) {
   const spaces = useSpaces();
   const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
@@ -226,15 +232,19 @@ function NoteList({ section }: { section: Exclude<PagesSection, 'pages'> }) {
   function rows(parentId: string | null, depth: number): ReactNode[] {
     const level = nestedUnder(pages, parentId);
     return (parentId ? level.sort((a, b) => a.position - b.position) : level).flatMap((note) => [
-      <li className="flex items-center gap-3 pe-2 hover:bg-line-soft" key={note.id}>
-        <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={noteHref(note)}>
-          <NoteMark note={note} />
-          <RowText detail={[spaceNames.get(note.spaceId), formatMoment(note.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(note)} />
-        </Link>
-        {writable.some((space) => space.id === note.spaceId) && (
-          <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
-        )}
-      </li>,
+      <ListRow
+        className={depth ? 'ps-12' : ''}
+        href={noteHref(note)}
+        key={note.id}
+        lead={<NoteMark note={note} />}
+        meta={[spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+        title={noteTitle(note)}
+        trail={
+          writable.some((space) => space.id === note.spaceId) && (
+            <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
+          )
+        }
+      />,
       ...rows(note.id, depth + 1),
     ]);
   }
@@ -246,14 +256,20 @@ function NoteList({ section }: { section: Exclude<PagesSection, 'pages'> }) {
         {pageRows ? (
           <RowsSkeleton lead={<IconSkeleton />} rows={pageRows} />
         ) : (
-          <Empty loading title={empty.title}>
+          <Empty action={firstRun} icon={empty.icon} loading title={empty.title} variant="page">
             {empty.hint}
           </Empty>
         )}
       </Placeholder>
     );
   }
-  if (pages.length === 0) return <Empty title={empty.title}>{empty.hint}</Empty>;
+  if (pages.length === 0) {
+    return (
+      <Empty action={firstRun} icon={empty.icon} title={empty.title} variant="page">
+        {empty.hint}
+      </Empty>
+    );
+  }
   return <ul className="panel-rows">{rows(null, 0)}</ul>;
 }
 
@@ -274,38 +290,34 @@ export function PagesIndex({ section }: { section: PagesSection }) {
     }, `Could not create the ${noun}`);
   }
 
+  function primary(large: boolean) {
+    if (section === 'journal') return <ButtonLink icon="pencil" label="Write today’s page" large={large} primary to="/journal" />;
+    if (section === 'quick-notes') return <CreateButton busy={creating.busy} label="New quick note" large={large} onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaceId={writable[0]!.id} />;
+    return <CreateButton busy={creating.busy} label="New page" large={large} onCreate={(spaceId) => create(spaceId, {}, 'page')} spaceId={writable[0]!.id} />;
+  }
+
+  const firstRun = writable.length > 0 && primary(false);
+
   return (
     <Page
       actions={
         writable.length > 0 && (
           <>
-            <IconButton icon="upload" label="Import" onClick={() => setImporting(true)} />
-            <CreateButton busy={creating.busy} label="New page" onCreate={(spaceId) => create(spaceId, {}, 'page')} primary spaceId={writable[0]!.id} />
+            <ActionsMenu items={[{ label: 'Import pages', onSelect: () => setImporting(true) }]} name="pages" />
+            {primary(true)}
           </>
         )
       }
       tabs={pagesTabs(section)}
       title="Pages"
-      toolbarEnd={
-        section === 'quick-notes' &&
-        (!spaces.data ? (
-          <ButtonSkeleton width="w-40" />
-        ) : (
-          writable.length > 0 && <CreateButton busy={creating.busy} label="New quick note" onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaceId={writable[0]!.id} />
-        ))
+      toolbar={
+        section === 'pages' && (
+          <input aria-label="Search pages" autoComplete="off" className="max-w-md" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search pages" type="search" value={query} />
+        )
       }
     >
       {importing && <ImportPages onClose={() => setImporting(false)} onDone={announcePagesChanged} spaces={writable} />}
-      {section === 'pages' ? (
-        <div className="grid gap-4">
-          <div className="max-w-md">
-            <TextField autoComplete="off" label="Search pages" onChange={(event) => setQuery(event.currentTarget.value)} type="search" value={query} />
-          </div>
-          {query.trim() ? <PageSearch query={query} /> : <PagesTree />}
-        </div>
-      ) : (
-        <NoteList section={section} />
-      )}
+      {section !== 'pages' ? <NoteList firstRun={firstRun} section={section} /> : query.trim() ? <PageSearch query={query} /> : <PagesTree firstRun={firstRun} />}
     </Page>
   );
 }

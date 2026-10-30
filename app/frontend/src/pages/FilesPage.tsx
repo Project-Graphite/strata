@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
-import { formatDay, Icon, ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
-import { dayKey } from '../agenda';
+import { Card, Icon, ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { fileSize, maxUploadBytes, saveBlob, uploadFiles } from '../files';
@@ -11,6 +10,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { useSpaces } from '../spaces';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { HintSkeleton, IconButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
@@ -52,6 +52,7 @@ export function FilesPage() {
             busy={action.busy}
             inputLabel="Files to upload"
             label={action.busy ? 'Uploading…' : 'Upload files'}
+            large
             multiple
             onFiles={(files) =>
               void action.run(async () => {
@@ -70,11 +71,11 @@ export function FilesPage() {
         <LoadError error={storage.error} onRetry={storage.reload} />
       ) : !shown ? (
         <Placeholder className="grid gap-8" label="Adding up your files">
-          <div className="grid gap-2 rounded-panel border border-line bg-surface p-4">
-            <SkeletonLine className="text-lg" width="w-48" />
+          <Card className="gap-2">
+            <SkeletonLine width="w-48" />
             <Skeleton className="h-1.5 rounded-full" />
             <HintSkeleton />
-          </div>
+          </Card>
           {fileRows ? (
             <RowsSkeleton lead={<IconSkeleton />} rows={fileRows} trail={<IconButtonSkeleton />} />
           ) : (
@@ -85,8 +86,8 @@ export function FilesPage() {
         </Placeholder>
       ) : (
         <>
-          <div className="grid gap-2 rounded-panel border border-line bg-surface p-4">
-            <p className="m-0 text-lg text-ink">
+          <Card className="gap-2">
+            <p className="m-0 text-body text-ink tabular-nums">
               {fileSize(shown.usedBytes)} of {fileSize(shown.quotaBytes)} used
             </p>
             <Meter label="Storage used" value={shown.quotaBytes ? shown.usedBytes / shown.quotaBytes : 1} />
@@ -99,7 +100,7 @@ export function FilesPage() {
                 </>
               )}
             </Hint>
-          </div>
+          </Card>
           {shown.files.length === 0 ? (
             <Empty title={empty.title}>{empty.hint}</Empty>
           ) : (
@@ -108,7 +109,7 @@ export function FilesPage() {
                 <ListRow
                   key={file.id}
                   lead={<Icon name="file" size={18} />}
-                  meta={[fileSize(file.sizeBytes), formatDay(dayKey(new Date(file.createdAt)), { day: 'numeric', month: 'short', year: 'numeric' }), spaceName(file.spaceId)]
+                  meta={[fileSize(file.sizeBytes), formatMoment(file.createdAt), spaceName(file.spaceId)]
                     .filter(Boolean)
                     .join(' · ')}
                   title={file.name}

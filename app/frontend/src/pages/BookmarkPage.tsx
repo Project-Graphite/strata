@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { IconButton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { keepArticle, siteLabel, type ArticleBlock, type BookmarkDetails, type FetchedPage, type Inline } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button, ButtonAnchor } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { DetailState, Page } from '../components/Page';
 import { rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
@@ -25,7 +25,7 @@ function Inlines({ parts }: { parts: Inline[] }) {
 
 function ArticleBody({ blocks }: { blocks: ArticleBlock[] }) {
   return (
-    <div className="note-content min-w-0 max-w-3xl">
+    <div className="note-content min-w-0 max-w-narrow">
       {blocks.map((block, index) => {
         if (block.type === 'heading') {
           const Heading = `h${block.level}` as const;
@@ -105,6 +105,16 @@ export function BookmarkPage() {
     }, 'Could not change the bookmark');
   }
 
+  function fetchAgain(current: BookmarkDetails) {
+    void run(async () => {
+      const page = await auth.request<FetchedPage>(`/bookmarks/${current.id}/fetch`, { method: 'POST' });
+      if (!page.html) throw new Error(`The page couldn’t be read: ${page.fetchError}`);
+      const saved = await keepArticle(auth.request, current, page.html);
+      mutate(() => saved);
+      return `Fetched ${saved.title} again.`;
+    }, 'Could not fetch the page');
+  }
+
   useEffect(() => {
     if (!details || !editable || details.readAt || markedRead.current === details.id) return;
     markedRead.current = details.id;
@@ -115,7 +125,7 @@ export function BookmarkPage() {
     return (
       <DetailState actions={1 + wasEditable} back={back} resource={bookmark} thing="Bookmark">
         {articled ? (
-          <div aria-hidden="true" className="note-content min-w-0 max-w-3xl">
+          <div aria-hidden="true" className="note-content min-w-0 max-w-narrow">
             {rowsOf(2).map((paragraph) => (
               <p key={paragraph}>
                 <SkeletonLine width="w-full" />
@@ -125,8 +135,8 @@ export function BookmarkPage() {
             ))}
           </div>
         ) : (
-          <Empty loading title="No article saved">
-            The page couldn’t be read, or it has no article text. You can open the original, or fetch the page again.
+          <Empty action={wasEditable > 0 && <Button label="Fetch again" />} loading title="No article saved">
+            The page couldn’t be read, or it has no article text.
           </Empty>
         )}
       </DetailState>
@@ -138,22 +148,11 @@ export function BookmarkPage() {
     <Page
       actions={
         <>
-          <IconButton href={details.url} icon="external" label="Open original" LinkComponent="a" rel="noopener noreferrer" target="_blank" />
           {editable && (
             <ActionsMenu
               items={[
                 { label: details.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => setRead(details, !details.readAt) },
-                {
-                  label: 'Fetch again',
-                  onSelect: () =>
-                    void run(async () => {
-                      const page = await auth.request<FetchedPage>(`/bookmarks/${details.id}/fetch`, { method: 'POST' });
-                      if (!page.html) throw new Error(`The page couldn’t be read: ${page.fetchError}`);
-                      const saved = await keepArticle(auth.request, details, page.html);
-                      mutate(() => saved);
-                      return `Fetched ${saved.title} again.`;
-                    }, 'Could not fetch the page'),
-                },
+                { label: 'Fetch again', onSelect: () => fetchAgain(details) },
                 {
                   label: 'Move to trash',
                   separated: true,
@@ -175,6 +174,7 @@ export function BookmarkPage() {
               name={details.title}
             />
           )}
+          <ButtonAnchor href={details.url} label="Open original" large primary />
         </>
       }
       back={back}
@@ -184,8 +184,8 @@ export function BookmarkPage() {
       {blocks.length ? (
         <ArticleBody blocks={blocks} />
       ) : (
-        <Empty title="No article saved">
-          {details.description ?? 'The page couldn’t be read, or it has no article text.'} You can open the original, or fetch the page again.
+        <Empty action={editable && <Button label="Fetch again" onClick={() => fetchAgain(details)} />} title="No article saved">
+          {details.description ?? 'The page couldn’t be read, or it has no article text.'}
         </Empty>
       )}
     </Page>

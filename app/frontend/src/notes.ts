@@ -1,5 +1,6 @@
 import type { TagColor } from '@project-graphite/ui';
 import { serverOrigin } from './native-capture';
+import { formatMoment } from './time';
 
 export interface Note {
   id: string;
@@ -157,6 +158,8 @@ export const builtInTemplates = [
 ] as const;
 
 export const noteTitle = (note: { title: string }) => note.title || 'Untitled';
+
+export const noteEdited = (note: { updatedAt: string }) => `Edited ${formatMoment(note.updatedAt)}`;
 
 export const noteHref = (note: { id: string; kind: string }) => `${note.kind === 'board' ? '/boards' : '/notes'}/${note.id}`;
 
