@@ -36,6 +36,8 @@ const tabs = [
   ['/settings/legal', 'Legal'],
 ] as const;
 
+export const legalPages = { terms: 'Terms', privacy: 'Privacy', licenses: 'Licenses', support: 'Support' };
+
 export function SettingsRows({ children }: { children: ReactNode }) {
   return <ul className="panel-rows">{children}</ul>;
 }
@@ -55,7 +57,11 @@ export function SettingsRowSkeleton({ action, detail = true, row = 0 }: { action
 export function SettingsLayout() {
   const { pathname } = useLocation();
   return (
-    <Page tabs={tabs.map(([href, label]) => ({ active: pathname === href || (href === '/settings/legal' && pathname.startsWith(`${href}/`)), href, label }))} title="Settings">
+    <Page
+      subpage={legalPages[pathname.split('/settings/legal/')[1] as keyof typeof legalPages]}
+      tabs={tabs.map(([href, label]) => ({ active: pathname === href || (href === '/settings/legal' && pathname.startsWith(`${href}/`)), href, label }))}
+      title="Settings"
+    >
       <div className="grid max-w-narrow gap-8">
         <Outlet />
       </div>

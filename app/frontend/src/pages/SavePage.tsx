@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Banner, Fieldset, Placeholder, Radio, Skeleton, TextField } from '@project-graphite/ui';
+import { Banner, Fieldset, ListRow, Placeholder, Radio, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
 import { fileSize, uploadFiles } from '../files';
@@ -82,7 +82,7 @@ export function SavePage() {
                   </span>
                 ))}
               </div>
-              <SkeletonLine className="text-sm" width="w-3/4" />
+              <SkeletonLine className="text-small" width="w-3/4" />
               <DialogActions>
                 <ButtonSkeleton large width="w-24" />
                 <ButtonSkeleton large width="w-20" />
@@ -163,10 +163,7 @@ export function SavePage() {
             <p className="m-0 text-small text-muted">Files</p>
             <ul className="panel-rows">
               {shared.files.map((file, index) => (
-                <li className="flex justify-between gap-4 panel-row" key={index}>
-                  <span className="min-w-0 truncate text-ink">{file.name}</span>
-                  <span className="mono-sm shrink-0 text-faint">{fileSize(file.size)}</span>
-                </li>
+                <ListRow key={index} meta={fileSize(file.size)} title={file.name} />
               ))}
             </ul>
           </div>

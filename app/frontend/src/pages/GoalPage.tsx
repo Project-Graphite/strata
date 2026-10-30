@@ -60,7 +60,7 @@ export function GoalPage() {
   const back = { to: '/goals', label: 'Goals' };
   if (!goal.data) {
     return (
-      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={goal} thing="Goal">
+      <DetailState back={back} menu={wasEditable > 0} primary={wasEditable > 0 && 'Edit'} resource={goal} thing="Goal">
         {whyLines > 0 && (
           <Section title="Why it matters">
             <p aria-hidden="true" className="m-0">
@@ -268,7 +268,7 @@ export function GoalPage() {
               (saved) => saved && setDialog(undefined),
             );
           }}
-          submitLabel="Save"
+          submitLabel="Save progress"
           title="Update progress"
         >
           <TextField
@@ -347,7 +347,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
           return `Saved the habits for ${goal.title}.`;
         }, 'Could not save the habits');
       }}
-      submitLabel="Save"
+      submitLabel="Save habits"
       title="Habits for this goal"
     >
       {habits.data && habits.data.length === 0 ? (

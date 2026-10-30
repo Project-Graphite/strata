@@ -38,7 +38,7 @@ export function RecipePage() {
   const back = { to: '/recipes', label: 'Recipes' };
   if (!recipe.data) {
     return (
-      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={recipe} thing="Recipe">
+      <DetailState back={back} menu={wasEditable > 0} primary={wasEditable > 0 && 'Edit'} resource={recipe} thing="Recipe">
         <Section title="Ingredients">
           {ingredientRows ? (
             <RowsSkeleton detail={false} rows={ingredientRows} />

@@ -10,8 +10,8 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
     <Menu
       header={
         <div className="border-b border-line px-4 py-3">
-          <p className="m-0 truncate text-sm text-ink">{displayName}</p>
-          <p className="mono-sm m-0 truncate text-faint">@{handle}</p>
+          <p className="m-0 truncate text-body text-ink">{displayName}</p>
+          <p className="m-0 truncate text-small text-muted">@{handle}</p>
         </div>
       }
       items={[

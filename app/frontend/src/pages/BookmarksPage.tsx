@@ -92,7 +92,7 @@ export function BookmarksPage() {
       ) : !listed.data ? (
         <Placeholder label="Loading your bookmarks">
           {rows ? (
-            <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-4/5" />} rows={rows} />
+            <RowsSkeleton below={<SkeletonLine className="text-small" width="w-4/5" />} rows={rows} />
           ) : (
             <Empty loading title={status.empty} {...firstRun}>
               {status.hint}

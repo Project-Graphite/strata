@@ -106,11 +106,11 @@ export function SpaceMarkSkeleton({ large = false }: { large?: boolean }) {
 }
 
 export function HintSkeleton() {
-  return <SkeletonLine className="text-sm" width="w-56 max-w-full" />;
+  return <SkeletonLine className="text-small" width="w-56 max-w-full" />;
 }
 
 export function ButtonSkeleton({ large = false, width = 'w-28' }: { large?: boolean; width?: string }) {
-  return <Skeleton className={`shrink-0 rounded-field ${large ? 'h-9' : 'h-[1.921875rem]'} ${width}`} />;
+  return <Skeleton className={`button-skeleton shrink-0 rounded-field ${large ? 'h-9' : 'h-[1.921875rem]'} ${width}`} />;
 }
 
 export function IconButtonSkeleton() {
@@ -134,7 +134,7 @@ export function ToggleSkeleton({ description = false }: { description?: boolean 
   return (
     <div aria-hidden="true" className="toggle-row">
       <span className="min-w-0 flex-1">
-        <SkeletonLine className="font-medium" width="w-44" />
+        <SkeletonLine width="w-44" />
         {description && <SkeletonLine width="w-80 max-w-full" />}
       </span>
       <span className="-mr-3 grid h-9.5 w-14.5 shrink-0 place-items-center">

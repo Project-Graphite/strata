@@ -1,7 +1,7 @@
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import { useEffect, useState } from 'react';
-import { errorMessage, formatDay, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, errorMessage, formatDay, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
@@ -171,7 +171,7 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
           ))}
         </List>
       )}
-      {problem && <p className="m-0 text-sm text-danger">{problem}</p>}
+      {problem && <Banner tone="danger">{problem}</Banner>}
       <Select
         className="max-w-xs"
         label="Units"

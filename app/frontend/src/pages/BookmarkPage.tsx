@@ -123,7 +123,7 @@ export function BookmarkPage() {
 
   if (!details) {
     return (
-      <DetailState actions={1 + wasEditable} back={back} resource={bookmark} thing="Bookmark">
+      <DetailState back={back} menu={wasEditable > 0} primary="Open original" resource={bookmark} thing="Bookmark">
         {articled ? (
           <div aria-hidden="true" className="note-content min-w-0 max-w-narrow">
             {rowsOf(2).map((paragraph) => (

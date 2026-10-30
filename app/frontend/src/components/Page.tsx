@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
-import { IconButtonSkeleton, rowsOf, SkeletonLine } from './Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton, SkeletonLine } from './Skeletons';
 import { HeaderTitleContext } from '../header-title';
 
 export interface Back {
@@ -13,19 +13,19 @@ export interface Back {
 
 const baseTitle = document.title;
 
-export function useDocumentTitle(title: string | undefined, heading?: { title?: string; back?: Back; tab?: TabItem }) {
+export function useDocumentTitle(title: string | undefined, heading?: { title?: string; back?: Back; tab?: TabItem; subpage?: string }) {
   const { pathname } = useLocation();
   const setTitle = useContext(HeaderTitleContext)?.setTitle;
   useEffect(() => {
     if (!title) return;
     document.title = `${title} · Strata`;
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', new URL(pathname, window.location.origin).href);
-    setTitle?.({ pathname, title: heading?.title ?? title, back: heading?.back, tab: heading?.tab });
+    setTitle?.({ pathname, title: heading?.title ?? title, back: heading?.back, tab: heading?.tab, subpage: heading?.subpage });
     return () => {
       document.title = baseTitle;
       setTitle?.((current) => current?.pathname === pathname ? undefined : current);
     };
-  }, [title, pathname, setTitle, heading?.title, heading?.back?.to, heading?.back?.label, heading?.tab?.href, heading?.tab?.label]);
+  }, [title, pathname, setTitle, heading?.title, heading?.back?.to, heading?.back?.label, heading?.tab?.href, heading?.tab?.label, heading?.subpage]);
 }
 
 export function BackLink({ back }: { back: Back }) {
@@ -155,6 +155,7 @@ export function Page({
   children,
   description,
   documentTitle,
+  subpage,
   tabs,
   title,
   titleHidden = false,
@@ -167,6 +168,7 @@ export function Page({
   children: ReactNode;
   description?: ReactNode;
   documentTitle?: string;
+  subpage?: string;
   tabs?: TabItem[];
   title: ReactNode;
   titleHidden?: boolean;
@@ -187,7 +189,8 @@ export function Page({
   ) : (
     actions
   );
-  useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named, { title: named, back, tab });
+  const section = subpage ?? tab?.label;
+  useDocumentTitle(section && named && section !== named ? `${section} · ${named}` : named, { title: named, back, tab, subpage });
   if (variant === 'panel') {
     return (
       <section className="form-panel page-enter">
@@ -237,18 +240,22 @@ export function Page({
   );
 }
 
+const primaryWidths = { Edit: 'w-19.5', 'Open original': 'w-29.75' };
+
 export function DetailState({
-  actions = 0,
   back,
   children,
   description = <SkeletonLine width="w-80 max-w-full" />,
+  menu = false,
+  primary,
   resource,
   thing,
 }: {
-  actions?: number;
   back?: Back;
   children?: ReactNode;
   description?: ReactNode;
+  menu?: boolean;
+  primary?: keyof typeof primaryWidths | false;
   resource: { error: string; status?: number; reload: () => void };
   thing: string;
 }) {
@@ -268,7 +275,14 @@ export function DetailState({
   }
   return (
     <Page
-      actions={actions > 0 && rowsOf(actions).map((action) => <IconButtonSkeleton key={action} />)}
+      actions={
+        (menu || primary) && (
+          <>
+            {menu && <IconButtonSkeleton />}
+            {primary && <ButtonSkeleton large width={primaryWidths[primary]} />}
+          </>
+        )
+      }
       back={back}
       description={description}
       documentTitle={thing}

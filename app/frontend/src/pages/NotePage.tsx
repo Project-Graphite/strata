@@ -258,6 +258,7 @@ export function NotePage() {
 
   return (
     <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick || (details.narrow && !details.database) ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
+      <h1 className="sr-only">{noteTitle(details)}</h1>
       {details.permissions.organize && pageOnly && (
         <input
           accept="image/jpeg,image/png,image/gif,image/webp"
