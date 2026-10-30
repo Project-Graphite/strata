@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { ConfirmDialog, DatePicker, formatDay, ListRow, Meter, Placeholder, Select, Stat, StatGrid, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, ListRow, Meter, Placeholder, Select, Stat, StatGrid, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
 import { Button } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
-import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { SpendingFrame } from '../components/SpendingFrame';
+import { AmountRowsSkeleton, ButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, spendingLive, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
+import { capitalised, formatDate, formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
@@ -21,6 +21,8 @@ import { MissingRates } from '../components/Stats';
 import { Empty } from '../components/Empty';
 
 const emptyWorth = { title: 'Nothing to add up yet', hint: 'Add your accounts under Accounts, and assets such as gold, certificates or property below, to see what you own minus what you owe.' };
+const emptyGoals = { title: 'No savings goals yet', hint: 'Set an amount to save towards and follow how close you are.' };
+const emptyAssets = { title: 'No assets yet', hint: 'Add gold, certificates or property to count them in your net worth.' };
 
 export function NetWorthPage() {
   const auth = useAuth();
@@ -34,13 +36,16 @@ export function NetWorthPage() {
   >();
   const failed = worth.error ?? goals.error;
   const goalDetail = (goal: SavingsGoal) =>
-    [
-      goal.savedMinor === null && 'No exchange rate yet',
-      goal.dueOn && `by ${formatDay(goal.dueOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-      goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
-    ]
-      .filter(Boolean)
-      .join(' · ');
+    capitalised(
+      [
+        goal.savedMinor === null && 'No exchange rate yet',
+        goal.dueOn && `by ${formatDate(goal.dueOn)}`,
+        goal.accountId && accounts.data?.find((account) => account.id === goal.accountId)?.name,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    );
+  const firstRun = accounts.data?.length === 0 && worth.data?.assets.length === 0 && goals.data?.length === 0 && worth.data.installmentsMinor === 0;
   const [goalRows, detailedGoals, assetRows, empty] = useRememberedShape(
     'net-worth',
     worth.data &&
@@ -49,7 +54,7 @@ export function NetWorthPage() {
         goals.data.length,
         goals.data.filter(goalDetail).length,
         worth.data.assets.length,
-        accounts.data.length === 0 && worth.data.assets.length === 0 && goals.data.length === 0 && worth.data.installmentsMinor === 0 ? 1 : 0,
+        firstRun ? 1 : 0,
       ],
     [1, 1, 2, 0],
   );
@@ -58,6 +63,7 @@ export function NetWorthPage() {
     <SpendingFrame
       accounts={accounts.data}
       currency={worth.data?.currency}
+      empty={firstRun ? emptyWorth : undefined}
       onChanged={() => {
         worth.reload();
         accounts.reload();
@@ -69,9 +75,7 @@ export function NetWorthPage() {
       ) : !worth.data || !goals.data ? (
         <Placeholder className="grid gap-8" label="Adding up what you own">
           {empty ? (
-            <Empty loading title={emptyWorth.title}>
-              {emptyWorth.hint}
-            </Empty>
+            <SpendingFirstRunSkeleton empty={emptyWorth} />
           ) : (
             <StatGrid>
               {rowsOf(4).map((stat) => (
@@ -79,18 +83,28 @@ export function NetWorthPage() {
               ))}
             </StatGrid>
           )}
-          <Section action={(!space || editable) && <ButtonSkeleton large width="w-44" />} title="Savings goals">
-            {goalRows ? <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} /> : <HintSkeleton />}
+          <Section action={(!space || editable) && <ButtonSkeleton width="w-44" />} title="Savings goals">
+            {goalRows ? (
+              <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} />
+            ) : (
+              <Empty loading title={emptyGoals.title}>
+                {emptyGoals.hint}
+              </Empty>
+            )}
           </Section>
-          <Section action={(!space || editable) && <ButtonSkeleton large />} title="Assets">
-            {assetRows ? <AmountRowsSkeleton rows={assetRows} /> : <HintSkeleton />}
+          <Section action={(!space || editable) && <ButtonSkeleton />} title="Assets">
+            {assetRows ? (
+              <AmountRowsSkeleton rows={assetRows} />
+            ) : (
+              <Empty loading title={emptyAssets.title}>
+                {emptyAssets.hint}
+              </Empty>
+            )}
           </Section>
         </Placeholder>
       ) : (
         <>
-          {accounts.data?.length === 0 && worth.data.assets.length === 0 && goals.data.length === 0 && worth.data.installmentsMinor === 0 ? (
-            <Empty title={emptyWorth.title}>{emptyWorth.hint}</Empty>
-          ) : (
+          {!firstRun && (
             <StatGrid>
               <Stat label="Net worth" value={<Amount currency={worth.data.currency} minor={worth.data.totalMinor} />} />
               <Stat label="Accounts" value={<Amount currency={worth.data.currency} minor={worth.data.accountsMinor} />} />
@@ -100,9 +114,11 @@ export function NetWorthPage() {
           )}
           <MissingRates currencies={worth.data.missing} />
 
-          <Section action={editable && <Button icon="plus" label="New savings goal" large onClick={() => setDialog({ goal: null })} />} title="Savings goals">
+          <Section action={editable && <Button icon="plus" label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
             {goals.data.length === 0 ? (
-              <Hint>No savings goals yet.</Hint>
+              <Empty level={3} title={emptyGoals.title}>
+                {emptyGoals.hint}
+              </Empty>
             ) : (
               <ul className="panel-rows">
                 {goals.data.map((goal) => (
@@ -137,9 +153,11 @@ export function NetWorthPage() {
             )}
           </Section>
 
-          <Section action={editable && <Button icon="plus" label="New asset" large onClick={() => setDialog({ asset: null })} />} title="Assets">
+          <Section action={editable && <Button icon="plus" label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
             {worth.data.assets.length === 0 ? (
-              <Hint>No assets yet.</Hint>
+              <Empty level={3} title={emptyAssets.title}>
+                {emptyAssets.hint}
+              </Empty>
             ) : (
               <ul className="panel-rows">
                 {worth.data.assets.map((asset) => (
@@ -148,8 +166,8 @@ export function NetWorthPage() {
                     meta={[
                       assetKindOptions.find((option) => option.value === asset.kind)?.label,
                       asset.ratePercent !== null && `${asset.ratePercent}% a year`,
-                      asset.maturesOn && `matures ${formatDay(asset.maturesOn, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-                      `updated ${formatDay(asset.updatedAt.slice(0, 10), { day: 'numeric', month: 'short' })}`,
+                      asset.maturesOn && `matures ${formatDate(asset.maturesOn)}`,
+                      `updated ${formatMoment(asset.updatedAt)}`,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -256,7 +274,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
           }, 'Could not save the asset')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={asset ? 'Save' : 'Add asset'}
+      submitLabel={asset ? 'Save changes' : 'Add asset'}
       title={asset ? 'Edit asset' : 'New asset'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={asset?.name} label="Name" maxLength={120} placeholder="21k gold, 20 g" {...form.field('name')} />
@@ -311,7 +329,7 @@ function SavingsGoalEditor({
           }, 'Could not save the goal')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={goal ? 'Save' : 'Add goal'}
+      submitLabel={goal ? 'Save changes' : 'Add goal'}
       title={goal ? 'Edit savings goal' : 'New savings goal'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={goal?.name} label="Name" maxLength={120} placeholder="New car" {...form.field('name')} />
@@ -349,7 +367,7 @@ function AddToGoal({ goal, onClose, onSaved }: { goal: SavingsGoal; onClose: () 
           }, 'Could not update the goal')
           .then((saved) => saved && onClose());
       }}
-      submitLabel="Save"
+      submitLabel={direction === 'take' ? 'Take out' : 'Add to goal'}
       title="Add or take out"
     >
       <div className="grid gap-4 sm:grid-cols-2">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, formatDay, Icon, ListRow, Meter, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { Badge, ConfirmDialog, Icon, ListRow, Meter, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -11,7 +11,7 @@ import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
@@ -27,12 +27,13 @@ import {
 } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { money, toMinor } from '../subscriptions';
-import { formatMoment } from '../time';
+import { formatDate, formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { amountText, atMost, moneyAmount, required, useFormErrors } from '../validation';
 
 const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.' };
+const emptyPlans = { title: 'No installment plans yet', hint: 'Add a plan to track what is left to pay and get reminded before each payment.' };
 const kindOf = (account: MoneyAccount) => accountKindOptions.find((option) => option.value === account.kind)!;
 const cardName = (card: AccountCard) => {
   const kind = cardKindOptions.find((option) => option.value === card.kind)!.label;
@@ -63,7 +64,7 @@ export function SpendingAccountsPage() {
   const open = accounts.data?.filter((account) => !account.archivedAt) ?? [];
   const archived = accounts.data?.filter((account) => account.archivedAt) ?? [];
   const groups = accountKindOptions.map((kind) => ({ ...kind, accounts: open.filter((account) => account.kind === kind.value) })).filter((group) => group.accounts.length > 0);
-  const newAccount = editable && <Button icon="plus" label="New account" large onClick={() => setDialog({ account: null })} />;
+  const newAccount = editable && <Button icon="plus" label="New account" onClick={() => setDialog({ account: null })} />;
   const archive = (account: MoneyAccount, archived: boolean) =>
     void action.run(async () => {
       await auth.request(`/accounts/${account.id}`, { method: 'PATCH', body: JSON.stringify({ archived }) });
@@ -92,7 +93,7 @@ export function SpendingAccountsPage() {
       ) : !accounts.data || (!installments.data && !installments.error) ? (
         <Placeholder className="grid gap-8" label="Adding up your accounts">
           <section className="grid min-w-0 grid-cols-1 gap-3">
-            <SectionHeading action={(!space || editable) && <ButtonSkeleton large width="w-36" />} title={<SkeletonLine width="w-32" />} />
+            <SectionHeading action={(!space || editable) && <ButtonSkeleton width="w-36" />} title={<SkeletonLine width="w-32" />} />
             {accountRows ? (
               <AmountRowsSkeleton rows={accountRows} />
             ) : (
@@ -101,8 +102,14 @@ export function SpendingAccountsPage() {
               </Empty>
             )}
           </section>
-          <Section action={(!space || editable) && <ButtonSkeleton large />} title="Installments">
-            {planRows ? <AmountRowsSkeleton metered={planRows} rows={planRows} /> : <HintSkeleton />}
+          <Section action={(!space || editable) && <ButtonSkeleton />} title="Installments">
+            {planRows ? (
+              <AmountRowsSkeleton metered={planRows} rows={planRows} />
+            ) : (
+              <Empty loading title={emptyPlans.title}>
+                {emptyPlans.hint}
+              </Empty>
+            )}
           </Section>
         </Placeholder>
       ) : (
@@ -122,30 +129,31 @@ export function SpendingAccountsPage() {
           )}
           {archived.length > 0 && <Section title="Archived">{accountRowsOf(archived)}</Section>}
 
-          <Section action={editable && <Button icon="plus" label="New plan" large onClick={() => setDialog({ installment: null })} />} title="Installments">
+          <Section action={editable && <Button icon="plus" label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
             {installments.error ? (
               <LoadError compact error={installments.error} onRetry={installments.reload} />
             ) : !installments.data?.length ? (
-              <Hint>No installment plans yet.</Hint>
+              <Empty level={3} title={emptyPlans.title}>
+                {emptyPlans.hint}
+              </Empty>
             ) : (
               <ul className="panel-rows">
                 {installments.data.map((plan) => (
                   <ListRow
                     key={plan.id}
                     meta={
-                      <span className={plan.status === 'missed' ? 'text-danger' : undefined}>
-                        {plan.status === 'done'
-                          ? 'Paid off'
-                          : `${plan.status === 'missed' ? 'Missed' : 'Next'}: ${money(plan.monthlyMinor, plan.currency)} on ${formatDay(plan.nextDueOn!, { day: 'numeric', month: 'short' })} · ${money(plan.remainingMinor, plan.currency)} left`}
-                      </span>
+                      plan.status === 'done'
+                        ? 'Paid off'
+                        : `Next: ${money(plan.monthlyMinor, plan.currency)}, due ${formatDate(plan.nextDueOn!)} · ${money(plan.remainingMinor, plan.currency)} left`
                     }
                     onClick={editable ? () => setDialog({ installment: plan }) : undefined}
                     title={plan.name}
                     trail={
                       <>
-                        <span className="mono-sm shrink-0 text-faint">
+                        <span className="shrink-0 text-small text-muted tabular-nums">
                           {plan.paidCount} of {plan.count}
                         </span>
+                        {plan.status === 'missed' && <Badge tone="danger">Missed</Badge>}
                         {editable && (
                           <ActionsMenu
                             items={[
@@ -297,9 +305,8 @@ function AccountRows({
       {account.cards.map((card) => (
         <ListRow
           className="ps-12"
-          dense
           key={card.id}
-          lead={<Icon name="wallet" size={14} />}
+          lead={<Icon name="wallet" size={18} />}
           meta={card.label}
           onClick={editable ? () => onDialog({ card, owner: account }) : undefined}
           title={cardName(card)}
@@ -381,7 +388,7 @@ function CardDialog({ account, card, onClose, onSaved }: { account: MoneyAccount
           }, 'Could not save the card')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={card ? 'Save' : 'Add card'}
+      submitLabel={card ? 'Save changes' : 'Add card'}
       title={card ? 'Edit card' : `New card on ${account.name}`}
     >
       <div className="grid gap-4 sm:grid-cols-2">

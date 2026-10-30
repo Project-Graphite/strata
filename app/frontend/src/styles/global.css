@@ -2459,7 +2459,12 @@ header.backdrop-blur-md {
 }
 
 .insights-table {
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
+}
+
+.insights-table tbody th {
+  font-weight: 400;
 }
 
 .insights-table :is(th, td):not(:first-child) {

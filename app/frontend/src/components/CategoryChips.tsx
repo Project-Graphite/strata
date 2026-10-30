@@ -23,7 +23,7 @@ export function CategoryChips({ categories, label = 'Category', onChange, value 
           />
         ))}
         {categories.length > shown.length && (
-          <TextButton label="More…" onClick={() => setAll(true)} />
+          <TextButton label="Show all" onClick={() => setAll(true)} />
         )}
       </div>
     </Fieldset>

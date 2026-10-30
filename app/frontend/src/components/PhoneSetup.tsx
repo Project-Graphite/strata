@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Banner, Checkbox, Dialog, Fieldset, TextField, Toggle } from '@project-graphite/ui';
+import { Banner, Checkbox, Dialog, Fieldset, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import {
   androidReleaseUrl,
@@ -95,8 +95,8 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
           return next.notificationsGranted ? 'Phone capture saved and active.' : 'Phone capture saved. Allow notification access to start reading messages.';
         }, 'Could not save phone capture settings');
       }}
-      submitLabel={needsToken && status.configured ? 'Reconnect' : 'Save'}
-      title="Connect this phone"
+      submitLabel={needsToken && status.configured ? 'Reconnect' : 'Save changes'}
+      title="Connect your phone"
     >
       {attention === 'reconnect' && (
         <Banner title="Reconnect your phone" tone="warning">
@@ -108,18 +108,8 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
           The connection ends {formatMoment(status.tokenExpiresAt)}. Confirm your password to renew it for 90 days.
         </Banner>
       )}
-      <div className="grid gap-2 rounded-field border border-line p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="grid gap-0.5">
-            <span className="text-body font-medium text-ink">
-              {status.notificationsGranted ? 'Notification access is on' : 'Allow Strata to read transaction notifications'}
-            </span>
-            <span className="text-small text-muted">
-              {status.notificationsGranted
-                ? 'Strata reads only texts from the senders below and notifications from the apps you switch on.'
-                : 'Required once in Android Settings. If the switch is greyed out, open Settings → Apps → Strata → ⋮ → Allow restricted settings.'}
-            </span>
-          </div>
+      <Banner
+        action={
           <Button
             label={status.notificationsGranted ? 'Notification settings' : 'Allow notification access'}
             onClick={() =>
@@ -130,9 +120,15 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
             }
             primary={!status.notificationsGranted}
           />
-        </div>
+        }
+        title={status.notificationsGranted ? 'Notification access is on' : 'Allow Strata to read transaction notifications'}
+        tone={status.notificationsGranted ? 'info' : 'warning'}
+      >
+        {status.notificationsGranted
+          ? 'Strata reads only texts from the senders below and notifications from the apps you switch on.'
+          : 'Required once in Android Settings. If the switch is greyed out, open Settings → Apps → Strata → ⋮ → Allow restricted settings.'}
         {status.notificationsGranted && status.configured && (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-2">
             <Button
               label="Read current notifications now"
               onClick={() =>
@@ -146,7 +142,7 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
             />
           </div>
         )}
-      </div>
+      </Banner>
       <TextField
         autoComplete="off"
         hint="Comma-separated sender names exactly as your messages app shows them. Texts from anyone else are never read or sent."
@@ -165,11 +161,11 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
             apps.length > 0 && (
               <Fieldset key={group} legend={group}>
                 {apps.map((app) => (
-                  <Toggle
+                  <Checkbox
                     checked={packages.includes(app.packageName)}
                     key={app.packageName}
                     label={app.label}
-                    onChange={(checked) => setEnabledPackages(checked ? [...packages, app.packageName] : packages.filter((name) => name !== app.packageName))}
+                    onChange={(event) => setEnabledPackages(event.target.checked ? [...packages, app.packageName] : packages.filter((name) => name !== app.packageName))}
                   />
                 ))}
               </Fieldset>
@@ -241,8 +237,8 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
 
   if (token) {
     return (
-      <Dialog dismissible={false} onClose={onClose} title="Connect your Android phone">
-        <div className="mt-5 grid gap-4 text-sm text-ink">
+      <Dialog dismissible={false} onClose={onClose} title="Connect your phone">
+        <div className="mt-5 grid gap-4 text-body text-ink">
           <ol className="m-0 grid gap-2 pl-5">
             <li>
               Install{' '}
@@ -293,7 +289,7 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
         }, 'Could not create the phone token');
       }}
       submitLabel="Create phone token"
-      title="Connect your Android phone"
+      title="Connect your phone"
     >
       <TextField
         autoComplete="off"
@@ -304,8 +300,7 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
         placeholder="BanK-AlAhly, CIB, VF-Cash"
         value={chatsText}
       />
-      <div className="grid gap-2">
-        <span className="text-sm font-medium text-ink">Digital transaction apps (non-SMS notifications)</span>
+      <Fieldset legend="Digital transaction apps (non-SMS notifications)">
         {digitalAppOptions.map((app) => (
           <Checkbox
             checked={enabledApps.includes(app.id)}
@@ -314,7 +309,7 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
             onChange={(event) => toggleApp(app.id, event.target.checked)}
           />
         ))}
-      </div>
+      </Fieldset>
       <ProofFields form={form} twoStep={Boolean(twoStep.data?.enabled)} />
     </FormDialog>
   );

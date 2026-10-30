@@ -95,7 +95,7 @@ export function AccountEditor({
           }, 'Could not save the account')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={account ? 'Save' : 'Add account'}
+      submitLabel={account ? 'Save changes' : 'Add account'}
       title={account ? 'Edit account' : 'New account'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={account?.name} label="Name" maxLength={60} placeholder="CIB current account" {...form.field('name')} />
