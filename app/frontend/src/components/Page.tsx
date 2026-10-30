@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
@@ -31,7 +31,7 @@ export function useDocumentTitle(title: string | undefined, heading?: { title?: 
 export function BackLink({ back }: { back: Back }) {
   return (
     <Link className="back-link" title={back.label} to={back.to}>
-      <span className="shrink-0"><Icon name="chevron-left" size={14} /></span>
+      <span className="shrink-0"><Icon name="chevron-left" size={16} /></span>
       <span className="min-w-0 truncate">{back.label}</span>
     </Link>
   );
@@ -139,6 +139,16 @@ function useTabSwipe(tabs: TabItem[] | undefined) {
   return { area, content };
 }
 
+const PagePrimaryContext = createContext<(primary: ReactNode) => void>(() => undefined);
+
+export function usePagePrimary(primary: ReactNode) {
+  const setPrimary = useContext(PagePrimaryContext);
+  useEffect(() => {
+    setPrimary(primary);
+    return () => setPrimary(undefined);
+  }, [primary, setPrimary]);
+}
+
 export function Page({
   actions,
   back,
@@ -168,6 +178,15 @@ export function Page({
   const tab = tabs?.find((item) => item.active);
   const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named) && variant === 'app';
   const swipe = useTabSwipe(tabs);
+  const [primary, setPrimary] = useState<ReactNode>();
+  const rowActions = primary ? (
+    <>
+      {actions}
+      {primary}
+    </>
+  ) : (
+    actions
+  );
   useDocumentTitle(tab && named && tab.label !== named ? `${tab.label} · ${named}` : named, { title: named, back, tab });
   if (variant === 'panel') {
     return (
@@ -179,7 +198,7 @@ export function Page({
       </section>
     );
   }
-  const descriptionLine = description && <div className="max-w-2xl text-small text-muted">{description}</div>;
+  const descriptionLine = description && <div className="max-w-narrow text-small text-muted">{description}</div>;
   return (
     <section className="page-enter grid grid-cols-1 content-start gap-8" ref={swipe.area}>
       {titleHidden ? (
@@ -187,31 +206,33 @@ export function Page({
       ) : titleInHeader ? (
         <>
           <PageActionsRow
-            actions={actions}
+            actions={rowActions}
             tabs={tabs}
             tabsLabel={named}
             title={title}
-            toolbar={toolbar ?? (!tabs && descriptionLine)}
+            toolbar={toolbar}
             toolbarEnd={toolbarEnd}
           />
-          {(toolbar || tabs) && descriptionLine}
+          {descriptionLine}
         </>
       ) : (
         <div className="grid gap-6">
-          <PageHeader actions={actions} eyebrow={back && <BackLink back={back} />} title={title}>
+          <PageHeader actions={rowActions} eyebrow={back && <BackLink back={back} />} title={title}>
             {description}
           </PageHeader>
           {tabs && <Tabs items={tabs} label={named ?? 'Sections'} />}
           {(toolbar || toolbarEnd) && <Toolbar actions={toolbarEnd}>{toolbar}</Toolbar>}
         </div>
       )}
-      {tabs ? (
-        <div className="grid grid-cols-1 content-start gap-8" ref={swipe.content}>
-          {children}
-        </div>
-      ) : (
-        children
-      )}
+      <PagePrimaryContext.Provider value={setPrimary}>
+        {tabs ? (
+          <div className="grid grid-cols-1 content-start gap-8" ref={swipe.content}>
+            {children}
+          </div>
+        ) : (
+          children
+        )}
+      </PagePrimaryContext.Provider>
     </section>
   );
 }
@@ -271,7 +292,7 @@ export function Toolbar({ actions, children }: { actions?: ReactNode; children?:
 
 export function FilterChips({ children, items, label }: { children?: ReactNode; items: { active: boolean; count?: number; href: string; label: string }[]; label: string }) {
   return (
-    <nav aria-label={label} className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+    <nav aria-label={label} className="chip-row">
       {items.map((item) => (
         <FilterChip active={item.active} count={item.count} href={item.href} key={item.href} label={item.label} />
       ))}

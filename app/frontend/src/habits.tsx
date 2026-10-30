@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { formatDay } from '@project-graphite/ui';
+import { useState, type ReactNode } from 'react';
+import { formatDay, Icon, ListRow } from '@project-graphite/ui';
 import { addDays } from './agenda';
 import { useAuth } from './auth';
+import { capitalised } from './time';
 import { useAction } from './useAction';
 
 export interface Habit {
@@ -25,7 +26,7 @@ function progressText(habit: Habit) {
   return habit.perWeek >= 7 ? streak : `${habit.thisWeek} of ${habit.perWeek} this week · ${streak}`;
 }
 
-export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit; onChange: (habit: Habit) => void; showSpace?: boolean }) {
+export function HabitRow({ actions, habit, onChange, showSpace = false }: { actions?: ReactNode; habit: Habit; onChange: (habit: Habit) => void; showSpace?: boolean }) {
   const auth = useAuth();
   const saving = useAction();
   const [pressed, setPressed] = useState(false);
@@ -40,43 +41,49 @@ export function HabitRow({ habit, onChange, showSpace = false }: { habit: Habit;
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        aria-label={`${habit.name} today`}
-        aria-pressed={habit.checkedToday}
-        className={`habit-check ${habit.checkedToday ? 'is-done' : ''}`}
-        data-pressed={pressed || undefined}
-        disabled={saving.busy}
-        onClick={() => toggle(habit.today)}
-        type="button"
-      >
-        {habit.checkedToday && <span aria-hidden="true">✓</span>}
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="m-0 truncate text-ink">{habit.name}</p>
-        <p className="mono-sm m-0 mt-0.5 text-faint">
-          {showSpace ? `${habit.spaceName} · ` : ''}
-          {progressText(habit)}
-        </p>
-      </div>
-      <div aria-label="Last seven days" className="flex shrink-0 items-center gap-1" role="group">
-        {days.map((day, index) =>
-          index === 5 ? (
-            <button
-              aria-label={`${habit.name} yesterday`}
-              aria-pressed={habit.recent.includes(day)}
-              className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`}
-              disabled={saving.busy}
-              key={day}
-              onClick={() => toggle(day)}
-              title="Yesterday"
-              type="button"
-            />
-          ) : (
-            <span aria-hidden="true" className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`} key={day} title={formatDay(day, { weekday: 'short', day: 'numeric', month: 'short' })} />
-          ),
-        )}
-      </div>
-    </div>
+    <ListRow
+      lead={
+        <button
+          aria-label={`${habit.name} today`}
+          aria-pressed={habit.checkedToday}
+          className={`habit-check ${habit.checkedToday ? 'is-done' : ''}`}
+          data-pressed={pressed || undefined}
+          disabled={saving.busy}
+          onClick={() => toggle(habit.today)}
+          type="button"
+        >
+          {habit.checkedToday && (
+            <span aria-hidden="true" className="flex">
+              <Icon name="check-mark" size={16} />
+            </span>
+          )}
+        </button>
+      }
+      meta={capitalised(`${showSpace ? `${habit.spaceName} · ` : ''}${progressText(habit)}`)}
+      title={habit.name}
+      trail={
+        <>
+          <span aria-label="Last seven days" className="flex items-center gap-1" role="group">
+            {days.map((day, index) =>
+              index === 5 ? (
+                <button
+                  aria-label={`${habit.name} yesterday`}
+                  aria-pressed={habit.recent.includes(day)}
+                  className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`}
+                  disabled={saving.busy}
+                  key={day}
+                  onClick={() => toggle(day)}
+                  title="Yesterday"
+                  type="button"
+                />
+              ) : (
+                <span aria-hidden="true" className={`habit-day ${habit.recent.includes(day) ? 'is-done' : ''}`} key={day} title={formatDay(day, { weekday: 'short', day: 'numeric', month: 'short' })} />
+              ),
+            )}
+          </span>
+          {actions}
+        </>
+      }
+    />
   );
 }

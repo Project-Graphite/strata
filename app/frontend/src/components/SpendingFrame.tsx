@@ -96,9 +96,11 @@ export function SpendingFrame({
       )}
       {children}
       {editable && (
-        <button aria-label="New transaction" className="fab" onClick={() => setDialog('new')} type="button">
-          <Icon name="plus" size={20} />
-        </button>
+        <div className="fab-clearance">
+          <button aria-label="New transaction" className="fab" onClick={() => setDialog('new')} type="button">
+            <Icon name="plus" size={20} />
+          </button>
+        </div>
       )}
       <Suspense fallback={null}>
         {spaceId && dialog === 'new' && (

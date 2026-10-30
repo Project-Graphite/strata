@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
-import { Avatar, Badge, Card, SectionHeading } from '@project-graphite/ui';
+import { Avatar, Badge, Card, Icon, SectionHeading } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
@@ -121,11 +121,12 @@ function GroupRows({
       <TaskRow
         disabled={!editable(task) || changes.pending.includes(task.id)}
         handle={
-          canMove && (
+          editable(task) && (
             <button
               aria-label={`Reorder ${task.title}`}
               className="task-handle"
               data-handle={task.id}
+              disabled={tasks.length < 2}
               onKeyDown={(event) => {
                 if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
                 event.preventDefault();
@@ -136,7 +137,7 @@ function GroupRows({
               title="Drag to reorder, or use the up and down arrow keys"
               type="button"
             >
-              ⠿
+              <Icon name="grip" size={16} />
             </button>
           )
         }
