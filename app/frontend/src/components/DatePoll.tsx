@@ -41,7 +41,7 @@ export function PollOptions({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="m-0 text-ink">{optionLabel(option)}</p>
-              <p className="mono-sm m-0 mt-0.5 text-faint">
+              <p className="m-0 mt-0.5 text-small text-muted">
                 {option.yes} yes · {option.maybe} maybe · {option.no} no
               </p>
             </div>
@@ -105,8 +105,8 @@ export function PollEditor({
       ))}
       <div className="flex flex-wrap items-center gap-2">
         {rows.length < 10 && <Button icon="plus" label="Add a date" onClick={() => setRows([...rows, blank()])} />}
-        <Button disabled={filled.length < 2 || saving.busy} label={saving.busy ? 'Saving…' : 'Save dates'} primary submit />
         <Button label="Cancel" onClick={onCancel} />
+        <Button disabled={filled.length < 2 || saving.busy} label={saving.busy ? 'Saving…' : 'Save dates'} primary submit />
       </div>
     </form>
   );

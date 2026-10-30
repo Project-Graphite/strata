@@ -1,22 +1,23 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, formatDay, Placeholder, useSnackbar, type TagColor } from '@project-graphite/ui';
-import { addDays, agendaPeriod, dayKey, dayRange, entryClock, entryDay, entryKey, entryLink, phoneQuery, useAgenda, type AgendaEntry, type AgendaView as View, type EventDetails } from '../agenda';
+import { ConfirmDialog, formatDay, ListRow, Placeholder, useSnackbar, type TagColor } from '@project-graphite/ui';
+import { addDays, agendaPeriod, dayKey, entryClock, entryDay, entryKey, entryLink, phoneQuery, useAgenda, type AgendaEntry, type AgendaView as View, type EventDetails } from '../agenda';
 import { useAuth } from '../auth';
-import { AgendaCard, AgendaEntryLink, CalendarEventDialog, EntryPeek } from '../components/AgendaEntryLink';
-import { Button, IconLink } from '../components/Button';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { AgendaEntryLink, AgendaRow, CalendarEventDialog, EntryPeek } from '../components/AgendaEntryLink';
+import { Button, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { EventSheet } from '../components/EventDetails';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { AgendaCardsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AgendaRowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/OpenTask';
 import { DayNumber, TimeGrid, type Reschedule, type Slot } from '../components/TimeGrid';
 import { useSpaces } from '../spaces';
 import { completeTask, taskDetails, TaskRow, type Task } from '../tasks';
-import { clockTime, profileDay, profileMinutes } from '../time';
+import { capitalised, clockTime, formatDate, formatRange, profileDay, profileMinutes } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import type { Me } from './settings/SettingsLayout';
@@ -31,7 +32,7 @@ const freeUntil = 22 * 60;
 type ViewLink = (next: { view?: View; date?: string }) => string;
 type Draft = { startsOn: string; startTime?: string; endTime?: string };
 
-const emptyPeriod = { title: 'Nothing in this period', hint: 'Events, due tasks, renewals and birthdays in these 30 days show up here.' };
+const emptyPeriod = { title: 'Nothing in these 30 days', hint: 'Events, due tasks, renewals and birthdays in these 30 days show up here.' };
 
 function rememberedView(): View {
   try {
@@ -101,8 +102,8 @@ function DueToday() {
   const [dueRows, detailedRows] = useRememberedShape('agenda-due', tasks.data && spaces.data && [tasks.data.length, tasks.data.filter((task) => taskDetails(task, spaceOf(task)?.name).length > 0).length], [2, 2]);
 
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
-  if (!tasks.data) return <Placeholder label="Loading due tasks">{dueRows > 0 ? <TaskRowsSkeleton detailed={detailedRows} rows={dueRows} /> : <Hint>Nothing due.</Hint>}</Placeholder>;
-  if (tasks.data.length === 0) return <Hint>Nothing due.</Hint>;
+  if (!tasks.data) return <Placeholder label="Loading due tasks">{dueRows > 0 ? <TaskRowsSkeleton detailed={detailedRows} rows={dueRows} /> : <Empty level={3} loading title="Nothing due" />}</Placeholder>;
+  if (tasks.data.length === 0) return <Empty level={3} title="Nothing due" />;
   return (
     <>
       <ul className="panel-rows">
@@ -155,34 +156,37 @@ function DayAside({ colourOf, day, entries, onOpen, today }: { colourOf: (entry:
     <aside className="grid content-start gap-8 md:sticky md:top-[calc(var(--header-height)+1rem)]">
       {day === today && (
         <Section title="Next up">
-          {next ? <AgendaCard colour={colourOf(next)} entry={next} onOpen={(target) => onOpen(next, target)} /> : <Hint>Nothing else today.</Hint>}
+          {next ? (
+            <ul className="panel-rows">
+              <AgendaRow colour={colourOf(next)} entry={next} onOpen={(target) => onOpen(next, target)} />
+            </ul>
+          ) : (
+            <Empty level={3} title="Nothing else today" />
+          )}
         </Section>
       )}
       <Section title="Due">
         {day === today ? (
           <DueToday />
         ) : due.length > 0 ? (
-          <ul className="m-0 grid list-none gap-1.5 p-0">
+          <ul className="panel-rows">
             {due.map((entry) => (
-              <li key={entryKey(entry)}>
-                <AgendaCard colour={colourOf(entry)} entry={entry} />
-              </li>
+              <AgendaRow colour={colourOf(entry)} entry={entry} key={entryKey(entry)} />
             ))}
           </ul>
         ) : (
-          <Hint>Nothing due.</Hint>
+          <Empty level={3} title="Nothing due" />
         )}
       </Section>
       <Section title="Free time">
         {gaps.length > 0 ? (
-          <ul className="m-0 grid list-none gap-1 p-0 text-small">
+          <ul className="panel-rows">
             {gaps.map(([start, end]) => (
-              <li className="flex justify-between gap-3 tabular-nums" key={start}>
-                <span className="text-ink">
-                  {clockTime(clockOf(start))}–{clockTime(clockOf(end))}
-                </span>
-                <span className="text-muted">{lengthLabel(end - start)}</span>
-              </li>
+              <ListRow
+                key={start}
+                title={<span className="tabular-nums">{`${clockTime(clockOf(start))}–${clockTime(clockOf(end))}`}</span>}
+                trail={<span className="tabular-nums">{lengthLabel(end - start)}</span>}
+              />
             ))}
           </ul>
         ) : (
@@ -248,6 +252,7 @@ function Period({
     else navigate(entryLink(entry));
   };
   const openCard = (entry: AgendaEntry) => (entry.kind === 'event' || entry.kind === 'external' ? () => open(entry) : undefined);
+  const emptyAction = anchor !== today && <ButtonLink label="Today" to={link({ date: today })} />;
 
   async function save(event: EventDetails, changes: ReturnType<typeof rescheduled>) {
     await auth.request(`/events/${event.id}`, { method: 'PATCH', body: JSON.stringify(changes) });
@@ -339,44 +344,47 @@ function Period({
         <Placeholder className="grid gap-8" label="Loading your agenda">
           {listShape.length > 0 ? (
             listShape.map((rows, group) => (
-              <div className="grid gap-2" key={group}>
-                <SkeletonLine className="text-sm" width="w-48" />
-                <AgendaCardsSkeleton rows={rows} />
+              <div className="grid gap-3" key={group}>
+                <SkeletonLine className="text-h3" width="w-48" />
+                <AgendaRowsSkeleton rows={rows} />
               </div>
             ))
           ) : (
-            <Empty loading title={emptyPeriod.title}>
+            <Empty action={emptyAction} loading title={emptyPeriod.title} variant="filtered">
               {emptyPeriod.hint}
             </Empty>
           )}
         </Placeholder>
       );
     }
-    if (agenda.data.length === 0) return <Empty title={emptyPeriod.title}>{emptyPeriod.hint}</Empty>;
+    if (agenda.data.length === 0) {
+      return (
+        <Empty action={emptyAction} title={emptyPeriod.title} variant="filtered">
+          {emptyPeriod.hint}
+        </Empty>
+      );
+    }
     return (
       <>
         {allDays
           .filter((day) => byDay.has(day))
           .map((day) => (
-            <section className="grid gap-2" key={day}>
+            <section className="grid gap-3" key={day}>
               <div className="flex flex-wrap items-baseline gap-3">
                 <Subheading level={2}>
-                  <Link className="text-muted no-underline hover:underline" to={link({ view: 'day', date: day })}>
-                    {day === today ? 'Today · ' : ''}
-                    {formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}
+                  <Link className="text-ink no-underline hover:underline" to={link({ view: 'day', date: day })}>
+                    {capitalised(formatDate(day))}
                   </Link>
                 </Subheading>
                 {day <= today && (
-                  <Link className="mono-sm text-muted" to="/journal">
+                  <Link className="text-small text-muted" to="/journal">
                     Journal
                   </Link>
                 )}
               </div>
-              <ul className="m-0 grid list-none gap-1.5 p-0">
+              <ul className="panel-rows">
                 {byDay.get(day)!.map((entry) => (
-                  <li key={entryKey(entry)}>
-                    <AgendaCard colour={agenda.colourOf(entry)} entry={entry} onOpen={openCard(entry)} />
-                  </li>
+                  <AgendaRow colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)} onOpen={openCard(entry)} />
                 ))}
               </ul>
             </section>
@@ -396,8 +404,8 @@ function Period({
           <DayAside colourOf={agenda.colourOf} day={anchor} entries={entries} onOpen={onPeek} today={today} />
         ) : (
           <Placeholder className="grid content-start gap-8" label="Loading the day">
-            <AgendaCardsSkeleton rows={1} />
-            <AgendaCardsSkeleton rows={2} />
+            <AgendaRowsSkeleton rows={1} />
+            <AgendaRowsSkeleton rows={2} />
           </Placeholder>
         )}
         {overlays}
@@ -411,7 +419,7 @@ function Period({
       <>
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
           {allDays.slice(0, 7).map((day) => (
-            <p className={`m-0 px-2 py-1 text-xs text-muted ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
+            <p className={`m-0 px-2 py-1 text-small text-muted ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
               {formatDay(day, { weekday: 'short' })}
             </p>
           ))}
@@ -448,7 +456,7 @@ function Period({
                     </AgendaEntryLink>
                   ))}
                   {entries.length > 3 && (
-                    <Link className="mono-sm px-1 text-muted" to={link({ view: 'day', date: day })}>
+                    <Link className="px-1 text-micro text-muted" to={link({ view: 'day', date: day })}>
                       +{entries.length - 3} more
                     </Link>
                   )}
@@ -458,17 +466,15 @@ function Period({
           })}
         </div>
         {phone && picked && agenda.data && (
-          <Section action={<Link className="text-small" to={link({ view: 'day', date: picked })}>Open day</Link>} title={formatDay(picked, { weekday: 'long', day: 'numeric', month: 'long' })}>
+          <Section action={<ButtonLink label="Open day" to={link({ view: 'day', date: picked })} />} title={capitalised(formatDate(picked))}>
             {pickedEntries.length > 0 ? (
-              <ul className="m-0 grid list-none gap-1.5 p-0">
+              <ul className="panel-rows">
                 {pickedEntries.map((entry) => (
-                  <li key={entryKey(entry)}>
-                    <AgendaCard colour={agenda.colourOf(entry)} entry={entry} onOpen={openCard(entry)} />
-                  </li>
+                  <AgendaRow colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)} onOpen={openCard(entry)} />
                 ))}
               </ul>
             ) : (
-              <Hint>Nothing on this day.</Hint>
+              <Empty level={3} title="Nothing on this day" />
             )}
           </Section>
         )}
@@ -537,7 +543,7 @@ function Agenda({ view }: { view: View }) {
     <Page
       actions={
         <>
-          <IconLink icon="calendar" label="Calendars" to="/agenda/calendars" />
+          <ActionsMenu items={[{ label: 'Calendars', href: '/agenda/calendars' }]} name="Agenda" />
           <Button disabled={!canCreate} icon="plus" label="New event" large onClick={() => setCreating({ startsOn: anchor })} primary />
         </>
       }
@@ -551,8 +557,8 @@ function Agenda({ view }: { view: View }) {
             view === 'month'
               ? formatDay(anchor, { month: 'long', year: 'numeric' })
               : view === 'day'
-                ? formatDay(anchor, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                : dayRange(period.from, addDays(period.to, -1))
+                ? formatDay(anchor, { weekday: 'long', day: 'numeric', month: 'long' })
+                : formatRange(period.from, addDays(period.to, -1))
           }
           unit={view === 'list' ? 'period' : view}
         />

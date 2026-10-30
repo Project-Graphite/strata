@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DatePicker, IconButton, LinesSkeleton, Select, Sheet, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, LinesSkeleton, Select, Sheet, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
 import { useAllSpaces, type Member, type Tag } from '../spaces';
@@ -7,6 +7,7 @@ import { reminderOptions, repeatOptions, taskStatuses, useWeekStart, type Task, 
 import { TimeField, zoneLabel } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
 import type { OpenTaskProps } from './OpenTask';
 import { Activity, Attachments, Comments, DescriptionEditor, Subtasks } from './TaskTicket';
@@ -151,25 +152,29 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       actions={
         task &&
         editable && (
-          <IconButton
-            icon="trash"
-            label="Move to trash"
-            onClick={() =>
-              void action
-                .run(async () => {
-                  await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
-                  onChanged();
-                  return {
-                    message: `Moved ${task.title} to the trash.`,
-                    undo: async () => {
-                      await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
+          <ActionsMenu
+            items={[
+              {
+                label: 'Move to trash',
+                separated: true,
+                onSelect: () =>
+                  void action
+                    .run(async () => {
+                      await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
                       onChanged();
-                      return '';
-                    },
-                  };
-                }, 'Could not move the task to the trash')
-                .then((trashed) => trashed && onClose())
-            }
+                      return {
+                        message: `Moved ${task.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
+                          onChanged();
+                          return '';
+                        },
+                      };
+                    }, 'Could not move the task to the trash')
+                    .then((trashed) => trashed && onClose()),
+              },
+            ]}
+            name={task.title}
           />
         )
       }

@@ -1,8 +1,8 @@
 import { useLocation } from 'react-router';
-import { Icon, ListRow, type IconName } from '@project-graphite/ui';
+import { Icon, ListRow, SectionHeading, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { AboutLinks } from '../components/AboutLinks';
-import { Page, Subheading } from '../components/Page';
+import { Page } from '../components/Page';
 import { enabledApps } from '../apps';
 import { areaOf, moreSections } from '../navigation';
 
@@ -13,8 +13,8 @@ export function MorePage() {
   return (
     <Page title="More" titleHidden>
       {moreSections(areaOf(pathname), enabledApps(auth.user?.features)).map((section, index) => (
-        <nav aria-label={section.label ?? 'Areas'} className="grid gap-2" key={section.label ?? index}>
-          {section.label && <Subheading level={2}>{section.label}</Subheading>}
+        <nav aria-label={section.label ?? 'Areas'} className="grid gap-3" key={section.label ?? index}>
+          {section.label && <SectionHeading title={section.label} />}
           <ul className="panel-rows">
             {section.items.map((item) => (
               <ListRow

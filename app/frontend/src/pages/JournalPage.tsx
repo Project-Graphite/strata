@@ -66,16 +66,16 @@ export function JournalPage() {
           <>
             <ActionsMenu items={[{ label: 'Write a weekly review', onSelect: () => open('/me/weekly-review', 'Could not write the weekly review') }]} name="Journal" />
             {todayPage ? (
-              <ButtonLink icon="pencil" label="Open today’s page" primary to={`/notes/${todayPage}`} />
+              <ButtonLink icon="pencil" label="Open today’s page" large primary to={`/notes/${todayPage}`} />
             ) : (
-              <Button disabled={opening.busy} icon="pencil" label="Write today’s page" onClick={() => writeDay(data.today)} primary />
+              <Button disabled={opening.busy} icon="pencil" label="Write today’s page" large onClick={() => writeDay(data.today)} primary />
             )}
           </>
         ) : (
           !journal.error && (
             <>
               <IconButtonSkeleton />
-              <ButtonSkeleton width="w-40" />
+              <ButtonSkeleton large width="w-40" />
             </>
           )
         )

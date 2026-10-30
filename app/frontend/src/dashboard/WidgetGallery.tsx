@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { Card, Dialog, Icon, TextField } from '@project-graphite/ui';
+import { Card, Dialog, EmptyState, Icon, SectionHeading } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
 import { Button } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
-import { Hint } from '../components/Hint';
-import { Subheading } from '../components/Page';
 
 export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) => void; onClose: () => void }) {
   const auth = useAuth();
@@ -18,22 +16,22 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
   });
 
   return (
-    <Dialog onClose={onClose} title="Add a widget">
+    <Dialog onClose={onClose} title="Add widget">
       <div className="mt-5 grid gap-5">
-        <TextField autoComplete="off" autoFocus label="Search widgets" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
-        {kinds.length === 0 && <Hint>No widget matches “{query}”.</Hint>}
+        <input aria-label="Search widgets" autoComplete="off" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search widgets" type="search" value={query} />
+        {kinds.length === 0 && <EmptyState title="No widgets match" variant="filtered" />}
         {widgetGroups.map((group) => {
           const inGroup = kinds.filter((type) => widgetKinds[type].group === group);
           return (
             inGroup.length > 0 && (
-              <section className="grid gap-2" key={group}>
-                <Subheading>{group}</Subheading>
+              <section className="grid gap-3" key={group}>
+                <SectionHeading level={3} title={group} />
                 <div className="grid gap-2 sm:grid-cols-2">
                   {inGroup.map((type) => (
                     <Card className="p-0" interactive key={type}>
                       <button className="grid h-full w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] content-start items-start gap-3 p-3 text-left" onClick={() => onAdd(type)} type="button">
                         <span aria-hidden="true" className="widget-icon">
-                          <Icon name={widgetKinds[type].icon} size={15} />
+                          <Icon name={widgetKinds[type].icon} size={18} />
                         </span>
                         <span className="grid gap-0.5">
                           <span className="text-ink">{widgetKinds[type].title}</span>

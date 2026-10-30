@@ -1,9 +1,11 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { EmptyState, Icon, Skeleton, TextLink, timeAgo, type IconName } from '@project-graphite/ui';
+import { EmptyState, Icon, timeAgo, type IconName } from '@project-graphite/ui';
 import { noteHref, type Note } from '../notes';
 import { useSpaces } from '../spaces';
+import { ButtonLink } from '../components/Button';
 import { Subheading } from '../components/Page';
+import { rowsOf, SkeletonLine } from '../components/Skeletons';
 
 export interface WidgetProps {
   settings: Record<string, unknown>;
@@ -14,7 +16,7 @@ export function WidgetHeading({ children, icon, title }: { children?: ReactNode;
   return (
     <header className="widget-heading">
       <span aria-hidden="true" className="widget-icon">
-        <Icon name={icon} size={15} />
+        <Icon name={icon} size={18} />
       </span>
       <h2 className="m-0 min-w-0 flex-1 truncate text-h3 text-ink">{title}</h2>
       {children}
@@ -41,60 +43,20 @@ export function useWide() {
 export const useListRows = (rows: number) => (useWide() ? rows : Math.min(rows, 5));
 
 export function ShowAll({ count, href }: { count: number; href: string }) {
-  return (
-    <p className="m-0 text-small">
-      <TextLink href={href}>Show all {count}</TextLink>
-    </p>
-  );
+  return <ButtonLink label={`Show all ${count}`} to={href} />;
 }
 
 export interface SettingsProps extends WidgetProps {
   onChange: (settings: Record<string, unknown>) => void;
 }
 
-const rowsOf = (count: number) => Array.from({ length: count }, (_, index) => index);
-
-export function SkeletonLine({ className = '', width }: { className?: string; width: string }) {
-  return (
-    <span aria-hidden="true" className={`flex h-[1lh] items-center ${className}`}>
-      <Skeleton className={`h-[0.7em] ${width}`} />
-    </span>
-  );
-}
-
-export function TaskRowsSkeleton({ rows }: { rows: number }) {
-  return (
-    <ul aria-hidden="true" className="panel-rows">
-      {rowsOf(rows).map((row) => (
-        <li className="flex items-center gap-3 panel-row" key={row}>
-          <Skeleton className="size-[1.125rem] shrink-0 rounded-full" />
-          <SkeletonLine className="flex-1" width={row % 2 ? 'w-1/2' : 'w-3/4'} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export function AgendaCardsSkeleton({ rows }: { rows: number }) {
-  return (
-    <div aria-hidden="true" className="grid gap-1.5">
-      {rowsOf(rows).map((row) => (
-        <div className="agenda-card text-sm" key={row} style={{ '--entry-color': 'var(--color-line)' } as CSSProperties}>
-          <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-2/3'} />
-          <SkeletonLine className="mono-sm" width="w-24" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function LinkRowsSkeleton({ className, rows }: { className: string; rows: number }) {
   return (
     <div aria-hidden="true" className={`grid ${className}`}>
       {rowsOf(rows).map((row) => (
-        <div className="text-sm" key={row}>
+        <div className="text-body" key={row}>
           <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-4/5'} />
-          <SkeletonLine className="mono-sm" width="w-24" />
+          <SkeletonLine className="text-small" width="w-24" />
         </div>
       ))}
     </div>
@@ -104,7 +66,7 @@ export function LinkRowsSkeleton({ className, rows }: { className: string; rows:
 export function PageLinksSkeleton({ rows }: { rows: number }) {
   return (
     <div aria-hidden="true" className="grid gap-1">
-      <SkeletonLine className="text-sm" width="w-24" />
+      <SkeletonLine className="text-h3" width="w-24" />
       <LinkRowsSkeleton className="gap-1.5" rows={rows} />
     </div>
   );
@@ -114,7 +76,7 @@ export function SplitRowsSkeleton({ className = '', rows }: { className?: string
   return (
     <div aria-hidden="true" className={`grid ${className}`}>
       {rowsOf(rows).map((row) => (
-        <div className="flex justify-between gap-3 text-sm" key={row}>
+        <div className="flex justify-between gap-3 text-body" key={row}>
           <SkeletonLine className="flex-1" width={row % 2 ? 'w-1/2' : 'w-2/3'} />
           <SkeletonLine width="w-12" />
         </div>
@@ -130,12 +92,12 @@ export function PageLinks({ heading, pages }: { heading: string; pages: Note[] }
       <Subheading>{heading}</Subheading>
       <ul className="m-0 grid list-none gap-1.5 p-0">
         {pages.map((page) => (
-          <li className="text-sm" key={page.id}>
+          <li className="text-body" key={page.id}>
             <Link className="text-ink no-underline hover:underline" to={noteHref(page)}>
               {page.icon ? `${page.icon} ` : ''}
               {page.title || 'Untitled'}
             </Link>
-            <span className="mono-sm block text-faint">
+            <span className="block text-small text-muted">
               {[spaces.data?.find((space) => space.id === page.spaceId)?.name, timeAgo(page.updatedAt)].filter(Boolean).join(' · ')}
             </span>
           </li>

@@ -16,7 +16,7 @@ export function CalendarWidget() {
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-ink">{formatDay(`${month}-01`, { month: 'long', year: 'numeric' })}</span>
+        <span className="text-body text-ink">{formatDay(`${month}-01`, { month: 'long', year: 'numeric' })}</span>
         <span className="-mr-1.5 flex items-center">
           <IconButton icon="chevron-left" label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))} size="small" />
           <IconButton icon="chevron-right" label="Next month" onClick={() => setMonth(shiftMonth(month, 1))} size="small" />
@@ -76,7 +76,7 @@ export function DayProgress() {
         const share = (now.getTime() - start) / (end - start);
         return (
           <li className="grid gap-1" key={label}>
-            <span className="flex justify-between gap-3 text-sm">
+            <span className="flex justify-between gap-3 text-body">
               <span className="text-muted">{label}</span>
               <span className="text-ink tabular-nums">{Math.floor(share * 100)}%</span>
             </span>

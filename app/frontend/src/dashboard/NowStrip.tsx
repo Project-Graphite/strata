@@ -4,10 +4,10 @@ import { FilterChip, formatDay, Placeholder, Skeleton, Stat, StatGrid } from '@p
 import { entryClock, entryDay, entryLink, type AgendaEntry } from '../agenda';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
+import { rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { money } from '../subscriptions';
-import { formatMoment, profileDay } from '../time';
+import { capitalised, formatMoment, profileDay } from '../time';
 import { useResource } from '../useResource';
-import { SkeletonLine } from './widget-parts';
 
 interface HomeSummary {
   nextEvent: AgendaEntry | null;
@@ -24,7 +24,7 @@ function startsIn(entry: AgendaEntry, now: number) {
   if (minutes <= 0) return `Now, until ${entryClock(entry.end!)}`;
   if (minutes < 60) return `In ${minutes} min`;
   if (minutes < 12 * 60) return `In ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
-  return formatMoment(entry.start);
+  return capitalised(formatMoment(entry.start));
 }
 
 function greeting(now: Date, timeZone: string) {
@@ -32,15 +32,38 @@ function greeting(now: Date, timeZone: string) {
   return hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-export function NowStrip() {
-  const { user } = useAuth();
-  const summary = useResource<HomeSummary>('/me/home', true, { live: ['items', 'tasks', 'subscriptions', 'spending', 'inbox', 'spaces'], every: 5 * 60_000 });
+function useNow() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  return now;
+}
+
+export function Greeting() {
+  const { user } = useAuth();
+  const now = useNow();
+  return (
+    <div>
+      <h2 className="m-0 text-h2 text-ink">
+        {greeting(now, user?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)}, {user?.displayName.split(' ')[0]}
+      </h2>
+      <p className="m-0 text-small text-muted">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+    </div>
+  );
+}
+
+export function NowStrip() {
+  const { user } = useAuth();
+  const summary = useResource<HomeSummary>('/me/home', true, { live: ['items', 'tasks', 'subscriptions', 'spending', 'inbox', 'spaces'], every: 5 * 60_000 });
+  const now = useNow();
   const features = user?.features ?? [];
+  const [stats] = useRememberedShape(
+    'home-stats',
+    summary.data && [[features.includes('agenda'), features.includes('tasks'), Boolean(summary.data.safeToSpend)].filter(Boolean).length],
+    [3],
+  );
   const next = summary.data?.nextEvent;
   const chips = summary.data
     ? ([
@@ -54,17 +77,11 @@ export function NowStrip() {
 
   return (
     <section aria-label="Now" className="grid gap-4">
-      <div>
-        <h2 className="m-0 text-h2 text-ink">
-          {greeting(now, user?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)}, {user?.displayName.split(' ')[0]}
-        </h2>
-        <p className="m-0 text-small text-muted">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-      </div>
       {summary.error ? (
         <LoadError compact error={summary.error} onRetry={summary.reload} />
       ) : !summary.data ? (
         <Placeholder className="stat-grid" label="Loading what is next">
-          {[0, 1, 2].map((stat) => (
+          {rowsOf(stats).map((stat) => (
             <div aria-hidden="true" className="stat" key={stat}>
               <SkeletonLine className="text-small" width="w-20" />
               <Skeleton className="h-7 w-24" />

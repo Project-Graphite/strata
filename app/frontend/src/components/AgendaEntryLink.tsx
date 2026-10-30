@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
-import { Dialog, Placeholder, type TagColor, TextLink } from '@project-graphite/ui';
-import { entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
+import { Card, Dialog, Placeholder, type TagColor, TextLink } from '@project-graphite/ui';
+import { entryDay, entryLink, entryTime, entryWhen, kindLabels, type AgendaEntry, type CalendarEvent } from '../agenda';
 import { pageScroller } from '../page-scroll';
 import { repeatLabel } from '../tasks';
+import { capitalised, formatDate } from '../time';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Button, ButtonAnchor } from './Button';
@@ -21,8 +22,8 @@ export function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; on
   );
 
   return (
-    <Dialog eyebrow={entry.calendar} onClose={onClose} title={entry.title}>
-      <p className="mt-2 mb-0 text-ink">{entryWhen(entry)}</p>
+    <Dialog onClose={onClose} title={entry.title}>
+      <p className="mt-2 mb-0 text-small text-muted">{[entryWhen(entry), entry.calendar].filter(Boolean).join(' · ')}</p>
       {details.error ? (
         <div className="mt-4">
           <LoadError compact error={details.error} onRetry={details.reload} />
@@ -30,7 +31,7 @@ export function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; on
       ) : !details.data ? (
         <Placeholder className="mt-4 grid gap-4" label="Loading the event">
           {detailRows > 0 && (
-            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-body">
               {rowsOf(detailRows).map((row) => (
                 <Fragment key={row}>
                   <SkeletonLine width="w-16" />
@@ -41,32 +42,32 @@ export function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; on
           )}
           {meeting > 0 && <ButtonSkeleton large width="w-36" />}
           {described > 0 && (
-            <div className="rounded-field border border-line p-3 text-sm">
-              <SkeletonLine width="w-full" />
-              <SkeletonLine width="w-2/3" />
-            </div>
+            <Card padding="md">
+              <SkeletonLine className="text-small" width="w-full" />
+              <SkeletonLine className="text-small" width="w-2/3" />
+            </Card>
           )}
-          <SkeletonLine className="text-sm" width="w-64 max-w-full" />
+          <SkeletonLine className="text-small" width="w-64 max-w-full" />
         </Placeholder>
       ) : (
         <div className="mt-4 grid gap-4">
           {(repeats || details.data.location || details.data.organizer) && (
-            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-body">
               {repeats && (
                 <>
-                  <dt className="text-faint">Repeats</dt>
+                  <dt className="text-muted">Repeats</dt>
                   <dd className="m-0 text-ink">{repeats === 'repeats' ? 'Custom schedule' : repeats[0]!.toUpperCase() + repeats.slice(1)}</dd>
                 </>
               )}
               {details.data.location && (
                 <>
-                  <dt className="text-faint">Where</dt>
+                  <dt className="text-muted">Where</dt>
                   <dd className="m-0 whitespace-pre-line break-words text-ink">{details.data.location}</dd>
                 </>
               )}
               {details.data.organizer && (
                 <>
-                  <dt className="text-faint">Organizer</dt>
+                  <dt className="text-muted">Organizer</dt>
                   <dd className="m-0 break-words text-ink">{details.data.organizer}</dd>
                 </>
               )}
@@ -76,11 +77,11 @@ export function CalendarEventDialog({ entry, onClose }: { entry: AgendaEntry; on
             <ButtonAnchor href={details.data.meetingUrl} label="Join meeting" large primary />
           )}
           {details.data.description && (
-            <p className="m-0 max-h-72 overflow-y-auto rounded-field border border-line p-3 text-sm whitespace-pre-line break-words text-muted">
-              {details.data.description}
-            </p>
+            <Card padding="md">
+              <p className="m-0 max-h-72 overflow-y-auto text-small whitespace-pre-line break-words text-muted">{details.data.description}</p>
+            </Card>
           )}
-          <p className="m-0 text-sm text-faint">
+          <p className="m-0 text-small text-muted">
             From {details.data.calendar.name} · {details.data.calendar.host}.{' '}
             <TextLink href="/agenda/calendars">Manage calendars</TextLink>
           </p>
@@ -134,23 +135,22 @@ export function AgendaEntryLink({
   );
 }
 
-export function AgendaCard({ colour, entry, onOpen }: { colour: TagColor; entry: AgendaEntry; onOpen?: (target: HTMLElement) => void }) {
+export function AgendaRow({ colour, dated = false, entry, onOpen }: { colour: TagColor; dated?: boolean; entry: AgendaEntry; onOpen?: (target: HTMLElement) => void }) {
   return (
-    <AgendaEntryLink className="agenda-card" colour={colour} entry={entry} onOpen={onOpen}>
-      <span className="block text-sm wrap-anywhere text-ink">{entry.title}</span>
-      <span className="sr-only"> · </span>
-      <span className="block text-small wrap-anywhere text-muted tabular-nums">
-        <span className="whitespace-nowrap">{entryTime(entry)}</span>
-        {' · '}
-        {entry.calendar ?? kindLabels[entry.kind]}
-        {entry.location && (
-          <>
-            <span className="hidden sm:inline"> · </span>
-            <span className="block sm:inline">{entry.location}</span>
-          </>
-        )}
-      </span>
-    </AgendaEntryLink>
+    <li className="list-row">
+      <AgendaEntryLink className="list-row-main" colour={colour} entry={entry} onOpen={onOpen}>
+        <span className="list-row-lead">
+          <span aria-hidden="true" className="swatch-dot" />
+        </span>
+        <span className="list-row-text">
+          <span className="list-row-title">{entry.title}</span>
+          <span className="sr-only"> · </span>
+          <span className="list-row-meta tabular-nums">
+            {capitalised([dated && formatDate(entryDay(entry)), entryTime(entry), entry.calendar ?? kindLabels[entry.kind], entry.location].filter(Boolean).join(' · '))}
+          </span>
+        </span>
+      </AgendaEntryLink>
+    </li>
   );
 }
 
@@ -187,11 +187,12 @@ export function EntryPeek({ anchor, entry, onClose, onEdit, onOpen }: { anchor: 
   return createPortal(
     <>
       <div aria-hidden="true" className="fixed inset-0 z-40" onClick={onClose} />
-      <div aria-label={entry.title} className="fixed z-50 grid w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-card border border-line bg-raised p-4 shadow-(--shadow-popover)" ref={panel} role="dialog" style={place}>
+      <div aria-label={entry.title} className="fixed z-50 grid w-80 max-w-[calc(100vw-2rem)] gap-3 rounded-panel border border-line bg-raised p-4 shadow-(--shadow-popover)" ref={panel} role="dialog" style={place}>
         <div className="grid gap-1">
-          <p className="eyebrow m-0">{entry.calendar ?? kindLabels[entry.kind]}</p>
           <p className="m-0 text-h3 wrap-anywhere text-ink">{entry.title}</p>
-          <p className="m-0 text-small text-muted">{entryWhen(entry)}</p>
+          <p className="m-0 text-small text-muted">
+            {entryWhen(entry)} · {entry.calendar ?? kindLabels[entry.kind]}
+          </p>
           {entry.location && <p className="m-0 text-small wrap-anywhere text-muted">{entry.location}</p>}
         </div>
         <div className="flex flex-wrap justify-end gap-2">

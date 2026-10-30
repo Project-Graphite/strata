@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { ListRow, Skeleton, Stat, StatGrid } from '@project-graphite/ui';
 
 const titleWidths = ['w-3/5', 'w-2/5', 'w-1/2', 'w-1/3'];
@@ -71,9 +71,9 @@ export function RowsSkeleton({
   );
 }
 
-export function TaskRowsSkeleton({ detailed = Infinity, rows }: { detailed?: number; rows: number }) {
+export function TaskRowsSkeleton({ detailed = Infinity, flush = false, rows }: { detailed?: number; flush?: boolean; rows: number }) {
   return (
-    <ul aria-hidden="true" className="panel-rows">
+    <ul aria-hidden="true" className={`panel-rows ${flush ? 'panel-rows-flush' : ''}`}>
       {rowsOf(rows).map((row) => (
         <li className="flex min-w-0 items-center gap-3 panel-row" key={row}>
           <span className="grid size-9.5 shrink-0 place-items-center">
@@ -166,14 +166,11 @@ export function AmountRowsSkeleton({ detailed = Infinity, metered = 0, rows, tra
   );
 }
 
-export function AgendaCardsSkeleton({ rows }: { rows: number }) {
+export function AgendaRowsSkeleton({ flush = false, rows }: { flush?: boolean; rows: number }) {
   return (
-    <ul aria-hidden="true" className="m-0 grid list-none gap-1.5 p-0">
+    <ul aria-hidden="true" className={`panel-rows ${flush ? 'panel-rows-flush' : ''}`}>
       {rowsOf(rows).map((row) => (
-        <li className="agenda-card" key={row} style={{ '--entry-color': 'var(--color-line)' } as CSSProperties}>
-          <SkeletonLine className="text-sm" width={titleWidths[row % titleWidths.length]!} />
-          <SkeletonLine className="text-small" width="w-24" />
-        </li>
+        <RowSkeleton key={row} lead={<Skeleton className="size-5 shrink-0 rounded-full" />} row={row} />
       ))}
     </ul>
   );

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Badge, formatDay, TagChip, TextField } from '@project-graphite/ui';
+import { Badge, formatDay, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { parseQuickTask, priorityNames, quickSuggestions, withSuggestion } from '../quick-add';
 import type { Tag } from '../spaces';
@@ -51,14 +51,14 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
     >
       <div className="flex items-stretch gap-2">
         <div className="relative min-w-0 flex-1">
-          <TextField
+          <input
             aria-activedescendant={suggestions.length ? `${suggestionsId}-${highlighted}` : undefined}
             aria-autocomplete="list"
             aria-controls={suggestions.length ? suggestionsId : undefined}
             aria-describedby={understood ? hintId : undefined}
             aria-expanded={suggestions.length > 0}
+            aria-label="Add a task"
             autoComplete="off"
-            label="Add a task"
             maxLength={300}
             onBlur={() => setDismissed(text)}
             onFocus={() => setFocused(true)}
@@ -79,8 +79,9 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
                 setDismissed(text);
               }
             }}
-            placeholder="Call Sara tomorrow 5pm #work !2"
+            placeholder="Add a task: call Sara tomorrow 5pm #work !2"
             role="combobox"
+            type="text"
             value={text}
           />
           {suggestions.length > 0 && (

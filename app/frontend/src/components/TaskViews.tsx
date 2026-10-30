@@ -8,6 +8,7 @@ import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task 
 import { profileDay } from '../time';
 import { useAction } from '../useAction';
 import { ActionsMenu } from './ActionsMenu';
+import { Empty } from './Empty';
 
 type Update = (change: (tasks: Task[]) => Task[]) => void;
 
@@ -245,7 +246,11 @@ export function TaskBoard({ changes, editable, onOpen, tasks, where }: ViewProps
           >
             <SectionHeading action={<span className="text-small text-muted tabular-nums">{shown.length}</span>} id={`task-column-${column.value}`} level={2} title={column.label} />
             {shown.length === 0 ? (
-              <p className="m-0 text-small text-muted">{dragging ? `Drop here to mark it ${column.label.toLowerCase()}.` : 'Nothing here.'}</p>
+              dragging ? (
+                <p className="m-0 text-small text-muted">{`Drop here to mark it ${column.label.toLowerCase()}.`}</p>
+              ) : (
+                <Empty level={3} title="Nothing here" />
+              )
             ) : (
               <ul className="m-0 grid list-none gap-2 p-0">
                 {shown.map((task) => {

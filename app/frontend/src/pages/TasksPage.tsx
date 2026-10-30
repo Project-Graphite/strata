@@ -60,18 +60,16 @@ export function TasksPage() {
       }
       title="Tasks"
       toolbar={
-        lists.data ? (
-          <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
-        ) : (
-          !lists.error && <ChipsSkeleton count={listCount + 2} />
-        )
-      }
-      toolbarEnd={
-        <>
-          <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
+        <div className="chip-row [&>nav]:contents">
+          {lists.data ? (
+            <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
+          ) : (
+            !lists.error && <ChipsSkeleton count={listCount + 2} />
+          )}
           {view === 'list' && <TaskStatusChips completed={completed} link={link} />}
-        </>
+        </div>
       }
+      toolbarEnd={<SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />}
     >
       <TaskPanel
         addTo={addTo && addTo.role !== 'viewer' ? { spaceId: addTo.id, listId: shownList?.id } : undefined}

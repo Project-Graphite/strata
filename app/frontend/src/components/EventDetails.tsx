@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { ConfirmDialog, IconButton, ListRow, Sheet, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Sheet, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
 import { useSpaces } from '../spaces';
@@ -7,10 +7,10 @@ import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
 import { ActionsMenu } from './ActionsMenu';
-import { Button, IconLink, TextButton } from './Button';
+import { Button, TextButton } from './Button';
 import { Copyable } from './Copyable';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from './DatePoll';
-import { Hint } from './Hint';
+import { Empty } from './Empty';
 import { ItemBoards, useItemBoards } from './ItemBoards';
 import { LoadError } from './LoadError';
 import { Section } from './Page';
@@ -86,7 +86,7 @@ export function EventSectionsSkeleton({ shape: [wasEditable = 0, , , description
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <SkeletonLine width="w-40" />
-                    <SkeletonLine className="mono-sm mt-0.5" width="w-28" />
+                    <SkeletonLine className="mt-0.5 text-small" width="w-28" />
                   </div>
                   <div className="flex items-center gap-1.5">
                     {rowsOf(3).map((answer) => (
@@ -192,7 +192,7 @@ export function EventSections({
       {guestsShown && (
         <Section description={`${details.headcount.yes} coming · ${details.headcount.maybe} maybe · ${details.headcount.no} not coming · ${details.headcount.pending} waiting`} title="Guests">
           {details.guests.length === 0 ? (
-            <Hint>No guests yet.</Hint>
+            <Empty level={3} title="No guests yet" />
           ) : (
             <ul className="panel-rows">
               {details.guests.map((guest) => (
@@ -356,17 +356,15 @@ export function EventSheet({ id, onClose, onOpen }: { id: string; onClose: () =>
   return (
     <Sheet
       actions={
-        <>
-          <IconLink icon="external" label="Open the full page" to={`/events/${id}`} />
-          {details && editable && (
-            <>
-              <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
-              <ActionsMenu items={[{ label: 'Move to trash', separated: true, onSelect: () => trash(details) }]} name={details.title} />
-            </>
-          )}
-        </>
+        <ActionsMenu
+          items={[
+            { label: 'Open the full page', href: `/events/${id}` },
+            ...(details && editable ? [{ label: 'Move to trash', separated: true, onSelect: () => trash(details) }] : []),
+          ]}
+          name={details?.title ?? 'Event'}
+        />
       }
-      eyebrow="Event"
+      footer={details && editable && <Button icon="pencil" label="Edit event" large onClick={() => setEditing(true)} primary />}
       onClose={onClose}
       title={details?.title ?? <SkeletonLine width="w-48" />}
     >

@@ -165,7 +165,7 @@ export function DashboardGrid({
           style={
             wide
               ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` }
-              : { minHeight: pixelsOf(Math.max(widget.h ?? 0, widgetKinds[widget.type].minH)) }
+              : { minHeight: pixelsOf(widgetKinds[widget.type].minH) }
           }
           tabIndex={editable ? 0 : undefined}
         >

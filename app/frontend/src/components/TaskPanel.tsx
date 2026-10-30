@@ -3,6 +3,7 @@ import { Icon, Placeholder, Skeleton } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { taskDetails, TaskListFooter, TaskRow, useAllTasks, useWeekStart, type Task, type TaskLink, type TaskView } from '../tasks';
 import { useResource } from '../useResource';
+import { Button } from './Button';
 import { Empty } from './Empty';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
@@ -79,8 +80,9 @@ export function TaskPanel({
   };
   const problem = failed?.error ? failed : open.error ? { error: open.error, reload: open.reload } : finished.error ? finished : undefined;
   const empty = completed
-    ? { title: 'Nothing finished yet', hint: 'Tasks you finish show up here.' }
-    : { title: 'Nothing to do', hint: addTo ? 'Add a task above, or press New task.' : 'Tasks added to this space show up here.' };
+    ? { title: 'No finished tasks yet', hint: 'Tasks you finish show up here.' }
+    : { title: 'No tasks yet', hint: addTo ? 'Add a task above, or press New task.' : 'Tasks added to this space show up here.' };
+  const emptyAction = addTo && <Button icon="plus" label="New task" onClick={onCreate} primary />;
   const loaded = ready && shown && (!board || finished.data);
 
   return (
@@ -89,11 +91,11 @@ export function TaskPanel({
         <LoadError error={problem.error} onRetry={problem.reload} />
       ) : !loaded ? (
         <Placeholder className="grid gap-8" label="Loading the tasks">
-          {!completed && addTo && <Skeleton className="h-14 rounded-field" />}
+          {!completed && addTo && <Skeleton className="h-11 rounded-field" />}
           {rows ? (
             <TaskRowsSkeleton detailed={detailed} rows={rows} />
           ) : (
-            <Empty loading title={empty.title}>
+            <Empty action={emptyAction} icon="check" loading title={empty.title} variant="page">
               {empty.hint}
             </Empty>
           )}
@@ -121,7 +123,9 @@ export function TaskPanel({
               where={where}
             />
           ) : shown.length === 0 ? (
-            <Empty title={empty.title}>{empty.hint}</Empty>
+            <Empty action={emptyAction} icon="check" title={empty.title} variant="page">
+              {empty.hint}
+            </Empty>
           ) : completed ? (
             <ul className="panel-rows">
               {shown.map((task) => (

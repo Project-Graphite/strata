@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, TextAreaField, TextField, timeAgo, ToolbarButton, useSnackbar, type IconName } from '@project-graphite/ui';
+import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, TextAreaField, ToolbarButton, useSnackbar, type IconName } from '@project-graphite/ui';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import Highlight from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extensions';
@@ -15,7 +15,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, TextButton } from './Button';
 import { FileButton } from './FileButton';
-import { Hint } from './Hint';
+import { LoadError } from './LoadError';
 import { cspNonce } from '../csp-nonce';
 
 type Description = Record<string, unknown> | null;
@@ -136,11 +136,15 @@ export function Subtasks({
 
   return (
     <section className="grid gap-3">
-      <SectionHeading level={3} title={`Subtasks${task.subtasks.length ? ` · ${task.subtaskCounts.done}/${task.subtasks.length}` : ''}`} />
+      <SectionHeading
+        action={task.subtasks.length > 0 && <span className="text-small text-muted tabular-nums">{`${task.subtaskCounts.done}/${task.subtasks.length}`}</span>}
+        level={3}
+        title="Subtasks"
+      />
       {task.subtasks.length > 0 && (
         <ul className="panel-rows">
           {task.subtasks.map((subtask) => (
-            <li className="list-row" data-dense key={subtask.id}>
+            <li className="list-row" key={subtask.id}>
               <span className="list-row-lead">
                 <Checkbox
                   aria-label={subtask.completedAt ? `Mark ${subtask.title} as not done` : `Mark ${subtask.title} as done`}
@@ -177,7 +181,7 @@ export function Subtasks({
             }, 'Could not add the subtask');
           }}
         >
-          <TextField className="min-w-0 flex-1" label="Add a subtask" maxLength={200} onChange={(event) => setTitle(event.currentTarget.value)} value={title} />
+          <input aria-label="Add a subtask" className="min-w-0 flex-1" maxLength={200} onChange={(event) => setTitle(event.currentTarget.value)} placeholder="Add a subtask" type="text" value={title} />
         </form>
       )}
     </section>
@@ -203,7 +207,7 @@ export function Comments({ editable, owner, taskId }: { editable: boolean; owner
     <section className="grid gap-3">
       <SectionHeading level={3} title="Comments" />
       {comments.error ? (
-        <Hint>{comments.error}</Hint>
+        <LoadError compact error={comments.error} onRetry={comments.reload} />
       ) : !comments.data ? (
         <LinesSkeleton label="Loading the comments" lines={2} />
       ) : (
@@ -332,14 +336,14 @@ export function Attachments({ editable, taskId }: { editable: boolean; taskId: s
         title="Attachments"
       />
       {attachments.error ? (
-        <Hint>{attachments.error}</Hint>
+        <LoadError compact error={attachments.error} onRetry={attachments.reload} />
       ) : !attachments.data ? (
         <LinesSkeleton label="Loading the attachments" lines={1} />
       ) : (
         attachments.data.length > 0 && (
           <ul className="panel-rows">
             {attachments.data.map((file) => (
-              <li className="list-row" data-dense key={file.id}>
+              <li className="list-row" key={file.id}>
                 <button
                   className="list-row-main"
                   onClick={() =>
@@ -382,14 +386,14 @@ export function Attachments({ editable, taskId }: { editable: boolean; taskId: s
 
 export function Activity({ taskId }: { taskId: string }) {
   const activity = useResource<ResultPage<ActivityEvent>>(`/tasks/${taskId}/activity?page=1`, true, { live: ['tasks'], itemIds: [taskId] });
-  if (activity.error) return <Hint>{activity.error}</Hint>;
+  if (activity.error) return <LoadError compact error={activity.error} onRetry={activity.reload} />;
   if (!activity.data) return <LinesSkeleton label="Loading the activity" lines={2} />;
   return (
     <ol className="m-0 grid list-none gap-2 p-0">
       {activity.data.results.map((event) => (
         <li className="flex items-baseline justify-between gap-4 text-small" key={event.id}>
           <span className="min-w-0 text-ink">{describeActivity(event)}</span>
-          <span className="shrink-0 text-muted">{timeAgo(event.createdAt)}</span>
+          <span className="shrink-0 text-muted">{formatMoment(event.createdAt)}</span>
         </li>
       ))}
     </ol>

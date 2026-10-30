@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router';
-import { IconButton, Pagination, Placeholder } from '@project-graphite/ui';
+import { Pagination, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
@@ -10,8 +10,7 @@ import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { RowText } from '../components/RowText';
-import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 
 const empty = { title: 'Nothing new', hint: 'Comments, invitations and changes in your shared spaces show up here.' };
 
@@ -40,21 +39,23 @@ export function InboxPage() {
     <Page
       actions={
         (inbox.data?.unread ?? 0) > 0 && (
-          <IconButton
-            disabled={action.busy}
-            icon="check-mark"
-            label="Mark all read"
-            onClick={() =>
-              void action.run(async () => {
-                await auth.request('/me/inbox/read', { method: 'POST' });
-                notifications.mutate((current) => ({
-                  ...current,
-                  results: current.results.map((shown) => ({ ...shown, read: true })),
-                }));
-                inbox.reload();
-                return 'Everything is marked read.';
-              }, 'Could not mark everything read')
-            }
+          <ActionsMenu
+            items={[
+              {
+                label: 'Mark all read',
+                onSelect: () =>
+                  void action.run(async () => {
+                    await auth.request('/me/inbox/read', { method: 'POST' });
+                    notifications.mutate((current) => ({
+                      ...current,
+                      results: current.results.map((shown) => ({ ...shown, read: true })),
+                    }));
+                    inbox.reload();
+                    return 'Everything is marked read.';
+                  }, 'Could not mark everything read'),
+              },
+            ]}
+            name="Inbox"
           />
         )
       }
@@ -65,49 +66,58 @@ export function InboxPage() {
       ) : !notifications.data ? (
         <Placeholder label="Loading your inbox">
           {rows ? (
-            <RowsSkeleton below={<SkeletonLine className="text-small" width="w-16" />} lead={<span className="size-2 shrink-0" />} rows={rows} />
+            <RowsSkeleton lead={<span className="size-2 shrink-0" />} rows={rows} trail={<IconButtonSkeleton />} />
           ) : (
-            <Empty loading title={empty.title}>
+            <Empty icon="bell" loading title={empty.title} variant="page">
               {empty.hint}
             </Empty>
           )}
         </Placeholder>
       ) : notifications.data.results.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
+        <Empty icon="bell" title={empty.title} variant="page">
+          {empty.hint}
+        </Empty>
       ) : (
         <>
           <ul className="panel-rows">
             {notifications.data.results.map((notification) => {
               const content = (
                 <>
-                  <span aria-hidden={notification.read} className={`mt-2 size-2 shrink-0 rounded-full ${notification.read ? '' : 'bg-ink'}`}>
-                    {!notification.read && <span className="sr-only">Unread: </span>}
+                  <span className="list-row-lead">
+                    <span aria-hidden={notification.read} className={notification.read ? 'size-2' : 'unread-dot'}>
+                      {!notification.read && <span className="sr-only">Unread: </span>}
+                    </span>
                   </span>
-                  <RowText
-                    detail={notification.body && (notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body)}
-                    title={<span className={notification.read ? 'text-muted' : 'font-medium'}>{notification.title}</span>}
-                  >
-                    <span className="text-small text-muted tabular-nums">{formatMoment(notification.createdAt)}</span>
-                  </RowText>
+                  <span className="list-row-text">
+                    <span className="list-row-title">
+                      <span className={notification.read ? 'text-muted' : undefined}>{notification.title}</span>
+                    </span>
+                    <span className="list-row-meta tabular-nums">
+                      {[
+                        formatMoment(notification.createdAt),
+                        notification.body && (notification.kind === 'comment' || notification.kind === 'invitation' ? `“${notification.body}”` : notification.body),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
                 </>
               );
               return (
-                <li className={`flex items-center gap-3 pe-2 ${notification.link ? 'hover:bg-line-soft' : ''}`} key={notification.id}>
+                <li className="list-row" key={notification.id}>
                   {notification.link ? (
-                    <Link
-                      className="flex min-w-0 flex-1 items-start gap-3 panel-row text-ink no-underline"
-                      onClick={() => !notification.read && setRead(notification, true)}
-                      to={notification.link}
-                    >
+                    <Link className="list-row-main" onClick={() => !notification.read && setRead(notification, true)} to={notification.link}>
                       {content}
                     </Link>
                   ) : (
-                    <div className="flex min-w-0 flex-1 items-start gap-3 panel-row">{content}</div>
+                    <div className="list-row-main">{content}</div>
                   )}
-                  <ActionsMenu
-                    items={[{ label: notification.read ? 'Mark unread' : 'Mark read', onSelect: () => setRead(notification, !notification.read) }]}
-                    name={notification.title}
-                  />
+                  <span className="list-row-trail">
+                    <ActionsMenu
+                      items={[{ label: notification.read ? 'Mark unread' : 'Mark read', onSelect: () => setRead(notification, !notification.read) }]}
+                      name={notification.title}
+                    />
+                  </span>
                 </li>
               );
             })}

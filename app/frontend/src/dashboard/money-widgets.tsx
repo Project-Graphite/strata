@@ -8,7 +8,8 @@ import type { InstallmentPlan, MoneyAccount, SavingsGoal, SpendingMonth } from '
 import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { useResource } from '../useResource';
-import { ShowAll, SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { ShowAll, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 
 function nextCardDue(dueDay: number) {
@@ -29,7 +30,7 @@ export function SpendingWidget() {
       <Placeholder className="grid gap-3" label="Adding up the month">
         <SkeletonLine className="text-2xl" width="w-48" />
         <Skeleton className="h-1.5 rounded-full" />
-        <SkeletonLine className="text-sm" width="w-52" />
+        <SkeletonLine className="text-body" width="w-52" />
         <SplitRowsSkeleton className="gap-1.5" rows={4} />
       </Placeholder>
     );
@@ -45,7 +46,7 @@ export function SpendingWidget() {
       {expenses.length > 0 && (
         <ul className="widget-list">
           {expenses.slice(0, 4).map((expense) => (
-            <li className="flex justify-between gap-3 text-sm" key={expense.id}>
+            <li className="flex justify-between gap-3 text-body" key={expense.id}>
               <span className="truncate text-ink">{expense.title}</span>
               <Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />
             </li>
@@ -82,7 +83,7 @@ export function PaymentsWidget() {
     <div className="grid gap-2">
       <ul className="m-0 grid list-none gap-1.5 p-0">
         {payments.slice(0, 5).map((payment) => (
-          <li className="flex justify-between gap-3 text-sm" key={payment.key}>
+          <li className="flex justify-between gap-3 text-body" key={payment.key}>
             <span className="min-w-0 flex-1 truncate text-ink">{payment.name}</span>
             <span className={payment.missed ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}>
               {payment.missed ? 'missed ' : ''}
@@ -119,7 +120,7 @@ export function SavingsWidget() {
       <ul className="m-0 grid list-none gap-3 p-0">
         {goals.data.slice(0, 4).map((goal) => (
           <li className="grid gap-1" key={goal.id}>
-            <span className="flex flex-wrap justify-between gap-x-3 text-sm">
+            <span className="flex flex-wrap justify-between gap-x-3 text-body">
               <span className="max-w-full shrink-0 truncate text-ink">{goal.name}</span>
               <Amount currency={goal.currency} minor={goal.savedMinor ?? goal.targetMinor}>
                 {goal.savedMinor !== null && ` of ${money(goal.targetMinor, goal.currency)}`}

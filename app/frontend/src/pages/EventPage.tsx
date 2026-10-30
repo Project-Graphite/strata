@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { IconButton } from '@project-graphite/ui';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button } from '../components/Button';
 import { EventEditor } from '../components/EventEditor';
 import { EventSections, EventSectionsSkeleton, EventSummary, useEvent, useTrashEvent } from '../components/EventDetails';
 import { DetailState, Page } from '../components/Page';
@@ -46,8 +46,8 @@ export function EventPage() {
       actions={
         editable && (
           <>
-            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
             <ActionsMenu items={[{ label: 'Move to trash', separated: true, onSelect: () => trash(details) }]} name={details.title} />
+            <Button icon="pencil" label="Edit" large onClick={() => setEditing(true)} primary />
           </>
         )
       }

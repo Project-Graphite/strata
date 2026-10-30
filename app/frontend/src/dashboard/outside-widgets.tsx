@@ -6,7 +6,8 @@ import { useAuth } from '../auth';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { useLiveRefresh, useResource } from '../useResource';
-import { LinkRowsSkeleton, SkeletonLine, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { LinkRowsSkeleton, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
 
 const outsideRefresh = { every: 15 * 60_000 };
@@ -63,9 +64,9 @@ export function Weather({ configure, settings }: WidgetProps) {
       <Placeholder className="grid gap-3" label="Loading the weather">
         <div>
           <SkeletonLine className="widget-figure" width="w-20" />
-          <SkeletonLine className="mono-sm mt-1" width="w-48" />
+          <SkeletonLine className="mt-1 text-small" width="w-48" />
         </div>
-        <div aria-hidden="true" className="grid grid-cols-7 gap-1 text-sm">
+        <div aria-hidden="true" className="grid grid-cols-7 gap-1 text-body">
           {[0, 1, 2, 3, 4, 5, 6].map((day) => (
             <div className="grid gap-0.5" key={day}>
               <SkeletonLine className="justify-center" width="w-3" />
@@ -84,16 +85,16 @@ export function Weather({ configure, settings }: WidgetProps) {
         <p className="widget-figure">
           {current.temperature}°{unit === 'fahrenheit' ? 'F' : 'C'}
         </p>
-        <p className="mono-sm m-0 mt-1 text-faint">
+        <p className="m-0 mt-1 text-small text-muted">
           {condition(current.code)} · {place.name.split(',')[0]} · wind {current.wind} {unit === 'fahrenheit' ? 'mph' : 'km/h'}
         </p>
       </div>
-      <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-sm">
+      <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-body">
         {daily.map((day) => (
           <li className="grid gap-0.5" key={day.date} title={condition(day.code)}>
-            <span className="text-faint">{formatDay(day.date, { weekday: 'narrow' })}</span>
+            <span className="text-muted">{formatDay(day.date, { weekday: 'narrow' })}</span>
             <span className="text-ink">{day.high}°</span>
-            <span className="text-faint">{day.low}°</span>
+            <span className="text-muted">{day.low}°</span>
           </li>
         ))}
       </ul>
@@ -254,11 +255,11 @@ export function News({ configure, settings }: WidgetProps) {
       {loaded.stories.length === 0 && loaded.failed === 0 && <WidgetEmpty icon="mail" title="No stories yet" />}
       <ul className="m-0 grid list-none gap-2 p-0">
         {loaded.stories.slice(0, count).map((story) => (
-          <li className="text-sm" key={story.link}>
+          <li className="text-body" key={story.link}>
             <a className="text-ink no-underline hover:underline" href={story.link} rel="noopener noreferrer" target="_blank">
               {story.title}
             </a>
-            <span className="mono-sm block text-faint">
+            <span className="block text-small text-muted">
               {story.source}
               {story.published ? ` · ${timeAgo(story.published)}` : ''}
             </span>
