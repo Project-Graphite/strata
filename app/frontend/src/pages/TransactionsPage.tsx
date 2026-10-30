@@ -5,7 +5,6 @@ import { useAuth } from '../auth';
 import { Amount } from '../components/Amount';
 import { Button, TextButton } from '../components/Button';
 import { CategoryChips } from '../components/CategoryChips';
-import { Empty } from '../components/Empty';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -32,7 +31,7 @@ import { usePageVirtualizer } from '../page-virtualizer';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useSwipe } from '../swipe';
-import { capitalised, formatDate } from '../time';
+import { capitalised, count, formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 import { moneyAmount, useFormErrors } from '../validation';
@@ -220,6 +219,7 @@ export function TransactionsPage() {
       accounts={accounts.data}
       categories={categories.data}
       currency={shown?.currency}
+      empty={!failed && shown?.rows.length === 0 && !filtered ? emptyTransactions : undefined}
       onChanged={() => {
         categories.reload();
         refresh();
@@ -228,13 +228,19 @@ export function TransactionsPage() {
       toolbar={
         <div className="grid w-full min-w-0 gap-3">
           <div className="flex min-w-0 items-stretch gap-2">
-            <div className="min-w-0 flex-1 sm:max-w-96">
-              <TextField autoComplete="off" label="Search transactions" onChange={(event) => setSearch(event.currentTarget.value)} type="search" value={search} />
-            </div>
-            <Button icon="filter" label={chips.length ? `Filters (${chips.length})` : 'Filters'} large onClick={() => setDialog('filters')} />
+            <input
+              aria-label="Search transactions"
+              autoComplete="off"
+              className="min-w-0 max-w-md flex-1"
+              onChange={(event) => setSearch(event.currentTarget.value)}
+              placeholder="Search transactions"
+              type="search"
+              value={search}
+            />
+            <Button icon="filter" label="Filters" large onClick={() => setDialog('filters')} />
           </div>
           {chips.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="chip-row items-center">
               {chips.map((chip) => (
                 <FilterChip active key={chip.name} label={chip.label} onClick={() => setFilter(chip.name, null)} />
               ))}
@@ -261,18 +267,16 @@ export function TransactionsPage() {
           <AmountRowsSkeleton rows={8} />
         </Placeholder>
       ) : shown.rows.length === 0 ? (
-        filtered ? (
+        filtered && (
           <EmptyState action={<Button label="Clear filters" onClick={() => setParams(new URLSearchParams())} />} title="No transactions match" variant="filtered">
             Try other words or fewer filters.
           </EmptyState>
-        ) : (
-          <Empty title={emptyTransactions.title}>{emptyTransactions.hint}</Empty>
         )
       ) : (
         <div aria-busy={shown.key !== filters || undefined} className="grid gap-3">
           <MissingRates currencies={shown.missing} />
           <p className="m-0 text-small text-muted tabular-nums">
-            {shown.count === 1 ? '1 transaction' : `${shown.count.toLocaleString()} transactions`}
+            {shown.count === 1 ? '1 transaction' : `${count(shown.count)} transactions`}
             {account && accountOf(account) && ' · balance after each one'}
           </p>
           <Ledger accountName={accountName} actions={rowActions} balanceCurrency={balanceCurrency} editable={editable} listing={shown} onNearEnd={nearEnd} selected={selected} />
@@ -288,7 +292,7 @@ export function TransactionsPage() {
         <SelectionBar label={`${chosen.length} selected`} onClear={() => setSelected(new Set())}>
           <Button icon="tag" label="Category" onClick={() => setDialog('category')} />
           <Button icon="wallet" label="Account" onClick={() => setDialog('account')} />
-          <Button icon="trash" label="Delete" onClick={() => trash(chosen.map((row) => row.id))} />
+          <Button icon="trash" label="Move to trash" onClick={() => trash(chosen.map((row) => row.id))} />
           {chosen.length < shown!.rows.length && <Button label="Select all loaded" onClick={() => setSelected(new Set(shown!.rows.map((row) => row.id)))} />}
         </SelectionBar>
       )}
@@ -551,8 +555,11 @@ function FiltersSheet({
   return (
     <Sheet
       footer={
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button label="Clear all" large onClick={() => onApply({})} />
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          <span className="mr-auto">
+            <TextButton label="Clear all" onClick={() => onApply({})} />
+          </span>
+          <Button label="Cancel" large onClick={onClose} />
           <UiButton form={formId} type="submit" variant="primary">
             Show transactions
           </UiButton>

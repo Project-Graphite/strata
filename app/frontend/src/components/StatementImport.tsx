@@ -36,9 +36,9 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
         {statement.loaded && (
           <>
             {statement.columns}
-            <p className="mono-sm m-0 text-faint">
+            <Hint>
               {charges.length} charge{charges.length === 1 ? '' : 's'} read · {suggestions.length} look{suggestions.length === 1 ? 's' : ''} recurring
-            </p>
+            </Hint>
             {suggestions.length > 0 && (
               <ul className="panel-rows">
                 {suggestions.map((suggestion) => {

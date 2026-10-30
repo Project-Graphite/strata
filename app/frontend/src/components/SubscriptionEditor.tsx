@@ -84,7 +84,7 @@ export function SubscriptionEditor({
           }, 'Could not save the subscription')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={subscription ? 'Save' : 'Add subscription'}
+      submitLabel={subscription ? 'Save changes' : 'Add subscription'}
       title={subscription ? 'Edit subscription' : 'New subscription'}
     >
       <SuggestField

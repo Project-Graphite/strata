@@ -4,17 +4,17 @@ import { ListRow, Placeholder, Stat, StatGrid } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
 import { useSpaces } from '../spaces';
-import { categoryLabel, money, shortDate, type Subscription } from '../subscriptions';
+import { categoryLabel, money, type Subscription } from '../subscriptions';
+import { capitalised, formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates } from '../components/Stats';
@@ -36,6 +36,7 @@ interface Summary {
 }
 
 const empty = { title: 'No subscriptions yet', hint: 'Add the subscriptions and bills you pay regularly to see what they cost each month and when they renew.' };
+const emptyRenewals = { title: 'No renewals coming up', hint: 'Subscriptions show here before they renew.' };
 const sourceList = new Intl.ListFormat('en', { type: 'conjunction' });
 const unusedDescription = 'Nobody has marked these as used in two months.';
 
@@ -97,7 +98,7 @@ export function RecurringPage() {
             action={
               (!spaces.data || editable.length > 0) && (
                 <span className="flex items-center gap-2">
-                  <ButtonSkeleton large width="w-44" />
+                  <ButtonSkeleton width="w-44" />
                   <IconButtonSkeleton />
                 </span>
               )
@@ -111,7 +112,9 @@ export function RecurringPage() {
             ) : renewalRows ? (
               <AmountRowsSkeleton rows={renewalRows} />
             ) : (
-              <HintSkeleton />
+              <Empty loading title={emptyRenewals.title}>
+                {emptyRenewals.hint}
+              </Empty>
             )}
           </Section>
           {categoryRows > 0 && (
@@ -131,7 +134,7 @@ export function RecurringPage() {
             <StatGrid>
               {summary.data.home && summary.data.totals.length > 1 && (
                 <Stat
-                  detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn && summary.data.home.ratesFrom.length ? ` · ${sourceList.format(summary.data.home.ratesFrom)} rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
+                  detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn && summary.data.home.ratesFrom.length ? ` · ${sourceList.format(summary.data.home.ratesFrom)} rates of ${formatDate(summary.data.home.ratesOn)}` : ''}`}
                   label={`All together, in ${currencyName(summary.data.home.currency)}`}
                   value={
                     <span>
@@ -160,14 +163,14 @@ export function RecurringPage() {
           {summary.data.home && summary.data.totals.length > 1 && <MissingRates currencies={summary.data.home.missing} />}
           {summary.data.trials.length > 0 && (
             <Section title="Trials ending soon">
-              <ul className="panel-rows">{summary.data.trials.map((subscription) => subscriptionRow(subscription, `ends ${shortDate(subscription.trialEndsOn!)}`))}</ul>
+              <ul className="panel-rows">{summary.data.trials.map((subscription) => subscriptionRow(subscription, `Ends ${formatDate(subscription.trialEndsOn!)}`))}</ul>
             </Section>
           )}
           <Section
             action={
               editable.length > 0 && (
                 <span className="flex items-center gap-2">
-                  <Button icon="plus" label="New subscription" large onClick={() => setEditing('new')} />
+                  <Button icon="plus" label="New subscription" onClick={() => setEditing('new')} />
                   <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
                 </span>
               )
@@ -179,9 +182,11 @@ export function RecurringPage() {
                 {empty.hint}
               </Empty>
             ) : summary.data.upcoming.length === 0 ? (
-              <Hint>No renewals coming up.</Hint>
+              <Empty level={3} title={emptyRenewals.title}>
+                {emptyRenewals.hint}
+              </Empty>
             ) : (
-              <ul className="panel-rows">{summary.data.upcoming.map((subscription) => subscriptionRow(subscription, shortDate(subscription.nextRenewal)))}</ul>
+              <ul className="panel-rows">{summary.data.upcoming.map((subscription) => subscriptionRow(subscription, capitalised(formatDate(subscription.nextRenewal))))}</ul>
             )}
           </Section>
           {summary.data.categories.length > 0 && (

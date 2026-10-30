@@ -2,24 +2,25 @@ import { useSearchParams } from 'react-router';
 import { formatDay, ListRow, Placeholder, SegmentedControl, Skeleton, Stat, StatGrid, TextLink } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
 import { Empty } from '../components/Empty';
-import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { SpendingFrame } from '../components/SpendingFrame';
+import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import { categoryName, spendingHref, spendingLive, type SpendingInsights } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
+import { formatDate, formatMonth, formatRange } from '../time';
 import { useResource } from '../useResource';
 import { MissingRates } from '../components/Stats';
 
-const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 32)}%, var(--color-surface))`;
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
 const spans = ['3', '6', '12', '24'] as const;
 const emptyInsights = { title: 'Nothing to look back on yet', hint: 'Add or import transactions, or connect your phone, to see how your spending moves from month to month.' };
-const labelOf = (period: SpendingInsights['periods'][number]) => monthLabel.format(new Date(`${period.until}T00:00:00Z`));
+const emptyCompared = { title: 'Nothing spent in either month', hint: 'Categories show here once there is spending to compare.' };
+const emptyMerchants = { title: 'No spending in these months', hint: 'The places you spend the most show here.' };
+const labelOf = (period: SpendingInsights['periods'][number]) => formatMonth(period.until);
 
 export function SpendingInsightsPage() {
   const { spaceId } = usePersonalSpace();
@@ -43,6 +44,7 @@ export function SpendingInsightsPage() {
   return (
     <SpendingFrame
       currency={shown?.currency}
+      empty={shown && quiet(shown) ? emptyInsights : undefined}
       onChanged={insights.reload}
       tab="insights"
       toolbar={
@@ -66,9 +68,7 @@ export function SpendingInsightsPage() {
       ) : !shown ? (
         <Placeholder className="grid gap-8" label="Looking back over your spending">
           {empty ? (
-            <Empty loading title={emptyInsights.title}>
-              {emptyInsights.hint}
-            </Empty>
+            <SpendingFirstRunSkeleton empty={emptyInsights} />
           ) : (
             <>
               <StatGrid>
@@ -81,10 +81,26 @@ export function SpendingInsightsPage() {
                   <MonthBarsSkeleton rows={periodRows} />
                   <TableSkeleton columns={3} rows={periodRows} />
                 </Section>
-                <Section title="Compared with the month before">{categoryRows ? <TableSkeleton columns={4} rows={categoryRows} /> : <HintSkeleton />}</Section>
-                <Section title="Where it went">{merchantRows ? <RowsSkeleton rows={merchantRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} /> : <HintSkeleton />}</Section>
+                <Section title="Compared with the month before">
+                  {categoryRows ? (
+                    <TableSkeleton columns={4} rows={categoryRows} />
+                  ) : (
+                    <Empty loading title={emptyCompared.title}>
+                      {emptyCompared.hint}
+                    </Empty>
+                  )}
+                </Section>
+                <Section title="Where it went">
+                  {merchantRows ? (
+                    <RowsSkeleton rows={merchantRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} />
+                  ) : (
+                    <Empty loading title={emptyMerchants.title}>
+                      {emptyMerchants.hint}
+                    </Empty>
+                  )}
+                </Section>
                 <Section title="Day by day">
-                  <div className="grid grid-cols-7 gap-0.5 text-xs">
+                  <div className="grid grid-cols-7 gap-0.5 text-small">
                     {weekdays.map((weekday) => (
                       <SkeletonLine className="justify-center" key={weekday} width="w-6" />
                     ))}
@@ -102,10 +118,8 @@ export function SpendingInsightsPage() {
             </>
           )}
         </Placeholder>
-      ) : quiet(shown) ? (
-        <Empty title={emptyInsights.title}>{emptyInsights.hint}</Empty>
       ) : (
-        <Insights insights={shown} />
+        !quiet(shown) && <Insights insights={shown} />
       )}
     </SpendingFrame>
   );
@@ -117,8 +131,8 @@ function MonthBarsSkeleton({ rows }: { rows: number }) {
   return (
     <ul aria-hidden="true" className="m-0 grid list-none gap-2 p-0">
       {rowsOf(rows).map((row) => (
-        <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={row}>
-          <SkeletonLine width="w-12" />
+        <li className="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={row}>
+          <SkeletonLine width="w-20" />
           <Skeleton className="h-2 rounded-full" />
           <SkeletonLine width="w-20" />
         </li>
@@ -176,7 +190,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
         <Section title="Spent each month">
           <ul aria-hidden="true" className="m-0 grid list-none gap-2 p-0">
             {periods.map((period) => (
-              <li className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={period.month}>
+              <li className="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-3 text-small" key={period.month}>
                 <span className="text-muted">{labelOf(period)}</span>
                 <span className="h-2 overflow-hidden rounded-full bg-line-soft">
                   <span className="block h-full rounded-full bg-ink" style={{ width: `${(period.spentMinor / highest) * 100}%` }} />
@@ -197,7 +211,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
               <tbody>
                 {periods.map((period) => (
                   <tr key={period.month}>
-                    <th scope="row">{`${formatDay(period.from, { day: 'numeric', month: 'short' })} – ${formatDay(period.until, { day: 'numeric', month: 'short' })}`}</th>
+                    <th scope="row">{formatRange(period.from, period.until)}</th>
                     <td>{money(period.spentMinor, currency)}</td>
                     <td>{money(period.receivedMinor, currency)}</td>
                   </tr>
@@ -209,7 +223,9 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
         <Section title="Compared with the month before">
           {categories.length === 0 ? (
-            <Hint>Nothing spent in either month.</Hint>
+            <Empty level={3} title={emptyCompared.title}>
+              {emptyCompared.hint}
+            </Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="insights-table">
@@ -242,13 +258,15 @@ function Insights({ insights }: { insights: SpendingInsights }) {
 
         <Section title="Where it went">
           {merchants.length === 0 ? (
-            <Hint>No spending in these months.</Hint>
+            <Empty level={3} title={emptyMerchants.title}>
+              {emptyMerchants.hint}
+            </Empty>
           ) : (
             <ul className="panel-rows">
               {merchants.map((merchant) => (
                 <ListRow
                   key={merchant.merchantId ?? merchant.merchant}
-                  meta={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDay(merchant.lastOn, { day: 'numeric', month: 'short' })}</>}
+                  meta={<>{merchant.count} {merchant.count === 1 ? 'time' : 'times'} · {money(merchant.averageMinor, currency)} on average · last {formatDate(merchant.lastOn)}</>}
                   title={merchant.merchant}
                   trail={<Amount currency={currency} minor={merchant.totalMinor} />}
                 />
@@ -258,7 +276,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
         </Section>
 
         <Section title="Day by day">
-          <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-xs text-faint">
+          <div aria-hidden="true" className="grid grid-cols-7 gap-0.5 text-center text-small text-muted">
             {weekdays.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}

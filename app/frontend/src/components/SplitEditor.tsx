@@ -1,7 +1,5 @@
-import FormLabel from '@mui/material/FormLabel';
-import MuiTextField from '@mui/material/TextField';
 import { useState } from 'react';
-import { Avatar, Checkbox, Select } from '@project-graphite/ui';
+import { Avatar, Checkbox, Fieldset, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import type { CostSplit } from '../subscriptions';
@@ -62,7 +60,7 @@ export function SplitEditor({
           />
         )
       }
-      submitLabel={current ? 'Save' : 'Add split'}
+      submitLabel={current ? 'Save changes' : 'Add split'}
       title={current ? 'Edit split' : 'New split'}
     >
       <Select
@@ -71,8 +69,7 @@ export function SplitEditor({
         options={members.map((member) => ({ value: member.userId, label: member.displayName, leading: <Avatar name={member.displayName} size="sm" /> }))}
         value={payerId}
       />
-      <fieldset className="m-0 grid gap-2 border-0 p-0">
-        <FormLabel className="mb-2" component="legend">Shared by</FormLabel>
+      <Fieldset className="grid gap-2" legend="Shared by">
         {members.map((member) => {
           const weight = weights[member.userId];
           return (
@@ -88,21 +85,25 @@ export function SplitEditor({
               />
               {weight !== undefined && (
                 <>
-                  <MuiTextField
-                    className="w-20"
-                    onChange={(event) => setWeights({ ...weights, [member.userId]: Math.min(100, Math.max(1, Number(event.currentTarget.value) || 1)) })}
-                    size="small"
-                    slotProps={{ htmlInput: { 'aria-label': `Shares for ${member.displayName}`, max: 100, min: 1 } }}
-                    type="number"
-                    value={weight}
-                  />
-                  <span className="mono-sm w-10 text-right text-faint">{Math.round((weight / total) * 100)}%</span>
+                  <div className="w-24 shrink-0">
+                    <TextField
+                      aria-label={`Shares for ${member.displayName}`}
+                      inputMode="numeric"
+                      label=""
+                      max={100}
+                      min={1}
+                      onChange={(event) => setWeights({ ...weights, [member.userId]: Math.min(100, Math.max(1, Number(event.currentTarget.value) || 1)) })}
+                      type="number"
+                      value={weight}
+                    />
+                  </div>
+                  <span className="w-10 text-right text-small text-muted tabular-nums">{Math.round((weight / total) * 100)}%</span>
                 </>
               )}
             </div>
           );
         })}
-      </fieldset>
+      </Fieldset>
     </FormDialog>
   );
 }

@@ -66,7 +66,7 @@ export function InstallmentEditor({
           }, 'Could not save the plan')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={plan ? 'Save' : 'Add plan'}
+      submitLabel={plan ? 'Save changes' : 'Add plan'}
       title={plan ? 'Edit installment plan' : 'New installment plan'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={plan?.name} label="Name" maxLength={120} placeholder="valU phone" {...form.field('name')} />
