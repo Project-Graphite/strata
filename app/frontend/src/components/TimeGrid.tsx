@@ -105,7 +105,7 @@ function place(offset: number, spans: { entry: AgendaEntry; start: number; end: 
 
 export function DayNumber({ day, today }: { day: string; today: string }) {
   return (
-    <span className={`mono-sm grid size-7 place-items-center rounded-full ${day === today ? 'bg-ink font-medium text-paper' : ''}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
+    <span className={`grid size-7 place-items-center rounded-full text-small tabular-nums ${day === today ? 'bg-ink font-medium text-paper' : ''}`}>{new Date(`${day}T00:00:00`).getDate()}</span>
   );
 }
 
@@ -149,7 +149,7 @@ const DayColumn = memo(function DayColumn({ day, items, now, weekend }: { day: s
 function Lane({ columns, days, entries, label, colourOf, timed }: { columns: CSSProperties; days: string[]; entries: Map<string, AgendaEntry[]>; label: string; colourOf: (entry: AgendaEntry) => TagColor; timed: boolean }) {
   return (
     <div className="grid border-b border-line" style={columns}>
-      <span className="mono-sm grid content-center px-1 text-faint">{label}</span>
+      <span className="grid content-center px-1 text-micro text-faint">{label}</span>
       {days.map((day) => (
         <div className="grid min-w-0 content-start gap-0.5 border-l border-line p-1" key={day}>
           {(entries.get(day) ?? []).map((entry) => (
@@ -337,12 +337,12 @@ export function TimeGrid({
               key={day}
               to={dayHref(day)}
             >
-              <span className="text-xs uppercase">{formatDay(day, { weekday: 'short' })}</span>
+              <span className="text-small">{formatDay(day, { weekday: 'short' })}</span>
               <DayNumber day={day} today={today} />
             </Link>
           ))}
         </div>
-        {lanes.allDay.size > 0 && <Lane colourOf={colourOf} columns={columns} days={days} entries={lanes.allDay} label="all day" timed={false} />}
+        {lanes.allDay.size > 0 && <Lane colourOf={colourOf} columns={columns} days={days} entries={lanes.allDay} label="All day" timed={false} />}
         {lanes.due.size > 0 && <Lane colourOf={colourOf} columns={columns} days={days} entries={lanes.due} label="due" timed />}
       </div>
       <div className="agenda-body relative grid select-none" onPointerDown={onPointerDown} ref={body} style={columns}>

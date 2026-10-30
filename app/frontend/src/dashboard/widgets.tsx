@@ -7,7 +7,7 @@ import { siteLabel, type Bookmark } from '../bookmarks';
 import { fileSize } from '../files';
 import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
-import { addDays, dayKey, entryDay, entryTime, useAgenda, useTodaySchedule } from '../agenda';
+import { addDays, dayKey, useAgenda, useTodaySchedule } from '../agenda';
 import { useInbox, type InboxNotification } from '../inbox';
 import { timeZoneOptions } from '../choices';
 import { useChosenSpace, useSpaces } from '../spaces';
@@ -15,9 +15,9 @@ import { money, shortDate, type Subscription } from '../subscriptions';
 import { completeTask, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
+import { AgendaRow } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
-import { HabitRowSkeleton } from '../components/Skeletons';
+import { AgendaRowsSkeleton, HabitRowSkeleton, SkeletonLine, TaskRowsSkeleton } from '../components/Skeletons';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
@@ -28,21 +28,8 @@ import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets'
 import { Birthdays, Goals, Journal, NextTrip } from './plans-widgets';
 import { quoteFor } from './quotes';
 import { CalendarWidget, DayProgress } from './time-widgets';
-import {
-  AgendaCardsSkeleton,
-  LinkRowsSkeleton,
-  PageLinks,
-  PageLinksSkeleton,
-  ShowAll,
-  SkeletonLine,
-  SplitRowsSkeleton,
-  TaskRowsSkeleton,
-  useListRows,
-  WidgetEmpty,
-  type SettingsProps,
-  type WidgetProps,
-} from './widget-parts';
-import { clockTime, formatDate, profileDay } from '../time';
+import { LinkRowsSkeleton, PageLinks, PageLinksSkeleton, ShowAll, SplitRowsSkeleton, useListRows, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
+import { clockTime, profileDay } from '../time';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
@@ -81,14 +68,14 @@ function Clock({ settings }: WidgetProps) {
     <div className="grid gap-3">
       <div>
         <p className="widget-figure">{clockTime(now, user?.timeZone)}</p>
-        <p className="mono-sm m-0 mt-1 text-faint">
+        <p className="m-0 mt-1 text-small text-muted">
           {formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
       {zones.length > 0 && (
         <ul className="widget-list">
           {zones.map((zone) => (
-            <li className="flex items-baseline justify-between gap-3 text-sm" key={zone}>
+            <li className="flex items-baseline justify-between gap-3 text-body" key={zone}>
               <span className="truncate text-muted">{zone.split('/').pop()!.replaceAll('_', ' ')}</span>
               <span className="shrink-0 text-ink tabular-nums">{clockTime(now, zone)}</span>
             </li>
@@ -133,8 +120,8 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
 function TasksSkeleton({ adding }: { adding: boolean }) {
   return (
     <Placeholder className="grid gap-2" label="Loading tasks">
-      {adding && <Skeleton className="h-12 rounded-field" />}
-      <TaskRowsSkeleton rows={3} />
+      {adding && <Skeleton className="h-11 rounded-field" />}
+      <TaskRowsSkeleton flush rows={3} />
     </Placeholder>
   );
 }
@@ -155,7 +142,7 @@ function TaskWidget({ add, empty, path }: { add?: { spaceId: string; listId?: st
       {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
       {list.length === 0 && empty}
       {list.length > 0 && (
-        <ul className="panel-rows">
+        <ul className="panel-rows panel-rows-flush">
           {list.slice(0, rows).map((task) => (
             <TaskRow
               disabled={action.busy || spaces.data?.find((space) => space.id === task.spaceId)?.role === 'viewer'}
@@ -179,19 +166,17 @@ function Today() {
   if (!schedule.data) {
     return (
       <Placeholder className="grid gap-3" label="Loading today">
-        <AgendaCardsSkeleton rows={2} />
-        <TaskRowsSkeleton rows={2} />
+        <AgendaRowsSkeleton flush rows={2} />
+        <TaskRowsSkeleton flush rows={2} />
       </Placeholder>
     );
   }
   return (
     <div className="grid gap-3">
       {schedule.data.length > 0 && (
-        <ul className="m-0 grid list-none gap-1.5 p-0">
+        <ul className="panel-rows panel-rows-flush">
           {schedule.data.slice(0, 5).map((entry) => (
-            <li key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
-              <AgendaCard colour={schedule.colourOf(entry)} entry={entry} />
-            </li>
+            <AgendaRow colour={schedule.colourOf(entry)} entry={entry} key={`${entry.kind}-${entry.itemId}-${entry.start}`} />
           ))}
         </ul>
       )}
@@ -274,9 +259,9 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
     <div className="grid gap-3">
       <ul className="m-0 grid list-none gap-1 p-0">
         {links.map((link, index) => (
-          <li className="flex items-center justify-between gap-3 text-sm" key={`${link.label}-${index}`}>
+          <li className="flex items-center justify-between gap-3 text-body" key={`${link.label}-${index}`}>
             <span className="min-w-0 truncate text-ink">
-              {link.label} <span className="text-faint">{link.url}</span>
+              {link.label} <span className="text-muted">{link.url}</span>
             </span>
             <TextButton label="Remove" onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })} />
           </li>
@@ -318,7 +303,7 @@ function Recurring() {
     );
   }
   if (summary.data.totals.length === 0) {
-    return <WidgetEmpty action={<ButtonLink label="Add a subscription" to="/spending/recurring" />} icon="repeat" title="No subscriptions yet" />;
+    return <WidgetEmpty action={<ButtonLink label="Add one" to="/spending/recurring" />} icon="repeat" title="No subscriptions yet" />;
   }
   return (
     <div className="grid gap-3">
@@ -330,9 +315,9 @@ function Recurring() {
       <ul className="widget-list">
         {summary.data.upcoming.slice(0, 3).map((subscription) => (
           <li key={subscription.id}>
-            <Link className="flex justify-between gap-3 text-sm text-ink no-underline hover:underline" to={`/spending/recurring?subscription=${subscription.id}`}>
+            <Link className="flex justify-between gap-3 text-body text-ink no-underline hover:underline" to={`/spending/recurring?subscription=${subscription.id}`}>
               <span className="truncate">{subscription.name}</span>
-              <span className="mono-sm shrink-0 text-faint">{shortDate(subscription.nextRenewal)}</span>
+              <span className="shrink-0 text-small text-muted">{shortDate(subscription.nextRenewal)}</span>
             </Link>
           </li>
         ))}
@@ -360,7 +345,7 @@ function Inbox() {
   return (
     <ul className="m-0 grid list-none gap-2 p-0">
       {unread.map((notification) => (
-        <li className="flex gap-2.5 text-sm" key={notification.id}>
+        <li className="flex gap-2.5 text-body" key={notification.id}>
           <span aria-hidden="true" className="unread-dot mt-2" />
           <span className="min-w-0">
             <Link
@@ -376,7 +361,7 @@ function Inbox() {
             >
               {notification.title}
             </Link>
-            <span className="mono-sm block text-faint">{timeAgo(notification.createdAt)}</span>
+            <span className="block text-small text-muted">{timeAgo(notification.createdAt)}</span>
           </span>
         </li>
       ))}
@@ -392,7 +377,7 @@ function Agenda() {
   if (!agenda.data) {
     return (
       <Placeholder label="Loading your agenda">
-        <AgendaCardsSkeleton rows={3} />
+        <AgendaRowsSkeleton flush rows={3} />
       </Placeholder>
     );
   }
@@ -403,16 +388,9 @@ function Agenda() {
   }
   return (
     <div className="grid gap-2">
-      <ul className="m-0 grid list-none gap-1.5 p-0">
+      <ul className="panel-rows panel-rows-flush">
         {agenda.data.slice(0, rows).map((entry) => (
-          <li className="text-sm" key={`${entry.kind}-${entry.itemId}-${entry.start}`}>
-            <AgendaEntryLink className="agenda-card" colour={agenda.colourOf(entry)} entry={entry}>
-              <span className="block truncate text-ink">{entry.title}</span>
-              <span className="block truncate text-small text-muted tabular-nums">
-                {formatDate(entryDay(entry))} {entryTime(entry)}
-              </span>
-            </AgendaEntryLink>
-          </li>
+          <AgendaRow colour={agenda.colourOf(entry)} dated entry={entry} key={`${entry.kind}-${entry.itemId}-${entry.start}`} />
         ))}
       </ul>
       {agenda.data.length > rows && <ShowAll count={agenda.data.length} href="/agenda/week" />}
@@ -425,7 +403,7 @@ function Quote() {
   return (
     <figure className="widget-quote">
       <blockquote className="m-0 text-lg leading-snug text-ink">{text}</blockquote>
-      <figcaption className="mono-sm text-faint">{author}</figcaption>
+      <figcaption className="text-small text-muted">{author}</figcaption>
     </figure>
   );
 }
@@ -444,7 +422,7 @@ function Countdown({ configure, settings }: WidgetProps) {
       </p>
       <p className="m-0 mt-1 text-small text-muted">
         {days === 0 ? `${label} is today` : days > 0 ? `until ${label}` : `since ${label}`}
-        <span className="mono-sm text-faint"> · {shortDate(settings.date)}</span>
+        {` · ${shortDate(settings.date)}`}
       </p>
     </div>
   );
@@ -631,11 +609,11 @@ function ReadLater() {
     <div className="grid gap-2">
       <ul className="m-0 grid list-none gap-1.5 p-0">
         {bookmarks.data.slice(0, 5).map((bookmark) => (
-          <li className="text-sm" key={bookmark.id}>
+          <li className="text-body" key={bookmark.id}>
             <Link className="text-ink no-underline hover:underline" to={`/bookmarks/${bookmark.id}`}>
               {bookmark.title}
             </Link>
-            <span className="mono-sm block text-faint">
+            <span className="block text-small text-muted">
               {siteLabel(bookmark)} · saved {timeAgo(bookmark.createdAt)}
             </span>
           </li>
@@ -659,7 +637,7 @@ function RecentFiles() {
   if (!storage.data) {
     return (
       <Placeholder className="grid gap-3" label="Loading your files">
-        <SkeletonLine className="text-sm" width="w-40" />
+        <SkeletonLine className="text-small" width="w-40" />
         <Skeleton className="h-1.5 rounded-full" />
         <SplitRowsSkeleton className="gap-1.5" rows={3} />
       </Placeholder>
@@ -677,11 +655,11 @@ function RecentFiles() {
       </div>
       <ul className="widget-list">
         {files.slice(0, 4).map((file) => (
-          <li className="flex justify-between gap-3 text-sm" key={file.id}>
+          <li className="flex justify-between gap-3 text-body" key={file.id}>
             <Link className="min-w-0 truncate text-ink no-underline hover:underline" to="/files">
               {file.name}
             </Link>
-            <span className="mono-sm shrink-0 text-faint">{timeAgo(file.createdAt)}</span>
+            <span className="shrink-0 text-small text-muted">{timeAgo(file.createdAt)}</span>
           </li>
         ))}
       </ul>
@@ -696,12 +674,12 @@ function Tidy() {
   if (scan.error) return <LoadError compact error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) {
     return (
-      <Placeholder className="grid gap-2 text-sm" label="Looking for clutter">
+      <Placeholder className="grid gap-2 text-body" label="Looking for clutter">
         <div className="grid gap-1">
           <SkeletonLine width="w-3/4" />
           <SkeletonLine width="w-1/2" />
         </div>
-        <SkeletonLine className="mono-sm" width="w-28" />
+        <SkeletonLine className="text-small" width="w-28" />
       </Placeholder>
     );
   }
@@ -726,7 +704,7 @@ function Tidy() {
     );
   }
   return (
-    <div className="grid gap-2 text-sm">
+    <div className="grid gap-2 text-body">
       <ul className="widget-list">
         {findings.map((finding) => (
           <li className="text-ink" key={finding}>
@@ -734,7 +712,7 @@ function Tidy() {
           </li>
         ))}
       </ul>
-      <p className="mono-sm m-0 text-faint">{tidied}</p>
+      <p className="m-0 text-small text-muted">{tidied}</p>
     </div>
   );
 }

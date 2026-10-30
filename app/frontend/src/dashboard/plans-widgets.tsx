@@ -10,7 +10,8 @@ import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { ShowAll, SkeletonLine, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { SkeletonLine } from '../components/Skeletons';
+import { ShowAll, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -28,7 +29,7 @@ export function Journal() {
   if (!journal.data) {
     return (
       <Placeholder className="grid gap-3" label="Loading your journal">
-        <SkeletonLine className="text-sm" width="w-28" />
+        <SkeletonLine className="text-body" width="w-28" />
         <div aria-hidden="true" className="flex gap-1.5">
           {moods.map((mood) => (
             <Skeleton className="widget-mood" key={mood} />
@@ -96,7 +97,7 @@ export function Journal() {
             );
           })}
         </div>
-        <p className="mono-sm m-0 text-faint">{streak > 0 ? `${streak}-day streak` : 'Last two weeks'}</p>
+        <p className="m-0 text-small text-muted">{streak > 0 ? `${streak}-day streak` : 'Last two weeks'}</p>
       </div>
       {todayEntry?.noteId ? (
         <ButtonLink icon="pencil" label="Open today’s page" to={`/notes/${todayEntry.noteId}`} />
@@ -128,7 +129,7 @@ export function Goals() {
           <div aria-hidden="true" className="grid gap-1" key={row}>
             <SplitRowsSkeleton rows={1} />
             <Skeleton className="h-1.5 rounded-full" />
-            <SkeletonLine className="mono-sm" width="w-32" />
+            <SkeletonLine className="text-small" width="w-32" />
           </div>
         ))}
       </Placeholder>
@@ -140,14 +141,14 @@ export function Goals() {
       <ul className="m-0 grid list-none gap-3 p-0">
         {goals.data.slice(0, 4).map((goal) => (
           <li className="grid gap-1" key={goal.id}>
-            <span className="flex justify-between gap-3 text-sm">
+            <span className="flex justify-between gap-3 text-body">
               <Link className="min-w-0 truncate text-ink no-underline hover:underline" to={`/goals/${goal.id}`}>
                 {goal.title}
               </Link>
-              <span className="mono-sm shrink-0 text-faint">{periodLabel(goal.period, goal.startsOn)}</span>
+              <span className="shrink-0 text-small text-muted">{periodLabel(goal.period, goal.startsOn)}</span>
             </span>
             {goal.progress !== null && <Meter label={`${goal.title} progress`} value={goal.progress} />}
-            <span className="mono-sm text-faint">{progressText(goal)}</span>
+            <span className="text-small text-muted">{progressText(goal)}</span>
           </li>
         ))}
       </ul>
@@ -165,7 +166,7 @@ export function NextTrip() {
       <Placeholder className="grid gap-1" label="Looking for your next trip">
         <SkeletonLine className="text-2xl" width="w-32" />
         <SkeletonLine width="w-40" />
-        <SkeletonLine className="mono-sm" width="w-36" />
+        <SkeletonLine className="text-small" width="w-36" />
       </Placeholder>
     );
   }
@@ -174,8 +175,8 @@ export function NextTrip() {
   return (
     <Link className="grid gap-1 text-ink no-underline" to={`/trips/${trip.id}`}>
       <span className="text-2xl text-ink">{countdown(trip, today)}</span>
-      <span className="truncate text-sm text-ink">{trip.destination || trip.title}</span>
-      <span className="mono-sm truncate text-faint">{tripDates(trip)}</span>
+      <span className="truncate text-body text-ink">{trip.destination || trip.title}</span>
+      <span className="truncate text-small text-muted">{tripDates(trip)}</span>
     </Link>
   );
 }
@@ -191,8 +192,8 @@ export function Birthdays() {
           <div aria-hidden="true" className="flex items-center gap-2.5" key={row}>
             <Skeleton className="size-7 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1">
-              <SkeletonLine className="text-sm" width={row % 2 ? 'w-1/2' : 'w-2/3'} />
-              <SkeletonLine className="mono-sm" width="w-24" />
+              <SkeletonLine className="text-body" width={row % 2 ? 'w-1/2' : 'w-2/3'} />
+              <SkeletonLine className="text-small" width="w-24" />
             </div>
           </div>
         ))}
@@ -209,8 +210,8 @@ export function Birthdays() {
             <Link className="flex items-center gap-2.5 no-underline" to={`/people/${person.id}`}>
               <Avatar name={person.name} size="sm" />
               <span className="min-w-0">
-                <span className="block truncate text-sm text-ink">{person.name}</span>
-                <span className="mono-sm block truncate text-faint">{nextBirthdayText(person, today)}</span>
+                <span className="block truncate text-body text-ink">{person.name}</span>
+                <span className="block truncate text-small text-muted">{nextBirthdayText(person, today)}</span>
               </span>
             </Link>
           </li>

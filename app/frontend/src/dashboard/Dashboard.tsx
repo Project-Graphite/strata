@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, Icon, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
@@ -19,7 +19,7 @@ import { chosenDashboard, rememberDashboard, ShowBackdrop, useBackdrop, type Bac
 import { DashboardGrid } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, placed, sizeWidths } from './grid';
-import { NowStrip } from './NowStrip';
+import { Greeting, NowStrip } from './NowStrip';
 import { useWide, WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
@@ -294,35 +294,43 @@ export function DashboardHome() {
         editing ? (
           <>
             <IconButton icon="settings" label="Dashboard settings" onClick={() => setConfiguring(true)} />
-            <Button icon="plus" label="Add widget" large onClick={() => setPicking(true)} />
-            <Button
-              disabled={history.length === 0}
-              label="Undo"
-              large
-              onClick={() => {
-                setDraft(history.at(-1));
-                setHistory((past) => past.slice(0, -1));
-              }}
+            <ActionsMenu
+              items={[
+                { label: 'Add widget…', onSelect: () => setPicking(true) },
+                ...(history.length > 0
+                  ? [
+                      {
+                        label: 'Undo',
+                        onSelect: () => {
+                          setDraft(history.at(-1));
+                          setHistory((past) => past.slice(0, -1));
+                        },
+                      },
+                    ]
+                  : []),
+              ]}
+              name={current.name}
             />
             <Button label="Cancel" large onClick={() => (unsaved ? setDiscarding(true) : finish(false))} />
             <Button disabled={saving.busy} label={saving.busy ? 'Saving…' : 'Done'} large onClick={() => finish(true)} primary />
           </>
         ) : (
           <>
-            <Button icon="pencil" label="Edit" large onClick={startEditing} />
             <ActionsMenu
               items={[
-                { label: 'New dashboard', onSelect: () => setAdding(true) },
-                { label: 'Reset to a layout', onSelect: () => setResetting(true) },
+                { label: 'New dashboard…', onSelect: () => setAdding(true) },
+                { label: 'Reset to a layout…', onSelect: () => setResetting(true) },
                 { label: 'Wall display', separated: true, href: `/wall?d=${current.id}` },
               ]}
               name={current.name}
             />
+            <Button icon="pencil" label="Edit" large onClick={startEditing} primary />
           </>
         )
       }
       tabs={dashboards.data.length > 1 ? dashboards.data.map((dashboard) => ({ active: dashboard.id === current.id, href: `/?d=${dashboard.id}`, label: dashboard.name })) : undefined}
       title={editing ? name.trim() || current.name : current.name}
+      toolbar={<Greeting />}
     >
       <NowStrip />
       {widgets.length === 0 ? (
@@ -366,9 +374,7 @@ export function DashboardHome() {
               />
             );
             const open = !editing && kind.href && (!kind.app || features.includes(kind.app)) && (
-              <Link aria-label={`Open ${app?.label ?? kind.title}`} className="widget-open" title={`Open ${app?.label ?? kind.title}`} to={kind.href}>
-                <Icon name="chevron-right" size={16} />
-              </Link>
+              <IconButton href={kind.href} icon="chevron-right" label={`Open ${app?.label ?? kind.title}`} />
             );
             return (
               <>

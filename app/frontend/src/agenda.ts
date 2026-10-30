@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import type { TagColor } from '@project-graphite/ui';
 import { useAuth } from './auth';
-import { clockTime, formatDate, profileClock, profileDay, zoneLabel } from './time';
+import { capitalised, clockTime, formatDate, profileClock, profileDay, zoneLabel } from './time';
 import { useResource } from './useResource';
 
 export interface AgendaEntry {
@@ -150,26 +150,22 @@ export function entryDay(entry: AgendaEntry) {
   return entry.allDay ? entry.start : profileDay(entry.start);
 }
 
-export function dayRange(from: string, to: string) {
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(new Date(`${from}T00:00:00`), new Date(`${to}T00:00:00`));
-}
-
 export const entryClock = profileClock;
 
 export function entryTime(entry: AgendaEntry) {
-  if (entry.allDay) return 'all day';
+  if (entry.allDay) return 'All day';
   return entry.end && entry.end !== entry.start ? `${entryClock(entry.start)}–${entryClock(entry.end)}` : entryClock(entry.start);
 }
 
 export function entryWhen(entry: AgendaEntry) {
   if (entry.allDay) {
-    return entry.end && entry.end !== entry.start ? `${formatDate(entry.start)} to ${formatDate(entry.end)}` : `${formatDate(entry.start)}, all day`;
+    return capitalised(entry.end && entry.end !== entry.start ? `${formatDate(entry.start)} to ${formatDate(entry.end)}` : `${formatDate(entry.start)}, all day`);
   }
   const day = (at: string) => formatDate(profileDay(at));
   if (entry.end && profileDay(entry.end) !== profileDay(entry.start)) {
-    return `${day(entry.start)} ${entryClock(entry.start)} to ${day(entry.end)} ${entryClock(entry.end)}`;
+    return capitalised(`${day(entry.start)} ${entryClock(entry.start)} to ${day(entry.end)} ${entryClock(entry.end)}`);
   }
-  return `${day(entry.start)} ${entryTime(entry)}`;
+  return capitalised(`${day(entry.start)} ${entryTime(entry)}`);
 }
 
 export function eventWhen(event: PublicEvent) {

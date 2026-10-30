@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
@@ -13,7 +13,7 @@ import { useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { ButtonSkeleton, IconButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 
 const emptyCalendars = { title: 'No calendars followed yet', hint: 'Calendars you follow show up here, with when they were last checked.' };
 
@@ -46,7 +46,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
     return (
       <Placeholder label="Loading followed calendars">
         {rows ? (
-          <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-3/5" />} belowRows={failedRows} rows={rows} trail={editable.length > 0 && <IconButtonSkeleton />} />
+          <RowsSkeleton below={<Skeleton className="h-12 rounded-field" />} belowRows={failedRows} rows={rows} trail={editable.length > 0 && <IconButtonSkeleton />} />
         ) : (
           <Empty loading title={emptyCalendars.title}>
             {emptyCalendars.hint}
@@ -95,7 +95,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
                   )
                 }
               >
-                {calendar.lastError && <span className="text-sm text-danger">The last check failed: {calendar.lastError}</span>}
+                {calendar.lastError && <Banner tone="danger">The last check failed: {calendar.lastError}</Banner>}
               </ListRow>
             );
           })}
@@ -164,7 +164,7 @@ export function CalendarsPage() {
 
   return (
     <Page
-      actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" onClick={() => setFollowing(true)} primary />}
+      actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" large onClick={() => setFollowing(true)} primary />}
       back={{ to: '/agenda', label: 'Agenda' }}
       title="Calendars"
     >
