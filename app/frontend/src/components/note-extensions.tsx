@@ -1,7 +1,7 @@
 import ListItemButton from '@mui/material/ListItemButton';
 import Paper from '@mui/material/Paper';
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
-import { Icon, type IconName } from '@project-graphite/ui';
+import { Icon, Kbd, type IconName } from '@project-graphite/ui';
 import { Extension, Mark, Node, type ChainedCommands, type Editor } from '@tiptap/core';
 import { isChangeOrigin } from '@tiptap/extension-collaboration';
 import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
@@ -103,7 +103,7 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
       ) : (
         sectionsOf(items).map(({ group, entries }) => (
           <div aria-label={group} className="grid" key={group ?? ''} role={group ? 'group' : undefined}>
-            {group && <p aria-hidden="true" className="m-0 px-3 pt-2 pb-1 text-micro text-faint">{group}</p>}
+            {group && <p aria-hidden="true" className="m-0 px-3 pt-2 pb-1 text-small text-muted">{group}</p>}
             {entries.map(({ item, index }) => (
               <ListItemButton
                 aria-selected={index === active}
@@ -122,7 +122,7 @@ const SuggestionList = forwardRef<ListHandle, SuggestionProps<Candidate>>(functi
                   </span>
                 )}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                <span className="mono-sm shrink-0 text-faint">{item.hint}</span>
+                {/^[^\p{L}\s]+$/u.test(item.hint) ? <Kbd>{item.hint}</Kbd> : <span className="shrink-0 text-small text-muted">{item.hint}</span>}
               </ListItemButton>
             ))}
           </div>

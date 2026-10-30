@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Dialog, LinesSkeleton } from '@project-graphite/ui';
+import { Banner, Dialog, LinesSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Space } from '../spaces';
 import { useAction } from '../useAction';
@@ -67,7 +67,11 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           Markdown files become pages. For a Notion export, unzip it and choose the folder: pages keep their nesting and their images come along.
         </Hint>
         <Hint>Strata draft files recover body formatting or board content into a new page. Attachments require access to their original files; database properties are separate.</Hint>
-        {progress && <Hint>Loaded progress for {progress.pages.length} pages. Choose the original source folder or files to resume. Changed source files are refused. <Button label="Clear loaded progress" onClick={() => setProgress(undefined)} /></Hint>}
+        {progress && (
+          <Banner action={<Button label="Clear progress" onClick={() => setProgress(undefined)} />}>
+            Loaded progress for {progress.pages.length} pages. Choose the original source folder or files to resume. Changed source files are refused.
+          </Banner>
+        )}
         <div className="flex flex-wrap gap-3">
           <FileButton accept=".md,.markdown,text/markdown" busy={importing.busy} label="Choose Markdown files" multiple onFiles={start} />
           <FileButton busy={importing.busy} folder label="Choose a folder" onFiles={start} />

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ConfirmDialog, TextAreaField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, TextAreaField, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { ActionsMenu } from './ActionsMenu';
 import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
 import { Section } from './Page';
@@ -87,7 +89,7 @@ function CommentForm({
     >
       <TextAreaField autoFocus={autoFocus} label={label} maxLength={2_000} onChange={(event) => setBody(event.currentTarget.value)} rows={2} value={body} />
       {suggested.length > 0 && (
-        <div aria-label="Mention someone" className="flex flex-wrap gap-x-3 gap-y-1 text-sm" role="group">
+        <div aria-label="Mention someone" className="flex flex-wrap gap-x-3 gap-y-1" role="group">
           {suggested.map((person) => (
             <TextButton key={person.userId} label={`@${person.displayName}`} onClick={() => setBody(`${body.slice(0, body.length - typed!.length)}${person.displayName} `)} />
           ))}
@@ -187,10 +189,26 @@ export function NoteComments({
     if (editing === comment.id) {
       return <CommentForm initial={comment.body} key={comment.id} label="Save comment" onCancel={() => setEditing(undefined)} onSave={(body) => edit(comment.id, body)} people={people} />;
     }
+    const author = comment.author?.displayName ?? 'Former member';
+    const changes: MenuItem[] = [
+      ...(!comment.parentId && editable ? [{ label: comment.resolvedAt ? 'Reopen' : 'Resolve', onSelect: () => void resolve(comment.id, !comment.resolvedAt) }] : []),
+      ...(commentable && mine ? [{ label: 'Edit', onSelect: () => setEditing(comment.id) }] : []),
+    ];
+    const actions: MenuItem[] =
+      commentable && (mine || owner)
+        ? [
+            ...changes,
+            {
+              label: 'Delete…',
+              onSelect: () => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length, blockId: comment.parentId ? null : comment.blockId }),
+              separated: changes.length > 0,
+            },
+          ]
+        : changes;
     return (
       <div className="grid gap-1" key={comment.id}>
-        <p className="mono-sm m-0 text-faint">
-          {comment.author?.displayName ?? 'Former member'} · {timeAgo(comment.createdAt)}
+        <p className="m-0 text-small text-muted">
+          {author} · {formatMoment(comment.createdAt)}
           {comment.editedAt ? ' · edited' : ''}
         </p>
         {comment.blockId && (
@@ -198,22 +216,10 @@ export function NoteComments({
             <AnchorLabel anchors={anchors} id={comment.blockId} />
           </button>
         )}
-        <p className="m-0 whitespace-pre-wrap break-words text-sm text-ink">{comment.body}</p>
-        <div className="flex flex-wrap gap-3 text-sm">
-          {commentable && !comment.parentId && !comment.resolvedAt && (
-            <TextButton label="Reply" onClick={() => setReplying(comment.id)} />
-          )}
-          {!comment.parentId && editable && (
-            <TextButton disabled={action.busy} label={comment.resolvedAt ? 'Reopen' : 'Resolve'} onClick={() => void resolve(comment.id, !comment.resolvedAt)} />
-          )}
-          {commentable && mine && <TextButton label="Edit" onClick={() => setEditing(comment.id)} />}
-          {commentable && (mine || owner) && (
-            <TextButton
-              disabled={action.busy}
-              label="Delete"
-              onClick={() => setDeleting({ id: comment.id, replies: all.filter((reply) => reply.parentId === comment.id).length, blockId: comment.parentId ? null : comment.blockId })}
-            />
-          )}
+        <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          {commentable && !comment.parentId && !comment.resolvedAt && <TextButton label="Reply" onClick={() => setReplying(comment.id)} />}
+          {actions.length > 0 && <ActionsMenu items={actions} name={`comment by ${author}`} />}
         </div>
       </div>
     );

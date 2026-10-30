@@ -318,7 +318,7 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
               <ToolbarSeparator />
               <GlyphButton label={`Turn into, now ${current?.label ?? 'Text'}`} onClick={() => setPanel('block')}>
                 {current?.label ?? 'Text'}
-                <Icon name="chevron-down" size={14} />
+                <Icon name="chevron-down" size={16} />
               </GlyphButton>
               {comment && <ToolbarButton label="Comment on the selection" onClick={comment}>Comment</ToolbarButton>}
             </FloatingToolbar>

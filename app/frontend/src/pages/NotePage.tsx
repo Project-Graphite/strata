@@ -135,7 +135,7 @@ export function NotePage() {
             </div>
           </div>
           <div className="page-header-actions">
-            {rowsOf(3).map((action) => (
+            {rowsOf(2).map((action) => (
               <IconButtonSkeleton key={action} />
             ))}
           </div>
@@ -149,6 +149,7 @@ export function NotePage() {
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = inside.data?.pages ?? [];
   const pageOnly = !details.quick;
+  const history = pageOnly && details.permissions.history;
 
   function quote(block: QuotedBlock) {
     if (quoting && quoting.id !== block.id) tools?.removeComment(quoting.id);
@@ -240,11 +241,12 @@ export function NotePage() {
     ...(pageOnly && details.permissions.organize && !details.database && children.length === 0 ? [{ label: 'Add a page inside', onSelect: addPageInside }] : []),
     ...(pageOnly && details.permissions.comment ? [{ label: 'Add a comment', onSelect: () => setCommenting(details.id) }] : []),
     ...(pageOnly && details.editable && !details.database
-      ? [{ label: details.narrow ? 'Full width' : 'Narrow (44 rem)', onSelect: () => save({ narrow: !details.narrow }, () => '', 'Could not change the width') }]
+      ? [{ label: details.narrow ? 'Use full width' : 'Use narrow width', onSelect: () => save({ narrow: !details.narrow }, () => '', 'Could not change the width') }]
       : []),
+    ...(history ? [{ label: 'History', onSelect: () => setOpen('history'), separated: true }] : []),
     ...(tools
       ? [
-          { label: 'Find in page', onSelect: tools.find, separated: true },
+          { label: 'Find in page', onSelect: tools.find, separated: !history },
           { label: 'Download as Markdown', onSelect: () => saveBlob(new Blob([pageMarkdown(tools.document(), { title: noteTitle(details), pageUrl: `${window.location.origin}/notes/${details.id}` })], { type: 'text/markdown;charset=utf-8' }), `${noteTitle(details).replace(/[\\/:*?"<>|]+/g, '-')}.md`) },
           { label: 'Print or save as PDF', onSelect: () => window.print() },
         ]
@@ -255,7 +257,7 @@ export function NotePage() {
     : options;
 
   return (
-    <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick ? 'max-w-3xl' : details.narrow && !details.database ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
+    <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick || (details.narrow && !details.database) ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
       {details.permissions.organize && pageOnly && (
         <input
           accept="image/jpeg,image/png,image/gif,image/webp"
@@ -309,13 +311,12 @@ export function NotePage() {
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
-          {!details.quick && details.permissions.history && <IconButton icon="clock" label="History" onClick={() => setOpen('history')} />}
           {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
         </div>
       </header>
       {note.refreshError && <LoadError compact error={note.refreshError} onRetry={note.reload} />}
       {details.row && details.row.properties.length > 0 && (
-        <dl aria-label="Properties" className="m-0 grid min-w-0 grid-cols-1 items-center gap-x-4 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)]">
+        <dl aria-label="Properties" className="m-0 grid min-w-0 grid-cols-1 items-center gap-x-4 gap-y-1 text-body sm:grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)]">
           {details.row.properties.map((property) => (
             <Fragment key={property.id}>
               <dt className="min-w-0 wrap-anywhere text-muted">{property.name}</dt>
@@ -370,7 +371,7 @@ export function NotePage() {
       </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {pageOnly && !details.database && children.length > 0 && (
-        <Section action={details.permissions.organize && <Button disabled={adding.busy} icon="plus" label="New page" large onClick={addPageInside} />} title="Pages inside">
+        <Section action={details.permissions.organize && <Button disabled={adding.busy} icon="plus" label="New page" onClick={addPageInside} />} title="Pages inside">
           <ul className="panel-rows">
             <ChildPageRows pages={children} />
             {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}

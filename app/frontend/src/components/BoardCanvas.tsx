@@ -9,7 +9,7 @@ import type * as Y from 'yjs';
 import { useAuth } from '../auth';
 import { fileSize, uploadFile } from '../files';
 import { ActionsMenu } from './ActionsMenu';
-import { IconLink } from './Button';
+import { Button, IconLink } from './Button';
 import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
@@ -484,16 +484,8 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
     () =>
       spaceId && editable && !blocked ? (
         <div className="flex gap-2">
-          {single && onComment && (
-            <button className="board-action" onClick={() => api && onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} type="button">
-              Comment
-            </button>
-          )}
-          {picked.length > 0 && (
-            <button className="board-action" disabled={making} onClick={() => void makeTasks(spaceId)} type="button">
-              Make {picked.length === 1 ? 'a task' : `${picked.length} tasks`}
-            </button>
-          )}
+          {single && onComment && <Button label="Comment" onClick={() => api && onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} primary />}
+          {picked.length > 0 && <Button disabled={making} label={`Make ${picked.length === 1 ? 'a task' : `${picked.length} tasks`}`} onClick={() => void makeTasks(spaceId)} primary />}
         </div>
       ) : null,
     [api, blocked, editable, makeTasks, making, onComment, picked.length, single, spaceId],

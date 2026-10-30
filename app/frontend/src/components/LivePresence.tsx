@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Avatar, Dialog } from '@project-graphite/ui';
+import { Avatar, Dialog, ListRow } from '@project-graphite/ui';
+import { ActionsMenu } from './ActionsMenu';
 import { TextButton } from './Button';
-import { Hint } from './Hint';
 import type { Person } from './live-document';
 
 export interface PresenceActions {
@@ -26,17 +26,25 @@ export function LivePresence({ people, actions }: { people: Person[]; actions?: 
       </div>
       {open && (
         <Dialog onClose={() => setOpen(false)} title="People here">
-          <ul className="mt-5 grid max-h-80 list-none gap-3 overflow-y-auto p-0">
+          <ul className="panel-rows mt-5 max-h-80 overflow-y-auto">
             {people.map((person) => (
-              <li className="flex flex-wrap items-center gap-3" key={person.id}>
-                <Avatar name={person.name} present={person.activity !== 'idle'} />
-                <div className="min-w-0">
-                  <p className="m-0 truncate text-sm text-ink">{person.name}</p>
-                  <Hint>{person.guest ? 'Guest' : 'Member'} · {person.access === 'edit' ? 'Can edit' : 'Can view'}</Hint>
-                  <Hint>{{ reading: 'Reading', editing: 'Editing', idle: 'Idle' }[person.activity]}</Hint>
-                </div>
-                {actions?.positions.has(person.id) && <div className="ml-auto flex gap-2" data-block-id={actions.positions.get(person.id)}><TextButton label={`Jump to ${person.name}`} onClick={() => { actions.onJump(person.id); setOpen(false); }} /><TextButton label={`Follow ${person.name}`} onClick={() => { actions.onFollow(person.id); setOpen(false); }} /></div>}
-              </li>
+              <ListRow
+                key={person.id}
+                lead={<Avatar name={person.name} present={person.activity !== 'idle'} size="md" />}
+                meta={[person.guest ? 'Guest' : 'Member', person.access === 'edit' ? 'Can edit' : 'Can view', { reading: 'Reading', editing: 'Editing', idle: 'Idle' }[person.activity]].join(' · ')}
+                title={person.name}
+                trail={
+                  actions?.positions.has(person.id) && (
+                    <ActionsMenu
+                      items={[
+                        { label: `Jump to ${person.name}`, onSelect: () => { actions.onJump(person.id); setOpen(false); } },
+                        { label: `Follow ${person.name}`, onSelect: () => { actions.onFollow(person.id); setOpen(false); } },
+                      ]}
+                      name={person.name}
+                    />
+                  )
+                }
+              />
             ))}
           </ul>
         </Dialog>
