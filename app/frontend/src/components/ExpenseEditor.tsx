@@ -87,7 +87,7 @@ export function ExpenseEditor({
   return (
     <Sheet
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {expense && onTrashed && (
             <span className="mr-auto">
               <TextButton

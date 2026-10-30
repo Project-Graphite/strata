@@ -104,7 +104,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
               value={row.previous === 'other' ? 'Other' : row.name}
             />
             <div className="w-36 shrink-0">
-              <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} value={row.colour} />
+              <Select aria-label={`Colour of ${row.name || 'category'}`} className="w-full" onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} value={row.colour} />
             </div>
             <IconButton disabled={index === 0} icon="chevron-up" label={`Move ${row.name} up`} onClick={() => move(index, -1)} />
             <IconButton disabled={index === rows.length - 1} icon="chevron-down" label={`Move ${row.name} down`} onClick={() => move(index, 1)} />
