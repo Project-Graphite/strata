@@ -2,7 +2,21 @@ import type { ReactNode } from 'react';
 import { Checkbox, ListRow } from '@project-graphite/ui';
 import { Button } from './Button';
 
-export function Choice({ checked, detail, disabled, label, onToggle }: { checked: boolean; detail: ReactNode; disabled?: boolean; label: string; onToggle: () => void }) {
+export function Choice({
+  checked,
+  detail,
+  disabled,
+  label,
+  onToggle,
+  trail,
+}: {
+  checked: boolean;
+  detail: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onToggle: () => void;
+  trail?: ReactNode;
+}) {
   return (
     <ListRow
       lead={
@@ -14,6 +28,7 @@ export function Choice({ checked, detail, disabled, label, onToggle }: { checked
       onClick={disabled ? undefined : onToggle}
       selected={checked}
       title={label || 'Untitled'}
+      trail={trail}
     />
   );
 }

@@ -16,7 +16,7 @@ const colourOptions = tagColors.map((colour) => ({ value: colour, label: categor
 export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { categories: SpendingCategory[]; onClose: () => void; onSaved: () => void; spaceId: string }) {
   const auth = useAuth();
   const saving = useAction();
-  const [rows, setRows] = useState<Row[]>(categories.map((category, key) => ({ ...category, key, previous: category.name })));
+  const [rows, setRows] = useState<Row[]>(categories.map((category, key) => ({ ...category, name: categoryName(category.name), key, previous: category.name })));
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState<SpendingCategory[]>();
   const change = (key: number, patch: Partial<Row>) => setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -29,7 +29,15 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
   const save = () =>
     auth.request(`/spaces/${spaceId}/spending-categories`, {
       method: 'PUT',
-      body: JSON.stringify({ categories: rows.map(({ name, colour, icon, kind, previous }) => ({ name: name.trim(), colour, icon, kind, ...(previous ? { previous } : {}) })) }),
+      body: JSON.stringify({
+        categories: rows.map(({ name, colour, icon, kind, previous }) => ({
+          name: previous && name.trim() === categoryName(previous) ? previous : name.trim(),
+          colour,
+          icon,
+          kind,
+          ...(previous ? { previous } : {}),
+        })),
+      }),
     });
 
   if (removing) {
@@ -80,7 +88,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
           }, 'Could not save the categories')
           .then((done) => done && onClose());
       }}
-      submitLabel="Save"
+      submitLabel="Save changes"
       title="Edit categories"
     >
       <ul className="m-0 grid list-none gap-2 p-0">
@@ -95,14 +103,16 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
               onChange={(event) => change(row.key, { name: event.target.value })}
               value={row.previous === 'other' ? 'Other' : row.name}
             />
-            <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} value={row.colour} />
+            <div className="w-36 shrink-0">
+              <Select aria-label={`Colour of ${row.name || 'category'}`} onChange={(colour: TagColor) => change(row.key, { colour })} options={colourOptions} value={row.colour} />
+            </div>
             <IconButton disabled={index === 0} icon="chevron-up" label={`Move ${row.name} up`} onClick={() => move(index, -1)} />
             <IconButton disabled={index === rows.length - 1} icon="chevron-down" label={`Move ${row.name} down`} onClick={() => move(index, 1)} />
             <IconButton disabled={row.previous === 'other'} icon="x" label={`Remove ${row.name}`} onClick={() => setRows((current) => current.filter((shown) => shown.key !== row.key))} />
           </li>
         ))}
       </ul>
-      <Button disabled={rows.length >= 40} label="Add a category" large onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray', icon: null, kind: 'expense' }])} />
+      <Button disabled={rows.length >= 40} label="Add a category" onClick={() => setRows((current) => [...current, { key: Math.max(...current.map((row) => row.key)) + 1, name: '', colour: 'gray', icon: null, kind: 'expense' }])} />
       {error && <Banner tone="danger">{error}</Banner>}
     </FormDialog>
   );

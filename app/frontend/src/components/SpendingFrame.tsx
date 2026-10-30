@@ -12,6 +12,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { Button } from './Button';
+import { Empty } from './Empty';
 import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
 import { Page } from './Page';
@@ -22,11 +23,26 @@ const CategoriesEditor = lazy(() => import('./CategoriesEditor').then((module) =
 const ExpenseImport = lazy(() => import('./ExpenseImport').then((module) => ({ default: module.ExpenseImport })));
 const RulesEditor = lazy(() => import('./RulesEditor').then((module) => ({ default: module.RulesEditor })));
 
+export interface SpendingFirstRun {
+  title: string;
+  hint: string;
+}
+
+export function SpendingFirstRunSkeleton({ empty }: { empty: SpendingFirstRun }) {
+  const { space, editable } = usePersonalSpace();
+  return (
+    <Empty action={(!space || editable) && <Button icon="plus" label="New transaction" primary />} icon="wallet" loading title={empty.title} variant="page">
+      {empty.hint}
+    </Empty>
+  );
+}
+
 export function SpendingFrame({
   accounts,
   categories,
   children,
   currency = 'EGP',
+  empty,
   onChanged,
   tab,
   toolbar,
@@ -35,6 +51,7 @@ export function SpendingFrame({
   categories?: SpendingCategory[];
   children: ReactNode;
   currency?: string;
+  empty?: SpendingFirstRun;
   onChanged?: () => void;
   tab: SpendingTab;
   toolbar?: ReactNode;
@@ -93,6 +110,11 @@ export function SpendingFrame({
               ? `The connection ends ${formatMoment(phone.tokenExpiresAt)}. Renewing keeps bank messages coming in.`
               : `Strata stopped accepting messages from this phone. ${phone.queuedCount} waiting will be sent once you reconnect.`}
         </Banner>
+      )}
+      {empty && (
+        <Empty action={editable && <Button icon="plus" label="New transaction" onClick={() => setDialog('new')} primary />} icon="wallet" title={empty.title} variant="page">
+          {empty.hint}
+        </Empty>
       )}
       {children}
       {editable && (
