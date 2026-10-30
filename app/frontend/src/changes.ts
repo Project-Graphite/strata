@@ -82,9 +82,11 @@ export function watchChanges(request: AuthenticatedRequest) {
   }
 
   document.addEventListener('visibilitychange', follow);
-  if (document.visibilityState === 'visible') connect();
+  const idle = window.requestIdleCallback ? window.requestIdleCallback(follow) : undefined;
+  if (idle === undefined) follow();
   return () => {
     document.removeEventListener('visibilitychange', follow);
+    if (idle !== undefined) window.cancelIdleCallback(idle);
     pause();
     channel.close();
     otherTabs = undefined;

@@ -14,7 +14,7 @@ import { useResource } from '../useResource';
 import { MissingRates } from '../components/Stats';
 
 const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
-const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 78)}%, var(--color-surface))`;
+const shade = (share: number) => `color-mix(in oklab, var(--color-ink) ${Math.round(12 + share * 32)}%, var(--color-surface))`;
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const leadOf = (days: SpendingInsights['days']) => (new Date(`${days[0]!.day}T00:00:00Z`).getUTCDay() + 6) % 7;
 const spans = ['3', '6', '12', '24'] as const;
@@ -273,7 +273,7 @@ function Insights({ insights }: { insights: SpendingInsights }) {
                 className="spend-day"
                 key={day.day}
                 role="listitem"
-                style={day.spentMinor > 0 ? { background: shade(day.spentMinor / busiest), color: day.spentMinor / busiest > 0.5 ? 'var(--color-paper)' : undefined } : undefined}
+                style={day.spentMinor > 0 ? { background: shade(day.spentMinor / busiest), color: 'var(--color-ink)' } : undefined}
                 title={`${formatDay(day.day, { weekday: 'short', day: 'numeric', month: 'short' })}: ${money(day.spentMinor, currency)}`}
               >
                 {Number(day.day.slice(8))}

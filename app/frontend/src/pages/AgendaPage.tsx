@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ConfirmDialog, formatDay, Placeholder, useSnackbar, type TagColor } from '@project-graphite/ui';
-import { addDays, dayKey, dayRange, entryClock, entryDay, entryKey, entryLink, monthDays, useAgenda, weekOf, type AgendaEntry, type EventDetails } from '../agenda';
+import { addDays, agendaPeriod, dayKey, dayRange, entryClock, entryDay, entryKey, entryLink, phoneQuery, useAgenda, type AgendaEntry, type AgendaView as View, type EventDetails } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard, AgendaEntryLink, CalendarEventDialog, EntryPeek } from '../components/AgendaEntryLink';
 import { Button, IconLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { EventSheet } from '../components/EventDetails';
-import { EventEditor } from '../components/EventEditor';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
@@ -22,11 +21,10 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import type { Me } from './settings/SettingsLayout';
 
-type View = 'day' | 'week' | 'month' | 'list';
+const EventEditor = lazy(() => import('../components/EventEditor').then((module) => ({ default: module.EventEditor })));
 
 const views: Record<View, string> = { day: 'Day', week: 'Week', month: 'Month', list: 'List' };
 const viewKey = 'strata-agenda-view';
-const phoneQuery = '(max-width: 47.99rem)';
 const freeFrom = 8 * 60;
 const freeUntil = 22 * 60;
 
@@ -53,12 +51,6 @@ function usePhone() {
     return () => media.removeEventListener('change', update);
   }, []);
   return phone;
-}
-
-function range(view: View, anchor: string, weekStart: number, phone: boolean) {
-  if (view === 'month') return monthDays(anchor, weekStart);
-  const [from, days] = view === 'list' ? [anchor, 30] : view === 'day' ? [anchor, 1] : phone ? [anchor, 3] : [weekOf(anchor, weekStart), 7];
-  return { from, to: addDays(from, days), days };
 }
 
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -92,7 +84,11 @@ function EditEvent({ id, onClose }: { id: string; onClose: () => void }) {
     show({ message: error, tone: 'error' });
     onClose();
   }, [error, onClose, show]);
-  return event.data ? <EventEditor event={event.data} onClose={onClose} onSaved={(saved) => event.mutate(() => saved)} /> : null;
+  return event.data ? (
+    <Suspense fallback={null}>
+      <EventEditor event={event.data} onClose={onClose} onSaved={(saved) => event.mutate(() => saved)} />
+    </Suspense>
+  ) : null;
 }
 
 function DueToday() {
@@ -212,7 +208,7 @@ function Period({
   link: ViewLink;
   onCreate?: (draft: Draft) => void;
   openEvent: (id: string) => void;
-  period: ReturnType<typeof range>;
+  period: ReturnType<typeof agendaPeriod>;
   phone: boolean;
   today: string;
   view: View;
@@ -371,7 +367,7 @@ function Period({
                   </Link>
                 </Subheading>
                 {day <= today && (
-                  <Link className="mono-sm text-faint" to="/journal">
+                  <Link className="mono-sm text-muted" to="/journal">
                     Journal
                   </Link>
                 )}
@@ -415,7 +411,7 @@ function Period({
       <>
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-panel border border-line bg-line">
           {allDays.slice(0, 7).map((day) => (
-            <p className={`m-0 px-2 py-1 text-xs text-faint ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
+            <p className={`m-0 px-2 py-1 text-xs text-muted ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={`head-${day}`}>
               {formatDay(day, { weekday: 'short' })}
             </p>
           ))}
@@ -427,7 +423,7 @@ function Period({
               <button
                 aria-label={label}
                 aria-pressed={day === picked}
-                className={`grid min-h-14 min-w-0 content-start justify-items-center gap-1 p-1 text-faint ${outside ? 'opacity-50' : ''} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'} ${day === picked ? 'outline-2 -outline-offset-2 outline-ink' : ''}`}
+                className={`grid min-h-14 min-w-0 content-start justify-items-center gap-1 p-1 ${outside ? 'text-muted' : 'text-ink'} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'} ${day === picked ? 'outline-2 -outline-offset-2 outline-ink' : ''}`}
                 key={day}
                 onClick={() => setPicked(day)}
                 type="button"
@@ -440,19 +436,19 @@ function Period({
                 </span>
               </button>
             ) : (
-              <div className={`relative min-h-24 min-w-0 p-1.5 ${outside ? 'opacity-50' : ''} ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={day}>
-                <Link aria-current={day === today ? 'date' : undefined} aria-label={label} className="block w-fit text-faint no-underline after:absolute after:inset-0" to={link({ view: 'day', date: day })}>
+              <div className={`relative min-h-24 min-w-0 p-1.5 ${weekend(day) ? 'agenda-weekend' : 'bg-paper'}`} key={day}>
+                <Link aria-current={day === today ? 'date' : undefined} aria-label={label} className={`block w-fit no-underline after:absolute after:inset-0 ${outside ? 'text-muted' : 'text-ink'}`} to={link({ view: 'day', date: day })}>
                   <DayNumber day={day} today={today} />
                 </Link>
                 <div className="relative mt-1 grid gap-0.5">
                   {entries.slice(0, 3).map((entry) => (
                     <AgendaEntryLink className="agenda-chip" colour={agenda.colourOf(entry)} entry={entry} key={entryKey(entry)} onOpen={(target) => onPeek(entry, target)}>
-                      {!entry.allDay && <span className="text-muted">{entryClock(entry.start)} </span>}
+                      {!entry.allDay && <span className="text-ink/80">{entryClock(entry.start)} </span>}
                       {entry.title}
                     </AgendaEntryLink>
                   ))}
                   {entries.length > 3 && (
-                    <Link className="mono-sm px-1 text-faint" to={link({ view: 'day', date: day })}>
+                    <Link className="mono-sm px-1 text-muted" to={link({ view: 'day', date: day })}>
                       +{entries.length - 3} more
                     </Link>
                   )}
@@ -498,7 +494,7 @@ function Agenda({ view }: { view: View }) {
   const anchor = params.get('date') ?? today;
   const [creating, setCreating] = useState<Draft>();
   const [sheet, setSheet] = useState<string>();
-  const period = range(view, anchor, me.data?.weekStart ?? 0, phone);
+  const period = agendaPeriod(view, anchor, me.data?.weekStart ?? 0, phone);
   const canCreate = Boolean(spaces.data?.some((space) => space.role !== 'viewer'));
   const unit = view === 'list' ? 'period' : view === 'week' && phone ? '3 days' : view;
   const link: ViewLink = (next) => {
@@ -584,7 +580,11 @@ function Agenda({ view }: { view: View }) {
         />
       )}
 
-      {creating && <EventEditor endTime={creating.endTime} onClose={() => setCreating(undefined)} onSaved={(event) => setSheet(event.id)} startTime={creating.startTime} startsOn={creating.startsOn} />}
+      {creating && (
+        <Suspense fallback={null}>
+          <EventEditor endTime={creating.endTime} onClose={() => setCreating(undefined)} onSaved={(event) => setSheet(event.id)} startTime={creating.startTime} startsOn={creating.startsOn} />
+        </Suspense>
+      )}
       {sheet && <EventSheet id={sheet} key={sheet} onClose={() => setSheet(undefined)} onOpen={setSheet} />}
     </Page>
   );

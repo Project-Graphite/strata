@@ -1,0 +1,116 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ui-quality:
+    name: Lighthouse and axe
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: strata
+          POSTGRES_USER: strata
+          POSTGRES_PASSWORD: strata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U strata -d strata"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8.10-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit:v1.31.2
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      DATABASE_URL: postgresql://strata:strata@localhost:5432/strata
+      REDIS_URL: redis://localhost:6379
+      AUTH_TRUSTED_ORIGINS: http://localhost:3000
+      APP_URL: http://localhost:3000
+      DEFAULT_FROM_EMAIL: Strata <strata@localhost>
+      EMAIL_HOST: localhost
+      EMAIL_PORT: "1025"
+      SHOTS_URL: http://localhost:3000
+      SHOTS_EMAIL: ui-check@example.com
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run prisma:migrate:deploy
+      - run: npm run build
+      - name: Generate throwaway secrets for this run
+        run: |
+          {
+            echo "AUTH_ACCESS_TOKEN_SECRET=$(openssl rand -hex 32)"
+            echo "DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "SHOTS_PASSWORD=$(openssl rand -hex 16)"
+          } >> "$GITHUB_ENV"
+      - name: Start the API serving the production frontend
+        env:
+          NODE_ENV: production
+        run: |
+          nohup node server/dist/main.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for attempt in $(seq 60); do
+            curl -fs http://localhost:3000/api/v1/ready > /dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/server.log"
+          exit 1
+      - name: Create a verified test account with every app turned on
+        run: |
+          api=http://localhost:3000/api/v1
+          json=(-fsS -H 'Content-Type: application/json' -H 'Origin: http://localhost:3000')
+          curl "${json[@]}" -X POST "$api/auth/register" -d "{\"email\":\"$SHOTS_EMAIL\",\"handle\":\"ui-check\",\"displayName\":\"UI Check\",\"password\":\"$SHOTS_PASSWORD\"}"
+          token=$(curl -fsS http://localhost:8025/api/v1/message/latest | grep -oE 'token=[A-Za-z0-9_-]+' | head -n 1 | cut -d= -f2)
+          curl "${json[@]}" -X POST "$api/auth/verify-email" -d "{\"token\":\"$token\"}"
+          access=$(curl "${json[@]}" -X POST "$api/auth/login" -d "{\"email\":\"$SHOTS_EMAIL\",\"password\":\"$SHOTS_PASSWORD\"}" | jq -r .accessToken)
+          curl "${json[@]}" -X PATCH "$api/me" -H "Authorization: Bearer $access" -d '{"features":["tasks","agenda","pages","boards","bookmarks","journal","files","spending","goals","people","recipes","tidy","trips"]}'
+      - run: npm run audit:ui --workspace frontend
+      - if: ${{ !cancelled() }}
+        run: npm run lighthouse --workspace frontend
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse
+          path: app/frontend/.lighthouseci
+          include-hidden-files: true
+      - if: failure()
+        run: cat "$RUNNER_TEMP/server.log"
