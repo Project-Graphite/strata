@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Checkbox, ConfirmDialog, Dialog, ListRow, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { Checkbox, ConfirmDialog, Dialog, ListRow, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { categoryName, expenseCategories, useCategories, type MerchantRule, type MoneyAccount, type SenderRule } from '../spending';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
+import { Empty } from './Empty';
 import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
+import { Section } from './Page';
+import { RowsSkeleton } from './Skeletons';
 
 type Editing = { merchant: MerchantRule } | { sender: SenderRule } | { deleteMerchant: MerchantRule } | { deleteSender: SenderRule };
 
@@ -54,7 +57,7 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
             }, 'Could not save the rule')
             .then((done) => done && setEditing(undefined));
         }}
-        submitLabel="Save"
+        submitLabel="Save changes"
         title={`Messages naming ${rule.match}`}
       >
         <TextField autoFocus defaultValue={rule.rename ?? ''} hint="Leave empty to keep the name from the message." label="Call it" maxLength={200} name="rename" />
@@ -87,7 +90,7 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
             .then((done) => done && setEditing(undefined));
         }}
         submitDisabled={!chosen.accountId || (!!rule.toAccountId && (!chosen.toAccountId || chosen.toAccountId === chosen.accountId))}
-        submitLabel="Save"
+        submitLabel="Save changes"
         title={`Messages from ${rule.sender}`}
       >
         <Select label={rule.toAccountId ? 'Transfers from' : 'Account'} onChange={(accountId: string) => setChosen((current) => ({ ...current, accountId }))} options={accountOptions} value={chosen.accountId} />
@@ -141,15 +144,18 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
   }
 
   return (
-    <Dialog onClose={onClose} title="Rules">
+    <Dialog onClose={onClose} title="Edit rules">
       <div className="mt-5 grid gap-6">
         <Hint>Strata learns these when you review captured messages. Change or delete any of them here.</Hint>
-        <section className="grid gap-2">
-          <SectionHeading level={3} title="Merchants" />
+        <Section level={3} title="Merchants">
           {merchants.error ? (
             <LoadError compact error={merchants.error} onRetry={merchants.reload} />
-          ) : !merchants.data?.length ? (
-            <Hint>{merchants.data ? 'No merchant rules yet.' : 'Loading…'}</Hint>
+          ) : !merchants.data ? (
+            <RowsSkeleton rows={2} />
+          ) : !merchants.data.length ? (
+            <Empty level={3} title="No merchant rules yet">
+              Reviewing a message can rename a merchant or give it a category.
+            </Empty>
           ) : (
             <ul className="panel-rows">
               {merchants.data.map((rule) => (
@@ -170,13 +176,16 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
               ))}
             </ul>
           )}
-        </section>
-        <section className="grid gap-2">
-          <SectionHeading level={3} title="Senders" />
+        </Section>
+        <Section level={3} title="Senders">
           {senders.error ? (
             <LoadError compact error={senders.error} onRetry={senders.reload} />
-          ) : !senders.data?.length ? (
-            <Hint>{senders.data ? 'No sender rules yet.' : 'Loading…'}</Hint>
+          ) : !senders.data ? (
+            <RowsSkeleton rows={2} />
+          ) : !senders.data.length ? (
+            <Empty level={3} title="No sender rules yet">
+              Reviewing a message can link its sender to an account.
+            </Empty>
           ) : (
             <ul className="panel-rows">
               {senders.data.map((rule) => (
@@ -197,7 +206,7 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
               ))}
             </ul>
           )}
-        </section>
+        </Section>
       </div>
     </Dialog>
   );

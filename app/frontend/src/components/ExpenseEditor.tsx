@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Checkbox, DatePicker, Select, TextAreaField, TextField } from '@project-graphite/ui';
+import { Checkbox, DatePicker, Fieldset, FilterChip, SegmentedControl, Select, Sheet, TextAreaField, TextField, Button as UiButton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
-import { directionOptions, expenseCategories, mostUsedCategory, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
+import { expenseCategories, mostUsedCategory, paymentMethods, useCategories, type CapturedMessage, type Expense, type ExpenseDirection, type KnownCard, type MoneyAccount } from '../spending';
 import { fromMinor, toMinor } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, moneyAmount, required, useFormErrors } from '../validation';
-import { TextButton } from './Button';
-import { FormDialog } from './FormDialog';
+import { Button, TextButton } from './Button';
 import { CategoryChips } from './CategoryChips';
 import { CurrencyField } from './CurrencyField';
+
+const formId = 'expense-editor';
 
 const directionWords: Record<ExpenseDirection, { noun: string; what: string; example: string }> = {
   spent: { noun: 'expense', what: 'What for', example: 'Groceries at the market' },
@@ -50,12 +51,18 @@ export function ExpenseEditor({
   const [category, setCategory] = useState(expense?.category ?? suggested?.category ?? '');
   const chosenCategory = category || mostUsedCategory(categories);
   const [spentOn, setSpentOn] = useState(expense?.spentOn ?? suggested?.occurredOn ?? dayKey(capture ? new Date(capture.receivedAt) : new Date()));
-  const [direction, setDirection] = useState<ExpenseDirection>(expense?.direction ?? (suggested?.transfer ? 'transfer' : suggested?.direction) ?? 'spent');
+  const startDirection = expense?.direction ?? (suggested?.transfer ? 'transfer' : suggested?.direction) ?? 'spent';
+  const [direction, setDirection] = useState<Exclude<ExpenseDirection, 'refund'>>(startDirection === 'refund' ? 'spent' : startDirection);
+  const [refund, setRefund] = useState(startDirection === 'refund');
   const [accountId, setAccountId] = useState(expense?.accountId ?? suggested?.transfer?.fromAccountId ?? suggested?.accountId ?? '');
   const [toAccountId, setToAccountId] = useState(expense?.toAccountId ?? suggested?.transfer?.toAccountId ?? '');
   const transfer = direction === 'transfer';
-  const words = directionWords[direction];
-  const accountOptions = [{ value: '', label: 'None' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))];
+  const chosenDirection = direction === 'spent' && refund ? 'refund' : direction;
+  const words = directionWords[chosenDirection];
+  const accountChips = (value: string, onChange: (value: string) => void, exclude?: string) =>
+    accounts
+      .filter((account) => account.id !== exclude && (!account.archivedAt || account.id === expense?.accountId || account.id === expense?.toAccountId))
+      .map((account) => <FilterChip active={account.id === value} key={account.id} label={account.name} onClick={() => onChange(account.id === value ? '' : account.id)} />);
   const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
   const startCard = expense?.cardDigits ?? suggested?.cardDigits ?? null;
   const startLabel = expense?.paymentLabel ?? suggested?.paymentLabel ?? null;
@@ -78,105 +85,143 @@ export function ExpenseEditor({
   };
 
   return (
-    <FormDialog
-      busy={saving.busy}
-      busyLabel={expense ? 'Saving…' : 'Adding…'}
-      onClose={onClose}
-      onSubmit={(target) => {
-        if (
-          !form.check(target, {
-            title: [required('Say what it was for.'), atMost(200, 'Use at most 200 characters.')],
-            amount: [required('Enter the amount.'), moneyAmount],
-            ...(paidWith === 'new-card' ? { cardDigits: [(value) => (/^\d{4}$/.test(value.trim()) ? undefined : 'Enter the last 4 digits of the card.')] } : {}),
-          }) ||
-          (transfer && !form.check(target, { from: [() => (accountId && toAccountId && accountId !== toAccountId ? undefined : 'Choose two different accounts.')] }))
-        ) {
-          return;
-        }
-        const values = new FormData(target);
-        const text = (name: string) => String(values.get(name) ?? '').trim();
-        const chosen = text('currency');
-        const body = {
-          title: text('title'),
-          amountMinor: toMinor(text('amount'), chosen),
-          currency: chosen,
-          spentOn,
-          category: chosenCategory,
-          paymentLabel: paidWith.startsWith('method:') ? paidWith.slice('method:'.length) : null,
-          cardDigits: paidWith.startsWith('card:') ? paidWith.slice('card:'.length) : paidWith === 'new-card' ? text('cardDigits') : null,
-          note: text('note'),
-          direction,
-          accountId: accountId || null,
-          toAccountId: transfer ? toAccountId : null,
-          ...(capture ? { merchant: suggested?.merchant ?? null, remember: values.has('remember'), report: values.has('report') } : {}),
-        };
-        void saving
-          .run(async () => {
-            const saved = await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
-              method: expense ? 'PATCH' : 'POST',
-              body: JSON.stringify(body),
-            });
-            onSaved(saved);
-            return `${expense ? 'Saved' : 'Added'} ${body.title}.`;
-          }, `Could not save the ${words.noun}`)
-          .then((saved) => saved && onClose());
-      }}
-      start={
-        expense &&
-        onTrashed && (
-          <TextButton
-            danger
-            disabled={saving.busy}
-            label="Move to trash"
-            onClick={() =>
-              void saving
-                .run(async () => {
-                  await auth.request(`/items/${expense.id}/trash`, { method: 'POST' });
-                  onTrashed();
-                  return {
-                    message: `Moved ${expense.title} to the trash.`,
-                    undo: async () => {
-                      await auth.request(`/items/${expense.id}/restore`, { method: 'POST' });
-                      onRestored?.();
-                      return '';
-                    },
-                  };
-                }, `Could not move the ${words.noun} to the trash`)
-                .then((done) => done && onClose())
-            }
-          />
-        )
+    <Sheet
+      footer={
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {expense && onTrashed && (
+            <span className="mr-auto">
+              <TextButton
+                danger
+                disabled={saving.busy}
+                label="Move to trash"
+                onClick={() =>
+                  void saving
+                    .run(async () => {
+                      await auth.request(`/items/${expense.id}/trash`, { method: 'POST' });
+                      onTrashed();
+                      return {
+                        message: `Moved ${expense.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${expense.id}/restore`, { method: 'POST' });
+                          onRestored?.();
+                          return '';
+                        },
+                      };
+                    }, `Could not move the ${words.noun} to the trash`)
+                    .then((done) => done && onClose())
+                }
+              />
+            </span>
+          )}
+          <Button disabled={saving.busy} label="Cancel" large onClick={onClose} />
+          <UiButton disabled={saving.busy} form={formId} type="submit" variant="primary">
+            {saving.busy ? (expense ? 'Saving…' : 'Adding…') : expense ? 'Save changes' : `Add ${words.noun}`}
+          </UiButton>
+        </div>
       }
-      submitLabel={expense ? 'Save' : `Add ${words.noun}`}
+      onClose={onClose}
       title={expense ? `Edit ${words.noun}` : `New ${words.noun}`}
     >
-      {capture && <blockquote className="m-0 rounded-field border border-line p-3 text-small text-muted">{capture.text}</blockquote>}
-      <Select label="Type" onChange={setDirection} options={directionOptions.filter((option) => option.value !== 'transfer' || accounts.length > 1 || transfer)} value={direction} />
-      <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : suggested?.amountMinor && suggested.currency ? fromMinor(suggested.amountMinor, suggested.currency) : ''}
-          inputMode="decimal"
-          label="Amount"
-          {...form.field('amount')}
-        />
-        <CurrencyField defaultValue={expense?.currency ?? suggested?.currency ?? currency} name="currency" />
-        <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
-        {accounts.length > 0 && (
-          <Select error={form.errors.from} label={transfer ? 'From' : 'Account'} name="from" onChange={setAccountId} options={accountOptions} value={accountId} />
+      <form
+        className="grid min-w-0 gap-5"
+        id={formId}
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          const target = event.currentTarget;
+          if (
+            !form.check(target, {
+              title: [required('Say what it was for.'), atMost(200, 'Use at most 200 characters.')],
+              amount: [required('Enter the amount.'), moneyAmount],
+              ...(paidWith === 'new-card' ? { cardDigits: [(value) => (/^\d{4}$/.test(value.trim()) ? undefined : 'Enter the last 4 digits of the card.')] } : {}),
+              ...(transfer ? { to: [() => (accountId && toAccountId && accountId !== toAccountId ? undefined : 'Choose two different accounts.')] } : {}),
+            })
+          ) {
+            return;
+          }
+          const values = new FormData(target);
+          const text = (name: string) => String(values.get(name) ?? '').trim();
+          const chosen = text('currency');
+          const body = {
+            title: text('title'),
+            amountMinor: toMinor(text('amount'), chosen),
+            currency: chosen,
+            spentOn,
+            category: chosenCategory,
+            paymentLabel: paidWith.startsWith('method:') ? paidWith.slice('method:'.length) : null,
+            cardDigits: paidWith.startsWith('card:') ? paidWith.slice('card:'.length) : paidWith === 'new-card' ? text('cardDigits') : null,
+            note: text('note'),
+            direction: chosenDirection,
+            accountId: accountId || null,
+            toAccountId: transfer ? toAccountId : null,
+            ...(capture ? { merchant: suggested?.merchant ?? null, remember: values.has('remember'), report: values.has('report') } : {}),
+          };
+          void saving
+            .run(async () => {
+              const saved = await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
+                method: expense ? 'PATCH' : 'POST',
+                body: JSON.stringify(body),
+              });
+              onSaved(saved);
+              return `${expense ? 'Saved' : 'Added'} ${body.title}.`;
+            }, `Could not save the ${words.noun}`)
+            .then((saved) => saved && onClose());
+        }}
+      >
+        {capture && (
+          <blockquote className="quoted-text" dir="auto">
+            {capture.text}
+          </blockquote>
         )}
-        {accounts.length > 0 && transfer && <Select label="To" onChange={setToAccountId} options={accountOptions} value={toAccountId} />}
-      </div>
-      {direction !== 'received' && !transfer && <CategoryChips categories={categories} onChange={setCategory} value={chosenCategory} />}
-      {capture && <Checkbox defaultChecked label={`Remember these choices for ${suggested?.merchant ?? capture.sender}`} name="remember" />}
-      {!transfer && (
+        <SegmentedControl
+          label="Type"
+          onChange={setDirection}
+          options={[
+            { value: 'spent', label: 'Spent' },
+            { value: 'received', label: 'Received' },
+            ...(accounts.length > 1 || transfer ? [{ value: 'transfer' as const, label: 'Transfer' }] : []),
+          ]}
+          value={direction}
+        />
+        <TextField autoComplete="off" autoFocus defaultValue={expense?.title ?? suggested?.title ?? suggested?.merchant ?? undefined} label={words.what} maxLength={200} placeholder={words.example} {...form.field('title')} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
-          {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
+          <TextField
+            defaultValue={expense ? fromMinor(expense.amountMinor, expense.currency) : suggested?.amountMinor && suggested.currency ? fromMinor(suggested.amountMinor, suggested.currency) : ''}
+            inputMode="decimal"
+            label="Amount"
+            {...form.field('amount')}
+          />
+          <CurrencyField defaultValue={expense?.currency ?? suggested?.currency ?? currency} name="currency" />
+          <DatePicker label="Date" onChange={setSpentOn} optional={false} value={spentOn} />
         </div>
-      )}
-      {capture && <Checkbox defaultChecked={reportParsing} label="Report parsing with an anonymised copy of this message" name="report" />}
-      <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
-    </FormDialog>
+        {accounts.length > 0 && (
+          <Fieldset legend={transfer ? 'From' : 'Account'}>
+            <div className="flex flex-wrap gap-2">{accountChips(accountId, setAccountId)}</div>
+          </Fieldset>
+        )}
+        {transfer && (
+          <Fieldset legend="To">
+            <div className="flex flex-wrap gap-2">{accountChips(toAccountId, setToAccountId, accountId)}</div>
+            <input name="to" type="hidden" />
+            {form.errors.to && (
+              <p className="m-0 mt-2 text-small text-danger" role="alert">
+                {form.errors.to}
+              </p>
+            )}
+          </Fieldset>
+        )}
+        {direction === 'spent' && <CategoryChips categories={categories} onChange={setCategory} value={chosenCategory} />}
+        {direction === 'spent' && <Checkbox checked={refund} label="This is a refund" onChange={(event) => setRefund(event.currentTarget.checked)} />}
+        {capture && <Checkbox defaultChecked label={`Remember these choices for ${suggested?.merchant ?? capture.sender}`} name="remember" />}
+        {!transfer && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
+            {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
+          </div>
+        )}
+        {capture && <Checkbox defaultChecked={reportParsing} label="Report parsing with an anonymised copy of this message" name="report" />}
+        <TextAreaField defaultValue={expense?.note} label="Note (optional)" maxLength={1000} name="note" rows={2} />
+      </form>
+    </Sheet>
   );
 }

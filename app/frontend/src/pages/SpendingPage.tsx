@@ -12,8 +12,8 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { SpendingFrame } from '../components/SpendingFrame';
+import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
   categoryName,
@@ -31,7 +31,7 @@ import {
 } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
-import { formatDate } from '../time';
+import { formatDate, formatMonth, formatRange } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
@@ -41,11 +41,15 @@ import { MissingRates } from '../components/Stats';
 const CurrencyField = lazy(() => import('../components/CurrencyField').then((module) => ({ default: module.CurrencyField })));
 const ExpenseEditor = lazy(() => import('../components/ExpenseEditor').then((module) => ({ default: module.ExpenseEditor })));
 
-const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
 const chartedCount = 7;
 const drilledCount = 5;
+const emptyOverview = { title: 'No transactions yet', hint: 'Add an expense, import a statement or connect your phone to see where your money goes each month.' };
 const emptyBudgets = { title: 'No budgets yet', hint: 'Budgets are optional. Give a category or the whole month a limit to see what’s left and what you can spend each day.' };
+const emptyCategoryBudgets = { title: 'No category budgets yet', hint: 'Give a category its own limit to follow it apart from the whole month.' };
+const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards and wallets under Accounts to follow their balances here.' };
+const emptyCategories = { title: 'Nothing spent this month', hint: 'Spending shows here by category as you add it.' };
+const emptyRecent = { title: 'No transactions this month', hint: 'The latest ones you add show here.' };
 
 export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
   const auth = useAuth();
@@ -73,6 +77,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
   const budgeted = Boolean(shown?.budgetsEnabled && shown.budgetMinor !== null);
   const openAccounts = accounts.data?.filter((account) => !account.archivedAt);
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name;
+  const firstRun = tab === 'overview' && !month && accounts.data?.length === 0 && captures.data?.length === 0 && shown?.expenses.length === 0 && shown.committedMinor === 0;
   const shape = useRememberedShape(
     `spending-${tab}`,
     shown &&
@@ -83,6 +88,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             openAccounts.length,
             Math.min(shown.categories.filter((row) => row.spentMinor > 0).length, chartedCount + 1),
             Math.min(shown.expenses.length, recentCount + 1),
+            firstRun ? 1 : 0,
           ]
         : [
             shown.budgets.length || shown.plan.budgetMinor !== null ? 1 : 0,
@@ -90,7 +96,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             !shown.budgetsEnabled || shown.budgetMinor === null ? 0 : 2 + (shown.pace ? 1 : 0) + (shown.safeDailyMinor === null ? 0 : 1),
             shown.budgetsEnabled ? shown.categories.filter((row) => row.budgetMinor === null && row.spentMinor !== 0).length : 0,
           ]),
-    tab === 'overview' ? [0, 0, 1, 0, recentCount] : [1, 3, 4, 0],
+    tab === 'overview' ? [0, 0, 1, 0, recentCount, 0] : [1, 3, 4, 0],
   );
   const reload = () => {
     summary.reload();
@@ -107,7 +113,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             expense.direction === 'transfer'
               ? `${accountName(expense.accountId) ?? 'Removed account'} → ${accountName(expense.toAccountId) ?? 'Removed account'}`
               : expense.direction === 'received'
-                ? 'Received'
+                ? 'Income'
                 : `${categoryName(expense.category)}${expense.direction === 'refund' ? ' refund' : ''}`,
             expense.direction !== 'transfer' && [accountName(expense.accountId), expense.cardDigits && `•••• ${expense.cardDigits}`].filter(Boolean).join(' '),
             expense.paymentLabel,
@@ -127,6 +133,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
       accounts={accounts.data}
       categories={categories.data}
       currency={currency}
+      empty={firstRun ? emptyOverview : undefined}
       onChanged={() => {
         categories.reload();
         reload();
@@ -134,7 +141,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
       tab={tab}
       toolbar={
         <PeriodNav
-          current={tab === 'overview' ? undefined : {
+          current={{
             label: 'This month',
             onSelect: () =>
               setParams((current) => {
@@ -149,9 +156,9 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             !shown ? (
               <SkeletonLine width="w-28" />
             ) : shown.plan.startDay === 1 ? (
-              monthName.format(new Date(`${shown.month}-01T00:00:00Z`))
+              formatMonth(shown.month)
             ) : (
-              `${formatDay(shown.from, { day: 'numeric', month: 'short' })} – ${formatDay(shown.until, { day: 'numeric', month: 'short', year: 'numeric' })}`
+              formatRange(shown.from, shown.until)
             )
           }
           unit="month"
@@ -164,7 +171,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
         <Placeholder className="grid gap-8" label="Adding up the month">
           <SpendingSkeleton editable={!space || editable} shape={shape} tab={tab} />
         </Placeholder>
-      ) : (
+      ) : firstRun ? null : (
         <>
           {tab === 'overview' && (
             <StatGrid>
@@ -197,7 +204,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           <MissingRates currencies={shown.missing} />
 
           {tab === 'overview' && Boolean(captures.data?.length) && (
-            <Section title={`To review (${captures.data!.length})`}>
+            <Section action={<span className="text-small text-muted tabular-nums">{captures.data!.length}</span>} title="To review">
               <ul className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">
                 {captures.data!.map((message) => (
                   <ReviewCard
@@ -231,11 +238,13 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           )}
 
           {tab === 'overview' && (
-            <Section action={Boolean(openAccounts?.length) && <ButtonLink label="All accounts" to={spendingHref('accounts', params)} />} title="By account">
+            <Section action={Boolean(openAccounts?.length) && <ButtonLink label="Show all" to={spendingHref('accounts', params)} />} title="By account">
               {accounts.error ? (
                 <LoadError compact error={accounts.error} onRetry={accounts.reload} />
               ) : !openAccounts?.length ? (
-                <Hint>No accounts yet. Add your bank accounts, cards and wallets under Accounts to follow their balances here.</Hint>
+                <Empty level={3} title={emptyAccounts.title}>
+                  {emptyAccounts.hint}
+                </Empty>
               ) : (
                 <ul className="panel-rows">
                   {openAccounts.map((account) => (
@@ -257,7 +266,9 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
               {shown.categories.some((row) => row.spentMinor > 0) ? (
                 <CategoryChart colourOf={colourOf} currency={currency} rows={shown.categories} />
               ) : (
-                <Hint>Nothing spent this month yet.</Hint>
+                <Empty level={3} title={emptyCategories.title}>
+                  {emptyCategories.hint}
+                </Empty>
               )}
             </Section>
           )}
@@ -304,9 +315,9 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             <Section
               action={
                 editable && (
-                  <span className="flex flex-wrap gap-2">
-                    <Button label="Budget settings" large onClick={() => setDialog('plan')} />
-                    <Button icon="plus" label="New budget" large onClick={() => setDialog({ budget: null })} />
+                  <span className="flex items-center gap-2">
+                    <Button icon="plus" label="New budget" onClick={() => setDialog({ budget: null })} />
+                    <ActionsMenu items={[{ label: 'Budget settings…', onSelect: () => setDialog('plan') }]} name="budgets" />
                   </span>
                 )
               }
@@ -317,7 +328,9 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
                   {emptyBudgets.hint}
                 </Empty>
               ) : !shown.categories.some((row) => row.budgetMinor !== null) ? (
-                <Hint>No category has its own budget.</Hint>
+                <Empty level={3} title={emptyCategoryBudgets.title}>
+                  {emptyCategoryBudgets.hint}
+                </Empty>
               ) : (
                 <CategoryRows
                   colourOf={colourOf}
@@ -347,8 +360,14 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           )}
 
           {tab === 'overview' && (
-            <Section action={shown.expenses.length > recentCount && <ButtonLink label="All transactions" to={spendingHref('transactions', params)} />} title="Recent">
-              {shown.expenses.length === 0 ? <Hint>No transactions this month yet.</Hint> : expenseRows(shown.expenses.slice(0, recentCount))}
+            <Section action={shown.expenses.length > recentCount && <ButtonLink label={`Show all ${shown.expenses.length}`} to={spendingHref('transactions', params)} />} title="Recent">
+              {shown.expenses.length === 0 ? (
+                <Empty level={3} title={emptyRecent.title}>
+                  {emptyRecent.hint}
+                </Empty>
+              ) : (
+                expenseRows(shown.expenses.slice(0, recentCount))
+              )}
             </Section>
           )}
 
@@ -516,7 +535,7 @@ function ReviewCard({
         ))}
       </dl>
       {opened && (
-        <p className="m-0 rounded-field border border-line-soft p-3 text-small text-muted" dir="auto">
+        <p className="quoted-text" dir="auto">
           {message.text}
         </p>
       )}
@@ -563,9 +582,9 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
         <Section
           action={
             editable && (
-              <span className="flex flex-wrap gap-2">
-                <ButtonSkeleton large width="w-36" />
-                <ButtonSkeleton large width="w-32" />
+              <span className="flex items-center gap-2">
+                <ButtonSkeleton width="w-32" />
+                <IconButtonSkeleton />
               </span>
             )
           }
@@ -578,7 +597,9 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
           ) : budgetRows ? (
             <AmountRowsSkeleton metered={budgetRows} rows={budgetRows} />
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptyCategoryBudgets.title}>
+              {emptyCategoryBudgets.hint}
+            </Empty>
           )}
         </Section>
         {otherRows > 0 && (
@@ -589,7 +610,8 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
       </>
     );
   }
-  const [budgeted = 0, reviewCards = 0, accountRows = 0, chartParts = 0, recentRows = 0] = shape;
+  const [budgeted = 0, reviewCards = 0, accountRows = 0, chartParts = 0, recentRows = 0, firstRun = 0] = shape;
+  if (firstRun) return <SpendingFirstRunSkeleton empty={emptyOverview} />;
   return (
     <>
       <StatGrid>
@@ -604,7 +626,7 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
         ))}
       </StatGrid>
       {reviewCards > 0 && (
-        <Section title={`To review (${reviewCards})`}>
+        <Section action={<SkeletonLine className="text-small" width="w-4" />} title="To review">
           <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">
             {rowsOf(reviewCards).map((row) => (
               <Card as="li" className="gap-3" key={row} padding="sm">
@@ -632,27 +654,35 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
           </ul>
         </Section>
       )}
-      <Section action={accountRows > 0 && <ButtonSkeleton width="w-28" />} title="By account">
-        {accountRows ? <AmountRowsSkeleton rows={accountRows} /> : <HintSkeleton />}
+      <Section action={accountRows > 0 && <ButtonSkeleton width="w-20" />} title="By account">
+        {accountRows ? (
+          <AmountRowsSkeleton rows={accountRows} />
+        ) : (
+          <Empty loading title={emptyAccounts.title}>
+            {emptyAccounts.hint}
+          </Empty>
+        )}
       </Section>
       <Section title="By category">
         {chartParts ? (
           <div className="grid gap-4">
             <Skeleton className="h-4 rounded-field" />
-            <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
-              {rowsOf(chartParts).map((part) => (
-                <li className="flex items-center gap-2 text-sm" key={part}>
-                  <SkeletonLine className="flex-1" width={part % 2 ? 'w-1/2' : 'w-2/3'} />
-                </li>
-              ))}
-            </ul>
+            <AmountRowsSkeleton rows={chartParts} />
           </div>
         ) : (
-          <HintSkeleton />
+          <Empty loading title={emptyCategories.title}>
+            {emptyCategories.hint}
+          </Empty>
         )}
       </Section>
-      <Section action={recentRows > recentCount && <ButtonSkeleton width="w-32" />} title="Recent">
-        {recentRows ? <AmountRowsSkeleton rows={Math.min(recentRows, recentCount)} /> : <HintSkeleton />}
+      <Section action={recentRows > recentCount && <ButtonSkeleton width="w-20" />} title="Recent">
+        {recentRows ? (
+          <AmountRowsSkeleton rows={Math.min(recentRows, recentCount)} />
+        ) : (
+          <Empty loading title={emptyRecent.title}>
+            {emptyRecent.hint}
+          </Empty>
+        )}
       </Section>
     </>
   );
@@ -680,15 +710,16 @@ function CategoryChart({ colourOf, currency, rows }: { colourOf: (category: stri
           />
         ))}
       </div>
-      <ul className="m-0 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="panel-rows">
         {parts.map((part) => (
-          <li className="flex items-center gap-2 text-sm" key={part.key}>
-            <span aria-hidden="true" className={`swatch-dot tag-${part.colour}`} />
-            <span className="min-w-0 flex-1 truncate text-ink">{part.label}</span>
-            <Amount currency={currency} minor={part.spentMinor}>
-              {` · ${share(part.spentMinor)}`}
-            </Amount>
-          </li>
+          <ListRow
+            href={part.key === 'rest' ? undefined : `${spendingHref('transactions')}?category=${encodeURIComponent(part.key)}`}
+            key={part.key}
+            lead={<span aria-hidden="true" className={`swatch-dot tag-${part.colour}`} />}
+            meta={share(part.spentMinor)}
+            title={part.label}
+            trail={<Amount currency={currency} minor={part.spentMinor} />}
+          />
         ))}
       </ul>
     </div>
@@ -769,11 +800,11 @@ function CategoryRows({
               {row.budgetMinor !== null && <Meter label={`${name} spent of budget`} value={row.budgetMinor ? row.spentMinor / row.budgetMinor : 1} />}
             </ListRow>
             {opened && (
-              <li className="ps-8">
+              <li>
                 <ul aria-label={`${name} this month`} className="m-0 list-none p-0">
                   {spending.slice(0, drilledCount).map((expense) => (
                     <ListRow
-                      dense
+                      className="ps-12"
                       key={expense.id}
                       meta={[formatDate(expense.spentOn), expense.merchant].filter(Boolean).join(' · ')}
                       onClick={editable ? () => onExpense(expense) : undefined}
@@ -782,10 +813,10 @@ function CategoryRows({
                     />
                   ))}
                   <ListRow
-                    dense
+                    className="ps-12"
                     href={`${spendingHref('transactions')}?category=${encodeURIComponent(row.category)}`}
                     title={`All ${name.toLowerCase()} transactions`}
-                    trail={<Icon name="chevron-right" size={14} />}
+                    trail={<Icon name="chevron-right" size={16} />}
                   />
                 </ul>
               </li>
@@ -836,7 +867,7 @@ function BudgetDialog({
           }, 'Could not save the budget')
           .then((done) => done && onClose());
       }}
-      submitLabel={category ? 'Save' : 'Add budget'}
+      submitLabel={category ? 'Save changes' : 'Add budget'}
       title={category ? 'Edit budget' : 'New budget'}
     >
       {!category && <CategoryChips categories={categories} onChange={setChosen} value={chosen} />}
@@ -883,7 +914,7 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
           }, 'Could not save the budget settings')
           .then((done) => done && onClose());
       }}
-      submitLabel="Save"
+      submitLabel="Save changes"
       title="Budget settings"
     >
       <div className="grid gap-4 sm:grid-cols-2">

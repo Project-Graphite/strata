@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Banner, Checkbox, Dialog, formatDay, Select } from '@project-graphite/ui';
+import { Banner, Dialog, Select } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { categoryName, expenseCategories, useCategories, type MerchantRule, type MoneyAccount } from '../spending';
 import type { Entry } from '../statement';
 import { money, toMinor } from '../subscriptions';
+import { formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useStatementFile } from './StatementFile';
@@ -12,7 +13,7 @@ import { CurrencyField } from './CurrencyField';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
-import { RowText } from './RowText';
+import { Choice } from './Selection';
 
 const shownAtMost = 200;
 const batchSize = 500;
@@ -88,7 +89,7 @@ export function ExpenseImport({ accounts, currency, onAdded, onClose, spaceId }:
   }, [checkKey]);
 
   return (
-    <Dialog onClose={onClose} title="Import transactions from a statement">
+    <Dialog onClose={onClose} title="Import a statement">
       <div className="mt-5 grid gap-4">
         <Hint>Choose a CSV export or a PDF statement from your bank, card or wallet. It is read on this device, and only the transactions you keep are saved.</Hint>
         {statement.picker}
@@ -116,29 +117,31 @@ export function ExpenseImport({ accounts, currency, onAdded, onClose, spaceId }:
             {rows.length > 0 && (
               <ul className="panel-rows max-h-96 overflow-y-auto">
                 {rows.slice(0, shownAtMost).map((row) => (
-                  <li className="panel-row flex flex-wrap items-center gap-3" key={row.key}>
-                    <Checkbox aria-label={`Import ${row.title}`} checked={checked(row)} onChange={() => setTicked((current) => new Map(current).set(row.key, !checked(row)))} />
-                    <RowText
-                      detail={[
-                        formatDay(row.entry.date),
-                        `${row.income ? '+' : ''}${money(toMinor(String(Math.abs(row.entry.amount)), chosenCurrency), chosenCurrency)}`,
-                        row.income && 'Income',
-                        row.duplicate && 'Already recorded',
-                        row.ignored && 'Ignored by a rule',
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      title={<span dir="auto">{row.title}</span>}
-                    />
-                    <Select
-                      aria-label={`Category of ${row.title}`}
-                      onChange={(value) => setPicked((current) => new Map(current).set(row.key, value))}
-                      options={optionsOf(row.income)}
-                      quiet
-                      size="small"
-                      value={row.category}
-                    />
-                  </li>
+                  <Choice
+                    checked={checked(row)}
+                    detail={[
+                      formatDate(row.entry.date),
+                      `${row.income ? '+' : ''}${money(toMinor(String(Math.abs(row.entry.amount)), chosenCurrency), chosenCurrency)}`,
+                      row.income && 'Income',
+                      row.duplicate && 'Already recorded',
+                      row.ignored && 'Ignored by a rule',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    key={row.key}
+                    label={row.title}
+                    onToggle={() => setTicked((current) => new Map(current).set(row.key, !checked(row)))}
+                    trail={
+                      <Select
+                        aria-label={`Category of ${row.title}`}
+                        onChange={(value) => setPicked((current) => new Map(current).set(row.key, value))}
+                        options={optionsOf(row.income)}
+                        quiet
+                        size="small"
+                        value={row.category}
+                      />
+                    }
+                  />
                 ))}
               </ul>
             )}
