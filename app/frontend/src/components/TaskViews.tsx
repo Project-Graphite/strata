@@ -121,11 +121,12 @@ function GroupRows({
       <TaskRow
         disabled={!editable(task) || changes.pending.includes(task.id)}
         handle={
-          canMove && (
+          editable(task) && (
             <button
               aria-label={`Reorder ${task.title}`}
               className="task-handle"
               data-handle={task.id}
+              disabled={tasks.length < 2}
               onKeyDown={(event) => {
                 if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
                 event.preventDefault();

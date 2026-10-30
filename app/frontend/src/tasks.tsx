@@ -7,7 +7,7 @@ import { FilterChips } from './components/Page';
 import { priorityNames } from './quick-add';
 import { useSwipe } from './swipe';
 import type { Tag } from './spaces';
-import { formatDate, profileDay } from './time';
+import { capitalised, formatDate, profileDay } from './time';
 import { taskPage } from './route-data';
 import { cachedData, cachedRequest, resourceKey, useLiveRefresh, useResource } from './useResource';
 
@@ -148,7 +148,7 @@ export function TaskRow({
   const details = taskDetails(task, where);
   const swipe = useSwipe({ enabled: swipeable && !disabled, onRight: onToggle });
   return (
-    <li {...rowProps} {...swipe.props} className={`list-row task-row swipe-row ${rowProps?.className ?? ''}`} style={{ ...rowProps?.style, ...swipe.props.style }}>
+    <li {...rowProps} {...swipe.props} className={`list-row task-row swipe-row ${task.parentId ? 'ps-12' : ''} ${rowProps?.className ?? ''}`} style={{ ...rowProps?.style, ...swipe.props.style }}>
       {swipe.offset > 0 && (
         <span aria-hidden="true" className="swipe-hint">
           <Icon name="check" size={18} />
@@ -165,26 +165,19 @@ export function TaskRow({
         <span className="list-row-text">
           <span className="list-row-title">
             <span className={`transition-colors ${done ? 'text-faint' : 'text-ink'}`}>
-              {task.parentId && <span className="text-faint">↳ </span>}
               <span className={`task-title ${done ? 'is-done' : ''}`}>{task.title}</span>
             </span>
           </span>
-          {details.length > 0 && (
-            <span className="list-row-meta">
-              <span className="flex min-w-0 items-center gap-2">
-                {isOverdue(task) && (
-                  <Badge icon="alert" tone="danger">
-                    Overdue
-                  </Badge>
-                )}
-                <span className="truncate tabular-nums">{details.join(' · ')}</span>
-              </span>
-            </span>
-          )}
+          {details.length > 0 && <span className="list-row-meta tabular-nums">{capitalised(details.join(' · '))}</span>}
         </span>
       </button>
-      {(task.assignee || actions) && (
+      {(isOverdue(task) || task.assignee || actions) && (
         <span className="list-row-trail">
+          {isOverdue(task) && (
+            <Badge icon="alert" tone="danger">
+              Overdue
+            </Badge>
+          )}
           {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
           {actions}
         </span>

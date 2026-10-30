@@ -51,11 +51,7 @@ export function SpaceHabits() {
           {rows ? (
             <ul aria-hidden="true" className="panel-rows">
               {rowsOf(rows).map((row) => (
-                <li className="panel-row flex items-center gap-3" key={row}>
-                  <div className="min-w-0 flex-1">
-                    <HabitRowSkeleton row={row} />
-                  </div>
-                </li>
+                <HabitRowSkeleton key={row} row={row} />
               ))}
             </ul>
           ) : (
@@ -69,20 +65,22 @@ export function SpaceHabits() {
       ) : (
         <ul className="panel-rows">
           {habits.data.map((habit) => (
-            <li className="panel-row flex items-center gap-3" key={habit.id}>
-              <div className="min-w-0 flex-1">
-                <HabitRow habit={habit} onChange={replace} />
-              </div>
-              {editable && (
-                <ActionsMenu
-                  items={[
-                    { label: 'Edit', onSelect: () => setEditing(habit) },
-                    { label: 'Delete', onSelect: () => setDeleting(habit), separated: true },
-                  ]}
-                  name={habit.name}
-                />
-              )}
-            </li>
+            <HabitRow
+              actions={
+                editable && (
+                  <ActionsMenu
+                    items={[
+                      { label: 'Edit', onSelect: () => setEditing(habit) },
+                      { label: 'Delete', onSelect: () => setDeleting(habit), separated: true },
+                    ]}
+                    name={habit.name}
+                  />
+                )
+              }
+              habit={habit}
+              key={habit.id}
+              onChange={replace}
+            />
           ))}
         </ul>
       )}

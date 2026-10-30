@@ -144,9 +144,11 @@ export function TaskPanel({
       )}
 
       {addTo && (
-        <button aria-label="New task" className="fab" onClick={onCreate} type="button">
-          <Icon name="plus" size={20} />
-        </button>
+        <div className="fab-clearance">
+          <button aria-label="New task" className="fab" onClick={onCreate} type="button">
+            <Icon name="plus" size={20} />
+          </button>
+        </div>
       )}
 
       {(opened || creating) && (

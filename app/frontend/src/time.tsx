@@ -60,6 +60,18 @@ export function formatMoment(at: string) {
   return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${profileClock(at)}` : formatDate(day);
 }
 
+export const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+const rangeFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+export const formatRange = (from: string, to: string) => rangeFormat.formatRange(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`));
+
+const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+export const formatMonth = (day: string) => monthFormat.format(new Date(`${day.slice(0, 7)}-01T00:00:00Z`));
+
+export const count = (value: number) => value.toLocaleString('en-EG');
+
 export const usesTwelveHours = () => Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
 
 export function clockTime(time: string | Date, timeZone?: string) {

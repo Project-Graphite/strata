@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListRow, Placeholder } from '@project-graphite/ui';
+import { ListRow, Placeholder, Stat, StatGrid } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
 import { useSpaces } from '../spaces';
@@ -17,7 +17,7 @@ import { Section } from '../components/Page';
 import { AmountRowsSkeleton, ButtonSkeleton, HintSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
-import { MissingRates, Stat, Stats } from '../components/Stats';
+import { MissingRates } from '../components/Stats';
 import { SubscriptionEditor } from '../components/SubscriptionEditor';
 
 interface Total {
@@ -128,7 +128,7 @@ export function RecurringPage() {
       ) : (
         <>
           {summary.data.totals.length > 0 && (
-            <Stats>
+            <StatGrid>
               {summary.data.home && summary.data.totals.length > 1 && (
                 <Stat
                   detail={`${money(summary.data.home.yearlyMinor, summary.data.home.currency)} over the next year${summary.data.home.ratesOn && summary.data.home.ratesFrom.length ? ` · ${sourceList.format(summary.data.home.ratesFrom)} rates of ${shortDate(summary.data.home.ratesOn)}` : ''}`}
@@ -155,7 +155,7 @@ export function RecurringPage() {
                   }
                 />
               ))}
-            </Stats>
+            </StatGrid>
           )}
           {summary.data.home && summary.data.totals.length > 1 && <MissingRates currencies={summary.data.home.missing} />}
           {summary.data.trials.length > 0 && (

@@ -17,6 +17,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { AgendaCard, AgendaEntryLink } from '../components/AgendaEntryLink';
 import { BoardPreview } from '../components/BoardPreview';
+import { HabitRowSkeleton } from '../components/Skeletons';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { QuickAddTask } from '../components/QuickAddTask';
@@ -543,21 +544,12 @@ function Habits() {
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) {
     return (
-      <Placeholder className="grid gap-3" label="Loading your habits">
-        {[0, 1, 2].map((row) => (
-          <div aria-hidden="true" className="flex items-center gap-3" key={row}>
-            <Skeleton className="habit-check rounded-full" />
-            <div className="min-w-0 flex-1">
-              <SkeletonLine width={row % 2 ? 'w-1/2' : 'w-2/3'} />
-              <SkeletonLine className="mono-sm mt-0.5" width="w-28" />
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {[0, 1, 2, 3, 4, 5, 6].map((day) => (
-                <span className="habit-day" key={day} />
-              ))}
-            </div>
-          </div>
-        ))}
+      <Placeholder label="Loading your habits">
+        <ul aria-hidden="true" className="panel-rows panel-rows-flush">
+          {[0, 1, 2].map((row) => (
+            <HabitRowSkeleton key={row} row={row} />
+          ))}
+        </ul>
       </Placeholder>
     );
   }
@@ -566,11 +558,9 @@ function Habits() {
   }
   return (
     <div className="grid gap-3">
-      <ul className="m-0 grid list-none gap-3 p-0">
+      <ul className="panel-rows panel-rows-flush">
         {habits.data.slice(0, 5).map((habit) => (
-          <li key={habit.id}>
-            <HabitRow habit={habit} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
-          </li>
+          <HabitRow habit={habit} key={habit.id} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
         ))}
       </ul>
       {habits.data.length > 5 && personal && <ShowAll count={habits.data.length} href={`/spaces/${personal.id}/habits`} />}

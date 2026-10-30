@@ -1124,7 +1124,6 @@
   border: 1.5px solid var(--color-line);
   border-radius: 999px;
   color: var(--color-paper);
-  font-size: 0.85rem;
 }
 
 .habit-check.is-done {
@@ -1273,6 +1272,10 @@ button.habit-day::before {
   outline: 2px solid var(--color-ink);
 }
 
+.task-handle:disabled {
+  cursor: default;
+}
+
 .task-rows-virtual {
   position: relative;
 }
@@ -1405,8 +1408,13 @@ button.habit-day::before {
   outline-offset: 2px;
 }
 
+.fab-clearance {
+  padding-bottom: 3.5rem;
+}
+
 @media (min-width: 48rem) {
-  .fab {
+  .fab,
+  .fab-clearance {
     display: none;
   }
 
@@ -1556,6 +1564,7 @@ button.habit-day::before {
 }
 
 .page-tree-toggle {
+  position: relative;
   display: grid;
   width: 1.25rem;
   height: 1.25rem;
@@ -1620,7 +1629,7 @@ button.habit-day::before {
   width: 1.25rem;
   flex-shrink: 0;
   place-items: center;
-  color: var(--color-faint);
+  color: var(--color-muted);
 }
 
 .page-tree-link {
@@ -2071,6 +2080,22 @@ button.habit-day::before {
   border-color: color-mix(in srgb, var(--color-muted) 40%, var(--color-line));
 }
 
+.panel-rows-flush {
+  border: 0;
+  border-radius: 0;
+}
+
+.quoted-text {
+  margin: 0;
+  border-radius: var(--radius-field);
+  background: var(--color-line-soft);
+  padding: 0.75rem;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  white-space: pre-wrap;
+}
+
 .dashboard-card.card-accent {
   border-color: color-mix(in srgb, var(--tag-color) 30%, var(--color-line));
 }
@@ -2238,6 +2263,16 @@ button.habit-day::before {
   line-height: 1.1;
 }
 
+.wall-clock {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 3rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
 .widget-unit {
   margin-left: 0.35rem;
   color: var(--color-muted);
@@ -2384,7 +2419,7 @@ button.habit-day::before {
   filter: blur(12px);
 }
 
-:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .card, .stat, .banner, .form-panel, .panel-rows, .ledger-row, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header) {
+:is(.dashboard-backdrop-color, .dashboard-backdrop-image) :is(.dashboard-card, .card, .stat, .banner, .form-panel, .panel-rows, .ledger-row, .toggle-row:not(.panel-rows > .toggle-row), .database-card, .sidebar-panel, .bg-surface, .bg-paper, .MuiPaper-root):not(header, .tab-bar, .note-editor-header, .MuiPopover-paper, .MuiMenu-paper, .selection-bar, .panel-rows-flush, .MuiDialog-paper) {
   background: color-mix(in srgb, var(--color-surface) 84%, transparent);
 }
 
@@ -2518,7 +2553,7 @@ header.backdrop-blur-md {
 }
 
 .page-header {
-  min-height: 2.28125rem;
+  min-height: 2.25rem;
 }
 
 .page-actions-row:has(> .page-tabs) {
@@ -2564,11 +2599,11 @@ header.backdrop-blur-md {
 }
 
 @media (pointer: coarse) {
-  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select, textarea):not(.note-content *) {
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select, textarea):not(.note-content *, .note-title) {
     font-size: max(1rem, 1em);
   }
 
-  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root)::after {
+  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root, .page-tree-toggle)::after {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -2632,27 +2667,36 @@ header.backdrop-blur-md {
   }
 }
 
+.MuiDialog-paper > .p-5 > :first-child {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -1.5rem -1.5rem 0;
+  background: var(--color-paper);
+  padding: 1.5rem 1.5rem 0.5rem;
+}
+
+.MuiDialog-paper :is(.dialog-actions, .p-5 > .mt-6.flex.justify-end:last-child) {
+  position: sticky;
+  bottom: -0.75rem;
+  z-index: 2;
+  margin-inline: -1.5rem;
+  margin-bottom: -1.5rem;
+  background: var(--color-paper);
+  padding: 0.75rem 1.5rem 1.5rem;
+}
+
 @media (max-width: 39.99rem) {
   .MuiDialog-paper > .p-5 > :first-child {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     margin: -1.25rem -1.25rem 0;
-    background: var(--color-paper);
     padding: 1.25rem 1.25rem 0.5rem;
   }
 
   .MuiDialog-paper :is(.dialog-actions, .p-5 > .mt-6.flex.justify-end:last-child) {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
+    bottom: -1.25rem;
     margin-inline: -1.25rem;
-    background: var(--color-paper);
-    padding: 0.75rem 1.25rem;
-  }
-
-  :is(.dashboard-backdrop-color, .dashboard-backdrop-image) .MuiDialog-paper :is(.p-5 > :first-child, .dialog-actions, .p-5 > .mt-6.flex.justify-end:last-child) {
-    background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+    margin-bottom: -1.25rem;
+    padding: 0.75rem 1.25rem 2rem;
   }
 }
 

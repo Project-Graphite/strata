@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { formatDay, ListRow, Placeholder, Skeleton, timeAgo } from '@project-graphite/ui';
+import { formatDay, ListRow, Placeholder, Skeleton, Stat, StatGrid, timeAgo } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
-import { Stat, Stats } from '../components/Stats';
 import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
@@ -172,9 +171,9 @@ function TidySuggestions() {
         <Empty title={emptySuggestions.title}>{emptySuggestions.hint}</Empty>
       ) : (
         saving > 0 && (
-          <Stats>
+          <StatGrid>
             <Stat detail="of your storage is taken by extra copies of the same file" label="Extra copies" value={fileSize(saving)} />
-          </Stats>
+          </StatGrid>
         )
       )}
 

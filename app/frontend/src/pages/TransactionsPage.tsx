@@ -32,7 +32,7 @@ import { usePageVirtualizer } from '../page-virtualizer';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { useSwipe } from '../swipe';
-import { formatDate } from '../time';
+import { capitalised, formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 import { moneyAmount, useFormErrors } from '../validation';
@@ -58,7 +58,6 @@ const emptyTransactions = { title: 'No transactions yet', hint: 'Add an expense,
 
 const sortsBefore = (a: Row, b: Row) => (a.spentOn !== b.spentOn ? a.spentOn > b.spentOn : a.createdAt !== b.createdAt ? a.createdAt > b.createdAt : a.id > b.id);
 const dayMap = (days: Day[]) => days.map((day) => [day.day, day] as const);
-const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 function listingOf(key: string, page: Page): Listing {
   return { key, rows: page.expenses, days: new Map(dayMap(page.days)), next: page.next, count: page.count ?? page.expenses.length, currency: page.currency, missing: page.missing };

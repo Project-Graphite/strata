@@ -89,9 +89,7 @@ export function GoalPage() {
           {habitRows ? (
             <ul aria-hidden="true" className="panel-rows">
               {rowsOf(habitRows).map((row) => (
-                <li className="panel-row" key={row}>
-                  <HabitRowSkeleton row={row} />
-                </li>
+                <HabitRowSkeleton key={row} row={row} />
               ))}
             </ul>
           ) : (
@@ -239,9 +237,7 @@ export function GoalPage() {
         ) : (
           <ul className="panel-rows">
             {shown.habits.map((habit) => (
-              <li className="panel-row" key={habit.id}>
-                <HabitRow habit={habit} onChange={(next) => goal.mutate((current) => ({ ...current, habits: current.habits.map((kept) => (kept.id === next.id ? next : kept)) }))} />
-              </li>
+              <HabitRow habit={habit} key={habit.id} onChange={(next) => goal.mutate((current) => ({ ...current, habits: current.habits.map((kept) => (kept.id === next.id ? next : kept)) }))} />
             ))}
           </ul>
         )}

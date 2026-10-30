@@ -1,6 +1,5 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { ListRow, Skeleton } from '@project-graphite/ui';
-import { Stat, Stats } from './Stats';
+import { ListRow, Skeleton, Stat, StatGrid } from '@project-graphite/ui';
 
 const titleWidths = ['w-3/5', 'w-2/5', 'w-1/2', 'w-1/3'];
 const detailWidths = ['w-1/3', 'w-1/4', 'w-2/5'];
@@ -111,12 +110,12 @@ export function HintSkeleton() {
 }
 
 export function ButtonSkeleton({ large = false, width = 'w-28' }: { large?: boolean; width?: string }) {
-  return <Skeleton className={`shrink-0 rounded-field ${large ? 'h-[2.28125rem]' : 'h-[1.921875rem]'} ${width}`} />;
+  return <Skeleton className={`shrink-0 rounded-field ${large ? 'h-9' : 'h-[1.921875rem]'} ${width}`} />;
 }
 
 export function IconButtonSkeleton() {
   return (
-    <span aria-hidden="true" className="grid size-8.5 shrink-0 place-items-center">
+    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center">
       <Skeleton className="size-4.5 rounded-mark" />
     </span>
   );
@@ -182,18 +181,17 @@ export function AgendaCardsSkeleton({ rows }: { rows: number }) {
 
 export function HabitRowSkeleton({ row }: { row: number }) {
   return (
-    <div aria-hidden="true" className="flex items-center gap-3">
-      <Skeleton className="habit-check rounded-full" />
-      <div className="min-w-0 flex-1">
-        <SkeletonLine width={titleWidths[row % titleWidths.length]!} />
-        <SkeletonLine className="mono-sm mt-0.5" width="w-28" />
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {rowsOf(7).map((day) => (
-          <span className="habit-day" key={day} />
-        ))}
-      </div>
-    </div>
+    <RowSkeleton
+      lead={<Skeleton className="habit-check rounded-full" />}
+      row={row}
+      trail={
+        <span className="flex items-center gap-1">
+          {rowsOf(7).map((day) => (
+            <span className="habit-day" key={day} />
+          ))}
+        </span>
+      }
+    />
   );
 }
 
@@ -209,7 +207,7 @@ export function ChipsSkeleton({ count }: { count: number }) {
 
 export function StatsSkeleton({ count = 1, detail = true }: { count?: number; detail?: boolean }) {
   return (
-    <Stats>
+    <StatGrid>
       {rowsOf(count).map((stat) => (
         <Stat
           detail={detail && <SkeletonLine width="w-40 max-w-full" />}
@@ -218,6 +216,6 @@ export function StatsSkeleton({ count = 1, detail = true }: { count?: number; de
           value={<SkeletonLine width="w-32" />}
         />
       ))}
-    </Stats>
+    </StatGrid>
   );
 }
