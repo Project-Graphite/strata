@@ -62,7 +62,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
   return (
     <>
       {(listed.error || listed.refreshError) && <TextButton label="Retry loading pages" onClick={reload} />}
-      {listed.loading && <p className="mono-sm px-4 text-faint" role="status">Loading pages…</p>}
+      {listed.loading && <p className="m-0 px-4 text-small text-muted" role="status">Loading pages…</p>}
       {listed.data?.pages.map((note, index, pages) => {
         const expanded = tree.open.has(note.id);
         const nests = note.kind !== 'board';
@@ -98,7 +98,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
                 tree.drag(); tree.aim();
               }} style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 0.6}rem` }}>
               <button aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle enabled:cursor-pointer" disabled={!nests} onClick={() => tree.toggle(note.id)} type="button">
-                {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} />}
+                {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />}
               </button>
               <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={noteHref(note)}>
                 <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
@@ -109,7 +109,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
           </div>
         );
       })}
-      {listed.data?.pages.length === 0 && !listed.error && <p className="mono-sm px-4 text-faint">No pages inside</p>}
+      {listed.data?.pages.length === 0 && !listed.error && <p className="m-0 px-4 text-small text-muted">No pages inside</p>}
       {listed.data?.nextCursor && (more || seeking
         ? <TreeBranch cursor={listed.data.nextCursor} depth={depth} key={listed.data.nextCursor} parentId={parentId} preceding={listed.data.pages.at(-1)} searching={seeking} spaceId={spaceId} writable={writable} />
         : <TextButton label="Load more pages" onClick={() => setMore(true)} />)}
@@ -184,9 +184,9 @@ export function PageTree() {
               <div className="page-tree-row" data-drop={target?.id === key ? 'inside' : undefined}
                 onDragOver={(event) => { if (dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: key, place: 'inside' }); } }}
                 onDrop={(event) => { event.preventDefault(); if (dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
-                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} type="button"><Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={14} /></button>
+                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} type="button"><Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} /></button>
                 <button className="page-tree-link cursor-pointer justify-start" onClick={() => toggle(key)} title={space.name} type="button"><SpaceMark space={space} /><span className="min-w-0 flex-1 truncate text-left">{space.name}</span></button>
-                {writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={14} /></button>}
+                {writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={16} /></button>}
               </div>
               {expanded && <TreeBranch depth={1} parentId={null} spaceId={space.id} writable={writable} />}
             </div>

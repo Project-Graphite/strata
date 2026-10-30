@@ -59,7 +59,7 @@ export function PersonPage() {
   const back = { to: '/people', label: 'People' };
   if (!person.data) {
     return (
-      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={person} thing="Person">
+      <DetailState back={back} menu={wasEditable > 0} primary={wasEditable > 0 && 'Edit'} resource={person} thing="Person">
         {birthday + contactRows + notesLines > 0 && (
           <Section title="Details">
             {birthday + contactRows > 0 && <RowsSkeleton rows={birthday + contactRows} />}

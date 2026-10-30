@@ -28,7 +28,7 @@ export function SpendingWidget() {
   if (!summary.data) {
     return (
       <Placeholder className="grid gap-3" label="Adding up the month">
-        <SkeletonLine className="text-2xl" width="w-48" />
+        <SkeletonLine className="text-h2" width="w-48" />
         <Skeleton className="h-1.5 rounded-full" />
         <SkeletonLine className="text-body" width="w-52" />
         <SplitRowsSkeleton className="gap-1.5" rows={4} />
@@ -38,7 +38,7 @@ export function SpendingWidget() {
   const { budgetMinor, currency, expenses, safeDailyMinor, spentMinor } = summary.data;
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-2xl text-ink tabular-nums">
+      <p className="m-0 text-h2 text-ink tabular-nums">
         {money(spentMinor, currency)} <span className="text-small text-muted">{budgetMinor === null ? 'spent' : `of ${money(budgetMinor, currency)}`}</span>
       </p>
       {budgetMinor !== null && <Meter label="Spent of the budget" value={budgetMinor ? spentMinor / budgetMinor : 1} />}

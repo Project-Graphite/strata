@@ -27,7 +27,7 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const title = page ? noteTitle(page) : /^\/(?:notes|boards)\//.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
   const personal = active === '/spending' ? spaces.data?.find((candidate) => candidate.kind === 'personal') : undefined;
-  const { shown, hidden } = collapseCrumbs([root, ...parents, ...(title ? [{ label: title }] : []), ...(tab ? [tab] : [])]);
+  const { shown, hidden } = collapseCrumbs([root, ...parents, ...(title ? [{ label: title }] : []), ...(tab ? [tab] : []), ...(current?.subpage ? [{ label: current.subpage }] : [])]);
   const currentCrumb = shown.at(-1)!;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
   return (
@@ -55,11 +55,11 @@ export function SpaceNavigation({ active }: { active: string | null }) {
         {shown.map((crumb, index) => (
           <Fragment key={`${index}-${crumb.label}`}>
             {index === 1 && hidden.length > 0 && <li className="hidden shrink-0 items-center gap-2 md:flex">
-              <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={14} /></span>
+              <span aria-hidden="true" className="shrink-0"><Icon name="chevron-right" size={16} /></span>
               <Menu items={hidden.map((parent) => ({ label: parent.label, onSelect: () => navigate(parent.href!) }))} label="Breadcrumb navigation" trigger="…" triggerLabel="Show parent pages" triggerClassName="min-h-11 min-w-8 px-1" />
             </li>}
             <li className={crumb === currentCrumb ? 'flex min-w-0 items-center gap-2' : 'hidden min-w-0 max-w-40 shrink-[2] items-center gap-2 md:flex'}>
-              <span aria-hidden="true" className="hidden shrink-0 md:inline-flex"><Icon name="chevron-right" size={14} /></span>
+              <span aria-hidden="true" className="hidden shrink-0 md:inline-flex"><Icon name="chevron-right" size={16} /></span>
               {crumb === currentCrumb ? (
                 <span aria-current="page" className="truncate text-ink" title={crumb.label}>{crumb.label}</span>
               ) : crumb.href ? (

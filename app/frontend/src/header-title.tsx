@@ -7,6 +7,7 @@ export interface HeaderTitle {
   title: string;
   back?: Back;
   tab?: Pick<TabItem, 'href' | 'label'>;
+  subpage?: string;
 }
 
 export const HeaderTitleContext = createContext<{

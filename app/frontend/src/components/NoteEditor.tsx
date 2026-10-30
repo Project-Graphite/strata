@@ -176,7 +176,7 @@ function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }
         else chain.setLink({ href }).run();
         onClose();
       }}
-      submitLabel={editor.isActive('link') ? 'Save' : 'Add link'}
+      submitLabel={editor.isActive('link') ? 'Save link' : 'Add link'}
       title={editor.isActive('link') ? 'Edit link' : 'New link'}
     >
       <TextField defaultValue={editor.getAttributes('link').href ?? ''} inputMode="url" label="Address" name="href" placeholder="https://" />

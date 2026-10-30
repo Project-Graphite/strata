@@ -297,7 +297,7 @@ function Recurring() {
   if (!summary.data) {
     return (
       <Placeholder className="grid gap-3" label="Adding up your subscriptions">
-        <SkeletonLine className="text-2xl" width="w-36" />
+        <SkeletonLine className="text-h2" width="w-36" />
         <SplitRowsSkeleton className="gap-1.5" rows={3} />
       </Placeholder>
     );
@@ -308,7 +308,7 @@ function Recurring() {
   return (
     <div className="grid gap-3">
       {summary.data.totals.map((total) => (
-        <p className="m-0 text-2xl text-ink tabular-nums" key={total.currency}>
+        <p className="m-0 text-h2 text-ink tabular-nums" key={total.currency}>
           {money(total.monthlyMinor, total.currency)} <span className="text-small text-muted">a month</span>
         </p>
       ))}

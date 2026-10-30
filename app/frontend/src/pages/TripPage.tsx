@@ -70,7 +70,7 @@ export function TripPage() {
   const back = { to: '/trips', label: 'Trips' };
   if (!trip.data) {
     return (
-      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={trip} thing="Trip">
+      <DetailState back={back} menu={wasEditable > 0} primary={wasEditable > 0 && 'Edit'} resource={trip} thing="Trip">
         <Section action={wasEditable > 0 && <ButtonSkeleton width="w-28" />} title="Itinerary">
           {dayRows.length ? (
             <div className="grid gap-4">

@@ -69,7 +69,7 @@ export function AdminPage() {
             />
           </div>
           <form
-            className="grid max-w-3xl gap-4"
+            className="grid max-w-narrow gap-4"
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
@@ -96,7 +96,7 @@ export function AdminPage() {
                 type="number"
               />
             </div>
-            <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save'} primary submit />
+            <Button disabled={quota.busy} label={quota.busy ? 'Saving…' : 'Save changes'} large primary submit />
           </form>
         </Section>
       ) : (
@@ -105,11 +105,11 @@ export function AdminPage() {
             <div className="panel-rows">
               <ToggleSkeleton description />
             </div>
-            <div className="grid max-w-3xl gap-4">
+            <div className="grid max-w-narrow gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <FieldSkeleton hint />
               </div>
-              <ButtonSkeleton width="w-16" />
+              <ButtonSkeleton large width="w-32" />
             </div>
           </Section>
         </Placeholder>

@@ -95,7 +95,7 @@ export function JournalPage() {
             <div aria-hidden="true" className="flex flex-wrap items-center gap-2">
               <IconButtonSkeleton />
               <IconButtonSkeleton />
-              <SkeletonLine className="ml-2 text-lg" width="w-12" />
+              <SkeletonLine className="ml-2 text-h2" width="w-12" />
             </div>
           )
         )
@@ -118,7 +118,7 @@ export function JournalPage() {
                 <span className="journal-day" key={day} />
               ))}
             </div>
-            <SkeletonLine className="text-sm" width="w-72 max-w-full" />
+            <SkeletonLine className="text-small" width="w-72 max-w-full" />
           </div>
         </Placeholder>
       ) : (

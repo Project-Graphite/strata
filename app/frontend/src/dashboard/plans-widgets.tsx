@@ -164,7 +164,7 @@ export function NextTrip() {
   if (!trips.data) {
     return (
       <Placeholder className="grid gap-1" label="Looking for your next trip">
-        <SkeletonLine className="text-2xl" width="w-32" />
+        <SkeletonLine className="text-h2" width="w-32" />
         <SkeletonLine width="w-40" />
         <SkeletonLine className="text-small" width="w-36" />
       </Placeholder>
@@ -174,7 +174,7 @@ export function NextTrip() {
   if (!trip) return <WidgetEmpty action={<ButtonLink label="Plan a trip" to="/trips" />} icon="plane" title="No trips planned" />;
   return (
     <Link className="grid gap-1 text-ink no-underline" to={`/trips/${trip.id}`}>
-      <span className="text-2xl text-ink">{countdown(trip, today)}</span>
+      <span className="text-h2 text-ink tabular-nums">{countdown(trip, today)}</span>
       <span className="truncate text-body text-ink">{trip.destination || trip.title}</span>
       <span className="truncate text-small text-muted">{tripDates(trip)}</span>
     </Link>

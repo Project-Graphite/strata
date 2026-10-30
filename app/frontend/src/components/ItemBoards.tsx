@@ -33,11 +33,11 @@ export function useItemBoards(itemId: string) {
 
 export function ItemBoards({ boards, editable, spaceId, title }: { boards: ReturnType<typeof useItemBoards>; editable: boolean; spaceId: string; title: string }) {
   return (
-    <Section action={editable && <Button disabled={boards.busy} icon="plus" label="New board" large onClick={() => boards.add(spaceId, title)} />} title="Boards">
+    <Section action={editable && <Button disabled={boards.busy} icon="plus" label="New board" onClick={() => boards.add(spaceId, title)} />} title="Boards">
       {boards.boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />
-          <Link className="text-sm" to={`/boards/${item.id}`}>
+          <Link to={`/boards/${item.id}`}>
             Open {noteTitle(item)}
           </Link>
         </div>

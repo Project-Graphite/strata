@@ -66,6 +66,7 @@
 
 @media (max-width: 64rem) and (pointer: coarse) {
   .MuiButton-root,
+  .button-skeleton,
   .MuiInputBase-root,
   [aria-label='Database view'] .MuiToggleButton-root {
     min-height: 2.75rem;
@@ -1221,7 +1222,7 @@ button.habit-day::before {
 }
 
 .ledger-row {
-  height: 4rem;
+  height: 3.875rem;
   border-inline: 1px solid var(--color-line);
   border-top: 1px solid var(--color-line-soft);
 }

@@ -23,7 +23,6 @@ export function EventPage() {
   if (!event.data) {
     return (
       <DetailState
-        actions={wasEditable ? 2 : 0}
         back={back}
         description={
           <>
@@ -32,6 +31,8 @@ export function EventPage() {
             {meeting > 0 && <SkeletonLine className="mt-1" width="w-24" />}
           </>
         }
+        menu={wasEditable > 0}
+        primary={wasEditable > 0 && 'Edit'}
         resource={event}
         thing="Event"
       >

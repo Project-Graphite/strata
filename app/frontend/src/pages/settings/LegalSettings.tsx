@@ -5,7 +5,7 @@ import { Section } from '../../components/Page';
 import { RowsSkeleton } from '../../components/Skeletons';
 import { newIssueUrl, repositoryUrl, securityPolicyUrl } from '../../project-links';
 import { Privacy, Terms } from '../LegalPages';
-import { SettingsRow, SettingsRows } from './SettingsLayout';
+import { legalPages, SettingsRow, SettingsRows } from './SettingsLayout';
 
 interface OpenSourcePackage {
   name: string;
@@ -85,10 +85,10 @@ function Support() {
 }
 
 const pages = {
-  terms: { title: 'Terms', summary: 'The rules for using Strata.', body: <div className="grid gap-8"><Terms level={3} /></div> },
-  privacy: { title: 'Privacy', summary: 'What is stored, who can see it and how long it is kept.', body: <div className="grid gap-8"><Privacy level={3} /></div> },
-  licenses: { title: 'Licenses', summary: 'Strata and the open-source packages it ships with.', body: <Licenses /> },
-  support: { title: 'Support', summary: 'Report a problem or a security issue, or read the source.', body: <Support /> },
+  terms: { title: legalPages.terms, summary: 'The rules for using Strata.', body: <div className="grid gap-8"><Terms level={3} /></div> },
+  privacy: { title: legalPages.privacy, summary: 'What is stored, who can see it and how long it is kept.', body: <div className="grid gap-8"><Privacy level={3} /></div> },
+  licenses: { title: legalPages.licenses, summary: 'Strata and the open-source packages it ships with.', body: <Licenses /> },
+  support: { title: legalPages.support, summary: 'Report a problem or a security issue, or read the source.', body: <Support /> },
 };
 
 export function LegalSettings({ page }: { page?: keyof typeof pages }) {

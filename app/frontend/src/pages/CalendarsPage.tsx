@@ -121,7 +121,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
               }, 'Could not follow that calendar')
               .then((done) => done && onClose());
           }}
-          submitLabel="Follow"
+          submitLabel="Follow calendar"
           title="Follow a calendar"
         >
           <TextField autoFocus hint="An https:// or webcal:// address." inputMode="url" label="Calendar address" {...form.field('url')} />

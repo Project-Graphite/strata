@@ -407,7 +407,7 @@ function Ledger({
     count: entries.length,
     estimateSize: (index) => {
       const entry = entries[index]!;
-      return entry.kind === 'row' ? 64 : entry.first ? 32 : 52;
+      return entry.kind === 'row' ? 62 : entry.first ? 32 : 52;
     },
     overscan: 12,
     scrollMargin: margin,
@@ -501,7 +501,7 @@ const TransactionRow = memo(function TransactionRow({
       {swipe.offset !== 0 && (
         <span aria-hidden="true" className="swipe-hint" data-side={swipe.offset < 0 ? 'left' : 'right'}>
           <Icon name={swipe.offset < 0 ? 'trash' : 'check'} size={18} />
-          {swipe.offset < 0 ? (swipe.passed ? 'Release to delete' : 'Delete') : selected ? 'Deselect' : 'Select'}
+          {swipe.offset < 0 ? 'Move to trash' : selected ? 'Deselect' : 'Select'}
         </span>
       )}
       {editable && (
