@@ -7,6 +7,7 @@ export function FileButton({
   folder = false,
   inputLabel,
   label,
+  large = false,
   multiple = false,
   onFiles,
   primary = false,
@@ -16,6 +17,7 @@ export function FileButton({
   folder?: boolean;
   inputLabel?: string;
   label: string;
+  large?: boolean;
   multiple?: boolean;
   onFiles: (files: File[]) => void;
   primary?: boolean;
@@ -23,7 +25,7 @@ export function FileButton({
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size="small" variant={primary ? 'primary' : 'secondary'}>
+      <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size={large ? 'medium' : 'small'} variant={primary ? 'primary' : 'secondary'}>
         {label}
       </Button>
       <input

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
 import { TextButton } from '../Button';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
@@ -70,10 +70,10 @@ export function PropertiesDialog({
         if (cleared.length) setClearing({ saved, cleared });
         else onSave(saved);
       }}
-      submitLabel="Save"
+      submitLabel="Save changes"
       title="Edit properties"
     >
-      {conflicted && <Hint>The database changed while this draft was open. Your draft is kept. Close and reopen this dialog to edit the current properties.</Hint>}
+      {conflicted && <Banner tone="warning">The database changed while this draft was open. Your draft is kept. Close and reopen this dialog to edit the current properties.</Banner>}
       {draft.length === 0 && <Hint>Pages in this database have no properties yet.</Hint>}
       <ul className="m-0 grid list-none gap-4 p-0">
         {draft.map((property) => (
@@ -135,6 +135,7 @@ export function PropertiesDialog({
                   </div>
                 ))}
                 <TextButton
+                  icon="plus"
                   label="Add an option"
                   onClick={() =>
                     change(property.id, { options: [...(property.options ?? []), { id: crypto.randomUUID(), name: '', color: tagColors[(property.options?.length ?? 0) % tagColors.length]! }] })

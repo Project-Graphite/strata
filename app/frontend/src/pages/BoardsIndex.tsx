@@ -9,9 +9,8 @@ import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
-import { noteHref, noteTitle, type Note } from '../notes';
+import { noteEdited, noteHref, noteTitle, type Note } from '../notes';
 import { useSpaces } from '../spaces';
-import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -34,7 +33,7 @@ export function BoardsIndex() {
   }
 
   return (
-    <Page actions={writable.length > 0 && <Button disabled={creating.busy} icon="plus" label="New board" onClick={() => create(writable[0]!.id)} primary />} title="Boards">
+    <Page actions={writable.length > 0 && <Button disabled={creating.busy} icon="plus" label="New board" large onClick={() => create(writable[0]!.id)} primary />} title="Boards">
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
@@ -48,14 +47,21 @@ export function BoardsIndex() {
           </ul>
         </Placeholder>
       ) : listed.data.length === 0 ? (
-        <Empty title="No boards yet">A board is a blank canvas to draw, sketch and plan on together.</Empty>
+        <Empty
+          action={writable.length > 0 && <Button disabled={creating.busy} icon="plus" label="New board" onClick={() => create(writable[0]!.id)} primary />}
+          icon="board"
+          title="No boards yet"
+          variant="page"
+        >
+          A board is a blank canvas to draw, sketch and plan on together.
+        </Empty>
       ) : (
         <ul className="board-grid">
           {listed.data.map((board) => (
             <Card as="li" className="board-card" interactive key={board.id} padding="sm">
               <Link className="board-card-link" to={noteHref(board)}>
                 <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
-                <RowText detail={[spaceNames.get(board.spaceId), formatMoment(board.updatedAt)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
+                <RowText detail={[spaceNames.get(board.spaceId), noteEdited(board)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
               </Link>
               {writable.some((space) => space.id === board.spaceId) && (
                 <span className="board-card-menu">

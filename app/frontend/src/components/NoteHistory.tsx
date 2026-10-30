@@ -1,14 +1,14 @@
-import ListItemButton from '@mui/material/ListItemButton';
 import { useState } from 'react';
-import { Dialog, Placeholder, timeAgo } from '@project-graphite/ui';
+import { Card, Dialog, ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { capitalised, formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Hint } from './Hint';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
-import { HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
+import { HintSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from './Skeletons';
 
 interface Version {
   id: string;
@@ -32,14 +32,7 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
         ) : !versions.data ? (
           <Placeholder label="Loading the history">
             {rows ? (
-              <ul aria-hidden="true" className="panel-rows max-h-56 overflow-hidden">
-                {rowsOf(rows).map((row) => (
-                  <li className="flex justify-between gap-3 px-4 py-2 text-sm" key={row}>
-                    <SkeletonLine width={row % 2 ? 'w-32' : 'w-36'} />
-                    <SkeletonLine width="w-28" />
-                  </li>
-                ))}
-              </ul>
+              <RowsSkeleton rows={rows} />
             ) : (
               <HintSkeleton />
             )}
@@ -50,34 +43,28 @@ export function NoteHistory({ editable, noteId, onClose }: { editable: boolean; 
           <>
             <ul className="panel-rows max-h-56 overflow-y-auto">
               {versions.data.map((version) => (
-                <li key={version.id}>
-                  <ListItemButton
-                    aria-pressed={chosen === version.id}
-                    className="justify-between gap-3 text-sm"
-                    onClick={() => setChosen(version.id)}
-                    selected={chosen === version.id}
-                  >
-                    <span>{new Date(version.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                    <span className="text-faint">
-                      {version.createdBy ?? 'Someone'} · {timeAgo(version.createdAt)}
-                    </span>
-                  </ListItemButton>
-                </li>
+                <ListRow
+                  key={version.id}
+                  meta={version.createdBy ?? 'Someone'}
+                  onClick={() => setChosen(version.id)}
+                  selected={chosen === version.id}
+                  title={capitalised(formatMoment(version.createdAt))}
+                />
               ))}
             </ul>
             {chosen &&
               (preview.error ? (
                 <LoadError compact error={preview.error} onRetry={preview.reload} />
               ) : !preview.data || preview.data.id !== chosen ? (
-                <Placeholder className="rounded-field border border-line p-4 text-sm" label="Loading this version">
-                  <SkeletonLine width="w-full" />
-                  <SkeletonLine width="w-full" />
-                  <SkeletonLine width="w-1/2" />
+                <Placeholder label="Loading this version">
+                  <Card className="text-body">
+                    <SkeletonLine width="w-full" />
+                    <SkeletonLine width="w-full" />
+                    <SkeletonLine width="w-1/2" />
+                  </Card>
                 </Placeholder>
               ) : (
-                <div className="max-h-56 overflow-y-auto rounded-field border border-line p-4 text-sm whitespace-pre-wrap break-words text-ink">
-                  {preview.data.text || 'This version is empty.'}
-                </div>
+                <Card className="max-h-56 overflow-y-auto text-body whitespace-pre-wrap break-words text-ink">{preview.data.text || 'This version is empty.'}</Card>
               ))}
           </>
         )}

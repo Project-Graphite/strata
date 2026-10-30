@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, formatDay, Placeholder, Select } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, ListRow, Placeholder, SectionHeading, Select } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
+import { formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Copyable } from './Copyable';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
-import { Subheading } from './Page';
 import { PagePeople } from './PagePeople';
-import { ButtonSkeleton, HintSkeleton, rowsOf, SkeletonLine, useRememberedShape } from './Skeletons';
+import { ButtonSkeleton, HintSkeleton, RowsSkeleton, useRememberedShape } from './Skeletons';
 
 type Access = 'view' | 'edit';
 
@@ -68,13 +68,10 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
       <div className="mt-5 grid gap-5">
         {page && <PagePeople itemId={itemId} />}
         <section aria-label="Anyone with the link" className={`grid gap-3 ${page ? 'border-t border-line pt-5' : ''}`}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Subheading>Anyone with the link</Subheading>
-            {page && <Hint>This page only</Hint>}
-          </div>
+          <SectionHeading action={page && <Hint>This page only</Hint>} level={3} title="Anyone with the link" />
           <div className={`grid grid-cols-1 items-stretch gap-3 ${editLinks ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}>
-            {editLinks && <Select label="Access" onChange={setAccess} options={accessOptions} size="small" value={access} />}
-            <Select label="Expires in" onChange={setDays} options={durationOptions} size="small" value={days} />
+            {editLinks && <Select label="Access" onChange={setAccess} options={accessOptions} value={access} />}
+            <Select label="Expires in" onChange={setDays} options={durationOptions} value={days} />
             <Button
               disabled={action.busy}
               label={action.busy ? 'Creating…' : 'Create link'}
@@ -88,45 +85,28 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
                   return 'Created the link.';
                 }, 'Could not create the link')
               }
-              primary
             />
           </div>
           {links.error ? (
             <LoadError compact error={links.error} onRetry={links.reload} />
           ) : links.loading ? (
             <Placeholder label="Loading links">
-              {linkRows ? (
-                <ul aria-hidden="true" className="m-0 grid list-none gap-3 p-0">
-                  {rowsOf(linkRows).map((row) => (
-                    <li className="grid gap-2 rounded-panel border border-line p-3" key={row}>
-                      <div className="flex items-center justify-between gap-3">
-                        <SkeletonLine className="text-sm" width="w-40" />
-                        <ButtonSkeleton width="w-20" />
-                      </div>
-                      <ButtonSkeleton width="w-24" />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <HintSkeleton />
-              )}
+              {linkRows ? <RowsSkeleton rows={linkRows} trail={<ButtonSkeleton width="w-24" />} /> : <HintSkeleton />}
             </Placeholder>
           ) : links.data?.length ? (
-            <ul className="m-0 grid list-none gap-3 p-0">
+            <ul className="panel-rows">
               {links.data.map((link) => (
-                <li className="flex flex-wrap items-center justify-between gap-3 rounded-field border border-line p-3" key={link.id}>
-                  <p className="m-0 text-sm text-ink">
-                    {link.access === 'edit' ? 'Can edit' : 'Can view'}
-                    <span className="text-faint">
-                      {' · Expires '}
-                      {formatDay(dayKey(new Date(link.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  </p>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    {link.link ? <Copyable compact value={link.link} /> : <Hint>Link unavailable</Hint>}
-                    <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
-                  </div>
-                </li>
+                <ListRow
+                  key={link.id}
+                  meta={`Expires ${formatDate(dayKey(new Date(link.expiresAt)))}`}
+                  title={link.access === 'edit' ? 'Can edit' : 'Can view'}
+                  trail={
+                    <>
+                      {link.link ? <Copyable compact value={link.link} /> : <Hint>Link unavailable</Hint>}
+                      <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
+                    </>
+                  }
+                />
               ))}
             </ul>
           ) : (

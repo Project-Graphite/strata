@@ -143,7 +143,8 @@
 
 .live-device-status {
   color: var(--color-muted);
-  font-size: 0.8125rem;
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
   overflow-wrap: anywhere;
 }
 
@@ -299,14 +300,6 @@
 .note-board-open {
   width: fit-content;
   color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.board-action {
-  border-radius: var(--radius-field);
-  background: #1e1e1e;
-  padding: 0.4rem 0.75rem;
-  color: #ffffff;
   font-size: 0.85rem;
 }
 

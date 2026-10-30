@@ -35,6 +35,8 @@ export function BookmarksPage() {
   const [rows] = useRememberedShape(`bookmarks-${status.value}`, listed.data && [listed.data.length], [4]);
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const editable = (bookmark: Bookmark) => writable.some((space) => space.id === bookmark.spaceId);
+  const firstRun =
+    status.value === 'read' ? undefined : ({ action: writable.length > 0 && <Button icon="plus" label="New bookmark" onClick={() => setAdding(true)} primary />, icon: 'bookmark', variant: 'page' } as const);
 
   function markRead(bookmark: Bookmark, read: boolean) {
     void marking.run(async () => {
@@ -92,13 +94,15 @@ export function BookmarksPage() {
           {rows ? (
             <RowsSkeleton below={<SkeletonLine className="text-sm" width="w-4/5" />} rows={rows} />
           ) : (
-            <Empty loading title={status.empty}>
+            <Empty loading title={status.empty} {...firstRun}>
               {status.hint}
             </Empty>
           )}
         </Placeholder>
       ) : listed.data.length === 0 ? (
-        <Empty title={status.empty}>{status.hint}</Empty>
+        <Empty title={status.empty} {...firstRun}>
+          {status.hint}
+        </Empty>
       ) : (
         <ul className="panel-rows">
           {listed.data.map((bookmark) => (

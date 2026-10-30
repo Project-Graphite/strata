@@ -4,6 +4,7 @@ import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
 import { Hint } from '../Hint';
 import { CommitInput } from '../CommitInput';
+import { count } from '../../time';
 
 const optionsOf = (property: Property, ids: unknown) =>
   (Array.isArray(ids) ? ids : [ids]).flatMap((id) => property.options?.filter((option) => option.id === id) ?? []);
@@ -29,7 +30,7 @@ export function propertyDisplay(property: Property, value: unknown, members: Mem
         </a>
       );
     case 'number':
-      return Number(value).toLocaleString();
+      return count(Number(value));
     default:
       return String(value);
   }
@@ -51,7 +52,7 @@ export function PropertyField({
   if (!editable)
     return (
       <span className="flex min-w-0 flex-wrap gap-1 wrap-anywhere">
-        {(property.type === 'checkbox' ? (value ? 'Yes' : null) : propertyDisplay(property, value, members)) ?? <span className="text-faint">—</span>}
+        {(property.type === 'checkbox' ? (value ? 'Yes' : null) : propertyDisplay(property, value, members)) ?? <span className="text-muted">—</span>}
       </span>
     );
   const label = property.name;
@@ -99,7 +100,7 @@ export function PropertyField({
       return (
         <Popover
           label={label}
-          trigger={<span className="flex flex-wrap gap-1">{chosen.length ? propertyDisplay(property, value, members) : <span className="text-faint">—</span>}</span>}
+          trigger={<span className="flex flex-wrap gap-1">{chosen.length ? propertyDisplay(property, value, members) : <span className="text-muted">—</span>}</span>}
           triggerClassName="property-input text-left"
           triggerLabel={`Choose ${label}`}
         >
