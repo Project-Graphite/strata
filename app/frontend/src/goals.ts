@@ -1,5 +1,6 @@
 import type { Habit } from './habits';
 import type { Task } from './tasks';
+import { formatMonth } from './time';
 
 export type GoalPeriod = 'year' | 'quarter' | 'month';
 export type GoalStatus = 'active' | 'done' | 'dropped';
@@ -29,13 +30,11 @@ export interface GoalDetail extends Goal {
   habits: Habit[];
 }
 
-const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
-
 export function periodLabel(period: GoalPeriod, startsOn: string) {
   const year = startsOn.slice(0, 4);
   if (period === 'year') return year;
   if (period === 'quarter') return `Q${Math.floor((Number(startsOn.slice(5, 7)) - 1) / 3) + 1} ${year}`;
-  return monthName.format(new Date(`${startsOn}T00:00:00Z`));
+  return formatMonth(startsOn);
 }
 
 export function periodChoices(period: GoalPeriod, today: string) {

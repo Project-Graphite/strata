@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { ConfirmDialog, formatDay, isAbortError, useSnackbar } from '@project-graphite/ui';
+import { ConfirmDialog, isAbortError, useSnackbar } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { Empty } from '../components/Empty';
-import { Hint } from '../components/Hint';
 import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { fileSize } from '../files';
 import { useAction } from '../useAction';
 import { Button } from '../components/Button';
-import { Section, Subheading } from '../components/Page';
+import { Section, usePagePrimary } from '../components/Page';
+import { formatDate } from '../time';
 
 interface FileHandle {
   kind: 'file';
@@ -103,6 +103,37 @@ export function FolderScan() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const show = useSnackbar();
+  usePagePrimary(
+    picker && (
+      <Button
+        disabled={scanning.busy}
+        label={scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
+        large
+        onClick={() =>
+          void scanning.run(async () => {
+            let folder: FolderHandle;
+            try {
+              folder = await picker({ mode: 'read' });
+            } catch (reason) {
+              if (isAbortError(reason)) return '';
+              throw reason;
+            }
+            setReport(undefined);
+            setSelected(new Set());
+            setProgress(0);
+            const found: LocalFile[] = [];
+            await collect(folder, '', found, setProgress);
+            setRoot(folder);
+            setReport(await analyse(found));
+            return `Looked at ${found.length.toLocaleString()} file${found.length === 1 ? '' : 's'} in ${folder.name}.${
+              found.length >= maxFiles ? ' Strata stops at 20,000 files, so choose a smaller folder to see everything.' : ''
+            }`;
+          }, 'Could not read the folder')
+        }
+        primary
+      />
+    ),
+  );
 
   if (!picker) {
     return (
@@ -120,39 +151,6 @@ export function FolderScan() {
 
   return (
     <>
-      <div className="grid gap-3">
-        <Hint>
-          Strata looks through a folder on this computer for duplicate, large and old files. Nothing is uploaded, and the results are gone when you
-          leave this page.
-        </Hint>
-        <Button
-          disabled={scanning.busy}
-          label={scanning.busy ? `Looking… ${progress} files so far` : 'Choose a folder'}
-          onClick={() =>
-            void scanning.run(async () => {
-              let folder: FolderHandle;
-              try {
-                folder = await picker({ mode: 'read' });
-              } catch (reason) {
-                if (isAbortError(reason)) return '';
-                throw reason;
-              }
-              setReport(undefined);
-              setSelected(new Set());
-              setProgress(0);
-              const found: LocalFile[] = [];
-              await collect(folder, '', found, setProgress);
-              setRoot(folder);
-              setReport(await analyse(found));
-              return `Looked at ${found.length.toLocaleString()} file${found.length === 1 ? '' : 's'} in ${folder.name}.${
-                found.length >= maxFiles ? ' Strata stops at 20,000 files, so choose a smaller folder to see everything.' : ''
-              }`;
-            }, 'Could not read the folder')
-          }
-          primary
-        />
-      </div>
-
       {report && (
         <>
           {report.duplicates.length > 0 && (
@@ -164,14 +162,11 @@ export function FolderScan() {
               title="Duplicate files"
             >
               {report.duplicates.map((group) => (
-                <div className="grid gap-2" key={group[0]!.path}>
-                  <Subheading>
-                    {group.length} copies of {fileSize(group[0]!.size)}
-                  </Subheading>
+                <Section key={group[0]!.path} level={3} title={`${group.length} copies of ${fileSize(group[0]!.size)}`}>
                   <ul className="panel-rows">
-                    {group.map((file) => choice(file, `changed ${formatDay(dayKey(new Date(file.modified)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
+                    {group.map((file) => choice(file, `Changed ${formatDate(dayKey(new Date(file.modified)))}`))}
                   </ul>
-                </div>
+                </Section>
               ))}
             </Section>
           )}
@@ -183,7 +178,7 @@ export function FolderScan() {
           {report.old.length > 0 && (
             <Section description="Files nobody has changed for over a year." title="Old files">
               <ul className="panel-rows">
-                {report.old.map((file) => choice(file, `unchanged since ${formatDay(dayKey(new Date(file.modified)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
+                {report.old.map((file) => choice(file, `Unchanged since ${formatDate(dayKey(new Date(file.modified)))}`))}
               </ul>
             </Section>
           )}

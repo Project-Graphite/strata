@@ -31,6 +31,7 @@ export function PeoplePage() {
     .filter((person) => person.nextBirthday && person.nextBirthday <= horizon)
     .sort((a, b) => a.nextBirthday!.localeCompare(b.nextBirthday!));
   const [soonRows, everyoneRows] = useRememberedShape('people', people.data && [soon.length, people.data.length], [0, 4]);
+  const firstAction = writable.length > 0 && <Button icon="plus" label="New person" onClick={() => setAdding(true)} primary />;
 
   return (
     <Page
@@ -53,13 +54,15 @@ export function PeoplePage() {
               </Section>
             </>
           ) : (
-            <Empty loading title={empty.title}>
+            <Empty action={firstAction} icon="users" loading title={empty.title} variant="page">
               {empty.hint}
             </Empty>
           )}
         </Placeholder>
       ) : people.data.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
+        <Empty action={firstAction} icon="users" title={empty.title} variant="page">
+          {empty.hint}
+        </Empty>
       ) : (
         <>
           {soon.length > 0 && (

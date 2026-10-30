@@ -146,7 +146,7 @@ export const itemKindName = (item: { kind: string; quick: boolean }) => (item.qu
 export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
   return (
     <span aria-hidden="true" className={`tag-mark tag-${space.color} ${large ? 'space-mark-large' : ''}`} data-initial={space.kind === 'personal' ? undefined : space.name.charAt(0).toUpperCase()}>
-      {space.kind === 'personal' && <Icon name="user" size={large ? 18 : 12} />}
+      {space.kind === 'personal' && <Icon name="user" size={large ? 18 : 16} />}
     </span>
   );
 }

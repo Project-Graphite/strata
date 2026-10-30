@@ -53,7 +53,7 @@ export function ProfileSettings() {
             <FieldSkeleton hint />
           </div>
         </Section>
-        <ButtonSkeleton width="w-16" />
+        <ButtonSkeleton large width="w-32" />
         <Section title="Account">
           <SettingsRows>
             <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} />
@@ -150,11 +150,13 @@ export function ProfileSettings() {
               name="monthStartDay"
               options={monthStartOptions}
             />
-            <Toggle checked={budgetsEnabled} description="Shows the Budgets tab and what is left to spend this month." label="Use budgets" onChange={setBudgets} />
+            <div className="panel-rows">
+              <Toggle checked={budgetsEnabled} description="Shows the Budgets tab and what is left to spend this month." label="Use budgets" onChange={setBudgets} />
+            </div>
           </div>
         </Section>
         <div>
-          <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save'} primary submit />
+          <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save changes'} large primary submit />
         </div>
       </form>
 

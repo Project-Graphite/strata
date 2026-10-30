@@ -1,31 +1,32 @@
-import { Link, useNavigate } from 'react-router';
-import { Icon, Menu, Placeholder, timeAgo } from '@project-graphite/ui';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
-import { Section, Toolbar } from '../../components/Page';
-import { RowText } from '../../components/RowText';
+import { Section, usePagePrimary } from '../../components/Page';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
-import { builtInTemplates, flattenTree, noteHref, noteTitle, pageIndent, type Note } from '../../notes';
+import { builtInTemplates, flattenTree, noteHref, noteTitle, type Note } from '../../notes';
+import { capitalised, formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
-import { useSpace } from './SpaceLayout';
+import { useSpace, useSpaceMenu } from './SpaceLayout';
 
 const empty = { title: 'No pages yet', hint: 'Pages and boards you add to this space show up here.' };
 
+const nested = ['', 'ps-12', 'ps-20', 'ps-28'];
+
 function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
   return (
-    <li className="flex items-center gap-3 pe-2 hover:bg-line-soft">
-      <Link className="flex min-w-0 flex-1 items-center gap-3 panel-row text-ink no-underline" style={pageIndent(depth)} to={noteHref(note)}>
-        <NoteMark note={note} />
-        <RowText
-          detail={[note.kind === 'board' && 'Board', note.pinnedAt && 'Pinned', timeAgo(note.updatedAt)].filter(Boolean).join(' · ')}
-          title={noteTitle(note)}
-        />
-      </Link>
-    </li>
+    <ListRow
+      className={nested[Math.min(depth, nested.length - 1)]}
+      href={noteHref(note)}
+      lead={<NoteMark note={note} />}
+      meta={capitalised([note.kind === 'board' && 'Board', note.pinnedAt && 'Pinned', formatMoment(note.updatedAt)].filter(Boolean).join(' · '))}
+      title={noteTitle(note)}
+    />
   );
 }
 
@@ -40,6 +41,8 @@ export function SpaceNotes() {
   const templates = notes.data?.filter((note) => note.template) ?? [];
   const branches = flattenTree(pages);
   const [pageRows, templateRows] = useRememberedShape(`space-pages-${space.id}`, notes.data && [branches.length, templates.length], [4, 0]);
+  const setMenu = useSpaceMenu();
+  usePagePrimary(editable && <Button disabled={creating.busy} icon="plus" label="New page" large onClick={() => create({})} primary />);
 
   function create(body: Record<string, string | boolean>) {
     void creating.run(async () => {
@@ -49,33 +52,20 @@ export function SpaceNotes() {
     }, 'Could not add the page');
   }
 
+  useEffect(() => {
+    if (!editable) return;
+    setMenu([
+      { label: 'New board', onSelect: () => create({ board: true }) },
+      ...builtInTemplates.map(([template, label]) => ({ label: `New page from ${label}`, onSelect: () => create({ template, title: label }) })),
+      ...(notes.data ?? [])
+        .filter((note) => note.template)
+        .map((note) => ({ label: `New page from ${noteTitle(note)}`, onSelect: () => create({ fromNoteId: note.id, title: note.title }) })),
+    ]);
+    return () => setMenu([]);
+  }, [editable, notes.data, setMenu]);
+
   return (
     <>
-      {editable && (
-        <Toolbar
-          actions={
-            <>
-              <Menu
-                items={[
-                  ...builtInTemplates.map(([template, label]) => ({ label, onSelect: () => create({ template, title: label }) })),
-                  ...templates.map((note, index) => ({ label: noteTitle(note), onSelect: () => create({ fromNoteId: note.id, title: note.title }), separated: index === 0 })),
-                ]}
-                label="Templates"
-                trigger={
-                  <span className="inline-flex items-center gap-2">
-                    From a template
-                    <Icon name="chevron-down" size={18} />
-                  </span>
-                }
-                triggerLabel="Start a page from a template"
-                triggerVariant="secondary"
-              />
-              <Button disabled={creating.busy} icon="plus" label="New board" onClick={() => create({ board: true })} />
-              <Button disabled={creating.busy} icon="plus" label="New page" onClick={() => create({})} />
-            </>
-          }
-        />
-      )}
       {notes.error ? (
         <LoadError error={notes.error} onRetry={notes.reload} />
       ) : !notes.data ? (

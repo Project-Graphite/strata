@@ -27,6 +27,7 @@ export function TripsPage() {
     ['Past trips', (trips.data ?? []).filter((trip) => trip.when === 'past').reverse()],
   ] as const;
   const shape = useRememberedShape('trips', trips.data && groups.map(([, shown]) => shown.length), [0, 3, 0]);
+  const firstAction = writable.length > 0 && <Button icon="plus" label="New trip" onClick={() => setAdding(true)} primary />;
 
   return (
     <Page actions={writable.length > 0 && <Button icon="plus" label="New trip" large onClick={() => setAdding(true)} primary />} title="Trips">
@@ -39,18 +40,20 @@ export function TripsPage() {
               ([label], group) =>
                 shape[group]! > 0 && (
                   <Section key={label} title={label}>
-                    <RowsSkeleton rows={shape[group]!} trail={<SkeletonLine className="shrink-0 text-sm" width="w-16" />} />
+                    <RowsSkeleton rows={shape[group]!} trail={<SkeletonLine className="shrink-0 text-small" width="w-16" />} />
                   </Section>
                 ),
             )
           ) : (
-            <Empty loading title={empty.title}>
+            <Empty action={firstAction} icon="plane" loading title={empty.title} variant="page">
               {empty.hint}
             </Empty>
           )}
         </Placeholder>
       ) : trips.data.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
+        <Empty action={firstAction} icon="plane" title={empty.title} variant="page">
+          {empty.hint}
+        </Empty>
       ) : (
         groups
           .filter(([, shown]) => shown.length > 0)

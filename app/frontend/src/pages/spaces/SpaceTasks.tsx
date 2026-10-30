@@ -5,7 +5,7 @@ import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
-import { Toolbar } from '../../components/Page';
+import { Toolbar, usePagePrimary } from '../../components/Page';
 import { ChipsSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { TaskPanel } from '../../components/TaskPanel';
 import { TaskListChips, taskLink, TaskStatusChips, taskViews, type TaskList, type TaskView } from '../../tasks';
@@ -32,6 +32,13 @@ export function SpaceTasks() {
   const link = taskLink(`/spaces/${space.id}/tasks`, listId, completed, view);
   const shownList = lists.data?.find((list) => list.id === listId);
   const [listCount] = useRememberedShape(`space-task-lists-${space.id}`, lists.data && [lists.data.length], [1]);
+  usePagePrimary(
+    editable && (
+      <span className="page-primary-action">
+        <Button icon="plus" label="New task" large onClick={() => setCreating(true)} primary />
+      </span>
+    ),
+  );
 
   return (
     <>
@@ -40,11 +47,6 @@ export function SpaceTasks() {
           <>
             <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
             {view === 'list' && <TaskStatusChips completed={completed} link={link} />}
-            {editable && (
-              <span className="page-primary-action">
-                <Button icon="plus" label="New task" onClick={() => setCreating(true)} />
-              </span>
-            )}
           </>
         }
       >
@@ -127,7 +129,7 @@ export function SpaceTasks() {
               )
               .then((saved) => saved && setListDialog(undefined));
           }}
-          submitLabel={listDialog === 'rename' ? 'Save' : 'Add list'}
+          submitLabel={listDialog === 'rename' ? 'Save changes' : 'Add list'}
           title={listDialog === 'rename' ? 'Rename list' : 'New list'}
         >
           <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />

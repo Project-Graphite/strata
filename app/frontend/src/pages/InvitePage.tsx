@@ -57,26 +57,26 @@ export function InvitePage() {
   }
 
   return (
-    <Page title={invitedLine(invite.data)} variant="panel">
+    <Page
+      description={
+        !auth.user
+          ? invite.data.kind === 'space'
+            ? 'Create an account to join, or sign in if you already have one.'
+            : 'Create your account to start your own workspace.'
+          : invite.data.kind === 'app' && 'You already have a Strata account, so there’s nothing more to do.'
+      }
+      title={invitedLine(invite.data)}
+      variant="panel"
+    >
       {!auth.user ? (
-        <>
-          <p className="mt-4 text-muted">
-            {invite.data.kind === 'space'
-              ? 'Create an account to join, or sign in if you already have one.'
-              : 'Create your account to start your own workspace.'}
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink label="Create account" large primary to={`/register?invite=${encodeURIComponent(code)}`} />
-            <ButtonLink label="Sign in" large state={{ from: location }} to="/login" />
-          </div>
-        </>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <ButtonLink label="Create account" large primary to={`/register?invite=${encodeURIComponent(code)}`} />
+          <ButtonLink label="Sign in" large state={{ from: location }} to="/login" />
+        </div>
       ) : invite.data.kind === 'app' ? (
-        <>
-          <p className="mt-4 text-muted">You already have a Strata account, so there’s nothing more to do.</p>
-          <div className="mt-8">
-            <ButtonLink label="Go home" large primary to="/" />
-          </div>
-        </>
+        <div className="mt-8">
+          <ButtonLink label="Go home" large primary to="/" />
+        </div>
       ) : (
         <div className="mt-8">
           <Button

@@ -52,7 +52,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
           }, 'Could not save this person')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={person ? 'Save' : 'Add person'}
+      submitLabel={person ? 'Save changes' : 'Add person'}
       title={person ? 'Edit person' : 'New person'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />

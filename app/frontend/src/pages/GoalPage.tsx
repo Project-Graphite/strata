@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, Fieldset, IconButton, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
+import { Checkbox, Fieldset, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section } from '../components/Page';
-import { ButtonSkeleton, HabitRowSkeleton, HintSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { ButtonSkeleton, HabitRowSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/OpenTask';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
@@ -19,6 +20,9 @@ import { dueLabel, taskDetails, TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useFormErrors, type Check } from '../validation';
+
+const emptyTasks = { title: 'No tasks yet', hint: 'Link the tasks that move this goal forward, or add new ones.' };
+const emptyHabits = { title: 'No habits yet', hint: 'Choose the habits from this space that build towards this goal.' };
 
 const numberCheck: Check = (value) => (Number.isFinite(Number(value.trim().replace(',', '.'))) && value.trim() ? undefined : 'Enter a number such as 12.5.');
 
@@ -56,7 +60,7 @@ export function GoalPage() {
   const back = { to: '/goals', label: 'Goals' };
   if (!goal.data) {
     return (
-      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={goal} thing="Goal">
+      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={goal} thing="Goal">
         {whyLines > 0 && (
           <Section title="Why it matters">
             <p aria-hidden="true" className="m-0">
@@ -75,15 +79,21 @@ export function GoalPage() {
         <Section
           action={
             wasEditable > 0 && (
-              <div className="flex flex-wrap gap-2">
-                <ButtonSkeleton large width="w-32" />
-                <ButtonSkeleton large width="w-28" />
-              </div>
+              <span className="flex items-center gap-2">
+                <ButtonSkeleton width="w-24" />
+                <IconButtonSkeleton />
+              </span>
             )
           }
           title="Tasks"
         >
-          {taskRows ? <TaskRowsSkeleton detailed={detailedTasks} rows={taskRows} /> : <HintSkeleton />}
+          {taskRows ? (
+            <TaskRowsSkeleton detailed={detailedTasks} rows={taskRows} />
+          ) : (
+            <Empty loading title={emptyTasks.title}>
+              {emptyTasks.hint}
+            </Empty>
+          )}
         </Section>
         <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Habits">
           {habitRows ? (
@@ -93,7 +103,9 @@ export function GoalPage() {
               ))}
             </ul>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptyHabits.title}>
+              {emptyHabits.hint}
+            </Empty>
           )}
         </Section>
       </DetailState>
@@ -145,8 +157,8 @@ export function GoalPage() {
       actions={
         editable && (
           <>
-            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
             <ActionsMenu items={statusItems} name={shown.title} />
+            <Button icon="pencil" label="Edit" large onClick={() => setEditing(true)} primary />
           </>
         )
       }
@@ -176,16 +188,16 @@ export function GoalPage() {
       <Section
         action={
           editable && (
-            <div className="flex flex-wrap gap-2">
-              <Button icon="link" label="Link a task" large onClick={() => setDialog('link')} />
-              <Button icon="plus" label="New task" large onClick={() => setTaskEditing('new')} />
-            </div>
+            <span className="flex items-center gap-2">
+              <Button icon="plus" label="New task" onClick={() => setTaskEditing('new')} />
+              <ActionsMenu items={[{ label: 'Link a task…', onSelect: () => setDialog('link') }]} name="tasks" />
+            </span>
           )
         }
         title="Tasks"
       >
         {shown.taskList.length === 0 ? (
-          <Hint>No tasks linked yet.</Hint>
+          <Empty title={emptyTasks.title}>{emptyTasks.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.taskList.map((task) => (
@@ -233,7 +245,7 @@ export function GoalPage() {
 
       <Section action={editable && <Button label="Choose habits" onClick={() => setDialog('habits')} />} title="Habits">
         {shown.habits.length === 0 ? (
-          <Hint>No habits linked yet.</Hint>
+          <Empty title={emptyHabits.title}>{emptyHabits.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.habits.map((habit) => (

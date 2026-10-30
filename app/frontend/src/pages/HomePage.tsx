@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
+import { Card, Icon, PageSkeleton, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ButtonAnchor, ButtonLink } from '../components/Button';
 import { androidReleaseUrl, isNativeAndroid } from '../native-capture';
@@ -28,8 +28,8 @@ export function HomePage() {
   }
   return (
     <section className="page-enter">
-      <h1 className="page-heading max-w-3xl">Tasks, agenda, pages, spending and files in one place</h1>
-      <p className="mt-5 max-w-2xl text-lg text-muted">Free and open source, from Project Graphite.</p>
+      <h1 className="page-heading">Tasks, agenda, pages, spending and files in one place</h1>
+      <p className="mt-5 max-w-narrow text-body text-muted">Free and open source, from Project Graphite.</p>
       <div className="mt-8 grid gap-3 [&>a]:w-full sm:flex sm:flex-wrap sm:[&>a]:w-fit">
         <ButtonLink label="Create account" large primary to="/register" />
         <ButtonLink label="Sign in" large to="/login" />
@@ -37,12 +37,14 @@ export function HomePage() {
       </div>
       <ul className="stagger-in mt-14 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map(([icon, name, description]) => (
-          <li className="rounded-panel border border-line bg-surface p-4 transition-colors hover:border-muted" key={name}>
-            <h2 className="m-0 flex items-center gap-2 text-h2">
-              <Icon name={icon} size={18} />
-              {name}
-            </h2>
-            <p className="mt-2 mb-0 text-small text-muted">{description}</p>
+          <li key={name}>
+            <Card padding="md">
+              <h2 className="m-0 flex items-center gap-2 text-h2">
+                <Icon name={icon} size={18} />
+                {name}
+              </h2>
+              <p className="mt-2 mb-0 text-small text-muted">{description}</p>
+            </Card>
           </li>
         ))}
       </ul>

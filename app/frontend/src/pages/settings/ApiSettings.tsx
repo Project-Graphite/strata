@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Checkbox, ConfirmDialog, Fieldset, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Badge, Checkbox, ConfirmDialog, Fieldset, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { FormDialog } from '../../components/FormDialog';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Hint } from '../../components/Hint';
+import { Empty } from '../../components/Empty';
 import { spaceOptions, useAllSpaces } from '../../spaces';
+import { formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import type { Resource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
@@ -41,8 +42,10 @@ const webhookEvents = [
 function deliveryText(webhook: Webhook) {
   const last = webhook.lastDelivery;
   if (!last) return 'nothing sent yet';
-  return `${last.error ? `failed (${last.error})` : `answered ${last.status}`} ${timeAgo(last.createdAt)}`;
+  return `${last.error ? `failed (${last.error})` : `answered ${last.status}`} ${formatMoment(last.createdAt)}`;
 }
+
+export const emptyWebhooks = { title: 'No webhooks yet', hint: 'A webhook tells your own server when something changes in your spaces.' };
 
 export function ApiSettings({ reference, webhooks }: { reference: ApiReference; webhooks: Resource<Webhook[]> }) {
   const auth = useAuth();
@@ -57,80 +60,91 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
 
   return (
     <>
-      <Section title="Personal API">
-        <div className="grid gap-3 text-small text-muted">
-          <p className="m-0">
+      <Section
+        description={
+          <>
             Send requests to <code className="mono-sm text-ink">{`${window.location.origin}${reference.basePath}`}</code> with the header{' '}
             <code className="mono-sm text-ink">Authorization: Bearer strata_pat_…</code>. Create a token above; each permission opens these endpoints.
-          </p>
+          </>
+        }
+        title="Personal API"
+      >
+        <ul className="panel-rows">
           {reference.scopes.map(({ scope, routes }) => (
-            <details className="rounded-panel border border-line p-3" key={scope}>
-              <summary className="text-ink">
-                <span>
-                  <span className="mono-sm">{scope}</span> · {routes.length} endpoint{routes.length === 1 ? '' : 's'}
-                </span>
-              </summary>
-              <ul className="m-0 mt-2 grid list-none gap-0.5 p-0">
-                {routes.map((route) => (
-                  <li className="mono-sm text-ink" key={`${route.method} ${route.path}`}>
-                    <span className="inline-block w-16 text-faint">{route.method}</span>
-                    {route.path}
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <li key={scope}>
+              <details>
+                <summary className="list-row">
+                  <span className="list-row-text py-2">
+                    <span className="list-row-title font-mono">{scope}</span>
+                    <span className="list-row-meta">
+                      {routes.length} endpoint{routes.length === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                </summary>
+                <ul className="m-0 grid list-none gap-0.5 px-4 pb-3">
+                  {routes.map((route) => (
+                    <li className="mono-sm text-ink" key={`${route.method} ${route.path}`}>
+                      <span className="inline-block w-16 text-muted">{route.method}</span>
+                      {route.path}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </li>
           ))}
-        </div>
+        </ul>
       </Section>
 
       <Section
         action={
-          <Button icon="plus" label="New webhook" large onClick={() => setAdding(true)} />
+          <Button icon="plus" label="New webhook" onClick={() => setAdding(true)} />
+        }
+        description={
+          <>
+            Strata posts JSON to your address when something happens in your spaces, signed with your webhook’s secret in <code className="mono-sm">X-Strata-Signature</code>{' '}
+            (HMAC-SHA256 of the timestamp, a dot and the body). Failed deliveries are retried 5 times.
+          </>
         }
         title="Webhooks"
       >
-        <Hint>
-          Strata posts JSON to your address when something happens in your spaces, signed with your webhook’s secret in <code className="mono-sm">X-Strata-Signature</code>{' '}
-          (HMAC-SHA256 of the timestamp, a dot and the body). Failed deliveries are retried 5 times.
-        </Hint>
         {webhooks.data!.length === 0 ? (
-          <Hint>No webhooks yet.</Hint>
+          <Empty title={emptyWebhooks.title}>{emptyWebhooks.hint}</Empty>
         ) : (
           <SettingsRows>
             {webhooks.data!.map((webhook) => (
               <SettingsRow
                 action={
-                  <ActionsMenu
-                    items={[
-                      {
-                        label: 'Send a test',
-                        onSelect: () =>
-                          void action.run(async () => {
-                            const sent = await auth.request<{ status: number | null; error: string | null }>(`/me/webhooks/${webhook.id}/ping`, { method: 'POST' });
-                            webhooks.reload();
-                            return sent.error ? `The test failed: ${sent.error}` : `The test was delivered (${sent.status}).`;
-                          }, 'Could not send the test'),
-                      },
-                      {
-                        label: webhook.active ? 'Pause' : 'Resume',
-                        onSelect: () =>
-                          void action.run(async () => {
-                            replace(await auth.request<Webhook>(`/me/webhooks/${webhook.id}`, { method: 'PATCH', body: JSON.stringify({ active: !webhook.active }) }));
-                            return webhook.active ? `Paused the webhook to ${webhook.host}.` : `Resumed the webhook to ${webhook.host}.`;
-                          }, 'Could not change the webhook'),
-                      },
-                      { label: 'Delete', onSelect: () => setRemoving(webhook), separated: true },
-                    ]}
-                    name={`the webhook to ${webhook.host}`}
-                  />
+                  <>
+                    {!webhook.active && <Badge>Paused</Badge>}
+                    <ActionsMenu
+                      items={[
+                        {
+                          label: 'Send a test',
+                          onSelect: () =>
+                            void action.run(async () => {
+                              const sent = await auth.request<{ status: number | null; error: string | null }>(`/me/webhooks/${webhook.id}/ping`, { method: 'POST' });
+                              webhooks.reload();
+                              return sent.error ? `The test failed: ${sent.error}` : `The test was delivered (${sent.status}).`;
+                            }, 'Could not send the test'),
+                        },
+                        {
+                          label: webhook.active ? 'Pause' : 'Resume',
+                          onSelect: () =>
+                            void action.run(async () => {
+                              replace(await auth.request<Webhook>(`/me/webhooks/${webhook.id}`, { method: 'PATCH', body: JSON.stringify({ active: !webhook.active }) }));
+                              return webhook.active ? `Paused the webhook to ${webhook.host}.` : `Resumed the webhook to ${webhook.host}.`;
+                            }, 'Could not change the webhook'),
+                        },
+                        { label: 'Delete', onSelect: () => setRemoving(webhook), separated: true },
+                      ]}
+                      name={`the webhook to ${webhook.host}`}
+                    />
+                  </>
                 }
                 key={webhook.id}
-                label={`${webhook.host}${webhook.active ? '' : ' (paused)'}`}
+                label={webhook.host}
               >
-                <span className="mono-sm">
-                  {webhook.spaceId ? (spaces.data?.find((space) => space.id === webhook.spaceId)?.name ?? 'One space') : 'All spaces'} · {webhook.events.join(', ')} ·{' '}
-                  {deliveryText(webhook)}
-                </span>
+                {webhook.spaceId ? (spaces.data?.find((space) => space.id === webhook.spaceId)?.name ?? 'One space') : 'All spaces'} · {webhook.events.join(', ')} · {deliveryText(webhook)}
               </SettingsRow>
             ))}
           </SettingsRows>

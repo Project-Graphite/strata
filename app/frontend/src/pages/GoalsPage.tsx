@@ -29,9 +29,15 @@ export function GoalsPage() {
     goals.data && [...groups.values()].flatMap((shown) => [shown.length, shown.filter((goal) => goal.progress !== null).length]),
     [3, 3],
   );
-  const empty = finished
-    ? { title: 'Nothing finished yet', hint: 'Goals you mark as done or drop are kept here.' }
-    : { title: 'No goals yet', hint: 'Set a goal for the year, quarter or month, and track it with a number or with linked tasks.' };
+  const { hint: emptyHint, ...empty } = finished
+    ? { title: 'Nothing finished yet', hint: 'Goals you mark as done or drop are kept here.', variant: 'filtered' as const }
+    : {
+        title: 'No goals yet',
+        hint: 'Set a goal for the year, quarter or month, and track it with a number or with linked tasks.',
+        variant: 'page' as const,
+        icon: 'target' as const,
+        action: writable.length > 0 && <Button icon="plus" label="New goal" onClick={() => setAdding(true)} primary />,
+      };
 
   return (
     <Page
@@ -54,23 +60,23 @@ export function GoalsPage() {
           {shape.length > 0 ? (
             rowsOf(shape.length / 2).map((group) => (
               <div aria-hidden="true" className="grid gap-3" key={group}>
-                <SkeletonLine className="text-lg" width="w-32" />
+                <SkeletonLine className="text-h2" width="w-32" />
                 <RowsSkeleton
                   below={<Skeleton className="h-1.5 rounded-full" />}
                   belowRows={shape[group * 2 + 1]}
                   rows={shape[group * 2]!}
-                  trail={<SkeletonLine className="mono-sm shrink-0" width="w-8" />}
+                  trail={<SkeletonLine className="text-small shrink-0" width="w-8" />}
                 />
               </div>
             ))
           ) : (
-            <Empty loading title={empty.title}>
-              {empty.hint}
+            <Empty {...empty} loading>
+              {emptyHint}
             </Empty>
           )}
         </Placeholder>
       ) : goals.data.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
+        <Empty {...empty}>{emptyHint}</Empty>
       ) : (
         [...groups].map(([label, shown]) => (
           <Section key={label} title={label}>
@@ -85,7 +91,7 @@ export function GoalsPage() {
                     goal.status !== 'active' ? (
                       <span className="text-small">{statusLabels[goal.status]}</span>
                     ) : (
-                      goal.progress !== null && <span className="mono-sm text-faint">{Math.round(goal.progress * 100)}%</span>
+                      goal.progress !== null && <span className="text-small text-muted tabular-nums">{Math.round(goal.progress * 100)}%</span>
                     )
                   }
                 >

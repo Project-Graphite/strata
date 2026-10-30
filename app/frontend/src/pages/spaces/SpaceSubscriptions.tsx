@@ -15,7 +15,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
 import { LoadError } from '../../components/LoadError';
-import { FilterChips, Toolbar } from '../../components/Page';
+import { FilterChips, Toolbar, usePagePrimary } from '../../components/Page';
 
 export function SpaceSubscriptions() {
   const auth = useAuth();
@@ -36,6 +36,7 @@ export function SpaceSubscriptions() {
   const memberName = (userId: string) => members.data?.find((member) => member.userId === userId)?.displayName ?? 'a former member';
   const linked = editable ? subscriptions.data?.find((subscription) => subscription.id === params.get('subscription')) : undefined;
   const opened = editing ?? linked;
+  usePagePrimary(editable && <Button icon="plus" label="New subscription" large onClick={() => setEditing('new')} primary />);
   const [rows] = useRememberedShape(`space-subscriptions-${space.id}${cancelled ? '-cancelled' : ''}`, subscriptions.data && [subscriptions.data.length], [4]);
   const empty = cancelled
     ? { title: 'No cancelled subscriptions', hint: 'Subscriptions you mark cancelled show up here, ready to resume.' }
@@ -72,7 +73,7 @@ export function SpaceSubscriptions() {
 
   return (
     <>
-      <Toolbar actions={editable && <Button icon="plus" label="New subscription" onClick={() => setEditing('new')} />}>
+      <Toolbar>
         <FilterChips
           items={[
             { active: !cancelled, href: base, label: 'Active' },

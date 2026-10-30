@@ -102,7 +102,7 @@ export function TidyPreview({
           <Placeholder className="grid gap-6" label="Checking the items">
             {changeRows ? (
               <div className="grid gap-2">
-                <SkeletonLine className="text-sm" width="w-56" />
+                <SkeletonLine className="text-small" width="w-56" />
                 <div className="max-h-60 overflow-hidden rounded-panel">
                   <RowsSkeleton detail={false} rows={changeRows} />
                 </div>
@@ -112,7 +112,7 @@ export function TidyPreview({
             )}
             {skippedRows > 0 && (
               <div className="grid gap-2">
-                <SkeletonLine className="text-sm" width="w-48" />
+                <SkeletonLine className="text-small" width="w-48" />
                 <div className="max-h-40 overflow-hidden rounded-panel">
                   <RowsSkeleton rows={skippedRows} />
                 </div>

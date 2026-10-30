@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
@@ -10,7 +11,7 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton } from '../../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton } from '../../components/Skeletons';
 import { SettingsRow, SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { saveBlob } from '../../files';
@@ -31,7 +32,7 @@ export function DataSettings() {
         <Section title="Your data">
           <SettingsRows>
             <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} />
-            <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} row={1} />
+            <SettingsRowSkeleton action={<IconButtonSkeleton />} row={1} />
           </SettingsRows>
         </Section>
       </Placeholder>
@@ -62,9 +63,7 @@ export function DataSettings() {
             Everything Strata holds about you, as a JSON file.
           </SettingsRow>
           <SettingsRow
-            action={
-              <Button label="Delete" onClick={() => setRemoving(true)} />
-            }
+            action={<ActionsMenu items={[{ label: 'Delete account…', onSelect: () => setRemoving(true) }]} name="your account" />}
             label="Delete account"
           >
             Your account and everything in it, permanently.

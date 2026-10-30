@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { IconButton } from '@project-graphite/ui';
+import { ListRow } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { Button } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { DetailState, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
@@ -12,6 +14,9 @@ import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { PlanMealDialog } from './MealPlanPage';
+
+const emptyIngredients = { title: 'No ingredients yet', hint: 'Edit the recipe to write down what goes into it.' };
+const emptySteps = { title: 'No steps yet', hint: 'Edit the recipe to write down how to make it.' };
 
 export function RecipePage() {
   const { id = '' } = useParams();
@@ -33,8 +38,16 @@ export function RecipePage() {
   const back = { to: '/recipes', label: 'Recipes' };
   if (!recipe.data) {
     return (
-      <DetailState actions={wasEditable ? 3 : 0} back={back} resource={recipe} thing="Recipe">
-        <Section title="Ingredients">{ingredientRows ? <RowsSkeleton detail={false} rows={ingredientRows} /> : <HintSkeleton />}</Section>
+      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={recipe} thing="Recipe">
+        <Section title="Ingredients">
+          {ingredientRows ? (
+            <RowsSkeleton detail={false} rows={ingredientRows} />
+          ) : (
+            <Empty loading title={emptyIngredients.title}>
+              {emptyIngredients.hint}
+            </Empty>
+          )}
+        </Section>
         <Section title="Steps">
           {stepRows ? (
             <ol aria-hidden="true" className="m-0 grid list-none gap-4 p-0">
@@ -46,7 +59,9 @@ export function RecipePage() {
               ))}
             </ol>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptySteps.title}>
+              {emptySteps.hint}
+            </Empty>
           )}
         </Section>
         {sourced > 0 && <HintSkeleton />}
@@ -60,10 +75,9 @@ export function RecipePage() {
       actions={
         editable && (
           <>
-            <IconButton icon="calendar" label="Plan a meal" onClick={() => setDialog('plan')} />
-            <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
             <ActionsMenu
               items={[
+                { label: 'Plan a meal…', onSelect: () => setDialog('plan') },
                 {
                   label: 'Move to trash',
                   separated: true,
@@ -84,6 +98,7 @@ export function RecipePage() {
               ]}
               name={shown.title}
             />
+            <Button icon="pencil" label="Edit" large onClick={() => setDialog('edit')} primary />
           </>
         )
       }
@@ -93,25 +108,23 @@ export function RecipePage() {
     >
       <Section title="Ingredients">
         {shown.ingredients.length === 0 ? (
-          <Hint>No ingredients written down yet.</Hint>
+          <Empty title={emptyIngredients.title}>{emptyIngredients.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.ingredients.map((ingredient, index) => (
-              <li className="panel-row min-w-0 wrap-anywhere text-ink" key={index}>
-                {ingredient}
-              </li>
+              <ListRow key={index} title={ingredient} />
             ))}
           </ul>
         )}
       </Section>
       <Section title="Steps">
         {shown.steps.length === 0 ? (
-          <Hint>No steps written down yet.</Hint>
+          <Empty title={emptySteps.title}>{emptySteps.hint}</Empty>
         ) : (
           <ol className="m-0 grid min-w-0 grid-cols-1 list-none gap-4 p-0">
             {shown.steps.map((step, index) => (
               <li className="flex items-baseline gap-4" key={index}>
-                <span aria-hidden="true" className="mono-sm w-5 shrink-0 text-right text-faint">
+                <span aria-hidden="true" className="w-5 shrink-0 text-right text-small text-muted tabular-nums">
                   {index + 1}
                 </span>
                 <span className="min-w-0 wrap-anywhere text-ink">{step}</span>
