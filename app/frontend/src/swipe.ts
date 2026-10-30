@@ -14,7 +14,6 @@ export function useSwipe({ enabled, onLeft, onRight }: { enabled: boolean; onLef
     offset,
     passed: Math.abs(offset) >= swipeDistance,
     props: {
-      'data-swipeable': enabled || undefined,
       'data-swiping': offset !== 0 || undefined,
       style: (offset !== 0 ? { '--swipe': `${offset}px` } : {}) as CSSProperties,
       onClickCapture: (event: MouseEvent) => {

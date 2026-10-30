@@ -7,9 +7,11 @@ import { HeaderTitleContext } from '../header-title';
 import { areaOf } from '../navigation';
 import { noteHref, noteTitle } from '../notes';
 import { usePageNavigation } from '../page-navigation';
-import { SpaceMark, useAllSpaces, useChosenSpace } from '../spaces';
+import { SpaceMark, useAllSpaces, useChosenSpace, type Space } from '../spaces';
 
 const areaNames: Record<string, string> = { '/': 'Home', '/spaces': 'Spaces', '/inbox': 'Inbox', '/settings': 'Settings', '/admin': 'Admin', '/save': 'Save', '/more': 'More' };
+const spaceFrame = 'relative inline-flex min-h-9 max-w-full min-w-0 items-center rounded-field border border-line px-2';
+const spaceName = (space: Space) => <span className="inline-flex min-w-0 max-w-full items-center gap-1 md:gap-2"><span className="hidden md:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate" title={space.name}>{space.name}</span></span>;
 
 export function SpaceNavigation({ active }: { active: string | null }) {
   const spaces = useAllSpaces();
@@ -32,7 +34,7 @@ export function SpaceNavigation({ active }: { active: string | null }) {
     <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-small text-muted">
       <ol className="m-0 flex min-w-0 list-none items-center gap-2 p-0">
         <li className="min-w-0 max-w-[50%] shrink-0 md:max-w-[30%]">
-          {personal ? <span className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-1 px-1 md:gap-2"><span className="hidden md:inline-flex"><SpaceMark space={personal} /></span><span className="min-w-0 truncate" title={personal.name}>{personal.name}</span></span> : <Menu
+          {personal ? <span className={spaceFrame}>{spaceName(personal)}</span> : <Menu
             items={[
               ...(spaces.data ?? []).map((candidate) => ({
                 label: candidate.name,
@@ -45,8 +47,8 @@ export function SpaceNavigation({ active }: { active: string | null }) {
               { label: 'Manage spaces', separated: true, onSelect: () => navigate('/spaces') },
             ]}
             label="Switch space"
-            trigger={<span className="inline-flex min-w-0 max-w-full items-center gap-1 md:gap-2"><span className="hidden md:inline-flex"><SpaceMark space={space} /></span><span className="min-w-0 truncate" title={space.name}>{space.name}</span></span>}
-            triggerClassName="relative inline-flex min-h-9 max-w-full min-w-0 items-center rounded-field border border-line px-2 transition-colors after:absolute after:inset-x-0 after:-inset-y-1 hover:border-muted aria-expanded:border-muted"
+            trigger={spaceName(space)}
+            triggerClassName={`${spaceFrame} transition-colors after:absolute after:inset-x-0 after:-inset-y-1 hover:border-muted aria-expanded:border-muted`}
             triggerLabel={`Switch space: ${space.name}`}
           />}
         </li>

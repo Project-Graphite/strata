@@ -494,9 +494,8 @@ function Agenda({ view }: { view: View }) {
   const anchor = params.get('date') ?? today;
   const [creating, setCreating] = useState<Draft>();
   const [sheet, setSheet] = useState<string>();
-  const period = agendaPeriod(view, anchor, me.data?.weekStart ?? 0, phone);
+  const period = agendaPeriod(view, anchor, me.data?.weekStart ?? 0);
   const canCreate = Boolean(spaces.data?.some((space) => space.role !== 'viewer'));
-  const unit = view === 'list' ? 'period' : view === 'week' && phone ? '3 days' : view;
   const link: ViewLink = (next) => {
     const date = next.date ?? params.get('date');
     return `/agenda/${next.view ?? view}${date ? `?date=${date}` : ''}`;
@@ -542,7 +541,7 @@ function Agenda({ view }: { view: View }) {
           <Button disabled={!canCreate} icon="plus" label="New event" large onClick={() => setCreating({ startsOn: anchor })} primary />
         </>
       }
-      tabs={(Object.keys(views) as View[]).map((option) => ({ active: view === option, href: link({ view: option }), label: option === 'week' && phone ? '3 days' : views[option] }))}
+      tabs={(Object.keys(views) as View[]).map((option) => ({ active: view === option, href: link({ view: option }), label: views[option] }))}
       title="Agenda"
       toolbar={
         <PeriodNav
@@ -555,7 +554,7 @@ function Agenda({ view }: { view: View }) {
                 ? formatDay(anchor, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
                 : dayRange(period.from, addDays(period.to, -1))
           }
-          unit={unit}
+          unit={view === 'list' ? 'period' : view}
         />
       }
     >

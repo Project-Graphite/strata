@@ -12,16 +12,24 @@ export function UpdatePrompt() {
     const offer = (worker: ServiceWorker | null) => {
       if (worker && serviceWorker.controller) setWaiting(worker);
     };
-    void serviceWorker.register('/sw.js').then((registration) => {
+    const registered = serviceWorker.register('/sw.js');
+    void registered.then((registration) => {
       offer(registration.waiting);
       registration.addEventListener('updatefound', () => {
         const installing = registration.installing;
         installing?.addEventListener('statechange', () => installing.state === 'installed' && offer(installing));
       });
     });
+    const checkForUpdate = () => {
+      if (document.visibilityState === 'visible') registered.then((registration) => registration.update()).catch(() => undefined);
+    };
     const reload = () => reloading.current && window.location.reload();
     serviceWorker.addEventListener('controllerchange', reload);
-    return () => serviceWorker.removeEventListener('controllerchange', reload);
+    document.addEventListener('visibilitychange', checkForUpdate);
+    return () => {
+      serviceWorker.removeEventListener('controllerchange', reload);
+      document.removeEventListener('visibilitychange', checkForUpdate);
+    };
   }, []);
 
   if (!waiting) return null;
