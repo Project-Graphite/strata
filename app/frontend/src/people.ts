@@ -1,3 +1,5 @@
+import { capitalised, formatDate } from './time';
+
 export interface GiftIdea {
   id: string;
   text: string;
@@ -40,6 +42,6 @@ export function birthdayText(person: Pick<Person, 'birthdayDay' | 'birthdayMonth
 export function nextBirthdayText(person: Person, today: string) {
   if (!person.nextBirthday) return null;
   const days = Math.round((Date.parse(person.nextBirthday) - Date.parse(today)) / 86_400_000);
-  const when = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${person.nextBirthday}T00:00:00Z`));
+  const when = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : capitalised(formatDate(person.nextBirthday));
   return person.turning ? `${when} · turns ${person.turning}` : when;
 }

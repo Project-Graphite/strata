@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { formatDay, Icon, IconButton, ListRow, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
+import { Icon, ListRow, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
 import { Button } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
-import { Hint } from '../components/Hint';
-import { DetailState, Page, Section, Subheading } from '../components/Page';
-import { ButtonSkeleton, HintSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { DetailState, Page, Section } from '../components/Page';
+import { ButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { MissingRates } from '../components/Stats';
 import { OpenTask } from '../components/OpenTask';
 import { TripEditor } from '../components/TripEditor';
@@ -25,7 +25,14 @@ import { tripDates, type TripDetail } from '../trips';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
-import { clockTime } from '../time';
+import { capitalised, clockTime, formatDate } from '../time';
+
+const empties = {
+  itinerary: { title: 'No events yet', hint: 'Add the flights, stays and plans for this trip to see them day by day.' },
+  packing: { title: 'Nothing to pack yet', hint: 'Add what to bring and tick it off as it goes in the bag.' },
+  documents: { title: 'No documents yet', hint: 'Upload tickets, bookings and passports to keep them with the trip.' },
+  pages: { title: 'No pages yet', hint: 'Start a page for notes and ideas about this trip.' },
+};
 
 export function TripPage() {
   const { id = '' } = useParams();
@@ -63,27 +70,35 @@ export function TripPage() {
   const back = { to: '/trips', label: 'Trips' };
   if (!trip.data) {
     return (
-      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={trip} thing="Trip">
-        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-32" />} title="Itinerary">
+      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={trip} thing="Trip">
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-28" />} title="Itinerary">
           {dayRows.length ? (
             <div className="grid gap-4">
               {dayRows.map((rows, day) => (
-                <div className="grid gap-2" key={day}>
-                  <SkeletonLine className="text-sm" width="w-40" />
+                <div className="grid gap-3" key={day}>
+                  <SkeletonLine className="text-h3" width="w-24" />
                   <RowsSkeleton rows={rows} />
                 </div>
               ))}
             </div>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={empties.itinerary.title}>
+              {empties.itinerary.hint}
+            </Empty>
           )}
         </Section>
         {packing > 0 && (
-          <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-28" />} description={packRows > 0 && <SkeletonLine width="w-24" />} title="Packing">
-            {packRows ? <TaskRowsSkeleton detailed={detailedPacks} rows={packRows} /> : <HintSkeleton />}
+          <Section action={wasEditable > 0 && <ButtonSkeleton width="w-24" />} description={packRows > 0 && <SkeletonLine width="w-24" />} title="Packing">
+            {packRows ? (
+              <TaskRowsSkeleton detailed={detailedPacks} rows={packRows} />
+            ) : (
+              <Empty loading title={empties.packing.title}>
+                {empties.packing.hint}
+              </Empty>
+            )}
           </Section>
         )}
-        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-36" />} title="Spending">
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Spending">
           <div className="grid gap-2">
             <SkeletonLine width="w-40" />
             {budgeted > 0 && <Skeleton className="h-1.5 rounded-full" />}
@@ -91,10 +106,22 @@ export function TripPage() {
           {expenseRows > 0 && <RowsSkeleton rows={expenseRows} trail={<SkeletonLine className="shrink-0" width="w-16" />} />}
         </Section>
         <Section action={wasEditable > 0 && <ButtonSkeleton width="w-24" />} title="Documents">
-          {documentRows ? <RowsSkeleton lead={<IconSkeleton />} rows={documentRows} /> : <HintSkeleton />}
+          {documentRows ? (
+            <RowsSkeleton lead={<IconSkeleton />} rows={documentRows} />
+          ) : (
+            <Empty loading title={empties.documents.title}>
+              {empties.documents.hint}
+            </Empty>
+          )}
         </Section>
-        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-32" />} title="Pages">
-          {pageRows ? <RowsSkeleton detail={false} lead={<IconSkeleton />} rows={pageRows} /> : <HintSkeleton />}
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-28" />} title="Pages">
+          {pageRows ? (
+            <RowsSkeleton detail={false} lead={<IconSkeleton />} rows={pageRows} />
+          ) : (
+            <Empty loading title={empties.pages.title}>
+              {empties.pages.hint}
+            </Empty>
+          )}
         </Section>
       </DetailState>
     );
@@ -146,7 +173,6 @@ export function TripPage() {
       actions={
         editable && (
           <>
-            <IconButton icon="pencil" label="Edit" onClick={() => setDialog('edit')} />
             <ActionsMenu
               items={[
                 {
@@ -169,6 +195,7 @@ export function TripPage() {
               ]}
               name={shown.title}
             />
+            <Button icon="pencil" label="Edit" large onClick={() => setDialog('edit')} primary />
           </>
         )
       }
@@ -176,14 +203,13 @@ export function TripPage() {
       description={[shown.spaceName, shown.destination, tripDates(shown)].filter(Boolean).join(' · ')}
       title={shown.title}
     >
-      <Section action={editable && <Button icon="plus" label="New event" large onClick={() => setDialog('event')} />} title="Itinerary">
+      <Section action={editable && <Button icon="plus" label="New event" onClick={() => setDialog('event')} />} title="Itinerary">
         {days.length === 0 ? (
-          <Hint>No events yet.</Hint>
+          <Empty title={empties.itinerary.title}>{empties.itinerary.hint}</Empty>
         ) : (
           <div className="grid gap-4">
             {days.map((day) => (
-              <div className="grid gap-2" key={day}>
-                <Subheading>{formatDay(day, { weekday: 'long', day: 'numeric', month: 'long' })}</Subheading>
+              <Section key={day} level={3} title={capitalised(formatDate(day))}>
                 <ul className="panel-rows">
                   {itinerary
                     .filter((entry) => entry.startsOn === day)
@@ -197,7 +223,7 @@ export function TripPage() {
                       />
                     ))}
                 </ul>
-              </div>
+              </Section>
             ))}
           </div>
         )}
@@ -205,12 +231,12 @@ export function TripPage() {
 
       {shown.packing && (
         <Section
-          action={editable && <Button icon="plus" label="Add item" large onClick={() => setDialog('pack')} />}
+          action={editable && <Button icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
           description={shown.packing.tasks.length ? `${packed} of ${shown.packing.tasks.length} packed` : undefined}
           title="Packing"
         >
           {shown.packing.tasks.length === 0 ? (
-            <Hint>Nothing to pack yet.</Hint>
+            <Empty title={empties.packing.title}>{empties.packing.hint}</Empty>
           ) : (
             <ul className="panel-rows">
               {shown.packing.tasks.map((task) => (
@@ -233,7 +259,7 @@ export function TripPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New expense" large onClick={() => setDialog('expense')} />} title="Spending">
+      <Section action={editable && <Button icon="plus" label="New expense" onClick={() => setDialog('expense')} />} title="Spending">
         <div className="grid gap-2">
           <p className="m-0 text-ink">
             {money(shown.spending.spentMinor, shown.spending.currency)} spent
@@ -247,7 +273,7 @@ export function TripPage() {
             {shown.expenses.map((expense) => (
               <ListRow
                 key={expense.linkId}
-                meta={<>{formatDay(expense.spentOn, { day: 'numeric', month: 'short' })} · {categoryName(expense.category)}</>}
+                meta={`${capitalised(formatDate(expense.spentOn))} · ${categoryName(expense.category)}`}
                 title={expense.title}
                 trail={
                   <>
@@ -290,7 +316,7 @@ export function TripPage() {
         title="Documents"
       >
         {shown.documents.length === 0 ? (
-          <Hint>No documents yet.</Hint>
+          <Empty title={empties.documents.title}>{empties.documents.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.documents.map((document) => (
@@ -321,7 +347,6 @@ export function TripPage() {
             <Button
               icon="plus"
               label="New page"
-              large
               onClick={() =>
                 void action.run(async () => {
                   const page = await auth.request<{ id: string }>(`/spaces/${shown.spaceId}/notes`, { method: 'POST', body: JSON.stringify({ title: `${shown.title} notes` }) });
@@ -336,7 +361,7 @@ export function TripPage() {
         title="Pages"
       >
         {shown.pages.length === 0 ? (
-          <Hint>No pages yet.</Hint>
+          <Empty title={empties.pages.title}>{empties.pages.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.pages.map((page) => (

@@ -35,12 +35,8 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Page title="Reset your password" variant="panel">
-      {sentTo ? (
-        <p className="mt-4 text-muted">
-          If an account uses {sentTo}, a reset link is on its way. It works for one hour.
-        </p>
-      ) : (
+    <Page description={sentTo && `If an account uses ${sentTo}, a reset link is on its way. It works for one hour.`} title="Reset your password" variant="panel">
+      {!sentTo && (
         <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
           <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
           {error && <Banner tone="danger">{error}</Banner>}

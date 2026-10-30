@@ -183,13 +183,13 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="m-0 text-small font-normal text-muted">{dashboard.name}</h1>
-          <p className="m-0 text-5xl text-ink">{clockTime(now, user?.timeZone)}</p>
-          <p className="mono-sm m-0 mt-1 text-faint">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="wall-clock">{clockTime(now, user?.timeZone)}</p>
+          <p className="m-0 mt-1 text-small text-muted">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <ButtonLink label="Exit" to={`/?d=${dashboard.id}`} />
       </header>
       {mayDim && <p className="mt-4 mb-0 text-small text-muted">This browser may still let the screen turn itself off.</p>}
-      <div className="mt-8 text-lg">
+      <div className="mt-8">
         <DashboardGrid
           card={(widget) => {
             const kind = widgetKinds[widget.type];
@@ -204,7 +204,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
           }}
           dashboard={dashboard.id}
           label={cardTitle}
-          widgets={placed(dashboard.layout.widgets)}
+          widgets={placed(dashboard.layout.widgets.filter((widget) => widget.type !== 'clock'))}
         />
       </div>
     </div>

@@ -1,12 +1,13 @@
 import { useSearchParams } from 'react-router';
-import { Pagination, Placeholder, timeAgo } from '@project-graphite/ui';
+import { ListRow, Pagination, Placeholder } from '@project-graphite/ui';
 import { describeActivity, type ActivityEvent } from '../../activity';
 import type { Page } from '../../api';
+import { capitalised, formatMoment } from '../../time';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
-import { rowsOf, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
+import { RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const empty = { title: 'No activity yet', hint: 'What people add, change and finish in this space shows up here.' };
 
@@ -22,14 +23,7 @@ export function SpaceActivity() {
     return (
       <Placeholder label="Loading what happened in this space">
         {rows ? (
-          <ol aria-hidden="true" className="panel-rows">
-            {rowsOf(rows).map((row) => (
-              <li className="flex items-center justify-between gap-4 panel-row" key={row}>
-                <SkeletonLine className="min-w-0 flex-1" width={row % 2 ? 'w-1/2' : 'w-2/3'} />
-                <SkeletonLine className="mono-sm shrink-0" width="w-14" />
-              </li>
-            ))}
-          </ol>
+          <RowsSkeleton rows={rows} />
         ) : (
           <Empty loading title={empty.title}>
             {empty.hint}
@@ -44,10 +38,7 @@ export function SpaceActivity() {
     <>
       <ol className="panel-rows">
         {activity.data.results.map((event) => (
-          <li className="flex items-baseline justify-between gap-4 panel-row" key={event.id}>
-            <span className="min-w-0 text-ink">{describeActivity(event)}</span>
-            <span className="mono-sm shrink-0 text-faint">{timeAgo(event.createdAt)}</span>
-          </li>
+          <ListRow key={event.id} meta={capitalised(formatMoment(event.createdAt))} title={describeActivity(event)} />
         ))}
       </ol>
       <Pagination

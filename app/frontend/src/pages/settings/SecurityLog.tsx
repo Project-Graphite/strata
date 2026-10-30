@@ -1,10 +1,11 @@
-import { Placeholder, timeAgo } from '@project-graphite/ui';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import type { Page } from '../../api';
+import { capitalised, formatMoment } from '../../time';
 import { useResource } from '../../useResource';
 import { Section } from '../../components/Page';
-import { Hint } from '../../components/Hint';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
-import { HintSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
+import { RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 interface AuditEvent {
   id: string;
@@ -48,6 +49,7 @@ const actions: Record<string, string> = {
 };
 
 const reasons: Record<string, string> = { password: 'wrong password', code: 'wrong code' };
+const empty = { title: 'No security events yet', hint: 'Sign-ins, password changes and other account changes show up here.' };
 
 export function SecurityLog() {
   const log = useResource<Page<AuditEvent>>('/me/audit?page=1', true);
@@ -59,27 +61,26 @@ export function SecurityLog() {
         <LoadError compact error={log.error} onRetry={log.reload} />
       ) : !log.data ? (
         <Placeholder label="Loading your security log">
-          {rows ? <RowsSkeleton detail={false} rows={rows} trail={<SkeletonLine className="mono-sm shrink-0" width="w-16" />} /> : <HintSkeleton />}
+          {rows ? (
+            <RowsSkeleton rows={rows} />
+          ) : (
+            <Empty loading title={empty.title}>
+              {empty.hint}
+            </Empty>
+          )}
         </Placeholder>
       ) : log.data.results.length === 0 ? (
-        <Hint>Nothing in the log yet.</Hint>
+        <Empty title={empty.title}>{empty.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {log.data.results.map((event) => (
-            <li className="flex items-baseline justify-between gap-4 panel-row" key={event.id}>
-              <span className={`min-w-0 text-ink ${event.action === 'sign_in_failed' ? 'font-medium' : ''}`}>
-                {actions[event.action] ?? event.action}
-                {(event.data.device || event.data.reason || event.data.name) && (
-                  <span className="text-small text-muted">
-                    {' · '}
-                    {[event.data.reason && reasons[event.data.reason], event.data.device, event.data.name]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                )}
-              </span>
-              <span className="mono-sm shrink-0 text-faint">{timeAgo(event.createdAt)}</span>
-            </li>
+            <ListRow
+              key={event.id}
+              meta={capitalised(
+                [event.data.reason && reasons[event.data.reason], event.data.device, event.data.name, formatMoment(event.createdAt)].filter(Boolean).join(' · '),
+              )}
+              title={actions[event.action] ?? event.action}
+            />
           ))}
         </ul>
       )}

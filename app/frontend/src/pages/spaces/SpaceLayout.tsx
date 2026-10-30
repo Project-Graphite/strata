@@ -16,10 +16,15 @@ interface SpaceOutlet {
   space: Space;
   invite: () => void;
   invited: number;
+  setMenu: (items: MenuItem[]) => void;
 }
 
 export function useSpace() {
   return useOutletContext<SpaceOutlet>().space;
+}
+
+export function useSpaceMenu() {
+  return useOutletContext<SpaceOutlet>().setMenu;
 }
 
 export function useSpaceInvites() {
@@ -77,7 +82,7 @@ export function useSpaceActions(onInvited?: () => void) {
               }, 'Could not rename the space')
               .then((saved) => saved && close());
           }}
-          submitLabel="Save"
+          submitLabel="Rename space"
           title="Rename space"
         >
           <NameAndColorFields color={opened.space.color} field={renameForm.field('name')} maxLength={60} name={opened.space.name} />
@@ -140,6 +145,7 @@ export function SpaceLayout() {
   const navigate = useNavigate();
   const spaces = useAllSpaces();
   const [invited, setInvited] = useState(0);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;
   const sections = [
@@ -148,15 +154,13 @@ export function SpaceLayout() {
     [`${base}/tags`, 'Tags'],
     [`${base}/activity`, 'Activity'],
   ] as const;
-  const opened = [...sections, [`${base}/items`, 'Items'] as const].find(([href]) => pathname === href);
   const tabs = (
     [
       [base, 'Overview'],
       [`${base}/pages`, 'Pages'],
       [`${base}/tasks`, 'Tasks'],
       [`${base}/members`, 'Members'],
-      ...(opened ? [opened] : []),
-    ] as (readonly [string, string])[]
+    ] as const
   ).map(([href, label]) => ({ active: pathname === href, href, label }));
 
   if (spaces.error) return <DetailState resource={spaces} thing="Space" />;
@@ -195,13 +199,13 @@ export function SpaceLayout() {
         <ActionsMenu
           items={[
             ...sections.map(([href, label]) => ({ label, onSelect: () => navigate(href) })),
-            ...actions.items(space).map((item, index) => (index === 0 ? { ...item, separated: true } : item)),
+            ...[...menu, ...actions.items(space)].map((item, index) => (index === 0 ? { ...item, separated: true } : item)),
           ]}
           name={space.name}
         />
       }
       description={spaceDescription(space)}
-      documentTitle={space.name}
+      documentTitle={sections.find(([href]) => pathname === href)?.[1] ?? space.name}
       tabs={tabs}
       title={
         <span className="inline-flex items-center gap-3">
@@ -210,7 +214,7 @@ export function SpaceLayout() {
         </span>
       }
     >
-      <Outlet context={{ space, invite: () => actions.invite(space), invited } satisfies SpaceOutlet} />
+      <Outlet context={{ space, invite: () => actions.invite(space), invited, setMenu } satisfies SpaceOutlet} />
       {actions.dialog}
     </Page>
   );

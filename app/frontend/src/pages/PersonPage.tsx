@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, IconButton, ListRow, TextField } from '@project-graphite/ui';
+import { Checkbox, ListRow, TextField } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
+import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
-import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
-import { DetailState, Page, Section, Subheading } from '../components/Page';
+import { DetailState, Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
-import { ButtonSkeleton, HintSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { birthdayText, nextBirthdayText, type GiftIdea, type PersonDetail } from '../people';
+import { ButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { birthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -20,6 +20,9 @@ import { atMost, required, useFormErrors } from '../validation';
 import { formatDate } from '../time';
 
 type EventLink = PersonDetail['events'][number];
+
+const emptyIdeas = { title: 'No gift ideas yet', hint: 'Write down gift ideas as they come to you, and tick them off once given.' };
+const emptyEvents = { title: 'No events yet', hint: 'Link events you share with this person to see them together here.' };
 
 export function PersonPage() {
   const { id = '' } = useParams();
@@ -56,28 +59,10 @@ export function PersonPage() {
   const back = { to: '/people', label: 'People' };
   if (!person.data) {
     return (
-      <DetailState actions={wasEditable ? 2 : 0} back={back} resource={person} thing="Person">
+      <DetailState actions={wasEditable ? 1 : 0} back={back} resource={person} thing="Person">
         {birthday + contactRows + notesLines > 0 && (
           <Section title="Details">
-            {birthday + contactRows > 0 && (
-              <div aria-hidden="true" className="panel-rows">
-                {birthday > 0 && (
-                  <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1">
-                    <SkeletonLine className="text-sm" width="w-16" />
-                    <span className="grid sm:justify-items-end">
-                      <SkeletonLine width="w-32" />
-                      <SkeletonLine className="text-sm" width="w-24" />
-                    </span>
-                  </div>
-                )}
-                {rowsOf(contactRows).map((row) => (
-                  <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1" key={row}>
-                    <SkeletonLine className="text-sm" width="w-12" />
-                    <SkeletonLine width="w-40" />
-                  </div>
-                ))}
-              </div>
-            )}
+            {birthday + contactRows > 0 && <RowsSkeleton rows={birthday + contactRows} />}
             {notesLines > 0 && (
               <p aria-hidden="true" className="m-0">
                 {rowsOf(notesLines).map((line) => (
@@ -87,22 +72,29 @@ export function PersonPage() {
             )}
           </Section>
         )}
-        <Section action={wasEditable > 0 && <ButtonSkeleton large width="w-36" />} title="Gift ideas">
-          {ideaRows ? <TaskRowsSkeleton detailed={0} rows={ideaRows} /> : <HintSkeleton />}
+        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Gift ideas">
+          {ideaRows ? (
+            <TaskRowsSkeleton detailed={0} rows={ideaRows} />
+          ) : (
+            <Empty loading title={emptyIdeas.title}>
+              {emptyIdeas.hint}
+            </Empty>
+          )}
         </Section>
         <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Events together">
           {upcomingRows || earlierRows ? (
             <div className="grid gap-4">
               {upcomingRows > 0 && <RowsSkeleton rows={upcomingRows} />}
               {earlierRows > 0 && (
-                <div className="grid gap-2">
-                  <Subheading>Earlier</Subheading>
+                <Section level={3} title="Earlier">
                   <RowsSkeleton rows={earlierRows} />
-                </div>
+                </Section>
               )}
             </div>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptyEvents.title}>
+              {emptyEvents.hint}
+            </Empty>
           )}
         </Section>
       </DetailState>
@@ -164,13 +156,8 @@ export function PersonPage() {
 
   const details = [
     [
-      'Birthday',
-      birthdayText(shown) && (
-        <span className="grid sm:text-right">
-          {birthdayText(shown)}
-          <span className="text-small text-muted">Next: {nextBirthdayText(shown, today)}</span>
-        </span>
-      ),
+      ['Birthday', shown.nextBirthday && `next ${formatDate(shown.nextBirthday)}`, shown.turning && `turns ${shown.turning}`].filter(Boolean).join(' · '),
+      birthdayText(shown),
     ],
     ['Email', shown.email && <a href={`mailto:${shown.email}`}>{shown.email}</a>],
     ['Phone', shown.phone && <a href={`tel:${shown.phone.replace(/\s/g, '')}`}>{shown.phone}</a>],
@@ -181,7 +168,6 @@ export function PersonPage() {
       actions={
         editable && (
           <>
-            <IconButton icon="pencil" label="Edit" onClick={() => setEditing(true)} />
             <ActionsMenu
               items={[
                 {
@@ -204,6 +190,7 @@ export function PersonPage() {
               ]}
               name={shown.name}
             />
+            <Button icon="pencil" label="Edit" large onClick={() => setEditing(true)} primary />
           </>
         )
       }
@@ -214,28 +201,27 @@ export function PersonPage() {
       {(details.length > 0 || shown.notes) && (
         <Section title="Details">
           {details.length > 0 && (
-            <dl className="panel-rows m-0">
+            <ul className="panel-rows">
               {details.map(([label, value]) => (
-                <div className="panel-row flex flex-wrap justify-between gap-x-4 gap-y-1" key={label as string}>
-                  <dt className="text-small text-muted">{label}</dt>
-                  <dd className="m-0 text-ink">{value}</dd>
-                </div>
+                <ListRow key={label as string} meta={label} title={value} />
               ))}
-            </dl>
+            </ul>
           )}
           {shown.notes && <p className="m-0 whitespace-pre-wrap text-ink">{shown.notes}</p>}
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New gift idea" large onClick={() => setDialog('idea')} />} title="Gift ideas">
+      <Section action={editable && <Button icon="plus" label="New gift idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
-          <Hint>No gift ideas yet.</Hint>
+          <Empty title={emptyIdeas.title}>{emptyIdeas.hint}</Empty>
         ) : (
           <ul className="panel-rows">
             {shown.giftIdeas.map((idea) => (
-              <li className="panel-row flex items-center gap-3" key={idea.id}>
-                <label className="flex min-w-0 flex-1 items-center gap-3">
+              <ListRow
+                key={idea.id}
+                lead={
                   <Checkbox
+                    aria-label={idea.text}
                     checked={idea.done}
                     disabled={!editable || action.busy}
                     onChange={() =>
@@ -245,10 +231,10 @@ export function PersonPage() {
                       }, 'Could not save the gift idea')
                     }
                   />
-                  <span className={`truncate ${idea.done ? 'text-faint line-through' : 'text-ink'}`}>{idea.text}</span>
-                </label>
-                {editable && <ActionsMenu items={[{ label: 'Remove', onSelect: () => removeIdea(idea) }]} name={idea.text} />}
-              </li>
+                }
+                title={<span className={idea.done ? 'text-faint line-through' : undefined}>{idea.text}</span>}
+                trail={editable && <ActionsMenu items={[{ label: 'Remove', onSelect: () => removeIdea(idea) }]} name={idea.text} />}
+              />
             ))}
           </ul>
         )}
@@ -256,15 +242,14 @@ export function PersonPage() {
 
       <Section action={editable && <Button icon="link" label="Link an event" onClick={() => setDialog('event')} />} title="Events together">
         {shown.events.length === 0 ? (
-          <Hint>No events linked yet.</Hint>
+          <Empty title={emptyEvents.title}>{emptyEvents.hint}</Empty>
         ) : (
           <div className="grid gap-4">
             {upcoming.length > 0 && eventList(upcoming)}
             {earlier.length > 0 && (
-              <div className="grid gap-2">
-                <Subheading>Earlier</Subheading>
+              <Section level={3} title="Earlier">
                 {eventList(earlier)}
-              </div>
+              </Section>
             )}
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage, Icon, isAbortError, ListRow, Placeholder, TextLink } from '@project-graphite/ui';
 import { LoadError } from '../../components/LoadError';
-import { BackLink, Section } from '../../components/Page';
+import { Section } from '../../components/Page';
 import { RowsSkeleton } from '../../components/Skeletons';
 import { newIssueUrl, repositoryUrl, securityPolicyUrl } from '../../project-links';
 import { Privacy, Terms } from '../LegalPages';
@@ -103,10 +103,5 @@ export function LegalSettings({ page }: { page?: keyof typeof pages }) {
       </Section>
     );
   }
-  return (
-    <div className="grid gap-4">
-      <BackLink back={{ label: 'Legal', to: '/settings/legal' }} />
-      <Section title={pages[page].title}>{pages[page].body}</Section>
-    </div>
-  );
+  return <Section title={pages[page].title}>{pages[page].body}</Section>;
 }

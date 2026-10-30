@@ -80,7 +80,7 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
 
   return (
     <Section
-      action={editable && (tags ? tags.length > 0 && <Button icon="plus" label="New rule" large onClick={() => setAdding(true)} /> : <ButtonSkeleton large width="w-32" />)}
+      action={editable && (tags ? tags.length > 0 && <Button icon="plus" label="New rule" onClick={() => setAdding(true)} /> : <ButtonSkeleton width="w-24" />)}
       description="Tag new items in this space by words in their title, by file type, or both."
       title="Tagging rules"
     >

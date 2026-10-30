@@ -1,9 +1,10 @@
 import { useNavigate, useSearchParams } from 'react-router';
-import { Pagination, Placeholder, TagChip, timeAgo, type MenuItem } from '@project-graphite/ui';
+import { Pagination, Placeholder, TagChip, type MenuItem } from '@project-graphite/ui';
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { fileSize, saveBlob, uploadFiles } from '../../files';
 import type { Item, Tag } from '../../spaces';
+import { capitalised, formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { ItemList, ItemRowsSkeleton, itemsShape } from './ItemList';
@@ -12,7 +13,7 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { Empty } from '../../components/Empty';
 import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
-import { FilterChips, Toolbar } from '../../components/Page';
+import { FilterChips, Toolbar, usePagePrimary } from '../../components/Page';
 import { useRememberedShape } from '../../components/Skeletons';
 
 export function SpaceItems() {
@@ -31,6 +32,7 @@ export function SpaceItems() {
   const base = `/spaces/${space.id}/items`;
   const editable = space.role !== 'viewer';
   const tagName = tags.data?.find((shown) => shown.id === tag)?.name ?? 'Tag';
+  usePagePrimary(editable && !archived && <FileButton busy={uploading.busy} label={uploading.busy ? 'Uploading…' : 'Upload files'} large multiple onFiles={upload} primary />);
   const shape = useRememberedShape(`space-items-${space.id}${filters}`, items.data && itemsShape(items.data.results), [4, 0, 0]);
   const empty = tag
     ? { title: `Nothing ${archived ? 'archived' : 'here'} is tagged ${tagName}`, hint: 'Remove the tag to see everything else.', variant: 'filtered' as const }
@@ -93,7 +95,7 @@ export function SpaceItems() {
 
   return (
     <>
-      <Toolbar actions={editable && !archived && <FileButton busy={uploading.busy} label={uploading.busy ? 'Uploading…' : 'Upload files'} multiple onFiles={upload} />}>
+      <Toolbar>
         <FilterChips
           items={[
             { active: !archived, href: link({ archived: false }), label: 'Current' },
@@ -125,7 +127,7 @@ export function SpaceItems() {
               const menu = actionsFor(item);
               return menu.length > 0 && <ActionsMenu items={menu} name={item.title || 'Untitled'} />;
             }}
-            detail={(item) => [item.file && fileSize(item.file.sizeBytes), `updated ${timeAgo(item.updatedAt)}`].filter(Boolean).join(' · ')}
+            detail={(item) => capitalised([item.file && fileSize(item.file.sizeBytes), `updated ${formatMoment(item.updatedAt)}`].filter(Boolean).join(' · '))}
             items={items.data.results}
           />
           <Pagination page={items.data.page} pageHref={(next) => link({ page: next })} totalPages={items.data.totalPages} />

@@ -23,8 +23,8 @@ export function NotFoundPage() {
       <EmptyState
         action={
           <>
-            <ButtonLink label="Go home" large primary to="/" />
-            {signedIn ? areas.map((area) => <ButtonLink key={area.href} label={area.label} large to={area.href} />) : <ButtonLink label="Sign in" large to="/login" />}
+            <ButtonLink label="Go home" primary to="/" />
+            {signedIn ? areas.map((area) => <ButtonLink key={area.href} label={area.label} to={area.href} />) : <ButtonLink label="Sign in" to="/login" />}
           </>
         }
         icon="compass"
