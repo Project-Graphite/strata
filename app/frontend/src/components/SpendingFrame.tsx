@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { Banner, DatePicker, Icon } from '@project-graphite/ui';
 import { useSearchParams } from 'react-router';
 import { readBlob } from '../api';
@@ -11,15 +11,16 @@ import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
-import { AddTransaction } from './AddTransaction';
 import { Button } from './Button';
-import { CategoriesEditor } from './CategoriesEditor';
-import { ExpenseImport } from './ExpenseImport';
 import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
 import { Page } from './Page';
 import { PhoneSetup } from './PhoneSetup';
-import { RulesEditor } from './RulesEditor';
+
+const AddTransaction = lazy(() => import('./AddTransaction').then((module) => ({ default: module.AddTransaction })));
+const CategoriesEditor = lazy(() => import('./CategoriesEditor').then((module) => ({ default: module.CategoriesEditor })));
+const ExpenseImport = lazy(() => import('./ExpenseImport').then((module) => ({ default: module.ExpenseImport })));
+const RulesEditor = lazy(() => import('./RulesEditor').then((module) => ({ default: module.RulesEditor })));
 
 export function SpendingFrame({
   accounts,
@@ -99,18 +100,20 @@ export function SpendingFrame({
           <Icon name="plus" size={20} />
         </button>
       )}
-      {spaceId && dialog === 'new' && (
-        <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
-      )}
-      {spaceId && dialog === 'import' && <ExpenseImport accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
-      {spaceId && dialog === 'export' && <ExportDialog onClose={() => setDialog(undefined)} spaceId={spaceId} />}
-      {spaceId && space && dialog === 'phone' && (
-        <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => { setDialog(undefined); nativeCapture.refresh(); }} spaceId={spaceId} spaceName={space.name} />
-      )}
-      {spaceId && editedCategories && dialog === 'categories' && (
-        <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
-      )}
-      {spaceId && dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+      <Suspense fallback={null}>
+        {spaceId && dialog === 'new' && (
+          <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
+        )}
+        {spaceId && dialog === 'import' && <ExpenseImport accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+        {spaceId && dialog === 'export' && <ExportDialog onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+        {spaceId && space && dialog === 'phone' && (
+          <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => { setDialog(undefined); nativeCapture.refresh(); }} spaceId={spaceId} spaceName={space.name} />
+        )}
+        {spaceId && editedCategories && dialog === 'categories' && (
+          <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
+        )}
+        {spaceId && dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+      </Suspense>
     </Page>
   );
 }

@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, lazy, Suspense, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Card, ConfirmDialog, formatDay, Icon, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, TextLink, Toggle } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
@@ -7,7 +7,6 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { AccountBalance, Amount } from '../components/Amount';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { ExpenseEditor } from '../components/ExpenseEditor';
 import { Hint } from '../components/Hint';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -37,8 +36,10 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
-import { CurrencyField } from '../components/CurrencyField';
 import { MissingRates } from '../components/Stats';
+
+const CurrencyField = lazy(() => import('../components/CurrencyField').then((module) => ({ default: module.CurrencyField })));
+const ExpenseEditor = lazy(() => import('../components/ExpenseEditor').then((module) => ({ default: module.ExpenseEditor })));
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const recentCount = 5;
@@ -354,42 +355,44 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
         </>
       )}
 
-      {spaceId && typeof dialog === 'object' && 'expense' in dialog && (
-        <ExpenseEditor
-          accounts={accounts.data ?? []}
-          currency={currency}
-          expense={dialog.expense}
-          onClose={() => setDialog(undefined)}
-          onRestored={reload}
-          onSaved={reload}
-          onTrashed={reload}
-          spaceId={spaceId}
-        />
-      )}
+      <Suspense fallback={null}>
+        {spaceId && typeof dialog === 'object' && 'expense' in dialog && (
+          <ExpenseEditor
+            accounts={accounts.data ?? []}
+            currency={currency}
+            expense={dialog.expense}
+            onClose={() => setDialog(undefined)}
+            onRestored={reload}
+            onSaved={reload}
+            onTrashed={reload}
+            spaceId={spaceId}
+          />
+        )}
 
-      {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
-        <ExpenseEditor
-          accounts={accounts.data ?? []}
-          capture={dialog.capture}
-          currency={currency}
-          onClose={() => setDialog(undefined)}
-          onSaved={reload}
-          reportParsing={dialog.report}
-          spaceId={spaceId}
-        />
-      )}
-      {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
-        <BudgetDialog
-          categories={expenseCategories(categories.data)}
-          category={dialog.budget}
-          currency={currency}
-          onClose={() => setDialog(undefined)}
-          onSaved={() => summary.reload()}
-          spaceId={spaceId}
-          summary={shown}
-        />
-      )}
-      {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
+        {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
+          <ExpenseEditor
+            accounts={accounts.data ?? []}
+            capture={dialog.capture}
+            currency={currency}
+            onClose={() => setDialog(undefined)}
+            onSaved={reload}
+            reportParsing={dialog.report}
+            spaceId={spaceId}
+          />
+        )}
+        {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
+          <BudgetDialog
+            categories={expenseCategories(categories.data)}
+            category={dialog.budget}
+            currency={currency}
+            onClose={() => setDialog(undefined)}
+            onSaved={() => summary.reload()}
+            spaceId={spaceId}
+            summary={shown}
+          />
+        )}
+        {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
+      </Suspense>
       {typeof dialog === 'object' && 'ignoreAlways' in dialog && (
         <ConfirmDialog
           busyLabel="Ignoring…"
