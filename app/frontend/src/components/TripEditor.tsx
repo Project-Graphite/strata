@@ -56,7 +56,7 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
           }, 'Could not save the trip')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={trip ? 'Save' : 'Add trip'}
+      submitLabel={trip ? 'Save changes' : 'Add trip'}
       title={trip ? 'Edit trip' : 'New trip'}
     >
       <TextField autoFocus defaultValue={trip?.title} label="Trip" maxLength={200} placeholder="Lisbon in May" {...form.field('title')} />

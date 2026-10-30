@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ConfirmDialog, Pagination, Placeholder, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, Pagination, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { useAuth } from '../../auth';
 import { announcePagesChanged } from '../../notes';
 import { useAllSpaces, type Item } from '../../spaces';
+import { formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { ItemList, ItemRowsSkeleton, itemsShape } from '../spaces/ItemList';
@@ -64,7 +65,7 @@ export function TrashSettings() {
                 <ActionsMenu items={[{ label: 'Delete for good', onSelect: () => setDeleting(item) }]} name={item.title || 'Untitled'} />
               </div>
             )}
-            detail={(item) => `${spaceName(item)} · trashed ${timeAgo(item.trashedAt!)}`}
+            detail={(item) => `${spaceName(item)} · trashed ${formatMoment(item.trashedAt!)}`}
             items={trash.data.results}
           />
           <Pagination page={trash.data.page} pageHref={(next) => `/settings/trash?page=${next}`} totalPages={trash.data.totalPages} />

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Dialog, ListRow, Placeholder, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { Dialog, ListRow, Placeholder, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { noteChecks, type ReceivedInvitation, type SentInvitation } from '../invitations';
 import { addJoinedSpace, SpaceMark, spacesTabs, useAllSpaces } from '../spaces';
+import { capitalised, formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, useFormErrors } from '../validation';
@@ -61,7 +62,7 @@ export function InvitationsPage() {
           <Placeholder label="Loading your invitations">
             {receivedRows ? (
               <RowsSkeleton
-                below={<SkeletonLine className="text-sm" width="w-3/5" />}
+                below={<SkeletonLine className="text-small" width="w-3/5" />}
                 belowRows={notedRows}
                 lead={<SpaceMarkSkeleton />}
                 rows={receivedRows}
@@ -86,7 +87,7 @@ export function InvitationsPage() {
               <ListRow
                 key={invitation.id}
                 lead={<SpaceMark space={invitation.space} />}
-                meta={<>{invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as {invitation.role}</>}
+                meta={capitalised(`${invitation.inviter ? `from ${invitation.inviter.displayName} · ` : ''}as ${invitation.role}`)}
                 title={invitation.space.name}
                 trail={
                   <>
@@ -102,7 +103,7 @@ export function InvitationsPage() {
         )}
       </Section>
 
-      <Section action={<Button icon="plus" label="New invitation" large onClick={() => setCreating(true)} />} title="Sent">
+      <Section action={<Button icon="plus" label="New invitation" onClick={() => setCreating(true)} />} title="Sent">
         {sent.error ? (
           <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (
@@ -122,12 +123,7 @@ export function InvitationsPage() {
             {sent.data.map((invitation) => (
               <ListRow
                 key={invitation.id}
-                meta={
-                  <>
-                    {statusLabels[invitation.status]}
-                    {invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created {timeAgo(invitation.createdAt)}
-                  </>
-                }
+                meta={`${capitalised(statusLabels[invitation.status])}${invitation.joined.map((person) => ` · ${person.displayName} (@${person.handle})`).join('')} · created ${formatMoment(invitation.createdAt)}`}
                 title={invitation.email ?? 'Invite link'}
               />
             ))}

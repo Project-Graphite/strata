@@ -1,4 +1,5 @@
 import type { Task } from './tasks';
+import { formatRange } from './time';
 
 export interface Trip {
   id: string;
@@ -24,9 +25,7 @@ export interface TripDetail extends Trip {
   spending: { currency: string; spentMinor: number; missing: string[] };
 }
 
-const range = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-
-export const tripDates = (trip: Pick<Trip, 'startsOn' | 'endsOn'>) => range.formatRange(new Date(`${trip.startsOn}T00:00:00Z`), new Date(`${trip.endsOn}T00:00:00Z`));
+export const tripDates = (trip: Pick<Trip, 'startsOn' | 'endsOn'>) => formatRange(trip.startsOn, trip.endsOn);
 
 export function countdown(trip: Trip, today: string) {
   if (trip.when === 'now') return 'Happening now';

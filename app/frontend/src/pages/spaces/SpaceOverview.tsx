@@ -1,5 +1,6 @@
-import { Avatar, ListRow, Placeholder, TextLink, timeAgo } from '@project-graphite/ui';
+import { Avatar, ListRow, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
+import { ButtonLink } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
@@ -8,6 +9,7 @@ import { AvatarSkeleton, IconSkeleton, RowsSkeleton, TaskRowsSkeleton } from '..
 import { noteHref, noteTitle, type Note } from '../../notes';
 import { roleOptions, type SpaceRole } from '../../spaces';
 import { taskDetails, type Task } from '../../tasks';
+import { capitalised, formatMoment } from '../../time';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
 
@@ -27,7 +29,7 @@ export function SpaceOverview() {
 
   return (
     <>
-      <Section action={<TextLink href={`${base}/pages`}>All pages</TextLink>} title="Recent pages">
+      <Section action={<ButtonLink label="Show all" to={`${base}/pages`} />} title="Recent pages">
         {notes.error ? (
           <LoadError compact error={notes.error} onRetry={notes.reload} />
         ) : !recent ? (
@@ -43,7 +45,7 @@ export function SpaceOverview() {
                 href={noteHref(note)}
                 key={note.id}
                 lead={<NoteMark note={note} />}
-                meta={[note.kind === 'board' && 'Board', `edited ${timeAgo(note.updatedAt)}`].filter(Boolean).join(' · ')}
+                meta={capitalised([note.kind === 'board' && 'Board', `edited ${formatMoment(note.updatedAt)}`].filter(Boolean).join(' · '))}
                 title={noteTitle(note)}
               />
             ))}
@@ -51,7 +53,7 @@ export function SpaceOverview() {
         )}
       </Section>
 
-      <Section action={<TextLink href={`${base}/tasks`}>All tasks</TextLink>} title="Open tasks">
+      <Section action={<ButtonLink label="Show all" to={`${base}/tasks`} />} title="Open tasks">
         {tasks.error ? (
           <LoadError compact error={tasks.error} onRetry={tasks.reload} />
         ) : !open ? (
@@ -70,7 +72,7 @@ export function SpaceOverview() {
       </Section>
 
       {space.kind === 'shared' && (
-        <Section action={<TextLink href={`${base}/members`}>All members</TextLink>} title="Members">
+        <Section action={<ButtonLink label="Show all" to={`${base}/members`} />} title="Members">
           {members.error ? (
             <LoadError compact error={members.error} onRetry={members.reload} />
           ) : !members.data ? (

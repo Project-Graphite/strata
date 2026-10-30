@@ -34,25 +34,24 @@ export function VerifyPage() {
 
   if (!token || error) {
     return (
-      <Page title={token ? 'Your email wasn’t verified' : 'This link is incomplete'} variant="panel">
-        {error ? (
+      <Page
+        description={`${error ? '' : 'Open the whole link from the email. '}${auth.user ? 'Change your email in settings to get a new link.' : 'Sign in to get a new link.'}`}
+        title={token ? 'Your email wasn’t verified' : 'This link is incomplete'}
+        variant="panel"
+      >
+        {error && (
           <Banner className="mt-4" tone="danger">
             {error}
           </Banner>
-        ) : (
-          <p className="mt-4 text-muted">Open the whole link from the email.</p>
         )}
-        <p className="mt-3 text-muted">{auth.user ? 'Change your email in settings to get a new link.' : 'Sign in to get a new link.'}</p>
         <div className="mt-8">{next}</div>
       </Page>
     );
   }
 
   return (
-    <Page title="Verify your email" variant="panel">
-      <p className="mt-4 text-muted" role="status">
-        Confirming your email address…
-      </p>
+    <Page description={<span role="status">Confirming your email address…</span>} title="Verify your email" variant="panel">
+      {null}
     </Page>
   );
 }

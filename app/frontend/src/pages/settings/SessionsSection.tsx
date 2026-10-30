@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListRow, Placeholder, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SecurityLog } from './SecurityLog';
@@ -49,7 +50,7 @@ export function SessionsSection() {
             {sessions.data.map((session) => (
               <ListRow
                 key={session.id}
-                meta={<>signed in {timeAgo(session.signedInAt)} · last active {timeAgo(session.lastUsedAt)}</>}
+                meta={`Signed in ${formatMoment(session.signedInAt)} · last active ${formatMoment(session.lastUsedAt)}`}
                 title={session.current ? `${session.deviceLabel} · this device` : session.deviceLabel}
                 trail={!session.current && <Button label="Sign out" onClick={() => setSigningOut(session)} />}
               />

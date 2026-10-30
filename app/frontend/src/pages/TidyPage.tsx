@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDay, ListRow, Placeholder, Skeleton, Stat, StatGrid, timeAgo } from '@project-graphite/ui';
+import { ListRow, Placeholder, Skeleton, Stat, StatGrid } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { Empty } from '../components/Empty';
@@ -13,10 +13,10 @@ import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
 import { NotificationToggle } from '../components/NotificationToggle';
-import { Page, Section, Subheading } from '../components/Page';
+import { Page, Section } from '../components/Page';
 import { Button } from '../components/Button';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
-import { clockTime } from '../time';
+import { capitalised, clockTime, formatDate, formatMoment } from '../time';
 
 const emptySuggestions = { title: 'Nothing to tidy', hint: 'There are no duplicate, large or old uploads, and no subscriptions that look unused.' };
 const emptyHistory = { title: 'Nothing tidied yet', hint: 'Changes stay here for 90 days, so you can undo them.' };
@@ -94,8 +94,8 @@ function TidySuggestions() {
         {copyGroups.length > 0 && (
           <Section action={<ButtonSkeleton width="w-44" />} {...duplicateUploads}>
             {copyGroups.map((rows, group) => (
-              <div className="grid gap-2" key={group}>
-                <SkeletonLine className="text-sm" width="w-32" />
+              <div className="grid gap-3" key={group}>
+                <SkeletonLine className="text-h3" width="w-32" />
                 <RowsSkeleton lead={choiceLead} rows={rows} />
               </div>
             ))}
@@ -125,8 +125,8 @@ function TidySuggestions() {
         {overlapGroups.length > 0 && (
           <Section title="Overlapping subscriptions">
             {overlapGroups.map((rows, group) => (
-              <div className="grid gap-2" key={group}>
-                <SkeletonLine className="text-sm" width="w-32" />
+              <div className="grid gap-3" key={group}>
+                <SkeletonLine className="text-h3" width="w-32" />
                 <RowsSkeleton lead={choiceLead} rows={rows} />
               </div>
             ))}
@@ -185,14 +185,11 @@ function TidySuggestions() {
           {...duplicateUploads}
         >
           {files.duplicates.map((group) => (
-            <div className="grid gap-2" key={group.items[0]?.id}>
-              <Subheading>
-                {group.items.length} copies of {fileSize(group.sizeBytes)}
-              </Subheading>
+            <Section key={group.items[0]?.id} level={3} title={`${group.items.length} copies of ${fileSize(group.sizeBytes)}`}>
               <ul className="panel-rows">
-                {group.items.map((file) => fileChoice(file, `${spaceName(file.spaceId)} · added ${timeAgo(file.createdAt)}`))}
+                {group.items.map((file) => fileChoice(file, `${spaceName(file.spaceId)} · added ${formatMoment(file.createdAt)}`))}
               </ul>
-            </div>
+            </Section>
           ))}
         </Section>
       )}
@@ -208,7 +205,7 @@ function TidySuggestions() {
       {files.old.length > 0 && (
         <Section {...oldUploads}>
           <ul className="panel-rows">
-            {files.old.map((file) => fileChoice(file, `unchanged since ${formatDay(dayKey(new Date(file.updatedAt)), { day: 'numeric', month: 'short', year: 'numeric' })}`))}
+            {files.old.map((file) => fileChoice(file, `Unchanged since ${formatDate(dayKey(new Date(file.updatedAt)))}`))}
           </ul>
         </Section>
       )}
@@ -236,12 +233,9 @@ function TidySuggestions() {
       {subscriptions.overlapping.length > 0 && (
         <Section title="Overlapping subscriptions">
           {subscriptions.overlapping.map((group) => (
-            <div className="grid gap-2" key={group.category}>
-              <Subheading>
-                {group.items.length} in {categoryLabel(group.category)}
-              </Subheading>
+            <Section key={group.category} level={3} title={`${group.items.length} in ${categoryLabel(group.category)}`}>
               <ul className="panel-rows">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
-            </div>
+            </Section>
           ))}
         </Section>
       )}
@@ -309,13 +303,15 @@ function TidyHistory() {
       {history.data.map((batch) => (
         <ListRow
           key={batch.id}
-          meta={[
-            timeAgo(batch.createdAt),
-            batch.rule && `by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`,
-            batch.undoneAt ? 'undone' : batch.remaining < batch.itemCount && `${itemsText(batch.itemCount - batch.remaining)} since deleted`,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
+          meta={capitalised(
+            [
+              formatMoment(batch.createdAt),
+              batch.rule && `by the rule “${batch.rule.titleContains || fileTypeNames[batch.rule.fileType ?? '']}”`,
+              batch.undoneAt ? 'undone' : batch.remaining < batch.itemCount && `${itemsText(batch.itemCount - batch.remaining)} since deleted`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          )}
           title={batchSummary(batch)}
           trail={
             !batch.undoneAt &&
@@ -347,6 +343,10 @@ export function TidyPage({ section }: { section: 'suggestions' | 'folder' | 'his
         { active: section === 'folder', href: '/tidy/folder', label: 'This computer' },
         { active: section === 'history', href: '/tidy/history', label: 'History' },
       ]}
+      description={
+        section === 'folder' &&
+        'Strata looks through a folder on this computer for duplicate, large and old files. Nothing is uploaded, and the results are gone when you leave this page.'
+      }
       title="Tidy"
     >
       {section === 'history' ? <TidyHistory /> : section === 'folder' ? <FolderScan /> : <TidySuggestions />}

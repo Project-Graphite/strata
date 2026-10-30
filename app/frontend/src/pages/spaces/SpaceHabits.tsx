@@ -5,7 +5,7 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
-import { Toolbar } from '../../components/Page';
+import { usePagePrimary } from '../../components/Page';
 import { LoadError } from '../../components/LoadError';
 import { HabitRowSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
 import { goalText, HabitRow, type Habit } from '../../habits';
@@ -40,10 +40,10 @@ export function SpaceHabits() {
   const editable = space.role !== 'viewer';
   const replace = (next: Habit) => habits.mutate((current) => current.map((habit) => (habit.id === next.id ? next : habit)));
   const [rows] = useRememberedShape(`space-habits-${space.id}`, habits.data && [habits.data.length], [3]);
+  usePagePrimary(editable && <Button icon="plus" label="New habit" large onClick={() => setEditing('new')} primary />);
 
   return (
     <>
-      {editable && <Toolbar actions={<Button icon="plus" label="New habit" onClick={() => setEditing('new')} />} />}
       {habits.error ? (
         <LoadError error={habits.error} onRetry={habits.reload} />
       ) : !habits.data ? (
@@ -107,7 +107,7 @@ export function SpaceHabits() {
               }, editing === 'new' ? 'Could not add the habit' : 'Could not save the habit')
               .then((saved) => saved && setEditing(undefined));
           }}
-          submitLabel={editing === 'new' ? 'Add habit' : 'Save'}
+          submitLabel={editing === 'new' ? 'Add habit' : 'Save changes'}
           title={editing === 'new' ? 'New habit' : 'Edit habit'}
         >
           <TextField autoFocus defaultValue={editing === 'new' ? '' : editing.name} label="Name" maxLength={80} {...habitForm.field('name')} />

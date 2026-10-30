@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { ListRow, Placeholder } from '@project-graphite/ui';
+import { ListRow, Placeholder, type MenuItem } from '@project-graphite/ui';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
@@ -14,7 +14,17 @@ import { recipeFacts, type Recipe, type RecipeDraft } from '../recipes';
 import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
 
-export function RecipesArea({ children, tab, toolbar, toolbarEnd }: { children: ReactNode; tab: 'recipes' | 'plan'; toolbar?: ReactNode; toolbarEnd?: ReactNode }) {
+export function RecipesArea({
+  children,
+  menu = [],
+  tab,
+  toolbar,
+}: {
+  children: ReactNode | ((newRecipe: ReactNode) => ReactNode);
+  menu?: MenuItem[];
+  tab: 'recipes' | 'plan';
+  toolbar?: ReactNode;
+}) {
   const navigate = useNavigate();
   const spaces = useSpaces();
   const [dialog, setDialog] = useState<'import' | { draft?: RecipeDraft }>();
@@ -25,7 +35,7 @@ export function RecipesArea({ children, tab, toolbar, toolbarEnd }: { children: 
       actions={
         writable.length > 0 && (
           <>
-            <ActionsMenu items={[{ label: 'Add from a link', onSelect: () => setDialog('import') }]} name="Recipes" />
+            <ActionsMenu items={[{ label: 'Add from a link', onSelect: () => setDialog('import') }, ...menu]} name="Recipes" />
             <Button icon="plus" label="New recipe" large onClick={() => setDialog({})} primary />
           </>
         )
@@ -36,9 +46,8 @@ export function RecipesArea({ children, tab, toolbar, toolbarEnd }: { children: 
       ]}
       title="Recipes and meals"
       toolbar={toolbar}
-      toolbarEnd={toolbarEnd}
     >
-      {children}
+      {typeof children === 'function' ? children(writable.length > 0 && <Button icon="plus" label="New recipe" onClick={() => setDialog({})} primary />) : children}
       {dialog === 'import' && <ImportRecipe onClose={() => setDialog(undefined)} onRead={(draft) => setDialog({ draft })} />}
       {dialog && dialog !== 'import' && (
         <RecipeEditor draft={dialog.draft} onClose={() => setDialog(undefined)} onSaved={(saved) => navigate(`/recipes/${saved.id}`)} spaces={writable} />
@@ -53,27 +62,31 @@ export function RecipesPage() {
 
   return (
     <RecipesArea tab="recipes">
-      {recipes.error ? (
-        <LoadError error={recipes.error} onRetry={recipes.reload} />
-      ) : !recipes.data ? (
-        <Placeholder label="Loading your recipes">
-          {rows ? (
-            <RowsSkeleton rows={rows} />
-          ) : (
-            <Empty loading title={empty.title}>
-              {empty.hint}
-            </Empty>
-          )}
-        </Placeholder>
-      ) : recipes.data.length === 0 ? (
-        <Empty title={empty.title}>{empty.hint}</Empty>
-      ) : (
-        <ul className="panel-rows">
-          {recipes.data.map((recipe) => (
-            <ListRow href={`/recipes/${recipe.id}`} key={recipe.id} meta={[recipe.spaceName, recipeFacts(recipe)].filter(Boolean).join(' · ')} title={recipe.title} />
-          ))}
-        </ul>
-      )}
+      {(newRecipe) =>
+        recipes.error ? (
+          <LoadError error={recipes.error} onRetry={recipes.reload} />
+        ) : !recipes.data ? (
+          <Placeholder label="Loading your recipes">
+            {rows ? (
+              <RowsSkeleton rows={rows} />
+            ) : (
+              <Empty action={newRecipe} icon="utensils" loading title={empty.title} variant="page">
+                {empty.hint}
+              </Empty>
+            )}
+          </Placeholder>
+        ) : recipes.data.length === 0 ? (
+          <Empty action={newRecipe} icon="utensils" title={empty.title} variant="page">
+            {empty.hint}
+          </Empty>
+        ) : (
+          <ul className="panel-rows">
+            {recipes.data.map((recipe) => (
+              <ListRow href={`/recipes/${recipe.id}`} key={recipe.id} meta={[recipe.spaceName, recipeFacts(recipe)].filter(Boolean).join(' · ')} title={recipe.title} />
+            ))}
+          </ul>
+        )
+      }
     </RecipesArea>
   );
 }

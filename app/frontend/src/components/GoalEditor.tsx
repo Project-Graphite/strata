@@ -66,7 +66,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
           }, 'Could not save the goal')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={goal ? 'Save' : 'Add goal'}
+      submitLabel={goal ? 'Save changes' : 'Add goal'}
       title={goal ? 'Edit goal' : 'New goal'}
     >
       <TextField autoFocus defaultValue={goal?.title} label="Goal" maxLength={200} placeholder="Run a half marathon" {...form.field('title')} />

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { CodeInput, Dialog, Placeholder, TextField, TextLink } from '@project-graphite/ui';
+import { Card, CodeInput, Dialog, Placeholder, TextField, TextLink } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { ActionsMenu } from '../../components/ActionsMenu';
 import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
@@ -12,7 +13,7 @@ import { useResource } from '../../useResource';
 import { password as newPasswordChecks, required, useFormErrors } from '../../validation';
 import { SessionsSection } from './SessionsSection';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { SettingsRow, SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
 import { Button } from '../../components/Button';
 import { saveBlob } from '../../files';
@@ -25,11 +26,13 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   return (
     <div className="mt-5 grid gap-4">
       <Hint>Each code signs you in once if you lose your phone. They won’t be shown again.</Hint>
-      <ul className="mono-sm m-0 grid list-none grid-cols-1 gap-2 rounded-field border border-line p-4 text-ink sm:grid-cols-2">
-        {codes.map((code) => (
-          <li key={code}>{code}</li>
-        ))}
-      </ul>
+      <Card padding="md">
+        <ul className="mono-sm m-0 grid list-none grid-cols-1 gap-2 text-ink sm:grid-cols-2">
+          {codes.map((code) => (
+            <li key={code}>{code}</li>
+          ))}
+        </ul>
+      </Card>
       <DialogActions>
         <Button label="Download" large onClick={download} />
         <Button label="I’ve saved them" large onClick={onDone} primary />
@@ -104,7 +107,7 @@ function EnableTwoStep({ onClose, onDone }: { onClose: () => void; onDone: () =>
       <div className="flex flex-wrap items-center gap-5">
         <QrCode label="QR code to add Strata to your authenticator app" value={pending.uri} />
         <div className="grid min-w-0 flex-1 gap-2">
-          <TextLink className="w-fit text-sm" href={pending.uri}>
+          <TextLink className="w-fit" href={pending.uri}>
             Open in authenticator app
           </TextLink>
           <Hint>Or enter this key:</Hint>
@@ -177,7 +180,7 @@ export function SecuritySettings() {
                   twoStepOn ? (
                     <>
                       <ButtonSkeleton width="w-36" />
-                      <ButtonSkeleton width="w-18" />
+                      <IconButtonSkeleton />
                     </>
                   ) : (
                     <ButtonSkeleton width="w-18" />
@@ -208,7 +211,7 @@ export function SecuritySettings() {
               status.enabled ? (
                 <>
                   {button('New recovery codes', 'codes')}
-                  {button('Turn off', 'disable')}
+                  <ActionsMenu items={[{ label: 'Turn off two-step sign-in…', onSelect: () => setOpened('disable') }]} name="Two-step sign-in" />
                 </>
               ) : (
                 button('Turn on', 'enable')

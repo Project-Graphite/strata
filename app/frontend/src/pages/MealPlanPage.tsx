@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router';
 import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
-import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -12,19 +11,16 @@ import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesArea } from './RecipesPage';
+import { capitalised, formatDate, formatRange } from '../time';
 import { PeriodNav } from '../components/PeriodNav';
 import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
-const weekRange = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const dayRow = 'panel-row grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]';
 
 function DayLabel({ day, today }: { day: string; today: string }) {
   return (
-    <p className={`m-0 text-sm sm:max-md:col-span-3 ${day === today ? 'font-medium text-ink' : 'text-muted'}`}>
-      {formatDay(day, { weekday: 'long', day: 'numeric', month: 'short' })}
-      {day === today && <span className="block text-muted">Today</span>}
-    </p>
+    <p className={`m-0 text-small sm:max-md:col-span-3 ${day === today ? 'text-ink' : 'text-muted'}`}>{capitalised(formatDate(day))}</p>
   );
 }
 
@@ -66,40 +62,37 @@ export function MealPlanPage() {
 
   return (
     <RecipesArea
+      menu={
+        editable && plan.data?.some((entry) => entry.recipe)
+          ? [
+              {
+                label: 'Make a shopping list',
+                onSelect: () =>
+                  void action.run(async () => {
+                    const made = await auth.request<{ listId: string; added: number; already: number }>(`/spaces/${spaceId}/meal-plan/shopping-list`, {
+                      method: 'POST',
+                      body: JSON.stringify({ from: monday }),
+                    });
+                    show({
+                      message: made.added
+                        ? `Added ${made.added} ingredient${made.added === 1 ? '' : 's'} to the Shopping list in ${space!.name}.`
+                        : 'Everything is already on the Shopping list.',
+                      action: { label: 'Open', href: `/tasks?list=${made.listId}` },
+                    });
+                    return '';
+                  }, 'Could not make the shopping list'),
+              },
+            ]
+          : undefined
+      }
       tab="plan"
       toolbar={
         <PeriodNav
           current={{ label: 'This week', onSelect: () => go({ week: mondayOf(today) }) }}
           onShift={(step) => go({ week: addDays(monday, step * 7) })}
-          title={weekRange.formatRange(new Date(`${monday}T00:00:00Z`), new Date(`${addDays(monday, 6)}T00:00:00Z`))}
+          title={formatRange(monday, addDays(monday, 6))}
           unit="week"
         />
-      }
-      toolbarEnd={
-        <>
-          {editable && (
-            <Button
-              disabled={action.busy || !plan.data?.some((entry) => entry.recipe)}
-              icon="check"
-              label="Make a shopping list"
-              onClick={() =>
-                void action.run(async () => {
-                  const made = await auth.request<{ listId: string; added: number; already: number }>(`/spaces/${spaceId}/meal-plan/shopping-list`, {
-                    method: 'POST',
-                    body: JSON.stringify({ from: monday }),
-                  });
-                  show({
-                    message: made.added
-                      ? `Added ${made.added} ingredient${made.added === 1 ? '' : 's'} to the Shopping list in ${space!.name}.`
-                      : 'Everything is already on the Shopping list.',
-                    action: { label: 'Open', href: `/tasks?list=${made.listId}` },
-                  });
-                  return '';
-                }, 'Could not make the shopping list')
-              }
-            />
-          )}
-        </>
       }
     >
       {plan.error ? (
@@ -112,10 +105,10 @@ export function MealPlanPage() {
                 <DayLabel day={day} today={today} />
                 {meals.map(({ value, label }, column) => (
                   <div className="grid min-w-0 content-start gap-1" key={value}>
-                    <span className="text-sm text-faint">{label}</span>
+                    <span className="text-small text-muted">{label}</span>
                     {rowsOf(planned[row * meals.length + column] ?? 0).map((entry) => (
                       <span className="flex min-w-0 items-center gap-1" key={entry}>
-                        <SkeletonLine className="min-w-0 flex-1 text-sm" width="w-3/4" />
+                        <SkeletonLine className="min-w-0 flex-1" width="w-3/4" />
                         {(!space || editable) && <IconButtonSkeleton />}
                       </span>
                     ))}
@@ -128,9 +121,7 @@ export function MealPlanPage() {
         </Placeholder>
       ) : (
         <>
-          {plan.data.length === 0 && (
-            <Empty title="Nothing planned this week">{editable ? 'Add a recipe or a note to any meal below.' : 'Meals planned for this week show up here.'}</Empty>
-          )}
+          {plan.data.length === 0 && !editable && <Empty title="Nothing planned this week">Meals planned for this week show up here.</Empty>}
           {(editable || plan.data.length > 0) && (
             <ul className="panel-rows">
               {days.map((day) => (
@@ -140,15 +131,15 @@ export function MealPlanPage() {
                     const planned = plan.data!.filter((entry) => entry.day === day && entry.meal === value);
                     return (
                       <div className="grid min-w-0 content-start gap-1" key={value}>
-                        <span className="text-sm text-faint">{label}</span>
+                        <span className="text-small text-muted">{label}</span>
                         {planned.map((entry) => (
                           <span className="flex min-w-0 items-center gap-1" key={entry.id}>
                             {entry.recipe ? (
-                              <Link className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate" to={`/recipes/${entry.recipe.id}`}>
+                              <Link className="min-w-0 flex-1 wrap-anywhere text-ink sm:truncate" to={`/recipes/${entry.recipe.id}`}>
                                 {entry.recipe.title}
                               </Link>
                             ) : (
-                              <span className="min-w-0 flex-1 wrap-anywhere text-sm text-ink sm:truncate">{entry.note || 'A recipe that was removed'}</span>
+                              <span className="min-w-0 flex-1 wrap-anywhere text-ink sm:truncate">{entry.note || 'A recipe that was removed'}</span>
                             )}
                             {editable && (
                               <IconButton

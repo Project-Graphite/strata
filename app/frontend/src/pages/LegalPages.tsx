@@ -10,7 +10,7 @@ function LegalPage({ children, path, title }: { children: ReactNode; path: strin
   if (auth.user) return <Navigate replace to={`/settings/legal/${path}`} />;
   return (
     <Page title={title}>
-      <div className="grid max-w-3xl gap-8">{children}</div>
+      <div className="grid max-w-narrow gap-8">{children}</div>
     </Page>
   );
 }

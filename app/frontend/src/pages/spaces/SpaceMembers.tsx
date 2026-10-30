@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Avatar, ConfirmDialog, ListRow, Placeholder, Select, Skeleton, timeAgo } from '@project-graphite/ui';
+import { Avatar, ConfirmDialog, ListRow, Placeholder, Select, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { roleOptions, useAllSpaces, type SpaceRole } from '../../spaces';
+import { formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
@@ -10,7 +11,7 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
-import { Toolbar } from '../../components/Page';
+import { usePagePrimary } from '../../components/Page';
 import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 interface Member {
@@ -34,6 +35,7 @@ export function SpaceMembers() {
   const manages = space.role === 'owner' && space.kind === 'shared';
   const self = auth.user?.id;
   const [rows] = useRememberedShape(`space-members-${space.id}`, members.data && [members.data.length], [space.kind === 'shared' ? 2 : 1]);
+  usePagePrimary(manages && <Button icon="plus" label="Invite people" large onClick={invite} primary />);
 
   function changeRole(member: Member, role: SpaceRole) {
     void action.run(async () => {
@@ -51,7 +53,6 @@ export function SpaceMembers() {
 
   return (
     <>
-      {manages && <Toolbar actions={<Button icon="plus" label="Invite people" onClick={invite} />} />}
       {members.error ? (
         <LoadError error={members.error} onRetry={members.reload} />
       ) : !members.data ? (
@@ -64,7 +65,7 @@ export function SpaceMembers() {
             <ListRow
               key={member.userId}
               lead={<Avatar name={member.displayName} />}
-              meta={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${timeAgo(member.joinedAt)}`].filter(Boolean).join(' · ')}
+              meta={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${formatMoment(member.joinedAt)}`].filter(Boolean).join(' · ')}
               title={member.userId === self ? `${member.displayName} · you` : member.displayName}
               trail={
                 manages && (

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ConfirmDialog, ListRow, Placeholder, Select, TextAreaField, TextField, timeAgo } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { noteChecks, type SentInvitation } from '../../invitations';
 import { roleOptions, type Space } from '../../spaces';
+import { formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
@@ -45,7 +46,7 @@ export function SpaceInvitations({ space }: { space: Space }) {
           {pending.data.map((invitation) => (
             <ListRow
               key={invitation.id}
-              meta={<>as {invitation.role === 'viewer' ? 'a' : 'an'} {roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent {timeAgo(invitation.createdAt)}</>}
+              meta={`As ${invitation.role === 'viewer' ? 'a' : 'an'} ${roleOptions.find((option) => option.value === invitation.role)?.label.toLowerCase()} · sent ${formatMoment(invitation.createdAt)}`}
               title={invitee(invitation)}
               trail={<ActionsMenu items={[{ label: 'Withdraw', onSelect: () => setWithdrawing(invitation) }]} name={invitee(invitation)} />}
             />

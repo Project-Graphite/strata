@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { ConfirmDialog, Placeholder, Skeleton, TagChip } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
@@ -13,8 +12,8 @@ import { Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
-import { Toolbar } from '../../components/Page';
-import { rowsOf, useRememberedShape } from '../../components/Skeletons';
+import { usePagePrimary } from '../../components/Page';
+import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 const empty = { title: 'No tags yet', hint: 'Tags you make here can be added to anything in this space.' };
@@ -32,24 +31,16 @@ export function SpaceTags() {
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
   const [rows] = useRememberedShape(`space-tags-${space.id}`, tags.data && [tags.data.length], [3]);
+  usePagePrimary(editable && <Button icon="plus" label="New tag" large onClick={() => setEditing('new')} primary />);
 
   return (
     <>
-      {editable && <Toolbar actions={<Button icon="plus" label="New tag" onClick={() => setEditing('new')} />} />}
       {tags.error ? (
         <LoadError error={tags.error} onRetry={tags.reload} />
       ) : !tags.data ? (
         <Placeholder label="Loading the tags in this space">
           {rows ? (
-            <ul aria-hidden="true" className="panel-rows">
-              {rowsOf(rows).map((row) => (
-                <li className="flex items-center pe-2" key={row}>
-                  <span className="flex min-w-0 flex-1 items-center panel-row">
-                    <Skeleton className={`h-6 rounded-full ${row % 2 ? 'w-16' : 'w-24'}`} />
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <RowsSkeleton detail={false} rows={rows} trail={editable && <IconButtonSkeleton />} />
           ) : (
             <Empty loading title={empty.title}>
               {empty.hint}
@@ -61,20 +52,23 @@ export function SpaceTags() {
       ) : (
         <ul className="panel-rows">
           {tags.data.map((tag) => (
-            <li className="flex items-center pe-2 hover:bg-line-soft" key={tag.id}>
-              <Link aria-label={`Items tagged ${tag.name}`} className="flex min-w-0 flex-1 items-center panel-row no-underline" to={`/spaces/${space.id}/items?tag=${tag.id}`}>
-                <TagChip color={tag.color} label={tag.name} />
-              </Link>
-              {editable && (
-                <ActionsMenu
-                  items={[
-                    { label: 'Edit', onSelect: () => setEditing(tag) },
-                    { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
-                  ]}
-                  name={tag.name}
-                />
-              )}
-            </li>
+            <ListRow
+              href={`/spaces/${space.id}/items?tag=${tag.id}`}
+              key={tag.id}
+              label={`Items tagged ${tag.name}`}
+              title={<TagChip color={tag.color} label={tag.name} />}
+              trail={
+                editable && (
+                  <ActionsMenu
+                    items={[
+                      { label: 'Edit', onSelect: () => setEditing(tag) },
+                      { label: 'Delete', onSelect: () => setDeleting(tag), separated: true },
+                    ]}
+                    name={tag.name}
+                  />
+                )
+              }
+            />
           ))}
         </ul>
       )}
@@ -101,7 +95,7 @@ export function SpaceTags() {
               }, editing === 'new' ? 'Could not add the tag' : 'Could not save the tag')
               .then((saved) => saved && setEditing(undefined));
           }}
-          submitLabel={editing === 'new' ? 'Add tag' : 'Save'}
+          submitLabel={editing === 'new' ? 'Add tag' : 'Save changes'}
           title={editing === 'new' ? 'New tag' : 'Edit tag'}
         >
           <NameAndColorFields

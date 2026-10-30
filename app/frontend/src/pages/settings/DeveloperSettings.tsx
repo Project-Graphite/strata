@@ -1,11 +1,12 @@
 import { Placeholder } from '@project-graphite/ui';
+import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, CodeLineSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, CodeLineSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
 import { useResource } from '../../useResource';
-import { ApiSettings, type ApiReference, type Webhook } from './ApiSettings';
+import { ApiSettings, emptyWebhooks, type ApiReference, type Webhook } from './ApiSettings';
 import { SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
-import { TokensSettings, type AccessToken } from './TokensSettings';
+import { emptyTokens, TokensSettings, type AccessToken } from './TokensSettings';
 
 export function DeveloperSettings() {
   const tokens = useResource<AccessToken[]>('/me/tokens', true);
@@ -23,7 +24,7 @@ export function DeveloperSettings() {
   if (!tokens.data || !twoStep.data || !reference.data || !webhooks.data) {
     return (
       <Placeholder className="grid gap-8" label="Loading your developer settings">
-        <Section action={<ButtonSkeleton large width="w-32" />} title="Access tokens">
+        <Section action={<ButtonSkeleton width="w-28" />} title="Access tokens">
           {tokenRows ? (
             <SettingsRows>
               {rowsOf(tokenRows).map((row) => (
@@ -31,27 +32,32 @@ export function DeveloperSettings() {
               ))}
             </SettingsRows>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptyTokens.title}>
+              {emptyTokens.hint}
+            </Empty>
           )}
         </Section>
-        <Section title="Personal API">
-          <div className="grid gap-3 text-sm">
-            <span>
+        <Section
+          description={
+            <>
               <CodeLineSkeleton width="w-full" />
               <SkeletonLine width="w-1/2" />
-            </span>
-            {rowsOf(scopeRows).map((row) => (
-              <div className="rounded-panel border border-line p-3" key={row}>
-                <CodeLineSkeleton width={row % 2 ? 'w-36' : 'w-44'} />
-              </div>
-            ))}
-          </div>
+            </>
+          }
+          title="Personal API"
+        >
+          <RowsSkeleton rows={scopeRows} />
         </Section>
-        <Section action={<ButtonSkeleton large width="w-36" />} title="Webhooks">
-          <span className="text-sm">
-            <CodeLineSkeleton width="w-full" />
-            <CodeLineSkeleton width="w-2/5" />
-          </span>
+        <Section
+          action={<ButtonSkeleton width="w-32" />}
+          description={
+            <>
+              <CodeLineSkeleton width="w-full" />
+              <CodeLineSkeleton width="w-2/5" />
+            </>
+          }
+          title="Webhooks"
+        >
           {webhookRows ? (
             <SettingsRows>
               {rowsOf(webhookRows).map((row) => (
@@ -59,7 +65,9 @@ export function DeveloperSettings() {
               ))}
             </SettingsRows>
           ) : (
-            <HintSkeleton />
+            <Empty loading title={emptyWebhooks.title}>
+              {emptyWebhooks.hint}
+            </Empty>
           )}
         </Section>
       </Placeholder>

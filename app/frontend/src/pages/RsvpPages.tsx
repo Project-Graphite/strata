@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Banner, LinesSkeleton, Placeholder, Radio, Skeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
@@ -23,12 +23,9 @@ const SharedBoard = lazy(() => import('../components/SharedBoard'));
 
 type SharedContent = { kind: 'note' | 'board'; id: string; database?: boolean } | null;
 
-function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boolean }) {
+function EventPanel({ children, event, undecided }: { children: ReactNode; event: PublicEvent; undecided: boolean }) {
   return (
-    <>
-      <h1 className="page-heading">{event.title}</h1>
-      <p className="mt-4 mb-0 text-muted">{undecided ? 'Date to be decided' : eventWhen(event)}</p>
-      {event.location && <p className="mt-1 mb-0 text-muted">{event.location}</p>}
+    <Page description={[undecided ? 'Date to be decided' : eventWhen(event), event.location].filter(Boolean).join(' · ')} title={event.title} variant="panel">
       {event.meetingUrl && (
         <p className="mt-1 mb-0">
           <a href={event.meetingUrl} rel="noopener noreferrer" target="_blank">
@@ -37,7 +34,8 @@ function EventSummary({ event, undecided }: { event: PublicEvent; undecided: boo
         </p>
       )}
       {event.description && <p className="mt-4 mb-0 whitespace-pre-wrap text-ink">{event.description}</p>}
-    </>
+      {children}
+    </Page>
   );
 }
 
@@ -67,10 +65,8 @@ function ResponseFields({ current, missing, onChoose }: { current?: Guest['respo
 
 function RsvpSkeleton() {
   return (
-    <section className="form-panel page-enter">
+    <Page description={<SkeletonLine width="w-1/2" />} documentTitle="Invitation" title={<SkeletonLine width="w-3/4" />} variant="panel">
       <Placeholder label="Loading your invitation">
-        <SkeletonLine className="page-heading" width="w-3/4" />
-        <SkeletonLine className="mt-4" width="w-1/2" />
         <div className="mt-8 grid gap-5">
           <SkeletonLine width="w-28" />
           <div>
@@ -88,7 +84,7 @@ function RsvpSkeleton() {
           <ButtonSkeleton large width="w-32" />
         </div>
       </Placeholder>
-    </section>
+    </Page>
   );
 }
 
@@ -102,7 +98,6 @@ export function RsvpPage() {
   const voting = useAction();
   const form = useFormErrors();
   const [unanswered, setUnanswered] = useState(false);
-  useDocumentTitle(invitation.data?.event.title);
 
   if (invitation.loading) return <RsvpSkeleton />;
   if (invitation.status === 404) {
@@ -126,8 +121,7 @@ export function RsvpPage() {
   const { event, guest } = invitation.data;
 
   return (
-    <section className="form-panel page-enter">
-      <EventSummary event={event} undecided={Boolean(poll.data?.options.length)} />
+    <EventPanel event={event} undecided={Boolean(poll.data?.options.length)}>
       <form
         className="mt-8 grid gap-5"
         noValidate
@@ -173,7 +167,7 @@ export function RsvpPage() {
         <TextAreaField defaultValue={guest.note ?? ''} label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
         <Button disabled={answering.busy} label={answering.busy ? 'Sending…' : 'Send answer'} large primary submit />
       </form>
-    </section>
+    </EventPanel>
   );
 }
 
@@ -195,7 +189,7 @@ export function SharePage() {
 
   if (shared.loading) {
     return (
-      <section className="page-enter grid w-full max-w-3xl gap-6">
+      <section className="page-enter grid w-full max-w-narrow gap-6">
         <div>
           <SkeletonLine className="page-header-eyebrow" width="w-28" />
           <SkeletonLine className="page-heading" width="w-72 max-w-full" />
@@ -232,7 +226,7 @@ export function SharePage() {
       );
     }
     return (
-      <section className="page-enter grid w-full max-w-3xl gap-6">
+      <section className="page-enter grid w-full max-w-narrow gap-6">
         <div>
           <p className="page-header-eyebrow">
             Shared {item.kind === 'note' ? 'page' : item.kind}
@@ -251,8 +245,7 @@ export function SharePage() {
   }
 
   return (
-    <section className="form-panel page-enter">
-      <EventSummary event={shared.data.event} undecided={shared.data.datePoll} />
+    <EventPanel event={shared.data.event} undecided={shared.data.datePoll}>
       <form
         className="mt-8 grid gap-5"
         noValidate
@@ -279,6 +272,6 @@ export function SharePage() {
         <TextAreaField label="Note for the host (optional)" maxLength={280} rows={2} {...form.field('note')} />
         <Button disabled={answering.busy} label={answering.busy ? 'Sending…' : 'Send answer'} large primary submit />
       </form>
-    </section>
+    </EventPanel>
   );
 }

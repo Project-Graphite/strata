@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Banner, Checkbox, ConfirmDialog, Fieldset, formatDay, Select, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, Checkbox, ConfirmDialog, Fieldset, Select, TextField } from '@project-graphite/ui';
 import { dayKey } from '../../agenda';
 import { useAuth } from '../../auth';
+import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
-import { Hint } from '../../components/Hint';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
+import { formatDate, formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import type { Resource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -29,6 +30,8 @@ const scopes = [
   ['spending:capture', 'Send bank text messages to Spending'],
 ] as const;
 
+export const emptyTokens = { title: 'No tokens yet', hint: 'A token lets your own scripts use Strata as you, with only the permissions you give it.' };
+
 export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessToken[]>; twoStep: TwoStepStatus }) {
   const auth = useAuth();
   const creating = useAction();
@@ -48,12 +51,12 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
     <>
       <Section
         action={
-          <Button icon="plus" label="New token" large onClick={() => setOpen(true)} />
+          <Button icon="plus" label="New token" onClick={() => setOpen(true)} />
         }
         title="Access tokens"
       >
         {tokens.data!.length === 0 ? (
-          <Hint>No tokens yet. A token lets your own scripts use Strata as you, with only the permissions you give it.</Hint>
+          <Empty title={emptyTokens.title}>{emptyTokens.hint}</Empty>
         ) : (
           <SettingsRows>
             {tokens.data!.map((token) => (
@@ -64,10 +67,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
                 key={token.id}
                 label={token.name}
               >
-                <span className="mono-sm">
-                  {token.scopes.join(', ')} · {token.lastUsedAt ? `used ${timeAgo(token.lastUsedAt)}` : 'never used'} · expires{' '}
-                  {formatDay(dayKey(new Date(token.expiresAt)), { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
+                {token.scopes.join(', ')} · {token.lastUsedAt ? `used ${formatMoment(token.lastUsedAt)}` : 'never used'} · expires {formatDate(dayKey(new Date(token.expiresAt)))}
               </SettingsRow>
             ))}
           </SettingsRows>

@@ -71,7 +71,7 @@ export function RecipeEditor({
           }, 'Could not save the recipe')
           .then((saved) => saved && onClose());
       }}
-      submitLabel={recipe ? 'Save' : 'Add recipe'}
+      submitLabel={recipe ? 'Save changes' : 'Add recipe'}
       title={recipe ? 'Edit recipe' : 'New recipe'}
     >
       <TextField autoFocus defaultValue={start?.title} label="Name" maxLength={200} {...form.field('title')} />

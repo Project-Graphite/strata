@@ -91,7 +91,7 @@ export function RegisterPage() {
             <FieldSkeleton hint />
             <ButtonSkeleton large width="w-40" />
           </div>
-          <SkeletonLine className="mt-6 text-sm" width="w-48" />
+          <SkeletonLine className="mt-6 text-small" width="w-48" />
         </Placeholder>
       </Page>
     );
