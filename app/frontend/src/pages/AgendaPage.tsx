@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ConfirmDialog, formatDay, Placeholder, useSnackbar, type TagColor } from '@project-graphite/ui';
-import { addDays, dayKey, dayRange, entryClock, entryDay, entryKey, entryLink, monthDays, useAgenda, weekOf, type AgendaEntry, type EventDetails } from '../agenda';
+import { addDays, agendaPeriod, dayKey, dayRange, entryClock, entryDay, entryKey, entryLink, phoneQuery, useAgenda, type AgendaEntry, type AgendaView as View, type EventDetails } from '../agenda';
 import { useAuth } from '../auth';
 import { AgendaCard, AgendaEntryLink, CalendarEventDialog, EntryPeek } from '../components/AgendaEntryLink';
 import { Button, IconLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { EventSheet } from '../components/EventDetails';
-import { EventEditor } from '../components/EventEditor';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section, Subheading } from '../components/Page';
@@ -22,11 +21,10 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import type { Me } from './settings/SettingsLayout';
 
-type View = 'day' | 'week' | 'month' | 'list';
+const EventEditor = lazy(() => import('../components/EventEditor').then((module) => ({ default: module.EventEditor })));
 
 const views: Record<View, string> = { day: 'Day', week: 'Week', month: 'Month', list: 'List' };
 const viewKey = 'strata-agenda-view';
-const phoneQuery = '(max-width: 47.99rem)';
 const freeFrom = 8 * 60;
 const freeUntil = 22 * 60;
 
@@ -53,12 +51,6 @@ function usePhone() {
     return () => media.removeEventListener('change', update);
   }, []);
   return phone;
-}
-
-function range(view: View, anchor: string, weekStart: number, phone: boolean) {
-  if (view === 'month') return monthDays(anchor, weekStart);
-  const [from, days] = view === 'list' ? [anchor, 30] : view === 'day' ? [anchor, 1] : phone ? [anchor, 3] : [weekOf(anchor, weekStart), 7];
-  return { from, to: addDays(from, days), days };
 }
 
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -92,7 +84,11 @@ function EditEvent({ id, onClose }: { id: string; onClose: () => void }) {
     show({ message: error, tone: 'error' });
     onClose();
   }, [error, onClose, show]);
-  return event.data ? <EventEditor event={event.data} onClose={onClose} onSaved={(saved) => event.mutate(() => saved)} /> : null;
+  return event.data ? (
+    <Suspense fallback={null}>
+      <EventEditor event={event.data} onClose={onClose} onSaved={(saved) => event.mutate(() => saved)} />
+    </Suspense>
+  ) : null;
 }
 
 function DueToday() {
@@ -212,7 +208,7 @@ function Period({
   link: ViewLink;
   onCreate?: (draft: Draft) => void;
   openEvent: (id: string) => void;
-  period: ReturnType<typeof range>;
+  period: ReturnType<typeof agendaPeriod>;
   phone: boolean;
   today: string;
   view: View;
@@ -498,7 +494,7 @@ function Agenda({ view }: { view: View }) {
   const anchor = params.get('date') ?? today;
   const [creating, setCreating] = useState<Draft>();
   const [sheet, setSheet] = useState<string>();
-  const period = range(view, anchor, me.data?.weekStart ?? 0, phone);
+  const period = agendaPeriod(view, anchor, me.data?.weekStart ?? 0, phone);
   const canCreate = Boolean(spaces.data?.some((space) => space.role !== 'viewer'));
   const unit = view === 'list' ? 'period' : view === 'week' && phone ? '3 days' : view;
   const link: ViewLink = (next) => {
@@ -584,7 +580,11 @@ function Agenda({ view }: { view: View }) {
         />
       )}
 
-      {creating && <EventEditor endTime={creating.endTime} onClose={() => setCreating(undefined)} onSaved={(event) => setSheet(event.id)} startTime={creating.startTime} startsOn={creating.startsOn} />}
+      {creating && (
+        <Suspense fallback={null}>
+          <EventEditor endTime={creating.endTime} onClose={() => setCreating(undefined)} onSaved={(event) => setSheet(event.id)} startTime={creating.startTime} startsOn={creating.startsOn} />
+        </Suspense>
+      )}
       {sheet && <EventSheet id={sheet} key={sheet} onClose={() => setSheet(undefined)} onOpen={setSheet} />}
     </Page>
   );

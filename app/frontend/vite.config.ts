@@ -11,6 +11,8 @@ import { defineConfig, type Plugin } from 'vite';
 import { routePages } from './src/route-pages.ts';
 
 const compress = promisify(brotliCompress);
+const uiModule = /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/;
+const selectModule = /node_modules[\\/](@mui[\\/]material[\\/](Autocomplete|useAutocomplete|Popper)|@popperjs|@project-graphite[\\/]ui[\\/]dist[\\/]components[\\/](Select|SuggestField|GridListbox|TimePicker))[\\/.]/;
 
 function excalidrawFonts(): Plugin {
   const fonts = join(dirname(createRequire(import.meta.url).resolve('@excalidraw/excalidraw')), 'fonts');
@@ -128,8 +130,9 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
-            { name: 'ui', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/, tags: ['$initial'] },
-            { name: 'ui-more', test: /node_modules[\\/](@mui|@emotion|@project-graphite[\\/]ui)[\\/]/ },
+            { name: 'ui', test: uiModule, tags: ['$initial'] },
+            { name: 'ui-more', test: (id) => uiModule.test(id) && !selectModule.test(id) },
+            { name: 'ui-select', test: selectModule },
           ],
         },
       },

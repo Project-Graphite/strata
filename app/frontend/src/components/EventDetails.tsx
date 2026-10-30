@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ConfirmDialog, IconButton, ListRow, Sheet, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
@@ -10,12 +10,13 @@ import { ActionsMenu } from './ActionsMenu';
 import { Button, IconLink, TextButton } from './Button';
 import { Copyable } from './Copyable';
 import { optionLabel, PollEditor, PollOptions, type PollAnswer, type PollOption } from './DatePoll';
-import { EventEditor } from './EventEditor';
 import { Hint } from './Hint';
 import { ItemBoards, useItemBoards } from './ItemBoards';
 import { LoadError } from './LoadError';
 import { Section } from './Page';
 import { ButtonSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from './Skeletons';
+
+const EventEditor = lazy(() => import('./EventEditor').then((module) => ({ default: module.EventEditor })));
 
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
@@ -377,7 +378,11 @@ export function EventSheet({ id, onClose, onOpen }: { id: string; onClose: () =>
           {details ? <EventSections details={details} editable={editable} event={event} poll={poll} /> : <EventSectionsSkeleton shape={shape} />}
         </div>
       )}
-      {editing && details && <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} />}
+      {editing && details && (
+        <Suspense fallback={null}>
+          <EventEditor event={details} onClose={() => setEditing(false)} onSaved={(saved) => event.mutate(() => saved)} />
+        </Suspense>
+      )}
     </Sheet>
   );
 }

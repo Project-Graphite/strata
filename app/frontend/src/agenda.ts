@@ -34,6 +34,12 @@ export interface CalendarEvent {
   calendar: { id: string; spaceId: string; name: string; host: string };
 }
 
+export type AgendaView = 'day' | 'week' | 'month' | 'list';
+
+export const phoneQuery = '(max-width: 47.99rem)';
+
+export const agendaPath = (from: string, to: string) => `/agenda?from=${from}&to=${to}`;
+
 const kindColours: Record<Exclude<AgendaEntry['kind'], 'external'>, TagColor> = { event: 'blue', task: 'yellow', renewal: 'green', birthday: 'pink', payment: 'orange' };
 const calendarColours: TagColor[] = ['purple', 'teal', 'red', 'green', 'orange', 'blue'];
 
@@ -52,7 +58,7 @@ function refreshCalendars(request: ReturnType<typeof useAuth>['request']) {
 
 export function useAgenda(from: string, to: string) {
   const { request } = useAuth();
-  const agenda = useResource<AgendaEntry[]>(`/agenda?from=${from}&to=${to}`, true, { live: ['items', 'tasks', 'subscriptions', 'spending'] });
+  const agenda = useResource<AgendaEntry[]>(agendaPath(from, to), true, { live: ['items', 'tasks', 'subscriptions', 'spending'] });
   const calendars = useResource<{ id: string }[]>('/me/calendars', true);
   const { reload } = agenda;
   useEffect(() => {
@@ -130,6 +136,12 @@ export function monthDays(anchor: string, weekStart: number) {
   const date = new Date(`${anchor}T00:00:00`);
   const from = weekOf(dayKey(new Date(date.getFullYear(), date.getMonth(), 1)), weekStart);
   return { from, to: addDays(from, 42), days: 42 };
+}
+
+export function agendaPeriod(view: AgendaView, anchor: string, weekStart: number, phone: boolean) {
+  if (view === 'month') return monthDays(anchor, weekStart);
+  const [from, days] = view === 'list' ? [anchor, 30] : view === 'day' ? [anchor, 1] : phone ? [anchor, 3] : [weekOf(anchor, weekStart), 7];
+  return { from, to: addDays(from, days), days };
 }
 
 export const entryKey = (entry: AgendaEntry) => `${entry.kind}-${entry.itemId}-${entry.start}`;

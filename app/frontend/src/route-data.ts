@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import { agendaPath, agendaPeriod, phoneQuery, type AgendaView } from './agenda';
 import { apiRequest } from './api';
 import { initialSession } from './auth';
 import { routePage } from './route-pages';
 import { storedSpace } from './spaces';
+import { applyTimeZone, profileDay } from './time';
 import { cachedRequest } from './useResource';
 
 type Request = <T>(path: string) => Promise<T>;
@@ -11,9 +13,17 @@ export const taskPage = (path: string, number: number) => `${path}${path.include
 
 const pages = import.meta.glob(['./pages/*.tsx', './pages/spaces/SpacesPage.tsx', './dashboard/Dashboard.tsx', '!./pages/HomePage.tsx', '!./pages/LoginPage.tsx']);
 
+function agendaData(view: AgendaView) {
+  const phone = window.matchMedia(phoneQuery).matches;
+  if (view === 'month' || (view === 'week' && !phone)) return ['/me', '/me/calendars'];
+  const { from, to } = agendaPeriod(view, profileDay(), 0, phone);
+  return ['/me', '/me/calendars', agendaPath(from, to)];
+}
+
 const firstData: Record<string, (personal?: string) => string[]> = {
   '/tasks': () => ['/me', '/me/lists', taskPage('/me/tasks', 1)],
   '/spending': (personal) => ['/me', ...(personal ? ['spending', 'accounts', 'captures', 'spending-categories'].map((part) => `/spaces/${personal}/${part}`) : [])],
+  ...Object.fromEntries((['day', 'week', 'month', 'list'] as const).map((view) => [`/agenda/${view}`, () => agendaData(view)])),
 };
 
 function prefetchData(pathname: string, userId: string, request: Request) {
@@ -48,5 +58,9 @@ export function usePrefetchRoutes(hrefs: string[] | undefined) {
 }
 
 void initialSession.then((session) => {
-  if (session && !window.location.search) prefetchData(window.location.pathname, session.user.id, (path) => apiRequest(path, {}, session.accessToken));
+  if (!session) return;
+  const request: Request = (path) => apiRequest(path, {}, session.accessToken);
+  for (const path of ['/me/dashboards', '/me/inbox/summary']) cachedRequest(request, session.user.id, path, undefined)?.catch(() => undefined);
+  applyTimeZone(session.user.timeZone);
+  if (!window.location.search) prefetchData(window.location.pathname, session.user.id, request);
 }, () => undefined);
