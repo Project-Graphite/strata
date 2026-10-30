@@ -1988,7 +1988,15 @@ button.habit-day::before {
 
 @media (max-width: 47.99rem) {
   .agenda-grid {
-    --agenda-gutter: 4.25rem;
+    --agenda-gutter: 2.75rem;
+  }
+
+  .agenda-block {
+    padding: 0.1rem 0.2rem;
+  }
+
+  .agenda-chip {
+    padding-inline: 0.2rem;
   }
 }
 
@@ -2606,11 +2614,15 @@ header.backdrop-blur-md {
   }
 
   :has(> .app-header) {
-    height: calc(100dvh - var(--tab-bar-space, var(--tab-bar-height) + env(safe-area-inset-bottom)));
+    height: calc(100dvh - var(--tab-bar-space, calc(var(--tab-bar-height) + env(safe-area-inset-bottom))));
     min-height: 0;
     padding-bottom: 0;
     overflow-y: auto;
     scroll-padding-top: 5rem;
+  }
+
+  .app-header {
+    flex-shrink: 0;
   }
 
   @supports (animation-timeline: scroll()) {

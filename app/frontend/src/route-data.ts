@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { agendaPath, agendaPeriod, phoneQuery, type AgendaView } from './agenda';
+import { agendaPath, agendaPeriod, type AgendaView } from './agenda';
 import { apiRequest } from './api';
 import { initialSession } from './auth';
 import { routePage } from './route-pages';
@@ -14,9 +14,8 @@ export const taskPage = (path: string, number: number) => `${path}${path.include
 const pages = import.meta.glob(['./pages/*.tsx', './pages/spaces/SpacesPage.tsx', './dashboard/Dashboard.tsx', '!./pages/HomePage.tsx', '!./pages/LoginPage.tsx']);
 
 function agendaData(view: AgendaView) {
-  const phone = window.matchMedia(phoneQuery).matches;
-  if (view === 'month' || (view === 'week' && !phone)) return ['/me', '/me/calendars'];
-  const { from, to } = agendaPeriod(view, profileDay(), 0, phone);
+  if (view === 'month' || view === 'week') return ['/me', '/me/calendars'];
+  const { from, to } = agendaPeriod(view, profileDay(), 0);
   return ['/me', '/me/calendars', agendaPath(from, to)];
 }
 

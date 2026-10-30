@@ -138,9 +138,9 @@ export function monthDays(anchor: string, weekStart: number) {
   return { from, to: addDays(from, 42), days: 42 };
 }
 
-export function agendaPeriod(view: AgendaView, anchor: string, weekStart: number, phone: boolean) {
+export function agendaPeriod(view: AgendaView, anchor: string, weekStart: number) {
   if (view === 'month') return monthDays(anchor, weekStart);
-  const [from, days] = view === 'list' ? [anchor, 30] : view === 'day' ? [anchor, 1] : phone ? [anchor, 3] : [weekOf(anchor, weekStart), 7];
+  const [from, days] = view === 'list' ? [anchor, 30] : view === 'day' ? [anchor, 1] : [weekOf(anchor, weekStart), 7];
   return { from, to: addDays(from, days), days };
 }
 

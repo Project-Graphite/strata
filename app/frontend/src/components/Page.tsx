@@ -38,7 +38,7 @@ export function BackLink({ back }: { back: Back }) {
 }
 
 const swipeIgnored =
-  'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, [data-swipeable], .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
+  'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
 let swipedFrom: 1 | -1 | undefined;
 
 function stillMotion() {
@@ -50,6 +50,13 @@ function scrollsSideways(target: Element, boundary: Element) {
     if (node.scrollWidth > node.clientWidth && /auto|scroll/.test(getComputedStyle(node).overflowX)) return true;
   }
   return false;
+}
+
+function onRow(touch: Touch, surface: Element) {
+  return [...surface.querySelectorAll('.swipe-row')].some((row) => {
+    const box = row.getBoundingClientRect();
+    return touch.clientX >= box.left && touch.clientX <= box.right && touch.clientY >= box.top && touch.clientY <= box.bottom;
+  });
 }
 
 function useTabSwipe(tabs: TabItem[] | undefined) {
@@ -85,7 +92,7 @@ function useTabSwipe(tabs: TabItem[] | undefined) {
       const touch = event.touches[0];
       const target = event.target as Element;
       start =
-        event.touches.length === 1 && touch.clientX > 24 && touch.clientX < window.innerWidth - 24 && !target.closest(swipeIgnored) && !scrollsSideways(target, surface)
+        event.touches.length === 1 && touch.clientX > 24 && touch.clientX < window.innerWidth - 24 && !target.closest(swipeIgnored) && !onRow(touch, surface) && !scrollsSideways(target, surface)
           ? { x: touch.clientX, y: touch.clientY, time: event.timeStamp }
           : undefined;
       sideways = undefined;
