@@ -22,6 +22,19 @@ export class AccountsController {
     return this.accounts.cards(user.id, spaceId);
   }
 
+  @Get('spaces/:spaceId/cards/seen')
+  @Scope('items:read')
+  seenCards(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
+    return this.accounts.seenCards(user.id, spaceId);
+  }
+
+  @Delete('spaces/:spaceId/cards/seen/:digits')
+  @Scope('items:write')
+  @HttpCode(204)
+  forgetSeenCard(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Param('digits') digits: string) {
+    return this.accounts.forgetSeenCard(user.id, spaceId, digits);
+  }
+
   @Post('spaces/:spaceId/accounts')
   @Scope('items:write')
   create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateAccountDto) {

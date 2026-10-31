@@ -106,6 +106,11 @@ export interface KnownCard {
   accountId: string | null;
 }
 
+export interface SeenCard extends KnownCard {
+  transactions: number;
+  lastSpentOn: string;
+}
+
 export const paymentMethods: [string, string][] = [
   ['PayPal', 'Online'],
   ['Apple Pay', 'Online'],

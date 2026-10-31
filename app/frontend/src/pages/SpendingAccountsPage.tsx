@@ -11,7 +11,7 @@ import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AddButtonSkeleton, AmountRowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, AmountRowsSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
@@ -24,6 +24,7 @@ import {
   type CardNetwork,
   type InstallmentPlan,
   type MoneyAccount,
+  type SeenCard,
 } from '../spending';
 import { usePersonalSpace } from '../spaces';
 import { money, toMinor } from '../subscriptions';
@@ -34,6 +35,7 @@ import { amountText, atMost, moneyAmount, required, useFormErrors } from '../val
 
 const emptyAccounts = { title: 'No accounts yet', hint: 'Add your bank accounts, cards, wallets and cash to follow their balances and move money between them.' };
 const emptyPlans = { title: 'No installment plans yet', hint: 'Add a plan to track what is left to pay and get reminded before each payment.' };
+const emptyCards = { title: 'No cards yet', hint: 'Save the cards on your accounts so texts and transactions land on the right account. Card endings found on transactions show here too.' };
 const kindOf = (account: MoneyAccount) => accountKindOptions.find((option) => option.value === account.kind)!;
 const cardName = (card: AccountCard) => {
   const kind = cardKindOptions.find((option) => option.value === card.kind)!.label;
@@ -45,11 +47,12 @@ const signed = (minor: number, currency: string) => `${minor > 0 ? '+' : minor <
 
 type Dialog =
   | { account: MoneyAccount | null }
-  | { card: AccountCard | null; owner: MoneyAccount }
+  | { card: AccountCard | null; owner: MoneyAccount | null; last4?: string }
   | { reconcile: MoneyAccount }
   | { installment: InstallmentPlan | null }
   | { deleteAccount: MoneyAccount }
   | { deleteCard: AccountCard; owner: MoneyAccount }
+  | { forgetCard: SeenCard }
   | { deletePlan: InstallmentPlan };
 
 export function SpendingAccountsPage() {
@@ -58,11 +61,23 @@ export function SpendingAccountsPage() {
   const { spaceId, space, editable } = usePersonalSpace();
   const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
   const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true, spendingLive);
+  const seen = useResource<SeenCard[]>(spaceId ? `/spaces/${spaceId}/cards/seen` : null, true, spendingLive);
   const [dialog, setDialog] = useState<Dialog>();
   const currency = accounts.data?.[0]?.currency ?? 'EGP';
-  const [accountRows, planRows] = useRememberedShape('spending-accounts', accounts.data && installments.data && [accounts.data.length, installments.data.length], [2, 0]);
+  const saved = accounts.data?.flatMap((account) => account.cards.map((card) => ({ card, owner: account }))) ?? [];
+  const [accountRows, cardRows, planRows] = useRememberedShape(
+    'spending-accounts',
+    accounts.data && seen.data && installments.data && [accounts.data.length, saved.length + seen.data.length, installments.data.length],
+    [2, 0, 0],
+  );
   const open = accounts.data?.filter((account) => !account.archivedAt) ?? [];
   const archived = accounts.data?.filter((account) => account.archivedAt) ?? [];
+  const cardAccounts = open.filter((account) => account.kind !== 'cash');
+  const reloadCards = () => {
+    accounts.reload();
+    seen.reload();
+  };
+  const saveSeen = (card: SeenCard) => setDialog({ card: null, owner: cardAccounts.find((account) => account.id === card.accountId) ?? null, last4: card.digits });
   const groups = accountKindOptions.map((kind) => ({ ...kind, accounts: open.filter((account) => account.kind === kind.value) })).filter((group) => group.accounts.length > 0);
   const newAccount = editable && <AddButton label="New account" onClick={() => setDialog({ account: null })} />;
   const archive = (account: MoneyAccount, archived: boolean) =>
@@ -90,7 +105,7 @@ export function SpendingAccountsPage() {
     <SpendingFrame accounts={accounts.data} currency={currency} onChanged={accounts.reload} tab="accounts">
       {accounts.error ? (
         <LoadError error={accounts.error} onRetry={accounts.reload} />
-      ) : !accounts.data || (!installments.data && !installments.error) ? (
+      ) : !accounts.data || (!installments.data && !installments.error) || (!seen.data && !seen.error) ? (
         <Placeholder className="grid gap-8" label="Adding up your accounts">
           <section className="grid min-w-0 grid-cols-1 gap-3">
             <SectionHeading action={(!space || editable) && <AddButtonSkeleton />} title={<SkeletonLine width="w-32" />} />
@@ -102,6 +117,15 @@ export function SpendingAccountsPage() {
               </Empty>
             )}
           </section>
+          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Cards">
+            {cardRows ? (
+              <RowsSkeleton lead={<IconSkeleton />} rows={cardRows} />
+            ) : (
+              <Empty loading title={emptyCards.title}>
+                {emptyCards.hint}
+              </Empty>
+            )}
+          </Section>
           <Section action={(!space || editable) && <AddButtonSkeleton />} title="Installments">
             {planRows ? (
               <AmountRowsSkeleton metered={planRows} rows={planRows} />
@@ -128,6 +152,70 @@ export function SpendingAccountsPage() {
             ))
           )}
           {archived.length > 0 && <Section title="Archived">{accountRowsOf(archived)}</Section>}
+
+          <Section action={editable && cardAccounts.length > 0 && <AddButton label="New card" onClick={() => setDialog({ card: null, owner: null })} />} title="Cards">
+            {seen.error && <LoadError compact error={seen.error} onRetry={seen.reload} />}
+            {saved.length === 0 && !seen.data?.length ? (
+              !seen.error && (
+                <Empty level={3} title={emptyCards.title}>
+                  {emptyCards.hint}
+                </Empty>
+              )
+            ) : (
+              <ul className="panel-rows">
+                {saved.map(({ card, owner }) => (
+                  <ListRow
+                    key={card.id}
+                    lead={<Icon name="wallet" size={18} />}
+                    meta={[owner.name, card.label].filter(Boolean).join(' · ')}
+                    onClick={editable ? () => setDialog({ card, owner }) : undefined}
+                    title={cardName(card)}
+                    trail={
+                      editable && (
+                        <ActionsMenu
+                          items={[
+                            { label: 'Edit card', onSelect: () => setDialog({ card, owner }) },
+                            { label: 'Remove card', separated: true, onSelect: () => setDialog({ deleteCard: card, owner }) },
+                          ]}
+                          name={`Card ending in ${card.last4}`}
+                        />
+                      )
+                    }
+                  />
+                ))}
+                {seen.data?.map((card) => (
+                  <ListRow
+                    key={card.digits}
+                    lead={<Icon name="wallet" size={18} />}
+                    meta={[
+                      `${card.transactions} ${card.transactions === 1 ? 'transaction' : 'transactions'}, last ${formatDate(card.lastSpentOn)}`,
+                      accounts.data?.find((account) => account.id === card.accountId)?.name,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    onClick={editable && cardAccounts.length > 0 ? () => saveSeen(card) : undefined}
+                    title={`•••• ${card.digits}`}
+                    trail={
+                      <>
+                        <Badge tone="muted">Not saved</Badge>
+                        {editable && (
+                          <ActionsMenu
+                            items={[
+                              ...(cardAccounts.length > 0
+                                ? [{ label: 'Save to an account', onSelect: () => saveSeen(card) }]
+                                : []),
+                              { label: 'Forget card', separated: true, onSelect: () => setDialog({ forgetCard: card }) },
+                            ]}
+                            name={`Card ending in ${card.digits}`}
+                          />
+                        )}
+                      </>
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
 
           <Section action={editable && <AddButton label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
             {installments.error ? (
@@ -190,7 +278,9 @@ export function SpendingAccountsPage() {
       {spaceId && typeof dialog === 'object' && 'account' in dialog && (
         <AccountEditor account={dialog.account ?? undefined} accounts={accounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={accounts.reload} spaceId={spaceId} />
       )}
-      {typeof dialog === 'object' && 'card' in dialog && <CardDialog account={dialog.owner} card={dialog.card} onClose={() => setDialog(undefined)} onSaved={accounts.reload} />}
+      {typeof dialog === 'object' && 'card' in dialog && (
+        <CardDialog accounts={cardAccounts} card={dialog.card} last4={dialog.last4} onClose={() => setDialog(undefined)} onSaved={reloadCards} owner={dialog.owner} />
+      )}
       {typeof dialog === 'object' && 'reconcile' in dialog && <ReconcileDialog account={dialog.reconcile} onClose={() => setDialog(undefined)} onSaved={accounts.reload} />}
       {spaceId && typeof dialog === 'object' && 'installment' in dialog && (
         <InstallmentEditor
@@ -227,13 +317,30 @@ export function SpendingAccountsPage() {
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
             await auth.request(`/cards/${dialog.deleteCard.id}`, { method: 'DELETE' });
-            accounts.reload();
+            reloadCards();
             action.report(`Removed the card ending in ${dialog.deleteCard.last4}.`);
           }}
           title={`Remove the card ending in ${dialog.deleteCard.last4}?`}
           tone="danger"
         >
           Its transactions stay on {dialog.owner.name} and keep the card ending.
+        </ConfirmDialog>
+      )}
+      {spaceId && typeof dialog === 'object' && 'forgetCard' in dialog && (
+        <ConfirmDialog
+          busyLabel="Forgetting…"
+          confirmLabel="Forget card"
+          errorFallback="Could not forget the card"
+          onClose={() => setDialog(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/spaces/${spaceId}/cards/seen/${dialog.forgetCard.digits}`, { method: 'DELETE' });
+            reloadCards();
+            action.report(`Forgot the card ending in ${dialog.forgetCard.digits}.`);
+          }}
+          title={`Forget the card ending in ${dialog.forgetCard.digits}?`}
+          tone="danger"
+        >
+          The ending is cleared from {dialog.forgetCard.transactions === 1 ? 'its transaction' : `its ${dialog.forgetCard.transactions} transactions`} and leaves the Paid with list. The transactions stay.
         </ConfirmDialog>
       )}
       {typeof dialog === 'object' && 'deletePlan' in dialog && (
@@ -272,58 +379,35 @@ function AccountRows({
 }) {
   const kind = kindOf(account);
   return (
-    <>
-      <ListRow
-        lead={
-          <span className={account.colour ? `tag-${account.colour}` : undefined} style={account.colour ? { color: 'var(--tag-color)' } : undefined}>
-            <Icon name={account.icon ?? kind.icon} size={18} />
-          </span>
-        }
-        meta={[kind.label, account.institution, account.handle, funder && `Funded by ${funder}`].filter(Boolean).join(' · ')}
-        onClick={editable ? () => onDialog({ account }) : undefined}
-        title={account.name}
-        trail={
-          <>
-            <AccountBalance account={account} />
-            {editable && (
-              <ActionsMenu
-                items={[
-                  { label: 'Show transactions', href: `${spendingHref('transactions')}?account=${account.id}` },
-                  { label: 'Reconcile balance', onSelect: () => onDialog({ reconcile: account }) },
-                  ...(account.kind === 'cash' ? [] : [{ label: 'Add a card', onSelect: () => onDialog({ card: null, owner: account }) }]),
-                  account.archivedAt ? { label: 'Restore', onSelect: () => onArchive(false) } : { label: 'Archive', onSelect: () => onArchive(true) },
-                  { label: 'Delete', separated: true, onSelect: () => onDialog({ deleteAccount: account }) },
-                ]}
-                name={account.name}
-              />
-            )}
-          </>
-        }
-      >
-        <BalanceTrend account={account} />
-      </ListRow>
-      {account.cards.map((card) => (
-        <ListRow
-          className="ps-12"
-          key={card.id}
-          lead={<Icon name="wallet" size={18} />}
-          meta={card.label}
-          onClick={editable ? () => onDialog({ card, owner: account }) : undefined}
-          title={cardName(card)}
-          trail={
-            editable && (
-              <ActionsMenu
-                items={[
-                  { label: 'Edit card', onSelect: () => onDialog({ card, owner: account }) },
-                  { label: 'Remove card', separated: true, onSelect: () => onDialog({ deleteCard: card, owner: account }) },
-                ]}
-                name={`Card ending in ${card.last4}`}
-              />
-            )
-          }
-        />
-      ))}
-    </>
+    <ListRow
+      lead={
+        <span className={account.colour ? `tag-${account.colour}` : undefined} style={account.colour ? { color: 'var(--tag-color)' } : undefined}>
+          <Icon name={account.icon ?? kind.icon} size={18} />
+        </span>
+      }
+      meta={[kind.label, account.institution, account.handle, funder && `Funded by ${funder}`].filter(Boolean).join(' · ')}
+      onClick={editable ? () => onDialog({ account }) : undefined}
+      title={account.name}
+      trail={
+        <>
+          <AccountBalance account={account} />
+          {editable && (
+            <ActionsMenu
+              items={[
+                { label: 'Show transactions', href: `${spendingHref('transactions')}?account=${account.id}` },
+                { label: 'Reconcile balance', onSelect: () => onDialog({ reconcile: account }) },
+                ...(account.kind === 'cash' || account.archivedAt ? [] : [{ label: 'Add a card', onSelect: () => onDialog({ card: null, owner: account }) }]),
+                account.archivedAt ? { label: 'Restore', onSelect: () => onArchive(false) } : { label: 'Archive', onSelect: () => onArchive(true) },
+                { label: 'Delete', separated: true, onSelect: () => onDialog({ deleteAccount: account }) },
+              ]}
+              name={account.name}
+            />
+          )}
+        </>
+      }
+    >
+      <BalanceTrend account={account} />
+    </ListRow>
   );
 }
 
@@ -357,12 +441,29 @@ function BalanceTrend({ account }: { account: MoneyAccount }) {
   );
 }
 
-function CardDialog({ account, card, onClose, onSaved }: { account: MoneyAccount; card: AccountCard | null; onClose: () => void; onSaved: () => void }) {
+function CardDialog({
+  accounts,
+  card,
+  last4,
+  onClose,
+  onSaved,
+  owner,
+}: {
+  accounts: MoneyAccount[];
+  card: AccountCard | null;
+  last4?: string;
+  onClose: () => void;
+  onSaved: () => void;
+  owner: MoneyAccount | null;
+}) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
+  const [accountId, setAccountId] = useState(owner?.id ?? accounts[0]!.id);
+  const account = owner && card ? owner : accounts.find((option) => option.id === accountId)!;
   const [network, setNetwork] = useState<CardNetwork | ''>(card?.network ?? '');
-  const [kind, setKind] = useState<CardKind>(card?.kind ?? (account.kind === 'credit_card' ? 'credit' : account.kind === 'prepaid' ? 'prepaid' : 'debit'));
+  const [chosenKind, setKind] = useState<CardKind | undefined>(card?.kind);
+  const kind = chosenKind ?? (account.kind === 'credit_card' ? 'credit' : account.kind === 'prepaid' ? 'prepaid' : 'debit');
 
   return (
     <FormDialog
@@ -389,10 +490,15 @@ function CardDialog({ account, card, onClose, onSaved }: { account: MoneyAccount
           .then((saved) => saved && onClose());
       }}
       submitLabel={card ? 'Save changes' : 'Add card'}
-      title={card ? 'Edit card' : `New card on ${account.name}`}
+      title={card ? 'Edit card' : 'New card'}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField autoComplete="off" autoFocus defaultValue={card?.last4} hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('last4')} />
+        {!card && (
+          <div className="sm:col-span-2">
+            <Select label="Account" onChange={setAccountId} options={accounts.map((option) => ({ value: option.id, label: option.name }))} value={accountId} />
+          </div>
+        )}
+        <TextField autoComplete="off" autoFocus defaultValue={card?.last4 ?? last4} hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('last4')} />
         <TextField autoComplete="off" defaultValue={card?.label ?? ''} label="Name (optional)" maxLength={40} placeholder="Daily card" {...form.field('label')} />
         <Select label="Network" onChange={setNetwork} options={cardNetworkOptions} value={network} />
         <Select label="Kind" onChange={setKind} options={cardKindOptions} value={kind} />
