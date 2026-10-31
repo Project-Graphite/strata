@@ -72,6 +72,32 @@ export class AccountsService {
     return [...cards].map(([digits, accountId]) => ({ digits, accountId }));
   }
 
+  async seenCards(userId: string, spaceId: string) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    const saved = await this.prisma.card.findMany({ where: { account: { spaceId } }, select: { last4: true } });
+    const where = { cardDigits: { not: null, notIn: saved.map((card) => card.last4) }, item: { spaceId, trashedAt: null } } satisfies Prisma.ExpenseWhereInput;
+    const [counts, latest] = await Promise.all([
+      this.prisma.expense.groupBy({ by: ['cardDigits'], where, _count: { _all: true }, _max: { spentOn: true } }),
+      this.prisma.expense.findMany({ where, distinct: ['cardDigits'], orderBy: { spentOn: 'desc' }, select: { cardDigits: true, accountId: true } }),
+    ]);
+    return counts
+      .map((row) => ({
+        digits: row.cardDigits!,
+        accountId: latest.find((expense) => expense.cardDigits === row.cardDigits)?.accountId ?? null,
+        transactions: row._count._all,
+        lastSpentOn: row._max.spentOn!.toISOString().slice(0, 10),
+      }))
+      .sort((a, b) => b.lastSpentOn.localeCompare(a.lastSpentOn));
+  }
+
+  async forgetSeenCard(userId: string, spaceId: string, digits: string) {
+    await this.access.assertPersonalSpace(userId, spaceId);
+    if (!/^\d{4}$/.test(digits)) throw new BadRequestException('Card endings are the last 4 digits.');
+    if (await this.prisma.card.count({ where: { last4: digits, account: { spaceId } } })) throw new ConflictException(`The card ending in ${digits} is saved on an account`);
+    await this.prisma.expense.updateMany({ where: { cardDigits: digits, cardId: null, item: { spaceId } }, data: { cardDigits: null } });
+    this.changes.notify('spending', { spaceId });
+  }
+
   async create(userId: string, spaceId: string, input: CreateAccountDto) {
     await this.access.assertPersonalSpace(userId, spaceId);
     await this.assertFunding(spaceId, input.fundedByAccountId, null);

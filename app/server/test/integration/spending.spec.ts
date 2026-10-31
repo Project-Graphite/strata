@@ -179,6 +179,34 @@ describe('Spending and budgets against Postgres', () => {
     ]);
   });
 
+  it('lists card endings seen only on transactions and forgets them', async () => {
+    const owner = await member('card-spotter');
+    const stranger = await member('card-snoop');
+    const home = { id: owner.personalSpaceId };
+    const bank = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB', currency: 'EGP' })).body;
+    const paid = (spentOn: string, cardDigits: string, accountId: string | null = null) =>
+      owner.call('POST', `/spaces/${home.id}/expenses`, { title: 'Shop', amountMinor: 1000, currency: 'EGP', spentOn, category: 'groceries', accountId, cardDigits });
+    await paid('2026-10-01', '1111');
+    await paid('2026-10-09', '1111', bank.id);
+    await paid('2026-10-05', '2222');
+    const saved = (await paid('2026-10-07', '3333', bank.id)).body;
+    await owner.call('POST', `/accounts/${bank.id}/cards`, { last4: '3333' });
+
+    expect((await stranger.call('GET', `/spaces/${home.id}/cards/seen`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards/seen`)).body).toEqual([
+      { digits: '1111', accountId: bank.id, transactions: 2, lastSpentOn: '2026-10-09' },
+      { digits: '2222', accountId: null, transactions: 1, lastSpentOn: '2026-10-05' },
+    ]);
+
+    expect((await owner.call('DELETE', `/spaces/${home.id}/cards/seen/12`)).status).toBe(400);
+    expect((await owner.call('DELETE', `/spaces/${home.id}/cards/seen/3333`)).status).toBe(409);
+    expect((await stranger.call('DELETE', `/spaces/${home.id}/cards/seen/1111`)).status).toBe(404);
+    expect((await owner.call('DELETE', `/spaces/${home.id}/cards/seen/1111`)).status).toBe(204);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards/seen`)).body.map((card: { digits: string }) => card.digits)).toEqual(['2222']);
+    expect((await owner.call('GET', `/spaces/${home.id}/cards`)).body.map((card: { digits: string }) => card.digits).sort()).toEqual(['2222', '3333']);
+    expect((await owner.call('GET', `/expenses/${saved.id}`)).body.cardDigits).toBe('3333');
+  });
+
   it('lets a space rename, recolour, add and remove spending categories without losing expenses', async () => {
     const owner = await member('categoriser');
     const viewer = await member('category-watcher');
