@@ -1221,11 +1221,6 @@ button.habit-day::before {
   font-size: var(--text-small);
 }
 
-.swipe-hint[data-side='left'] {
-  right: var(--space-4);
-  left: auto;
-}
-
 .amount-field input {
   font-size: var(--text-h2);
   font-variant-numeric: tabular-nums;

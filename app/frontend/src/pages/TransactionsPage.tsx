@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, Icon, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
+import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Amount } from '../components/Amount';
 import { Button, TextButton } from '../components/Button';
@@ -30,7 +30,6 @@ import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
 import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
-import { useSwipe } from '../swipe';
 import { capitalised, count, formatDate } from '../time';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
@@ -147,16 +146,15 @@ export function TransactionsPage() {
   };
   const accountOf = (id: string | null) => accounts.data?.find((account) => account.id === id);
   const accountName = useCallback((id: string | null) => accounts.data?.find((account) => account.id === id)?.name, [accounts.data]);
-  const latest = useRef({ open: (_row: Row) => {}, select: (_id: string) => {}, trash: (_id: string) => {}, more: () => {} });
+  const latest = useRef({ open: (_row: Row) => {}, select: (_id: string) => {}, more: () => {} });
   useLayoutEffect(() => {
     latest.current = {
       open: (row) => setDialog({ expense: row }),
       select: (id) => setSelected((current) => toggled(current, id)),
-      trash: (id) => trash([id]),
       more: loadMore,
     };
   });
-  const rowActions = useMemo<RowActions>(() => ({ open: (row) => latest.current.open(row), select: (id) => latest.current.select(id), trash: (id) => latest.current.trash(id) }), []);
+  const rowActions = useMemo<RowActions>(() => ({ open: (row) => latest.current.open(row), select: (id) => latest.current.select(id) }), []);
   const nearEnd = useCallback(() => latest.current.more(), []);
   const filtered = filterNames.some((name) => params.get(name));
   const account = params.get('account');
@@ -369,7 +367,6 @@ export function TransactionsPage() {
 interface RowActions {
   open: (row: Row) => void;
   select: (id: string) => void;
-  trash: (id: string) => void;
 }
 
 function Ledger({
@@ -440,7 +437,6 @@ function Ledger({
                 last={entry.last}
                 row={entry.row}
                 selected={selected.has(entry.row.id)}
-                selecting={selected.size > 0}
               />
             )}
           </li>
@@ -472,7 +468,6 @@ const TransactionRow = memo(function TransactionRow({
   last,
   row,
   selected,
-  selecting,
 }: {
   accountName: (id: string | null) => string | undefined;
   actions: RowActions;
@@ -482,9 +477,7 @@ const TransactionRow = memo(function TransactionRow({
   last: boolean;
   row: Row;
   selected: boolean;
-  selecting: boolean;
 }) {
-  const swipe = useSwipe({ enabled: editable, onLeft: () => actions.trash(row.id), onRight: () => actions.select(row.id) });
   const meta = [
     row.direction === 'transfer'
       ? `${accountName(row.accountId) ?? 'Removed account'} → ${accountName(row.toAccountId) ?? 'Removed account'}`
@@ -497,15 +490,9 @@ const TransactionRow = memo(function TransactionRow({
     .filter(Boolean)
     .join(' · ');
   return (
-    <div {...swipe.props} className="list-row swipe-row ledger-row" data-first={first || undefined} data-last={last || undefined} data-selected={selected || undefined}>
-      {swipe.offset !== 0 && (
-        <span aria-hidden="true" className="swipe-hint" data-side={swipe.offset < 0 ? 'left' : 'right'}>
-          <Icon name={swipe.offset < 0 ? 'trash' : 'check'} size={18} />
-          {swipe.offset < 0 ? 'Move to trash' : selected ? 'Deselect' : 'Select'}
-        </span>
-      )}
+    <div className="list-row ledger-row" data-first={first || undefined} data-last={last || undefined} data-selected={selected || undefined}>
       {editable && (
-        <span className={`list-row-lead ${selecting ? '' : 'max-md:hidden'}`}>
+        <span className="list-row-lead max-md:hidden">
           <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
             <Checkbox aria-label={`Select ${row.title}`} checked={selected} onChange={() => actions.select(row.id)} />
           </label>
