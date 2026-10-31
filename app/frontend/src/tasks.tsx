@@ -3,6 +3,7 @@ import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, Pagination } from 
 import { ActiveSpaceContext } from './active-space';
 import type { Page as ResultPage } from './api';
 import { useAuth } from './auth';
+import { AddButton } from './components/Button';
 import { FilterChips } from './components/Page';
 import { priorityNames } from './quick-add';
 import { useSwipe } from './swipe';
@@ -216,11 +217,7 @@ export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLi
       ]}
       label="Lists"
     >
-      {onNewList && (
-        <Button icon="plus" onClick={onNewList} size="small">
-          New list
-        </Button>
-      )}
+      {onNewList && <AddButton label="New list" onClick={onNewList} />}
     </FilterChips>
   );
 }

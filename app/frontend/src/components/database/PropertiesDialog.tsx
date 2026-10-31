@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Banner, ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
-import { TextButton } from '../Button';
+import { AddButton } from '../Button';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';
 import { colorOptions } from '../../spaces';
@@ -134,8 +134,7 @@ export function PropertiesDialog({
                     />
                   </div>
                 ))}
-                <TextButton
-                  icon="plus"
+                <AddButton
                   label="Add an option"
                   onClick={() =>
                     change(property.id, { options: [...(property.options ?? []), { id: crypto.randomUUID(), name: '', color: tagColors[(property.options?.length ?? 0) % tagColors.length]! }] })
@@ -147,7 +146,7 @@ export function PropertiesDialog({
         ))}
       </ul>
       {draft.length < 30 && (
-        <TextButton icon="plus" label="Add a property" onClick={() => setDraft((current) => [...current, { id: crypto.randomUUID(), name: '', type: 'text' }])} />
+        <AddButton label="Add a property" onClick={() => setDraft((current) => [...current, { id: crypto.randomUUID(), name: '', type: 'text' }])} />
       )}
     </FormDialog>
   );

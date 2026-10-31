@@ -3,7 +3,7 @@ import { DatePicker, formatDay } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';
-import { Button, TextButton } from './Button';
+import { AddButton, Button, TextButton } from './Button';
 
 export type PollAnswer = 'yes' | 'maybe' | 'no';
 
@@ -104,7 +104,7 @@ export function PollEditor({
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        {rows.length < 10 && <Button icon="plus" label="Add a date" onClick={() => setRows([...rows, blank()])} />}
+        {rows.length < 10 && <AddButton label="Add a date" onClick={() => setRows([...rows, blank()])} />}
         <Button label="Cancel" onClick={onCancel} />
         <Button disabled={filled.length < 2 || saving.busy} label={saving.busy ? 'Saving…' : 'Save dates'} primary submit />
       </div>

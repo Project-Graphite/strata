@@ -8,7 +8,7 @@ import { useResource } from '../../useResource';
 import { SpaceInvitations } from './SpaceInvitations';
 import { useSpace, useSpaceInvites } from './SpaceLayout';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { usePagePrimary } from '../../components/Page';
@@ -35,7 +35,7 @@ export function SpaceMembers() {
   const manages = space.role === 'owner' && space.kind === 'shared';
   const self = auth.user?.id;
   const [rows] = useRememberedShape(`space-members-${space.id}`, members.data && [members.data.length], [space.kind === 'shared' ? 2 : 1]);
-  usePagePrimary(manages && <Button icon="plus" label="Invite people" large onClick={invite} primary />);
+  usePagePrimary(manages && <AddButton label="Invite people" large onClick={invite} primary />);
 
   function changeRole(member: Member, role: SpaceRole) {
     void action.run(async () => {

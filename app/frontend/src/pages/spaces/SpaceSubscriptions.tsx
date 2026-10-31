@@ -4,7 +4,7 @@ import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { Amount } from '../../components/Amount';
-import { Button } from '../../components/Button';
+import { AddButton, Button } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { SplitEditor } from '../../components/SplitEditor';
@@ -36,7 +36,7 @@ export function SpaceSubscriptions() {
   const memberName = (userId: string) => members.data?.find((member) => member.userId === userId)?.displayName ?? 'a former member';
   const linked = editable ? subscriptions.data?.find((subscription) => subscription.id === params.get('subscription')) : undefined;
   const opened = editing ?? linked;
-  usePagePrimary(editable && <Button icon="plus" label="New subscription" large onClick={() => setEditing('new')} primary />);
+  usePagePrimary(editable && <AddButton label="New subscription" large onClick={() => setEditing('new')} primary />);
   const [rows] = useRememberedShape(`space-subscriptions-${space.id}${cancelled ? '-cancelled' : ''}`, subscriptions.data && [subscriptions.data.length], [4]);
   const empty = cancelled
     ? { title: 'No cancelled subscriptions', hint: 'Subscriptions you mark cancelled show up here, ready to resume.' }

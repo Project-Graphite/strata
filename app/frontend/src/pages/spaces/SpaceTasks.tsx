@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { SegmentedControl, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { Toolbar, usePagePrimary } from '../../components/Page';
 import { ChipsSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
@@ -35,7 +35,7 @@ export function SpaceTasks() {
   usePagePrimary(
     editable && (
       <span className="page-primary-action">
-        <Button icon="plus" label="New task" large onClick={() => setCreating(true)} primary />
+        <AddButton label="New task" large onClick={() => setCreating(true)} primary />
       </span>
     ),
   );

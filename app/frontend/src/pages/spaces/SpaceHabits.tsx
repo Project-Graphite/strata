@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { usePagePrimary } from '../../components/Page';
@@ -40,7 +40,7 @@ export function SpaceHabits() {
   const editable = space.role !== 'viewer';
   const replace = (next: Habit) => habits.mutate((current) => current.map((habit) => (habit.id === next.id ? next : habit)));
   const [rows] = useRememberedShape(`space-habits-${space.id}`, habits.data && [habits.data.length], [3]);
-  usePagePrimary(editable && <Button icon="plus" label="New habit" large onClick={() => setEditing('new')} primary />);
+  usePagePrimary(editable && <AddButton label="New habit" large onClick={() => setEditing('new')} primary />);
 
   return (
     <>

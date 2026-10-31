@@ -1,6 +1,14 @@
-import { Button as UiButton, IconButton, type IconName } from '@project-graphite/ui';
+import { Icon, Button as UiButton, IconButton, type IconName } from '@project-graphite/ui';
 
 const look = (large: boolean, primary: boolean) => ({ size: large ? 'medium' : 'small', variant: primary ? 'primary' : 'secondary' }) as const;
+
+export function AddButton({ disabled, label, large = false, onClick, primary = false }: { disabled?: boolean; label: string; large?: boolean; onClick?: () => void; primary?: boolean }) {
+  return (
+    <UiButton {...look(large, primary)} aria-label={label} className="add-button" disabled={disabled} onClick={onClick} title={label} type="button">
+      <Icon name="plus" size={18} />
+    </UiButton>
+  );
+}
 
 export function Button({
   disabled,

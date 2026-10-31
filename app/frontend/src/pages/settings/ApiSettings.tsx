@@ -11,7 +11,7 @@ import type { Resource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows } from './SettingsLayout';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { SecretDialog } from '../../components/Copyable';
 
 export interface ApiReference {
@@ -97,7 +97,7 @@ export function ApiSettings({ reference, webhooks }: { reference: ApiReference; 
 
       <Section
         action={
-          <Button icon="plus" label="New webhook" onClick={() => setAdding(true)} />
+          <AddButton label="New webhook" onClick={() => setAdding(true)} />
         }
         description={
           <>

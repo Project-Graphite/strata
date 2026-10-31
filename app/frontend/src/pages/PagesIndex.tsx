@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Icon, ListRow, Placeholder, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button, ButtonLink, TextButton } from '../components/Button';
+import { AddButton, Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
@@ -32,7 +32,7 @@ interface PagesTreeControls {
 const PagesTreeContext = createContext<PagesTreeControls>(null!);
 
 function CreateButton({ busy, label, large = false, onCreate, spaceId }: { busy: boolean; label: string; large?: boolean; onCreate: (spaceId: string) => void; spaceId: string }) {
-  return <Button disabled={busy} icon="plus" label={label} large={large} onClick={() => onCreate(spaceId)} primary />;
+  return large ? <AddButton disabled={busy} label={label} large onClick={() => onCreate(spaceId)} primary /> : <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaceId)} primary />;
 }
 
 function TreeNote({ children, depth }: { children: ReactNode; depth: number }) {

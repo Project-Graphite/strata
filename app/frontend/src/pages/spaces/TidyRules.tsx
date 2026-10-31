@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, ListRow, Placeholder, Select, TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
@@ -14,7 +14,7 @@ import { useSpace } from './SpaceLayout';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { AddButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const emptyRules = 'No tagging rules yet';
 
@@ -80,7 +80,7 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
 
   return (
     <Section
-      action={editable && (tags ? tags.length > 0 && <Button icon="plus" label="New rule" onClick={() => setAdding(true)} /> : <ButtonSkeleton width="w-24" />)}
+      action={editable && (tags ? tags.length > 0 && <AddButton label="New rule" onClick={() => setAdding(true)} /> : <AddButtonSkeleton />)}
       description="Tag new items in this space by words in their title, by file type, or both."
       title="Tagging rules"
     >

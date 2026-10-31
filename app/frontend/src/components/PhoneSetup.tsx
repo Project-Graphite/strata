@@ -305,7 +305,12 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
           <Checkbox
             checked={enabledApps.includes(app.id)}
             key={app.id}
-            label={`${app.label} — ${app.hint}`}
+            label={
+              <span className="grid">
+                <span>{app.label}</span>
+                <span className="text-small text-muted">{app.hint}</span>
+              </span>
+            }
             onChange={(event) => toggleApp(app.id, event.target.checked)}
           />
         ))}

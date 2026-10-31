@@ -11,7 +11,7 @@ import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
-import { Button } from './Button';
+import { AddButton, Button } from './Button';
 import { Empty } from './Empty';
 import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
@@ -88,7 +88,7 @@ export function SpendingFrame({
             />
             {editable && (
               <span className="page-primary-action">
-                <Button icon="plus" label="New transaction" large onClick={() => setDialog('new')} primary />
+                <AddButton label="New transaction" large onClick={() => setDialog('new')} primary />
               </span>
             )}
           </>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, Button as UiButton, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
+import { AddButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -13,7 +14,7 @@ import { useResource } from '../useResource';
 import { RecipesArea } from './RecipesPage';
 import { capitalised, formatDate, formatRange } from '../time';
 import { PeriodNav } from '../components/PeriodNav';
-import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
 const dayRow = 'panel-row grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-[8rem_repeat(3,minmax(0,1fr))]';
@@ -112,7 +113,7 @@ export function MealPlanPage() {
                         {(!space || editable) && <IconButtonSkeleton />}
                       </span>
                     ))}
-                    {(!space || editable) && <ButtonSkeleton width="w-16" />}
+                    {(!space || editable) && <AddButtonSkeleton />}
                   </div>
                 ))}
               </li>
@@ -152,16 +153,7 @@ export function MealPlanPage() {
                           </span>
                         ))}
                         {editable && (
-                          <UiButton
-                            aria-label={`Add ${label.toLowerCase()} on ${formatDay(day)}`}
-                            className="w-fit"
-                            icon="plus"
-                            onClick={() => setAdding({ day, meal: value })}
-                            size="small"
-                            variant="text"
-                          >
-                            Add
-                          </UiButton>
+                          <AddButton label={`Add ${label.toLowerCase()} on ${formatDay(day)}`} onClick={() => setAdding({ day, meal: value })} />
                         )}
                       </div>
                     );

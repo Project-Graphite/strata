@@ -5,13 +5,13 @@ import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { dayKey } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
-import { ButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, ButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { birthdayText, type GiftIdea, type PersonDetail } from '../people';
 import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
@@ -72,7 +72,7 @@ export function PersonPage() {
             )}
           </Section>
         )}
-        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Gift ideas">
+        <Section action={wasEditable > 0 && <AddButtonSkeleton />} title="Gift ideas">
           {ideaRows ? (
             <TaskRowsSkeleton detailed={0} rows={ideaRows} />
           ) : (
@@ -211,7 +211,7 @@ export function PersonPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New gift idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
+      <Section action={editable && <AddButton label="New gift idea" onClick={() => setDialog('idea')} />} title="Gift ideas">
         {shown.giftIdeas.length === 0 ? (
           <Empty title={emptyIdeas.title}>{emptyIdeas.hint}</Empty>
         ) : (

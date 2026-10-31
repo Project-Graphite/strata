@@ -2,7 +2,7 @@ import { Placeholder } from '@project-graphite/ui';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, CodeLineSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
+import { AddButtonSkeleton, ButtonSkeleton, CodeLineSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../../components/Skeletons';
 import { useResource } from '../../useResource';
 import { ApiSettings, emptyWebhooks, type ApiReference, type Webhook } from './ApiSettings';
 import { SettingsRowSkeleton, SettingsRows, type TwoStepStatus } from './SettingsLayout';
@@ -24,7 +24,7 @@ export function DeveloperSettings() {
   if (!tokens.data || !twoStep.data || !reference.data || !webhooks.data) {
     return (
       <Placeholder className="grid gap-8" label="Loading your developer settings">
-        <Section action={<ButtonSkeleton width="w-28" />} title="Access tokens">
+        <Section action={<AddButtonSkeleton />} title="Access tokens">
           {tokenRows ? (
             <SettingsRows>
               {rowsOf(tokenRows).map((row) => (
@@ -49,7 +49,7 @@ export function DeveloperSettings() {
           <RowsSkeleton rows={scopeRows} />
         </Section>
         <Section
-          action={<ButtonSkeleton width="w-32" />}
+          action={<AddButtonSkeleton />}
           description={
             <>
               <CodeLineSkeleton width="w-full" />
