@@ -21,6 +21,19 @@
   max-width: 100%;
 }
 
+@media (max-width: 39.999rem) {
+  .banner {
+    flex-wrap: wrap;
+  }
+
+  .banner > .banner-action {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    margin-block: 0;
+    padding-inline-start: calc(1.125rem + var(--space-3));
+  }
+}
+
 .note-title {
   width: 100%;
   border: 0;
@@ -64,12 +77,32 @@
   background: color-mix(in srgb, var(--color-highlight) 35%, transparent);
 }
 
+.MuiButton-root.add-button {
+  width: 1.921875rem;
+  min-width: 0;
+  height: 1.921875rem;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.MuiButton-root.MuiButton-sizeMedium.add-button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
 @media (max-width: 64rem) and (pointer: coarse) {
   .MuiButton-root,
   .button-skeleton,
   .MuiInputBase-root,
   [aria-label='Database view'] .MuiToggleButton-root {
     min-height: 2.75rem;
+  }
+
+  .MuiButton-root.add-button,
+  .MuiButton-root.MuiButton-sizeMedium.add-button,
+  .add-button-skeleton {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 
   .note-bubble .toolbar-button {

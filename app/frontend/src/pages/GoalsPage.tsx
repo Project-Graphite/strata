@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
@@ -41,7 +41,7 @@ export function GoalsPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New goal" large onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <AddButton label="New goal" large onClick={() => setAdding(true)} primary />}
       title="Goals"
       toolbar={
         <FilterChips

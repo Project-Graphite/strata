@@ -5,14 +5,14 @@ import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { EventEditor } from '../components/EventEditor';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { DetailState, Page, Section } from '../components/Page';
-import { ButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, ButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { MissingRates } from '../components/Stats';
 import { OpenTask } from '../components/OpenTask';
 import { TripEditor } from '../components/TripEditor';
@@ -71,7 +71,7 @@ export function TripPage() {
   if (!trip.data) {
     return (
       <DetailState back={back} menu={wasEditable > 0} primary={wasEditable > 0 && 'Edit'} resource={trip} thing="Trip">
-        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-28" />} title="Itinerary">
+        <Section action={wasEditable > 0 && <AddButtonSkeleton />} title="Itinerary">
           {dayRows.length ? (
             <div className="grid gap-4">
               {dayRows.map((rows, day) => (
@@ -88,7 +88,7 @@ export function TripPage() {
           )}
         </Section>
         {packing > 0 && (
-          <Section action={wasEditable > 0 && <ButtonSkeleton width="w-24" />} description={packRows > 0 && <SkeletonLine width="w-24" />} title="Packing">
+          <Section action={wasEditable > 0 && <AddButtonSkeleton />} description={packRows > 0 && <SkeletonLine width="w-24" />} title="Packing">
             {packRows ? (
               <TaskRowsSkeleton detailed={detailedPacks} rows={packRows} />
             ) : (
@@ -98,7 +98,7 @@ export function TripPage() {
             )}
           </Section>
         )}
-        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-32" />} title="Spending">
+        <Section action={wasEditable > 0 && <AddButtonSkeleton />} title="Spending">
           <div className="grid gap-2">
             <SkeletonLine width="w-40" />
             {budgeted > 0 && <Skeleton className="h-1.5 rounded-full" />}
@@ -114,7 +114,7 @@ export function TripPage() {
             </Empty>
           )}
         </Section>
-        <Section action={wasEditable > 0 && <ButtonSkeleton width="w-28" />} title="Pages">
+        <Section action={wasEditable > 0 && <AddButtonSkeleton />} title="Pages">
           {pageRows ? (
             <RowsSkeleton detail={false} lead={<IconSkeleton />} rows={pageRows} />
           ) : (
@@ -203,7 +203,7 @@ export function TripPage() {
       description={[shown.spaceName, shown.destination, tripDates(shown)].filter(Boolean).join(' · ')}
       title={shown.title}
     >
-      <Section action={editable && <Button icon="plus" label="New event" onClick={() => setDialog('event')} />} title="Itinerary">
+      <Section action={editable && <AddButton label="New event" onClick={() => setDialog('event')} />} title="Itinerary">
         {days.length === 0 ? (
           <Empty title={empties.itinerary.title}>{empties.itinerary.hint}</Empty>
         ) : (
@@ -231,7 +231,7 @@ export function TripPage() {
 
       {shown.packing && (
         <Section
-          action={editable && <Button icon="plus" label="Add item" onClick={() => setDialog('pack')} />}
+          action={editable && <AddButton label="Add item" onClick={() => setDialog('pack')} />}
           description={shown.packing.tasks.length ? `${packed} of ${shown.packing.tasks.length} packed` : undefined}
           title="Packing"
         >
@@ -259,7 +259,7 @@ export function TripPage() {
         </Section>
       )}
 
-      <Section action={editable && <Button icon="plus" label="New expense" onClick={() => setDialog('expense')} />} title="Spending">
+      <Section action={editable && <AddButton label="New expense" onClick={() => setDialog('expense')} />} title="Spending">
         <div className="grid gap-2">
           <p className="m-0 text-ink">
             {money(shown.spending.spentMinor, shown.spending.currency)} spent
@@ -344,8 +344,8 @@ export function TripPage() {
       <Section
         action={
           editable && (
-            <Button
-              icon="plus"
+            <AddButton
+
               label="New page"
               onClick={() =>
                 void action.run(async () => {

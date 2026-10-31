@@ -13,10 +13,10 @@ import { PropertiesDialog } from './PropertiesDialog';
 import { PropertyField, propertyDisplay } from './PropertyField';
 import { PeriodNav } from '../PeriodNav';
 import { Hint } from '../Hint';
-import { Button, TextButton } from '../Button';
+import { AddButton } from '../Button';
 import { ActionsMenu } from '../ActionsMenu';
 import { Empty } from '../Empty';
-import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../Skeletons';
+import { AddButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../Skeletons';
 
 const blank = (display: ReactNode) => display === null || (Array.isArray(display) && display.length === 0);
 
@@ -47,7 +47,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
           {editable && (
             <div className="flex items-center gap-2">
               <IconButtonSkeleton />
-              <ButtonSkeleton width="w-24" />
+              <AddButtonSkeleton />
             </div>
           )}
         </div>
@@ -192,7 +192,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                     </article>
                   ))}
                   {editable && (
-                    <TextButton disabled={adding.busy} icon="plus" label="New" onClick={() => addRow(column.id ? { [group.id]: column.id } : {})} />
+                    <AddButton disabled={adding.busy} label="New page" onClick={() => addRow(column.id ? { [group.id]: column.id } : {})} />
                   )}
                 </section>
               );
@@ -318,7 +318,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
         {editable && (
           <div className="flex items-center gap-2">
             <ActionsMenu items={[{ label: 'Edit properties', onSelect: () => setEditing(data) }]} name="database" />
-            <Button disabled={adding.busy} icon="plus" label="New page" onClick={() => addRow()} />
+            <AddButton disabled={adding.busy} label="New page" onClick={() => addRow()} />
           </div>
         )}
       </div>

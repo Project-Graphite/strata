@@ -3,11 +3,11 @@ import { ConfirmDialog, DatePicker, ListRow, Meter, Placeholder, Select, Stat, S
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button } from '../components/Button';
+import { AddButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, AmountRowsSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, spendingLive, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
 import { usePersonalSpace } from '../spaces';
@@ -83,7 +83,7 @@ export function NetWorthPage() {
               ))}
             </StatGrid>
           )}
-          <Section action={(!space || editable) && <ButtonSkeleton width="w-44" />} title="Savings goals">
+          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Savings goals">
             {goalRows ? (
               <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} />
             ) : (
@@ -92,7 +92,7 @@ export function NetWorthPage() {
               </Empty>
             )}
           </Section>
-          <Section action={(!space || editable) && <ButtonSkeleton />} title="Assets">
+          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Assets">
             {assetRows ? (
               <AmountRowsSkeleton rows={assetRows} />
             ) : (
@@ -114,7 +114,7 @@ export function NetWorthPage() {
           )}
           <MissingRates currencies={worth.data.missing} />
 
-          <Section action={editable && <Button icon="plus" label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
+          <Section action={editable && <AddButton label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
             {goals.data.length === 0 ? (
               <Empty level={3} title={emptyGoals.title}>
                 {emptyGoals.hint}
@@ -153,7 +153,7 @@ export function NetWorthPage() {
             )}
           </Section>
 
-          <Section action={editable && <Button icon="plus" label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
+          <Section action={editable && <AddButton label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
             {worth.data.assets.length === 0 ? (
               <Empty level={3} title={emptyAssets.title}>
                 {emptyAssets.hint}

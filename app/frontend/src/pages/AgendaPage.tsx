@@ -5,7 +5,7 @@ import { addDays, agendaPeriod, dayKey, entryClock, entryDay, entryKey, entryLin
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AgendaEntryLink, AgendaRow, CalendarEventDialog, EntryPeek } from '../components/AgendaEntryLink';
-import { Button, ButtonLink } from '../components/Button';
+import { AddButton, ButtonLink } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { EventSheet } from '../components/EventDetails';
 import { Hint } from '../components/Hint';
@@ -544,7 +544,7 @@ function Agenda({ view }: { view: View }) {
       actions={
         <>
           <ActionsMenu items={[{ label: 'Calendars', href: '/agenda/calendars' }]} name="Agenda" />
-          <Button disabled={!canCreate} icon="plus" label="New event" large onClick={() => setCreating({ startsOn: anchor })} primary />
+          <AddButton disabled={!canCreate} label="New event" large onClick={() => setCreating({ startsOn: anchor })} primary />
         </>
       }
       tabs={(Object.keys(views) as View[]).map((option) => ({ active: view === option, href: link({ view: option }), label: views[option] }))}

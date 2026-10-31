@@ -8,7 +8,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { emailAddress, useFormErrors } from '../validation';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
 import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
@@ -103,7 +103,7 @@ export function InvitationsPage() {
         )}
       </Section>
 
-      <Section action={<Button icon="plus" label="New invitation" onClick={() => setCreating(true)} />} title="Sent">
+      <Section action={<AddButton label="New invitation" onClick={() => setCreating(true)} />} title="Sent">
         {sent.error ? (
           <LoadError compact error={sent.error} onRetry={sent.reload} />
         ) : !sent.data ? (

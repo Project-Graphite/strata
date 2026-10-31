@@ -10,11 +10,11 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Amount } from '../components/Amount';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import { StatementImport } from '../components/StatementImport';
 import { MissingRates } from '../components/Stats';
@@ -98,7 +98,7 @@ export function RecurringPage() {
             action={
               (!spaces.data || editable.length > 0) && (
                 <span className="flex items-center gap-2">
-                  <ButtonSkeleton width="w-44" />
+                  <AddButtonSkeleton />
                   <IconButtonSkeleton />
                 </span>
               )
@@ -152,9 +152,11 @@ export function RecurringPage() {
                   key={total.currency}
                   label={currencyName(total.currency)}
                   value={
-                    <Amount currency={total.currency} minor={total.monthlyMinor}>
-                      {' a month'}
-                    </Amount>
+                    <span>
+                      <Amount currency={total.currency} minor={total.monthlyMinor}>
+                        {' a month'}
+                      </Amount>
+                    </span>
                   }
                 />
               ))}
@@ -170,7 +172,7 @@ export function RecurringPage() {
             action={
               editable.length > 0 && (
                 <span className="flex items-center gap-2">
-                  <Button icon="plus" label="New subscription" onClick={() => setEditing('new')} />
+                  <AddButton label="New subscription" onClick={() => setEditing('new')} />
                   <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
                 </span>
               )

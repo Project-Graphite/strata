@@ -3,14 +3,14 @@ import { useNavigate, useParams } from 'react-router';
 import { Checkbox, Fieldset, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { GoalEditor } from '../components/GoalEditor';
 import { Hint } from '../components/Hint';
 import { LinkItemDialog } from '../components/LinkItemDialog';
 import { DetailState, Page, Section } from '../components/Page';
-import { ButtonSkeleton, HabitRowSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, ButtonSkeleton, HabitRowSkeleton, HintSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/OpenTask';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
@@ -80,7 +80,7 @@ export function GoalPage() {
           action={
             wasEditable > 0 && (
               <span className="flex items-center gap-2">
-                <ButtonSkeleton width="w-24" />
+                <AddButtonSkeleton />
                 <IconButtonSkeleton />
               </span>
             )
@@ -189,7 +189,7 @@ export function GoalPage() {
         action={
           editable && (
             <span className="flex items-center gap-2">
-              <Button icon="plus" label="New task" onClick={() => setTaskEditing('new')} />
+              <AddButton label="New task" onClick={() => setTaskEditing('new')} />
               <ActionsMenu items={[{ label: 'Link a task…', onSelect: () => setDialog('link') }]} name="tasks" />
             </span>
           )

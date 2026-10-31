@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
@@ -24,7 +24,7 @@ export function NewSpace() {
 
   return (
     <>
-      <Button icon="plus" label="New space" large onClick={() => setOpen(true)} primary />
+      <AddButton label="New space" large onClick={() => setOpen(true)} primary />
       {open && (
         <FormDialog
           busy={creating.busy}

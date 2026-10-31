@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Banner, ConfirmDialog, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
@@ -164,7 +164,7 @@ export function CalendarsPage() {
 
   return (
     <Page
-      actions={editable.length > 0 && <Button icon="plus" label="Follow a calendar" large onClick={() => setFollowing(true)} primary />}
+      actions={editable.length > 0 && <AddButton label="Follow a calendar" large onClick={() => setFollowing(true)} primary />}
       back={{ to: '/agenda', label: 'Agenda' }}
       title="Calendars"
     >

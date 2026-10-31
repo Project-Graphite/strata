@@ -7,7 +7,7 @@ import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AltTextDialog } from '../components/AltTextDialog';
-import { Button, TextButton } from '../components/Button';
+import { AddButton, TextButton } from '../components/Button';
 import { CommitInput } from '../components/CommitInput';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
@@ -372,7 +372,7 @@ export function NotePage() {
       </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {pageOnly && !details.database && children.length > 0 && (
-        <Section action={details.permissions.organize && <Button disabled={adding.busy} icon="plus" label="New page" onClick={addPageInside} />} title="Pages inside">
+        <Section action={details.permissions.organize && <AddButton disabled={adding.busy} label="New page" onClick={addPageInside} />} title="Pages inside">
           <ul className="panel-rows">
             <ChildPageRows pages={children} />
             {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}

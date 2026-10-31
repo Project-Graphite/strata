@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ListRow, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { NoteMark } from '../../components/NoteMark';
@@ -42,7 +42,7 @@ export function SpaceNotes() {
   const branches = flattenTree(pages);
   const [pageRows, templateRows] = useRememberedShape(`space-pages-${space.id}`, notes.data && [branches.length, templates.length], [4, 0]);
   const setMenu = useSpaceMenu();
-  usePagePrimary(editable && <Button disabled={creating.busy} icon="plus" label="New page" large onClick={() => create({})} primary />);
+  usePagePrimary(editable && <AddButton disabled={creating.busy} label="New page" large onClick={() => create({})} primary />);
 
   function create(body: Record<string, string | boolean>) {
     void creating.run(async () => {

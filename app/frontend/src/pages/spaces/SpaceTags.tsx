@@ -8,7 +8,7 @@ import { atMost, required, useFormErrors } from '../../validation';
 import { useSpace } from './SpaceLayout';
 import { TidyRules } from './TidyRules';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Button } from '../../components/Button';
+import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
@@ -31,7 +31,7 @@ export function SpaceTags() {
   const [deleting, setDeleting] = useState<Tag>();
   const editable = space.role !== 'viewer';
   const [rows] = useRememberedShape(`space-tags-${space.id}`, tags.data && [tags.data.length], [3]);
-  usePagePrimary(editable && <Button icon="plus" label="New tag" large onClick={() => setEditing('new')} primary />);
+  usePagePrimary(editable && <AddButton label="New tag" large onClick={() => setEditing('new')} primary />);
 
   return (
     <>

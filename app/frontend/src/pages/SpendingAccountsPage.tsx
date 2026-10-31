@@ -4,14 +4,14 @@ import { useAuth } from '../auth';
 import { AccountEditor } from '../components/AccountEditor';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AccountBalance } from '../components/Amount';
-import { Button } from '../components/Button';
+import { AddButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { InstallmentEditor } from '../components/InstallmentEditor';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
-import { AmountRowsSkeleton, ButtonSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, AmountRowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
@@ -64,7 +64,7 @@ export function SpendingAccountsPage() {
   const open = accounts.data?.filter((account) => !account.archivedAt) ?? [];
   const archived = accounts.data?.filter((account) => account.archivedAt) ?? [];
   const groups = accountKindOptions.map((kind) => ({ ...kind, accounts: open.filter((account) => account.kind === kind.value) })).filter((group) => group.accounts.length > 0);
-  const newAccount = editable && <Button icon="plus" label="New account" onClick={() => setDialog({ account: null })} />;
+  const newAccount = editable && <AddButton label="New account" onClick={() => setDialog({ account: null })} />;
   const archive = (account: MoneyAccount, archived: boolean) =>
     void action.run(async () => {
       await auth.request(`/accounts/${account.id}`, { method: 'PATCH', body: JSON.stringify({ archived }) });
@@ -93,7 +93,7 @@ export function SpendingAccountsPage() {
       ) : !accounts.data || (!installments.data && !installments.error) ? (
         <Placeholder className="grid gap-8" label="Adding up your accounts">
           <section className="grid min-w-0 grid-cols-1 gap-3">
-            <SectionHeading action={(!space || editable) && <ButtonSkeleton width="w-36" />} title={<SkeletonLine width="w-32" />} />
+            <SectionHeading action={(!space || editable) && <AddButtonSkeleton />} title={<SkeletonLine width="w-32" />} />
             {accountRows ? (
               <AmountRowsSkeleton rows={accountRows} />
             ) : (
@@ -102,7 +102,7 @@ export function SpendingAccountsPage() {
               </Empty>
             )}
           </section>
-          <Section action={(!space || editable) && <ButtonSkeleton />} title="Installments">
+          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Installments">
             {planRows ? (
               <AmountRowsSkeleton metered={planRows} rows={planRows} />
             ) : (
@@ -129,7 +129,7 @@ export function SpendingAccountsPage() {
           )}
           {archived.length > 0 && <Section title="Archived">{accountRowsOf(archived)}</Section>}
 
-          <Section action={editable && <Button icon="plus" label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+          <Section action={editable && <AddButton label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
             {installments.error ? (
               <LoadError compact error={installments.error} onRetry={installments.reload} />
             ) : !installments.data?.length ? (

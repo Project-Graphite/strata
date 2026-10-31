@@ -3,7 +3,7 @@ import { Card, Placeholder, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { BoardPreview } from '../components/BoardPreview';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
@@ -33,7 +33,7 @@ export function BoardsIndex() {
   }
 
   return (
-    <Page actions={writable.length > 0 && <Button disabled={creating.busy} icon="plus" label="New board" large onClick={() => create(writable[0]!.id)} primary />} title="Boards">
+    <Page actions={writable.length > 0 && <AddButton disabled={creating.busy} label="New board" large onClick={() => create(writable[0]!.id)} primary />} title="Boards">
       {listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (

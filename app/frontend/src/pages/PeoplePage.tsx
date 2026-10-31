@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Avatar, ListRow, Placeholder } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
@@ -35,7 +35,7 @@ export function PeoplePage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New person" large onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <AddButton label="New person" large onClick={() => setAdding(true)} primary />}
       title="People"
     >
       {people.error ? (

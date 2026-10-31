@@ -4,7 +4,7 @@ import { ListRow, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
@@ -55,7 +55,7 @@ export function BookmarksPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <Button icon="plus" label="New bookmark" large onClick={() => setAdding(true)} primary />}
+      actions={writable.length > 0 && <AddButton label="New bookmark" large onClick={() => setAdding(true)} primary />}
       title="Bookmarks"
       toolbar={
         <FilterChips

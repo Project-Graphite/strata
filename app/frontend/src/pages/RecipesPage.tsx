@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { ListRow, Placeholder, type MenuItem } from '@project-graphite/ui';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { Button } from '../components/Button';
+import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
@@ -36,7 +36,7 @@ export function RecipesArea({
         writable.length > 0 && (
           <>
             <ActionsMenu items={[{ label: 'Add from a link', onSelect: () => setDialog('import') }, ...menu]} name="Recipes" />
-            <Button icon="plus" label="New recipe" large onClick={() => setDialog({})} primary />
+            <AddButton label="New recipe" large onClick={() => setDialog({})} primary />
           </>
         )
       }

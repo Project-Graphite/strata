@@ -5,14 +5,14 @@ import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AccountBalance, Amount } from '../components/Amount';
-import { Button, ButtonLink, TextButton } from '../components/Button';
+import { AddButton, Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { Hint } from '../components/Hint';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
-import { AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
+import { AddButtonSkeleton, AmountRowsSkeleton, ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import {
   accountKindOptions,
@@ -316,7 +316,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
               action={
                 editable && (
                   <span className="flex items-center gap-2">
-                    <Button icon="plus" label="New budget" onClick={() => setDialog({ budget: null })} />
+                    <AddButton label="New budget" onClick={() => setDialog({ budget: null })} />
                     <ActionsMenu items={[{ label: 'Budget settings…', onSelect: () => setDialog('plan') }]} name="budgets" />
                   </span>
                 )
@@ -583,7 +583,7 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
           action={
             editable && (
               <span className="flex items-center gap-2">
-                <ButtonSkeleton width="w-32" />
+                <AddButtonSkeleton />
                 <IconButtonSkeleton />
               </span>
             )

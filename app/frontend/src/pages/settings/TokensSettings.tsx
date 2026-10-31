@@ -11,7 +11,7 @@ import type { Resource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
-import { Button } from '../../components/Button';
+import { AddButton, Button } from '../../components/Button';
 import { SecretDialog } from '../../components/Copyable';
 
 export interface AccessToken {
@@ -51,7 +51,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
     <>
       <Section
         action={
-          <Button icon="plus" label="New token" onClick={() => setOpen(true)} />
+          <AddButton label="New token" onClick={() => setOpen(true)} />
         }
         title="Access tokens"
       >

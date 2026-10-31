@@ -113,6 +113,10 @@ export function ButtonSkeleton({ large = false, width = 'w-28' }: { large?: bool
   return <Skeleton className={`button-skeleton shrink-0 rounded-field ${large ? 'h-9' : 'h-[1.921875rem]'} ${width}`} />;
 }
 
+export function AddButtonSkeleton({ large = false }: { large?: boolean }) {
+  return <Skeleton className={`button-skeleton add-button-skeleton shrink-0 rounded-field ${large ? 'size-9' : 'size-[1.921875rem]'}`} />;
+}
+
 export function IconButtonSkeleton() {
   return (
     <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center">
