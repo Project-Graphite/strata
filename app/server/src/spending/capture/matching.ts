@@ -1,5 +1,6 @@
 export const autoRecordConfidence = 0.85;
 export const matchWindowMs = 10 * 60 * 1000;
+export const payoffWindowMs = 6 * 60 * 60 * 1000;
 
 export interface Movement {
   id?: string;
@@ -97,6 +98,27 @@ export function pairFor(message: Movement, candidates: Movement[], handles: Map<
     mentions(other.text, handles.get(message.accountId));
   const ruled = confirmedPairs.some((rule) => rule.accountId === fromAccountId && rule.toAccountId === toAccountId);
   return { expenseId: other.id!, fromAccountId, toAccountId, confirmed: hinted || ruled };
+}
+
+export interface PayoffSide {
+  id: string;
+  accountId: string;
+  amountMinor: bigint | number;
+  currency: string;
+  occurredAt: Date;
+}
+
+export const paysCard = (suggestion: { movement?: string | null; direction: string | null }) => suggestion.movement === 'card_payment' && suggestion.direction === 'received';
+export const leavesAccount = (suggestion: { movement?: string | null; direction: string | null }) => suggestion.movement === 'transfer' && suggestion.direction === 'spent';
+
+export function payoffMatch<T extends PayoffSide>(own: Omit<PayoffSide, 'id'>, candidates: T[]) {
+  const distance = (other: PayoffSide) => Math.abs(other.occurredAt.getTime() - own.occurredAt.getTime());
+  const near = candidates.filter((candidate) => candidate.accountId !== own.accountId).sort((a, b) => distance(a) - distance(b));
+  return (
+    near.find((candidate) => candidate.currency === own.currency && BigInt(candidate.amountMinor) === BigInt(own.amountMinor) && distance(candidate) <= payoffWindowMs) ??
+    near.find((candidate) => candidate.currency !== own.currency && distance(candidate) <= matchWindowMs) ??
+    null
+  );
 }
 
 export function transferCounterpart(own: string | null, fromAccountId: string, toAccountId: string, message: Movement, candidates: Movement[]) {

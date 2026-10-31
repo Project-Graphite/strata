@@ -13,7 +13,7 @@ export type ReadMessage =
     };
 
 export const currencyWords = String.raw`EGP|USD|EUR|GBP|SAR|AED|KWD|QAR|L\.?E\.?|\$|€|£|ج\.م\.?|جم|جنيه(?:اً|ا|ات)?(?: مصري)?|دولار(?: أمريكي)?|يورو|ريال(?: سعودي)?|درهم(?: إماراتي)?`;
-export const amountDigits = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;
+export const amountDigits = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+`;
 const currencyToken = `(${currencyWords})`;
 const number = `(${amountDigits})`;
 const mention = new RegExp(String.raw`${currencyToken}\s?${number}|${number}\s?${currencyToken}`, 'gi');

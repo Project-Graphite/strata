@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { CapturedMessage, Prisma } from '@prisma/client';
+import { CapturedMessage, MoneyAccount, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { AccessService } from '../../access/access.service';
 import { tokenPrefix } from '../../access-tokens/scopes';
@@ -15,10 +15,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { localDate } from '../../recurrence/dates';
 import { CaptureMessageDto, IgnoreCaptureDto, RecordCaptureDto } from '../dto/capture.dto';
 import { CategoriesService, merchantFor, renameOf } from '../categories.service';
+import { guessCategory } from '../merchant-categories';
 import { CreateExpenseDto } from '../dto/spending.dto';
 import { SpendingService } from '../spending.service';
 import { chatAllowed, DigitalPaymentApp, MessageDirection, normalise, paymentLabelOf } from './bank-messages';
-import { accountFor, autoRecordable, ignoredSender, matchWindowMs, Movement, pairFor, sameMovement, transferCounterpart } from './matching';
+import { accountFor, autoRecordable, ignoredSender, leavesAccount, matchWindowMs, Movement, pairFor, paysCard, payoffMatch, payoffWindowMs, sameMovement, transferCounterpart } from './matching';
 import { CorrectedFields, fixturesOf, ParsedFields, reportOf } from './parser-reports';
 import { SenderRulesService } from './sender-rules.service';
 import { MovementKind } from './senders/template';
@@ -126,11 +127,12 @@ export class CaptureService implements OnModuleInit {
     const seen = await this.prisma.capturedMessage.findUnique({ where: { spaceId_hash: { spaceId, hash } }, select: { status: true, expenseId: true } });
     if (seen) return { status: seen.status, expenseId: seen.expenseId };
 
-    const [user, accounts, merchants, rules] = await Promise.all([
+    const [user, accounts, merchants, rules, categories] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } }),
       this.prisma.moneyAccount.findMany({ where: { spaceId }, include: { cards: { select: { last4: true } } } }),
       this.prisma.merchant.findMany({ where: { spaceId } }),
       this.senderRules.rulesOf(spaceId),
+      this.categories.categories(spaceId),
     ]);
     if (ignoredSender(rules, sender)) return { status: 'ignored', reason: 'rule' };
     const known = read.merchant ? merchantFor(merchants, read.merchant) : null;
@@ -154,7 +156,8 @@ export class CaptureService implements OnModuleInit {
       confidence: read.confidence,
       templateId: read.templateId,
       title: (known && renameOf(known)) ?? read.merchant ?? paymentLabel ?? sender,
-      category: read.direction === 'received' ? 'other' : (known?.category ?? (read.merchant ? await this.knownCategory(spaceId, read.merchant) : null)),
+      category:
+        read.direction === 'received' ? 'other' : (known?.category ?? (read.merchant ? ((await this.knownCategory(spaceId, read.merchant)) ?? guessCategory(read.merchant, categories)) : null)),
     };
     const ready = autoRecordable(suggestion);
     const own: Movement = {
@@ -179,12 +182,15 @@ export class CaptureService implements OnModuleInit {
     if (!message) return { status: 'review', expenseId: null };
     this.changes.notify('spending', { spaceId });
 
-    if (!ready || (!duplicate && (pair ? !pair.confirmed : !suggestion.category))) return { status: 'review', expenseId: null };
+    const spentOn = read.occurredOn ?? localDate(user.timeZone, receivedAt);
+    const paid = ready && !duplicate ? await this.payCard(userId, message, suggestion, accounts, spentOn) : undefined;
+    if (paid) return { status: 'recorded', expenseId: paid };
+    if (!ready || (!duplicate && (paid === null || (pair ? !pair.confirmed : !suggestion.category)))) return { status: 'review', expenseId: null };
     const draft: CreateExpenseDto = {
       title: suggestion.title!,
       amountMinor: suggestion.amountMinor!,
       currency: currency!,
-      spentOn: read.occurredOn ?? localDate(user.timeZone, receivedAt),
+      spentOn,
       category: suggestion.category ?? 'other',
       direction: read.direction!,
       accountId: suggestion.accountId,
@@ -330,6 +336,55 @@ export class CaptureService implements OnModuleInit {
     if (!counterpart) return null;
     await this.spending.update(userId, counterpart, { title: input.title, direction: 'transfer', accountId: input.accountId, toAccountId: input.toAccountId, ...(input.kind ? { kind: input.kind } : {}) });
     return counterpart;
+  }
+
+  private async payCard(userId: string, message: CapturedMessage, suggestion: Suggestion, accounts: Pick<MoneyAccount, 'id' | 'kind' | 'fundedByAccountId'>[], spentOn: string) {
+    const card = paysCard(suggestion);
+    if (!card && !leavesAccount(suggestion)) return undefined;
+    const creditCards = new Set(accounts.filter((account) => account.kind === 'credit_card').map((account) => account.id));
+    const own = { accountId: suggestion.accountId!, amountMinor: suggestion.amountMinor!, currency: suggestion.currency!, occurredAt: message.receivedAt };
+    if (card && !creditCards.has(own.accountId)) return undefined;
+    const at = message.receivedAt.getTime();
+    const window = { gte: new Date(at - payoffWindowMs), lte: new Date(at + payoffWindowMs) };
+    const [recorded, waiting] = await Promise.all([
+      this.prisma.expense.findMany({
+        where: { source: 'sms', occurredAt: window, item: { spaceId: message.spaceId, trashedAt: null }, ...(card ? { direction: 'spent', kind: 'transfer' } : { direction: 'transfer', kind: 'card_payment' }) },
+        select: { itemId: true, accountId: true, toAccountId: true, amountMinor: true, currency: true, occurredAt: true, item: { select: { _count: { select: { captures: true } } } } },
+      }),
+      this.prisma.capturedMessage.findMany({ where: { spaceId: message.spaceId, status: 'review', receivedAt: window, id: { not: message.id } }, select: { id: true, receivedAt: true, suggestion: true } }),
+    ]);
+    const sides = [
+      ...recorded.flatMap((row) => {
+        const accountId = card ? row.accountId : row.item._count.captures === 1 ? row.toAccountId : null;
+        return accountId ? [{ id: row.itemId, expense: true, accountId, amountMinor: row.amountMinor, currency: row.currency, occurredAt: row.occurredAt! }] : [];
+      }),
+      ...waiting.flatMap((row) => {
+        const other = openSuggestion(this.box, row.suggestion);
+        const fits = card ? leavesAccount(other) : paysCard(other) && !!other.accountId && creditCards.has(other.accountId);
+        return fits && other.accountId && other.amountMinor && other.currency
+          ? [{ id: row.id, expense: false, accountId: other.accountId, amountMinor: other.amountMinor, currency: other.currency, occurredAt: row.receivedAt }]
+          : [];
+      }),
+    ];
+    const match = payoffMatch(own, sides);
+    const payment = { title: 'Card payment', direction: 'transfer', kind: 'card_payment' } as const;
+    if (match?.expense) {
+      await this.spending.update(
+        userId,
+        match.id,
+        card ? { ...payment, accountId: match.accountId, toAccountId: own.accountId } : { accountId: own.accountId, amountMinor: own.amountMinor, currency: own.currency },
+      );
+      await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'recorded', expenseId: match.id } });
+      this.changes.notify('spending', { spaceId: message.spaceId });
+      return match.id;
+    }
+    const fundedBy = card ? (accounts.find((account) => account.id === own.accountId)?.fundedByAccountId ?? null) : null;
+    const [from, to] = card ? [match?.accountId ?? fundedBy, own.accountId] : [own.accountId, match?.accountId];
+    if (!from || !to) return card ? null : undefined;
+    const debit = card ? (match ?? own) : own;
+    const expenseId = await this.record(userId, message, { ...payment, spentOn, category: 'other', amountMinor: Number(debit.amountMinor), currency: debit.currency, accountId: from, toAccountId: to });
+    if (match) await this.prisma.capturedMessage.update({ where: { id: match.id }, data: { status: 'recorded', expenseId } });
+    return expenseId;
   }
 
   private async learn(userId: string, message: CapturedMessage, input: CreateExpenseDto) {

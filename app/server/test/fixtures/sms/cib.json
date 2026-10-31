@@ -1,5 +1,5 @@
 {
-  "source": "synthetic: modelled on the institution's published message formats; replace with anonymised real messages via Report parsing",
+  "source": "synthetic samples modelled on the published formats, then anonymised real messages from a 2026 phone backup",
   "institution": "CIB",
   "messages": [
     {
@@ -71,6 +71,99 @@
     { "sender": "CIB", "text": "رمز التحقق لعملية الشراء بمبلغ 500 جم هو 739102", "expect": { "ignored": "code" } },
     { "sender": "CIB", "text": "Enjoy 20% cashback on all purchases with your CIB card. Minimum purchase EGP 500", "expect": { "ignored": "promotion" } },
     { "sender": "CIB", "text": "You have logged in to CIB Mobile Banking on 14/10", "expect": { "ignored": "notice" } },
-    { "sender": "CIB", "text": "Your account balance is now EGP 5,000.00", "expect": { "ignored": "notice" } }
+    { "sender": "CIB", "text": "Your account balance is now EGP 5,000.00", "expect": { "ignored": "notice" } },
+    {
+      "sender": "CIB",
+      "text": "Your credit card ending with#1234 was charged for EGP 404.25 at Talabat on 31/10/26 at 18:59. Card available limit is EGP 1997.57. For more details, please visit https://cib.eg/mb",
+      "expect": { "direction": "spent", "amount": 404.25, "currency": "EGP", "cardDigits": "1234", "merchant": "Talabat", "available": 1997.57, "movement": "purchase", "occurredOn": "2026-10-31" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your credit card #1234 was charged for EGP 159.99 at Google Discord on 16/10/26 at 13:47. Available limit is 10028.05 and the available international limit to use is EGP 152229",
+      "expect": { "direction": "spent", "amount": 159.99, "currency": "EGP", "cardDigits": "1234", "merchant": "Google Discord", "available": 10028.05, "movement": "purchase", "occurredOn": "2026-10-16" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your credit card #1234 was charged for USD .19 at WL STEAM PURCH on 01/07/26 at 02:56. Available limit is 17954.07 and the available international limit to use is EGP 146529",
+      "expect": { "direction": "spent", "amount": 0.19, "currency": "USD", "cardDigits": "1234", "merchant": "WL STEAM PURCH", "available": 17954.07, "movement": "purchase", "occurredOn": "2026-07-01" }
+    },
+    {
+      "sender": "CIB",
+      "text": "The transaction on your credit card#1234 from DiDi with EGP 176.60 on 12/10/26 at 19:39 has been refunded. Please try again. Thank you",
+      "expect": { "direction": "refund", "amount": 176.6, "currency": "EGP", "cardDigits": "1234", "merchant": "DiDi", "movement": "refund", "occurredOn": "2026-10-12" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم سداد مبلغ 5000.00 جم فى بطاقتكم الائتمانية المنتهية بـ 1234 بتاريخ 23-10-26",
+      "expect": { "direction": "received", "amount": 5000, "currency": "EGP", "cardDigits": "1234", "merchant": null, "movement": "card_payment", "occurredOn": "2026-10-23" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم سداد مبلغ .20 جم فى بطاقتكم الائتمانية المنتهية بـ 1234 بتاريخ 30-04-26",
+      "expect": { "direction": "received", "amount": 0.2, "currency": "EGP", "cardDigits": "1234", "movement": "card_payment", "occurredOn": "2026-04-30" }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your account ending with ********9876 is debited with amount EGP 5,000.00DR On 25 OCT 2026 with transfer to another account. For more information, please contact 19666.",
+      "expect": { "direction": "spent", "amount": 5000, "currency": "EGP", "cardDigits": "9876", "merchant": null, "movement": "transfer", "occurredOn": null }
+    },
+    {
+      "sender": "CIB",
+      "text": "Your account ending with ********6543 is debited with amount USD 141.13DR On 13 OCT 2026 with transfer to another account. For more information, please contact 19666.",
+      "expect": { "direction": "spent", "amount": 141.13, "currency": "USD", "cardDigits": "6543", "movement": "transfer", "occurredOn": null }
+    },
+    {
+      "sender": "CIB",
+      "text": "لقد تم رد EGP970.00 على بطاقتكم الائتمانية المنتهية بـ# 5678 من MICROSOFT STORE> . يرجى ملاحظة أن هذا المبلغ سيتم إضافته إلى رصيد بطاقتك ولا يتم اعتباره بمثابة دفعة للمديونيات المستحقة لهذا الشهر.",
+      "expect": { "direction": "refund", "amount": 970, "currency": "EGP", "cardDigits": "5678", "merchant": "MICROSOFT STORE", "movement": "refund", "occurredOn": null }
+    },
+    {
+      "sender": "CIB",
+      "text": "لقد تم رد USD11.71 على بطاقتكم الائتمانية المنتهية بـ# 1234 من WL STEAM PURCH> . يرجى ملاحظة أن هذا المبلغ سيتم إضافته إلى رصيد بطاقتك ولا يتم اعتباره بمثابة دفعة للمديونيات المستحقة لهذا الشهر.",
+      "expect": { "direction": "refund", "amount": 11.71, "currency": "USD", "cardDigits": "1234", "merchant": "WL STEAM PURCH", "movement": "refund" }
+    },
+    {
+      "sender": "CIB",
+      "text": "يرجى العلم انه تم تنفيذ تحويل لحظي بمبلغ 880.00 جم من حسابك المنتهي بـ ********9876 برقم مرجعي a1b2c3d4 بتاريخ 31-10-2026 17:39 للمزيد، برجاء الاتصال بـ 19666",
+      "expect": { "direction": "spent", "amount": 880, "currency": "EGP", "cardDigits": "9876", "merchant": null, "movement": "transfer", "occurredOn": "2026-10-31", "reference": "a1b2c3d4" }
+    },
+    {
+      "sender": "CIB",
+      "text": "يرجى العلم انه تم تنفيذ تحويل لحظي بمبلغ 4500.00 جم إلى حسابك المنتهي بـ ********9876 من SAMPLE PERSON برقم مرجعي 9e1aabff بتاريخ 02-07-2026 16:21 للمزيد، برجاء الاتصال بـ 19666",
+      "expect": { "direction": "received", "amount": 4500, "currency": "EGP", "cardDigits": "9876", "merchant": "SAMPLE PERSON", "movement": "transfer", "occurredOn": "2026-07-02", "reference": "9e1aabff" }
+    },
+    {
+      "sender": "CIB",
+      "text": "يرجى العلم انه تم تنفيذ عملية شراء لحظي من حسابك المنتهي بـ ********9876 بمبلغ 171.44 جم من Mobile Recharge برقم مرجعي a1b2c3d4 بتاريخ 29-10-2026 07:03 الرصيد المتاح 5781.53 جم للمزيد، برجاء الاتصال بـ 19666.",
+      "expect": { "direction": "spent", "amount": 171.44, "currency": "EGP", "cardDigits": "9876", "merchant": "Mobile Recharge", "available": 5781.53, "movement": "purchase", "occurredOn": "2026-10-29", "reference": "a1b2c3d4" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم خصم مبلغ EGP 300.00 من بطاقة الخصم المباشر المنتهية بـ **4321 عند VODAFONE في 29/10/26 20:30 ، الرصيد المتاح 5481.53 EGP",
+      "expect": { "direction": "spent", "amount": 300, "currency": "EGP", "cardDigits": "4321", "merchant": "VODAFONE", "available": 5481.53, "movement": "purchase", "occurredOn": "2026-10-29" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم خصم مبلغ  EGP 600.00 من بطاقة الخصم المباشر المنتهية بـ **4321 عند PIZZA HUT  14816 AMREI في 28/09/26 22:31 ، الرصيد المتاح 2611.91 EGP",
+      "expect": { "direction": "spent", "amount": 600, "currency": "EGP", "cardDigits": "4321", "merchant": "PIZZA HUT 14816 AMREI", "available": 2611.91, "movement": "purchase", "occurredOn": "2026-09-28" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم سحب مبلغ  EGP 1000.00  من بطاقة الخصم المباشر المنتهية بـ **4321 من        NBE ATM022 في 26/07/26 10:09 ، الرصيد المتاح EGP 2993.52",
+      "expect": { "direction": "spent", "amount": 1000, "currency": "EGP", "cardDigits": "4321", "merchant": "NBE ATM 022", "available": 2993.52, "movement": "atm", "occurredOn": "2026-07-26" }
+    },
+    {
+      "sender": "CIB",
+      "text": "تم اضافة المعاملة من DiDi بقيمة 78.66 EGP إلى بطاقتك المنتهية بـ **4321 . الرصيد المتاح EGP 674.91",
+      "expect": { "direction": "refund", "amount": 78.66, "currency": "EGP", "cardDigits": "4321", "merchant": "DiDi", "available": 674.91, "movement": "refund" }
+    },
+    { "sender": "CIB", "text": "your OTP: 482913", "expect": { "ignored": "code" } },
+    { "sender": "CIB", "text": "لقد تم رفض المعاملة من MICROSOFT PC GA على بطاقتكم الائتمانية المنتهية بـ 1234 بقيمة 270.00 EGP نظراً لتخطى حد الاستخدام بالعملة الأجنبية، المبلغ المتاح للاستخدام في المعاملات الدولية 1 جم.", "expect": { "ignored": "declined" } },
+    { "sender": "CIB", "text": "تم رفض المعاملة على بطاقتك المنتهية بـ **4321 من SAMPLE STORE بقيمة 72400.00 EGP لعدم كفاية الرصيد. الرصيد المتاح 65360.87 EGP", "expect": { "ignored": "declined" } },
+    { "sender": "CIB", "text": "لقد تم تقسيط مبلغ 9975.99 جم من Amazon Marketpl على بطاقتكم الائتمانية المنتهية بـ 1234 بقسط شهري 3538.12 جم على 3 شهر / أشهر على أن يتم سداد أول قسط يوم 05/11/2026.", "expect": { "ignored": "notice" } },
+    { "sender": "CIB", "text": "كشف حساب شهر أكتوبر 2026 لبطاقتك الائتمانية المنتهية بـ 1234 هو 7423.54 جم ، الحد الأدنى للسداد قبل 05/11 هو 3732.38 جم .", "expect": { "ignored": "notice" } },
+    { "sender": "CIB", "text": "تم استلام الطلب لرد مبلغ من Amazon Marketpl بقيمة EGP -405.35 وسيتم اضافته للبطاقة الائتمانية # 1234 بمجرد استلام المبلغ من التاجر.", "expect": { "ignored": "notice" } },
+    { "sender": "CIB", "text": "بنفكرك إن فاضل 7 أيام على السحب الجاي. اربط شهادة الدهب دلوقتي وحتى آخر الشهر من خلال خدمات الإنترنت البنكية، لضمان فرصتك في دخول السحب على كيلو دهب أو جنيه من الدهب.", "expect": { "ignored": "notice" } },
+    { "sender": "CIB", "text": "عميل CIB العزيز، احصل على عائد يصل إلى 17٪ سنويًا على وديعة لأجل 12 شهرًا بالجنيه المصري، تُصرف شهريًا وتبدأ من 5000 جم.", "expect": { "ignored": "promotion" } }
   ]
 }

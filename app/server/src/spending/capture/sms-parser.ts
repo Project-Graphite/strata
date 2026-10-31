@@ -30,6 +30,7 @@ const movementHints: [MovementKind, RegExp][] = [
 export function parseMessage(sender: string, raw: string, app?: string | null): ParsedTransaction {
   const text = normalise(raw);
   const known = institutions.filter(({ senderPatterns }) => senderPatterns.some((pattern) => pattern.test(sender) || (!!app && pattern.test(app))));
+  if (known.some(({ notices }) => notices?.some((pattern) => pattern.test(text)))) return { kind: 'ignored', reason: 'notice' };
   for (const { institution, templates } of known) {
     for (const template of templates) {
       const groups = text.match(template.pattern)?.groups;
@@ -44,7 +45,7 @@ export function parseMessage(sender: string, raw: string, app?: string | null): 
         merchant: groups.merchant ? trimMerchant(groups.merchant) : null,
         available: groups.balance ? amountOf(groups.balance) : null,
         occurredOn: dateIn(groups.date ?? text),
-        reference: groups.ref ?? referenceIn(text),
+        reference: groups.ref?.replace(/ /g, '') ?? referenceIn(text),
         institution,
         templateId: template.id,
         confidence: template.confidence,
