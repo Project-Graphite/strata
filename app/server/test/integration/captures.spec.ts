@@ -33,11 +33,11 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await send('BanK-AlAhly', 'رمز التحقق الخاص بك هو 4821 لا تشاركه مع أحد')).body).toEqual({ status: 'ignored', reason: 'code' });
     expect(await strata.prisma.capturedMessage.count({ where: { spaceId: home.id } })).toBe(0);
 
-    const purchase = 'تم خصم 250.00جم من بطاقة الخصم المباشر رقم ****1234 لدى CARREFOUR MAADI في 14/10 13:45 المتاح 9,750.00جم';
+    const purchase = 'تم خصم 250.00جم من بطاقة الخصم المباشر رقم ****1234 لدى ZAHRAN MAADI في 14/10 13:45 المتاح 9,750.00جم';
     expect((await send('BanK-AlAhly', purchase)).body).toEqual({ status: 'review', expenseId: null });
     expect((await send('BanK-AlAhly', purchase)).body).toEqual({ status: 'review', expenseId: null });
     const stored = await strata.prisma.capturedMessage.findFirstOrThrow({ where: { spaceId: home.id } });
-    expect(stored.textSealed).not.toContain('CARREFOUR');
+    expect(stored.textSealed).not.toContain('ZAHRAN');
 
     expect((await viewer.call('GET', `/spaces/${home.id}/captures`)).status).toBe(404);
     const [waiting] = (await owner.call('GET', `/spaces/${home.id}/captures`)).body;
@@ -45,18 +45,18 @@ describe('Bank messages from a phone against Postgres', () => {
       sender: 'BanK-AlAhly',
       text: purchase,
       receivedAt: '2026-10-14T09:59:50.000Z',
-      suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'CARREFOUR MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
+      suggestion: { direction: 'spent', amountMinor: 25_000, currency: 'EGP', merchant: 'ZAHRAN MAADI', cardDigits: '1234', accountId: bank.id, availableMinor: 975_000 },
     });
-    const draft = { title: 'Carrefour', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'CARREFOUR MAADI', cardDigits: '1234' };
+    const draft = { title: 'Zahran', amountMinor: 25_000, currency: 'EGP', spentOn: '2026-10-14', category: 'groceries', direction: 'spent', accountId: bank.id, merchant: 'ZAHRAN MAADI', cardDigits: '1234' };
     expect((await viewer.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(404);
     expect((await withToken(token, 'POST', `/captures/${waiting.id}/record`, draft)).status).toBe(403);
-    expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Carrefour', source: 'sms', category: 'groceries', accountId: bank.id, cardDigits: '1234' });
+    expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).body).toMatchObject({ title: 'Zahran', source: 'sms', category: 'groceries', accountId: bank.id, cardDigits: '1234' });
     expect((await owner.call('POST', `/captures/${waiting.id}/record`, draft)).status).toBe(400);
 
-    const again = await send('BanK-AlAhly', 'تم خصم 80.00جم من بطاقة الخصم المباشر رقم ****1234 لدى carrefour maadi في 15/10 09:10 المتاح 9,670.00جم');
+    const again = await send('BanK-AlAhly', 'تم خصم 80.00جم من بطاقة الخصم المباشر رقم ****1234 لدى zahran maadi في 15/10 09:10 المتاح 9,670.00جم');
     expect(again.body.status).toBe('recorded');
     expect((await owner.call('GET', `/expenses/${again.body.expenseId}`)).body).toMatchObject({
-      title: 'carrefour maadi',
+      title: 'zahran maadi',
       amountMinor: 8000,
       category: 'groceries',
       spentOn: '2026-10-14',
@@ -263,24 +263,24 @@ describe('Bank messages from a phone against Postgres', () => {
     const cib = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB', currency: 'EGP', senders: ['CIB'] })).body;
     const credit = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'CIB credit', kind: 'credit_card', currency: 'EGP' })).body;
 
-    const text = 'Your card **7777 was charged for EGP 120.00 at TALABAT EG on 13/10. Call 01012345678';
+    const text = 'Your card **7777 was charged for EGP 120.00 at KOSHK EG on 13/10. Call 01012345678';
     expect((await send('CIB', text)).body).toEqual({ status: 'review', expenseId: null });
     const [waiting] = (await owner.call('GET', `/spaces/${home}/captures`)).body;
-    expect(waiting.suggestion).toMatchObject({ accountId: cib.id, title: 'TALABAT EG', category: null, confidence: 0.95, templateId: 'cib-card-charged' });
-    const correction = { title: 'Talabat', amountMinor: 12_000, currency: 'EGP', spentOn: '2026-10-13', category: 'eating out', direction: 'spent', accountId: credit.id, merchant: 'TALABAT EG', cardDigits: '7777', remember: true, report: true };
-    expect((await owner.call('POST', `/captures/${waiting.id}/record`, correction)).body).toMatchObject({ title: 'Talabat', accountId: credit.id, cardDigits: '7777' });
+    expect(waiting.suggestion).toMatchObject({ accountId: cib.id, title: 'KOSHK EG', category: null, confidence: 0.95, templateId: 'cib-card-charged' });
+    const correction = { title: 'Koshk', amountMinor: 12_000, currency: 'EGP', spentOn: '2026-10-13', category: 'eating out', direction: 'spent', accountId: credit.id, merchant: 'KOSHK EG', cardDigits: '7777', remember: true, report: true };
+    expect((await owner.call('POST', `/captures/${waiting.id}/record`, correction)).body).toMatchObject({ title: 'Koshk', accountId: credit.id, cardDigits: '7777' });
 
     const [senderRule] = (await owner.call('GET', `/spaces/${home}/sender-rules`)).body;
     expect(senderRule).toMatchObject({ sender: 'cib', accountId: credit.id, cardDigits: '7777', toAccountId: null, ignore: false });
     const [merchantRule] = (await owner.call('GET', `/spaces/${home}/merchant-rules`)).body;
-    expect(merchantRule).toMatchObject({ match: 'talabat eg', rename: 'Talabat', category: 'eating out', ignore: false });
-    const learned = await send('CIB', 'Your card **7777 was charged for EGP 95.00 at TALABAT EG on 14/10');
+    expect(merchantRule).toMatchObject({ match: 'koshk eg', rename: 'Koshk', category: 'eating out', ignore: false });
+    const learned = await send('CIB', 'Your card **7777 was charged for EGP 95.00 at KOSHK EG on 14/10');
     expect(learned.body.status).toBe('recorded');
-    expect((await owner.call('GET', `/expenses/${learned.body.expenseId}`)).body).toMatchObject({ title: 'Talabat', category: 'eating out', accountId: credit.id });
+    expect((await owner.call('GET', `/expenses/${learned.body.expenseId}`)).body).toMatchObject({ title: 'Koshk', category: 'eating out', accountId: credit.id });
 
     const reports = await strata.prisma.parserReport.findMany({ where: { userId: owner.id } });
     expect(reports).toHaveLength(1);
-    expect(JSON.stringify(reports)).not.toMatch(/7777|120\.00|TALABAT|Talabat|01012345678/);
+    expect(JSON.stringify(reports)).not.toMatch(/7777|120\.00|KOSHK|Koshk|01012345678/);
     expect((await owner.call('GET', '/admin/parser-reports')).status).toBe(403);
     const fixtures = (await admin.call('GET', '/admin/parser-reports')).body;
     expect(fixtures.find((fixture: { institution: string }) => fixture.institution === 'CIB').messages).toContainEqual({
@@ -293,7 +293,7 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('PATCH', `/sender-rules/${senderRule.id}`, { toAccountId: cib.id })).status).toBe(400);
     expect((await owner.call('PATCH', `/sender-rules/${senderRule.id}`, { accountId: cib.id })).body).toMatchObject({ accountId: cib.id, cardDigits: null });
     expect((await owner.call('PATCH', `/merchant-rules/${merchantRule.id}`, { category: 'yachts' })).status).toBe(400);
-    expect((await owner.call('PATCH', `/merchant-rules/${merchantRule.id}`, { rename: 'Talabat food', category: 'groceries' })).body).toMatchObject({ match: 'talabat eg', rename: 'Talabat food', category: 'groceries' });
+    expect((await owner.call('PATCH', `/merchant-rules/${merchantRule.id}`, { rename: 'Koshk food', category: 'groceries' })).body).toMatchObject({ match: 'koshk eg', rename: 'Koshk food', category: 'groceries' });
     expect((await stranger.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(404);
     expect((await owner.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(204);
     expect((await owner.call('DELETE', `/sender-rules/${senderRule.id}`)).status).toBe(404);
@@ -328,4 +328,39 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('GET', `/expenses/${recorded.body.expenseId}`)).body.title).toBe('Spinneys');
   });
 
+  it('records a credit card payoff as one transfer from the paying account, whichever text arrives first', async () => {
+    const owner = await member('card-payer');
+    const home = owner.personalSpaceId;
+    const current = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Current', currency: 'EGP', cardDigits: ['9876'], senders: ['CIB'] })).body;
+    const dollars = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Dollars', currency: 'USD', cardDigits: ['6543'], senders: ['CIB'] })).body;
+    const card = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Credit card', kind: 'credit_card', currency: 'EGP', cardDigits: ['1234'], senders: ['CIB'], fundedByAccountId: current.id })).body;
+    await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Other card', kind: 'credit_card', currency: 'EGP', cardDigits: ['5678'], senders: ['CIB'] });
+    const at = Date.parse('2026-10-05T18:00:00Z');
+    const send = (minutes: number, text: string) => owner.call('POST', `/spaces/${home}/captures`, { from: 'CIB', text, sentStamp: String(at + minutes * 60_000) });
+    const debit = (amount: string, account = '9876', currency = 'EGP') =>
+      `Your account ending with ********${account} is debited with amount ${currency} ${amount}DR On 06 OCT 2026 with transfer to another account. For more information, please contact 19666.`;
+    const paid = (amount: string, last4 = '1234') => `تم سداد مبلغ ${amount} جم فى بطاقتكم الائتمانية المنتهية بـ ${last4} بتاريخ 05-10-26`;
+    const transfer = { direction: 'transfer', kind: 'card_payment', toAccountId: card.id };
+
+    expect((await send(0, debit('6,400.00'))).body.status).toBe('review');
+    const first = await send(1, paid('6400.00'));
+    expect(first.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${first.body.expenseId}`)).body).toMatchObject({ ...transfer, title: 'Card payment', accountId: current.id, amountMinor: 640_000, currency: 'EGP' });
+
+    const second = await send(60, paid('18000.00'));
+    expect((await owner.call('GET', `/expenses/${second.body.expenseId}`)).body).toMatchObject({ ...transfer, accountId: current.id, amountMinor: 1_800_000 });
+    expect((await send(240, debit('18,000.00'))).body).toEqual({ status: 'recorded', expenseId: second.body.expenseId });
+
+    const third = await send(600, paid('7423.44'));
+    expect((await send(601, debit('141.13', '6543', 'USD'))).body).toEqual({ status: 'recorded', expenseId: third.body.expenseId });
+    expect((await owner.call('GET', `/expenses/${third.body.expenseId}`)).body).toMatchObject({ ...transfer, accountId: dollars.id, amountMinor: 14_113, currency: 'USD' });
+
+    expect((await send(900, paid('300.00', '5678'))).body.status).toBe('review');
+    const charged = await send(901, 'Your credit card ending with#1234 was charged for EGP 492.00 at Talabat on 05/10/26  at 18:15. Card available limit is EGP  16564.99. For more details, please visit https://cib.eg/mb');
+    expect((await owner.call('GET', `/expenses/${charged.body.expenseId}`)).body).toMatchObject({ direction: 'spent', category: 'eating out', accountId: card.id });
+
+    const expenses = await strata.prisma.expense.findMany({ where: { item: { spaceId: home } }, select: { direction: true, kind: true } });
+    expect(expenses.filter((expense) => expense.kind === 'card_payment')).toEqual(Array(3).fill({ direction: 'transfer', kind: 'card_payment' }));
+    expect((await owner.call('GET', `/spaces/${home}/captures`)).body.map((message: { text: string }) => message.text)).toEqual([paid('300.00', '5678')]);
+  });
 });
