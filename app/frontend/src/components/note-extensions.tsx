@@ -20,7 +20,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewPro
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
 import type { useAuth } from '../auth';
-import { noteTitle, type Note } from '../notes';
+import { noteTitle, pageHref, type Note } from '../notes';
 import { itemHref, itemKindName, type Member } from '../spaces';
 import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
@@ -395,6 +395,8 @@ export function blockMenuExtension(actions: BlockActions) {
   });
 }
 
+const linkClick = ({ event }: { event: Event }) => event.target instanceof Element && Boolean(event.target.closest('a'));
+
 function BoardEmbed({ extension, node }: NodeViewProps) {
   if (extension.options.shared) return <NodeViewWrapper className="note-board"><Hint>This board needs its own share link.</Hint></NodeViewWrapper>;
   const boardId = uuidOrNull(node.attrs.boardId);
@@ -428,14 +430,14 @@ export const BoardEmbedExtension = Node.create({
   }),
   parseHTML: () => [{ tag: 'div[data-board]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
-  addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
+  addNodeView: () => ReactNodeViewRenderer(BoardEmbed, { stopEvent: linkClick }),
 });
 
 function ChildPageLink({ pageId }: { pageId: string }) {
   const page = useResource<Note>(`/notes/${pageId}`, true, { live: ['page-details', 'items'], itemIds: [pageId] });
   if (page.error) return <Hint>This page is missing</Hint>;
   return (
-    <Link className="note-child-page-link" contentEditable={false} draggable={false} to={`/notes/${pageId}`}>
+    <Link className="note-child-page-link" contentEditable={false} draggable={false} to={pageHref(pageId)}>
       <NoteMark note={page.data ?? { icon: null, kind: 'note' }} />
       <span className="min-w-0 flex-1 truncate">{page.data ? noteTitle(page.data) : 'Loading…'}</span>
       <Icon name="chevron-right" size={16} />
@@ -466,7 +468,7 @@ export const ChildPageExtension = Node.create({
   }),
   parseHTML: () => [{ tag: 'div[data-page]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
-  addNodeView: () => ReactNodeViewRenderer(ChildPage),
+  addNodeView: () => ReactNodeViewRenderer(ChildPage, { stopEvent: linkClick }),
 });
 
 interface CommentedState {

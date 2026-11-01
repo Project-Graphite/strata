@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Link, Navigate, Outlet, Route, Routes, useLocation, type Location } from 'react-router';
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useParams, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { enabledApps } from './apps';
 import { useAuth } from './auth';
@@ -103,6 +103,12 @@ function Moved({ to }: { to: string }) {
   return <Navigate replace to={`${to}${search}`} />;
 }
 
+function MovedPage() {
+  const { id } = useParams();
+  const { search, hash } = useLocation();
+  return <Navigate replace to={`/pages/${id}${search}${hash}`} />;
+}
+
 const legacyRoutes = [
   ['todo', '/tasks'],
   ['today', '/agenda/day'],
@@ -180,7 +186,8 @@ export function App() {
             <Route element={<AppRoute app="boards" />}>
               <Route path="boards" element={<BoardsIndex />} />
             </Route>
-            <Route path="notes/:id" element={<NotePage />} />
+            <Route path="pages/:id" element={<NotePage />} />
+            <Route path="notes/:id" element={<MovedPage />} />
             <Route path="boards/:id" element={<BoardPage />} />
             <Route element={<AppRoute app="bookmarks" />}>
               <Route path="bookmarks" element={<BookmarksPage />} />

@@ -22,7 +22,7 @@ export interface Note {
 }
 
 export interface ChildPages {
-  pages: Note[];
+  pages: (Note & { hasChildren: boolean })[];
   nextCursor: string | null;
 }
 
@@ -161,6 +161,8 @@ export const noteTitle = (note: { title: string }) => note.title || 'Untitled';
 
 export const noteEdited = (note: { updatedAt: string }) => `Edited ${formatMoment(note.updatedAt)}`;
 
-export const noteHref = (note: { id: string; kind: string }) => `${note.kind === 'board' ? '/boards' : '/notes'}/${note.id}`;
+export const pageHref = (id: string) => `/pages/${id}`;
+
+export const noteHref = (note: { id: string; kind: string }) => (note.kind === 'board' ? `/boards/${note.id}` : pageHref(note.id));
 
 export const pageNoun = (note: Pick<Note, 'kind' | 'quick'>) => (note.kind === 'board' ? 'board' : note.quick ? 'note' : 'page');

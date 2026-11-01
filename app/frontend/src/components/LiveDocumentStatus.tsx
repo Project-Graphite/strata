@@ -23,7 +23,7 @@ export function LiveDocumentStatus({ onDownload, onDownloadDraft, presenceAction
           <span>{label}</span>
         </span>
       </div>
-      {(status.deviceUnavailable || status.canDownload || status.blocked) && status.deviceLabel && <span className="live-device-status" role={status.deviceUnavailable ? 'alert' : 'status'}>{status.deviceLabel}</span>}
+      {(status.deviceUnavailable || status.canDownload || status.blocked) && status.deviceLabel && <span className="live-device-status" role={status.deviceUnavailable ? 'alert' : 'status'} title={status.deviceLabel}>{status.deviceLabel}</span>}
       {(status.deviceUnavailable || status.canRetry || status.canDownload) && <div className="live-document-actions">
         {status.deviceUnavailable && <TextButton label="Retry device storage" onClick={status.retryDevice} />}
         {status.canRetry && <TextButton disabled={status.retrying} label={status.retrying ? 'Retrying…' : 'Retry save'} onClick={status.retry} />}

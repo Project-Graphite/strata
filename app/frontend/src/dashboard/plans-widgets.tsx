@@ -12,6 +12,7 @@ import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { SkeletonLine } from '../components/Skeletons';
 import { ShowAll, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
+import { pageHref } from '../notes';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -100,7 +101,7 @@ export function Journal() {
         <p className="m-0 text-small text-muted">{streak > 0 ? `${streak}-day streak` : 'Last two weeks'}</p>
       </div>
       {todayEntry?.noteId ? (
-        <ButtonLink icon="pencil" label="Open today’s page" to={`/notes/${todayEntry.noteId}`} />
+        <ButtonLink icon="pencil" label="Open today’s page" to={pageHref(todayEntry.noteId)} />
       ) : (
         <Button
           disabled={action.busy}
@@ -109,7 +110,7 @@ export function Journal() {
           onClick={() =>
             void action.run(async () => {
               const { noteId } = await auth.request<{ noteId: string }>(`/me/journal/${today}/page`, { method: 'POST' });
-              navigate(`/notes/${noteId}`);
+              navigate(pageHref(noteId));
               return '';
             }, 'Could not open the journal page')
           }

@@ -1,12 +1,11 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, IconButton, LinesSkeleton, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBlob, uploadFile } from '../files';
 import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
-import { ActionsMenu } from '../components/ActionsMenu';
+import { NestedMenu, type NestedMenuItem } from '../components/NestedMenu';
 import { AltTextDialog } from '../components/AltTextDialog';
 import { TextButton } from '../components/Button';
 import { CommentsButton, CommentsPanel } from '../components/CommentsPanel';
@@ -19,16 +18,14 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
 import type { EditorTools } from '../components/NoteEditor';
-import { useAlignedThreads } from '../components/page-blocks';
 import { pageMarkdown } from '../components/page-markdown';
 import { DetailState, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
-import { OpenTask } from '../components/OpenTask';
 import { useInArea } from '../navigation';
 import { usePageNavigation } from '../page-navigation';
-import { announcePagesChanged, childPagesPath, noteArea, noteHref, noteParent, noteTitle, pageNoun, type ChildPages, type Note, type NoteDetails, type PropertyValues } from '../notes';
-import { itemHref, itemKindName, useSpaces, type Member } from '../spaces';
+import { announcePagesChanged, childPagesPath, noteArea, noteHref, noteParent, noteTitle, pageHref, pageNoun, type ChildPages, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { useSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 
@@ -102,44 +99,34 @@ export function NotePage() {
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commenting, setCommenting] = useState<string>();
   const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
-  const [margin, setMargin] = useState<HTMLElement | null>(null);
   const [describingCover, setDescribingCover] = useState<string>();
   const coverInput = useRef<HTMLInputElement>(null);
-  useAlignedThreads(margin);
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [thread, setThread] = useState<{ id: string }>();
   const [tools, setTools] = useState<EditorTools>();
-  const [panelOpen, setPanelOpen] = useState<boolean>();
+  const [panelOpen, setPanelOpen] = useState(false);
   const [threads, setThreads] = useState(0);
-  const wide = useMediaQuery('(min-width: 80rem)');
   const openThread = useCallback((threadId: string) => {
     setThread({ id: threadId });
     setPanelOpen(true);
   }, []);
   const inside = useResource<ChildPages>(note.data && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
-  const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
-    note.data ? `/items/${note.data.id}/links` : null,
-    true,
-    { live: ['page-details', 'pages', 'items'], spaceId: note.data?.spaceId },
-  );
   const members = useResource<Member[]>(
     note.data?.permissions.spaceRole && (note.data.permissions.comment || note.data.row?.properties.some((property) => property.type === 'person')) ? `/spaces/${note.data.spaceId}/members` : null,
     true,
   );
-  const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
   const { report, run } = useAction();
   const [open, setOpen] = useState<'share' | 'history' | 'unconvert'>();
-  const [openTask, setOpenTask] = useState<string>();
   const parent = note.data?.path.at(-1);
   useEffect(() => {
     if (note.data?.id !== id) return;
     setCurrentPage(note.data);
     return () => setCurrentPage((current) => current?.id === id ? undefined : current);
   }, [id, note.data, setCurrentPage]);
-  const back = !note.data ? { to: '/pages', label: 'Pages' } : parent ? { to: `/notes/${parent.id}`, label: noteTitle(parent) } : noteParent(note.data);
+  const back = !note.data ? { to: '/pages', label: 'Pages' } : parent ? { to: pageHref(parent.id), label: noteTitle(parent) } : noteParent(note.data);
   const moveToTrash = useMovePageToTrash(
     () => navigate(back.to),
-    (restored) => navigate(`/notes/${restored.id}`),
+    (restored) => navigate(pageHref(restored.id)),
   );
   useInArea(note.data ? noteArea(note.data) : null);
   useDocumentTitle(note.data && noteTitle(note.data));
@@ -169,14 +156,13 @@ export function NotePage() {
   const children = inside.data?.pages ?? [];
   const pageOnly = !details.quick;
   const history = pageOnly && details.permissions.history;
-  const commentsShown = panelOpen ?? (wide && threads > 0);
 
   function quote(block: QuotedBlock) {
     if (quoting && quoting.id !== block.id) tools?.removeComment(quoting.id);
     setQuoting({ ...block, noteId: details.id });
     setPanelOpen(true);
     window.requestAnimationFrame(() =>
-      window.requestAnimationFrame(() => document.querySelector(`.note-comments-margin [data-block-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
+      window.requestAnimationFrame(() => document.querySelector(`.comments-panel [data-block-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
     );
   }
 
@@ -229,7 +215,20 @@ export function NotePage() {
     });
   }
 
-  const options: MenuItem[] = [
+  const add: NestedMenuItem[] = [
+    ...(pageOnly && details.permissions.organize && !details.database && tools?.addPage ? [{ label: 'Page inside', onSelect: tools.addPage }] : []),
+    ...(pageOnly && details.permissions.comment
+      ? [{
+          label: 'Comment',
+          onSelect: () => {
+            setCommenting(details.id);
+            setPanelOpen(true);
+          },
+        }]
+      : []),
+    ...(pageOnly && details.permissions.organize && !details.cover ? [{ label: 'Cover image', onSelect: () => coverInput.current?.click() }] : []),
+  ];
+  const settings: NestedMenuItem[] = [
     ...(details.permissions.organize && details.quick
       ? [{ label: 'Turn into a page', onSelect: () => save({ quick: false }, (saved) => `Turned ${noteTitle(saved)} into a page.`, 'Could not turn the note into a page') }]
       : []),
@@ -247,32 +246,26 @@ export function NotePage() {
           },
         ]
       : []),
-    ...(pageOnly && details.permissions.organize && !details.cover ? [{ label: 'Add a cover image', onSelect: () => coverInput.current?.click() }] : []),
-    ...(pageOnly && details.permissions.organize && !details.database && tools?.addPage ? [{ label: 'Add a page inside', onSelect: tools.addPage }] : []),
-    ...(pageOnly && details.permissions.comment
-      ? [{
-          label: 'Add a comment',
-          onSelect: () => {
-            setCommenting(details.id);
-            setPanelOpen(true);
-          },
-        }]
-      : []),
     ...(pageOnly && details.editable && !details.database
       ? [{ label: details.narrow ? 'Use full width' : 'Use narrow width', onSelect: () => save({ narrow: !details.narrow }, () => '', 'Could not change the width') }]
       : []),
-    ...(history ? [{ label: 'History', onSelect: () => setOpen('history'), separated: true }] : []),
-    ...(tools
-      ? [
-          { label: 'Find in page', onSelect: tools.find, separated: !history },
-          { label: 'Download as Markdown', onSelect: () => saveBlob(new Blob([pageMarkdown(tools.document(), { title: noteTitle(details), pageUrl: `${window.location.origin}/notes/${details.id}` })], { type: 'text/markdown;charset=utf-8' }), `${noteTitle(details).replace(/[\\/:*?"<>|]+/g, '-')}.md`) },
-          { label: 'Print or save as PDF', onSelect: () => window.print() },
-        ]
-      : []),
   ];
-  const menu: MenuItem[] = details.permissions.organize
-    ? [...options, { label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: options.length > 0 }]
-    : options;
+  const menu: NestedMenuItem[] = [
+    ...(add.length > 0 ? [{ label: 'Add', items: add }] : []),
+    ...(tools ? [{ label: 'Find in page', onSelect: tools.find }] : []),
+    ...(history ? [{ label: 'History', onSelect: () => setOpen('history') }] : []),
+    ...(settings.length > 0 ? [{ label: 'Page settings', items: settings, separated: true }] : []),
+    ...(tools
+      ? [{
+          label: 'Export',
+          items: [
+            { label: 'Markdown', onSelect: () => saveBlob(new Blob([pageMarkdown(tools.document(), { title: noteTitle(details), pageUrl: `${window.location.origin}${noteHref(details)}` })], { type: 'text/markdown;charset=utf-8' }), `${noteTitle(details).replace(/[\\/:*?"<>|]+/g, '-')}.md`) },
+            { label: 'Print or PDF', onSelect: () => window.print() },
+          ],
+        }]
+      : []),
+    ...(details.permissions.organize ? [{ label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: true }] : []),
+  ];
 
   return (
     <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick || (details.narrow && !details.database) ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
@@ -309,14 +302,35 @@ export function NotePage() {
       <header className="page-header note-header">
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
-          {pageOnly && <CommentsButton count={threads} onClick={() => setPanelOpen(!commentsShown)} open={commentsShown} />}
+          {pageOnly && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
-          {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
+          {menu.length > 0 && <NestedMenu items={menu} label={`${noteTitle(details)} actions`} trigger={<Icon name="more" size={18} />} triggerClassName="toolbar-button page-menu-button" triggerLabel={`Actions for ${noteTitle(details)}`} />}
         </div>
+        {pageOnly && details.editable && (!details.icon || (details.permissions.organize && !details.cover)) && (
+          <div className="note-title-extras">
+            {!details.icon && (
+              <IconPicker
+                empty={
+                  <>
+                    <Icon name="plus" size={14} />
+                    Add icon
+                  </>
+                }
+                emptyClassName="note-title-extra"
+                icon={null}
+                onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')}
+              />
+            )}
+            {details.permissions.organize && !details.cover && (
+              <button className="note-title-extra" onClick={() => coverInput.current?.click()} type="button">
+                <Icon name="upload" size={14} />
+                Add cover
+              </button>
+            )}
+          </div>
+        )}
         <div className="note-title-row">
-          {(details.editable || details.icon) &&
-            !details.quick &&
-            (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
+          {details.icon && !details.quick && (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
           <TitleField>
             <CommitInput
               autoFocus={details.editable && !details.title}
@@ -369,7 +383,7 @@ export function NotePage() {
           />
         </Suspense></FileSourceContext>
         {!details.quick && (
-          <CommentsPanel className="note-comments-margin" onClose={() => setPanelOpen(false)} open={commentsShown} ref={setMargin}>
+          <CommentsPanel docked onClose={() => setPanelOpen(false)} open={panelOpen}>
             <NoteComments
               commentable={details.permissions.comment}
               composing={commenting === details.id}
@@ -389,25 +403,6 @@ export function NotePage() {
         )}
       </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {backlinks.length > 0 && (
-        <details className="note-backlinks">
-          <summary className="text-h3 text-ink">Linked from {backlinks.length === 1 ? '1 place' : `${backlinks.length} places`}</summary>
-          <ul className="panel-rows">
-            {backlinks.map(({ id: linkId, item }) => {
-              const kind = itemKindName(item);
-              return (
-                <ListRow
-                  href={item.kind === 'task' ? undefined : (itemHref(item) ?? `/spaces/${item.spaceId}`)}
-                  key={linkId}
-                  meta={`${kind.charAt(0).toUpperCase()}${kind.slice(1)}`}
-                  onClick={item.kind === 'task' ? () => setOpenTask(item.id) : undefined}
-                  title={noteTitle(item)}
-                />
-              );
-            })}
-          </ul>
-        </details>
-      )}
       {describingCover !== undefined && details.cover && (
         <AltTextDialog initial={describingCover} onClose={() => setDescribingCover(undefined)} onSave={(alt) => void save({ coverAlt: alt }, () => '', 'Could not describe the cover image')} />
       )}
@@ -430,7 +425,6 @@ export function NotePage() {
       )}
       {open === 'share' && <ShareLinks editLinks itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} page />}
       {open === 'history' && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} />}
-      {openTask && <OpenTask onChanged={links.reload} onClose={() => setOpenTask(undefined)} taskId={openTask} />}
     </article>
   );
 }

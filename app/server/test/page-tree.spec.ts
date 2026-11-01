@@ -1,12 +1,12 @@
 import { ItemKind, SpaceRole } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { NotesService } from '../src/notes/notes.service';
+import { NotesService, present } from '../src/notes/notes.service';
 
 function tree() {
   const pages = new Map(['a', 'b', 'c'].map((id, index) => [id, {
     id, title: id, spaceId: 'space', kind: ItemKind.NOTE, trashedAt: null, archivedAt: null,
     note: { parentId: null as string | null, position: index + 1, quick: false, template: false },
-    createdAt: new Date(), updatedAt: new Date(), databaseSchema: null, _count: { journalEntries: 0 },
+    createdAt: new Date(), updatedAt: new Date(), databaseSchema: null, _count: { journalEntries: 0, childNotes: 0 },
   }]));
   const locks: string[] = [];
   const changed = vi.fn();
@@ -119,18 +119,42 @@ describe('paginated page children', () => {
     const rows = Array.from({ length: 101 }, (_, index) => ({ ...tree().pages.get('a')!, id: `page-${index}` }));
     const findMany = vi.fn(async () => rows);
     const assertSpace = vi.fn(async () => undefined);
-    const notes = new NotesService({ item: { findMany } } as never, { assertSpace } as never, {} as never, {} as never, {} as never, {} as never);
+    const notes = new NotesService({ item: { findMany }, note: { groupBy: async () => [] } } as never, { assertSpace } as never, {} as never, {} as never, {} as never, {} as never);
     const first = await notes.children('member', 'space', {});
     expect(first.pages).toHaveLength(100);
     expect(first.nextCursor).toBe('page-99');
     expect(first.nextPage).toMatchObject({ id: 'page-100' });
     expect(assertSpace).toHaveBeenCalledWith('member', 'space', 'read');
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ spaceId: 'space', note: { OR: [{ parentId: null }, { parent: { isNot: { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } } }], template: false, quick: false }, trashedAt: null, archivedAt: null }), take: 101, orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }] }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ spaceId: 'space', journalEntries: { none: {} }, childNotes: { none: { item: { journalEntries: { some: {} } } } }, note: { OR: [{ parentId: null }, { parent: { isNot: { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } } }], template: false, quick: false }, trashedAt: null, archivedAt: null }), take: 101, orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }] }));
     findMany.mockResolvedValueOnce([rows[100]!]);
     const second = await notes.children('member', 'space', { cursor: first.nextCursor! });
     expect(second).toMatchObject({ pages: [{ id: 'page-100' }], nextCursor: null });
     expect(second.nextPage).toBeNull();
     expect(findMany).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: { id: 'page-99' }, skip: 1 }));
+  });
+
+  it('says which listed pages have pages inside, not counting journal pages', async () => {
+    const base = tree().pages.get('a')!;
+    const rows = [{ ...base, id: 'parent' }, { ...base, id: 'leaf' }];
+    const groupBy = vi.fn(async () => [{ parentId: 'parent' }]);
+    const notes = new NotesService({ item: { findMany: async () => rows }, note: { groupBy } } as never, { assertSpace: async () => undefined } as never, {} as never, {} as never, {} as never, {} as never);
+    const listed = await notes.children('member', 'space', {});
+    expect(listed.pages.map((page) => [page.id, page.hasChildren])).toEqual([['parent', true], ['leaf', false]]);
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ['parentId'],
+      where: {
+        parentId: { in: ['parent', 'leaf'] },
+        template: false,
+        quick: false,
+        item: { kind: { in: [ItemKind.NOTE, ItemKind.BOARD] }, trashedAt: null, archivedAt: null, journalEntries: { none: {} }, childNotes: { none: { item: { journalEntries: { some: {} } } } } },
+      },
+    });
+  });
+
+  it('marks the page that holds journal pages as part of the journal', () => {
+    const base = tree().pages.get('a')!;
+    expect(present({ ...base, _count: { journalEntries: 0, childNotes: 3 } } as never).journal).toBe(true);
+    expect(present(base as never).journal).toBe(false);
   });
 
   it('does not list children of a private or invalid parent', async () => {

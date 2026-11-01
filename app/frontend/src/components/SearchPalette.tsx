@@ -7,6 +7,7 @@ import { searchableAreas } from '../navigation';
 import { itemHref, itemKindName, useChosenSpace, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
 import { inActiveSpace } from '../active-space';
+import { pageHref } from '../notes';
 
 interface SearchResults {
   items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string; archived: boolean }[];
@@ -55,7 +56,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           onSelect: () =>
             void creating.run(async () => {
               const created = await request<{ id: string }>(`/spaces/${personal.id}/notes`, { method: 'POST', body: JSON.stringify({}) });
-              navigate(`/notes/${created.id}`);
+              navigate(pageHref(created.id));
               return '';
             }, 'Could not create the page'),
         },

@@ -67,7 +67,7 @@ export class NoteCommentsService {
         kind: 'comment' as const,
         title: `${created.author?.displayName} ${verb} ${found.title || 'Untitled'}`,
         body: created.body.slice(0, 200),
-        link: `/notes/${noteId}`,
+        link: `/pages/${noteId}`,
       })));
       return created;
     });

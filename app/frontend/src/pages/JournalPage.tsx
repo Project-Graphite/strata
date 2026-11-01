@@ -13,6 +13,7 @@ import { ButtonSkeleton, IconButtonSkeleton, rowsOf, SkeletonLine } from '../com
 import { clockTime } from '../time';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
+import { pageHref } from '../notes';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -52,7 +53,7 @@ export function JournalPage() {
   function open(path: string, fallback: string) {
     void opening.run(async () => {
       const { noteId } = await auth.request<{ noteId: string }>(path, { method: 'POST' });
-      navigate(`/notes/${noteId}`);
+      navigate(pageHref(noteId));
       return '';
     }, fallback);
   }
@@ -66,7 +67,7 @@ export function JournalPage() {
           <>
             <ActionsMenu items={[{ label: 'Write a weekly review', onSelect: () => open('/me/weekly-review', 'Could not write the weekly review') }]} name="Journal" />
             {todayPage ? (
-              <ButtonLink icon="pencil" label="Open today’s page" large primary to={`/notes/${todayPage}`} />
+              <ButtonLink icon="pencil" label="Open today’s page" large primary to={pageHref(todayPage)} />
             ) : (
               <Button disabled={opening.busy} icon="pencil" label="Write today’s page" large onClick={() => writeDay(data.today)} primary />
             )}
@@ -192,7 +193,7 @@ function JournalMoods({ busy, journal, mutate, onWrite }: { busy: boolean; journ
                 className={className}
                 key={day}
                 title={`${base}, with a page`}
-                to={`/notes/${entry.noteId}`}
+                to={pageHref(entry.noteId)}
               />
             ) : (
               <button

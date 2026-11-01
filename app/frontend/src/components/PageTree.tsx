@@ -3,7 +3,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { childPagesPath, noteHref, noteTitle, onPagesChanged, type ChildPages, type Note } from '../notes';
+import { childPagesPath, noteHref, noteTitle, onPagesChanged, pageHref, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
@@ -98,15 +98,19 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
                 }
                 tree.drag(); tree.aim();
               }} style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 0.6}rem` }}>
-              <button aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle enabled:cursor-pointer" disabled={!nests} onClick={() => tree.toggle(note.id)} type="button">
-                {nests && <Icon name="chevron-right" size={16} />}
-              </button>
+              {note.hasChildren ? (
+                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(note.id)} type="button">
+                  <Icon name="chevron-right" size={16} />
+                </button>
+              ) : (
+                <span aria-hidden="true" className="page-tree-toggle" />
+              )}
               <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={noteHref(note)}>
                 <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
               </Link>
               {writable && actions.length > 0 && <ActionsMenu name={noteTitle(note)} items={actions} />}
             </div>
-            {nests && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
+            {note.hasChildren && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
           </div>
         );
       })}
@@ -159,7 +163,7 @@ export function PageTree() {
       void action.run(async () => {
         const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(parentId ? { parentId } : {}) });
         if (parentId && !open.has(parentId)) toggle(parentId);
-        navigate(`/notes/${created.id}`);
+        navigate(pageHref(created.id));
         return '';
       }, 'Could not add the page');
     },

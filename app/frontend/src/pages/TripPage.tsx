@@ -26,6 +26,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
 import { capitalised, clockTime, formatDate } from '../time';
+import { pageHref } from '../notes';
 
 const empties = {
   itinerary: { title: 'No events yet', hint: 'Add the flights, stays and plans for this trip to see them day by day.' },
@@ -351,7 +352,7 @@ export function TripPage() {
                 void action.run(async () => {
                   const page = await auth.request<{ id: string }>(`/spaces/${shown.spaceId}/notes`, { method: 'POST', body: JSON.stringify({ title: `${shown.title} notes` }) });
                   await link(page.id);
-                  navigate(`/notes/${page.id}`);
+                  navigate(pageHref(page.id));
                   return '';
                 }, 'Could not start the page')
               }
@@ -366,7 +367,7 @@ export function TripPage() {
           <ul className="panel-rows">
             {shown.pages.map((page) => (
               <ListRow
-                href={`/notes/${page.id}`}
+                href={pageHref(page.id)}
                 key={page.linkId}
                 lead={<Icon name="file" size={18} />}
                 title={page.title || 'Untitled'}

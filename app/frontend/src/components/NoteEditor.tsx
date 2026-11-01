@@ -1,5 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Menu, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Popover, TextField, ToolbarButton, ToolbarSeparator, useSnackbar } from '@project-graphite/ui';
 import { isValidYoutubeUrl } from '@tiptap/extension-youtube';
 import { Extension, type JSONContent } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
@@ -17,6 +17,7 @@ import { useAuth } from '../auth';
 import { previewLink } from '../bookmarks';
 import { hasPreview, maxUploadBytes, saveBlob, uploadFile } from '../files';
 import { FormDialog } from './FormDialog';
+import { NestedMenu, type NestedMenuItem } from './NestedMenu';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
 import { PageBlockTarget } from './PageBlockTarget';
 import { Copyable } from './Copyable';
@@ -112,7 +113,7 @@ function relocate(doc: BlockNode, block: Block, mapping: Mapping): Block | undef
   return node ? { node, pos: mapped.pos } : undefined;
 }
 
-function blockItems(editor: Editor, actions: BlockActions, block: Block | undefined, onComment?: (block: QuotedBlock) => void): MenuItem[] {
+function blockItems(editor: Editor, actions: BlockActions, block: Block | undefined, onComment?: (block: QuotedBlock) => void): NestedMenuItem[] {
   if (!block) return [];
   const at = (pos: number, bias: 1 | -1 = 1) =>
     editor.chain().focus().command(({ tr }) => {
@@ -127,37 +128,58 @@ function blockItems(editor: Editor, actions: BlockActions, block: Block | undefi
   const change = (apply: (tr: Transaction) => unknown) => () => editor.chain().focus().command(({ tr }) => Boolean(apply(tr))).run();
   const columns = block.node.type.name === 'columns' ? block : siblings.parent.type.name === 'column' ? { node: siblings.node(siblings.depth - 1), pos: siblings.before(siblings.depth - 1) } : undefined;
   const comment = onComment && quoted(block);
+  const kind = block.node.type.name;
   return [
-    ...(typeof block.node.attrs.id === 'string' && actions.onCopyBlock ? [{ label: 'Copy link to block', onSelect: () => actions.onCopyBlock!(block.node.attrs.id as string) }] : []),
-    ...(previous ? [{ label: 'Move block up', onSelect: () => moveBlock(editor, block, -1) }] : []),
-    ...(next ? [{ label: 'Move block down', onSelect: () => moveBlock(editor, block, 1) }] : []),
-    { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(end, block.node.toJSON()).run() },
-    { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: end }).run() },
     ...(comment ? [{ label: 'Comment', onSelect: () => onComment!(comment) }] : []),
-    ...(block.node.type.name === 'table'
-      ? [
-          { label: 'Add a row', onSelect: () => at(end - 2, -1).addRowAfter().run(), separated: true },
-          { label: 'Add a column', onSelect: () => at(end - 2, -1).addColumnAfter().run() },
-          { label: 'Delete row', onSelect: () => cell().deleteRow().run() },
-          { label: 'Delete column', onSelect: () => cell().deleteColumn().run() },
-        ]
-      : block.node.type.name === 'columns'
-        ? []
-        : blockChoices(actions)
+    ...(typeof block.node.attrs.id === 'string' && actions.onCopyBlock ? [{ label: 'Copy link to block', onSelect: () => actions.onCopyBlock!(block.node.attrs.id as string) }] : []),
+    { label: 'Duplicate', onSelect: () => editor.chain().focus().insertContentAt(end, block.node.toJSON()).run() },
+    ...(previous || next
+      ? [{
+          label: 'Move',
+          items: [
+            ...(previous ? [{ label: 'Up', onSelect: () => moveBlock(editor, block, -1) }] : []),
+            ...(next ? [{ label: 'Down', onSelect: () => moveBlock(editor, block, 1) }] : []),
+          ],
+        }]
+      : []),
+    ...(kind !== 'table' && kind !== 'columns'
+      ? [{
+          label: 'Turn into',
+          separated: true,
+          items: blockChoices(actions)
             .filter((choice) => turnInto.has(choice.id))
-            .map((choice, index) => ({ label: `Turn into ${choice.label.toLowerCase()}`, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor), separated: index === 0 }))),
-    ...(block.node.type.name === 'callout'
-      ? calloutTints
-          .filter(([tint]) => tint !== block.node.attrs.tint)
-          .map(([tint, name], index) => ({ label: `${name} callout`, onSelect: change((tr) => tr.setNodeAttribute(block.pos, 'tint', tint)), separated: index === 0 }))
+            .map((choice) => ({ label: choice.label, onSelect: () => choice.run(at(block.pos + 1).clearNodes(), editor) })),
+        }]
+      : []),
+    ...(kind === 'callout'
+      ? [{
+          label: 'Callout colour',
+          items: calloutTints.filter(([tint]) => tint !== block.node.attrs.tint).map(([tint, name]) => ({ label: name, onSelect: change((tr) => tr.setNodeAttribute(block.pos, 'tint', tint)) })),
+        }]
+      : []),
+    ...(kind === 'table'
+      ? [{
+          label: 'Table',
+          separated: true,
+          items: [
+            { label: 'Add a row', onSelect: () => at(end - 2, -1).addRowAfter().run() },
+            { label: 'Add a column', onSelect: () => at(end - 2, -1).addColumnAfter().run() },
+            { label: 'Delete row', onSelect: () => cell().deleteRow().run(), separated: true },
+            { label: 'Delete column', onSelect: () => cell().deleteColumn().run() },
+          ],
+        }]
       : []),
     ...(columns
-      ? [
-          ...(columns.node.childCount < 3 ? [{ label: 'Add a third column', onSelect: change((tr) => addColumn(tr, columns.pos, columns.node)) }] : []),
-          ...(columns.node.childCount > 2 ? [{ label: 'Merge the third column', onSelect: change((tr) => mergeLastColumn(tr, columns.pos, columns.node)) }] : []),
-          { label: 'Unwrap the columns', onSelect: change((tr) => unwrapColumns(tr, columns.pos, columns.node)) },
-        ].map((item, index) => ({ ...item, separated: index === 0 }))
+      ? [{
+          label: 'Columns',
+          items: [
+            ...(columns.node.childCount < 3 ? [{ label: 'Add a third column', onSelect: change((tr) => addColumn(tr, columns.pos, columns.node)) }] : []),
+            ...(columns.node.childCount > 2 ? [{ label: 'Merge the third column', onSelect: change((tr) => mergeLastColumn(tr, columns.pos, columns.node)) }] : []),
+            { label: 'Unwrap the columns', onSelect: change((tr) => unwrapColumns(tr, columns.pos, columns.node)) },
+          ],
+        }]
       : []),
+    { label: 'Delete', onSelect: () => editor.chain().focus().deleteRange({ from: block.pos, to: end }).run(), separated: true },
   ];
 }
 
@@ -230,7 +252,141 @@ function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActi
     selector: ({ editor: current }) => selectedBlock(current),
     equalityFn: (a, b) => a?.node === b?.node && a?.pos === b?.pos,
   });
-  return <Menu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger="Block" triggerLabel="Change this block" triggerVariant="text" />;
+  return <NestedMenu items={blockItems(editor, actions, block, onComment)} label="Block actions" trigger={<Icon name="more" size={16} />} triggerClassName="toolbar-button" triggerLabel="Change this block" />;
+}
+
+function ColourGrid({ color, editor, highlight }: { color?: string; editor: Editor; highlight?: string }) {
+  return (
+    <div aria-label="Text and highlight colour" className="note-colour-grid" role="group">
+      <GlyphButton active={!color} label="Default text colour" onClick={() => editor.chain().focus().unsetColor().run()}>
+        <span className="font-semibold">A</span>
+      </GlyphButton>
+      {textColors.map(([name, value]) => (
+        <GlyphButton active={color === value} key={name} label={`${name} text`} onClick={() => editor.chain().focus().setColor(value).run()}>
+          <span className="font-semibold" style={{ color: value }}>A</span>
+        </GlyphButton>
+      ))}
+      <span aria-hidden="true" />
+      <GlyphButton active={highlight === undefined} label="No highlight" onClick={() => editor.chain().focus().unsetHighlight().run()}>
+        <span className="note-swatch note-swatch-none" />
+      </GlyphButton>
+      {textColors.map(([name, value]) => (
+        <GlyphButton active={highlight === `${value}59`} key={name} label={`${name} highlight`} onClick={() => editor.chain().focus().setHighlight({ color: `${value}59` }).run()}>
+          <span className="note-swatch" style={{ background: `${value}59` }} />
+        </GlyphButton>
+      ))}
+      <GlyphButton active={highlight === 'default'} label="Gold highlight" onClick={() => editor.chain().focus().unsetHighlight().setHighlight().run()}>
+        <span className="note-swatch note-swatch-default" />
+      </GlyphButton>
+    </div>
+  );
+}
+
+const textStyles = new Set(['text', 'heading1', 'heading2', 'heading3']);
+
+function PageToolbar({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
+  const [linking, setLinking] = useState(false);
+  const choices = useMemo(() => blockChoices(actions), [actions]);
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current.isActive('bold'),
+      italic: current.isActive('italic'),
+      link: current.isActive('link'),
+      color: current.getAttributes('textStyle').color as string | undefined,
+      highlight: current.isActive('highlight') ? ((current.getAttributes('highlight').color as string | undefined) ?? 'default') : undefined,
+      kind: Object.keys(blockKinds).reverse().find((id) => current.isActive(...blockKinds[id]!)) ?? 'text',
+      align: alignments.find(([align]) => current.isActive({ textAlign: align }))?.[0] ?? 'left',
+    }),
+  });
+  const choice = (id: string) => choices.find((candidate) => candidate.id === id);
+  const turn = (id: string) => choice(id)?.run(editor.chain().focus().clearNodes(), editor);
+  const insert = (id: string) => choice(id)?.run(editor.chain().focus(), editor);
+  const toggleList = (id: string) => turn(state.kind === id ? 'text' : id);
+  const styleLabel = state.kind === 'text' ? 'Normal text' : (choice(state.kind)?.label ?? 'Normal text');
+  const groups = (['Basic', 'Lists', 'Media', 'Advanced'] as const)
+    .map((group) => ({ label: group, items: choices.filter((candidate) => candidate.group === group && !textStyles.has(candidate.id)).map((candidate) => ({ label: candidate.label, onSelect: () => insert(candidate.id) })) }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <FloatingToolbar className="note-toolbar" label="Format the page">
+      <ToolbarButton icon="undo" label="Undo" onClick={() => editor.chain().focus().undo().run()} />
+      <ToolbarButton icon="redo" label="Redo" onClick={() => editor.chain().focus().redo().run()} />
+      <ToolbarSeparator />
+      <NestedMenu
+        align="start"
+        items={[
+          { label: 'Normal text', onSelect: () => turn('text') },
+          { label: 'Heading 1', onSelect: () => turn('heading1') },
+          { label: 'Heading 2', onSelect: () => turn('heading2') },
+          { label: 'Heading 3', onSelect: () => turn('heading3') },
+        ]}
+        label="Text styles"
+        trigger={
+          <>
+            <span className="note-toolbar-style">{styleLabel}</span>
+            <Icon name="chevron-down" size={16} />
+          </>
+        }
+        triggerClassName="toolbar-button"
+        triggerLabel={`Text style, now ${styleLabel}`}
+      />
+      <ToolbarSeparator />
+      <ToolbarButton active={state.bold} icon="bold" label="Bold" onClick={() => editor.chain().focus().toggleBold().run()} />
+      <ToolbarButton active={state.italic} icon="italic" label="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} />
+      <NestedMenu
+        align="start"
+        items={[
+          { label: 'Underline', onSelect: () => editor.chain().focus().toggleUnderline().run() },
+          { label: 'Strikethrough', onSelect: () => editor.chain().focus().toggleStrike().run() },
+          { label: 'Inline code', onSelect: () => editor.chain().focus().toggleCode().run() },
+          { label: 'Clear formatting', onSelect: () => editor.chain().focus().unsetAllMarks().run(), separated: true },
+        ]}
+        label="More formatting"
+        trigger={<Icon name="more" size={16} />}
+        triggerClassName="toolbar-button"
+        triggerLabel="More formatting"
+      />
+      <Popover align="start" label="Text and highlight colour" panelClassName="note-colours" trigger={<span className="font-semibold underline" style={{ color: state.color }}>A</span>} triggerClassName="toolbar-button" triggerLabel="Text and highlight colour">
+        {() => <ColourGrid color={state.color} editor={editor} highlight={state.highlight} />}
+      </Popover>
+      <ToolbarSeparator />
+      <ToolbarButton active={state.kind === 'bullets'} icon="list" label="Bulleted list" onClick={() => toggleList('bullets')} />
+      <ToolbarButton active={state.kind === 'numbers'} icon="list-ordered" label="Numbered list" onClick={() => toggleList('numbers')} />
+      <ToolbarButton active={state.kind === 'checklist'} icon="checklist" label="Checklist" onClick={() => toggleList('checklist')} />
+      <NestedMenu
+        align="start"
+        items={alignments.map(([align, label]) => ({ label, onSelect: () => (align === 'left' ? editor.chain().focus().unsetTextAlign().run() : editor.chain().focus().setTextAlign(align).run()) }))}
+        label="Alignment"
+        trigger={<AlignGlyph align={state.align} />}
+        triggerClassName="toolbar-button"
+        triggerLabel="Text alignment"
+      />
+      <ToolbarSeparator />
+      <ToolbarButton active={state.link} icon="link" label="Link" onClick={() => setLinking(true)} />
+      {choice('image') && <ToolbarButton icon="upload" label="Image" onClick={() => insert('image')} />}
+      {choice('person') && <ToolbarButton icon="user" label="Mention a person" onClick={() => insert('person')} />}
+      <GlyphButton label="Table" onClick={() => insert('table')}>
+        <span className="font-semibold">▦</span>
+      </GlyphButton>
+      <NestedMenu
+        align="start"
+        items={[
+          { label: 'Two columns', onSelect: () => insert('columns2') },
+          { label: 'Three columns', onSelect: () => insert('columns3') },
+        ]}
+        label="Layouts"
+        trigger={<Icon name="panel" size={16} />}
+        triggerClassName="toolbar-button"
+        triggerLabel="Layouts"
+      />
+      <span className="note-toolbar-end">
+        <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />
+        <NestedMenu items={groups} label="Insert" trigger={<Icon name="plus" size={16} />} triggerClassName="toolbar-button" triggerLabel="Insert" />
+      </span>
+      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
+    </FloatingToolbar>
+  );
 }
 
 function showBubble({ editor, element, view, state }: { editor: Editor; element: HTMLElement; view: EditorView; state: EditorState }) {
@@ -324,30 +480,8 @@ const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }
             </FloatingToolbar>
           ) : panel === 'colour' ? (
             <FloatingToolbar className="note-bubble flex-col items-start" label="Text and highlight colour" ref={toolbar}>
-              <div className="flex flex-wrap items-center gap-0.5">
-                <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
-                <GlyphButton active={!state.color} label="Default text colour" onClick={() => editor.chain().focus().unsetColor().run()}>
-                  <span className="font-semibold">A</span>
-                </GlyphButton>
-                {textColors.map(([name, color]) => (
-                  <GlyphButton active={state.color === color} key={name} label={`${name} text`} onClick={() => editor.chain().focus().setColor(color).run()}>
-                    <span className="font-semibold" style={{ color }}>A</span>
-                  </GlyphButton>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-0.5">
-                <GlyphButton active={state.highlight === undefined} label="No highlight" onClick={() => editor.chain().focus().unsetHighlight().run()}>
-                  <span className="note-swatch" />
-                </GlyphButton>
-                <GlyphButton active={state.highlight === 'default'} label="Gold highlight" onClick={() => editor.chain().focus().unsetHighlight().setHighlight().run()}>
-                  <span className="note-swatch note-swatch-default" />
-                </GlyphButton>
-                {textColors.map(([name, color]) => (
-                  <GlyphButton active={state.highlight === `${color}59`} key={name} label={`${name} highlight`} onClick={() => editor.chain().focus().setHighlight({ color: `${color}59` }).run()}>
-                    <span className="note-swatch" style={{ background: `${color}59` }} />
-                  </GlyphButton>
-                ))}
-              </div>
+              <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
+              <ColourGrid color={state.color} editor={editor} highlight={state.highlight} />
             </FloatingToolbar>
           ) : (
             <FloatingToolbar className="note-bubble" label="Turn into" ref={toolbar}>
@@ -562,7 +696,7 @@ export function CollaborativeEditor({
       {(!statusSlot || (editable && !blocked) || finding) && (
         <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
           {!statusSlot && status}
-          {editable && !blocked && <SelectionBlockMenu actions={actions} editor={editor} onComment={onComment} />}
+          {editable && !blocked && <PageToolbar actions={actions} editor={editor} onComment={onComment} />}
           {finding && <FindBar editor={editor} onClose={() => setFinding(false)} />}
         </div>
       )}
@@ -595,7 +729,7 @@ function HoldHandle({ held }: { held: RefObject<boolean> }) {
 }
 
 const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
-  const [block, setBlock] = useState<Block & { top: number; left: number }>();
+  const [block, setBlock] = useState<Block & { top: number; left: number; line: number }>();
   const held = useRef(false);
 
   useEffect(() => {
@@ -617,8 +751,9 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
         const box = dom.getBoundingClientRect();
         const bounds = area.getBoundingClientRect();
         const top = box.top - bounds.top;
+        const line = Math.min(box.height, parseFloat(getComputedStyle(dom).lineHeight) || box.height);
         const left = box.left - bounds.left;
-        setBlock((current) => (current?.node === node && current.pos === pos && current.top === top && current.left === left ? current : { node, pos, top, left }));
+        setBlock((current) => (current?.node === node && current.pos === pos && current.top === top && current.left === left && current.line === line ? current : { node, pos, top, left, line }));
       });
     };
     const leave = () => {
@@ -646,12 +781,13 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
 
   if (!block) return null;
   return (
-    <div className="absolute z-10 -translate-x-full" style={{ top: block.top, left: block.left }}>
-      <Menu
+    <div className="note-block-gutter absolute z-10 -translate-x-full" style={{ top: block.top, left: block.left, height: block.line }}>
+      <NestedMenu
+        align="start"
         header={<HoldHandle held={held} />}
         items={blockItems(editor, actions, block, onComment)}
         label="Block actions"
-        trigger="⠿"
+        trigger={<Icon name="grip" size={16} />}
         triggerClassName="note-block-handle"
         triggerLabel="Move or change this block"
       />

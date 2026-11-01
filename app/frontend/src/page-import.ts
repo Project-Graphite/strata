@@ -8,6 +8,7 @@ import { importFolder, importPath, importSources, importTargets, resolveImportPa
 import { recoverDraftPart } from './draft-parts';
 import { ApiError } from './api';
 import type { ImportProgress } from './page-import-progress';
+import { pageHref } from './notes';
 
 type Request = <T>(path: string, init?: RequestInit) => Promise<T>;
 
@@ -97,7 +98,7 @@ function pageHtml(plan: PageImportPlan, page: ImportPage, images: Map<string, st
     if (target && !target.blocked) {
       page.references.add(target.id);
       if (href.includes('#')) issues.add('Page-link anchors become links to the whole page');
-      return `/notes/${target.id}`;
+      return pageHref(target.id);
     }
     if (target?.blocked) issues.add(`Linked page is skipped: ${target.path}`);
     else if (!/^(https?:|mailto:)/i.test(href)) issues.add(`Page link not found in the selection: ${href}`);
