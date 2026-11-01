@@ -2778,6 +2778,7 @@ header.backdrop-blur-md {
     height: calc(100dvh - var(--tab-bar-space, calc(var(--tab-bar-height) + env(safe-area-inset-bottom))));
     min-height: 0;
     padding-bottom: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     scroll-padding-top: 5rem;
   }
@@ -2902,6 +2903,7 @@ header.backdrop-blur-md {
 }
 
 .note-toolbar {
+  position: relative;
   width: 100%;
   flex: 1 1 100%;
   overflow-x: auto;
@@ -3149,9 +3151,14 @@ div:has(> #content) {
 }
 
 .note-status .live-document-summary {
+  min-width: 0;
   min-height: 0;
-  flex-shrink: 0;
   flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.note-status .live-save-status {
+  flex-shrink: 0;
 }
 
 .note-status .live-device-status {
