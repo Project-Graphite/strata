@@ -17,6 +17,7 @@ export interface Note {
   cover: { id: string; alt: string } | null;
   database: boolean;
   journal: boolean;
+  holdsJournal: boolean;
   createdAt: string;
   updatedAt: string;
 }

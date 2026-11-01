@@ -52,7 +52,8 @@ export function present(row: NoteRow) {
     narrow: row.note?.narrow ?? false,
     cover: row.note?.coverId ? { id: row.note.coverId, alt: row.note.coverAlt } : null,
     database: Boolean(row.databaseSchema),
-    journal: row._count.journalEntries > 0 || row._count.childNotes > 0,
+    journal: row._count.journalEntries > 0,
+    holdsJournal: row._count.childNotes > 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

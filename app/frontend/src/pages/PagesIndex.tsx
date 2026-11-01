@@ -149,7 +149,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   }
 
   if (!spaces.data || (!notes.data && !notes.error)) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
-  if (notes.data && !notes.data.some((note) => !note.journal)) {
+  if (notes.data && !notes.data.some((note) => !note.journal && !note.holdsJournal)) {
     return (
       <Empty action={firstRun} icon={emptyStates.pages.icon} title={emptyStates.pages.title} variant="page">
         {emptyStates.pages.hint}
@@ -187,7 +187,7 @@ function PageSearch({ query }: { query: string }) {
   const listed = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
   const text = query.trim().toLocaleLowerCase();
-  const found = listed.data?.filter((note) => !note.journal && noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
+  const found = listed.data?.filter((note) => !note.journal && !note.holdsJournal && noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
   if (listed.error) return <LoadError error={listed.error} onRetry={listed.reload} />;
   if (!listed.data) return <RowsSkeleton lead={<IconSkeleton />} rows={3} />;
   if (found.length === 0) return <Empty title="No pages match">Try another word from the page title.</Empty>;

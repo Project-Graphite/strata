@@ -151,10 +151,10 @@ describe('paginated page children', () => {
     });
   });
 
-  it('marks the page that holds journal pages as part of the journal', () => {
+  it('marks the page that holds journal pages without calling it a journal page', () => {
     const base = tree().pages.get('a')!;
-    expect(present({ ...base, _count: { journalEntries: 0, childNotes: 3 } } as never).journal).toBe(true);
-    expect(present(base as never).journal).toBe(false);
+    expect(present({ ...base, _count: { journalEntries: 0, childNotes: 3 } } as never)).toMatchObject({ journal: false, holdsJournal: true });
+    expect(present(base as never)).toMatchObject({ journal: false, holdsJournal: false });
   });
 
   it('does not list children of a private or invalid parent', async () => {
