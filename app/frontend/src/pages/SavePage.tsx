@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Banner, Fieldset, ListRow, Placeholder, Radio, Skeleton, TextField } from '@project-graphite/ui';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { Banner, ListRow, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { firstLink, saveBookmark } from '../bookmarks';
+import { fetchArticle, firstLink, quickBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { isNativeAndroid, StrataCapture } from '../native-capture';
 import { fileSize, uploadFiles } from '../files';
 import { useSpaces } from '../spaces';
@@ -13,7 +13,7 @@ import { DialogActions } from '../components/DialogActions';
 import { Empty } from '../components/Empty';
 import { Page } from '../components/Page';
 import { LoadError } from '../components/LoadError';
-import { ButtonSkeleton, FieldSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
+import { ButtonSkeleton, FieldSkeleton } from '../components/Skeletons';
 
 interface Shared {
   title: string;
@@ -60,18 +60,56 @@ function suggestedTitle(shared: Shared) {
   return parts.join(' — ').slice(0, 200);
 }
 
+function linkTitle(shared: Shared, link: string) {
+  return ([shared.title, shared.text].map((part) => part.replace(link, '').trim()).find(Boolean) ?? '').slice(0, 200);
+}
+
 export function SavePage() {
+  return <SaveShared key={useLocation().key} />;
+}
+
+function SaveShared() {
   const auth = useAuth();
   const spaces = useSpaces();
   const navigate = useNavigate();
   const saving = useAction();
   const form = useFormErrors();
   const [shared, setShared] = useState<Shared | null>();
-  const [asTask, setAsTask] = useState(false);
+  const [saved, setSaved] = useState<{ bookmark: Bookmark; created: boolean } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const started = useRef(false);
+  const editable = spaces.data?.filter((space) => space.role !== 'viewer') ?? [];
+  const spaceId = editable[0]?.id;
+  const link = shared && !shared.files.length ? firstLink(shared.url, shared.text, shared.title) : '';
+
+  function save(shared: Shared, spaceId: string) {
+    setFailed(false);
+    void saving
+      .run(async () => {
+        const title = linkTitle(shared, link);
+        const quick = await quickBookmark(auth.request, spaceId, link, title);
+        setSaved(quick);
+        void caches.delete(shareCache);
+        if (quick.created) {
+          void fetchArticle(auth.request, quick.bookmark, title).then(
+            (bookmark) => setSaved({ ...quick, bookmark }),
+            () => undefined,
+          );
+        }
+        return '';
+      }, 'Could not save the link')
+      .then((done) => setFailed(!done));
+  }
 
   useEffect(() => {
     void readShare().then(setShared);
   }, []);
+
+  useEffect(() => {
+    if (!shared || !link || !spaceId || started.current) return;
+    started.current = true;
+    save(shared, spaceId);
+  });
 
   if (shared === undefined || !spaces.data) {
     return (
@@ -82,16 +120,6 @@ export function SavePage() {
           ) : (
             <Placeholder className="grid gap-4" label="Opening what you shared">
               <FieldSkeleton />
-              <div className="grid gap-2">
-                <SkeletonLine className="mb-2 leading-[1.4375]" width="w-16" />
-                {rowsOf(2).map((choice) => (
-                  <span className="flex h-9.5 items-center gap-2" key={choice}>
-                    <Skeleton className="size-5 rounded-full" />
-                    <SkeletonLine width={choice ? 'w-10' : 'w-48'} />
-                  </span>
-                ))}
-              </div>
-              <SkeletonLine className="text-small" width="w-3/4" />
               <DialogActions>
                 <ButtonSkeleton large width="w-24" />
                 <ButtonSkeleton large width="w-20" />
@@ -111,10 +139,48 @@ export function SavePage() {
       </Page>
     );
   }
-  const editable = spaces.data.filter((space) => space.role !== 'viewer');
   const title = suggestedTitle(shared);
-  const link = shared.files.length ? '' : firstLink(shared.url, shared.text, shared.title);
-  const asBookmark = Boolean(link) && !asTask;
+  const noSpace = editable.length === 0 && <Banner tone="danger">You can only view your spaces, so there is nowhere to save this.</Banner>;
+
+  if (link) {
+    return (
+      <Page title={saved ? (saved.created ? 'Saved to bookmarks' : 'Already in bookmarks') : 'Saving to bookmarks'} variant="panel">
+        <div className="mt-8 grid gap-4">
+          {noSpace}
+          <ul className="panel-rows">
+            <ListRow meta={saved ? siteLabel(saved.bookmark) : link} title={saved?.bookmark.title ?? (linkTitle(shared, link) || link)} />
+          </ul>
+          <DialogActions>
+            <Button
+              disabled={!saved || saving.busy}
+              label="Make it a task"
+              large
+              onClick={() => {
+                if (!saved) return;
+                void saving.run(async () => {
+                  const task = await auth.request<{ id: string }>(`/spaces/${saved.bookmark.spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
+                  if (saved.created) await auth.request(`/items/${saved.bookmark.id}/trash`, { method: 'POST' });
+                  navigate(`/tasks?task=${task.id}`);
+                  return `Added ${title}.`;
+                }, 'Could not make it a task');
+              }}
+            />
+            {saved ? (
+              <Button label="Open" large primary onClick={() => navigate(`/bookmarks/${saved.bookmark.id}`)} />
+            ) : (
+              <Button
+                disabled={!failed || saving.busy || !spaceId}
+                label={failed && !saving.busy ? 'Try again' : 'Saving…'}
+                large
+                onClick={() => spaceId && save(shared, spaceId)}
+                primary
+              />
+            )}
+          </DialogActions>
+        </div>
+      </Page>
+    );
+  }
 
   async function discard() {
     await caches.delete(shareCache);
@@ -133,15 +199,6 @@ export function SavePage() {
           const taskTitle = String(values.get('title') ?? '').trim();
           const length = atMost(200, 'Use at most 200 characters.');
           const spaceId = String(values.get('spaceId'));
-          if (asBookmark) {
-            void saving.run(async () => {
-              const { bookmark, fetchError } = await saveBookmark(auth.request, spaceId, link);
-              await caches.delete(shareCache);
-              navigate(`/bookmarks/${bookmark.id}`);
-              return fetchError ? `Added ${bookmark.title}, but the page couldn’t be read: ${fetchError}` : `Added ${bookmark.title} to read later.`;
-            }, 'Could not save the link');
-            return;
-          }
           if (!form.check(target, { title: shared.files.length ? [length] : [required('Enter a title for the task.'), length] })) return;
           void saving.run(async () => {
             const task = taskTitle ? await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title: taskTitle }) }) : null;
@@ -152,19 +209,8 @@ export function SavePage() {
           }, 'Could not save what you shared');
         }}
       >
-        {editable.length === 0 ? (
-          <Banner tone="danger">You can only view your spaces, so there is nowhere to save this.</Banner>
-        ) : (
-          <input name="spaceId" type="hidden" value={editable[0]!.id} />
-        )}
-        {link && (
-          <Fieldset legend="Save as">
-            <Radio checked={!asTask} label="Bookmark to read later" name="saveAs" onChange={() => setAsTask(false)} />
-            <Radio checked={asTask} label="Task" name="saveAs" onChange={() => setAsTask(true)} />
-          </Fieldset>
-        )}
-        {link && !asTask && <p className="m-0 truncate text-small text-muted">{link}</p>}
-        {!asBookmark && (title || shared.files.length === 0) && (
+        {noSpace || <input name="spaceId" type="hidden" value={spaceId} />}
+        {(title || shared.files.length === 0) && (
           <TextField defaultValue={title} label={shared.files.length ? 'Also add a task (optional)' : 'Task'} maxLength={200} {...form.field('title')} />
         )}
         {shared.files.length > 0 && (

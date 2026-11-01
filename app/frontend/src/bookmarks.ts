@@ -1,3 +1,5 @@
+import { ApiError } from './api';
+
 export interface Inline {
   text: string;
   href?: string;
@@ -34,9 +36,9 @@ export interface FetchedPage {
 
 type Request = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-export async function keepArticle(request: Request, bookmark: Bookmark, html: string) {
+export async function keepArticle(request: Request, bookmark: Bookmark, html: string, title?: string) {
   const { readArticle } = await import('./article-reader');
-  return request<BookmarkDetails>(`/bookmarks/${bookmark.id}/article`, { method: 'PUT', body: JSON.stringify(readArticle(html, bookmark.url)) });
+  return request<BookmarkDetails>(`/bookmarks/${bookmark.id}/article`, { method: 'PUT', body: JSON.stringify({ ...readArticle(html, bookmark.url), ...(title ? { title } : {}) }) });
 }
 
 export async function previewLink(request: Request, url: string) {
@@ -53,6 +55,23 @@ export async function saveBookmark(request: Request, spaceId: string, url: strin
     bookmark: saved.html ? await keepArticle(request, saved.bookmark, saved.html) : saved.bookmark,
     fetchError: saved.fetchError,
   };
+}
+
+export async function quickBookmark(request: Request, spaceId: string, url: string, title: string) {
+  try {
+    const saved = await request<{ bookmark: Bookmark }>(`/spaces/${spaceId}/bookmarks`, { method: 'POST', body: JSON.stringify({ url, title: title || undefined, fetch: false }) });
+    return { bookmark: saved.bookmark, created: true };
+  } catch (reason) {
+    if (!(reason instanceof ApiError && reason.status === 409)) throw reason;
+    const existing = (await request<Bookmark[]>(`/me/bookmarks?spaceId=${spaceId}`)).find((bookmark) => bookmark.url === url);
+    if (!existing) throw reason;
+    return { bookmark: existing, created: false };
+  }
+}
+
+export async function fetchArticle(request: Request, bookmark: Bookmark, title: string) {
+  const page = await request<FetchedPage>(`/bookmarks/${bookmark.id}/fetch`, { method: 'POST' });
+  return page.html ? keepArticle(request, bookmark, page.html, title) : bookmark;
 }
 
 export function firstLink(...texts: string[]) {
