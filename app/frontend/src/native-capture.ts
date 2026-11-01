@@ -64,6 +64,7 @@ export interface StrataCapturePlugin {
   backfillInbox(): Promise<{ scanned: number; queued: number }>;
   flushOutbox(): Promise<{ sent: number; remaining: number }>;
   retryRejected(): Promise<NativeCaptureStatus>;
+  takeShare(): Promise<{ title?: string; text?: string; url?: string; files?: { name: string; type: string; data: string }[] }>;
 }
 
 export const StrataCapture = registerPlugin<StrataCapturePlugin>('StrataCapture');

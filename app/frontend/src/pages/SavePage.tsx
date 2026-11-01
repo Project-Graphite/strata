@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Banner, Fieldset, ListRow, Placeholder, Radio, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { firstLink, saveBookmark } from '../bookmarks';
+import { isNativeAndroid, StrataCapture } from '../native-capture';
 import { fileSize, uploadFiles } from '../files';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -23,7 +24,15 @@ interface Shared {
 
 const shareCache = 'strata-share';
 
+async function readNativeShare(): Promise<Shared | null> {
+  const shared = await StrataCapture.takeShare();
+  if (shared.text === undefined && !shared.files?.length) return null;
+  const files = (shared.files ?? []).map((file) => new File([Uint8Array.from(atob(file.data), (character) => character.charCodeAt(0))], file.name, { type: file.type }));
+  return { title: shared.title ?? '', text: shared.text ?? '', url: shared.url ?? '', files };
+}
+
 async function readShare(): Promise<Shared | null> {
+  if (isNativeAndroid()) return readNativeShare();
   if (!('caches' in window) || !(await caches.has(shareCache))) return null;
   const cache = await caches.open(shareCache);
   const text = await cache.match('/share-target/text');
