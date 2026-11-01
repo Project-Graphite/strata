@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
-import { Avatar, Badge, Card, Icon, SectionHeading } from '@project-graphite/ui';
+import { Link } from 'react-router';
+import { Avatar, Badge, Card, Checkbox, Icon, IconButton, SectionHeading } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
@@ -8,7 +9,6 @@ import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task 
 import { profileDay } from '../time';
 import { useAction } from '../useAction';
 import { ActionsMenu } from './ActionsMenu';
-import { Empty } from './Empty';
 
 type Update = (change: (tasks: Task[]) => Task[]) => void;
 
@@ -215,7 +215,7 @@ export function TaskGroups({ tasks, weekStart, ...view }: ViewProps & { tasks: T
   );
 }
 
-export function TaskBoard({ changes, editable, onOpen, tasks, where }: ViewProps & { tasks: Task[] }) {
+export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, where }: ViewProps & { finished?: { shown: number; total: number; href: string }; onAdd?: (status: Task['status']) => void; tasks: Task[] }) {
   const [dragging, setDragging] = useState<Task>();
   const [over, setOver] = useState<Task['status']>();
   const statusOf = (task: Task) => (task.completedAt ? 'done' : task.status === 'done' ? 'open' : task.status);
@@ -244,17 +244,24 @@ export function TaskBoard({ changes, editable, onOpen, tasks, where }: ViewProps
               setOver(undefined);
             }}
           >
-            <SectionHeading action={<span className="text-small text-muted tabular-nums">{shown.length}</span>} id={`task-column-${column.value}`} level={2} title={column.label} />
+            <SectionHeading
+              action={
+                <span className="flex items-center gap-1">
+                  <span className="text-small text-muted tabular-nums">{shown.length}</span>
+                  {onAdd && <IconButton icon="plus" label={`New task in ${column.label}`} onClick={() => onAdd(column.value)} />}
+                </span>
+              }
+              id={`task-column-${column.value}`}
+              level={2}
+              title={column.label}
+            />
             {shown.length === 0 ? (
-              dragging ? (
-                <p className="m-0 text-small text-muted">{`Drop here to mark it ${column.label.toLowerCase()}.`}</p>
-              ) : (
-                <Empty level={3} title="Nothing here" />
-              )
+              <p className="task-column-empty">{dragging ? `Drop here to mark it ${column.label.toLowerCase()}` : 'No tasks'}</p>
             ) : (
-              <ul className="m-0 grid list-none gap-2 p-0">
+              <ul className="m-0 grid list-none content-start gap-2 p-0">
                 {shown.map((task) => {
                   const details = taskDetails(task, where?.(task));
+                  const done = Boolean(task.completedAt);
                   return (
                     <Card as="li" className="task-card" interactive key={task.id} padding="sm">
                       <div
@@ -270,9 +277,16 @@ export function TaskBoard({ changes, editable, onOpen, tasks, where }: ViewProps
                           setDragging(task);
                         }}
                       >
+                        <Checkbox
+                          aria-label={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
+                          checked={done}
+                          className="task-card-check"
+                          disabled={!editable(task) || changes.pending.includes(task.id)}
+                          onChange={() => changes.toggle(task)}
+                        />
                         <button className="task-card-main" onClick={() => onOpen(task)} type="button">
                           <span>
-                            <span className={`task-title ${task.completedAt ? 'is-done text-faint' : 'text-ink'}`}>{task.title}</span>
+                            <span className={`task-title ${done ? 'is-done text-faint' : 'text-ink'}`}>{task.title}</span>
                           </span>
                           {details.length > 0 && (
                             <span className="flex min-w-0 flex-wrap items-center gap-2 text-small text-muted">
@@ -299,6 +313,11 @@ export function TaskBoard({ changes, editable, onOpen, tasks, where }: ViewProps
                   );
                 })}
               </ul>
+            )}
+            {column.value === 'done' && finished && finished.total > finished.shown && (
+              <Link className="task-column-more" to={finished.href}>
+                Show all {finished.total} finished tasks
+              </Link>
             )}
           </section>
         );

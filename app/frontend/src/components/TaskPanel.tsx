@@ -61,6 +61,7 @@ export function TaskPanel({
   const updateFinished = (change: (tasks: Task[]) => Task[]) => finished.mutate((current) => ({ ...current, results: change(current.results) }));
   const changes = useTaskChanges(completed && !board ? updateFinished : open.mutate, completed && !board ? undefined : updateFinished);
   const [opened, setOpened] = useState<Task>();
+  const [addingTo, setAddingTo] = useState<Task['status']>();
   const shown = completed && !board ? finished.data?.results : open.data;
   const [rows, detailed] = useRememberedShape(
     `${shape}${listQuery}${completed ? '-done' : ''}`,
@@ -118,6 +119,8 @@ export function TaskPanel({
             <TaskBoard
               changes={changes}
               editable={editable}
+              finished={{ shown: finished.data!.results.length, total: finished.data!.totalResults, href: link({ completed: true, page: 1, view: 'list' }) }}
+              onAdd={addTo ? setAddingTo : undefined}
               onOpen={setOpened}
               tasks={[...open.data!, ...finished.data!.results.filter((task) => !open.data!.some((shownTask) => shownTask.id === task.id))]}
               where={where}
@@ -155,16 +158,18 @@ export function TaskPanel({
         </div>
       )}
 
-      {(opened || creating) && (
+      {(opened || creating || addingTo) && (
         <OpenTask
-          key={opened?.id ?? 'new'}
+          key={opened?.id ?? `new-${addingTo ?? ''}`}
           listId={addTo?.listId}
           onChanged={changed}
           onClose={() => {
             setOpened(undefined);
+            setAddingTo(undefined);
             onClosed();
           }}
           spaceId={addTo?.spaceId}
+          status={addingTo}
           task={opened}
         />
       )}
