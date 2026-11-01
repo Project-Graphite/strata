@@ -196,16 +196,17 @@ interface Comment {
   author: { id: string; displayName: string } | null;
 }
 
-export function Comments({ editable, owner, taskId }: { editable: boolean; owner: boolean; taskId: string }) {
+export function Comments({ editable, onCount, owner, taskId }: { editable: boolean; onCount: (count: number) => void; owner: boolean; taskId: string }) {
   const auth = useAuth();
   const action = useAction();
   const comments = useResource<Comment[]>(`/tasks/${taskId}/comments`, true, { live: ['task-details'], itemIds: [taskId] });
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<{ id: string; body: string }>();
+  const count = comments.data?.length ?? 0;
+  useEffect(() => onCount(count), [count, onCount]);
 
   return (
-    <section className="grid gap-3">
-      <SectionHeading level={3} title="Comments" />
+    <section aria-label="Comment threads" className="grid gap-3">
       {comments.error ? (
         <LoadError compact error={comments.error} onRetry={comments.reload} />
       ) : !comments.data ? (

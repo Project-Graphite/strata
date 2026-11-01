@@ -145,11 +145,9 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
       </Banner>
       <TextField
         autoComplete="off"
-        hint="Comma-separated sender names exactly as your messages app shows them. Texts from anyone else are never read or sent."
         label="SMS senders to read"
         name="allowedChats"
         onChange={(event) => setChatsText(event.target.value)}
-        placeholder="CIB, NBE, VF-Cash"
         value={chats}
       />
       {status.installedApps.length === 0 ? (
@@ -293,11 +291,9 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
     >
       <TextField
         autoComplete="off"
-        hint="Comma-separated SMS sender IDs or chat names to read. Personal chats outside this list are skipped."
         label="Specific SMS chats (optional)"
         name="allowedChats"
         onChange={(event) => setChatsText(event.target.value)}
-        placeholder="BanK-AlAhly, CIB, VF-Cash"
         value={chatsText}
       />
       <Fieldset legend="Digital transaction apps (non-SMS notifications)">

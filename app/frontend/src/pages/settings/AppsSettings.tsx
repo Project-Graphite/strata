@@ -1,9 +1,10 @@
 import { Link, useLocation, type Location } from 'react-router';
-import { Banner, Toggle } from '@project-graphite/ui';
+import { Banner } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Section } from '../../components/Page';
 import { appCatalogue, enabledApps } from '../../apps';
 import { useAction } from '../../useAction';
+import { Toggle } from '../../components/Toggle';
 
 export function AppsSettings() {
   const auth = useAuth();

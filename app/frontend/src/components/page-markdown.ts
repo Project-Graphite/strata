@@ -120,6 +120,8 @@ export function pageMarkdown(doc: JSONContent, { title, pageUrl }: { title: stri
         return `[YouTube video](${String(node.attrs?.src ?? '')})`;
       case 'boardEmbed':
         return `[Board](${origin}/boards/${String(node.attrs?.boardId ?? '')})`;
+      case 'childPage':
+        return `[Page](${origin}/notes/${String(node.attrs?.pageId ?? '')})`;
       case 'tableOfContents':
         return headings.map((heading) => `${'  '.repeat(heading.level - top)}- ${escape(heading.text)}`).join('\n');
       default:

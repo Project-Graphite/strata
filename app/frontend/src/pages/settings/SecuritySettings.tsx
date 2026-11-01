@@ -254,7 +254,6 @@ export function SecuritySettings() {
           <ProofFields form={passwordForm} passwordLabel="Current password" twoStep={status.enabled} />
           <TextField
             autoComplete="new-password"
-            hint="At least 12 characters. Passwords found in known breaches are refused."
             label="New password"
             type="password"
             {...passwordForm.field('newPassword')}

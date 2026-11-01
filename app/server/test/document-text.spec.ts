@@ -47,6 +47,15 @@ describe('documentText', () => {
     expect([...documentLinks(document).mentions]).toEqual(['seating-board']);
   });
 
+  it('links the pages nested in a page', () => {
+    const document = new Y.Doc();
+    const child = new Y.XmlElement('childPage');
+    child.setAttribute('pageId', 'agenda-page');
+    document.getXmlFragment('default').push([child]);
+
+    expect([...documentLinks(document).mentions]).toEqual(['agenda-page']);
+  });
+
   it('links attached files and page links, and leaves people mentions out', () => {
     const document = new Y.Doc();
     const attachment = new Y.XmlElement('fileAttachment');

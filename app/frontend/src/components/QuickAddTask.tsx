@@ -79,7 +79,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
                 setDismissed(text);
               }
             }}
-            placeholder="Add a task: call Sara tomorrow 5pm #work !2"
+            placeholder="Add a task"
             role="combobox"
             type="text"
             value={text}

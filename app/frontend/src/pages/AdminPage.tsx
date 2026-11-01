@@ -1,4 +1,4 @@
-import { Avatar, ListRow, Placeholder, TextField, timeAgo, Toggle } from '@project-graphite/ui';
+import { Avatar, ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -8,6 +8,7 @@ import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
 import { AvatarSkeleton, ButtonSkeleton, FieldSkeleton, RowsSkeleton, SkeletonLine, ToggleSkeleton, useRememberedShape } from '../components/Skeletons';
+import { Toggle } from '../components/Toggle';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -87,7 +88,6 @@ export function AdminPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 defaultValue={site.data.fileQuotaMb}
-                hint="Counted from the files each person uploads. Files can be at most 25 MB each."
                 inputMode="numeric"
                 label="File storage per person (MB)"
                 max={10240}

@@ -1,4 +1,5 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, IconButton, LinesSkeleton, ListRow, Skeleton, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -7,7 +8,8 @@ import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AltTextDialog } from '../components/AltTextDialog';
-import { AddButton, TextButton } from '../components/Button';
+import { TextButton } from '../components/Button';
+import { CommentsButton, CommentsPanel } from '../components/CommentsPanel';
 import { CommitInput } from '../components/CommitInput';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
@@ -16,11 +18,10 @@ import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteComments, type QuotedBlock } from '../components/NoteComments';
 import { NoteHistory } from '../components/NoteHistory';
-import { NoteMark } from '../components/NoteMark';
 import type { EditorTools } from '../components/NoteEditor';
 import { useAlignedThreads } from '../components/page-blocks';
 import { pageMarkdown } from '../components/page-markdown';
-import { DetailState, Section, useDocumentTitle } from '../components/Page';
+import { DetailState, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { OpenTask } from '../components/OpenTask';
@@ -58,19 +59,34 @@ function PageCover({ actions, cover, load }: { actions?: ReactNode; cover: { id:
   );
 }
 
-function ChildPageRows({ pages }: { pages: Note[] }) {
-  return pages.map((child) => <ListRow href={noteHref(child)} key={child.id} lead={<NoteMark note={child} />} title={noteTitle(child)} />);
-}
-
-function MoreChildPages({ cursor, parentId, spaceId }: { cursor: string; parentId: string; spaceId: string }) {
-  const [shown, setShown] = useState(false);
-  const more = useResource<ChildPages>(shown ? childPagesPath(spaceId, parentId, cursor) : null, true);
-  if (!shown) return <ListRow onClick={() => setShown(true)} title="Show more pages" />;
+function TitleField({ children }: { children: ReactNode }) {
+  const frame = useRef(0);
+  const input = (field: HTMLElement) => field.querySelector('input');
   return (
-    <>
-      <ChildPageRows pages={more.data?.pages ?? []} />
-      {more.data?.nextCursor && <MoreChildPages cursor={more.data.nextCursor} parentId={parentId} spaceId={spaceId} />}
-    </>
+    <div
+      className="note-title-field"
+      onMouseEnter={(event) => {
+        const title = input(event.currentTarget);
+        const end = title ? title.scrollWidth - title.clientWidth : 0;
+        if (!title || end <= 0 || document.activeElement === title || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        let from = 0;
+        const step = (now: number) => {
+          from ||= now - title.scrollLeft / 0.09;
+          title.scrollLeft = Math.min(end, (now - from) * 0.09);
+          if (title.scrollLeft < end) frame.current = window.requestAnimationFrame(step);
+        };
+        window.cancelAnimationFrame(frame.current);
+        frame.current = window.setTimeout(() => (frame.current = window.requestAnimationFrame(step)), 400);
+      }}
+      onMouseLeave={(event) => {
+        window.clearTimeout(frame.current);
+        window.cancelAnimationFrame(frame.current);
+        const title = input(event.currentTarget);
+        if (title && document.activeElement !== title) title.scrollLeft = 0;
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -93,7 +109,13 @@ export function NotePage() {
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [thread, setThread] = useState<{ id: string }>();
   const [tools, setTools] = useState<EditorTools>();
-  const openThread = useCallback((threadId: string) => setThread({ id: threadId }), []);
+  const [panelOpen, setPanelOpen] = useState<boolean>();
+  const [threads, setThreads] = useState(0);
+  const wide = useMediaQuery('(min-width: 80rem)');
+  const openThread = useCallback((threadId: string) => {
+    setThread({ id: threadId });
+    setPanelOpen(true);
+  }, []);
   const inside = useResource<ChildPages>(note.data && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
   const links = useResource<{ backlinks: { id: string; kind: string; item: { id: string; spaceId: string; kind: string; quick: boolean; title: string } }[] }>(
     note.data ? `/items/${note.data.id}/links` : null,
@@ -106,7 +128,6 @@ export function NotePage() {
   );
   const backlinks = (links.data?.backlinks ?? []).filter((link) => link.kind === 'mention');
   const { report, run } = useAction();
-  const adding = useAction();
   const [open, setOpen] = useState<'share' | 'history' | 'unconvert'>();
   const [openTask, setOpenTask] = useState<string>();
   const parent = note.data?.path.at(-1);
@@ -127,17 +148,15 @@ export function NotePage() {
   if (!note.data || note.data.id !== id) {
     return (
       <article className="page-enter grid max-w-none gap-8">
-        <header className="page-header">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-3">
-              <Skeleton className="size-11 shrink-0 rounded-field" />
-              <SkeletonLine className="note-title" width="w-72 max-w-full" />
-            </div>
-          </div>
+        <header className="page-header note-header">
           <div className="page-header-actions">
             {rowsOf(2).map((action) => (
               <IconButtonSkeleton key={action} />
             ))}
+          </div>
+          <div className="note-title-row">
+            <Skeleton className="size-11 shrink-0 rounded-field" />
+            <SkeletonLine className="note-title" width="w-72 max-w-full" />
           </div>
         </header>
         <LinesSkeleton label="Loading the page" lines={6} />
@@ -150,24 +169,15 @@ export function NotePage() {
   const children = inside.data?.pages ?? [];
   const pageOnly = !details.quick;
   const history = pageOnly && details.permissions.history;
+  const commentsShown = panelOpen ?? (wide && threads > 0);
 
   function quote(block: QuotedBlock) {
     if (quoting && quoting.id !== block.id) tools?.removeComment(quoting.id);
     setQuoting({ ...block, noteId: details.id });
+    setPanelOpen(true);
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => document.querySelector(`.note-comments-margin [data-block-id="${CSS.escape(block.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
     );
-  }
-
-  function addPageInside() {
-    void adding.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${details.spaceId}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ parentId: details.id }),
-      });
-      navigate(`/notes/${created.id}`);
-      return '';
-    }, 'Could not add the page');
   }
 
   function chooseCover(file: File) {
@@ -238,8 +248,16 @@ export function NotePage() {
         ]
       : []),
     ...(pageOnly && details.permissions.organize && !details.cover ? [{ label: 'Add a cover image', onSelect: () => coverInput.current?.click() }] : []),
-    ...(pageOnly && details.permissions.organize && !details.database && children.length === 0 ? [{ label: 'Add a page inside', onSelect: addPageInside }] : []),
-    ...(pageOnly && details.permissions.comment ? [{ label: 'Add a comment', onSelect: () => setCommenting(details.id) }] : []),
+    ...(pageOnly && details.permissions.organize && !details.database && tools?.addPage ? [{ label: 'Add a page inside', onSelect: tools.addPage }] : []),
+    ...(pageOnly && details.permissions.comment
+      ? [{
+          label: 'Add a comment',
+          onSelect: () => {
+            setCommenting(details.id);
+            setPanelOpen(true);
+          },
+        }]
+      : []),
     ...(pageOnly && details.editable && !details.database
       ? [{ label: details.narrow ? 'Use full width' : 'Use narrow width', onSelect: () => save({ narrow: !details.narrow }, () => '', 'Could not change the width') }]
       : []),
@@ -288,31 +306,31 @@ export function NotePage() {
           load={loadFile}
         />
       )}
-      <header className="page-header">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3">
-            {(details.editable || details.icon) &&
-              !details.quick &&
-              (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
+      <header className="page-header note-header">
+        <div className="page-header-actions">
+          <div className="note-status" ref={setStatusSlot} />
+          {pageOnly && <CommentsButton count={threads} onClick={() => setPanelOpen(!commentsShown)} open={commentsShown} />}
+          {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
+          {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
+        </div>
+        <div className="note-title-row">
+          {(details.editable || details.icon) &&
+            !details.quick &&
+            (details.editable ? <IconPicker icon={details.icon} onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')} /> : <span className="page-icon">{details.icon}</span>)}
+          <TitleField>
             <CommitInput
               autoFocus={details.editable && !details.title}
               className="note-title"
               key={details.id}
               label={details.quick ? 'Note title' : 'Page title'}
               maxLength={200}
-              multiline
               onCommit={(title, expectedTitle) => save({ title, expectedTitle }, () => '', `Could not rename the ${pageNoun(details)}`)}
               onEnter={(input) => input.closest('article')?.querySelector<HTMLElement>('.note-content')?.focus()}
               placeholder="Untitled"
               readOnly={!details.editable}
               value={details.title}
             />
-          </div>
-        </div>
-        <div className="page-header-actions">
-          <div className="note-status" ref={setStatusSlot} />
-          {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
-          {menu.length > 0 && <ActionsMenu items={menu} name={noteTitle(details)} />}
+          </TitleField>
         </div>
       </header>
       {note.refreshError && <LoadError compact error={note.refreshError} onRetry={note.reload} />}
@@ -351,34 +369,26 @@ export function NotePage() {
           />
         </Suspense></FileSourceContext>
         {!details.quick && (
-          <div className="note-comments-margin" ref={setMargin}>
+          <CommentsPanel className="note-comments-margin" onClose={() => setPanelOpen(false)} open={commentsShown} ref={setMargin}>
             <NoteComments
               commentable={details.permissions.comment}
               composing={commenting === details.id}
               editable={details.editable}
               focused={thread}
-              hideWhenEmpty
               key={`comments-${details.id}`}
               noteId={details.id}
               onAnchorDropped={tools?.removeComment}
               onBlocks={setCommentedBlocks}
+              onCount={setThreads}
               onQuoteDone={() => setQuoting(undefined)}
               owner={space?.role === 'owner'}
               people={members.data}
               quoting={quoting?.noteId === details.id ? quoting : undefined}
             />
-          </div>
+          </CommentsPanel>
         )}
       </div>
       {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
-      {pageOnly && !details.database && children.length > 0 && (
-        <Section action={details.permissions.organize && <AddButton disabled={adding.busy} label="New page" onClick={addPageInside} />} title="Pages inside">
-          <ul className="panel-rows">
-            <ChildPageRows pages={children} />
-            {inside.data?.nextCursor && <MoreChildPages cursor={inside.data.nextCursor} parentId={details.id} spaceId={details.spaceId} />}
-          </ul>
-        </Section>
-      )}
       {backlinks.length > 0 && (
         <details className="note-backlinks">
           <summary className="text-h3 text-ink">Linked from {backlinks.length === 1 ? '1 place' : `${backlinks.length} places`}</summary>

@@ -20,8 +20,6 @@ import type { CommentAnchors, QuotedBlock } from './NoteComments';
 import type { Back } from './Page';
 
 const boardElementsKey = 'board';
-const syncEveryMs = 200;
-const presenceEveryMs = 40;
 const maxBoardElements = 5_000;
 const maxBoardImageBytes = 25 * 1024 * 1024;
 const stickyColors = [
@@ -86,21 +84,19 @@ function usageWarning(shapes: number, imageBytes: number) {
   return undefined;
 }
 
-function throttledPresence(connection: Connection, field: string) {
+function framedPresence(connection: Connection, field: string) {
   let next: unknown;
-  let sentAt = 0;
-  let timer: number | undefined;
+  let frame = 0;
   return {
     set(value: unknown) {
       next = value;
-      if (timer !== undefined) return;
-      timer = window.setTimeout(() => {
-        timer = undefined;
-        sentAt = Date.now();
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
         connection.provider.setAwarenessField(field, next);
-      }, Math.max(0, sentAt + presenceEveryMs - Date.now()));
+      });
     },
-    cancel: () => window.clearTimeout(timer),
+    cancel: () => window.cancelAnimationFrame(frame),
   };
 }
 
@@ -141,6 +137,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
   const commentedBlocks = member?.comments.commentedBlocks ?? [];
   const synced = useRef(new Map<string, number>());
+  const drafting = useRef(new Set<string>());
   const loading = useRef(new Set<string>());
   const pending = useRef<number | undefined>(undefined);
   const busy = useRef(false);
@@ -155,8 +152,8 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   const user = auth.user ? { id: auth.user.id, name: auth.user.displayName } : { id: `guest-${connection.document.clientID}`, name: 'Guest' };
   const load = useFileSource();
   const spaceId = member?.spaceId;
-  const pointer = useMemo(() => throttledPresence(connection, 'pointer'), [connection]);
-  const view = useMemo(() => throttledPresence(connection, 'view'), [connection]);
+  const pointer = useMemo(() => framedPresence(connection, 'pointer'), [connection]);
+  const view = useMemo(() => framedPresence(connection, 'view'), [connection]);
   const latest = useRef({ api, editing: false, commented: commentedBlocks, stickyColor });
   latest.current = { api, editing: editable && !blocked, commented: commentedBlocks, stickyColor };
 
@@ -245,7 +242,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
 
   useEffect(
     () => () => {
-      window.clearTimeout(pending.current);
+      window.cancelAnimationFrame(pending.current ?? 0);
       pointer.cancel();
       view.cancel();
       printFrame.current?.remove();
@@ -283,7 +280,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   }, []);
 
   const tick = useCallback(() => {
-    window.clearTimeout(pending.current);
+    window.cancelAnimationFrame(pending.current ?? 0);
     pending.current = undefined;
     const { api, editing, commented } = latest.current;
     if (!api) return;
@@ -306,7 +303,17 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
         if (wanted.has(element.id)) anchors.current.set(element.id, { x: element.x + element.width, y: element.y });
         if (element.type === 'image' && element.fileId) files.add(element.fileId);
       }
-      if (editing && !inProgress.has(element.id) && synced.current.get(element.id) !== element.version && !isInvisiblySmallElement(element)) changed.push(element);
+      if (editing && synced.current.get(element.id) !== element.version && !isInvisiblySmallElement(element)) {
+        changed.push(element);
+        if (inProgress.has(element.id)) drafting.current.add(element.id);
+      }
+    }
+    for (const id of drafting.current) {
+      if (inProgress.has(id)) continue;
+      drafting.current.delete(id);
+      const kept = scene.find((element) => element.id === id);
+      const shared = elements.get(id);
+      if (shared && !shared.isDeleted && (!kept || (!kept.isDeleted && isInvisiblySmallElement(kept)))) changed.push({ ...shared, isDeleted: true, version: shared.version + 1 });
     }
     if (dropped.size > 0) {
       api.updateScene({ elements: scene.filter((element) => !dropped.has(element.id)), captureUpdate: CaptureUpdateAction.NEVER });
@@ -335,7 +342,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
     (scene, appState) => {
       const active = Boolean(appState.newElement || appState.editingTextElement || appState.multiElement || appState.resizingElement || appState.selectedElementsAreBeingDragged);
       if (busy.current && !active) tick();
-      else if (pending.current === undefined) pending.current = window.setTimeout(tick, syncEveryMs);
+      else if (pending.current === undefined) pending.current = window.requestAnimationFrame(tick);
       busy.current = active;
       if (pen.current && appState.activeTool.type !== 'freedraw') {
         const previous = pen.current;
@@ -355,8 +362,8 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
 
   const onPointerUp = useCallback<NonNullable<ExcalidrawProps['onPointerUp']>>(
     (activeTool, pointerDownState) => {
-      window.clearTimeout(pending.current);
-      pending.current = window.setTimeout(tick);
+      window.cancelAnimationFrame(pending.current ?? 0);
+      pending.current = window.requestAnimationFrame(tick);
       const { api, stickyColor } = latest.current;
       if (!api || activeTool.type !== 'custom' || activeTool.customType !== 'sticky') return;
       const { x, y } = pointerDownState.origin;

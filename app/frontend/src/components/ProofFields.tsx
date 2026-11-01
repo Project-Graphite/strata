@@ -18,7 +18,6 @@ export function ProofFields({
           autoCapitalize="none"
           autoComplete="one-time-code"
           className="code-input"
-          hint="From your authenticator app. A recovery code works too."
           label="Two-step code"
           maxLength={20}
           spellCheck={false}

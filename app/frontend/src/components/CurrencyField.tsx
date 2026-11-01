@@ -6,7 +6,6 @@ const famous = ['EGP', 'USD', 'EUR'];
 export function CurrencyField({
   codes = allCurrencies,
   defaultValue,
-  hint,
   label = 'Currency',
   name,
   noneLabel,
@@ -15,7 +14,6 @@ export function CurrencyField({
 }: {
   codes?: string[];
   defaultValue?: string;
-  hint?: string;
   label?: string;
   name?: string;
   noneLabel?: string;
@@ -25,7 +23,6 @@ export function CurrencyField({
   return (
     <Select
       defaultValue={defaultValue}
-      hint={hint}
       label={label}
       name={name}
       onChange={onChange}

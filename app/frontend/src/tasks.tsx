@@ -208,7 +208,7 @@ export function taskLink(base: string, listId: string | null, completed: boolean
   };
 }
 
-export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLink; listId: string | null; lists: TaskList[]; onNewList?: () => void }) {
+export function TaskListChips({ link, listId, lists, menu, onNewList }: { link: TaskLink; listId: string | null; lists: TaskList[]; menu?: ReactNode; onNewList?: () => void }) {
   return (
     <FilterChips
       items={[
@@ -217,6 +217,7 @@ export function TaskListChips({ link, listId, lists, onNewList }: { link: TaskLi
       ]}
       label="Lists"
     >
+      {menu}
       {onNewList && <AddButton label="New list" onClick={onNewList} />}
     </FilterChips>
   );

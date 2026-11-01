@@ -69,7 +69,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
       submitLabel={goal ? 'Save changes' : 'Add goal'}
       title={goal ? 'Edit goal' : 'New goal'}
     >
-      <TextField autoFocus defaultValue={goal?.title} label="Goal" maxLength={200} placeholder="Run a half marathon" {...form.field('title')} />
+      <TextField autoFocus defaultValue={goal?.title} label="Goal" maxLength={200} {...form.field('title')} />
       {!goal && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Select
@@ -96,7 +96,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField defaultValue={goal?.target ?? ''} inputMode="decimal" label="Target" {...form.field('target')} />
           <TextField defaultValue={goal?.current ?? ''} inputMode="decimal" label="So far" {...form.field('current')} />
-          <TextField defaultValue={goal?.unit ?? ''} label="Unit (optional)" maxLength={20} name="unit" placeholder="km" />
+          <TextField defaultValue={goal?.unit ?? ''} label="Unit (optional)" maxLength={20} name="unit" />
         </div>
       )}
       <TextAreaField defaultValue={goal?.why} label="Why it matters (optional)" maxLength={2000} name="why" rows={3} />

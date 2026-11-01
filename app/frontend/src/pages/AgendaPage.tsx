@@ -551,7 +551,6 @@ function Agenda({ view }: { view: View }) {
       title="Agenda"
       toolbar={
         <PeriodNav
-          current={{ label: 'Today', onSelect: goToday }}
           onShift={shift}
           title={
             view === 'month'

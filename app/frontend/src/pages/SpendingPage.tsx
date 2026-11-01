@@ -1,6 +1,6 @@
 import { Fragment, lazy, Suspense, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Card, ConfirmDialog, formatDay, Icon, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, TextLink, Toggle } from '@project-graphite/ui';
+import { Card, ConfirmDialog, formatDay, Icon, ListRow, Meter, Placeholder, Skeleton, Stat, StatGrid, TextField, TextLink } from '@project-graphite/ui';
 import { dayKey, shiftMonth } from '../agenda';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
@@ -37,6 +37,7 @@ import { useResource } from '../useResource';
 import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
 import { MissingRates } from '../components/Stats';
+import { Toggle } from '../components/Toggle';
 
 const CurrencyField = lazy(() => import('../components/CurrencyField').then((module) => ({ default: module.CurrencyField })));
 const ExpenseEditor = lazy(() => import('../components/ExpenseEditor').then((module) => ({ default: module.ExpenseEditor })));
@@ -141,15 +142,6 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
       tab={tab}
       toolbar={
         <PeriodNav
-          current={{
-            label: 'This month',
-            onSelect: () =>
-              setParams((current) => {
-                const next = new URLSearchParams(current);
-                next.delete('month');
-                return next;
-              }),
-          }}
           disabled={!shown}
           onShift={(step) => setParams((current) => ({ ...Object.fromEntries(current), month: shiftMonth(shown!.month, step) }))}
           title={
@@ -316,8 +308,8 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
               action={
                 editable && (
                   <span className="flex items-center gap-2">
-                    <AddButton label="New budget" onClick={() => setDialog({ budget: null })} />
                     <ActionsMenu items={[{ label: 'Budget settings…', onSelect: () => setDialog('plan') }]} name="budgets" />
+                    <AddButton label="New budget" onClick={() => setDialog({ budget: null })} />
                   </span>
                 )
               }
@@ -587,8 +579,8 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
           action={
             editable && (
               <span className="flex items-center gap-2">
-                <AddButtonSkeleton />
                 <IconButtonSkeleton />
+                <AddButtonSkeleton />
               </span>
             )
           }
@@ -925,7 +917,6 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         <TextField
           autoFocus
           defaultValue={plan.budgetMinor === null || !plan.currency ? '' : fromMinor(plan.budgetMinor, plan.currency)}
-          hint="Leave empty to add up the category budgets."
           inputMode="decimal"
           label="Monthly budget (optional)"
           {...form.field('budget')}

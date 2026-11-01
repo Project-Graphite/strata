@@ -216,7 +216,7 @@ export function ExpenseEditor({
         {!transfer && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Select label={direction === 'received' ? 'Received on (optional)' : 'Paid with (optional)'} onChange={choosePaidWith} options={paidWithOptions} value={paidWith} />
-            {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
+            {paidWith === 'new-card' && <TextField autoComplete="off" inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
           </div>
         )}
         {capture && <Checkbox defaultChecked={reportParsing} label="Report parsing with an anonymised copy of this message" name="report" />}

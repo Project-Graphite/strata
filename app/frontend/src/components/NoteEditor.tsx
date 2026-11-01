@@ -179,7 +179,7 @@ function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }
       submitLabel={editor.isActive('link') ? 'Save link' : 'Add link'}
       title={editor.isActive('link') ? 'Edit link' : 'New link'}
     >
-      <TextField defaultValue={editor.getAttributes('link').href ?? ''} inputMode="url" label="Address" name="href" placeholder="https://" />
+      <TextField defaultValue={editor.getAttributes('link').href ?? ''} inputMode="url" label="Address" name="href" />
     </FormDialog>
   );
 }
@@ -210,7 +210,7 @@ function EmbedDialog({ editor, onClose }: { editor: Editor; onClose: () => void 
       submitLabel="Embed"
       title="Embed a link"
     >
-      <TextField autoFocus error={error} hint="YouTube videos play in the page. Other links show as a card." inputMode="url" label="Address" name="url" placeholder="https://" />
+      <TextField autoFocus error={error} inputMode="url" label="Address" name="url" />
     </FormDialog>
   );
 }
@@ -392,6 +392,7 @@ export interface EditorTools {
   find: () => void;
   document: () => JSONContent;
   removeComment: (id: string) => void;
+  addPage?: () => void;
 }
 
 function LiveStatus({ connection, editable, editor, noteId, onBlocked }: { connection: Connection; editable: boolean; editor: Editor; noteId: string; onBlocked: (blocked: boolean) => void }) {
@@ -423,14 +424,15 @@ export function CollaborativeEditor({
   const [describing, setDescribing] = useState<{ fileId: string; name: string }[]>([]);
   const [finding, setFinding] = useState(false);
   const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
-  const handlers = useRef({ addBoard, copyBlock, insert, insertFiles, onThread });
-  handlers.current = { addBoard, copyBlock, insert, insertFiles, onThread };
+  const handlers = useRef({ addBoard, addPage, copyBlock, insert, insertFiles, onThread });
+  handlers.current = { addBoard, addPage, copyBlock, insert, insertFiles, onThread };
   const { guest } = connection;
 
   const actions = useMemo<BlockActions>(() => ({
     onFiles: guest || !spaceId ? undefined : (view, files) => handlers.current.insertFiles(view, files),
     onEmbed: guest ? undefined : setEmbedding,
     onBoard: quick || guest || !spaceId ? undefined : (target) => handlers.current.addBoard(target),
+    onPage: quick || guest || !spaceId ? undefined : (target) => handlers.current.addPage(target),
     pageLinks: !guest,
     onCopyBlock: (id) => handlers.current.copyBlock(id),
   }), [guest, quick, spaceId]);
@@ -489,6 +491,15 @@ export function CollaborativeEditor({
       );
   }
 
+  function addPage(target: Editor) {
+    auth
+      .request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ parentId: noteId }) })
+      .then(
+        (page) => target.chain().focus().insertContent({ type: 'childPage', attrs: { pageId: page.id } }).run(),
+        () => show({ message: 'Could not add a page.', tone: 'error' }),
+      );
+  }
+
   function insert(view: EditorView, files: File[], slice: Slice) {
     if (insertFiles(view, files)) return true;
     if (new Blob([JSON.stringify(slice.content.toJSON())]).size <= maxInsertBytes) return false;
@@ -530,9 +541,13 @@ export function CollaborativeEditor({
         find: () => setFinding(true),
         document: () => editor.getJSON(),
         removeComment: (id) => editor.view.dispatch(editor.state.tr.removeMark(0, editor.state.doc.content.size, editor.schema.marks.comment!.create({ id })).setMeta('addToHistory', false)),
+        addPage: editable && !blocked && actions.onPage ? () => {
+          editor.commands.focus('end');
+          actions.onPage!(editor);
+        } : undefined,
       });
     }
-  }, [editor, onTools]);
+  }, [actions, blocked, editable, editor, onTools]);
 
   const commented = (commentedBlocks ?? []).join(' ');
   useEffect(() => {
@@ -601,7 +616,9 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
         if (!node || !(dom instanceof HTMLElement)) return;
         const box = dom.getBoundingClientRect();
         const bounds = area.getBoundingClientRect();
-        setBlock({ node, pos, top: box.top - bounds.top, left: box.left - bounds.left });
+        const top = box.top - bounds.top;
+        const left = box.left - bounds.left;
+        setBlock((current) => (current?.node === node && current.pos === pos && current.top === top && current.left === left ? current : { node, pos, top, left }));
       });
     };
     const leave = () => {
@@ -627,7 +644,7 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
     };
   }, [editor]);
 
-  if (!block || block.node.type.name === 'paragraph') return null;
+  if (!block) return null;
   return (
     <div className="absolute z-10 -translate-x-full" style={{ top: block.top, left: block.left }}>
       <Menu

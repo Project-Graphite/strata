@@ -51,37 +51,47 @@ export function SpaceTasks() {
         }
       >
         {lists.data ? (
-          <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editable ? () => setListDialog('new') : undefined} />
-        ) : (
-          !lists.error && <ChipsSkeleton count={listCount + (editable ? 2 : 1)} />
-        )}
-        {editable && listId && !lists.data && !lists.error && <IconButtonSkeleton />}
-        {editable && shownList && (
-          <ActionsMenu
-            items={[
-              { label: 'Rename list', onSelect: () => setListDialog('rename') },
-              {
-                label: 'Move to trash',
-                separated: true,
-                onSelect: () =>
-                  void action.run(async () => {
-                    await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
-                    lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
-                    navigate(link({ list: null }));
-                    return {
-                      message: `Moved ${shownList.title} to the trash. Its tasks stay in this space.`,
-                      undo: async () => {
-                        await auth.request(`/items/${shownList.id}/restore`, { method: 'POST' });
-                        lists.reload();
-                        navigate(link({ list: shownList.id }));
-                        return '';
-                      },
-                    };
-                  }, 'Could not move the list to the trash'),
-              },
-            ]}
-            name={shownList.title}
+          <TaskListChips
+            link={link}
+            listId={listId}
+            lists={lists.data}
+            menu={
+              editable &&
+              shownList && (
+                <ActionsMenu
+                  items={[
+                    { label: 'Rename list', onSelect: () => setListDialog('rename') },
+                    {
+                      label: 'Move to trash',
+                      separated: true,
+                      onSelect: () =>
+                        void action.run(async () => {
+                          await auth.request(`/items/${shownList.id}/trash`, { method: 'POST' });
+                          lists.mutate((current) => current.filter((list) => list.id !== shownList.id));
+                          navigate(link({ list: null }));
+                          return {
+                            message: `Moved ${shownList.title} to the trash. Its tasks stay in this space.`,
+                            undo: async () => {
+                              await auth.request(`/items/${shownList.id}/restore`, { method: 'POST' });
+                              lists.reload();
+                              navigate(link({ list: shownList.id }));
+                              return '';
+                            },
+                          };
+                        }, 'Could not move the list to the trash'),
+                    },
+                  ]}
+                  name={shownList.title}
+                />
+              )
+            }
+            onNewList={editable ? () => setListDialog('new') : undefined}
           />
+        ) : (
+          <>
+            {editable && listId && !lists.error && <IconButtonSkeleton />}
+            {!lists.error && <ChipsSkeleton count={listCount + (editable ? 2 : 1)} />}
+          </>
         )}
       </Toolbar>
 

@@ -98,7 +98,7 @@ export function AccountEditor({
       submitLabel={account ? 'Save changes' : 'Add account'}
       title={account ? 'Edit account' : 'New account'}
     >
-      <TextField autoComplete="off" autoFocus defaultValue={account?.name} label="Name" maxLength={60} placeholder="CIB current account" {...form.field('name')} />
+      <TextField autoComplete="off" autoFocus defaultValue={account?.name} label="Name" maxLength={60} {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="Type" onChange={setKind} options={accountKindOptions} value={kind} />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
@@ -116,7 +116,7 @@ export function AccountEditor({
             presets={[{ label: 'Last day', value: '31' }]}
           />
         )}
-        <TextField autoComplete="off" defaultValue={account?.institution ?? ''} label="Bank or provider (optional)" maxLength={60} placeholder="CIB, Vodafone, valU" {...form.field('institution')} />
+        <TextField autoComplete="off" defaultValue={account?.institution ?? ''} label="Bank or provider (optional)" maxLength={60} {...form.field('institution')} />
         {kind !== 'cash' && (
           <TextField
             autoComplete="off"
@@ -124,7 +124,6 @@ export function AccountEditor({
             dir="auto"
             label="InstaPay address or wallet number (optional)"
             maxLength={120}
-            placeholder="name@instapay or 010…"
             {...form.field('handle')}
           />
         )}
@@ -141,8 +140,8 @@ export function AccountEditor({
       </div>
       {kind !== 'cash' && (
         <>
-          {!account && <TextField inputMode="numeric" label="Card endings (optional)" placeholder="1234, 5678" {...form.field('cardDigits')} />}
-          <TextField defaultValue={account?.senders.join(', ')} label="SMS chats or apps (optional)" placeholder="CIB, InstaPay, nSave, PayPal" {...form.field('senders')} />
+          {!account && <TextField inputMode="numeric" label="Card endings (optional)" {...form.field('cardDigits')} />}
+          <TextField defaultValue={account?.senders.join(', ')} label="SMS chats or apps (optional)" {...form.field('senders')} />
         </>
       )}
     </FormDialog>

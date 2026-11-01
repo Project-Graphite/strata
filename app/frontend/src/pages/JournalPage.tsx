@@ -84,7 +84,6 @@ export function JournalPage() {
       toolbar={
         data ? (
           <PeriodNav
-            current={data.year < thisYear ? { label: 'This year', onSelect: () => navigate('/journal') } : undefined}
             last={data.year >= thisYear}
             onShift={(step) => navigate(`/journal?year=${data.year + step}`)}
             title={data.year}

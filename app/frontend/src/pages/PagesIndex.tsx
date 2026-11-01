@@ -11,9 +11,10 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { NoteMark } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
+import { SearchField } from '../components/SearchField';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, childPagesPath, nestedUnder, noteEdited, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
-import { SpaceMark, useSpaces } from '../spaces';
+import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -66,7 +67,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
           <li key={page.id} role="none">
             <div aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${noteEdited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
               <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
-                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
+                <Icon name="chevron-right" size={16} />
               </button>
               <Link className="flex min-w-0 flex-1 items-center gap-3 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
                 <NoteMark note={page} />
@@ -153,7 +154,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   return (
     <PagesTreeContext value={{ open, toggle, trash: (note) => moveToTrash(note, 0) }}>
       <ul
-        aria-label="Pages by space"
+        aria-label="Pages"
         className="pages-tree"
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) setInside(false);
@@ -168,28 +169,9 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
         role="tree"
         tabIndex={inside ? -1 : 0}
       >
-        {spaces.data.map((space) => {
-          const key = `space:${space.id}`;
-          const expanded = !open.has(key);
-          return (
-            <li key={space.id} role="none">
-              <div aria-expanded={expanded} aria-label={space.name} aria-level={1} aria-owns={expanded ? `pages-group-${key}` : undefined} className="pages-tree-row" data-tree-id={key} role="treeitem" style={pageIndent(0)} tabIndex={-1}>
-                <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} tabIndex={-1} type="button">
-                  <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
-                </button>
-                <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 text-left text-ink" onClick={() => toggle(key)} tabIndex={-1} type="button">
-                  <SpaceMark space={space} />
-                  <span className="min-w-0 truncate">{space.name}</span>
-                </button>
-              </div>
-              {expanded && (
-                <ul id={`pages-group-${key}`} role="group">
-                  <TreeLevel depth={1} parentId={null} spaceId={space.id} writable={space.role !== 'viewer'} />
-                </ul>
-              )}
-            </li>
-          );
-        })}
+        {spaces.data.map((space) => (
+          <TreeLevel depth={0} key={space.id} parentId={null} spaceId={space.id} writable={space.role !== 'viewer'} />
+        ))}
       </ul>
     </PagesTreeContext>
   );
@@ -312,7 +294,7 @@ export function PagesIndex({ section }: { section: PagesSection }) {
       title="Pages"
       toolbar={
         section === 'pages' && (
-          <input aria-label="Search pages" autoComplete="off" className="max-w-md" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search pages" type="search" value={query} />
+          <SearchField label="Search pages" onChange={setQuery} value={query} />
         )
       }
     >

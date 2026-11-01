@@ -69,7 +69,7 @@ export function InstallmentEditor({
       submitLabel={plan ? 'Save changes' : 'Add plan'}
       title={plan ? 'Edit installment plan' : 'New installment plan'}
     >
-      <TextField autoComplete="off" autoFocus defaultValue={plan?.name} label="Name" maxLength={120} placeholder="valU phone" {...form.field('name')} />
+      <TextField autoComplete="off" autoFocus defaultValue={plan?.name} label="Name" maxLength={120} {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField defaultValue={plan ? fromMinor(plan.monthlyMinor, plan.currency) : ''} inputMode="decimal" label="Each month" {...form.field('monthly')} />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />

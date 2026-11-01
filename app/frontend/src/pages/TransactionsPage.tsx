@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
+import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, IconButton, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Amount } from '../components/Amount';
 import { Button, TextButton } from '../components/Button';
@@ -10,6 +10,7 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { AmountRowsSkeleton, SkeletonLine } from '../components/Skeletons';
 import { SpendingFrame } from '../components/SpendingFrame';
+import { SearchField } from '../components/SearchField';
 import { SelectionBar, toggled } from '../components/Selection';
 import { MissingRates } from '../components/Stats';
 import {
@@ -225,17 +226,9 @@ export function TransactionsPage() {
       tab="transactions"
       toolbar={
         <div className="grid w-full min-w-0 gap-3">
-          <div className="flex min-w-0 items-stretch gap-2">
-            <input
-              aria-label="Search transactions"
-              autoComplete="off"
-              className="min-w-0 max-w-md flex-1"
-              onChange={(event) => setSearch(event.currentTarget.value)}
-              placeholder="Search transactions"
-              type="search"
-              value={search}
-            />
-            <Button icon="filter" label="Filters" large onClick={() => setDialog('filters')} />
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <SearchField label="Search transactions" onChange={setSearch} value={search} />
+            <IconButton icon="filter" label="Filters" onClick={() => setDialog('filters')} />
           </div>
           {chips.length > 0 && (
             <div className="chip-row items-center">

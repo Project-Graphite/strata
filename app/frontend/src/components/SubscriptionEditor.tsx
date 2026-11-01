@@ -140,7 +140,6 @@ export function SubscriptionEditor({
       />
       <TextField
         defaultValue={subscription?.paymentLabel ?? ''}
-        hint="A label only, for example “Visa ending 1234”. Card details are never stored."
         label="Paid with"
         maxLength={40}
         {...form.field('paymentLabel')}

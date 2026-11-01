@@ -89,7 +89,6 @@ export function MealPlanPage() {
       tab="plan"
       toolbar={
         <PeriodNav
-          current={{ label: 'This week', onSelect: () => go({ week: mondayOf(today) }) }}
           onShift={(step) => go({ week: addDays(monday, step * 7) })}
           title={formatRange(monday, addDays(monday, 6))}
           unit="week"
@@ -247,7 +246,7 @@ export function PlanMealDialog({
             searchable
             value={chosen}
           />
-          <TextField disabled={Boolean(chosen)} label="Or write what you will eat" maxLength={200} name="note" onInput={() => setError(undefined)} placeholder="Leftovers, eating out" />
+          <TextField disabled={Boolean(chosen)} label="Or write what you will eat" maxLength={200} name="note" onInput={() => setError(undefined)} />
         </>
       )}
     </FormDialog>

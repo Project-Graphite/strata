@@ -62,7 +62,7 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
         submitLabel="Save changes"
         title={`Messages naming ${rule.match}`}
       >
-        <TextField autoFocus defaultValue={rule.rename ?? ''} hint="Leave empty to keep the name from the message." label="Call it" maxLength={200} name="rename" />
+        <TextField autoFocus defaultValue={rule.rename ?? ''} label="Call it" maxLength={200} name="rename" />
         <Select
           label="Category"
           onChange={(category: string) => setChosen((current) => ({ ...current, category }))}

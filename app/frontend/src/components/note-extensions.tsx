@@ -20,10 +20,13 @@ import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewPro
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
 import type { useAuth } from '../auth';
+import { noteTitle, type Note } from '../notes';
 import { itemHref, itemKindName, type Member } from '../spaces';
+import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
 import { Callout, changedBlocks, CodeHighlight, Column, Columns, columnsOf, enterFirstColumn } from './editor-blocks';
 import { Hint } from './Hint';
+import { NoteMark } from './NoteMark';
 import { FileAttachmentExtension, LinkCard, StoredImageExtension, TableOfContentsBlock, uuidOrNull, Video } from './media-blocks';
 
 interface Candidate {
@@ -255,11 +258,12 @@ export interface BlockActions {
   onFiles?: (view: Editor['view'], files: File[]) => void;
   onEmbed?: (editor: Editor) => void;
   onBoard?: (editor: Editor) => void;
+  onPage?: (editor: Editor) => void;
   onCopyBlock?: (id: string) => void;
   pageLinks?: boolean;
 }
 
-export function blockChoices({ onFiles, onEmbed, onBoard, pageLinks = true }: BlockActions): BlockChoice[] {
+export function blockChoices({ onFiles, onEmbed, onBoard, onPage, pageLinks = true }: BlockActions): BlockChoice[] {
   const chooseFiles = (editor: Editor, accept: string) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -269,6 +273,22 @@ export function blockChoices({ onFiles, onEmbed, onBoard, pageLinks = true }: Bl
     input.click();
   };
   return [
+    ...(onPage
+      ? [
+          {
+            id: 'page',
+            group: 'Basic' as const,
+            icon: 'file' as const,
+            label: 'Page',
+            hint: 'nested page',
+            words: 'page subpage child nested new',
+            run: (chain: ChainedCommands, editor: Editor) => {
+              chain.run();
+              onPage(editor);
+            },
+          },
+        ]
+      : []),
     { id: 'text', group: 'Basic', glyph: 'T', label: 'Text', hint: 'paragraph', words: 'text paragraph plain', run: (chain) => chain.setParagraph().run() },
     { id: 'heading1', group: 'Basic', icon: 'heading-1', label: 'Heading 1', hint: '#', words: 'heading title h1', run: (chain) => chain.setHeading({ level: 1 }).run() },
     { id: 'heading2', group: 'Basic', icon: 'heading-2', label: 'Heading 2', hint: '##', words: 'subheading heading h2', run: (chain) => chain.setHeading({ level: 2 }).run() },
@@ -411,6 +431,44 @@ export const BoardEmbedExtension = Node.create({
   addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
 });
 
+function ChildPageLink({ pageId }: { pageId: string }) {
+  const page = useResource<Note>(`/notes/${pageId}`, true, { live: ['page-details', 'items'], itemIds: [pageId] });
+  if (page.error) return <Hint>This page is missing</Hint>;
+  return (
+    <Link className="note-child-page-link" contentEditable={false} draggable={false} to={`/notes/${pageId}`}>
+      <NoteMark note={page.data ?? { icon: null, kind: 'note' }} />
+      <span className="min-w-0 flex-1 truncate">{page.data ? noteTitle(page.data) : 'Loading…'}</span>
+      <Icon name="chevron-right" size={16} />
+    </Link>
+  );
+}
+
+function ChildPage({ extension, node }: NodeViewProps) {
+  const pageId = uuidOrNull(node.attrs.pageId);
+  return (
+    <NodeViewWrapper className="note-child-page">
+      {extension.options.shared ? <Hint>This page needs its own share link.</Hint> : pageId ? <ChildPageLink pageId={pageId} /> : <Hint>This page is missing</Hint>}
+    </NodeViewWrapper>
+  );
+}
+
+export const ChildPageExtension = Node.create({
+  name: 'childPage',
+  group: 'block',
+  atom: true,
+  addOptions: () => ({ shared: false }),
+  addAttributes: () => ({
+    pageId: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute('data-page'),
+      renderHTML: (attributes: { pageId?: string | null }) => ({ 'data-page': attributes.pageId }),
+    },
+  }),
+  parseHTML: () => [{ tag: 'div[data-page]' }],
+  renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
+  addNodeView: () => ReactNodeViewRenderer(ChildPage),
+});
+
 interface CommentedState {
   ids: Set<string>;
   decorations: DecorationSet;
@@ -473,7 +531,7 @@ export const CommentedBlocks = Extension.create({
   ],
 });
 
-const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'horizontalRule', 'columns', 'fileAttachment', 'linkCard', 'youtube', 'tableOfContents'];
+const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout', 'details', 'table', 'bulletList', 'orderedList', 'taskList', 'listItem', 'taskItem', 'image', 'boardEmbed', 'childPage', 'horizontalRule', 'columns', 'fileAttachment', 'linkCard', 'youtube', 'tableOfContents'];
 
 export function pageContent(request: Request | undefined, noteId: string, peopleSpaceId?: string) {
   return [
@@ -495,6 +553,7 @@ export function pageContent(request: Request | undefined, noteId: string, people
     mentionExtension(request, noteId, peopleSpaceId),
     PersonMention,
     BoardEmbedExtension.configure({ shared: !request }),
+    ChildPageExtension.configure({ shared: !request }),
     StoredImageExtension,
     FileAttachmentExtension,
     LinkCard,

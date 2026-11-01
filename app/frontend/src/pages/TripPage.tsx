@@ -414,7 +414,7 @@ function PackDialog({ busy, onClose, onSubmit }: { busy: boolean; onClose: () =>
       submitLabel="Add item"
       title="Add item"
     >
-      <TextField autoComplete="off" autoFocus label="Item" maxLength={200} placeholder="Passport" {...form.field('title')} />
+      <TextField autoComplete="off" autoFocus label="Item" maxLength={200} {...form.field('title')} />
     </FormDialog>
   );
 }

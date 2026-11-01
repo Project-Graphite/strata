@@ -1,4 +1,4 @@
-import { Placeholder, Toggle } from '@project-graphite/ui';
+import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Me } from '../pages/settings/SettingsLayout';
 import { useAction } from '../useAction';
@@ -6,6 +6,7 @@ import { useResource } from '../useResource';
 import { LoadError } from './LoadError';
 import { Section } from './Page';
 import { ToggleSkeleton } from './Skeletons';
+import { Toggle } from './Toggle';
 
 export function NotificationToggle({
   description,

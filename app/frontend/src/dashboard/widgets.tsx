@@ -93,7 +93,6 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
     <div className="grid gap-2">
       <Select
         disabled={zones.length >= 8}
-        hint={zones.length >= 8 ? 'Up to 8 clocks.' : undefined}
         label="World clocks"
         onChange={(zone) => onChange({ zones: [...zones, zone] })}
         options={options.filter((option) => !zones.includes(option.value))}

@@ -59,9 +59,9 @@ export function TripEditor({ onClose, onSaved, spaces, trip }: { onClose: () => 
       submitLabel={trip ? 'Save changes' : 'Add trip'}
       title={trip ? 'Edit trip' : 'New trip'}
     >
-      <TextField autoFocus defaultValue={trip?.title} label="Trip" maxLength={200} placeholder="Lisbon in May" {...form.field('title')} />
+      <TextField autoFocus defaultValue={trip?.title} label="Trip" maxLength={200} {...form.field('title')} />
       {!trip && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
-      <TextField defaultValue={trip?.destination} label="Destination (optional)" maxLength={200} name="destination" placeholder="Lisbon, Portugal" />
+      <TextField defaultValue={trip?.destination} label="Destination (optional)" maxLength={200} name="destination" />
       <div className="grid gap-4 sm:grid-cols-2">
         <DatePicker error={datesError} label="From" onChange={setStartsOn} optional={false} value={startsOn} />
         <DatePicker label="Until" min={startsOn || undefined} onChange={setEndsOn} optional={false} value={endsOn} />
