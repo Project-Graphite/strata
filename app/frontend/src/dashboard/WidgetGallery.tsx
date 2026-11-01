@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { widgetGroups, widgetKinds, type WidgetType } from './widgets';
 import { Button } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
+import { SearchField } from '../components/SearchField';
 
 export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) => void; onClose: () => void }) {
   const auth = useAuth();
@@ -18,7 +19,7 @@ export function WidgetGallery({ onAdd, onClose }: { onAdd: (type: WidgetType) =>
   return (
     <Dialog onClose={onClose} title="Add widget">
       <div className="mt-5 grid gap-5">
-        <input aria-label="Search widgets" autoComplete="off" onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search widgets" type="search" value={query} />
+        <SearchField label="Search widgets" onChange={setQuery} value={query} />
         {kinds.length === 0 && <EmptyState title="No widgets match" variant="filtered" />}
         {widgetGroups.map((group) => {
           const inGroup = kinds.filter((type) => widgetKinds[type].group === group);

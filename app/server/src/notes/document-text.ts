@@ -45,6 +45,7 @@ export function documentText(document: Y.Doc, maxLength = 100_000) {
 const linkAttributes = new Map<string, [string, 'mentions' | 'files']>([
   ['mention', ['id', 'mentions']],
   ['boardEmbed', ['boardId', 'mentions']],
+  ['childPage', ['pageId', 'mentions']],
   ['image', ['fileId', 'files']],
   ['fileAttachment', ['fileId', 'files']],
 ]);

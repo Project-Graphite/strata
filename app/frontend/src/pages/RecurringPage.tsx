@@ -98,8 +98,8 @@ export function RecurringPage() {
             action={
               (!spaces.data || editable.length > 0) && (
                 <span className="flex items-center gap-2">
-                  <AddButtonSkeleton />
                   <IconButtonSkeleton />
+                  <AddButtonSkeleton />
                 </span>
               )
             }
@@ -172,8 +172,8 @@ export function RecurringPage() {
             action={
               editable.length > 0 && (
                 <span className="flex items-center gap-2">
-                  <AddButton label="New subscription" onClick={() => setEditing('new')} />
                   <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
+                  <AddButton label="New subscription" onClick={() => setEditing('new')} />
                 </span>
               )
             }

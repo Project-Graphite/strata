@@ -116,7 +116,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
           submitLabel="Create token"
           title="New access token"
         >
-          <TextField autoFocus label="Name" maxLength={60} placeholder="Backup script" {...form.field('name')} />
+          <TextField autoFocus label="Name" maxLength={60} {...form.field('name')} />
           <Fieldset legend="Permissions">
             {scopes.map(([scope, description]) => (
               <Checkbox

@@ -83,7 +83,7 @@ export function BookmarksPage() {
           submitLabel="Add bookmark"
           title="New bookmark"
         >
-          <TextField autoFocus inputMode="url" label="Link" placeholder="https://" type="url" {...form.field('url')} />
+          <TextField autoFocus inputMode="url" label="Link" type="url" {...form.field('url')} />
           <input name="spaceId" type="hidden" value={writable[0]!.id} />
         </FormDialog>
       )}

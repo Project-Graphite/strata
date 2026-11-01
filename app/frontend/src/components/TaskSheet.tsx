@@ -9,6 +9,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
+import { CommentsButton, CommentsPanel } from './CommentsPanel';
 import type { OpenTaskProps } from './OpenTask';
 import { Activity, Attachments, Comments, DescriptionEditor, Subtasks } from './TaskTicket';
 
@@ -60,6 +61,8 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const [created, setCreated] = useState<TaskDetail>();
   const [title, setTitle] = useState<string>();
   const [activityOpen, setActivityOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState(0);
   const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
     title: '',
     status: 'open',
@@ -150,8 +153,10 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   return (
     <Sheet
       actions={
-        task &&
-        editable && (
+        task && (
+          <>
+            <CommentsButton count={comments} onClick={() => setCommentsOpen(!commentsOpen)} open={commentsOpen} />
+            {editable && (
           <ActionsMenu
             items={[
               {
@@ -176,6 +181,8 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
             ]}
             name={task.title}
           />
+            )}
+          </>
         )
       }
       eyebrow={task?.parentId && <TextButton icon="chevron-left" label="Parent task" onClick={() => setId(task.parentId!)} />}
@@ -234,7 +241,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                       update={(change) => detail.mutate(change)}
                     />
                   )}
-                  <Comments editable={editable} owner={space?.role === 'owner'} taskId={task.id} />
                   <Attachments editable={editable} taskId={task.id} />
                   <details className="task-activity" onToggle={(event) => setActivityOpen(event.currentTarget.open)}>
                     <summary className="text-h3 text-ink">Activity</summary>
@@ -305,6 +311,11 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
               {zone && <p className="task-labels m-0 text-small text-muted">Times are in {zone}.</p>}
             </aside>
           </div>
+          {task && (
+            <CommentsPanel onClose={() => setCommentsOpen(false)} open={commentsOpen}>
+              <Comments editable={editable} key={task.id} onCount={setComments} owner={space?.role === 'owner'} taskId={task.id} />
+            </CommentsPanel>
+          )}
         </div>
       )}
     </Sheet>

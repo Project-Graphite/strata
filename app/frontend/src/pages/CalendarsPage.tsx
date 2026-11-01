@@ -124,7 +124,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
           submitLabel="Follow calendar"
           title="Follow a calendar"
         >
-          <TextField autoFocus hint="An https:// or webcal:// address." inputMode="url" label="Calendar address" {...form.field('url')} />
+          <TextField autoFocus inputMode="url" label="Calendar address" {...form.field('url')} />
           <TextField label="Name (optional)" maxLength={80} {...form.field('name')} />
           <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />
         </FormDialog>

@@ -172,7 +172,7 @@ export function AddTransaction({ accounts, currency, onClose, onSaved, spaceId }
                   ]}
                   value={paidWith}
                 />
-                {paidWith === 'new-card' && <TextField autoComplete="off" hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
+                {paidWith === 'new-card' && <TextField autoComplete="off" inputMode="numeric" label="Card ending" maxLength={4} {...form.field('cardDigits')} />}
               </div>
             )}
             {direction === 'spent' && <Checkbox checked={refund} label="This is a refund" onChange={(event) => setRefund(event.currentTarget.checked)} />}

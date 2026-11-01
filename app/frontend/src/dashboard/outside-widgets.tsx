@@ -146,7 +146,6 @@ export function WeatherSettings({ onChange, settings }: SettingsProps) {
               if (query.trim().length >= 2) void search();
             }
           }}
-          placeholder="City or town"
           value={query}
         />
         <Button disabled={query.trim().length < 2} label="Search" onClick={() => void search()} />
@@ -191,7 +190,7 @@ function stringsOf(value: unknown) {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 }
 
-function AddressLines({ label, max, onChange, placeholder, values }: { label: string; max: number; onChange: (values: string[]) => void; placeholder: string; values: string[] }) {
+function AddressLines({ label, max, onChange, values }: { label: string; max: number; onChange: (values: string[]) => void; values: string[] }) {
   const [text, setText] = useState(values.join('\n'));
   return (
     <TextAreaField
@@ -206,7 +205,6 @@ function AddressLines({ label, max, onChange, placeholder, values }: { label: st
             .slice(0, max),
         );
       }}
-      placeholder={placeholder}
       rows={4}
       value={text}
     />
@@ -280,7 +278,6 @@ export function NewsSettings({ onChange, settings }: SettingsProps) {
         label="Feed addresses, one per line (up to 5)"
         max={5}
         onChange={(feeds) => onChange({ ...settings, feeds })}
-        placeholder="https://example.com/feed.xml"
         values={stringsOf(settings.feeds)}
       />
       <Select

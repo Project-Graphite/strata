@@ -123,7 +123,6 @@ export function RegisterPage() {
         <TextField autoComplete="name" label="Display name" maxLength={80} {...form.field('displayName')} />
         <TextField
           autoCapitalize="none"
-          hint="How people find you to share spaces. It can’t be changed later."
           label="Handle"
           maxLength={32}
           spellCheck={false}
@@ -139,7 +138,6 @@ export function RegisterPage() {
         />
         <TextField
           autoComplete="new-password"
-          hint="At least 12 characters."
           label="Password"
           type="password"
           {...form.field('password')}

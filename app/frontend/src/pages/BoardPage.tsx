@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import { IconButton, LinesSkeleton } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
+import { CommentsButton, CommentsPanel } from '../components/CommentsPanel';
 import { CommitInput } from '../components/CommitInput';
 import { FileSourceContext } from '../components/file-source';
 import { IconPicker } from '../components/IconPicker';
@@ -33,6 +34,7 @@ export function BoardPage() {
   const [commentedBlocks, setCommentedBlocks] = useState<string[]>([]);
   const [anchors, setAnchors] = useState<CommentAnchors>();
   const [commenting, setCommenting] = useState(false);
+  const [threads, setThreads] = useState(0);
   const [open, setOpen] = useState<'share' | 'history'>();
   const { run } = useAction();
   useEffect(() => {
@@ -102,7 +104,7 @@ export function BoardPage() {
               actions: (
                 <>
                   {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
-                  <IconButton aria-pressed={commenting} icon="quote" label="Comments" onClick={() => setCommenting(!commenting)} />
+                  <CommentsButton count={threads} onClick={() => setCommenting(!commenting)} open={commenting} />
                 </>
               ),
               menu: [
@@ -127,18 +129,19 @@ export function BoardPage() {
           />
         </Suspense>
       </FileSourceContext>
-      <aside className="board-comments" hidden={!commenting}>
+      <CommentsPanel onClose={() => setCommenting(false)} open={commenting}>
         <NoteComments
           anchors={anchors}
           commentable={details.permissions.comment}
           editable={details.editable}
           noteId={details.id}
           onBlocks={setCommentedBlocks}
+          onCount={setThreads}
           onQuoteDone={() => setQuoting(undefined)}
           owner={space?.role === 'owner'}
           quoting={quoting}
         />
-      </aside>
+      </CommentsPanel>
       {open === 'share' && <ShareLinks editLinks itemId={details.id} noun="board" onClose={() => setOpen(undefined)} page />}
       {open === 'history' && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} />}
     </div>

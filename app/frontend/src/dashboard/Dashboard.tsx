@@ -89,7 +89,6 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
         {Settings && <Settings onChange={(settings) => onChange({ settings })} settings={widget.settings} />}
         <Fieldset className="gap-4" legend="Card">
           <TextField
-            hint="Clear the title to hide it."
             label="Title"
             maxLength={40}
             onChange={(event) => {

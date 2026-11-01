@@ -81,9 +81,9 @@ export function RecipeEditor({
         <TextField defaultValue={start?.prepMinutes ?? ''} inputMode="numeric" label="Prep (minutes)" {...form.field('prepMinutes')} />
         <TextField defaultValue={start?.cookMinutes ?? ''} inputMode="numeric" label="Cooking (minutes)" {...form.field('cookMinutes')} />
       </div>
-      <TextAreaField defaultValue={start?.ingredients.join('\n')} hint="One per line, such as 200 g flour." label="Ingredients" name="ingredients" rows={6} />
-      <TextAreaField defaultValue={start?.steps.join('\n')} hint="One step per line." label="Steps" name="steps" rows={6} />
-      <TextField defaultValue={start?.sourceUrl ?? ''} inputMode="url" label="Source link (optional)" placeholder="https://" {...form.field('sourceUrl')} />
+      <TextAreaField defaultValue={start?.ingredients.join('\n')} label="Ingredients" name="ingredients" rows={6} />
+      <TextAreaField defaultValue={start?.steps.join('\n')} label="Steps" name="steps" rows={6} />
+      <TextField defaultValue={start?.sourceUrl ?? ''} inputMode="url" label="Source link (optional)" {...form.field('sourceUrl')} />
     </FormDialog>
   );
 }
@@ -113,7 +113,6 @@ export function ImportRecipe({ onClose, onRead }: { onClose: () => void; onRead:
         autoFocus
         inputMode="url"
         label="Link to the recipe"
-        placeholder="https://"
         type="url"
         {...form.field('url')}
       />

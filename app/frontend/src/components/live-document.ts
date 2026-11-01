@@ -56,7 +56,7 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
       name: noteId,
       document,
       websocketProvider,
-      flushDelay: 50,
+      flushDelay: 16,
       token: async () => {
         if (shareCode) return `share:${shareCode}`;
         try {

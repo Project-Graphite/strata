@@ -110,7 +110,6 @@ export function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: ()
         autoCapitalize="none"
         autoComplete="off"
         autoFocus
-        hint="By @handle if they already use Strata. Each invite works once, for 14 days."
         label="Email or @handle"
         spellCheck={false}
         {...form.field('who')}

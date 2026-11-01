@@ -277,7 +277,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
       submitLabel={asset ? 'Save changes' : 'Add asset'}
       title={asset ? 'Edit asset' : 'New asset'}
     >
-      <TextField autoComplete="off" autoFocus defaultValue={asset?.name} label="Name" maxLength={120} placeholder="21k gold, 20 g" {...form.field('name')} />
+      <TextField autoComplete="off" autoFocus defaultValue={asset?.name} label="Name" maxLength={120} {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="Kind" onChange={setKind} options={assetKindOptions} value={kind} />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
@@ -332,7 +332,7 @@ function SavingsGoalEditor({
       submitLabel={goal ? 'Save changes' : 'Add goal'}
       title={goal ? 'Edit savings goal' : 'New savings goal'}
     >
-      <TextField autoComplete="off" autoFocus defaultValue={goal?.name} label="Name" maxLength={120} placeholder="New car" {...form.field('name')} />
+      <TextField autoComplete="off" autoFocus defaultValue={goal?.name} label="Name" maxLength={120} {...form.field('name')} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField defaultValue={goal ? fromMinor(goal.targetMinor, goal.currency) : ''} inputMode="decimal" label="Target" {...form.field('target')} />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />

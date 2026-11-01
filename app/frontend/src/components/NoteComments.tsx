@@ -7,7 +7,6 @@ import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { LoadError } from './LoadError';
 import { Button, TextButton } from './Button';
-import { Section } from './Page';
 import type { Member } from '../spaces';
 import { pageAnchorText, showPageBlock } from './page-blocks';
 
@@ -117,8 +116,8 @@ export function NoteComments({
   people,
   focused,
   onAnchorDropped,
-  hideWhenEmpty = false,
   composing = false,
+  onCount,
 }: {
   noteId: string;
   editable: boolean;
@@ -131,8 +130,8 @@ export function NoteComments({
   people?: Member[];
   focused?: { id: string };
   onAnchorDropped?: (blockId: string) => void;
-  hideWhenEmpty?: boolean;
   composing?: boolean;
+  onCount?: (open: number) => void;
 }) {
   const auth = useAuth();
   const comments = useResource<NoteComment[]>(`/notes/${noteId}/comments`, true, { live: ['page-comments', 'spaces'], itemIds: [noteId] });
@@ -148,6 +147,9 @@ export function NoteComments({
 
   useEffect(() => onBlocks(commented ? commented.split(' ') : []), [commented, onBlocks]);
 
+  const openThreads = comments.data?.filter((comment) => !comment.parentId && !comment.resolvedAt).length ?? 0;
+  useEffect(() => onCount?.(openThreads), [onCount, openThreads]);
+
   useEffect(() => {
     const thread = focused && document.querySelector<HTMLElement>(`article[data-block-id="${CSS.escape(focused.id)}"]`);
     if (!thread) return;
@@ -159,7 +161,6 @@ export function NoteComments({
   if (!comments.data) return null;
   const all = comments.data;
   const threads = all.filter((comment) => !comment.parentId);
-  if (hideWhenEmpty && threads.length === 0 && !quoting && !composing) return null;
   const resolved = threads.filter((thread) => thread.resolvedAt).length;
   const shown = threads.filter((thread) => showResolved || !thread.resolvedAt);
 
@@ -226,9 +227,10 @@ export function NoteComments({
   }
 
   return (
-    <section aria-label="Comments">
+    <section aria-label="Comment threads" className="grid gap-6">
       {comments.refreshError && <LoadError compact error={comments.refreshError} onRetry={comments.reload} />}
-      <Section action={resolved > 0 && <TextButton label={showResolved ? 'Hide resolved' : `Show ${resolved} resolved`} onClick={() => setShowResolved(!showResolved)} />} title="Comments">
+      {resolved > 0 && <TextButton label={showResolved ? 'Hide resolved' : `Show ${resolved} resolved`} onClick={() => setShowResolved(!showResolved)} />}
+      <div className="grid gap-6">
         {shown.map((thread) => (
           <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} data-block-id={thread.blockId ?? undefined} key={thread.id}>
             {renderComment(thread)}
@@ -278,7 +280,7 @@ export function NoteComments({
                 : `Its ${deleting.replies} replies are deleted too.`}
           </ConfirmDialog>
         )}
-      </Section>
+      </div>
     </section>
   );
 }

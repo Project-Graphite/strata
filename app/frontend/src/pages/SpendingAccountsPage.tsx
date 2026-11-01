@@ -498,8 +498,8 @@ function CardDialog({
             <Select label="Account" onChange={setAccountId} options={accounts.map((option) => ({ value: option.id, label: option.name }))} value={accountId} />
           </div>
         )}
-        <TextField autoComplete="off" autoFocus defaultValue={card?.last4 ?? last4} hint="Only the last 4 digits." inputMode="numeric" label="Card ending" maxLength={4} {...form.field('last4')} />
-        <TextField autoComplete="off" defaultValue={card?.label ?? ''} label="Name (optional)" maxLength={40} placeholder="Daily card" {...form.field('label')} />
+        <TextField autoComplete="off" autoFocus defaultValue={card?.last4 ?? last4} inputMode="numeric" label="Card ending" maxLength={4} {...form.field('last4')} />
+        <TextField autoComplete="off" defaultValue={card?.label ?? ''} label="Name (optional)" maxLength={40} {...form.field('label')} />
         <Select label="Network" onChange={setNetwork} options={cardNetworkOptions} value={network} />
         <Select label="Kind" onChange={setKind} options={cardKindOptions} value={kind} />
       </div>

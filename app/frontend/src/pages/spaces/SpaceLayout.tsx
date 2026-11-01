@@ -168,7 +168,6 @@ export function SpaceLayout() {
     return (
       <Page
         actions={<IconButtonSkeleton />}
-        description={<SkeletonLine width="w-48" />}
         documentTitle="Space"
         tabs={tabs}
         title={
@@ -204,7 +203,6 @@ export function SpaceLayout() {
           name={space.name}
         />
       }
-      description={spaceDescription(space)}
       documentTitle={sections.find(([href]) => pathname === href)?.[1] ?? space.name}
       tabs={tabs}
       title={

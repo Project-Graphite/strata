@@ -4,7 +4,7 @@ import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { childPagesPath, noteHref, noteTitle, onPagesChanged, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
-import { SpaceMark, useSpaces } from '../spaces';
+import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
@@ -98,7 +98,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
                 tree.drag(); tree.aim();
               }} style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 0.6}rem` }}>
               <button aria-expanded={nests ? expanded : undefined} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle enabled:cursor-pointer" disabled={!nests} onClick={() => tree.toggle(note.id)} type="button">
-                {nests && <Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />}
+                {nests && <Icon name="chevron-right" size={16} />}
               </button>
               <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={noteHref(note)}>
                 <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
@@ -123,7 +123,7 @@ export function PageTree() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [currentPage] = usePageNavigation();
-  const spaces = useSpaces();
+  const { space, editable: writable } = useChosenSpace();
   const action = useAction();
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
@@ -134,8 +134,8 @@ export function PageTree() {
   const revealKey = reveal ? `${reveal.spaceId}|${reveal.path.join('|')}` : '';
   useEffect(() => {
     if (!revealKey) return;
-    const [spaceId, ...path] = revealKey.split('|');
-    setOpen((current) => new Set([...current, `space:${spaceId}`, ...path.slice(0, -1)]));
+    const [, ...path] = revealKey.split('|');
+    setOpen((current) => new Set([...current, ...path.slice(0, -1)]));
   }, [revealKey]);
 
   function toggle(id: string) {
@@ -174,24 +174,13 @@ export function PageTree() {
   return (
     <TreeContext.Provider value={tree}>
       <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
-        <p className="sidebar-section-label">Pages</p>
-        {spaces.data?.map((space) => {
-          const key = `space:${space.id}`;
-          const expanded = open.has(key);
-          const writable = space.role !== 'viewer';
-          return (
-            <div key={space.id}>
-              <div className="page-tree-row" data-drop={target?.id === key ? 'inside' : undefined}
-                onDragOver={(event) => { if (dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: key, place: 'inside' }); } }}
-                onDrop={(event) => { event.preventDefault(); if (dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
-                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-toggle cursor-pointer" onClick={() => toggle(key)} type="button"><Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} /></button>
-                <button className="page-tree-link cursor-pointer justify-start" onClick={() => toggle(key)} title={space.name} type="button"><SpaceMark space={space} /><span className="min-w-0 flex-1 truncate text-left">{space.name}</span></button>
-                {writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={16} /></button>}
-              </div>
-              {expanded && <TreeBranch depth={1} parentId={null} spaceId={space.id} writable={writable} />}
-            </div>
-          );
-        })}
+        <div className="page-tree-head" data-drop={target?.id === 'root' ? 'inside' : undefined}
+          onDragOver={(event) => { if (space && dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: 'root', place: 'inside' }); } }}
+          onDrop={(event) => { event.preventDefault(); if (space && dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
+          <p className="sidebar-section-label">Pages</p>
+          {space && writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={16} /></button>}
+        </div>
+        {space && <TreeBranch depth={0} key={space.id} parentId={null} spaceId={space.id} writable={writable} />}
       </section>
     </TreeContext.Provider>
   );

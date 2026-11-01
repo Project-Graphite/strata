@@ -187,7 +187,6 @@ function InviteDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
       <TextField
         autoComplete="off"
         autoFocus
-        hint="Leave it empty to get a link you can send yourself."
         inputMode="email"
         label="Email (optional)"
         type="email"

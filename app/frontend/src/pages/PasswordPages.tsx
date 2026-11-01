@@ -109,7 +109,6 @@ export function ResetPasswordPage() {
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
         <TextField
           autoComplete="new-password"
-          hint="At least 12 characters."
           label="New password"
           type="password"
           {...form.field('password')}

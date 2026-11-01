@@ -57,7 +57,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
     >
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />
       {!person && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
-      <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" placeholder="Friend, sister, colleague" />
+      <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" />
       <Fieldset className="gap-4 sm:grid-cols-3" legend="Birthday (optional)">
         <Select error={birthdayError} label="Day" onChange={setDay} options={[{ value: '', label: 'None' }, ...dayOptions]} value={day} />
         <Select label="Month" onChange={setMonth} options={[{ value: '', label: 'None' }, ...monthOptions]} value={month} />

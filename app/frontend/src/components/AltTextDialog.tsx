@@ -14,7 +14,7 @@ export function AltTextDialog({ initial, onClose, onSave }: { initial: string; o
       submitLabel="Save description"
       title="Describe this image"
     >
-      <TextField autoFocus defaultValue={initial} hint="Screen readers read this aloud in place of the image." label="Description" maxLength={500} name="alt" />
+      <TextField autoFocus defaultValue={initial} label="Description" maxLength={500} name="alt" />
     </FormDialog>
   );
 }

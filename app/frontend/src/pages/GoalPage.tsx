@@ -80,8 +80,8 @@ export function GoalPage() {
           action={
             wasEditable > 0 && (
               <span className="flex items-center gap-2">
-                <AddButtonSkeleton />
                 <IconButtonSkeleton />
+                <AddButtonSkeleton />
               </span>
             )
           }
@@ -189,8 +189,8 @@ export function GoalPage() {
         action={
           editable && (
             <span className="flex items-center gap-2">
-              <AddButton label="New task" onClick={() => setTaskEditing('new')} />
               <ActionsMenu items={[{ label: 'Link a task…', onSelect: () => setDialog('link') }]} name="tasks" />
+              <AddButton label="New task" onClick={() => setTaskEditing('new')} />
             </span>
           )
         }
@@ -274,7 +274,6 @@ export function GoalPage() {
           <TextField
             autoFocus
             defaultValue={shown.current ?? 0}
-            hint={`The goal is ${shown.target?.toLocaleString()}${shown.unit ? ` ${shown.unit}` : ''}.`}
             inputMode="decimal"
             label="So far"
             {...progressForm.field('current')}

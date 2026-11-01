@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Fieldset, FilterChip, Placeholder, Select, TextField, Toggle } from '@project-graphite/ui';
+import { Fieldset, FilterChip, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
 import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
@@ -15,6 +15,7 @@ import { ButtonSkeleton, ChipsSkeleton, FieldSkeleton } from '../../components/S
 import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
 import { CurrencyField } from '../../components/CurrencyField';
 import { Button } from '../../components/Button';
+import { Toggle } from '../../components/Toggle';
 
 const weekDays = Array.from({ length: 7 }, (_, day) => new Intl.DateTimeFormat('en', { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, 1 + day))));
 const monthStartOptions = Array.from({ length: 28 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
@@ -138,14 +139,12 @@ export function ProfileSettings() {
             <CurrencyField
               codes={currencies.data?.currencies}
               defaultValue={current.homeCurrency ?? ''}
-              hint="Spending, Recurring and net worth totals are shown in it."
               label="Home currency"
               name="homeCurrency"
               noneLabel="None, keep each currency separate"
             />
             <Select
               defaultValue={String(current.monthStartDay)}
-              hint="Spending months run from this day to the day before it in the next month."
               label="Spending month starts on day"
               name="monthStartDay"
               options={monthStartOptions}

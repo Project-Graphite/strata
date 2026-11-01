@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { errorMessage, ListRow, Placeholder, Toggle } from '@project-graphite/ui';
+import { errorMessage, ListRow, Placeholder } from '@project-graphite/ui';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
@@ -7,6 +7,7 @@ import { RowSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
 import { allPushKinds, pushRegistration, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
+import { Toggle } from './Toggle';
 
 interface Device {
   registration: ServiceWorkerRegistration;
