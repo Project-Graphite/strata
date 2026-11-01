@@ -48,7 +48,7 @@ export class BookmarksService {
       select: { id: true },
     });
     if (saved) throw new ConflictException('This link is already saved in this space');
-    const title = new URL(input.url).hostname.replace(/^www\./, '');
+    const title = input.title || new URL(input.url).hostname.replace(/^www\./, '');
     const id = await this.prisma.$transaction(async (transaction) => {
       const item = await transaction.item.create({
         data: { spaceId, kind: ItemKind.BOOKMARK, title, createdById: userId, updatedById: userId, bookmark: { create: { url: input.url } } },
@@ -57,7 +57,7 @@ export class BookmarksService {
       await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title } });
       return item.id;
     });
-    return { bookmark: await this.get(userId, id), ...(await this.preview(input.url)) };
+    return { bookmark: await this.get(userId, id), ...(input.fetch === false ? { html: null, fetchError: null } : await this.preview(input.url)) };
   }
 
   async list(userId: string, query: ListBookmarksDto) {

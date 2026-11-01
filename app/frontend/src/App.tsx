@@ -1,5 +1,5 @@
-import { lazy } from 'react';
-import { Link, Navigate, Outlet, Route, Routes, useLocation, useParams, type Location } from 'react-router';
+import { lazy, useEffect, useEffectEvent } from 'react';
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { enabledApps } from './apps';
 import { useAuth } from './auth';
@@ -7,6 +7,7 @@ import { Shell } from './components/Shell';
 import { HomePage } from './pages/HomePage';
 import { phoneTabBar } from './navigation';
 import { LoginPage } from './pages/LoginPage';
+import { isNativeAndroid, StrataCapture } from './native-capture';
 import { prefetchRoute, usePrefetchRoutes } from './route-data';
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
@@ -141,6 +142,13 @@ function RouterLink({ href, onMouseEnter, onPointerDown, ...props }: UiLinkProps
 export function App() {
   const { user } = useAuth();
   usePrefetchRoutes(user && phoneTabBar(null, enabledApps(user.features)).map((tab) => tab.href));
+  const navigate = useNavigate();
+  const openShare = useEffectEvent(() => navigate('/save'));
+  useEffect(() => {
+    if (!isNativeAndroid()) return;
+    const listening = StrataCapture.addListener('share', () => openShare());
+    return () => void listening.then((handle) => handle.remove());
+  }, []);
   return (
     <UiProvider link={RouterLink}>
       <Routes>

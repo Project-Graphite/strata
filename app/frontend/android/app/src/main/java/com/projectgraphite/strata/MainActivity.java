@@ -1,6 +1,7 @@
 package com.projectgraphite.strata;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
@@ -26,24 +27,22 @@ public class MainActivity extends BridgeActivity {
                 WebView webView = getBridge().getWebView();
                 webView.evaluateJavascript(closeOverlay, (closed) -> {
                     if ("true".equals(closed)) return;
-                    if (webView.canGoBack()) webView.goBack();
+                    String url = webView.getUrl();
+                    boolean sharing = url != null && "/save".equals(Uri.parse(url).getPath());
+                    if (!sharing && webView.canGoBack()) webView.goBack();
                     else moveTaskToBack(true);
                 });
             }
         });
-        openShare(getIntent());
+        if (!SharedContent.receive(this, getIntent())) return;
+        String server = getBridge().getServerUrl();
+        if (server != null) getBridge().getWebView().loadUrl(server.replaceAll("/+$", "") + "/save");
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        openShare(intent);
-    }
-
-    private void openShare(Intent intent) {
         if (!SharedContent.receive(this, intent)) return;
-        String server = getBridge().getServerUrl();
-        if (server == null) return;
-        getBridge().getWebView().loadUrl(server.replaceAll("/+$", "") + "/save");
+        ((StrataCapturePlugin) getBridge().getPlugin("StrataCapture").getInstance()).announceShare();
     }
 }

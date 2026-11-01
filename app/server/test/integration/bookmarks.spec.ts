@@ -38,6 +38,16 @@ describe('Bookmarks and read-later against Postgres', () => {
     expect(unfetched.body).toMatchObject({ bookmark: { title: 'plain.example' }, html: null, fetchError: 'Only https:// addresses are allowed' });
   });
 
+  it('quick saves a shared link with its shared title without fetching the page', async () => {
+    const owner = await member('sharer');
+    const quick = await owner.call('POST', `/spaces/${owner.personalSpaceId}/bookmarks`, { url: 'https://vm.tiktok.example/ZM123/', title: ' Sourdough in 60 seconds ', fetch: false });
+    expect(quick.status).toBe(201);
+    expect(quick.body).toMatchObject({ bookmark: { title: 'Sourdough in 60 seconds', url: 'https://vm.tiktok.example/ZM123/' }, html: null, fetchError: null });
+    expect(vi.mocked(fetchPublic)).not.toHaveBeenCalled();
+    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/bookmarks`, { url: 'https://vm.tiktok.example/ZM123/', fetch: false })).status).toBe(409);
+    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/bookmarks`, { url: 'https://reel.example/', fetch: 'no' })).status).toBe(400);
+  });
+
   it('previews a link for a page link card without saving a bookmark', async () => {
     const writer = await member('card-maker');
     const space = (await writer.call('POST', '/spaces', { name: 'Cards' })).body;

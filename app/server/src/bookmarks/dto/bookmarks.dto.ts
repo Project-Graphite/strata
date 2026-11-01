@@ -8,6 +8,16 @@ export class CreateBookmarkDto {
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true }, { message: 'Enter a web address that starts with https://.' })
   @MaxLength(2_000, { message: 'That address is too long.' })
   url!: string;
+
+  @IsOptional()
+  @Trimmed()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  fetch?: boolean;
 }
 
 export class ListBookmarksDto extends SpaceQueryDto {

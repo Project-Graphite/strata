@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { useCallback, useEffect, useState } from 'react';
 
 export type DigitalAppId = 'instapay' | 'nsave' | 'paypal';
@@ -65,6 +65,7 @@ export interface StrataCapturePlugin {
   flushOutbox(): Promise<{ sent: number; remaining: number }>;
   retryRejected(): Promise<NativeCaptureStatus>;
   takeShare(): Promise<{ title?: string; text?: string; url?: string; files?: { name: string; type: string; data: string }[] }>;
+  addListener(eventName: 'share', listener: () => void): Promise<PluginListenerHandle>;
 }
 
 export const StrataCapture = registerPlugin<StrataCapturePlugin>('StrataCapture');

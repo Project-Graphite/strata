@@ -46,6 +46,10 @@ public class StrataCapturePlugin extends Plugin {
         call.resolve(shared == null ? new JSObject() : shared);
     }
 
+    void announceShare() {
+        notifyListeners("share", new JSObject(), true);
+    }
+
     @PluginMethod
     public void openNotificationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
