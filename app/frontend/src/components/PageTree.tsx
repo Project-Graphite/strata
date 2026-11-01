@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type DragEvent } from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -119,6 +120,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
 
 export function PageTree() {
   const { collapsed } = useShell();
+  const shown = useMediaQuery('(min-width: 48rem)') && !collapsed;
   const auth = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -180,7 +182,7 @@ export function PageTree() {
           <p className="sidebar-section-label">Pages</p>
           {space && writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={16} /></button>}
         </div>
-        {space && <TreeBranch depth={0} key={space.id} parentId={null} spaceId={space.id} writable={writable} />}
+        {space && shown && <TreeBranch depth={0} key={space.id} parentId={null} spaceId={space.id} writable={writable} />}
       </section>
     </TreeContext.Provider>
   );
