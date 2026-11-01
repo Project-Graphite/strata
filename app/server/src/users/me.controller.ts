@@ -1,5 +1,4 @@
 import {
-import { Scope } from '../access-tokens/scopes';
   Body,
   Controller,
   Delete,
@@ -9,6 +8,7 @@ import { Scope } from '../access-tokens/scopes';
   Patch,
   Post,
 } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';

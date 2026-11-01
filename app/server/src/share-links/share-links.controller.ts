@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res, StreamableFile } from '@nestjs/common';
-import { Scope } from '../access-tokens/scopes';
 import type { Response } from 'express';
+import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { fileHeaders } from '../files/files.service';
