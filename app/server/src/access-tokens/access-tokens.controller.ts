@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { AccessTokensService } from './access-tokens.service';
-import { CreateAccessTokenDto } from './dto/access-tokens.dto';
+import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto/access-tokens.dto';
 
 @Controller('me/tokens')
 export class AccessTokensController {
@@ -19,6 +19,12 @@ export class AccessTokensController {
   @RateLimit('create-token', 20, 3_600)
   create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateAccessTokenDto) {
     return this.tokens.create(user.id, input);
+  }
+
+  @Patch(':id')
+  @RateLimit('update-token', 30, 3_600)
+  update(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateAccessTokenDto) {
+    return this.tokens.update(user.id, id, input);
   }
 
   @Delete(':id')

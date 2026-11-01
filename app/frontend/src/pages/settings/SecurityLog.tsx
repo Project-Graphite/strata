@@ -27,6 +27,7 @@ const actions: Record<string, string> = {
   session_signed_out: 'A device was signed out',
   other_sessions_signed_out: 'Every other device was signed out',
   access_token_created: 'Access token created',
+  access_token_updated: 'Access token permissions changed',
   access_token_revoked: 'Access token revoked',
   capture_device_connected: 'Phone connected for spending capture',
   capture_device_revoked: 'Earlier phone connection revoked',

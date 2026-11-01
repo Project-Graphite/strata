@@ -629,7 +629,7 @@ export function CollaborativeEditor({
     auth
       .request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ parentId: noteId }) })
       .then(
-        (page) => target.chain().focus().insertContent({ type: 'childPage', attrs: { pageId: page.id } }).run(),
+        (page) => target.chain().focus().insertContent([{ type: 'pageLink', attrs: { pageId: page.id } }, { type: 'text', text: ' ' }]).run(),
         () => show({ message: 'Could not add a page.', tone: 'error' }),
       );
   }

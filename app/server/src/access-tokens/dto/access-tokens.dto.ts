@@ -21,3 +21,17 @@ export class CreateAccessTokenDto extends ProofDto {
   @Max(365, { message: 'Tokens last at most 365 days.' })
   expiresInDays?: number;
 }
+
+export class UpdateAccessTokenDto extends ProofDto {
+  @IsOptional()
+  @Trimmed()
+  @IsString()
+  @Length(1, 60, { message: 'Token names are 1 to 60 characters long.' })
+  name?: string;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Choose at least one permission.' })
+  @ArrayUnique()
+  @IsIn(tokenScopes, { each: true, message: 'Choose permissions from the list.' })
+  scopes!: TokenScope[];
+}

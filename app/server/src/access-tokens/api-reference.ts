@@ -1,7 +1,7 @@
 import { Controller, Get, Injectable, RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
-import { scopeKey, tokenScopes, type TokenScope } from './scopes';
+import { Scope, scopeKey, tokenScopes, type TokenScope } from './scopes';
 
 const joined = (...parts: (string | undefined)[]) => `/${parts.flatMap((part) => (part ? part.split('/') : [])).filter(Boolean).join('/')}`;
 
@@ -43,6 +43,7 @@ export class ApiReferenceController {
   constructor(private readonly reference: ApiReference) {}
 
   @Get()
+  @Scope('account:read')
   get() {
     return { basePath: '/api/v1', scopes: this.reference.scopes() };
   }

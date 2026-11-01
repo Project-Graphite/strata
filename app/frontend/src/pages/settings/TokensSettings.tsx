@@ -11,7 +11,8 @@ import type { Resource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { SettingsRow, SettingsRows, type TwoStepStatus } from './SettingsLayout';
-import { AddButton, Button } from '../../components/Button';
+import { ActionsMenu } from '../../components/ActionsMenu';
+import { AddButton } from '../../components/Button';
 import { SecretDialog } from '../../components/Copyable';
 
 export interface AccessToken {
@@ -24,11 +25,35 @@ export interface AccessToken {
 }
 
 const scopes = [
-  ['spaces:read', 'See your spaces, their members, tags and activity'],
-  ['items:read', 'Read items, links and the trash, and download files'],
-  ['items:write', 'Change items and tags, upload files and move things to the trash'],
+  ['account:read', 'See your profile, Home, inbox, dashboards and widgets'],
+  ['account:write', 'Change your profile, inbox and dashboards'],
+  ['spaces:read', 'See your spaces, their members, invitations, tags and activity'],
+  ['spaces:write', 'Create and change spaces, members and invitations'],
+  ['items:read', 'Read items, links, share links and the trash, and download files'],
+  ['items:write', 'Change items, tags, guests and share links, upload files and move things to the trash'],
   ['spending:capture', 'Send bank text messages to Spending'],
 ] as const;
+
+function ScopeFields({ chosen, missing }: { chosen: string[]; missing: boolean }) {
+  return (
+    <Fieldset legend="Permissions">
+      {scopes.map(([scope, description]) => (
+        <Checkbox
+          defaultChecked={chosen.includes(scope)}
+          key={scope}
+          label={
+            <span>
+              {description} <span className="mono-sm text-faint">{scope}</span>
+            </span>
+          }
+          name="scopes"
+          value={scope}
+        />
+      ))}
+      {missing && <Banner tone="danger">Choose at least one permission.</Banner>}
+    </Fieldset>
+  );
+}
 
 export const emptyTokens = { title: 'No tokens yet', hint: 'A token lets your own scripts use Strata as you, with only the permissions you give it.' };
 
@@ -39,12 +64,18 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState('');
   const [revoking, setRevoking] = useState<AccessToken>();
+  const [editing, setEditing] = useState<AccessToken>();
   const [noScope, setNoScope] = useState(false);
 
   const close = () => {
     setOpen(false);
+    setEditing(undefined);
     setCreated('');
     setNoScope(false);
+  };
+  const proofChecks = {
+    password: [required('Enter your password to confirm.')],
+    ...(twoStep.enabled ? { code: [required('Enter a code to confirm.')] } : {}),
   };
 
   return (
@@ -62,7 +93,13 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
             {tokens.data!.map((token) => (
               <SettingsRow
                 action={
-                  <Button label="Revoke" onClick={() => setRevoking(token)} />
+                  <ActionsMenu
+                    items={[
+                      { label: 'Edit permissions', onSelect: () => setEditing(token) },
+                      { label: 'Revoke', onSelect: () => setRevoking(token), separated: true },
+                    ]}
+                    name={token.name}
+                  />
                 }
                 key={token.id}
                 label={token.name}
@@ -91,8 +128,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
               chosen.length === 0 ||
               !form.check(target, {
                 name: [required('Name the token.'), atMost(60, 'Use at most 60 characters.')],
-                password: [required('Enter your password to confirm.')],
-                ...(twoStep.enabled ? { code: [required('Enter a code to confirm.')] } : {}),
+                ...proofChecks,
               })
             ) {
               return;
@@ -117,24 +153,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
           title="New access token"
         >
           <TextField autoFocus label="Name" maxLength={60} {...form.field('name')} />
-          <Fieldset legend="Permissions">
-            {scopes.map(([scope, description]) => (
-              <Checkbox
-                defaultChecked={scope === 'spaces:read' || scope === 'items:read'}
-                key={scope}
-                label={
-                  <span>
-                    {description} <span className="mono-sm text-faint">{scope}</span>
-                  </span>
-                }
-                name="scopes"
-                value={scope}
-              />
-            ))}
-            {noScope && (
-              <Banner tone="danger">Choose at least one permission.</Banner>
-            )}
-          </Fieldset>
+          <ScopeFields chosen={['spaces:read', 'items:read']} missing={noScope} />
           <Select
             defaultValue="90"
             label="Expires after"
@@ -146,6 +165,36 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
               { value: '365', label: '1 year' },
             ]}
           />
+          <ProofFields form={form} twoStep={twoStep.enabled} />
+        </FormDialog>
+      )}
+
+      {editing && (
+        <FormDialog
+          busy={creating.busy}
+          busyLabel="Saving…"
+          onClose={close}
+          onSubmit={(target) => {
+            const values = new FormData(target);
+            const chosen = values.getAll('scopes').map(String);
+            setNoScope(chosen.length === 0);
+            if (chosen.length === 0 || !form.check(target, { name: [required('Name the token.'), atMost(60, 'Use at most 60 characters.')], ...proofChecks })) return;
+            void creating
+              .run(async () => {
+                const saved = await auth.request<AccessToken>(`/me/tokens/${editing.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ name: String(values.get('name')).trim(), scopes: chosen, ...proofFrom(target) }),
+                });
+                tokens.mutate((current) => current.map((token) => (token.id === saved.id ? saved : token)));
+                return `Saved ${saved.name}.`;
+              }, 'Could not change the token')
+              .then((saved) => saved && close());
+          }}
+          submitLabel="Save permissions"
+          title={`Edit ${editing.name}`}
+        >
+          <TextField autoFocus defaultValue={editing.name} label="Name" maxLength={60} {...form.field('name')} />
+          <ScopeFields chosen={editing.scopes} missing={noScope} />
           <ProofFields form={form} twoStep={twoStep.enabled} />
         </FormDialog>
       )}

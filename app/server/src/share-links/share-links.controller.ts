@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res, StreamableFile } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import type { Response } from 'express';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -16,17 +17,20 @@ export class ShareLinksController {
 
   @Post('items/:id/share-links')
   @RateLimit('share-link', 100, 86_400)
+  @Scope('items:write')
   create(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: CreateShareLinkDto) {
     return this.shareLinks.create(user.id, id, input);
   }
 
   @Get('items/:id/share-links')
+  @Scope('items:read')
   list(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.shareLinks.list(user.id, id);
   }
 
   @Delete('items/:id/share-links/:linkId')
   @HttpCode(204)
+  @Scope('items:write')
   async revoke(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', UuidPipe) id: string,

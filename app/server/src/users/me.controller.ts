@@ -1,4 +1,5 @@
 import {
+import { Scope } from '../access-tokens/scopes';
   Body,
   Controller,
   Delete,
@@ -29,11 +30,13 @@ export class MeController {
   ) {}
 
   @Get()
+  @Scope('account:read')
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.users.me(user.id);
   }
 
   @Patch()
+  @Scope('account:write')
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateProfileDto) {
     return this.users.updateProfile(user.id, input);
   }

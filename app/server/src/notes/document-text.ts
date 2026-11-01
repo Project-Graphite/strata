@@ -46,6 +46,7 @@ const linkAttributes = new Map<string, [string, 'mentions' | 'files']>([
   ['mention', ['id', 'mentions']],
   ['boardEmbed', ['boardId', 'mentions']],
   ['childPage', ['pageId', 'mentions']],
+  ['pageLink', ['pageId', 'mentions']],
   ['image', ['fileId', 'files']],
   ['fileAttachment', ['fileId', 'files']],
 ]);

@@ -19,6 +19,7 @@ export const authActions = [
   'other_sessions_signed_out',
   'refresh_token_reused',
   'access_token_created',
+  'access_token_updated',
   'access_token_revoked',
   'capture_device_connected',
   'capture_device_revoked',
