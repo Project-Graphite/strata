@@ -122,7 +122,6 @@ jobs:
           ./gradlew assembleSideloadRelease --no-daemon
           rm -f "$RUNNER_TEMP/strata-release.jks"
           cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$RUNNER_TEMP/strata.apk"
-          cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$RUNNER_TEMP/strata-${STRATA_VERSION_NAME}.apk"
 
       - uses: actions/attest-build-provenance@v4
         if: steps.changes.outputs.android == 'true'
@@ -135,12 +134,11 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           APK: ${{ runner.temp }}/strata.apk
-          VERSIONED_APK: ${{ runner.temp }}/strata-${{ steps.version.outputs.version }}.apk
           ANDROID: ${{ steps.changes.outputs.android }}
         run: |
           set -euo pipefail
           if [ "$ANDROID" = "true" ]; then
-            assets=("$APK" "$VERSIONED_APK")
+            assets=("$APK")
             latest=--latest
           else
             assets=()
