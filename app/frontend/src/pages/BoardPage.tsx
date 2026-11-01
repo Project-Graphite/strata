@@ -12,7 +12,7 @@ import { NoteComments, type CommentAnchors, type QuotedBlock } from '../componen
 import { NoteHistory } from '../components/NoteHistory';
 import { DetailState, useDocumentTitle } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
-import { announcePagesChanged, noteTitle, type Note, type NoteDetails } from '../notes';
+import { announcePagesChanged, noteTitle, pageHref, type Note, type NoteDetails } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
@@ -57,7 +57,7 @@ export function BoardPage() {
     );
   }
   const details = note.data;
-  if (details.kind !== 'board') return <Navigate replace to={`/notes/${details.id}`} />;
+  if (details.kind !== 'board') return <Navigate replace to={pageHref(details.id)} />;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
 
   function save(change: Partial<Note> & { expectedTitle?: string }, fallback: string) {
@@ -129,7 +129,7 @@ export function BoardPage() {
           />
         </Suspense>
       </FileSourceContext>
-      <CommentsPanel onClose={() => setCommenting(false)} open={commenting}>
+      <CommentsPanel docked onClose={() => setCommenting(false)} open={commenting}>
         <NoteComments
           anchors={anchors}
           commentable={details.permissions.comment}

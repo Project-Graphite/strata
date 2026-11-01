@@ -51,9 +51,11 @@ describe('documentText', () => {
     const document = new Y.Doc();
     const child = new Y.XmlElement('childPage');
     child.setAttribute('pageId', 'agenda-page');
-    document.getXmlFragment('default').push([child]);
+    const inline = new Y.XmlElement('pageLink');
+    inline.setAttribute('pageId', 'notes-page');
+    document.getXmlFragment('default').push([child, block('paragraph', inline)]);
 
-    expect([...documentLinks(document).mentions]).toEqual(['agenda-page']);
+    expect([...documentLinks(document).mentions]).toEqual(['agenda-page', 'notes-page']);
   });
 
   it('links attached files and page links, and leaves people mentions out', () => {

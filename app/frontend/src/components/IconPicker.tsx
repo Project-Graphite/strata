@@ -1,17 +1,18 @@
 import ToggleButton from '@mui/material/ToggleButton';
+import type { ReactNode } from 'react';
 import { Popover } from '@project-graphite/ui';
 import { TextButton } from './Button';
 
 const icons = ['📝', '📌', '💡', '✅', '📅', '🎯', '📚', '🧠', '🏠', '✈️', '🍳', '💰', '🎉', '🛒', '💪', '🌱', '🎵', '🎨', '🧳', '❤️', '⭐', '🔥', '🚀', '🗂️'];
 
-export function IconPicker({ icon, onPick }: { icon: string | null; onPick: (icon: string | null) => void }) {
+export function IconPicker({ empty, emptyClassName = 'page-icon page-icon-empty', icon, onPick }: { empty?: ReactNode; emptyClassName?: string; icon: string | null; onPick: (icon: string | null) => void }) {
   return (
     <Popover
       align="start"
       label="Page icon"
       panelClassName="icon-picker"
-      trigger={icon ?? '+'}
-      triggerClassName={icon ? 'page-icon' : 'page-icon page-icon-empty'}
+      trigger={icon ?? empty ?? '+'}
+      triggerClassName={icon ? 'page-icon' : emptyClassName}
       triggerLabel={icon ? 'Change the page icon' : 'Add a page icon'}
     >
       {(close) => (

@@ -30,7 +30,7 @@ export function PagePeople({ itemId }: { itemId: string }) {
     }, 'Could not update page access');
   }
   return <section aria-label="People with page access" className="grid gap-3">
-    <SectionHeading action={<Copyable compact value={`${window.location.origin}/notes/${itemId}`} />} level={3} title="People" />
+    <SectionHeading action={<Copyable compact value={`${window.location.origin}/pages/${itemId}`} />} level={3} title="People" />
     {people.error ? <LoadError compact error={people.error} onRetry={people.reload} /> : people.data && <>
       <form className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto]" onSubmit={(event) => { event.preventDefault(); void save(email, role).then((saved) => { if (saved) setEmail(''); }); }}>
         <div className="col-span-2 min-w-0 sm:col-span-1"><TextField label="Account email" maxLength={320} onChange={(event) => setEmail(event.currentTarget.value)} type="email" value={email} /></div>

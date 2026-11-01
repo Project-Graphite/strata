@@ -44,11 +44,23 @@ describe('Access tokens against Postgres', () => {
     expect(listed).not.toHaveProperty('token');
     expect(listed).not.toHaveProperty('tokenHash');
 
+    expect((await other.call('PATCH', `/me/tokens/${listed.id}`, { scopes: ['items:write'], password })).status).toBe(404);
+    expect((await owner.call('PATCH', `/me/tokens/${listed.id}`, { scopes: ['items:write'], password: 'wrong password' })).status).toBe(403);
+    const edited = await owner.call('PATCH', `/me/tokens/${listed.id}`, { name: 'Backup and edits', scopes: ['account:read', 'items:read', 'items:write'], password });
+    expect(edited.body).toMatchObject({ name: 'Backup and edits', scopes: ['account:read', 'items:read', 'items:write'] });
+    expect((await withToken(token, 'PATCH', `/items/${note.id}`, { title: 'Changed' })).status).toBe(200);
+    expect((await withToken(token, 'GET', '/me')).status).toBe(200);
+    expect((await withToken(token, 'GET', '/me/api-reference')).status).toBe(200);
+    expect((await withToken(token, 'GET', '/spaces')).status).toBe(403);
+    expect((await withToken(token, 'PATCH', `/me/tokens/${listed.id}`, { scopes: ['spaces:write'], password })).status).toBe(403);
+
     expect((await other.call('DELETE', `/me/tokens/${listed.id}`)).status).toBe(404);
     expect((await owner.call('DELETE', `/me/tokens/${listed.id}`)).status).toBe(204);
     expect((await withToken(token, 'GET', '/spaces')).status).toBe(401);
     expect((await owner.call('GET', '/me/audit')).body.results.map((event: { action: string }) => event.action)).toEqual([
       'access_token_revoked',
+      'access_token_updated',
+      'sign_in_failed',
       'access_token_created',
       'sign_in_failed',
     ]);
@@ -58,7 +70,7 @@ describe('Access tokens against Postgres', () => {
     const owner = await member('api-reader');
     const reference = (await owner.call('GET', '/me/api-reference')).body;
     expect(reference.basePath).toBe('/api/v1');
-    expect(reference.scopes.map((entry: { scope: string }) => entry.scope)).toEqual(['spaces:read', 'items:read', 'items:write', 'spending:capture']);
+    expect(reference.scopes.map((entry: { scope: string }) => entry.scope)).toEqual(['account:read', 'account:write', 'spaces:read', 'spaces:write', 'items:read', 'items:write', 'spending:capture']);
     const routes = (scope: string) => reference.scopes.find((entry: { scope: string }) => entry.scope === scope).routes;
     expect(routes('spaces:read')).toContainEqual({ method: 'GET', path: '/spaces' });
     expect(routes('items:read')).toContainEqual({ method: 'GET', path: '/agenda' });

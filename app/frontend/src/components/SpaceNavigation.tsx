@@ -5,7 +5,7 @@ import { appCatalogue } from '../apps';
 import { collapseCrumbs } from '../breadcrumbs';
 import { HeaderTitleContext } from '../header-title';
 import { areaOf } from '../navigation';
-import { noteHref, noteTitle } from '../notes';
+import { noteHref, noteTitle, pageHref } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useAllSpaces, useChosenSpace, type Space } from '../spaces';
 
@@ -23,8 +23,8 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const page = currentPage && pathname === noteHref(currentPage) ? currentPage : undefined;
   const root = appCatalogue.find((app) => app.href === active) ?? { href: active ?? '/', label: areaNames[active ?? '/'] ?? 'Overview' };
   const current = heading?.pathname === pathname ? heading : undefined;
-  const parents = page?.path.map((parent) => ({ href: `/notes/${parent.id}`, label: parent.title || 'Untitled' })) ?? (current?.back && current.back.to !== root.href ? [{ href: current.back.to, label: current.back.label }] : []);
-  const title = page ? noteTitle(page) : /^\/(?:notes|boards)\//.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
+  const parents = page?.path.map((parent) => ({ href: pageHref(parent.id), label: parent.title || 'Untitled' })) ?? (current?.back && current.back.to !== root.href ? [{ href: current.back.to, label: current.back.label }] : []);
+  const title = page ? noteTitle(page) : /^\/(?:pages\/(?!quick-notes$|journal$)|boards\/)[^/]+$/.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
   const personal = active === '/spending' ? spaces.data?.find((candidate) => candidate.kind === 'personal') : undefined;
   const { shown, hidden } = collapseCrumbs([root, ...parents, ...(title ? [{ label: title }] : []), ...(tab ? [tab] : []), ...(current?.subpage ? [{ label: current.subpage }] : [])]);

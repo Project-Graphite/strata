@@ -31,7 +31,7 @@ export default function MarkdownImportDialog({ plan, spaceId, onClose, onDone }:
             <span className="text-small text-muted">{page.parentPath ? `Inside ${plan.pages.find((parent) => parent.path === page.parentPath)?.title || page.parentPath}` : 'Space root'}</span>
             <span className="text-small text-muted">{page.blocked ? `Skipped: ${page.blocked}` : page.error ? `Needs retry: ${page.error}` : page.created && page.nested && page.indexed ? 'Imported' : page.created ? 'Page created; finishing placement and links' : 'Ready'}</span>
             {page.issues.map((issue) => <span className="text-small text-muted" key={issue}>{issue}</span>)}
-            {page.created && !action.busy && <Link className="w-fit text-small" onClick={onClose} to={`/notes/${page.id}`}>Open imported page</Link>}
+            {page.created && !action.busy && <Link className="w-fit text-small" onClick={onClose} to={`/pages/${page.id}`}>Open imported page</Link>}
           </ListRow>)}
         </ul>
         {plan.uploaded.size > 0 && <Hint>Uploaded files stay in the selected space if a later step fails. Review them in Files before removing any.</Hint>}

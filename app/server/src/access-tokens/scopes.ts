@@ -1,6 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
 
-export const tokenScopes = ['spaces:read', 'items:read', 'items:write', 'spending:capture'] as const;
+export const tokenScopes = ['account:read', 'account:write', 'spaces:read', 'spaces:write', 'items:read', 'items:write', 'spending:capture'] as const;
 
 export type TokenScope = (typeof tokenScopes)[number];
 

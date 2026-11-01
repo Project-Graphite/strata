@@ -20,7 +20,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, type NodeViewPro
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion';
 import { Link } from 'react-router';
 import type { useAuth } from '../auth';
-import { noteTitle, type Note } from '../notes';
+import { noteTitle, pageHref, type Note } from '../notes';
 import { itemHref, itemKindName, type Member } from '../spaces';
 import { useResource } from '../useResource';
 import { BoardPreview } from './BoardPreview';
@@ -395,6 +395,8 @@ export function blockMenuExtension(actions: BlockActions) {
   });
 }
 
+const linkClick = ({ event }: { event: Event }) => event.target instanceof Element && Boolean(event.target.closest('a'));
+
 function BoardEmbed({ extension, node }: NodeViewProps) {
   if (extension.options.shared) return <NodeViewWrapper className="note-board"><Hint>This board needs its own share link.</Hint></NodeViewWrapper>;
   const boardId = uuidOrNull(node.attrs.boardId);
@@ -428,18 +430,26 @@ export const BoardEmbedExtension = Node.create({
   }),
   parseHTML: () => [{ tag: 'div[data-board]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
-  addNodeView: () => ReactNodeViewRenderer(BoardEmbed),
+  addNodeView: () => ReactNodeViewRenderer(BoardEmbed, { stopEvent: linkClick }),
 });
 
-function ChildPageLink({ pageId }: { pageId: string }) {
+function PageTitleLink({ pageId }: { pageId: string }) {
   const page = useResource<Note>(`/notes/${pageId}`, true, { live: ['page-details', 'items'], itemIds: [pageId] });
-  if (page.error) return <Hint>This page is missing</Hint>;
+  if (page.error) return <span className="note-page-link-missing">Page not found</span>;
   return (
-    <Link className="note-child-page-link" contentEditable={false} draggable={false} to={`/notes/${pageId}`}>
+    <Link className="note-page-link" contentEditable={false} draggable={false} to={pageHref(pageId)}>
       <NoteMark note={page.data ?? { icon: null, kind: 'note' }} />
-      <span className="min-w-0 flex-1 truncate">{page.data ? noteTitle(page.data) : 'Loading…'}</span>
-      <Icon name="chevron-right" size={16} />
+      {page.data ? noteTitle(page.data) : 'Loading…'}
     </Link>
+  );
+}
+
+function PageLinkView({ extension, node }: NodeViewProps) {
+  const pageId = uuidOrNull(node.attrs.pageId);
+  return (
+    <NodeViewWrapper as="span">
+      {extension.options.shared || !pageId ? <span className="note-page-link-missing">Page</span> : <PageTitleLink pageId={pageId} />}
+    </NodeViewWrapper>
   );
 }
 
@@ -447,26 +457,41 @@ function ChildPage({ extension, node }: NodeViewProps) {
   const pageId = uuidOrNull(node.attrs.pageId);
   return (
     <NodeViewWrapper className="note-child-page">
-      {extension.options.shared ? <Hint>This page needs its own share link.</Hint> : pageId ? <ChildPageLink pageId={pageId} /> : <Hint>This page is missing</Hint>}
+      {extension.options.shared || !pageId ? <span className="note-page-link-missing">Page</span> : <PageTitleLink pageId={pageId} />}
     </NodeViewWrapper>
   );
 }
+
+const pageIdAttribute = {
+  pageId: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute('data-page'),
+    renderHTML: (attributes: { pageId?: string | null }) => ({ 'data-page': attributes.pageId }),
+  },
+};
+
+export const PageLinkExtension = Node.create({
+  name: 'pageLink',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  addOptions: () => ({ shared: false }),
+  addAttributes: () => pageIdAttribute,
+  parseHTML: () => [{ tag: 'span[data-page]' }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes],
+  renderText: () => 'Page',
+  addNodeView: () => ReactNodeViewRenderer(PageLinkView, { as: 'span', stopEvent: linkClick }),
+});
 
 export const ChildPageExtension = Node.create({
   name: 'childPage',
   group: 'block',
   atom: true,
   addOptions: () => ({ shared: false }),
-  addAttributes: () => ({
-    pageId: {
-      default: null,
-      parseHTML: (element: HTMLElement) => element.getAttribute('data-page'),
-      renderHTML: (attributes: { pageId?: string | null }) => ({ 'data-page': attributes.pageId }),
-    },
-  }),
+  addAttributes: () => pageIdAttribute,
   parseHTML: () => [{ tag: 'div[data-page]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', HTMLAttributes],
-  addNodeView: () => ReactNodeViewRenderer(ChildPage),
+  addNodeView: () => ReactNodeViewRenderer(ChildPage, { stopEvent: linkClick }),
 });
 
 interface CommentedState {
@@ -554,6 +579,7 @@ export function pageContent(request: Request | undefined, noteId: string, people
     PersonMention,
     BoardEmbedExtension.configure({ shared: !request }),
     ChildPageExtension.configure({ shared: !request }),
+    PageLinkExtension.configure({ shared: !request }),
     StoredImageExtension,
     FileAttachmentExtension,
     LinkCard,

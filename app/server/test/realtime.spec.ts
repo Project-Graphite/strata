@@ -364,7 +364,7 @@ describe('live shared documents', () => {
     }
   });
 
-  it.each([['image', 'fileId'], ['mention', 'id'], ['boardEmbed', 'boardId'], ['childPage', 'pageId']])('rejects private %s references from guests before a member can accidentally share them', async (kind, attribute) => {
+  it.each([['image', 'fileId'], ['mention', 'id'], ['boardEmbed', 'boardId'], ['childPage', 'pageId'], ['pageLink', 'pageId']])('rejects private %s references from guests before a member can accidentally share them', async (kind, attribute) => {
     const host = await open('member');
     const editor = await open(guest('page-EDIT'));
     const reference = new Y.XmlElement(kind);

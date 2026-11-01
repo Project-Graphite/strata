@@ -24,10 +24,12 @@ export const noteFields = {
   updatedAt: true,
   note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true, narrow: true, coverId: true, coverAlt: true } },
   databaseSchema: { select: { itemId: true } },
-  _count: { select: { journalEntries: true } },
+  _count: { select: { journalEntries: true, childNotes: { where: { item: { journalEntries: { some: {} } } } } } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
+
+const notJournal = { journalEntries: { none: {} }, childNotes: { none: { item: { journalEntries: { some: {} } } } } } satisfies Prisma.ItemWhereInput;
 
 const visibleParent = { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } satisfies Prisma.ItemWhereInput;
 
@@ -51,6 +53,7 @@ export function present(row: NoteRow) {
     cover: row.note?.coverId ? { id: row.note.coverId, alt: row.note.coverAlt } : null,
     database: Boolean(row.databaseSchema),
     journal: row._count.journalEntries > 0,
+    holdsJournal: row._count.childNotes > 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -97,14 +100,22 @@ export class NotesService {
     await this.access.assertSpace(userId, spaceId, 'read');
     if (query.parentId) await this.parentIn(spaceId, query.parentId);
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notJournal, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       cursor: query.cursor ? { id: query.cursor } : undefined,
       skip: query.cursor ? 1 : 0,
       take: 101,
       select: noteFields,
     });
-    return { pages: rows.slice(0, 100).map(present), nextCursor: rows.length > 100 ? rows[99]!.id : null, nextPage: rows[100] ? present(rows[100]) : null };
+    const parents = rows.length
+      ? await this.prisma.note.groupBy({
+          by: ['parentId'],
+          where: { parentId: { in: rows.map((row) => row.id) }, template: false, quick: false, item: { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notJournal } },
+        })
+      : [];
+    const withChildren = new Set(parents.map((parent) => parent.parentId));
+    const listed = (row: NoteRow) => ({ ...present(row), hasChildren: withChildren.has(row.id) });
+    return { pages: rows.slice(0, 100).map(listed), nextCursor: rows.length > 100 ? rows[99]!.id : null, nextPage: rows[100] ? listed(rows[100]) : null };
   }
 
   async mine(userId: string, spaceId?: string) {

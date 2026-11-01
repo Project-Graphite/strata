@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
@@ -14,11 +15,13 @@ export class InvitationsController {
 
   @Post('invitations')
   @RateLimit('invite', 20, 86_400)
+  @Scope('spaces:write')
   inviteToStrata(@CurrentUser() user: AuthenticatedUser, @Body() input: InviteToStrataDto) {
     return this.invitations.inviteToStrata(user.id, input);
   }
 
   @Get('invitations')
+  @Scope('spaces:read')
   sent(@CurrentUser() user: AuthenticatedUser) {
     return this.invitations.sent(user.id);
   }
@@ -32,34 +35,40 @@ export class InvitationsController {
 
   @Post('invitations/redeem')
   @RateLimit('invite-redeem', 30, 3_600)
+  @Scope('spaces:write')
   redeem(@CurrentUser() user: AuthenticatedUser, @Body() input: LinkCodeDto) {
     return this.invitations.redeem(user.id, input.code);
   }
 
   @Delete('invitations/:id')
   @HttpCode(204)
+  @Scope('spaces:write')
   async withdraw(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     await this.invitations.withdraw(user.id, id);
   }
 
   @Post('invitations/:id/accept')
+  @Scope('spaces:write')
   accept(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.invitations.accept(user.id, id);
   }
 
   @Post('invitations/:id/decline')
   @HttpCode(204)
+  @Scope('spaces:write')
   async decline(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     await this.invitations.decline(user.id, id);
   }
 
   @Get('me/invitations')
+  @Scope('spaces:read')
   received(@CurrentUser() user: AuthenticatedUser) {
     return this.invitations.received(user.id);
   }
 
   @Post('spaces/:spaceId/invitations')
   @RateLimit('invite', 20, 86_400)
+  @Scope('spaces:write')
   inviteToSpace(
     @CurrentUser() user: AuthenticatedUser,
     @Param('spaceId', UuidPipe) spaceId: string,
@@ -69,6 +78,7 @@ export class InvitationsController {
   }
 
   @Get('spaces/:spaceId/invitations')
+  @Scope('spaces:read')
   forSpace(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
     return this.invitations.forSpace(user.id, spaceId);
   }

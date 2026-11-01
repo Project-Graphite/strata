@@ -18,7 +18,7 @@ export function DraftRecoveryDialog({ parts, spaceId, onClose, onComplete }: { p
         <Hint>{parts.length > 1 ? `This draft will become ${parts.length} smaller pages. Large blocks continue across parts.` : 'Retry recovering this draft into a new page.'} Keep this window open to resume after an error.</Hint>
         <p className="m-0 text-small text-muted" role="status">{Object.keys(completed).length} of {parts.length} recovered</p>
         <ul className="m-0 grid max-h-64 list-none gap-3 overflow-y-auto p-0">
-          {parts.map((part, index) => <li className="flex items-center justify-between gap-4 text-body" key={part.id}><span>{part.title}</span>{completed[index] ? action.busy ? <span className="text-muted">Recovered</span> : <Link to={`/notes/${completed[index]}`}>Open recovered page</Link> : <span className="text-muted">Waiting</span>}</li>)}
+          {parts.map((part, index) => <li className="flex items-center justify-between gap-4 text-body" key={part.id}><span>{part.title}</span>{completed[index] ? action.busy ? <span className="text-muted">Recovered</span> : <Link to={`/pages/${completed[index]}`}>Open recovered page</Link> : <span className="text-muted">Waiting</span>}</li>)}
         </ul>
         <DialogActions>
           <Button disabled={action.busy} label="Close" large onClick={onClose} />

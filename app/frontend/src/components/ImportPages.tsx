@@ -12,6 +12,7 @@ import type { DraftPart } from '../draft-parts';
 import { DraftRecoveryDialog } from './DraftRecoveryDialog';
 import type { PageImportPlan } from '../page-import';
 import { readImportProgress, verifyImportSources, type ImportProgress } from '../page-import-progress';
+import { pageHref } from '../notes';
 
 const MarkdownImportDialog = lazy(() => import('./MarkdownImportDialog'));
 
@@ -27,7 +28,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
   function recovered(id: string) {
     onDone();
     onClose();
-    navigate(`/notes/${id}`);
+    navigate(pageHref(id));
   }
 
   function recover([file]: File[]) {

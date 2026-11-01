@@ -50,7 +50,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
   const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId });
   const reload = listed.reload;
   useEffect(() => onPagesChanged(reload), [reload]);
-  const pages = listed.data?.pages.filter((page) => page.kind === 'note' && !page.journal) ?? [];
+  const pages = listed.data?.pages.filter((page) => page.kind === 'note') ?? [];
 
   return (
     <>
@@ -62,13 +62,17 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
       {!listed.data && !listed.error && <TreeNote depth={depth}>Loading pages…</TreeNote>}
       {listed.data && pages.length === 0 && !cursor && !listed.data.nextCursor && <TreeNote depth={depth}>{parentId ? 'No pages inside' : 'No pages in this space yet'}</TreeNote>}
       {pages.map((page) => {
-        const expanded = tree.open.has(page.id);
+        const expanded = page.hasChildren && tree.open.has(page.id);
         return (
           <li key={page.id} role="none">
-            <div aria-expanded={expanded} aria-label={`${noteTitle(page)}, ${noteEdited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
-              <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
-                <Icon name="chevron-right" size={16} />
-              </button>
+            <div aria-expanded={page.hasChildren ? expanded : undefined} aria-label={`${noteTitle(page)}, ${noteEdited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
+              {page.hasChildren ? (
+                <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
+                  <Icon name="chevron-right" size={16} />
+                </button>
+              ) : (
+                <span aria-hidden="true" className="page-tree-toggle" />
+              )}
               <Link className="flex min-w-0 flex-1 items-center gap-3 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
                 <NoteMark note={page} />
                 <RowText detail={noteEdited(page)} title={noteTitle(page)} />
@@ -130,6 +134,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
     else if (event.key === 'End') focus(items.at(-1));
     else if (event.key === 'ArrowRight') {
       event.preventDefault();
+      if (!item.hasAttribute('aria-expanded')) return;
       if (!expanded) toggle(id);
       else if (parentOf(items[index + 1]) === item) items[index + 1]!.focus();
     } else if (event.key === 'ArrowLeft') {
@@ -144,7 +149,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   }
 
   if (!spaces.data || (!notes.data && !notes.error)) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
-  if (notes.data && !notes.data.some((note) => !note.journal)) {
+  if (notes.data && !notes.data.some((note) => !note.journal && !note.holdsJournal)) {
     return (
       <Empty action={firstRun} icon={emptyStates.pages.icon} title={emptyStates.pages.title} variant="page">
         {emptyStates.pages.hint}
@@ -182,7 +187,7 @@ function PageSearch({ query }: { query: string }) {
   const listed = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
   const text = query.trim().toLocaleLowerCase();
-  const found = listed.data?.filter((note) => !note.journal && noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
+  const found = listed.data?.filter((note) => !note.journal && !note.holdsJournal && noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
   if (listed.error) return <LoadError error={listed.error} onRetry={listed.reload} />;
   if (!listed.data) return <RowsSkeleton lead={<IconSkeleton />} rows={3} />;
   if (found.length === 0) return <Empty title="No pages match">Try another word from the page title.</Empty>;

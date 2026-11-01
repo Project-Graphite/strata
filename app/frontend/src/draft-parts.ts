@@ -31,7 +31,7 @@ function at(document: Y.Doc, path: number[]): Xml {
 
 function hasContent(node: Xml): boolean {
   if (node instanceof Y.XmlText) return node.length > 0;
-  if (node instanceof Y.XmlElement && ['image', 'boardEmbed', 'childPage', 'mention', 'horizontalRule', 'hardBreak'].includes(node.nodeName)) return true;
+  if (node instanceof Y.XmlElement && ['image', 'boardEmbed', 'childPage', 'pageLink', 'mention', 'horizontalRule', 'hardBreak'].includes(node.nodeName)) return true;
   return node.toArray().some((child) => child instanceof Y.XmlElement || child instanceof Y.XmlText ? hasContent(child) : true);
 }
 

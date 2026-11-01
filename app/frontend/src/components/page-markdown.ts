@@ -121,7 +121,8 @@ export function pageMarkdown(doc: JSONContent, { title, pageUrl }: { title: stri
       case 'boardEmbed':
         return `[Board](${origin}/boards/${String(node.attrs?.boardId ?? '')})`;
       case 'childPage':
-        return `[Page](${origin}/notes/${String(node.attrs?.pageId ?? '')})`;
+      case 'pageLink':
+        return `[Page](${origin}/pages/${String(node.attrs?.pageId ?? '')})`;
       case 'tableOfContents':
         return headings.map((heading) => `${'  '.repeat(heading.level - top)}- ${escape(heading.text)}`).join('\n');
       default:

@@ -19,6 +19,7 @@ export class SpacesController {
 
   @Post()
   @RateLimit('create-space', 30, 3_600)
+  @Scope('spaces:write')
   create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSpaceDto) {
     return this.spaces.create(user.id, input);
   }
@@ -30,6 +31,7 @@ export class SpacesController {
   }
 
   @Patch(':id')
+  @Scope('spaces:write')
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', UuidPipe) id: string,
@@ -40,6 +42,7 @@ export class SpacesController {
 
   @Delete(':id')
   @HttpCode(204)
+  @Scope('spaces:write')
   async remove(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     await this.spaces.remove(user.id, id);
   }
@@ -51,6 +54,7 @@ export class SpacesController {
   }
 
   @Patch(':id/members/:userId')
+  @Scope('spaces:write')
   changeRole(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', UuidPipe) id: string,
@@ -62,6 +66,7 @@ export class SpacesController {
 
   @Delete(':id/members/:userId')
   @HttpCode(204)
+  @Scope('spaces:write')
   async removeMember(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', UuidPipe) id: string,

@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { Scope } from '../access-tokens/scopes';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -29,11 +30,13 @@ export class MeController {
   ) {}
 
   @Get()
+  @Scope('account:read')
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.users.me(user.id);
   }
 
   @Patch()
+  @Scope('account:write')
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateProfileDto) {
     return this.users.updateProfile(user.id, input);
   }

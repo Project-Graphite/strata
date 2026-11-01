@@ -4,7 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { linkTokenHash } from '../crypto/link-token';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAccessTokenDto } from './dto/access-tokens.dto';
+import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto/access-tokens.dto';
 import { tokenPrefix } from './scopes';
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -53,6 +53,20 @@ export class AccessTokensService {
     });
     await this.audit.record(userId, 'access_token_created', { name: input.name });
     return { ...created, token };
+  }
+
+  async update(userId: string, tokenId: string, input: UpdateAccessTokenDto) {
+    await this.auth.reauthenticate(userId, input);
+    const changed = await this.prisma.accessToken.updateMany({
+      where: { id: tokenId, userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: { scopes: input.scopes, ...(input.name ? { name: input.name } : {}) },
+    });
+    if (changed.count === 0) {
+      throw new NotFoundException('That token is no longer active');
+    }
+    const token = await this.prisma.accessToken.findUniqueOrThrow({ where: { id: tokenId }, select: tokenFields });
+    await this.audit.record(userId, 'access_token_updated', { name: token.name, scopes: token.scopes });
+    return token;
   }
 
   async revoke(userId: string, tokenId: string) {

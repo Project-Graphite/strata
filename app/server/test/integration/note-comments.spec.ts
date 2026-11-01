@@ -27,7 +27,7 @@ describe('Page comments against Postgres', () => {
     const inbox = async (as: typeof owner) => (await as.call('GET', '/me/inbox?page=1')).body.results.filter((entry: { kind: string }) => entry.kind === 'comment');
     expect(await inbox(owner)).toHaveLength(2);
     expect((await inbox(viewer)).map((entry: { title: string; link: string }) => [entry.title, entry.link])).toEqual([
-      ['page-editor commented on Planting plan', `/notes/${note.id}`],
+      ['page-editor commented on Planting plan', `/pages/${note.id}`],
     ]);
     expect(await inbox(editor)).toHaveLength(0);
 
