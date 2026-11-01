@@ -17,7 +17,7 @@ const movement = (overrides: Partial<Movement>): Movement => ({
   text: '',
   ...overrides,
 });
-const rule = (overrides: Partial<AccountRule>): AccountRule => ({ pattern: 'cib', accountId: null, toAccountId: null, ignore: false, card: null, ...overrides });
+const rule = (overrides: Partial<AccountRule>): AccountRule => ({ pattern: 'cib', accountId: null, toAccountId: null, ignore: false, cardDigits: null, card: null, ...overrides });
 
 describe('Capture v2', () => {
   it('auto-records only at 0.85 confidence or more with a matched account', () => {
@@ -56,8 +56,10 @@ describe('Capture v2', () => {
     expect(accountFor(accounts, rules, 'NBE', null)?.id).toBe('cib-credit');
     expect(accountFor(accounts, [], 'NBE', null)?.id).toBe('nbe');
     expect(accountFor(accounts, [rule({ pattern: 'nbe', accountId: 'cib', toAccountId: 'nbe' })], 'NBE', null)?.id).toBe('nbe');
-    expect(ignoredSender([rule({ pattern: 'promo-bank', ignore: true })], ' Promo-Bank ')).toBe(true);
-    expect(ignoredSender([rule({ pattern: 'promo-bank' })], 'Promo-Bank')).toBe(false);
+    expect(ignoredSender([rule({ pattern: 'promo-bank', ignore: true })], ' Promo-Bank ', null)).toBe(true);
+    expect(ignoredSender([rule({ pattern: 'promo-bank' })], 'Promo-Bank', null)).toBe(false);
+    expect(ignoredSender([rule({ ignore: true, cardDigits: '6030' })], 'CIB', '6030')).toBe(true);
+    expect(ignoredSender([rule({ ignore: true, cardDigits: '6030' })], 'CIB', '5802')).toBe(false);
   });
 
   it('pairs a transfer only with a counterparty hint or a confirmed account pair', () => {

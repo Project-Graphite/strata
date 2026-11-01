@@ -134,7 +134,7 @@ export class CaptureService implements OnModuleInit {
       this.senderRules.rulesOf(spaceId),
       this.categories.categories(spaceId),
     ]);
-    if (ignoredSender(rules, sender)) return { status: 'ignored', reason: 'rule' };
+    if (ignoredSender(rules, sender, read.cardDigits)) return { status: 'ignored', reason: 'rule' };
     const known = read.merchant ? merchantFor(merchants, read.merchant) : null;
     if (known?.ignore) return { status: 'ignored', reason: 'rule' };
     const account = accountFor(accounts, rules, sender, read.cardDigits, paymentLabel, input.chat ?? null);
@@ -157,7 +157,10 @@ export class CaptureService implements OnModuleInit {
       templateId: read.templateId,
       title: (known && renameOf(known)) ?? read.merchant ?? paymentLabel ?? sender,
       category:
-        read.direction === 'received' ? 'other' : (known?.category ?? (read.merchant ? ((await this.knownCategory(spaceId, read.merchant)) ?? guessCategory(read.merchant, categories)) : null)),
+        read.direction === 'received'
+          ? 'other'
+          : (known?.category ??
+            (read.merchant ? ((await this.knownCategory(spaceId, read.merchant)) ?? guessCategory(read.merchant, categories)) : paymentLabel === 'InstaPay' ? 'other' : null)),
     };
     const ready = autoRecordable(suggestion);
     const own: Movement = {
@@ -222,9 +225,11 @@ export class CaptureService implements OnModuleInit {
 
   async ignore(userId: string, id: string, input: IgnoreCaptureDto) {
     const message = await this.waiting(userId, id);
-    const { merchant } = openSuggestion(this.box, message.suggestion);
+    const { merchant, cardDigits } = openSuggestion(this.box, message.suggestion);
     if (input.always === 'merchant' && !merchant) throw new BadRequestException('This message names no merchant to ignore');
+    if (input.always === 'card' && !cardDigits) throw new BadRequestException('This message names no card to ignore');
     if (input.always === 'sender') await this.senderRules.ignore(message.spaceId, message.sender);
+    if (input.always === 'card') await this.senderRules.ignore(message.spaceId, message.sender, cardDigits);
     if (input.always === 'merchant') await this.categories.saveRule(userId, message.spaceId, { match: merchant!.toLowerCase(), ignore: true });
     await this.prisma.capturedMessage.update({ where: { id: message.id }, data: { status: 'ignored' } });
     this.changes.notify('spending', { spaceId: message.spaceId });
@@ -272,7 +277,7 @@ export class CaptureService implements OnModuleInit {
         data: { captureId: message.id, occurredAt: message.receivedAt, reference: reference ?? null, merchantId: merchantFor(merchants, enriched.merchant ?? '')?.id ?? null },
       }),
     ]);
-    if (availableMinor !== null && accountId && enriched.accountId === accountId) await this.reportBalance(accountId, availableMinor);
+    if (availableMinor !== null && accountId && enriched.accountId === accountId) await this.reportBalance(accountId, availableMinor, message.receivedAt);
     this.changes.notify('spending', { spaceId: message.spaceId });
     return expenseId;
   }
@@ -429,11 +434,17 @@ export class CaptureService implements OnModuleInit {
     await this.prisma.parserReport.upsert({ where: { captureId: message.id }, create: { userId, captureId: message.id, ...data }, update: data });
   }
 
-  private async reportBalance(accountId: string, availableMinor: number) {
-    const account = await this.prisma.moneyAccount.findUniqueOrThrow({ where: { id: accountId } });
+  private async reportBalance(accountId: string, availableMinor: number, at: Date) {
+    const [account, newer] = await Promise.all([
+      this.prisma.moneyAccount.findUniqueOrThrow({ where: { id: accountId } }),
+      this.prisma.accountBalance.count({ where: { accountId, source: 'sms', recordedAt: { gt: at } } }),
+    ]);
     if (account.kind === 'credit_card' && account.creditLimitMinor === null) return;
     const balanceMinor = account.kind === 'credit_card' ? availableMinor - Number(account.creditLimitMinor) : availableMinor;
-    await this.prisma.moneyAccount.update({ where: { id: accountId }, data: { balanceMinor, balanceAt: new Date(), balances: { create: { balanceMinor, source: 'sms' } } } });
+    await this.prisma.moneyAccount.update({
+      where: { id: accountId },
+      data: { ...(newer ? {} : { balanceMinor, balanceAt: new Date() }), balances: { create: { balanceMinor, source: 'sms', recordedAt: at } } },
+    });
   }
 
   private async knownCategory(spaceId: string, merchant: string) {

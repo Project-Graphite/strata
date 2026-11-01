@@ -14,12 +14,13 @@ export const senderRuleFields = {
   cardId: true,
   toAccountId: true,
   ignore: true,
+  cardDigits: true,
   card: { select: { last4: true, accountId: true } },
 } satisfies Prisma.SenderRuleSelect;
 
 type SenderRuleRow = Prisma.SenderRuleGetPayload<{ select: typeof senderRuleFields }>;
 
-const present = (rule: SenderRuleRow) => ({ id: rule.id, sender: rule.pattern, accountId: rule.accountId, cardDigits: rule.card?.last4 ?? null, toAccountId: rule.toAccountId, ignore: rule.ignore });
+const present = (rule: SenderRuleRow) => ({ id: rule.id, sender: rule.pattern, accountId: rule.accountId, cardDigits: rule.card?.last4 ?? rule.cardDigits, toAccountId: rule.toAccountId, ignore: rule.ignore });
 
 @Injectable()
 export class SenderRulesService {
@@ -61,11 +62,9 @@ export class SenderRulesService {
     await this.prisma.senderRule.delete({ where: { id } });
   }
 
-  async ignore(spaceId: string, sender: string) {
-    const pattern = senderKey(sender);
-    if (!(await this.prisma.senderRule.findFirst({ where: { spaceId, pattern, ignore: true }, select: { id: true } }))) {
-      await this.prisma.senderRule.create({ data: { spaceId, pattern, ignore: true } });
-    }
+  async ignore(spaceId: string, sender: string, cardDigits: string | null = null) {
+    const rule = { spaceId, pattern: senderKey(sender), ignore: true, cardDigits };
+    if (!(await this.prisma.senderRule.findFirst({ where: rule, select: { id: true } }))) await this.prisma.senderRule.create({ data: rule });
   }
 
   async learnAccount(spaceId: string, sender: string, accountId: string, cardDigits: string | null | undefined) {

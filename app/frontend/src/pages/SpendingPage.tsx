@@ -67,7 +67,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
     | { budget: string | null }
     | { expense: Expense }
     | { capture: CapturedMessage; report?: boolean }
-    | { ignoreAlways: CapturedMessage; by: 'sender' | 'merchant' }
+    | { ignoreAlways: CapturedMessage; by: IgnoreBy }
     | { deleteBudget: string }
   >();
   const [opened, setOpened] = useState<string[]>([]);
@@ -426,7 +426,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           title={`Always ignore ${ignoredName(dialog)}?`}
           tone="danger"
         >
-          This message and every later one {dialog.by === 'sender' ? 'from' : 'naming'} {ignoredName(dialog)} are skipped. You can delete the rule under Edit rules.
+          This message and every later one {dialog.by === 'merchant' ? 'naming' : 'from'} {ignoredName(dialog)} are skipped. You can delete the rule under Edit rules.
         </ConfirmDialog>
       )}
       {typeof dialog === 'object' && 'deleteBudget' in dialog && (
@@ -450,7 +450,10 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
   );
 }
 
-const ignoredName = ({ ignoreAlways, by }: { ignoreAlways: CapturedMessage; by: 'sender' | 'merchant' }) => (by === 'sender' ? ignoreAlways.sender : ignoreAlways.suggestion.merchant);
+type IgnoreBy = 'sender' | 'merchant' | 'card';
+
+const ignoredName = ({ ignoreAlways, by }: { ignoreAlways: CapturedMessage; by: IgnoreBy }) =>
+  by === 'sender' ? ignoreAlways.sender : by === 'card' ? `card •••• ${ignoreAlways.suggestion.cardDigits}` : ignoreAlways.suggestion.merchant;
 
 function quickAdd({ receivedAt, sender, suggestion }: CapturedMessage) {
   const { amountMinor, currency, direction, transfer } = suggestion;
@@ -483,7 +486,7 @@ function ReviewCard({
   message: CapturedMessage;
   onAdd: (ready: NonNullable<ReturnType<typeof quickAdd>>) => void;
   onEdit: (report: boolean) => void;
-  onIgnore: (by?: 'sender' | 'merchant') => void;
+  onIgnore: (by?: IgnoreBy) => void;
   onToggleMessage: () => void;
   opened: boolean;
 }) {
@@ -550,6 +553,7 @@ function ReviewCard({
                 { label: 'Report parsing', onSelect: () => onEdit(true) },
                 { label: 'Ignore', separated: true, onSelect: () => onIgnore() },
                 ...(suggested.merchant ? [{ label: `Always ignore ${suggested.merchant}`, onSelect: () => onIgnore('merchant') }] : []),
+                ...(suggested.cardDigits ? [{ label: `Always ignore card •••• ${suggested.cardDigits}`, onSelect: () => onIgnore('card') }] : []),
                 { label: `Always ignore ${message.sender}`, onSelect: () => onIgnore('sender') },
               ]}
               name={name}

@@ -1262,6 +1262,7 @@ model SenderRule {
   cardId      String?       @map("card_id") @db.Uuid
   toAccountId String?       @map("to_account_id") @db.Uuid
   ignore      Boolean       @default(false)
+  cardDigits  String?       @map("card_digits")
   confidence  Float         @default(1)
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")

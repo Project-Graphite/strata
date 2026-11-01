@@ -58,8 +58,8 @@ export class RecordCaptureDto extends CreateExpenseDto {
 
 export class IgnoreCaptureDto {
   @IsOptional()
-  @IsIn(['sender', 'merchant'], { message: 'Ignore by sender or by merchant.' })
-  always?: 'sender' | 'merchant';
+  @IsIn(['sender', 'merchant', 'card'], { message: 'Ignore by sender, merchant or card.' })
+  always?: 'sender' | 'merchant' | 'card';
 }
 
 export class UpdateSenderRuleDto {

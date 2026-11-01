@@ -328,6 +328,42 @@ describe('Bank messages from a phone against Postgres', () => {
     expect((await owner.call('GET', `/expenses/${recorded.body.expenseId}`)).body.title).toBe('Spinneys');
   });
 
+  it('records InstaPay transfers, ignores one card ending and keeps the newest balance from texts', async () => {
+    const owner = await member('instapay-payer');
+    const home = owner.personalSpaceId;
+    const current = (await owner.call('POST', `/spaces/${home}/accounts`, { name: 'Current', currency: 'EGP', cardDigits: ['9876', '4321'] })).body;
+    const send = (at: string, text: string) => owner.call('POST', `/spaces/${home}/captures`, { from: 'CIB', text, sentStamp: String(Date.parse(at)) });
+
+    const instapay = await send('2026-10-25T11:06:00Z', 'يرجى العلم انه تم تنفيذ تحويل لحظي بمبلغ 100.00 جم من حسابك المنتهي بـ ********9876 برقم مرجعي 872d26fe بتاريخ 25-10-2026 13:06 للمزيد، برجاء الاتصال بـ 19666 ');
+    expect(instapay.body.status).toBe('recorded');
+    expect((await owner.call('GET', `/expenses/${instapay.body.expenseId}`)).body).toMatchObject({
+      title: 'InstaPay',
+      paymentLabel: 'InstaPay',
+      direction: 'spent',
+      kind: 'transfer',
+      category: 'other',
+      accountId: current.id,
+      reference: '872d26fe',
+    });
+
+    const other = 'Your credit card ending with#6030 was charged for EGP 172.00 at Vodafone Top Up on 11/10/26  at 22:16. Card available limit is EGP  10452.58.';
+    expect((await send('2026-10-11T20:16:00Z', other)).body.status).toBe('review');
+    const [waiting] = (await owner.call('GET', `/spaces/${home}/captures`)).body;
+    expect((await owner.call('POST', `/captures/${waiting.id}/ignore`, { always: 'card' })).status).toBe(204);
+    expect((await owner.call('GET', `/spaces/${home}/sender-rules`)).body).toEqual([expect.objectContaining({ sender: 'cib', ignore: true, cardDigits: '6030' })]);
+    expect((await send('2026-10-12T20:16:00Z', other.replace('172.00', '50.00'))).body).toEqual({ status: 'ignored', reason: 'rule' });
+
+    const debit = (amount: string, balance: string, day: string) => `تم خصم مبلغ  EGP ${amount} من بطاقة الخصم المباشر المنتهية بـ **4321 عند VODAFONE في ${day}/10/26 20:30 ، الرصيد المتاح ${balance} EGP`;
+    expect((await send('2026-10-29T18:30:00Z', debit('300.00', '5481.53', '29'))).body.status).toBe('recorded');
+    expect((await send('2026-10-20T18:30:00Z', debit('100.00', '9000.00', '20'))).body.status).toBe('recorded');
+    const [account] = (await owner.call('GET', `/spaces/${home}/accounts`)).body;
+    expect(account.history.filter((point: { source: string }) => point.source === 'sms')).toEqual([
+      { at: '2026-10-20T18:30:00.000Z', balanceMinor: 900_000, source: 'sms' },
+      { at: '2026-10-29T18:30:00.000Z', balanceMinor: 548_153, source: 'sms' },
+    ]);
+    expect((await strata.prisma.moneyAccount.findUniqueOrThrow({ where: { id: current.id } })).balanceMinor).toBe(548_153n);
+  });
+
   it('records a credit card payoff as one transfer from the paying account, whichever text arrives first', async () => {
     const owner = await member('card-payer');
     const home = owner.personalSpaceId;
