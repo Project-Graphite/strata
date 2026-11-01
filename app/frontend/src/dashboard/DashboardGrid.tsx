@@ -25,6 +25,8 @@ function rememberedRows(dashboard: string): Record<string, number> {
   }
 }
 
+const phoneMinHeight = 128;
+
 export function DashboardGrid({
   card,
   dashboard,
@@ -165,7 +167,7 @@ export function DashboardGrid({
           style={
             wide
               ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` }
-              : { minHeight: pixelsOf(widgetKinds[widget.type].minH) }
+              : { minHeight: Math.min(pixelsOf(widgetKinds[widget.type].minH), phoneMinHeight) }
           }
           tabIndex={editable ? 0 : undefined}
         >

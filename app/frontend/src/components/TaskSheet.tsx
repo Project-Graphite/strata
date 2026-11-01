@@ -51,7 +51,7 @@ function applied(task: TaskDetail, { assigneeId, ...change }: Partial<Fields>, m
   };
 }
 
-export default function TaskSheet({ listId, onChanged, onClose, onCreated, spaceId: newIn, task: given, taskId }: OpenTaskProps) {
+export default function TaskSheet({ listId, onChanged, onClose, onCreated, spaceId: newIn, status, task: given, taskId }: OpenTaskProps) {
   const auth = useAuth();
   const show = useSnackbar();
   const action = useAction();
@@ -65,7 +65,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const [comments, setComments] = useState(0);
   const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
     title: '',
-    status: 'open',
+    status: status ?? 'open',
     dueDate: null,
     dueTime: null,
     priority: 0,

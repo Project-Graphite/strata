@@ -9,6 +9,7 @@ export interface OpenTaskProps {
   onClose: () => void;
   onCreated?: (task: Task) => void;
   spaceId?: string;
+  status?: Task['status'];
   task?: Task;
   taskId?: string;
 }
