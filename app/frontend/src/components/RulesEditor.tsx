@@ -26,7 +26,9 @@ export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAcc
   const accountOptions = accounts.map((account) => ({ value: account.id, label: account.name }));
   const senderMeta = (rule: SenderRule) =>
     rule.ignore
-      ? 'Ignore every message'
+      ? rule.cardDigits
+        ? `Ignore every message for card •••• ${rule.cardDigits}`
+        : 'Ignore every message'
       : rule.toAccountId
         ? `Transfers from ${accountName(rule.accountId)} to ${accountName(rule.toAccountId)}`
         : [accountName(rule.accountId), rule.cardDigits && `•••• ${rule.cardDigits}`].filter(Boolean).join(' · ');

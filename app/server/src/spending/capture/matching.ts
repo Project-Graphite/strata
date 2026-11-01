@@ -19,6 +19,7 @@ export interface AccountRule {
   accountId: string | null;
   toAccountId: string | null;
   ignore: boolean;
+  cardDigits: string | null;
   card: { last4: string; accountId: string } | null;
 }
 
@@ -80,7 +81,8 @@ export function accountFor<T extends { id: string; name: string; senders: string
   return null;
 }
 
-export const ignoredSender =(rules: AccountRule[], sender: string) => rules.some((rule) => rule.ignore && rule.pattern === senderKey(sender));
+export const ignoredSender = (rules: AccountRule[], sender: string, cardDigits: string | null) =>
+  rules.some((rule) => rule.ignore && rule.pattern === senderKey(sender) && (!rule.cardDigits || rule.cardDigits === cardDigits));
 
 const mentions = (text: string, handle: string | null | undefined) => !!handle && handle.trim().length >= 4 && text.toLowerCase().includes(handle.trim().toLowerCase());
 

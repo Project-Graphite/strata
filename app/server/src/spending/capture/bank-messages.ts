@@ -104,7 +104,7 @@ export const referenceIn = (text: string) => text.match(referenceLabel)?.[1] ?? 
 export type DigitalPaymentApp = 'InstaPay' | 'nSave' | 'PayPal';
 
 const digitalAppMatchers: [DigitalPaymentApp, RegExp][] = [
-  ['InstaPay', /\b(?:instapay|ipn)\b|com\.egyptianbanks\.instapay|@instapay|انستاباي|إنستاباي/i],
+  ['InstaPay', /\b(?:instapay|ipn)\b|com\.egyptianbanks\.instapay|@instapay|انستاباي|إنستاباي|(?:تحويل|شراء) لحظي/i],
   ['nSave', /\bnsave\b|com\.nsave|tech\.nsave/i],
   ['PayPal', /\bpaypal\b|com\.paypal/i],
 ];
