@@ -80,78 +80,83 @@ enum TokenPurpose {
 }
 
 model User {
-  id                  String                 @id @default(uuid()) @db.Uuid
-  email               String                 @unique
-  handle              String                 @unique
-  displayName         String                 @map("display_name")
-  passwordHash        String                 @map("password_hash")
-  verifiedAt          DateTime?              @map("verified_at")
-  timeZone            String                 @default("Etc/UTC") @map("time_zone")
-  timeFormat          String                 @default("auto") @map("time_format")
-  tidySummary         Boolean                @default(false) @map("tidy_summary")
-  weeklyReview        Boolean                @default(false) @map("weekly_review")
-  homeCurrency        String?                @map("home_currency")
-  weekStart           Int                    @default(0) @map("week_start")
-  weekendDays         Int[]                  @default([5, 6]) @map("weekend_days")
-  monthStartDay       Int                    @default(1) @map("month_start_day")
-  budgetsEnabled      Boolean                @default(true) @map("budgets_enabled")
-  features            String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
-  calendarFeedHash    String?                @unique @map("calendar_feed_hash")
-  isActive            Boolean                @default(true) @map("is_active")
-  role                UserRole               @default(MEMBER)
-  createdAt           DateTime               @default(now()) @map("created_at")
-  updatedAt           DateTime               @updatedAt @map("updated_at")
-  verificationTokens  VerificationToken[]
-  refreshSessions     RefreshSession[]
-  twoStepCredential   TwoStepCredential?
-  recoveryCodes       RecoveryCode[]
-  knownDevices        KnownDevice[]
-  signInChallenges    SignInChallenge[]
-  personalSpace       Space?                 @relation("PersonalSpace")
-  createdSpaces       Space[]                @relation("CreatedSpaces")
-  memberships         SpaceMember[]
-  createdItems        Item[]                 @relation("CreatedItems")
-  updatedItems        Item[]                 @relation("UpdatedItems")
-  createdLinks        ItemLink[]
-  sentInvitations     Invitation[]           @relation("SentInvitations")
-  receivedInvitations Invitation[]           @relation("ReceivedInvitations")
-  redemptions         InvitationRedemption[]
-  createdShareLinks   ShareLink[]
-  pageGrants          PageGrant[]            @relation("PageGrantRecipient")
-  createdPageGrants   PageGrant[]            @relation("PageGrantCreator")
-  activity            ActivityEvent[]
-  auditEvents         AuditEvent[]           @relation("AuditSubject")
-  auditActions        AuditEvent[]           @relation("AuditActor")
-  inbox               InboxNotification[]
-  uploadedFiles       File[]
-  accessTokens        AccessToken[]
-  assignedTasks       Task[]
-  dashboards          Dashboard[]
-  tidyBatches         TidyBatch[]
-  tidyRules           TidyRule[]
-  noteVersions        NoteVersion[]
-  habitCheckIns       HabitCheckIn[]
-  capturedMessages    CapturedMessage[]
-  parserReports       ParserReport[]
-  journalEntries      JournalEntry[]
-  noteComments        NoteComment[]          @relation("CommentAuthor")
-  resolvedComments    NoteComment[]          @relation("CommentResolver")
-  pushSubscriptions   PushSubscription[]
-  pollVotes           EventPollVote[]
-  calendars           CalendarSubscription[]
-  webhooks            Webhook[]
-  expenses            Expense[]
-  subscriptions       Subscription[]
-  moneyAccounts       MoneyAccount[]
-  merchants           Merchant[]
-  senderRules         SenderRule[]
-  budgets             Budget[]
-  categories          SpendingCategory[]
-  spendingPlan        SpendingPlan?
-  budgetAlerts        BudgetAlert[]
-  installments        InstallmentPlan[]
-  savingsGoals        SavingsGoal[]
-  assets              Asset[]
+  id                   String                 @id @default(uuid()) @db.Uuid
+  email                String                 @unique
+  handle               String                 @unique
+  displayName          String                 @map("display_name")
+  passwordHash         String                 @map("password_hash")
+  verifiedAt           DateTime?              @map("verified_at")
+  timeZone             String                 @default("Etc/UTC") @map("time_zone")
+  timeFormat           String                 @default("auto") @map("time_format")
+  tidySummary          Boolean                @default(false) @map("tidy_summary")
+  weeklyReview         Boolean                @default(false) @map("weekly_review")
+  homeCurrency         String?                @map("home_currency")
+  weekStart            Int                    @default(0) @map("week_start")
+  weekendDays          Int[]                  @default([5, 6]) @map("weekend_days")
+  monthStartDay        Int                    @default(1) @map("month_start_day")
+  budgetsEnabled       Boolean                @default(true) @map("budgets_enabled")
+  features             String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
+  calendarFeedHash     String?                @unique @map("calendar_feed_hash")
+  isActive             Boolean                @default(true) @map("is_active")
+  role                 UserRole               @default(MEMBER)
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  verificationTokens   VerificationToken[]
+  refreshSessions      RefreshSession[]
+  twoStepCredential    TwoStepCredential?
+  recoveryCodes        RecoveryCode[]
+  knownDevices         KnownDevice[]
+  signInChallenges     SignInChallenge[]
+  personalSpace        Space?                 @relation("PersonalSpace")
+  createdSpaces        Space[]                @relation("CreatedSpaces")
+  memberships          SpaceMember[]
+  createdItems         Item[]                 @relation("CreatedItems")
+  ownedItems           Item[]                 @relation("OwnedItems")
+  ownedTags            Tag[]                  @relation("OwnedTags")
+  ownedSearchDocuments SearchDocument[]       @relation("OwnedSearchDocuments")
+  habits               Habit[]
+  calendars            CalendarSubscription[]
+  mealPlan             MealPlanEntry[]
+  updatedItems         Item[]                 @relation("UpdatedItems")
+  createdLinks         ItemLink[]
+  sentInvitations      Invitation[]           @relation("SentInvitations")
+  receivedInvitations  Invitation[]           @relation("ReceivedInvitations")
+  redemptions          InvitationRedemption[]
+  createdShareLinks    ShareLink[]
+  pageGrants           PageGrant[]            @relation("PageGrantRecipient")
+  createdPageGrants    PageGrant[]            @relation("PageGrantCreator")
+  activity             ActivityEvent[]
+  auditEvents          AuditEvent[]           @relation("AuditSubject")
+  auditActions         AuditEvent[]           @relation("AuditActor")
+  inbox                InboxNotification[]
+  uploadedFiles        File[]
+  accessTokens         AccessToken[]
+  assignedTasks        Task[]
+  dashboards           Dashboard[]
+  tidyBatches          TidyBatch[]
+  tidyRules            TidyRule[]
+  noteVersions         NoteVersion[]
+  habitCheckIns        HabitCheckIn[]
+  capturedMessages     CapturedMessage[]
+  parserReports        ParserReport[]
+  journalEntries       JournalEntry[]
+  noteComments         NoteComment[]          @relation("CommentAuthor")
+  resolvedComments     NoteComment[]          @relation("CommentResolver")
+  pushSubscriptions    PushSubscription[]
+  pollVotes            EventPollVote[]
+  webhooks             Webhook[]
+  expenses             Expense[]
+  subscriptions        Subscription[]
+  moneyAccounts        MoneyAccount[]
+  merchants            Merchant[]
+  senderRules          SenderRule[]
+  budgets              Budget[]
+  categories           SpendingCategory[]
+  spendingPlan         SpendingPlan?
+  budgetAlerts         BudgetAlert[]
+  installments         InstallmentPlan[]
+  savingsGoals         SavingsGoal[]
+  assets               Asset[]
 
   @@map("users")
 }
@@ -234,15 +239,15 @@ model SignInChallenge {
 }
 
 model Space {
-  id              String                 @id @default(uuid()) @db.Uuid
+  id              String           @id @default(uuid()) @db.Uuid
   name            String
-  color           String                 @default("gray")
-  personalOwnerId String?                @unique @map("personal_owner_id") @db.Uuid
-  createdById     String?                @map("created_by") @db.Uuid
-  createdAt       DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
-  personalOwner   User?                  @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
-  createdBy       User?                  @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
+  color           String           @default("gray")
+  personalOwnerId String?          @unique @map("personal_owner_id") @db.Uuid
+  createdById     String?          @map("created_by") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  personalOwner   User?            @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
+  createdBy       User?            @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
   members         SpaceMember[]
   items           Item[]
   tags            Tag[]
@@ -250,10 +255,7 @@ model Space {
   searchDocuments SearchDocument[]
   activity        ActivityEvent[]
   tidyRules       TidyRule[]
-  habits          Habit[]
-  calendars       CalendarSubscription[]
   webhooks        Webhook[]
-  mealPlan        MealPlanEntry[]
   accessTokens    AccessToken[]
 
   @@map("spaces")
@@ -274,7 +276,8 @@ model SpaceMember {
 
 model Item {
   id             String            @id @default(uuid()) @db.Uuid
-  spaceId        String            @map("space_id") @db.Uuid
+  spaceId        String?           @map("space_id") @db.Uuid
+  ownerId        String?           @map("owner_id") @db.Uuid
   kind           ItemKind
   title          String            @default("")
   createdById    String?           @map("created_by") @db.Uuid
@@ -283,7 +286,8 @@ model Item {
   trashedAt      DateTime?         @map("trashed_at")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
-  space          Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space          Space?            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  owner          User?             @relation("OwnedItems", fields: [ownerId], references: [id], onDelete: Cascade)
   createdBy      User?             @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy      User?             @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
   tags           ItemTag[]
@@ -318,20 +322,24 @@ model Item {
   mealPlanned    MealPlanEntry[]
 
   @@index([spaceId, updatedAt])
+  @@index([ownerId, kind, updatedAt])
   @@map("items")
 }
 
 model Tag {
   id          String      @id @default(uuid()) @db.Uuid
-  spaceId     String      @map("space_id") @db.Uuid
+  spaceId     String?     @map("space_id") @db.Uuid
+  ownerId     String?     @map("owner_id") @db.Uuid
   name        String
   color       String      @default("gray")
   createdAt   DateTime    @default(now()) @map("created_at")
-  space       Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space       Space?      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  owner       User?       @relation("OwnedTags", fields: [ownerId], references: [id], onDelete: Cascade)
   items       ItemTag[]
   tidyBatches TidyBatch[]
   tidyRules   TidyRule[]
 
+  @@index([ownerId])
   @@map("tags")
 }
 
@@ -554,14 +562,17 @@ model AccessToken {
 
 model SearchDocument {
   itemId    String   @id @map("item_id") @db.Uuid
-  spaceId   String   @map("space_id") @db.Uuid
+  spaceId   String?  @map("space_id") @db.Uuid
+  ownerId   String?  @map("owner_id") @db.Uuid
   title     String   @default("")
   bodyText  String   @default("") @map("body_text")
   updatedAt DateTime @default(now()) @map("updated_at")
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space     Space?   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  owner     User?    @relation("OwnedSearchDocuments", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([spaceId])
+  @@index([ownerId])
   @@map("search_documents")
 }
 
@@ -841,16 +852,16 @@ model NoteProperty {
 
 model Habit {
   id        String         @id @default(uuid()) @db.Uuid
-  spaceId   String         @map("space_id") @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
   name      String
   perWeek   Int            @default(7) @map("per_week")
   position  Int            @default(0)
   createdAt DateTime       @default(now()) @map("created_at")
-  space     Space          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   checkIns  HabitCheckIn[]
   goals     GoalHabit[]
 
-  @@index([spaceId, position])
+  @@index([userId, position])
   @@map("habits")
 }
 
@@ -935,19 +946,17 @@ model EventPollVote {
 
 model CalendarSubscription {
   id            String            @id @default(uuid()) @db.Uuid
-  spaceId       String            @map("space_id") @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
   name          String
   urlSealed     String            @map("url_sealed")
   host          String
   lastFetchedAt DateTime?         @map("last_fetched_at")
   lastError     String?           @map("last_error")
-  createdById   String?           @map("created_by") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at")
-  space         Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  createdBy     User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   events        SubscribedEvent[]
 
-  @@index([spaceId])
+  @@index([userId])
   @@index([lastFetchedAt])
   @@map("calendar_subscriptions")
 }
@@ -1070,17 +1079,17 @@ model Recipe {
 
 model MealPlanEntry {
   id        String   @id @default(uuid()) @db.Uuid
-  spaceId   String   @map("space_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   day       DateTime @db.Date
   meal      String
   recipeId  String?  @map("recipe_id") @db.Uuid
   note      String   @default("")
   position  Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipe    Item?    @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
-  @@index([spaceId, day])
+  @@index([userId, day])
   @@map("meal_plan_entries")
 }
 

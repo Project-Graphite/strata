@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { GuestResponse, ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { InboxService } from '../inbox/inbox.service';
@@ -105,7 +104,6 @@ export class EventsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly activity: ActivityService,
     private readonly inbox: InboxService,
     private readonly jobs: JobsService,
     private readonly mail: MailService,
@@ -116,8 +114,7 @@ export class EventsService implements OnModuleInit {
     this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; start: string }));
   }
 
-  async create(userId: string, spaceId: string, input: CreateEventDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, input: CreateEventDto) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const details = this.checkedDetails({
       startsOn: input.startsOn,
@@ -130,7 +127,7 @@ export class EventsService implements OnModuleInit {
     const id = await this.prisma.$transaction(async (transaction) => {
       const item = await transaction.item.create({
         data: {
-          spaceId,
+          ownerId: userId,
           kind: ItemKind.EVENT,
           title: input.title,
           createdById: userId,
@@ -147,10 +144,10 @@ export class EventsService implements OnModuleInit {
         },
         select: { id: true },
       });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.title } });
       await this.reschedule(transaction, item.id, new Date());
       return item.id;
     });
+    this.changes.notify('items', { userId });
     return this.get(userId, id);
   }
 
@@ -160,7 +157,6 @@ export class EventsService implements OnModuleInit {
       where: { id: itemId },
       select: {
         id: true,
-        spaceId: true,
         title: true,
         event: true,
         guests: { orderBy: [{ invitedAt: 'asc' }, { id: 'asc' }] },
@@ -171,7 +167,6 @@ export class EventsService implements OnModuleInit {
     for (const guest of item.guests) headcount[guest.response.toLowerCase() as keyof typeof headcount] += 1;
     return {
       id: item.id,
-      spaceId: item.spaceId,
       ...publicEvent(item.title, item.event),
       reminderMinutes: item.event.reminderMinutes,
       guests: item.guests.map(presentGuest),
@@ -208,18 +203,9 @@ export class EventsService implements OnModuleInit {
           },
         },
       });
-      if (input.title !== undefined && input.title !== current.title) {
-        await this.activity.record(transaction, {
-          spaceId: current.spaceId,
-          actorId: userId,
-          itemId,
-          verb: 'item.updated',
-          data: { title: input.title, renamedFrom: current.title },
-        });
-      }
       await this.reschedule(transaction, itemId, new Date());
     });
-    this.changes.notify('items', { spaceId: current.spaceId });
+    this.changes.notify('items', { userId });
     return this.get(userId, itemId);
   }
 
@@ -232,20 +218,16 @@ export class EventsService implements OnModuleInit {
     }
     const start = zonedInstant(fromDay.getTime() / dayMs, 0, 0, user.timeZone);
     const end = zonedInstant(toDay.getTime() / dayMs, 0, 0, user.timeZone);
-    const readable = { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), trashedAt: null };
+    const mine = { ...this.access.ownedBy(userId), trashedAt: null };
     const window = { startsOn: { lte: toDay }, OR: [{ repeatRule: { not: null } }, { endsOn: { gte: new Date(fromDay.getTime() - dayMs) } }] };
     const [events, tasks, subscriptions, followed, people, installments, cards] = await Promise.all([
       this.prisma.item.findMany({
-        where: {
-          ...readable,
-          kind: ItemKind.EVENT,
-          event: window,
-        },
-        select: { id: true, spaceId: true, title: true, event: true },
+        where: { ...mine, kind: ItemKind.EVENT, event: window },
+        select: { id: true, title: true, event: true },
         take: 1_000,
       }),
       this.prisma.item.findMany({
-        where: { ...readable, kind: ItemKind.TASK, task: { completedAt: null, dueDate: { gte: new Date(fromDay.getTime() - dayMs), lte: toDay } } },
+        where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), trashedAt: null, kind: ItemKind.TASK, task: { completedAt: null, dueDate: { gte: new Date(fromDay.getTime() - dayMs), lte: toDay } } },
         select: { id: true, spaceId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true } } },
         take: 1_000,
       }),
@@ -255,14 +237,14 @@ export class EventsService implements OnModuleInit {
         take: 1_000,
       }),
       this.prisma.subscribedEvent.findMany({
-        where: { ...window, subscription: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) } },
-        include: { subscription: { select: { spaceId: true, name: true } } },
+        where: { ...window, subscription: { userId } },
+        include: { subscription: { select: { name: true } } },
         take: 2_000,
       }),
       user.features.includes('people')
         ? this.prisma.item.findMany({
-            where: { ...readable, kind: ItemKind.PERSON, person: { birthdayMonth: { not: null }, birthdayDay: { not: null } } },
-            select: { id: true, spaceId: true, title: true, person: { select: { birthdayMonth: true, birthdayDay: true, birthYear: true } } },
+            where: { ...mine, kind: ItemKind.PERSON, person: { birthdayMonth: { not: null }, birthdayDay: { not: null } } },
+            select: { id: true, title: true, person: { select: { birthdayMonth: true, birthdayDay: true, birthYear: true } } },
             take: 2_000,
           })
         : [],
@@ -279,7 +261,7 @@ export class EventsService implements OnModuleInit {
         slots(item.event!, start, end).map((slot) => ({
           kind: 'event' as const,
           itemId: item.id,
-          spaceId: item.spaceId,
+          spaceId: null,
           title: item.title,
           ...times(item.event!, slot),
           location: item.event!.location,
@@ -289,7 +271,7 @@ export class EventsService implements OnModuleInit {
         slots(event, start, end).map((slot) => ({
           kind: 'external' as const,
           itemId: event.id,
-          spaceId: event.subscription.spaceId,
+          spaceId: null,
           title: event.title,
           ...times(event, slot),
           location: event.location,
@@ -322,7 +304,7 @@ export class EventsService implements OnModuleInit {
         return birthdaysBetween(person.birthdayMonth!, person.birthdayDay!, from, to).map((day) => ({
           kind: 'birthday' as const,
           itemId: item.id,
-          spaceId: item.spaceId,
+          spaceId: null,
           title: person.birthYear ? `${item.title} turns ${Number(day.slice(0, 4)) - person.birthYear}` : `${item.title}’s birthday`,
           allDay: true,
           start: day,
@@ -430,7 +412,7 @@ export class EventsService implements OnModuleInit {
   private async editable(userId: string, itemId: string) {
     const found = await this.access.assertItem(userId, itemId, 'edit');
     if (found.trashedAt) throw new BadRequestException('Restore this event from the trash before changing it');
-    const item = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { spaceId: true, title: true, event: true } });
+    const item = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { title: true, event: true } });
     if (!item.event) throw new NotFoundException('That item is not an event');
     return { ...item, event: item.event };
   }
@@ -453,14 +435,14 @@ export class EventsService implements OnModuleInit {
   private async remind(payload: { itemId: string; start: string }) {
     const item = await this.prisma.item.findUnique({
       where: { id: payload.itemId },
-      select: { spaceId: true, title: true, trashedAt: true, createdById: true, event: true },
+      select: { ownerId: true, title: true, trashedAt: true, event: true },
     });
     if (!item?.event || item.trashedAt) return;
     const start = new Date(payload.start);
-    if (item.createdById && (await this.access.isMember(item.createdById, item.spaceId)) && slots(item.event, start, new Date(start.getTime() + 1), 1).some((slot) => slot.start.getTime() === start.getTime())) {
+    if (item.ownerId && slots(item.event, start, new Date(start.getTime() + 1), 1).some((slot) => slot.start.getTime() === start.getTime())) {
       await this.inbox.notify(this.prisma, [
         {
-          userId: item.createdById,
+          userId: item.ownerId,
           kind: 'event_soon',
           title: `${item.title} starts ${item.event.startTime ? `at ${item.event.startTime}` : 'today'}`,
           link: `/events/${payload.itemId}`,

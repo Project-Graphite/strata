@@ -8,17 +8,14 @@ import { LoadError } from '../components/LoadError';
 import { FilterChips, Page, Section } from '../components/Page';
 import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { periodLabel, progressText, statusLabels, type Goal } from '../goals';
-import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
 
 export function GoalsPage() {
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const [params] = useSearchParams();
   const finished = params.get('status') === 'finished';
   const goals = useResource<Goal[]>(`/me/goals${finished ? '?status=finished' : ''}`, true);
   const [adding, setAdding] = useState(false);
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const groups = new Map<string, Goal[]>();
   for (const goal of goals.data ?? []) {
     const label = periodLabel(goal.period, goal.startsOn);
@@ -36,12 +33,12 @@ export function GoalsPage() {
         hint: 'Set a goal for the year, quarter or month, and track it with a number or with linked tasks.',
         variant: 'page' as const,
         icon: 'target' as const,
-        action: writable.length > 0 && <Button icon="plus" label="New goal" onClick={() => setAdding(true)} primary />,
+        action: <Button icon="plus" label="New goal" onClick={() => setAdding(true)} primary />,
       };
 
   return (
     <Page
-      actions={writable.length > 0 && <AddButton label="New goal" large onClick={() => setAdding(true)} primary />}
+      actions={<AddButton label="New goal" large onClick={() => setAdding(true)} primary />}
       title="Goals"
       toolbar={
         <FilterChips
@@ -85,7 +82,7 @@ export function GoalsPage() {
                 <ListRow
                   href={`/goals/${goal.id}`}
                   key={goal.id}
-                  meta={`${goal.spaceName} · ${progressText(goal)}`}
+                  meta={progressText(goal)}
                   title={goal.title}
                   trail={
                     goal.status !== 'active' ? (
@@ -102,7 +99,7 @@ export function GoalsPage() {
           </Section>
         ))
       )}
-      {adding && <GoalEditor onClose={() => setAdding(false)} onSaved={(saved) => navigate(`/goals/${saved.id}`)} spaces={writable} />}
+      {adding && <GoalEditor onClose={() => setAdding(false)} onSaved={(saved) => navigate(`/goals/${saved.id}`)} />}
     </Page>
   );
 }

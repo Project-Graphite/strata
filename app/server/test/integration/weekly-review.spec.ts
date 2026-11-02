@@ -15,8 +15,8 @@ describe('Weekly review against Postgres', () => {
     const done = (await owner.call('POST', `/spaces/${space}/tasks`, { title: 'File the taxes' })).body;
     await owner.call('POST', `/tasks/${done.id}/complete`);
     await owner.call('POST', `/spaces/${space}/tasks`, { title: 'Call the plumber', dueDate: utcDate(-2) });
-    await owner.call('POST', `/spaces/${space}/events`, { title: 'Book club', startsOn: utcDate(3), startTime: '19:00' });
-    await owner.call('POST', `/spaces/${space}/habits`, { name: 'Stretch' });
+    await owner.call('POST', '/me/events', { title: 'Book club', startsOn: utcDate(3), startTime: '19:00' });
+    await owner.call('POST', '/me/habits', { name: 'Stretch' });
 
     const first = await owner.call('POST', '/me/weekly-review');
     expect(first.status).toBe(201);

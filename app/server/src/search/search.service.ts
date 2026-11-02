@@ -25,6 +25,7 @@ export class SearchService {
         FROM "search_documents" AS "d"
         JOIN "items" AS "i" ON "i"."id" = "d"."item_id"
         WHERE ("d"."space_id" IN (SELECT "space_id" FROM "space_members" WHERE "user_id" = ${userId}::uuid)
+          OR ("d"."owner_id" = ${userId}::uuid AND ${spaceId ?? null}::uuid IS NULL)
           OR ("i"."kind" IN ('note', 'board') AND "i"."archived_at" IS NULL AND EXISTS (SELECT 1 FROM "page_grants" AS "g" WHERE "g"."item_id" = "i"."id" AND "g"."user_id" = ${userId}::uuid)))
           AND (${spaceId ?? null}::uuid IS NULL OR "i"."space_id" = ${spaceId ?? null}::uuid)
           AND "i"."trashed_at" IS NULL
@@ -33,7 +34,7 @@ export class SearchService {
           "i"."updated_at" DESC
         LIMIT ${itemLimit}`,
       this.prisma.tag.findMany({
-        where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId), name: { contains: text, mode: 'insensitive' } },
+        where: { ...(spaceId ? { spaceId, space: this.access.spacesOf(userId) } : { OR: [{ space: this.access.spacesOf(userId) }, { ownerId: userId }] }), name: { contains: text, mode: 'insensitive' } },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         take: tagLimit,
         select: tagFields,
@@ -52,7 +53,7 @@ export class SearchService {
               {
                 id: item.id,
                 spaceId: item.spaceId,
-                spaceName: item.space.members.length ? item.space.name : 'Shared page',
+                spaceName: item.space ? (item.space.members.length ? item.space.name : 'Shared page') : null,
                 kind: item.kind.toLowerCase(),
                 quick: item.note?.quick ?? false,
                 title: item.title,

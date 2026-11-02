@@ -170,7 +170,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const settled = useSettled(key ? (current ? current.data : (cached ?? (sameViewer ? state.data : undefined))) : null);
   const data = key ? (settled as T | undefined) : undefined;
   useEffect(() => {
-    if (path && /^\/(notes|tasks|events|goals|people|recipes|bookmarks)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
+    if (path && /^\/(notes|tasks)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
   }, [path, data, active]);
   return {
     data,

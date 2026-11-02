@@ -9,7 +9,6 @@ import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
-import { useSpaces } from '../spaces';
 import { required, useFormErrors } from '../validation';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -19,7 +18,6 @@ const emptyCalendars = { title: 'No calendars followed yet', hint: 'Calendars yo
 
 interface FollowedCalendar {
   id: string;
-  spaceId: string;
   name: string;
   host: string;
   lastFetchedAt: string | null;
@@ -29,12 +27,10 @@ interface FollowedCalendar {
 
 function FollowedCalendars({ following, onClose }: { following: boolean; onClose: () => void }) {
   const auth = useAuth();
-  const spaces = useSpaces();
   const calendars = useResource<FollowedCalendar[]>('/me/calendars', true);
   const action = useAction();
   const form = useFormErrors();
   const [stopping, setStopping] = useState<FollowedCalendar>();
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const [rows, failedRows] = useRememberedShape(
     'followed-calendars',
     calendars.data && [calendars.data.length, calendars.data.filter((calendar) => calendar.lastError).length],
@@ -46,7 +42,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
     return (
       <Placeholder label="Loading followed calendars">
         {rows ? (
-          <RowsSkeleton below={<Skeleton className="h-12 rounded-field" />} belowRows={failedRows} rows={rows} trail={editable.length > 0 && <IconButtonSkeleton />} />
+          <RowsSkeleton below={<Skeleton className="h-12 rounded-field" />} belowRows={failedRows} rows={rows} trail={<IconButtonSkeleton />} />
         ) : (
           <Empty loading title={emptyCalendars.title}>
             {emptyCalendars.hint}
@@ -63,21 +59,18 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
         <Empty title={emptyCalendars.title}>{emptyCalendars.hint}</Empty>
       ) : (
         <ul className="panel-rows">
-          {calendars.data.map((calendar) => {
-            const space = spaces.data?.find((candidate) => candidate.id === calendar.spaceId);
-            return (
+          {calendars.data.map((calendar) => (
               <ListRow
                 key={calendar.id}
                 meta={
                   <>
-                    {space?.name} · {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
+                    {calendar.host} · {calendar.events} event{calendar.events === 1 ? '' : 's'}
                     {calendar.lastFetchedAt ? ` · checked ${timeAgo(calendar.lastFetchedAt)}` : ''}
                   </>
                 }
                 title={calendar.name}
                 trail={
-                  space &&
-                  space.role !== 'viewer' && (
+                  (
                     <ActionsMenu
                       items={[
                         {
@@ -97,8 +90,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
               >
                 {calendar.lastError && <Banner tone="danger">The last check failed: {calendar.lastError}</Banner>}
               </ListRow>
-            );
-          })}
+          ))}
         </ul>
       )}
       {following && (
@@ -112,7 +104,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
             const name = String(values.get('name')).trim();
             void action
               .run(async () => {
-                const added = await auth.request<FollowedCalendar>(`/spaces/${String(values.get('spaceId'))}/calendars`, {
+                const added = await auth.request<FollowedCalendar>('/me/calendars', {
                   method: 'POST',
                   body: JSON.stringify({ url: String(values.get('url')).trim(), ...(name ? { name } : {}) }),
                 });
@@ -126,7 +118,6 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
         >
           <TextField autoFocus inputMode="url" label="Calendar address" {...form.field('url')} />
           <TextField label="Name (optional)" maxLength={80} {...form.field('name')} />
-          <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />
         </FormDialog>
       )}
       {stopping && (
@@ -143,7 +134,7 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
           title={`Stop following ${stopping.name}?`}
           tone="danger"
         >
-          Its events disappear from the Agenda for everyone in {spaces.data!.find((space) => space.id === stopping.spaceId)!.name}.
+          Its events disappear from your Agenda.
         </ConfirmDialog>
       )}
     </>
@@ -152,8 +143,6 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
 
 export function CalendarsPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const [following, setFollowing] = useState(false);
   const feed = useResource<{ enabled: boolean }>('/me/calendar-feed', true);
   const action = useAction();
@@ -164,12 +153,12 @@ export function CalendarsPage() {
 
   return (
     <Page
-      actions={editable.length > 0 && <AddButton label="Follow a calendar" large onClick={() => setFollowing(true)} primary />}
+      actions={<AddButton label="Follow a calendar" large onClick={() => setFollowing(true)} primary />}
       back={{ to: '/agenda', label: 'Agenda' }}
       title="Calendars"
     >
       <Section
-        description="Subscribe to this link in Google Calendar, Apple Calendar or Outlook to see the events of all your spaces there. Anyone with the link can see them, so keep it private."
+        description="Subscribe to this link in Google Calendar, Apple Calendar or Outlook to see your events there. Anyone with the link can see them, so keep it private."
         title="Your agenda in other apps"
       >
         {feed.error ? (
@@ -212,7 +201,7 @@ export function CalendarsPage() {
         )}
       </Section>
       <Section
-        description="Follow a public calendar, such as holidays, fixtures or a shared Google calendar’s secret address. Its events appear in the Agenda for everyone in the space, read-only. They are checked again whenever you open the Agenda, and every 15 minutes otherwise."
+        description="Follow a public calendar, such as holidays, fixtures or a shared Google calendar’s secret address. Its events appear in your Agenda, read-only. They are checked again whenever you open the Agenda, and every 15 minutes otherwise."
         title="Calendars from elsewhere"
       >
         <FollowedCalendars following={following} onClose={() => setFollowing(false)} />

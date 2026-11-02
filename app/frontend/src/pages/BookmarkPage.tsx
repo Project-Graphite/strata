@@ -7,7 +7,6 @@ import { Button, ButtonAnchor } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { DetailState, Page } from '../components/Page';
 import { rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -80,15 +79,13 @@ const back = { to: '/bookmarks', label: 'Bookmarks' };
 export function BookmarkPage() {
   const { id = '' } = useParams();
   const auth = useAuth();
-  const spaces = useSpaces();
   const navigate = useNavigate();
   const bookmark = useResource<BookmarkDetails>(`/bookmarks/${id}`, true);
   const { mutate } = bookmark;
   const { run } = useAction();
   const markedRead = useRef('');
   const details = bookmark.data;
-  const editable = !!details && !!spaces.data?.some((space) => space.id === details.spaceId && space.role !== 'viewer');
-  const [wasEditable, articled] = useRememberedShape(`bookmark-${id}`, details && spaces.data && [Number(editable), Number(Boolean(details.article?.blocks.length))], [1, 1]);
+  const [articled] = useRememberedShape(`bookmark-${id}`, details && [Number(Boolean(details.article?.blocks.length))], [1]);
 
   function setRead(current: BookmarkDetails, read: boolean) {
     void run(async () => {
@@ -116,14 +113,14 @@ export function BookmarkPage() {
   }
 
   useEffect(() => {
-    if (!details || !editable || details.readAt || markedRead.current === details.id) return;
+    if (!details || details.readAt || markedRead.current === details.id) return;
     markedRead.current = details.id;
     setRead(details, true);
   });
 
   if (!details) {
     return (
-      <DetailState back={back} menu={wasEditable > 0} primary="Open original" resource={bookmark} thing="Bookmark">
+      <DetailState back={back} menu primary="Open original" resource={bookmark} thing="Bookmark">
         {articled ? (
           <div aria-hidden="true" className="note-content min-w-0 max-w-narrow">
             {rowsOf(2).map((paragraph) => (
@@ -135,7 +132,7 @@ export function BookmarkPage() {
             ))}
           </div>
         ) : (
-          <Empty action={wasEditable > 0 && <Button label="Fetch again" />} loading title="No article saved">
+          <Empty action={<Button label="Fetch again" />} loading title="No article saved">
             The page couldn’t be read, or it has no article text.
           </Empty>
         )}
@@ -148,7 +145,7 @@ export function BookmarkPage() {
     <Page
       actions={
         <>
-          {editable && (
+          {(
             <ActionsMenu
               items={[
                 { label: details.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => setRead(details, !details.readAt) },
@@ -184,7 +181,7 @@ export function BookmarkPage() {
       {blocks.length ? (
         <ArticleBody blocks={blocks} />
       ) : (
-        <Empty action={editable && <Button label="Fetch again" onClick={() => fetchAgain(details)} />} title="No article saved">
+        <Empty action={<Button label="Fetch again" onClick={() => fetchAgain(details)} />} title="No article saved">
           {details.description ?? 'The page couldn’t be read, or it has no article text.'}
         </Empty>
       )}

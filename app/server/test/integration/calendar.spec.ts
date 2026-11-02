@@ -8,8 +8,8 @@ describe('Calendar feeds against Postgres', () => {
   it('publishes my events at a secret link that can be reset or turned off', async () => {
     const owner = await member('feed-owner');
     const other = await member('feed-other');
-    await owner.call('POST', `/spaces/${owner.personalSpaceId}/events`, { title: 'Dentist', startsOn: '2026-11-03', startTime: '09:30', timeZone: 'Europe/Lisbon' });
-    await other.call('POST', `/spaces/${other.personalSpaceId}/events`, { title: 'Not mine', startsOn: '2026-11-03' });
+    await owner.call('POST', '/me/events', { title: 'Dentist', startsOn: '2026-11-03', startTime: '09:30', timeZone: 'Europe/Lisbon' });
+    await other.call('POST', '/me/events', { title: 'Not mine', startsOn: '2026-11-03' });
     const feed = (url: string) => fetch(`${strata.base}${new URL(url).pathname.replace('/api/v1', '')}`);
 
     expect((await owner.call('GET', '/me/calendar-feed')).body).toEqual({ enabled: false });

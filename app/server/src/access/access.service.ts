@@ -19,10 +19,12 @@ const refusals: Record<Exclude<Access, 'read'>, string> = {
 
 const pinnedSpace = () => (requestContext.getStore()?.request as AuthenticatedRequest | undefined)?.user?.tokenSpaceId ?? null;
 
-export function reachable(spaceId: string) {
+export function reachable(spaceId: string | null) {
   const pinned = pinnedSpace();
   return !pinned || pinned === spaceId;
 }
+
+const nothing: Prisma.ItemWhereInput = { id: { in: [] } };
 
 @Injectable()
 export class AccessService {
@@ -33,8 +35,16 @@ export class AccessService {
     return { ...(pinned ? { id: pinned } : {}), members: { some: { userId, role: { in: rolesFor[access] } } } };
   }
 
-  itemsOf(userId: string, access: Access = 'read'): Prisma.ItemWhereInput {
+  ownedBy(userId: string): Prisma.ItemWhereInput {
+    return pinnedSpace() ? nothing : { ownerId: userId };
+  }
+
+  spaceItemsOf(userId: string, access: Access = 'read'): Prisma.ItemWhereInput {
     return { space: this.spacesOf(userId, access) };
+  }
+
+  itemsOf(userId: string, access: Access = 'read'): Prisma.ItemWhereInput {
+    return { OR: [this.spaceItemsOf(userId, access), this.ownedBy(userId)] };
   }
 
   async assertSpace(userId: string, spaceId: string, access: Access) {
@@ -59,17 +69,24 @@ export class AccessService {
       select: {
         id: true,
         spaceId: true,
+        ownerId: true,
         title: true,
         trashedAt: true,
         space: { select: { members: { where: { userId }, select: { role: true } } } },
       },
     });
-    const role = item?.space.members[0]?.role;
+    const role = item?.space?.members[0]?.role ?? (item?.ownerId === userId && reachable(null) ? SpaceRole.OWNER : undefined);
     if (!item || !role || !reachable(item.spaceId)) {
       throw new NotFoundException('Item not found');
     }
     this.assertRole(role, access);
-    return { id: item.id, spaceId: item.spaceId, title: item.title, trashedAt: item.trashedAt, role };
+    return { id: item.id, spaceId: item.spaceId, ownerId: item.ownerId, title: item.title, trashedAt: item.trashedAt, role };
+  }
+
+  async assertSpaceItem(userId: string, itemId: string, access: Access) {
+    const item = await this.assertItem(userId, itemId, access);
+    if (!item.spaceId) throw new NotFoundException('Item not found');
+    return { ...item, spaceId: item.spaceId };
   }
 
   private assertRole(role: SpaceRole, access: Access) {

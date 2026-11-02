@@ -17,11 +17,11 @@ export class BookmarksController {
     return this.bookmarks.list(user.id, query);
   }
 
-  @Post('spaces/:spaceId/bookmarks')
+  @Post('me/bookmarks')
   @Scope('items:write')
   @RateLimit('bookmark-fetch', 60, 3_600)
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateBookmarkDto) {
-    return this.bookmarks.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateBookmarkDto) {
+    return this.bookmarks.create(user.id, input);
   }
 
   @Post('bookmarks/preview')

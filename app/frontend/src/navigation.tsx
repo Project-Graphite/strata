@@ -11,7 +11,7 @@ interface Area {
 
 const home: Area = { href: '/', label: 'Home', icon: 'home' };
 
-const otherAreas = ['/spaces', '/inbox', '/settings', '/admin', '/save', '/more'];
+const otherAreas = ['/spaces', '/inbox', '/settings', '/admin', '/save', '/more', '/habits'];
 
 const phoneApps = (apps: AppEntry[]) => apps.filter((app) => app.phoneTab);
 
@@ -24,6 +24,8 @@ export function areaOf(pathname: string) {
   const app = appCatalogue.find((candidate) => [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)));
   return app?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
 }
+
+export const inSpaceArea = (area: string | null) => Boolean(area && (area.startsWith('/spaces/') || appCatalogue.some((app) => app.href === area && app.scope === 'space')));
 
 function onNavigation(changed: () => void) {
   window.navigation?.addEventListener('currententrychange', changed);
@@ -56,22 +58,39 @@ export function useInArea(area: string | null) {
 
 const toItem = (area: Area, active: string | null) => ({ active: area.href === active, href: area.href, icon: area.icon, label: area.label });
 
-export function sidebarSections(active: string | null, spaces: Space[] | undefined, apps: AppEntry[]): SidebarSection[] {
+const accountApps = (apps: AppEntry[]) => apps.filter((app) => app.scope === 'account');
+
+function spaceSection(active: string | null, apps: AppEntry[], space: Space | undefined, label: string): SidebarSection {
+  const href = space ? `/spaces/${space.id}` : '/spaces';
+  return {
+    label,
+    items: [
+      ...apps.filter((app) => app.scope === 'space').map((app) => toItem(app, active)),
+      { active: active === href, href, icon: space ? <SpaceMark space={space} /> : ('folder' as const), label: 'Members and settings' },
+    ],
+  };
+}
+
+export function sidebarSections(active: string | null, spaces: Space[] | undefined, apps: AppEntry[], space?: Space): SidebarSection[] {
   return [
-    { items: [home, ...apps].map((area) => toItem(area, active)) },
+    { items: [home, ...accountApps(apps)].map((area) => toItem(area, active)) },
+    spaceSection(active, apps, space, space ? `In ${space.name}` : 'In your space'),
     {
       label: 'Spaces',
       items: [
-        ...(spaces ?? []).map((space) => ({ active: active === `/spaces/${space.id}`, href: `/spaces/${space.id}`, icon: <SpaceMark space={space} />, label: space.name })),
+        ...(spaces ?? []).map((candidate) => ({ active: active === `/spaces/${candidate.id}`, href: `/spaces/${candidate.id}`, icon: <SpaceMark space={candidate} />, label: candidate.name })),
         { active: active === '/spaces', href: '/spaces', icon: 'folder' as const, label: 'All spaces' },
       ],
     },
   ];
 }
 
-export function moreSections(active: string | null, apps: AppEntry[]): SidebarSection[] {
+export function moreSections(active: string | null, apps: AppEntry[], space?: Space): SidebarSection[] {
   const tabbed = phoneApps(apps);
-  return [{ items: apps.filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) }];
+  return [
+    { label: 'Yours', items: accountApps(apps).filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) },
+    spaceSection(active, apps.filter((app) => !tabbed.includes(app)), space, space ? `In ${space.name}` : 'In your space'),
+  ];
 }
 
 export function phoneTabBar(active: string | null, apps: AppEntry[]): ShellTab[] {
@@ -92,7 +111,8 @@ export function phoneTabBar(active: string | null, apps: AppEntry[]): ShellTab[]
 
 export function searchableAreas(apps: AppEntry[], admin: boolean): { href: string; label: string; hint?: string }[] {
   return [
-    ...[home, ...apps].map((area) => ({ href: area.href, label: area.label })),
+    { href: home.href, label: home.label, hint: 'Account' },
+    ...apps.map((app) => ({ href: app.href, label: app.label, hint: app.scope === 'space' ? 'Space' : 'Account' })),
     ...[
       { app: 'agenda', href: '/agenda/calendars', label: 'Calendars', hint: 'Agenda' },
       { app: 'pages', href: '/pages/quick-notes', label: 'Quick notes', hint: 'Pages' },
@@ -100,11 +120,13 @@ export function searchableAreas(apps: AppEntry[], admin: boolean): { href: strin
       { app: 'spending', href: '/spending/budgets', label: 'Budgets', hint: 'Spending' },
       { app: 'spending', href: '/spending/net-worth', label: 'Net worth', hint: 'Spending' },
     ].filter((place) => apps.some((app) => app.key === place.app)),
+    { href: '/habits', label: 'Habits', hint: 'Account' },
     { href: '/spaces', label: 'Spaces' },
     { href: '/spaces/invitations', label: 'Invitations', hint: 'Spaces' },
     { href: '/inbox', label: 'Inbox' },
     { href: '/settings', label: 'Settings' },
     { href: '/settings/apps', label: 'Apps', hint: 'Settings' },
+    { href: '/settings/tags', label: 'Your tags', hint: 'Settings' },
     { href: '/settings/security', label: 'Security', hint: 'Settings' },
     { href: '/settings/developer', label: 'Developer', hint: 'Settings' },
     { href: '/settings/data', label: 'Your data', hint: 'Settings' },

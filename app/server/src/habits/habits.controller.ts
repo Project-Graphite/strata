@@ -1,5 +1,4 @@
-import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Query, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -11,22 +10,17 @@ import { HabitsService } from './habits.service';
 export class HabitsController {
   constructor(private readonly habits: HabitsService) {}
 
-  @Get('spaces/:spaceId/habits')
-  @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.habits.list(user.id, spaceId);
-  }
 
-  @Post('spaces/:spaceId/habits')
+  @Post('me/habits')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateHabitDto) {
-    return this.habits.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateHabitDto) {
+    return this.habits.create(user.id, input);
   }
 
   @Get('me/habits')
   @Scope('items:read')
-  mine(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.habits.mine(user.id, query.spaceId);
+  mine(@CurrentUser() user: AuthenticatedUser) {
+    return this.habits.mine(user.id);
   }
 
   @Patch('habits/:id')

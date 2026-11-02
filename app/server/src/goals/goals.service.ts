@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { HabitsService } from '../habits/habits.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue } from '../recurrence/dates';
@@ -12,12 +12,10 @@ type Period = (typeof goalPeriods)[number];
 
 const goalFields = {
   id: true,
-  spaceId: true,
   title: true,
   trashedAt: true,
   createdAt: true,
   updatedAt: true,
-  space: { select: { name: true } },
   goal: { select: { period: true, startsOn: true, endsOn: true, status: true, why: true, target: true, current: true, unit: true } },
   goalHabits: { select: { habitId: true } },
 } satisfies Prisma.ItemSelect;
@@ -44,8 +42,6 @@ function present(row: GoalRow, tasks: { done: number; total: number }) {
   const goal = row.goal!;
   return {
     id: row.id,
-    spaceId: row.spaceId,
-    spaceName: row.space.name,
     title: row.title,
     period: goal.period,
     startsOn: dateText(goal.startsOn),
@@ -68,7 +64,7 @@ export class GoalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
     private readonly tasks: TasksService,
     private readonly habits: HabitsService,
   ) {}
@@ -77,7 +73,7 @@ export class GoalsService {
     const finished = query.status === 'finished';
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}),
+        ...this.access.ownedBy(userId),
         kind: ItemKind.GOAL,
         trashedAt: null,
         goal: { status: finished ? { in: ['done', 'dropped'] } : 'active' },
@@ -90,35 +86,31 @@ export class GoalsService {
     return rows.map((row) => present(row, counts.get(row.id) ?? { done: 0, total: 0 }));
   }
 
-  async create(userId: string, spaceId: string, input: CreateGoalDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, input: CreateGoalDto) {
     const range = periodRange(input.period, input.startsOn);
-    const id = await this.prisma.$transaction(async (transaction) => {
-      const item = await transaction.item.create({
-        data: {
-          spaceId,
-          kind: ItemKind.GOAL,
-          title: input.title,
-          createdById: userId,
-          updatedById: userId,
-          goal: {
-            create: {
-              period: input.period,
-              startsOn: dateValue(range.startsOn),
-              endsOn: dateValue(range.endsOn),
-              why: input.why ?? '',
-              target: input.target ?? null,
-              current: input.current ?? null,
-              unit: input.unit || null,
-            },
+    const item = await this.prisma.item.create({
+      data: {
+        ownerId: userId,
+        kind: ItemKind.GOAL,
+        title: input.title,
+        createdById: userId,
+        updatedById: userId,
+        goal: {
+          create: {
+            period: input.period,
+            startsOn: dateValue(range.startsOn),
+            endsOn: dateValue(range.endsOn),
+            why: input.why ?? '',
+            target: input.target ?? null,
+            current: input.current ?? null,
+            unit: input.unit || null,
           },
         },
-        select: { id: true },
-      });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.title } });
-      return item.id;
+      },
+      select: { id: true },
     });
-    return this.get(userId, id);
+    this.changes.notify('items', { userId });
+    return this.get(userId, item.id);
   }
 
   async get(userId: string, itemId: string) {
@@ -130,7 +122,7 @@ export class GoalsService {
     return {
       ...present(row, { done, total: tasks.length }),
       taskList: tasks.map((task) => ({ ...task, linkId: linkOf.get(task.id)! })),
-      habits: await this.habits.inSpace(userId, row.spaceId, row.goalHabits.map((habit) => habit.habitId)),
+      habits: await this.habits.some(userId, row.goalHabits.map((habit) => habit.habitId)),
     };
   }
 
@@ -139,35 +131,33 @@ export class GoalsService {
     const goal = row.goal!;
     const period = input.period ?? (goal.period as Period);
     const range = input.period || input.startsOn ? periodRange(period, input.startsOn ?? dateText(goal.startsOn)) : null;
-    await this.prisma.$transaction(async (transaction) => {
-      await transaction.item.update({
-        where: { id: itemId },
-        data: {
-          title: input.title,
-          updatedById: userId,
-          goal: {
-            update: {
-              period: input.period,
-              startsOn: range ? dateValue(range.startsOn) : undefined,
-              endsOn: range ? dateValue(range.endsOn) : undefined,
-              status: input.status,
-              why: input.why,
-              target: input.target,
-              current: input.current,
-              unit: input.unit === undefined ? undefined : input.unit || null,
-            },
+    await this.prisma.item.update({
+      where: { id: itemId },
+      data: {
+        title: input.title,
+        updatedById: userId,
+        goal: {
+          update: {
+            period: input.period,
+            startsOn: range ? dateValue(range.startsOn) : undefined,
+            endsOn: range ? dateValue(range.endsOn) : undefined,
+            status: input.status,
+            why: input.why,
+            target: input.target,
+            current: input.current,
+            unit: input.unit === undefined ? undefined : input.unit || null,
           },
         },
-      });
-      await this.activity.record(transaction, { spaceId: row.spaceId, actorId: userId, itemId, verb: 'item.updated', data: { title: input.title ?? row.title } });
+      },
     });
+    this.changes.notify('items', { userId });
     return this.get(userId, itemId);
   }
 
   async setHabits(userId: string, itemId: string, input: GoalHabitsDto) {
-    const row = await this.editable(userId, itemId);
-    const found = await this.prisma.habit.count({ where: { id: { in: input.habitIds }, spaceId: row.spaceId } });
-    if (found !== input.habitIds.length) throw new BadRequestException('Choose habits from the same space as the goal');
+    await this.editable(userId, itemId);
+    const found = await this.prisma.habit.count({ where: { id: { in: input.habitIds }, userId } });
+    if (found !== input.habitIds.length) throw new BadRequestException('Choose habits from your list');
     await this.prisma.$transaction([
       this.prisma.goalHabit.deleteMany({ where: { goalId: itemId } }),
       this.prisma.goalHabit.createMany({ data: input.habitIds.map((habitId) => ({ goalId: itemId, habitId })) }),

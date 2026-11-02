@@ -10,7 +10,6 @@ import { DetailState, Page, Section } from '../components/Page';
 import { RecipeEditor } from '../components/RecipeEditor';
 import { HintSkeleton, RowsSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { recipeFacts, type Recipe } from '../recipes';
-import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { PlanMealDialog } from './MealPlanPage';
@@ -22,16 +21,14 @@ export function RecipePage() {
   const { id = '' } = useParams();
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const recipe = useResource<Recipe>(`/recipes/${id}`, true);
   const action = useAction();
   const [dialog, setDialog] = useState<'edit' | 'plan'>();
 
-  const space = spaces.data?.find((candidate) => candidate.id === recipe.data?.spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const editable = true;
   const [wasEditable, ingredientRows, stepRows, sourced] = useRememberedShape(
     `recipe-${id}`,
-    recipe.data && spaces.data && [Number(editable), recipe.data.ingredients.length, recipe.data.steps.length, Number(Boolean(recipe.data.sourceUrl))],
+    recipe.data && [Number(editable), recipe.data.ingredients.length, recipe.data.steps.length, Number(Boolean(recipe.data.sourceUrl))],
     [1, 4, 3, 0],
   );
 
@@ -103,7 +100,7 @@ export function RecipePage() {
         )
       }
       back={back}
-      description={[shown.spaceName, recipeFacts(shown)].filter(Boolean).join(' · ')}
+      description={recipeFacts(shown)}
       title={shown.title}
     >
       <Section title="Ingredients">
@@ -141,8 +138,8 @@ export function RecipePage() {
           </a>
         </Hint>
       )}
-      {dialog === 'edit' && space && <RecipeEditor onClose={() => setDialog(undefined)} onSaved={(saved) => recipe.mutate(() => saved)} recipe={shown} spaces={[space]} />}
-      {dialog === 'plan' && <PlanMealDialog onClose={() => setDialog(undefined)} recipe={shown} spaceId={shown.spaceId} />}
+      {dialog === 'edit' && <RecipeEditor onClose={() => setDialog(undefined)} onSaved={(saved) => recipe.mutate(() => saved)} recipe={shown} />}
+      {dialog === 'plan' && <PlanMealDialog onClose={() => setDialog(undefined)} recipe={shown} />}
     </Page>
   );
 }

@@ -72,6 +72,17 @@ export class FilesController {
     });
   }
 
+  @Post('me/files')
+  @Scope('items:write')
+  @RateLimit('upload', 200, 86_400)
+  async uploadMine(@CurrentUser() user: AuthenticatedUser, @Headers('x-file-name') name: string | undefined, @Req() request: Request) {
+    const read = uploadedFile(request, name);
+    return this.uploads.run(user.id, async () => {
+      const file = await read();
+      return this.files.upload(user.id, null, file.name, file.data);
+    });
+  }
+
   @Get('me/storage')
   @Scope('items:read')
   storage(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {

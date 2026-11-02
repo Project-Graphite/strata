@@ -30,7 +30,7 @@ export function TrashSettings() {
   const action = useAction();
   const [deleting, setDeleting] = useState<Item>();
   const [deletingExpense, setDeletingExpense] = useState<Expense>();
-  const spaceName = (item: Item) => spaces.data?.find((space) => space.id === item.spaceId)?.name ?? 'a space';
+  const spaceName = (item: Item) => (item.spaceId ? (spaces.data?.find((space) => space.id === item.spaceId)?.name ?? 'a space') : null);
   const shape = useRememberedShape('settings-trash', trash.data && itemsShape(trash.data.results), [4, 0, 0]);
 
   return (
@@ -63,14 +63,14 @@ export function TrashSettings() {
                         await auth.request(`/items/${item.id}/restore`, { method: 'POST' });
                         trash.reload();
                         if (item.kind === 'note' || item.kind === 'board') announcePagesChanged();
-                        return `${item.title || 'Untitled'} is back in ${spaceName(item)}.`;
+                        return `${item.title || 'Untitled'} is back${spaceName(item) ? ` in ${spaceName(item)}` : ''}.`;
                       }, 'Could not restore that')
                     }
                   />
                   <ActionsMenu items={[{ label: 'Delete for good', onSelect: () => setDeleting(item) }]} name={item.title || 'Untitled'} />
                 </div>
               )}
-              detail={(item) => `${spaceName(item)} · trashed ${formatMoment(item.trashedAt!)}`}
+              detail={(item) => `${spaceName(item) ?? 'Yours'} · trashed ${formatMoment(item.trashedAt!)}`}
               items={trash.data.results}
             />
             <Pagination page={trash.data.page} pageHref={(next) => `/settings/trash?page=${next}`} totalPages={trash.data.totalPages} />
@@ -91,7 +91,7 @@ export function TrashSettings() {
             title={`Delete ${deleting.title || 'Untitled'} for good?`}
             tone="danger"
           >
-            It’s removed for everyone in {spaceName(deleting)}, and this can’t be undone.
+            It’s removed{spaceName(deleting) ? ` for everyone in ${spaceName(deleting)}` : ''}, and this can’t be undone.
           </ConfirmDialog>
         )}
       </Section>

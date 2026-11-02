@@ -7,8 +7,6 @@ import { useAction } from './useAction';
 
 export interface Habit {
   id: string;
-  spaceId: string;
-  spaceName: string;
   name: string;
   perWeek: number;
   position: number;
@@ -26,7 +24,7 @@ function progressText(habit: Habit) {
   return habit.perWeek >= 7 ? streak : `${habit.thisWeek} of ${habit.perWeek} this week · ${streak}`;
 }
 
-export function HabitRow({ actions, habit, onChange, showSpace = false }: { actions?: ReactNode; habit: Habit; onChange: (habit: Habit) => void; showSpace?: boolean }) {
+export function HabitRow({ actions, habit, onChange }: { actions?: ReactNode; habit: Habit; onChange: (habit: Habit) => void }) {
   const auth = useAuth();
   const saving = useAction();
   const [pressed, setPressed] = useState(false);
@@ -59,7 +57,7 @@ export function HabitRow({ actions, habit, onChange, showSpace = false }: { acti
           )}
         </button>
       }
-      meta={capitalised(`${showSpace ? `${habit.spaceName} · ` : ''}${progressText(habit)}`)}
+      meta={capitalised(progressText(habit))}
       title={habit.name}
       trail={
         <>

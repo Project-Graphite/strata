@@ -25,14 +25,14 @@ export interface Member {
 
 export interface Tag {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   name: string;
   color: TagColor;
 }
 
 export interface Item {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   kind: string;
   quick: boolean;
   title: string;

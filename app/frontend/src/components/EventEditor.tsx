@@ -2,7 +2,6 @@ import { useId } from 'react';
 import { DatePicker, Select, Sheet, TextAreaField, TextField, Button as UiButton } from '@project-graphite/ui';
 import type { EventDetails } from '../agenda';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
 import { reminderOptions, repeatOptions } from '../tasks';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, type Check } from '../validation';
@@ -16,7 +15,6 @@ export function EventEditor({
   event,
   onClose,
   onSaved,
-  spaceId,
   startsOn,
   startTime,
 }: {
@@ -24,16 +22,13 @@ export function EventEditor({
   event?: EventDetails;
   onClose: () => void;
   onSaved: (event: EventDetails) => void;
-  spaceId?: string;
   startsOn?: string;
   startTime?: string;
 }) {
   const auth = useAuth();
-  const spaces = useSpaces();
   const saving = useAction();
   const form = useFormErrors();
   const formId = useId();
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
   return (
     <Sheet
@@ -69,7 +64,7 @@ export function EventEditor({
           const reminder = text('reminderMinutes');
           void saving
             .run(async () => {
-              const saved = await auth.request<EventDetails>(event ? `/events/${event.id}` : `/spaces/${text('spaceId')}/events`, {
+              const saved = await auth.request<EventDetails>(event ? `/events/${event.id}` : '/me/events', {
                 method: event ? 'PATCH' : 'POST',
                 body: JSON.stringify({
                   title: text('title'),
@@ -91,8 +86,6 @@ export function EventEditor({
         }}
       >
         <TextField autoFocus defaultValue={event?.title} label="Title" maxLength={200} {...form.field('title')} />
-        {!event && spaceId && <input name="spaceId" type="hidden" value={spaceId} />}
-        {!event && !spaceId && <input name="spaceId" type="hidden" value={editable[0]?.id ?? ''} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <DatePicker
             defaultValue={event?.startsOn ?? startsOn ?? ''}

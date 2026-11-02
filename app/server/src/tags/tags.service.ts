@@ -14,7 +14,7 @@ export function presentTag(tag: Prisma.TagGetPayload<{ select: typeof tagFields 
 
 function nameTaken(error: unknown): never {
   if (uniqueViolation(error)) {
-    throw new ConflictException('This space already has a tag with that name');
+    throw new ConflictException('There is already a tag with that name here');
   }
   throw error;
 }
@@ -29,12 +29,11 @@ export class TagsService {
 
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    const tags = await this.prisma.tag.findMany({
-      where: { spaceId },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      select: tagFields,
-    });
-    return tags.map(presentTag);
+    return this.listed({ spaceId });
+  }
+
+  mine(userId: string) {
+    return this.listed({ ownerId: userId });
   }
 
   async create(userId: string, spaceId: string, input: CreateTagDto) {
@@ -48,46 +47,56 @@ export class TagsService {
     return presentTag(tag);
   }
 
+  async createMine(userId: string, input: CreateTagDto) {
+    const tag = await this.prisma.tag.create({ data: { ownerId: userId, name: input.name, color: input.color }, select: tagFields }).catch(nameTaken);
+    return presentTag(tag);
+  }
+
   async update(userId: string, tagId: string, input: UpdateTagDto) {
-    const spaceId = await this.editableSpaceOf(userId, tagId);
+    const { spaceId } = await this.editable(userId, tagId);
     const [tag] = await this.prisma
       .$transaction([
-        this.prisma.tag.update({
-          where: { id: tagId, spaceId },
-          data: { name: input.name, color: input.color },
-          select: tagFields,
-        }),
-        this.activity.record(this.prisma, {
-          spaceId,
-          actorId: userId,
-          verb: 'tag.updated',
-          data: { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) },
-        }),
+        this.prisma.tag.update({ where: { id: tagId }, data: { name: input.name, color: input.color }, select: tagFields }),
+        ...(spaceId
+          ? [
+              this.activity.record(this.prisma, {
+                spaceId,
+                actorId: userId,
+                verb: 'tag.updated',
+                data: { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) },
+              }),
+            ]
+          : []),
       ])
       .catch(nameTaken);
     return presentTag(tag);
   }
 
   async remove(userId: string, tagId: string) {
-    const spaceId = await this.editableSpaceOf(userId, tagId);
+    const { spaceId } = await this.editable(userId, tagId);
     await this.prisma.$transaction(async (transaction) => {
       const tag = await transaction.tag.findUnique({ where: { id: tagId }, select: { name: true } });
-      const deleted = await transaction.tag.deleteMany({ where: { id: tagId, spaceId } });
-      if (tag && deleted.count === 1) {
+      const deleted = await transaction.tag.deleteMany({ where: { id: tagId } });
+      if (tag && deleted.count === 1 && spaceId) {
         await this.activity.record(transaction, { spaceId, actorId: userId, verb: 'tag.deleted', data: { name: tag.name } });
       }
     });
   }
 
-  private async editableSpaceOf(userId: string, tagId: string) {
+  private async listed(where: Prisma.TagWhereInput) {
+    const tags = await this.prisma.tag.findMany({ where, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: tagFields });
+    return tags.map(presentTag);
+  }
+
+  private async editable(userId: string, tagId: string) {
     const tag = await this.prisma.tag.findFirst({
-      where: { id: tagId, space: this.access.spacesOf(userId) },
+      where: { id: tagId, OR: [{ space: this.access.spacesOf(userId) }, { ownerId: userId }] },
       select: { spaceId: true },
     });
     if (!tag) {
       throw new NotFoundException('Tag not found');
     }
-    await this.access.assertSpace(userId, tag.spaceId, 'edit');
-    return tag.spaceId;
+    if (tag.spaceId) await this.access.assertSpace(userId, tag.spaceId, 'edit');
+    return tag;
   }
 }

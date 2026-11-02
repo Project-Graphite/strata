@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { periodChoices, periodLabel, periodStart, type Goal, type GoalPeriod } from '../goals';
-import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { dayKey } from '../agenda';
 import { atMost, required, useFormErrors, type Check } from '../validation';
@@ -20,7 +19,7 @@ const periods: { value: GoalPeriod; label: string }[] = [
   { value: 'month', label: 'A month' },
 ];
 
-export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; onClose: () => void; onSaved: (goal: Goal) => void; spaces: Space[] }) {
+export function GoalEditor({ goal, onClose, onSaved }: { goal?: Goal; onClose: () => void; onSaved: (goal: Goal) => void }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
@@ -57,7 +56,7 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
         void saving
           .run(async () => {
             onSaved(
-              await auth.request<Goal>(goal ? `/goals/${goal.id}` : `/spaces/${String(values.get('spaceId'))}/goals`, {
+              await auth.request<Goal>(goal ? `/goals/${goal.id}` : '/me/goals', {
                 method: goal ? 'PATCH' : 'POST',
                 body: JSON.stringify(body),
               }),
@@ -70,7 +69,6 @@ export function GoalEditor({ goal, onClose, onSaved, spaces }: { goal?: Goal; on
       title={goal ? 'Edit goal' : 'New goal'}
     >
       <TextField autoFocus defaultValue={goal?.title} label="Goal" maxLength={200} {...form.field('title')} />
-      {!goal && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Select
           label="For"

@@ -15,14 +15,14 @@ import { OpenTask } from '../components/OpenTask';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
 import { HabitRow, type Habit } from '../habits';
-import { useSpaces } from '../spaces';
+import { useChosenSpace } from '../spaces';
 import { dueLabel, taskDetails, TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { useFormErrors, type Check } from '../validation';
 
 const emptyTasks = { title: 'No tasks yet', hint: 'Link the tasks that move this goal forward, or add new ones.' };
-const emptyHabits = { title: 'No habits yet', hint: 'Choose the habits from this space that build towards this goal.' };
+const emptyHabits = { title: 'No habits yet', hint: 'Choose the habits that build towards this goal.' };
 
 const numberCheck: Check = (value) => (Number.isFinite(Number(value.trim().replace(',', '.'))) && value.trim() ? undefined : 'Enter a number such as 12.5.');
 
@@ -30,22 +30,18 @@ export function GoalPage() {
   const { id = '' } = useParams();
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
+  const { spaceId, space } = useChosenSpace();
   const goal = useResource<GoalDetail>(`/goals/${id}`, true);
-  const spaceId = goal.data?.spaceId;
   const action = useAction();
   const progressForm = useFormErrors();
   const [editing, setEditing] = useState(false);
   const [taskEditing, setTaskEditing] = useState<Task | 'new'>();
   const [dialog, setDialog] = useState<'progress' | 'link' | 'habits'>();
   const openTasks = useResource<ResultPage<Task>>(dialog === 'link' && spaceId ? `/spaces/${spaceId}/tasks?page=1` : null, true);
-
-  const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const editable = true;
   const [wasEditable, whyLines, metered, targeted, taskRows, detailedTasks, habitRows] = useRememberedShape(
     `goal-${id}`,
-    goal.data &&
-      spaces.data && [
+    goal.data && [
         Number(editable),
         goal.data.why ? goal.data.why.split('\n').length : 0,
         Number(goal.data.progress !== null),
@@ -163,7 +159,7 @@ export function GoalPage() {
         )
       }
       back={back}
-      description={`${shown.spaceName} · ${periodLabel(shown.period, shown.startsOn)}${shown.status === 'active' ? '' : ` · ${statusLabels[shown.status]}`}`}
+      description={`${periodLabel(shown.period, shown.startsOn)}${shown.status === 'active' ? '' : ` · ${statusLabels[shown.status]}`}`}
       title={shown.title}
     >
       {shown.why && (
@@ -255,7 +251,7 @@ export function GoalPage() {
         )}
       </Section>
 
-      {editing && space && <GoalEditor goal={shown} onClose={() => setEditing(false)} onSaved={(saved) => goal.mutate((current) => ({ ...current, ...saved }))} spaces={[space]} />}
+      {editing && <GoalEditor goal={shown} onClose={() => setEditing(false)} onSaved={(saved) => goal.mutate((current) => ({ ...current, ...saved }))} />}
 
       {dialog === 'progress' && (
         <FormDialog
@@ -285,7 +281,7 @@ export function GoalPage() {
         <LinkItemDialog
           busy={action.busy}
           choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: dueLabel(task) || undefined }))}
-          empty={`Every open task in ${shown.spaceName} is already linked.`}
+          empty={`Every open task in ${space?.name ?? 'this space'} is already linked.`}
           noun="task"
           onClose={() => setDialog(undefined)}
           onLink={(taskId) =>
@@ -321,7 +317,7 @@ export function GoalPage() {
               return '';
             }, 'Could not link the task')
           }
-          spaceId={shown.spaceId}
+          spaceId={spaceId!}
           task={taskEditing === 'new' ? undefined : taskEditing}
         />
       )}
@@ -332,7 +328,7 @@ export function GoalPage() {
 function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: () => void; onSaved: (goal: GoalDetail) => void }) {
   const auth = useAuth();
   const saving = useAction();
-  const habits = useResource<Habit[]>(`/spaces/${goal.spaceId}/habits`, true);
+  const habits = useResource<Habit[]>('/me/habits', true);
 
   return (
     <FormDialog
@@ -350,7 +346,7 @@ function HabitsDialog({ goal, onClose, onSaved }: { goal: GoalDetail; onClose: (
       title="Habits for this goal"
     >
       {habits.data && habits.data.length === 0 ? (
-        <Hint>{goal.spaceName} has no habits yet.</Hint>
+        <Hint>You have no habits yet.</Hint>
       ) : (
         <Fieldset className="gap-3" legend="Follow these habits">
           {(habits.data ?? []).map((habit) => (

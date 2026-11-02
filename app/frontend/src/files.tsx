@@ -27,15 +27,15 @@ export async function preparedUpload(file: File): Promise<Blob> {
   return encoded && encoded.size < file.size ? encoded : file;
 }
 
-export async function uploadFile(request: ReturnType<typeof useAuth>['request'], spaceId: string, file: File) {
-  return request<Item>(`/spaces/${spaceId}/files`, {
+export async function uploadFile(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, file: File) {
+  return request<Item>(spaceId ? `/spaces/${spaceId}/files` : '/me/files', {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
     body: await preparedUpload(file),
   });
 }
 
-export async function uploadFiles(request: ReturnType<typeof useAuth>['request'], spaceId: string, files: File[]) {
+export async function uploadFiles(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, files: File[]) {
   const accepted = files.filter((file) => file.size <= maxUploadBytes);
   const refused = files.filter((file) => file.size > maxUploadBytes);
   for (const file of accepted) await uploadFile(request, spaceId, file);

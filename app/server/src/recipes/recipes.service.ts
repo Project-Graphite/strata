@@ -1,24 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs } from '../recurrence/dates';
 import { TasksService } from '../tasks/tasks.service';
 import { fetchPublic } from '../widgets/safe-fetch';
-import { CreateMealDto, CreateRecipeDto, UpdateRecipeDto } from './dto/recipes.dto';
+import { CreateMealDto, CreateRecipeDto, ShoppingListDto, UpdateRecipeDto } from './dto/recipes.dto';
 import { readRecipe } from './recipe-page';
 
 const shoppingListTitle = 'Shopping';
 
 const recipeFields = {
   id: true,
-  spaceId: true,
   title: true,
   trashedAt: true,
   createdAt: true,
   updatedAt: true,
-  space: { select: { name: true } },
   recipe: true,
 } satisfies Prisma.ItemSelect;
 
@@ -42,8 +40,6 @@ function present(row: RecipeRow) {
   const recipe = row.recipe!;
   return {
     id: row.id,
-    spaceId: row.spaceId,
-    spaceName: row.space.name,
     title: row.title,
     servings: recipe.servings,
     prepMinutes: recipe.prepMinutes,
@@ -61,13 +57,13 @@ export class RecipesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
     private readonly tasks: TasksService,
   ) {}
 
-  async list(userId: string, spaceId?: string) {
+  async list(userId: string) {
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.RECIPE, trashedAt: null },
+      where: { ...this.access.ownedBy(userId), kind: ItemKind.RECIPE, trashedAt: null },
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
       take: 2_000,
       select: recipeFields,
@@ -75,33 +71,29 @@ export class RecipesService {
     return rows.map(present);
   }
 
-  async create(userId: string, spaceId: string, input: CreateRecipeDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
-    const id = await this.prisma.$transaction(async (transaction) => {
-      const item = await transaction.item.create({
-        data: {
-          spaceId,
-          kind: ItemKind.RECIPE,
-          title: input.title,
-          createdById: userId,
-          updatedById: userId,
-          recipe: {
-            create: {
-              servings: input.servings ?? null,
-              prepMinutes: input.prepMinutes ?? null,
-              cookMinutes: input.cookMinutes ?? null,
-              ingredients: lines(input.ingredients) ?? [],
-              steps: lines(input.steps) ?? [],
-              sourceUrl: input.sourceUrl || null,
-            },
+  async create(userId: string, input: CreateRecipeDto) {
+    const item = await this.prisma.item.create({
+      data: {
+        ownerId: userId,
+        kind: ItemKind.RECIPE,
+        title: input.title,
+        createdById: userId,
+        updatedById: userId,
+        recipe: {
+          create: {
+            servings: input.servings ?? null,
+            prepMinutes: input.prepMinutes ?? null,
+            cookMinutes: input.cookMinutes ?? null,
+            ingredients: lines(input.ingredients) ?? [],
+            steps: lines(input.steps) ?? [],
+            sourceUrl: input.sourceUrl || null,
           },
         },
-        select: { id: true },
-      });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.title } });
-      return item.id;
+      },
+      select: { id: true },
     });
-    return this.get(userId, id);
+    this.changes.notify('items', { userId });
+    return this.get(userId, item.id);
   }
 
   async get(userId: string, itemId: string) {
@@ -111,26 +103,24 @@ export class RecipesService {
   async update(userId: string, itemId: string, input: UpdateRecipeDto) {
     const row = await this.row(userId, itemId, 'edit');
     if (row.trashedAt) throw new BadRequestException('Restore this recipe from the trash before changing it');
-    await this.prisma.$transaction(async (transaction) => {
-      await transaction.item.update({
-        where: { id: itemId },
-        data: {
-          title: input.title,
-          updatedById: userId,
-          recipe: {
-            update: {
-              servings: input.servings,
-              prepMinutes: input.prepMinutes,
-              cookMinutes: input.cookMinutes,
-              ingredients: lines(input.ingredients),
-              steps: lines(input.steps),
-              sourceUrl: input.sourceUrl === undefined ? undefined : input.sourceUrl || null,
-            },
+    await this.prisma.item.update({
+      where: { id: itemId },
+      data: {
+        title: input.title,
+        updatedById: userId,
+        recipe: {
+          update: {
+            servings: input.servings,
+            prepMinutes: input.prepMinutes,
+            cookMinutes: input.cookMinutes,
+            ingredients: lines(input.ingredients),
+            steps: lines(input.steps),
+            sourceUrl: input.sourceUrl === undefined ? undefined : input.sourceUrl || null,
           },
         },
-      });
-      await this.activity.record(transaction, { spaceId: row.spaceId, actorId: userId, itemId, verb: 'item.updated', data: { title: input.title ?? row.title } });
+      },
     });
+    this.changes.notify('items', { userId });
     return this.get(userId, itemId);
   }
 
@@ -146,46 +136,43 @@ export class RecipesService {
     return { ...draft, sourceUrl: url };
   }
 
-  async week(userId: string, spaceId: string, from: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+  async week(userId: string, from: string) {
     const start = dateValue(from);
     const entries = await this.prisma.mealPlanEntry.findMany({
-      where: { spaceId, day: { gte: start, lt: new Date(start.getTime() + 7 * dayMs) } },
+      where: { userId, day: { gte: start, lt: new Date(start.getTime() + 7 * dayMs) } },
       orderBy: [{ day: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
       select: mealFields,
     });
     return entries.map(presentMeal);
   }
 
-  async addMeal(userId: string, spaceId: string, input: CreateMealDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async addMeal(userId: string, input: CreateMealDto) {
     if (!input.recipeId && !input.note) throw new BadRequestException('Choose a recipe or write what you will eat');
     if (input.recipeId) {
-      const recipe = await this.prisma.item.count({ where: { id: input.recipeId, spaceId, kind: ItemKind.RECIPE, trashedAt: null } });
-      if (!recipe) throw new BadRequestException('Choose a recipe from the same space');
+      const recipe = await this.prisma.item.count({ where: { id: input.recipeId, ownerId: userId, kind: ItemKind.RECIPE, trashedAt: null } });
+      if (!recipe) throw new BadRequestException('Choose one of your recipes');
     }
     const day = dateValue(input.day);
-    const position = await this.prisma.mealPlanEntry.count({ where: { spaceId, day, meal: input.meal } });
+    const position = await this.prisma.mealPlanEntry.count({ where: { userId, day, meal: input.meal } });
     return presentMeal(
       await this.prisma.mealPlanEntry.create({
-        data: { spaceId, day, meal: input.meal, recipeId: input.recipeId ?? null, note: input.note ?? '', position },
+        data: { userId, day, meal: input.meal, recipeId: input.recipeId ?? null, note: input.note ?? '', position },
         select: mealFields,
       }),
     );
   }
 
   async removeMeal(userId: string, entryId: string) {
-    const entry = await this.prisma.mealPlanEntry.findFirst({ where: { id: entryId, space: this.access.spacesOf(userId) }, select: { spaceId: true } });
-    if (!entry) throw new NotFoundException('That meal is already gone');
-    await this.access.assertSpace(userId, entry.spaceId, 'edit');
-    await this.prisma.mealPlanEntry.delete({ where: { id: entryId } });
+    const { count } = await this.prisma.mealPlanEntry.deleteMany({ where: { id: entryId, userId } });
+    if (count === 0) throw new NotFoundException('That meal is already gone');
   }
 
-  async shoppingList(userId: string, spaceId: string, from: string) {
+  async shoppingList(userId: string, input: ShoppingListDto) {
+    const spaceId = input.spaceId ?? (await this.prisma.space.findFirstOrThrow({ where: { personalOwnerId: userId }, select: { id: true } })).id;
     await this.access.assertSpace(userId, spaceId, 'edit');
-    const start = dateValue(from);
+    const start = dateValue(input.from);
     const planned = await this.prisma.mealPlanEntry.findMany({
-      where: { spaceId, day: { gte: start, lt: new Date(start.getTime() + 7 * dayMs) }, recipe: { trashedAt: null } },
+      where: { userId, day: { gte: start, lt: new Date(start.getTime() + 7 * dayMs) }, recipe: { trashedAt: null } },
       select: { recipe: { select: { recipe: { select: { ingredients: true } } } } },
     });
     const wanted: string[] = [];
@@ -201,7 +188,7 @@ export class RecipesService {
     const have = new Set(open.map((task) => task.title.toLowerCase()));
     const added = wanted.filter((line) => !have.has(line.toLowerCase()));
     for (const title of added) await this.tasks.create(userId, spaceId, { title: title.slice(0, 200), listId: list.id });
-    return { listId: list.id, added: added.length, already: wanted.length - added.length };
+    return { listId: list.id, spaceId, added: added.length, already: wanted.length - added.length };
   }
 
   private async row(userId: string, itemId: string, access: 'read' | 'edit') {
@@ -211,4 +198,3 @@ export class RecipesService {
     return row;
   }
 }
-

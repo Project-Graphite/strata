@@ -11,7 +11,7 @@ describe('Events and the agenda against Postgres', () => {
   const strata = integrationApp();
   const { member } = strata;
 
-  it('merges repeating events, due tasks and renewals into one agenda for the people who can see them', async () => {
+  it('merges repeating events, due tasks from spaces and renewals into one agenda for their owner', async () => {
     const owner = await member('organiser');
     const viewer = await member('attendee');
     const outsider = await member('outsider');
@@ -25,14 +25,14 @@ describe('Events and the agenda against Postgres', () => {
       [{ startsOn: utcDate(1), endsOn: utcDate(40) }, 'longer than 31 days'],
       [{ startsOn: utcDate(1), repeatRule: 'FREQ=HOURLY' }, 'unsupported rule'],
     ] as const) {
-      expect({ reason, status: (await owner.call('POST', `/spaces/${space.id}/events`, { title: 'Bad', ...change })).status }).toEqual({
+      expect({ reason, status: (await owner.call('POST', '/me/events', { title: 'Bad', ...change })).status }).toEqual({
         reason,
         status: 400,
       });
     }
 
     const practice = (
-      await owner.call('POST', `/spaces/${space.id}/events`, {
+      await owner.call('POST', '/me/events', {
         title: 'Practice',
         startsOn: utcDate(1),
         startTime: '18:00',
@@ -43,7 +43,8 @@ describe('Events and the agenda against Postgres', () => {
       })
     ).body;
     expect(practice).toMatchObject({ title: 'Practice', startTime: '18:00', endsOn: utcDate(1), repeatRule: 'FREQ=WEEKLY;COUNT=3', headcount: { yes: 0 } });
-    await owner.call('POST', `/spaces/${space.id}/events`, { title: 'Picnic', startsOn: utcDate(3) });
+    expect(practice).not.toHaveProperty('spaceId');
+    await owner.call('POST', '/me/events', { title: 'Picnic', startsOn: utcDate(3) });
     await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Book the hall', dueDate: utcDate(2) });
     await owner.call('POST', '/me/subscriptions', {
       name: 'Hall hire',
@@ -53,25 +54,27 @@ describe('Events and the agenda against Postgres', () => {
       startDate: utcDate(5),
     });
 
-    const agenda = (await viewer.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body;
+    const agenda = (await owner.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body;
     expect(agenda.filter((entry: { title: string }) => entry.title === 'Practice').map((entry: { start: string; end: string }) => [entry.start, entry.end])).toEqual([
       [`${utcDate(1)}T18:00:00.000Z`, `${utcDate(1)}T19:30:00.000Z`],
       [`${utcDate(8)}T18:00:00.000Z`, `${utcDate(8)}T19:30:00.000Z`],
       [`${utcDate(15)}T18:00:00.000Z`, `${utcDate(15)}T19:30:00.000Z`],
     ]);
-    expect(agenda.find((entry: { title: string }) => entry.title === 'Picnic')).toMatchObject({ kind: 'event', allDay: true, start: utcDate(3), end: utcDate(3) });
-    expect(agenda.find((entry: { title: string }) => entry.title === 'Book the hall')).toMatchObject({ kind: 'task', allDay: true, start: utcDate(2) });
-    expect(agenda.find((entry: { title: string }) => entry.title === 'Hall hire')).toBeUndefined();
-    expect((await owner.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body.find((entry: { title: string }) => entry.title === 'Hall hire')).toMatchObject({ kind: 'renewal', spaceId: null, start: utcDate(5) });
+    expect(agenda.find((entry: { title: string }) => entry.title === 'Picnic')).toMatchObject({ kind: 'event', spaceId: null, allDay: true, start: utcDate(3), end: utcDate(3) });
+    expect(agenda.find((entry: { title: string }) => entry.title === 'Book the hall')).toMatchObject({ kind: 'task', spaceId: space.id, allDay: true, start: utcDate(2) });
+    expect(agenda.find((entry: { title: string }) => entry.title === 'Hall hire')).toMatchObject({ kind: 'renewal', spaceId: null, start: utcDate(5) });
+    const viewed = (await viewer.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body;
+    expect(viewed.map((entry: { title: string }) => entry.title)).toEqual(['Book the hall']);
     expect((await outsider.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body).toEqual([]);
+    expect((await viewer.call('GET', `/events/${practice.id}`)).status).toBe(404);
     expect((await outsider.call('GET', `/events/${practice.id}`)).status).toBe(404);
-    expect((await viewer.call('PATCH', `/events/${practice.id}`, { title: 'Mine' })).status).toBe(403);
+    expect((await viewer.call('PATCH', `/events/${practice.id}`, { title: 'Mine' })).status).toBe(404);
     expect((await viewer.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(200)}`)).status).toBe(400);
   });
 
   it('lets guests answer from a personal or shared link without seeing anything else', async () => {
     const owner = await member('host');
-    const party = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/events`, { title: 'Party', startsOn: utcDate(10), startTime: '20:00' })).body;
+    const party = (await owner.call('POST', '/me/events', { title: 'Party', startsOn: utcDate(10), startTime: '20:00' })).body;
 
     const invited = (await owner.call('POST', `/events/${party.id}/guests`, { name: 'Sam', email: strata.email('sam') })).body;
     expect(invited).toMatchObject({ emailed: true, guest: { name: 'Sam', response: 'pending' } });
@@ -108,7 +111,7 @@ describe('Events and the agenda against Postgres', () => {
     const owner = await member('busy-host');
     const jobs = strata.service(JobsService);
     const standup = (
-      await owner.call('POST', `/spaces/${owner.personalSpaceId}/events`, {
+      await owner.call('POST', '/me/events', {
         title: 'Stand-up',
         startsOn: utcDate(1),
         startTime: '09:00',

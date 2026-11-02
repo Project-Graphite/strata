@@ -44,7 +44,7 @@ export class PageAccessService {
         space: { select: { members: { where: { userId }, select: { role: true } } } },
       },
     });
-    if (!item || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
+    if (!item || !item.spaceId || !item.space || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
     const granted = accessFrom(item.space.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
     if (!granted) throw new NotFoundException('Page not found');
     const { permissions, role } = granted;
@@ -70,7 +70,7 @@ export class PageAccessService {
     return (itemId: string, userId: string) => {
       const item = byId.get(itemId);
       if (!item) return null;
-      return accessFrom(item.space.members.find((member) => member.userId === userId)?.role ?? null, item.archivedAt ? null : item.pageGrants.find((grant) => grant.userId === userId)?.role ?? null);
+      return accessFrom(item.space?.members.find((member) => member.userId === userId)?.role ?? null, item.archivedAt ? null : item.pageGrants.find((grant) => grant.userId === userId)?.role ?? null);
     };
   }
 }

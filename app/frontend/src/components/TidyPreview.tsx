@@ -34,7 +34,7 @@ interface Skipped {
 }
 
 interface Preview {
-  changes: { id: string; spaceId: string; kind: string; title: string }[];
+  changes: { id: string; spaceId: string | null; kind: string; title: string }[];
   skipped: Skipped[];
 }
 

@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
 import { SecretBox } from '../crypto/secret-box.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,14 +7,13 @@ import { dateText, dateValue, dayMs } from '../recurrence/dates';
 import { checkedUrl, FetchError, fetchPublic, UnsafeUrlError } from '../widgets/safe-fetch';
 import { NotCalendarError, readCalendar } from './ical-reader';
 
-const maxPerSpace = 10;
+const maxPerUser = 10;
 const refreshAfterMs = 15 * 60 * 1000;
 const freshForMs = 60 * 1000;
 const refreshesPerRun = 10;
 
 const subscriptionFields = {
   id: true,
-  spaceId: true,
   name: true,
   host: true,
   lastFetchedAt: true,
@@ -51,7 +49,6 @@ export class CalendarSubscriptionsService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: AccessService,
     private readonly box: SecretBox,
     private readonly maintenance: MaintenanceScheduler,
   ) {}
@@ -60,19 +57,14 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     this.maintenance.register((now) => this.refreshDue(now));
   }
 
-  async mine(userId: string, spaceId?: string) {
-    const rows = await this.prisma.calendarSubscription.findMany({
-      where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: subscriptionFields,
-    });
+  async mine(userId: string) {
+    const rows = await this.prisma.calendarSubscription.findMany({ where: { userId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: subscriptionFields });
     return rows.map(present);
   }
 
-  async add(userId: string, spaceId: string, input: { name?: string; url: string }) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
-    if ((await this.prisma.calendarSubscription.count({ where: { spaceId } })) >= maxPerSpace) {
-      throw new ConflictException(`A space can follow ${maxPerSpace} calendars. Remove one first.`);
+  async add(userId: string, input: { name?: string; url: string }) {
+    if ((await this.prisma.calendarSubscription.count({ where: { userId } })) >= maxPerUser) {
+      throw new ConflictException(`You can follow ${maxPerUser} calendars. Remove one first.`);
     }
     const url = input.url.trim().replace(/^webcal:\/\//i, 'https://');
     const host = this.checked(url).host;
@@ -83,12 +75,11 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     });
     const created = await this.prisma.calendarSubscription.create({
       data: {
-        spaceId,
+        userId,
         name: input.name || read.name?.slice(0, 80) || host,
         urlSealed: this.box.seal(url),
         host,
         lastFetchedAt: now,
-        createdById: userId,
         events: { createMany: { data: read.events.map((event) => this.row(event)) } },
       },
       select: subscriptionFields,
@@ -98,7 +89,7 @@ export class CalendarSubscriptionsService implements OnModuleInit {
 
   async event(userId: string, id: string, uid: string) {
     const event = await this.prisma.subscribedEvent.findFirst({
-      where: { subscriptionId: id, uid, subscription: { space: this.access.spacesOf(userId) } },
+      where: { subscriptionId: id, uid, subscription: { userId } },
       select: {
         uid: true,
         title: true,
@@ -112,7 +103,7 @@ export class CalendarSubscriptionsService implements OnModuleInit {
         description: true,
         meetingUrl: true,
         organizer: true,
-        subscription: { select: { id: true, spaceId: true, name: true, host: true } },
+        subscription: { select: { id: true, name: true, host: true } },
       },
     });
     if (!event) throw new NotFoundException('That event is no longer in the calendar');
@@ -121,18 +112,18 @@ export class CalendarSubscriptionsService implements OnModuleInit {
   }
 
   async refreshNow(userId: string, id: string) {
-    await this.editable(userId, id);
+    await this.own(userId, id);
     await this.refresh(id, new Date());
     return present(await this.prisma.calendarSubscription.findUniqueOrThrow({ where: { id }, select: subscriptionFields }));
   }
 
   async remove(userId: string, id: string) {
-    await this.editable(userId, id);
+    await this.own(userId, id);
     await this.prisma.calendarSubscription.deleteMany({ where: { id } });
   }
 
   async refreshMine(userId: string, now: Date) {
-    return { refreshed: await this.refreshStale({ space: this.access.spacesOf(userId) }, freshForMs, now, refreshesPerRun) };
+    return { refreshed: await this.refreshStale({ userId }, freshForMs, now, refreshesPerRun) };
   }
 
   async refreshDue(now: Date) {
@@ -190,9 +181,7 @@ export class CalendarSubscriptionsService implements OnModuleInit {
     }
   }
 
-  private async editable(userId: string, id: string) {
-    const subscription = await this.prisma.calendarSubscription.findFirst({ where: { id, space: this.access.spacesOf(userId) }, select: { spaceId: true } });
-    if (!subscription) throw new NotFoundException('That calendar is not followed here');
-    await this.access.assertSpace(userId, subscription.spaceId, 'edit');
+  private async own(userId: string, id: string) {
+    if (!(await this.prisma.calendarSubscription.count({ where: { id, userId } }))) throw new NotFoundException('That calendar is not followed here');
   }
 }

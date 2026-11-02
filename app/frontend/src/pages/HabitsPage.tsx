@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { ConfirmDialog, Placeholder, Select, TextField } from '@project-graphite/ui';
-import { useAuth } from '../../auth';
-import { ActionsMenu } from '../../components/ActionsMenu';
-import { AddButton } from '../../components/Button';
-import { Empty } from '../../components/Empty';
-import { FormDialog } from '../../components/FormDialog';
-import { usePagePrimary } from '../../components/Page';
-import { LoadError } from '../../components/LoadError';
-import { HabitRowSkeleton, rowsOf, useRememberedShape } from '../../components/Skeletons';
-import { goalText, HabitRow, type Habit } from '../../habits';
-import { useAction } from '../../useAction';
-import { useResource } from '../../useResource';
-import { atMost, required, useFormErrors } from '../../validation';
-import { useSpace } from './SpaceLayout';
+import { useAuth } from '../auth';
+import { ActionsMenu } from '../components/ActionsMenu';
+import { AddButton } from '../components/Button';
+import { Empty } from '../components/Empty';
+import { FormDialog } from '../components/FormDialog';
+import { Page } from '../components/Page';
+import { LoadError } from '../components/LoadError';
+import { HabitRowSkeleton, rowsOf, useRememberedShape } from '../components/Skeletons';
+import { goalText, HabitRow, type Habit } from '../habits';
+import { useAction } from '../useAction';
+import { useResource } from '../useResource';
+import { atMost, required, useFormErrors } from '../validation';
 
 function GoalSelect({ defaultValue = 7 }: { defaultValue?: number }) {
   return (
@@ -26,28 +25,25 @@ function GoalSelect({ defaultValue = 7 }: { defaultValue?: number }) {
 }
 
 const nameRules = [required('Name the habit.'), atMost(80, 'Use at most 80 characters.')];
-const empty = { title: 'No habits yet', hint: 'Habits you keep in this space show up here, with a check for each day.' };
+const empty = { title: 'No habits yet', hint: 'Habits you keep show up here, with a check for each day.' };
 
-export function SpaceHabits() {
+export function HabitsPage() {
   const auth = useAuth();
-  const space = useSpace();
-  const habits = useResource<Habit[]>(`/spaces/${space.id}/habits`, true);
+  const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
   const saving = useAction();
   const { report } = saving;
   const habitForm = useFormErrors();
   const [editing, setEditing] = useState<Habit | 'new'>();
   const [deleting, setDeleting] = useState<Habit>();
-  const editable = space.role !== 'viewer';
   const replace = (next: Habit) => habits.mutate((current) => current.map((habit) => (habit.id === next.id ? next : habit)));
-  const [rows] = useRememberedShape(`space-habits-${space.id}`, habits.data && [habits.data.length], [3]);
-  usePagePrimary(editable && <AddButton label="New habit" large onClick={() => setEditing('new')} primary />);
+  const [rows] = useRememberedShape('habits', habits.data && [habits.data.length], [3]);
 
   return (
-    <>
+    <Page actions={<AddButton label="New habit" large onClick={() => setEditing('new')} primary />} title="Habits">
       {habits.error ? (
         <LoadError error={habits.error} onRetry={habits.reload} />
       ) : !habits.data ? (
-        <Placeholder label="Loading the habits in this space">
+        <Placeholder label="Loading your habits">
           {rows ? (
             <ul aria-hidden="true" className="panel-rows">
               {rowsOf(rows).map((row) => (
@@ -67,15 +63,13 @@ export function SpaceHabits() {
           {habits.data.map((habit) => (
             <HabitRow
               actions={
-                editable && (
-                  <ActionsMenu
-                    items={[
-                      { label: 'Edit', onSelect: () => setEditing(habit) },
-                      { label: 'Delete', onSelect: () => setDeleting(habit), separated: true },
-                    ]}
-                    name={habit.name}
-                  />
-                )
+                <ActionsMenu
+                  items={[
+                    { label: 'Edit', onSelect: () => setEditing(habit) },
+                    { label: 'Delete', onSelect: () => setDeleting(habit), separated: true },
+                  ]}
+                  name={habit.name}
+                />
               }
               habit={habit}
               key={habit.id}
@@ -97,7 +91,7 @@ export function SpaceHabits() {
             void saving
               .run(async () => {
                 if (editing === 'new') {
-                  const created = await auth.request<Habit>(`/spaces/${space.id}/habits`, { method: 'POST', body });
+                  const created = await auth.request<Habit>('/me/habits', { method: 'POST', body });
                   habits.mutate((current) => [...current, created]);
                   return `Added ${created.name}.`;
                 }
@@ -129,9 +123,9 @@ export function SpaceHabits() {
           title={`Delete ${deleting.name}?`}
           tone="danger"
         >
-          Everyone’s check-ins for it are deleted too.
+          Your check-ins for it are deleted too.
         </ConfirmDialog>
       )}
-    </>
+    </Page>
   );
 }

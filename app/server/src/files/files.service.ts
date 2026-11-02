@@ -30,8 +30,8 @@ export class FilesService {
     private readonly store: FileStore,
   ) {}
 
-  async upload(userId: string, spaceId: string, name: string, data: Buffer) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async upload(userId: string, spaceId: string | null, name: string, data: Buffer) {
+    if (spaceId) await this.access.assertSpace(userId, spaceId, 'edit');
     const file = inspectFile(data, name);
     if (!file) {
       throw new UnsupportedMediaTypeException(
@@ -56,7 +56,7 @@ export class FilesService {
         });
         const created = await transaction.item.create({
           data: {
-            spaceId,
+            ...(spaceId ? { spaceId } : { ownerId: userId }),
             kind: ItemKind.FILE,
             title: name,
             createdById: userId,
@@ -75,13 +75,9 @@ export class FilesService {
           },
           select: { id: true },
         });
-        await this.activity.record(transaction, {
-          spaceId,
-          actorId: userId,
-          itemId: created.id,
-          verb: 'item.created',
-          data: { title: name },
-        });
+        if (spaceId) {
+          await this.activity.record(transaction, { spaceId, actorId: userId, itemId: created.id, verb: 'item.created', data: { title: name } });
+        }
         await this.store.write(sha256, file.data);
         return created;
       },
@@ -98,7 +94,7 @@ export class FilesService {
         orderBy: { createdAt: 'desc' },
         select: storageFields,
       }),
-      spaceId ? this.prisma.file.findMany({ where: { item: { ...this.access.itemsOf(userId), spaceId } }, orderBy: { createdAt: 'desc' }, select: storageFields }) : undefined,
+      spaceId ? this.prisma.file.findMany({ where: { item: { ...this.access.spaceItemsOf(userId), spaceId } }, orderBy: { createdAt: 'desc' }, select: storageFields }) : undefined,
     ]);
     const readable = new Set(
       (await this.prisma.item.findMany({ where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), id: { in: (selectedFiles ?? files).map((file) => file.itemId) } }, select: { id: true } })).map((item) => item.id),

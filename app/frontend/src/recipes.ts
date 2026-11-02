@@ -1,7 +1,5 @@
 export interface Recipe {
   id: string;
-  spaceId: string;
-  spaceName: string;
   title: string;
   servings: number | null;
   prepMinutes: number | null;

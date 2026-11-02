@@ -10,7 +10,6 @@ import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { FilterChips, Page } from '../components/Page';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
-import { useSpaces } from '../spaces';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -24,7 +23,6 @@ const filters = [
 
 export function BookmarksPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
   const [params] = useSearchParams();
   const status = filters.find((filter) => filter.value === params.get('status')) ?? filters[0];
   const listed = useResource<Bookmark[]>(`/me/bookmarks${status.value === 'all' ? '' : `?status=${status.value}`}`, true);
@@ -33,10 +31,8 @@ export function BookmarksPage() {
   const form = useFormErrors();
   const [adding, setAdding] = useState(false);
   const [rows] = useRememberedShape(`bookmarks-${status.value}`, listed.data && [listed.data.length], [4]);
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const editable = (bookmark: Bookmark) => writable.some((space) => space.id === bookmark.spaceId);
   const firstRun =
-    status.value === 'read' ? undefined : ({ action: writable.length > 0 && <Button icon="plus" label="New bookmark" onClick={() => setAdding(true)} primary />, icon: 'bookmark', variant: 'page' } as const);
+    status.value === 'read' ? undefined : ({ action: <Button icon="plus" label="New bookmark" onClick={() => setAdding(true)} primary />, icon: 'bookmark', variant: 'page' } as const);
 
   function markRead(bookmark: Bookmark, read: boolean) {
     void marking.run(async () => {
@@ -55,7 +51,7 @@ export function BookmarksPage() {
 
   return (
     <Page
-      actions={writable.length > 0 && <AddButton label="New bookmark" large onClick={() => setAdding(true)} primary />}
+      actions={<AddButton label="New bookmark" large onClick={() => setAdding(true)} primary />}
       title="Bookmarks"
       toolbar={
         <FilterChips
@@ -74,7 +70,7 @@ export function BookmarksPage() {
             const values = new FormData(target);
             void saving
               .run(async () => {
-                const { bookmark, fetchError } = await saveBookmark(auth.request, String(values.get('spaceId')), String(values.get('url')).trim());
+                const { bookmark, fetchError } = await saveBookmark(auth.request, String(values.get('url')).trim());
                 listed.reload();
                 return fetchError ? `Added ${bookmark.title}, but the page couldn’t be read: ${fetchError}` : `Added ${bookmark.title}.`;
               }, 'Could not add the bookmark')
@@ -84,7 +80,6 @@ export function BookmarksPage() {
           title="New bookmark"
         >
           <TextField autoFocus inputMode="url" label="Link" type="url" {...form.field('url')} />
-          <input name="spaceId" type="hidden" value={writable[0]!.id} />
         </FormDialog>
       )}
       {listed.error ? (
@@ -109,15 +104,13 @@ export function BookmarksPage() {
             <ListRow
               href={`/bookmarks/${bookmark.id}`}
               key={bookmark.id}
-              meta={[siteLabel(bookmark), spaces.data?.find((space) => space.id === bookmark.spaceId)?.name, `saved ${formatMoment(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
+              meta={[siteLabel(bookmark), `saved ${formatMoment(bookmark.createdAt)}`].filter(Boolean).join(' · ')}
               title={bookmark.title}
               trail={
-                editable(bookmark) && (
-                  <ActionsMenu
-                    items={[{ label: bookmark.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => markRead(bookmark, !bookmark.readAt) }]}
-                    name={bookmark.title}
-                  />
-                )
+                <ActionsMenu
+                  items={[{ label: bookmark.readAt ? 'Move back to read later' : 'Mark read', onSelect: () => markRead(bookmark, !bookmark.readAt) }]}
+                  name={bookmark.title}
+                />
               }
             >
               {bookmark.description && <span className="line-clamp-2 text-small text-muted">{bookmark.description}</span>}

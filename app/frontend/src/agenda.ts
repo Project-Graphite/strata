@@ -31,7 +31,7 @@ export interface CalendarEvent {
   description: string;
   meetingUrl: string | null;
   organizer: string | null;
-  calendar: { id: string; spaceId: string; name: string; host: string };
+  calendar: { id: string; name: string; host: string };
 }
 
 export type AgendaView = 'day' | 'week' | 'month' | 'list';
@@ -107,7 +107,6 @@ export interface Guest {
 
 export interface EventDetails extends PublicEvent {
   id: string;
-  spaceId: string;
   reminderMinutes: number | null;
   guests: Guest[];
   headcount: Record<Guest['response'], number>;

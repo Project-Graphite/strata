@@ -220,7 +220,6 @@ function Period({
 }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const agenda = useAgenda(from, to);
   const action = useAction();
   const [peek, setPeek] = useState<{ entry: AgendaEntry; anchor: HTMLElement }>();
@@ -236,13 +235,7 @@ function Period({
   }
   const month = new Date(`${anchor}T00:00:00`).getMonth();
   const listShape = useRememberedShape('agenda-list', agenda.data && view === 'list' ? allDays.flatMap((day) => byDay.get(day)?.length ?? []) : undefined, [2, 1, 3]);
-  const canEdit = useCallback(
-    (entry: AgendaEntry) => {
-      const role = spaces.data?.find((space) => space.id === entry.spaceId)?.role;
-      return entry.kind === 'event' && role !== undefined && role !== 'viewer';
-    },
-    [spaces.data],
-  );
+  const canEdit = useCallback((entry: AgendaEntry) => entry.kind === 'event', []);
   const closePeek = useCallback(() => setPeek(undefined), []);
   const onPeek = (entry: AgendaEntry, target: HTMLElement) => setPeek({ entry, anchor: target });
   const open = (entry: AgendaEntry) => {
@@ -492,7 +485,6 @@ function Period({
 
 function Agenda({ view }: { view: View }) {
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const me = useResource<Pick<Me, 'weekStart' | 'weekendDays'>>('/me', true);
   const phone = usePhone();
   const [params] = useSearchParams();
@@ -501,7 +493,7 @@ function Agenda({ view }: { view: View }) {
   const [creating, setCreating] = useState<Draft>();
   const [sheet, setSheet] = useState<string>();
   const period = agendaPeriod(view, anchor, me.data?.weekStart ?? 0);
-  const canCreate = Boolean(spaces.data?.some((space) => space.role !== 'viewer'));
+  const canCreate = true;
   const link: ViewLink = (next) => {
     const date = next.date ?? params.get('date');
     return `/agenda/${next.view ?? view}${date ? `?date=${date}` : ''}`;

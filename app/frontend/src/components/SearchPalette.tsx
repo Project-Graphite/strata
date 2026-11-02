@@ -10,7 +10,7 @@ import { inActiveSpace } from '../active-space';
 import { pageHref } from '../notes';
 
 interface SearchResults {
-  items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string; archived: boolean }[];
+  items: { id: string; spaceId: string | null; spaceName: string | null; kind: string; quick: boolean; title: string; archived: boolean }[];
   tags: Tag[];
 }
 
@@ -66,15 +66,15 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...actions.filter((action) => !text || matches(action.label)),
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
-      hint: `${itemKindName(item)} · ${item.spaceName}${item.archived ? ' · archived' : ''}`,
-      href: itemHref(item) ?? `/spaces/${item.spaceId}/items${item.archived ? '?archived=true' : ''}`,
+      hint: `${itemKindName(item)} · ${item.spaceName ?? 'Yours'}${item.archived ? ' · archived' : ''}`,
+      href: itemHref(item) ?? (item.spaceId ? `/spaces/${item.spaceId}/items${item.archived ? '?archived=true' : ''}` : '/files'),
       id: `item-${item.id}`,
       label: item.title || 'Untitled',
     })),
     ...(results?.tags ?? []).map((tag) => ({
       group: 'Tags',
-      hint: spaceName(tag.spaceId),
-      href: `/spaces/${tag.spaceId}/items?tag=${tag.id}`,
+      hint: tag.spaceId ? spaceName(tag.spaceId) : 'Yours',
+      href: tag.spaceId ? `/spaces/${tag.spaceId}/items?tag=${tag.id}` : '/settings/tags',
       id: `tag-${tag.id}`,
       label: tag.name,
     })),

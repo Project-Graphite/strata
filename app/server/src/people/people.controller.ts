@@ -1,5 +1,4 @@
-import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Query, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -13,14 +12,14 @@ export class PeopleController {
 
   @Get('me/people')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.people.list(user.id, query.spaceId);
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.people.list(user.id);
   }
 
-  @Post('spaces/:spaceId/people')
+  @Post('me/people')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreatePersonDto) {
-    return this.people.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreatePersonDto) {
+    return this.people.create(user.id, input);
   }
 
   @Get('people/:id')

@@ -512,12 +512,11 @@ function FocusSettings({ onChange, settings }: SettingsProps) {
 
 interface TidyScanSummary {
   files: { duplicates: { savingBytes: number; items: unknown[] }[]; old: unknown[] };
-  subscriptions: { unused: { id: string }[]; duplicates: { items: { id: string }[] }[]; overlapping: { items: { id: string }[] }[] };
+  account: { bookmarks: unknown[]; goals: unknown[]; recipes: unknown[] };
 }
 
 function Habits() {
   const habits = useResource<Habit[]>('/me/habits', true, { live: ['habits'] });
-  const personal = useSpaces().data?.find((space) => space.role !== 'viewer');
   if (habits.error) return <LoadError compact error={habits.error} onRetry={habits.reload} />;
   if (!habits.data) {
     return (
@@ -531,16 +530,16 @@ function Habits() {
     );
   }
   if (habits.data.length === 0) {
-    return <WidgetEmpty action={personal && <ButtonLink label="Add a habit" to={`/spaces/${personal.id}/habits`} />} icon="checklist" title="No habits yet" />;
+    return <WidgetEmpty action={<ButtonLink label="Add a habit" to="/habits" />} icon="checklist" title="No habits yet" />;
   }
   return (
     <div className="grid gap-3">
       <ul className="panel-rows panel-rows-flush">
         {habits.data.slice(0, 5).map((habit) => (
-          <HabitRow habit={habit} key={habit.id} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} showSpace />
+          <HabitRow habit={habit} key={habit.id} onChange={(next) => habits.mutate((current) => current.map((shown) => (shown.id === next.id ? next : shown)))} />
         ))}
       </ul>
-      {habits.data.length > 5 && personal && <ShowAll count={habits.data.length} href={`/spaces/${personal.id}/habits`} />}
+      {habits.data.length > 5 && <ShowAll count={habits.data.length} href="/habits" />}
     </div>
   );
 }
@@ -668,8 +667,8 @@ function RecentFiles() {
 }
 
 function Tidy() {
-  const scan = useResource<TidyScanSummary>('/tidy/scan', true, { live: ['items', 'subscriptions'] });
-  const history = useResource<{ createdAt: string }[]>('/tidy/history', true, { live: ['items', 'subscriptions'] });
+  const scan = useResource<TidyScanSummary>('/tidy/scan', true, { live: ['items'] });
+  const history = useResource<{ createdAt: string }[]>('/tidy/history', true, { live: ['items'] });
   if (scan.error) return <LoadError compact error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) {
     return (
@@ -682,18 +681,14 @@ function Tidy() {
       </Placeholder>
     );
   }
-  const { files, subscriptions } = scan.data;
+  const { files, account } = scan.data;
   const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
   const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
-  const toCheck = new Set(
-    [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
-      (entry) => entry.id,
-    ),
-  ).size;
+  const yours = account.bookmarks.length + account.goals.length + account.recipes.length;
   const findings = [
     copies ? `${copies} extra cop${copies === 1 ? 'y' : 'ies'} (${fileSize(saving)})` : '',
     files.old.length ? `${files.old.length} old upload${files.old.length === 1 ? '' : 's'}` : '',
-    toCheck ? `${toCheck} subscription${toCheck === 1 ? '' : 's'} to check` : '',
+    yours ? `${yours} of your own item${yours === 1 ? '' : 's'} to check` : '',
   ].filter(Boolean);
   const last = history.data?.[0];
   const tidied = last ? `Last tidied ${timeAgo(last.createdAt)}` : 'Not tidied yet';

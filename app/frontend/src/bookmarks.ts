@@ -15,7 +15,6 @@ export type ArticleBlock =
 
 export interface Bookmark {
   id: string;
-  spaceId: string;
   title: string;
   url: string;
   siteName: string | null;
@@ -49,21 +48,21 @@ export async function previewLink(request: Request, url: string) {
   return { url, title: title ?? null, siteName: siteName || null, description: description || null };
 }
 
-export async function saveBookmark(request: Request, spaceId: string, url: string) {
-  const saved = await request<FetchedPage & { bookmark: BookmarkDetails }>(`/spaces/${spaceId}/bookmarks`, { method: 'POST', body: JSON.stringify({ url }) });
+export async function saveBookmark(request: Request, url: string) {
+  const saved = await request<FetchedPage & { bookmark: BookmarkDetails }>('/me/bookmarks', { method: 'POST', body: JSON.stringify({ url }) });
   return {
     bookmark: saved.html ? await keepArticle(request, saved.bookmark, saved.html) : saved.bookmark,
     fetchError: saved.fetchError,
   };
 }
 
-export async function quickBookmark(request: Request, spaceId: string, url: string, title: string) {
+export async function quickBookmark(request: Request, url: string, title: string) {
   try {
-    const saved = await request<{ bookmark: Bookmark }>(`/spaces/${spaceId}/bookmarks`, { method: 'POST', body: JSON.stringify({ url, title: title || undefined, fetch: false }) });
+    const saved = await request<{ bookmark: Bookmark }>('/me/bookmarks', { method: 'POST', body: JSON.stringify({ url, title: title || undefined, fetch: false }) });
     return { bookmark: saved.bookmark, created: true };
   } catch (reason) {
     if (!(reason instanceof ApiError && reason.status === 409)) throw reason;
-    const existing = (await request<Bookmark[]>(`/me/bookmarks?spaceId=${spaceId}`)).find((bookmark) => bookmark.url === url);
+    const existing = (await request<Bookmark[]>('/me/bookmarks')).find((bookmark) => bookmark.url === url);
     if (!existing) throw reason;
     return { bookmark: existing, created: false };
   }

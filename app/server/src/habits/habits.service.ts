@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, localDate } from '../recurrence/dates';
@@ -9,7 +8,7 @@ import { habitStats, shiftDay } from './streaks';
 
 const maxHabits = 50;
 const historyDays = 400;
-const habitFields = { id: true, spaceId: true, name: true, perWeek: true, position: true, space: { select: { name: true } } } satisfies Prisma.HabitSelect;
+const habitFields = { id: true, name: true, perWeek: true, position: true } satisfies Prisma.HabitSelect;
 
 type HabitRow = Prisma.HabitGetPayload<{ select: typeof habitFields }>;
 
@@ -17,49 +16,37 @@ type HabitRow = Prisma.HabitGetPayload<{ select: typeof habitFields }>;
 export class HabitsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: AccessService,
     private readonly changes: ChangesService,
   ) {}
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
-    const habits = await this.prisma.habit.findMany({ where: { spaceId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: habitFields });
+  async mine(userId: string) {
+    const habits = await this.prisma.habit.findMany({ where: { userId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: habitFields });
     return this.withStats(userId, habits);
   }
 
-  async mine(userId: string, spaceId?: string) {
-    const habits = await this.prisma.habit.findMany({
-      where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) },
-      orderBy: [{ space: { createdAt: 'asc' } }, { position: 'asc' }, { createdAt: 'asc' }],
-      select: habitFields,
-    });
-    return this.withStats(userId, habits);
-  }
-
-  async create(userId: string, spaceId: string, input: CreateHabitDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
-    const count = await this.prisma.habit.count({ where: { spaceId } });
-    if (count >= maxHabits) throw new ConflictException(`A space can track ${maxHabits} habits. Delete one you no longer keep.`);
-    const habit = await this.prisma.habit.create({ data: { spaceId, name: input.name, perWeek: input.perWeek ?? 7, position: count }, select: habitFields });
-    this.changes.notify('habits', { spaceId });
+  async create(userId: string, input: CreateHabitDto) {
+    const count = await this.prisma.habit.count({ where: { userId } });
+    if (count >= maxHabits) throw new ConflictException(`You can track ${maxHabits} habits. Delete one you no longer keep.`);
+    const habit = await this.prisma.habit.create({ data: { userId, name: input.name, perWeek: input.perWeek ?? 7, position: count }, select: habitFields });
+    this.changes.notify('habits', { userId });
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
   async update(userId: string, habitId: string, input: UpdateHabitDto) {
-    await this.habit(userId, habitId, 'edit');
+    await this.habit(userId, habitId);
     const habit = await this.prisma.habit.update({ where: { id: habitId }, data: { name: input.name, perWeek: input.perWeek }, select: habitFields });
-    this.changes.notify('habits', { spaceId: habit.spaceId });
+    this.changes.notify('habits', { userId });
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
   async remove(userId: string, habitId: string) {
-    const { spaceId } = await this.habit(userId, habitId, 'edit');
+    await this.habit(userId, habitId);
     await this.prisma.habit.deleteMany({ where: { id: habitId } });
-    this.changes.notify('habits', { spaceId });
+    this.changes.notify('habits', { userId });
   }
 
   async checkIn(userId: string, habitId: string, day: string, done: boolean) {
-    const habit = await this.habit(userId, habitId, 'read');
+    const habit = await this.habit(userId, habitId);
     const today = await this.today(userId);
     if (day !== today && day !== shiftDay(today, -1)) throw new BadRequestException('Check in for today or yesterday');
     const key = { habitId, userId, day: dateValue(day) };
@@ -72,19 +59,18 @@ export class HabitsService {
     return (await this.withStats(userId, [habit]))[0]!;
   }
 
-  async inSpace(userId: string, spaceId: string, habitIds: string[]) {
+  async some(userId: string, habitIds: string[]) {
     const habits = await this.prisma.habit.findMany({
-      where: { id: { in: habitIds }, spaceId },
+      where: { id: { in: habitIds }, userId },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
       select: habitFields,
     });
     return this.withStats(userId, habits);
   }
 
-  private async habit(userId: string, habitId: string, access: 'read' | 'edit') {
-    const habit = await this.prisma.habit.findFirst({ where: { id: habitId, space: this.access.spacesOf(userId) }, select: habitFields });
+  private async habit(userId: string, habitId: string) {
+    const habit = await this.prisma.habit.findFirst({ where: { id: habitId, userId }, select: habitFields });
     if (!habit) throw new NotFoundException('Habit not found');
-    if (access === 'edit') await this.access.assertSpace(userId, habit.spaceId, 'edit');
     return habit;
   }
 
@@ -99,9 +85,8 @@ export class HabitsService {
       where: { userId, habitId: { in: habits.map((habit) => habit.id) }, day: { gte: dateValue(shiftDay(today, -historyDays)) } },
       select: { habitId: true, day: true },
     });
-    return habits.map(({ space, ...habit }) => ({
+    return habits.map((habit) => ({
       ...habit,
-      spaceName: space.name,
       today,
       ...habitStats(
         checkIns.filter((checkIn) => checkIn.habitId === habit.id).map((checkIn) => dateText(checkIn.day)),

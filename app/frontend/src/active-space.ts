@@ -6,11 +6,7 @@ export const ActiveSpaceContext = createContext<{
   choose(spaceId: string): void;
 } | null>(null);
 
-const scopedPaths = new Set([
-  '/agenda', '/tasks/today', '/search', '/me/notes', '/me/pages', '/me/tasks', '/me/lists',
-  '/me/bookmarks', '/me/goals', '/me/people', '/me/recipes', '/me/habits',
-  '/me/calendars', '/me/storage', '/tidy/scan',
-]);
+const scopedPaths = new Set(['/tasks/today', '/search', '/me/notes', '/me/pages', '/me/tasks', '/me/lists', '/me/storage', '/tidy/scan']);
 
 export function isSpaceResource(path: string) {
   return scopedPaths.has(path.split('?')[0]!);
