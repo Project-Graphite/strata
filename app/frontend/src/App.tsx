@@ -55,11 +55,12 @@ const ProfileSettings = lazy(() => import('./pages/settings/ProfileSettings').th
 const SecuritySettings = lazy(() => import('./pages/settings/SecuritySettings').then((module) => ({ default: module.SecuritySettings })));
 const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout').then((module) => ({ default: module.SettingsLayout })));
 const TrashSettings = lazy(() => import('./pages/settings/TrashSettings').then((module) => ({ default: module.TrashSettings })));
+const TagsSettings = lazy(() => import('./pages/settings/TagsSettings').then((module) => ({ default: module.TagsSettings })));
 const SpaceActivity = lazy(() => import('./pages/spaces/SpaceActivity').then((module) => ({ default: module.SpaceActivity })));
 const SpaceItems = lazy(() => import('./pages/spaces/SpaceItems').then((module) => ({ default: module.SpaceItems })));
 const SpaceLayout = lazy(() => import('./pages/spaces/SpaceLayout').then((module) => ({ default: module.SpaceLayout })));
 const SpaceMembers = lazy(() => import('./pages/spaces/SpaceMembers').then((module) => ({ default: module.SpaceMembers })));
-const SpaceHabits = lazy(() => import('./pages/spaces/SpaceHabits').then((module) => ({ default: module.SpaceHabits })));
+const HabitsPage = lazy(() => import('./pages/HabitsPage').then((module) => ({ default: module.HabitsPage })));
 const SpaceOverview = lazy(() => import('./pages/spaces/SpaceOverview').then((module) => ({ default: module.SpaceOverview })));
 const SpaceNotes = lazy(() => import('./pages/spaces/SpaceNotes').then((module) => ({ default: module.SpaceNotes })));
 const SpacesPage = lazy(() => import('./pages/spaces/SpacesPage').then((module) => ({ default: module.SpacesPage })));
@@ -223,12 +224,12 @@ export function App() {
                 <Route path="items" element={<SpaceItems />} />
                 <Route path="pages" element={<SpaceNotes />} />
                 <Route path="tasks" element={<SpaceTasks />} />
-                <Route path="habits" element={<SpaceHabits />} />
                 <Route path="tags" element={<SpaceTags />} />
                 <Route path="members" element={<SpaceMembers />} />
                 <Route path="activity" element={<SpaceActivity />} />
               </Route>
             </Route>
+            <Route path="habits" element={<HabitsPage />} />
             <Route element={<AppRoute app="goals" />}>
               <Route path="goals" element={<GoalsPage />} />
               <Route path="goals/:id" element={<GoalPage />} />
@@ -244,6 +245,7 @@ export function App() {
             </Route>
             <Route element={<AppRoute app="tidy" />}>
               <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
+              <Route path="tidy/yours" element={<TidyPage key="yours" section="yours" />} />
               <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
               <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
             </Route>
@@ -254,6 +256,7 @@ export function App() {
             <Route path="settings" element={<SettingsLayout />}>
               <Route index element={<ProfileSettings />} />
               <Route path="apps" element={<AppsSettings />} />
+              <Route path="tags" element={<TagsSettings />} />
               <Route path="security" element={<SecuritySettings />} />
               <Route path="developer" element={<DeveloperSettings />} />
               <Route path="data" element={<DataSettings />} />

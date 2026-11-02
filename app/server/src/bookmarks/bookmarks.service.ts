@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { fetchPublic } from '../widgets/safe-fetch';
@@ -10,7 +9,6 @@ import { CreateBookmarkDto, ListBookmarksDto, SaveArticleDto } from './dto/bookm
 
 const bookmarkFields = {
   id: true,
-  spaceId: true,
   title: true,
   createdAt: true,
   updatedAt: true,
@@ -21,7 +19,6 @@ function present(row: Prisma.ItemGetPayload<{ select: typeof bookmarkFields }>) 
   const details = row.bookmark!;
   return {
     id: row.id,
-    spaceId: row.spaceId,
     title: row.title,
     url: details.url,
     siteName: details.siteName,
@@ -37,33 +34,28 @@ export class BookmarksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly activity: ActivityService,
     private readonly changes: ChangesService,
   ) {}
 
-  async create(userId: string, spaceId: string, input: CreateBookmarkDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, input: CreateBookmarkDto) {
     const saved = await this.prisma.item.findFirst({
-      where: { spaceId, kind: ItemKind.BOOKMARK, trashedAt: null, bookmark: { url: input.url } },
+      where: { ownerId: userId, kind: ItemKind.BOOKMARK, trashedAt: null, bookmark: { url: input.url } },
       select: { id: true },
     });
-    if (saved) throw new ConflictException('This link is already saved in this space');
+    if (saved) throw new ConflictException('This link is already saved');
     const title = input.title || new URL(input.url).hostname.replace(/^www\./, '');
-    const id = await this.prisma.$transaction(async (transaction) => {
-      const item = await transaction.item.create({
-        data: { spaceId, kind: ItemKind.BOOKMARK, title, createdById: userId, updatedById: userId, bookmark: { create: { url: input.url } } },
-        select: { id: true },
-      });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title } });
-      return item.id;
+    const item = await this.prisma.item.create({
+      data: { ownerId: userId, kind: ItemKind.BOOKMARK, title, createdById: userId, updatedById: userId, bookmark: { create: { url: input.url } } },
+      select: { id: true },
     });
-    return { bookmark: await this.get(userId, id), ...(input.fetch === false ? { html: null, fetchError: null } : await this.preview(input.url)) };
+    this.changes.notify('items', { userId });
+    return { bookmark: await this.get(userId, item.id), ...(input.fetch === false ? { html: null, fetchError: null } : await this.preview(input.url)) };
   }
 
   async list(userId: string, query: ListBookmarksDto) {
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}),
+        ...this.access.ownedBy(userId),
         kind: ItemKind.BOOKMARK,
         trashedAt: null,
         archivedAt: null,
@@ -87,9 +79,9 @@ export class BookmarksService {
   }
 
   async markRead(userId: string, itemId: string, read: boolean) {
-    const { spaceId } = await this.editable(userId, itemId);
+    await this.editable(userId, itemId);
     await this.prisma.bookmark.update({ where: { itemId }, data: { readAt: read ? new Date() : null } });
-    this.changes.notify('items', { spaceId });
+    this.changes.notify('items', { userId });
     return this.get(userId, itemId);
   }
 
@@ -133,6 +125,6 @@ export class BookmarksService {
     if (found.trashedAt) throw new BadRequestException('Restore this bookmark from the trash before changing it');
     const details = await this.prisma.bookmark.findUnique({ where: { itemId }, select: { url: true } });
     if (!details) throw new NotFoundException('That item is not a bookmark');
-    return { ...details, spaceId: found.spaceId };
+    return details;
   }
 }

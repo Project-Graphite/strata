@@ -1,7 +1,6 @@
 import { TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Recipe, RecipeDraft } from '../recipes';
-import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors, webAddress, type Check } from '../validation';
 import { FormDialog } from './FormDialog';
@@ -19,13 +18,11 @@ export function RecipeEditor({
   onClose,
   onSaved,
   recipe,
-  spaces,
 }: {
   draft?: RecipeDraft;
   onClose: () => void;
   onSaved: (recipe: Recipe) => void;
   recipe?: Recipe;
-  spaces: Space[];
 }) {
   const auth = useAuth();
   const saving = useAction();
@@ -62,7 +59,7 @@ export function RecipeEditor({
         void saving
           .run(async () => {
             onSaved(
-              await auth.request<Recipe>(recipe ? `/recipes/${recipe.id}` : `/spaces/${String(values.get('spaceId'))}/recipes`, {
+              await auth.request<Recipe>(recipe ? `/recipes/${recipe.id}` : '/me/recipes', {
                 method: recipe ? 'PATCH' : 'POST',
                 body: JSON.stringify(body),
               }),
@@ -75,7 +72,6 @@ export function RecipeEditor({
       title={recipe ? 'Edit recipe' : 'New recipe'}
     >
       <TextField autoFocus defaultValue={start?.title} label="Name" maxLength={200} {...form.field('title')} />
-      {!recipe && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <div className="grid gap-4 sm:grid-cols-3">
         <TextField defaultValue={start?.servings ?? ''} inputMode="numeric" label="Serves" {...form.field('servings')} />
         <TextField defaultValue={start?.prepMinutes ?? ''} inputMode="numeric" label="Prep (minutes)" {...form.field('prepMinutes')} />

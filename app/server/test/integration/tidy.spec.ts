@@ -28,16 +28,22 @@ describe('Tidy against Postgres', () => {
     const dusty = await file(owner, owner.personalSpaceId, 'old.txt', Buffer.from(`old ${owner.id}`));
     await strata.prisma.item.update({ where: { id: dusty.id }, data: { updatedAt: new Date(Date.now() - 400 * dayMs) } });
 
+    const stale = (await owner.call('POST', '/me/bookmarks', { url: 'https://stale.example/', fetch: false })).body.bookmark;
+    await strata.prisma.item.update({ where: { id: stale.id }, data: { createdAt: new Date(Date.now() - 400 * dayMs) } });
+    await owner.call('POST', '/me/bookmarks', { url: 'https://fresh.example/', fetch: false });
     const scan = (await owner.call('GET', '/tidy/scan')).body;
     expect(scan.files.duplicates).toEqual([
       { sizeBytes: copy.length, savingBytes: copy.length, items: [expect.objectContaining({ id: first.id }), expect.objectContaining({ id: second.id })] },
     ]);
     expect(ids(scan.files.large)).toEqual([big.id]);
     expect(ids(scan.files.old)).toEqual([dusty.id]);
-    expect(scan).not.toHaveProperty('subscriptions');
+    expect(scan.account).toEqual({ bookmarks: [expect.objectContaining({ id: stale.id, kind: 'bookmark' })], goals: [], recipes: [] });
+    expect((await owner.call('POST', '/tidy/apply', { action: 'trash', itemIds: [stale.id] })).body.batch).toMatchObject({ action: 'trash', itemCount: 1 });
+    expect((await owner.call('GET', '/tidy/scan')).body.account.bookmarks).toEqual([]);
 
     const theirs = (await host.call('GET', '/tidy/scan')).body;
     expect(theirs.files.duplicates).toEqual([]);
+    expect(theirs.account.bookmarks).toEqual([]);
   });
 
   it('previews exactly what will change, applies it and undoes it once', async () => {

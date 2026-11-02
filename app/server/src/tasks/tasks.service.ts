@@ -123,7 +123,7 @@ export class TasksService implements OnModuleInit {
   }
 
   myLists(userId: string, spaceId?: string) {
-    return this.listsIn({ ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}) });
+    return this.listsIn({ ...this.access.spaceItemsOf(userId), ...(spaceId ? { spaceId } : {}) });
   }
 
   private async listsIn(scope: Prisma.ItemWhereInput) {
@@ -178,7 +178,7 @@ export class TasksService implements OnModuleInit {
   }
 
   mine(userId: string, query: ListTasksDto) {
-    return this.pageOf({ ...this.access.itemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}) }, query.listId || query.spaceId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
+    return this.pageOf({ ...this.access.spaceItemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}) }, query.listId || query.spaceId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
   }
 
   private async pageOf(scope: Prisma.ItemWhereInput, tasks: Prisma.TaskWhereInput, query: ListTasksDto) {
@@ -211,7 +211,7 @@ export class TasksService implements OnModuleInit {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const rows = await this.prisma.item.findMany({
       where: {
-        ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}),
+        ...this.access.spaceItemsOf(userId), ...(spaceId ? { spaceId } : {}),
         kind: ItemKind.TASK,
         trashedAt: null,
         task: {
@@ -229,7 +229,7 @@ export class TasksService implements OnModuleInit {
 
   async visible(userId: string, itemIds: string[]) {
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), id: { in: itemIds }, kind: ItemKind.TASK, trashedAt: null },
+      where: { ...this.access.spaceItemsOf(userId), id: { in: itemIds }, kind: ItemKind.TASK, trashedAt: null },
       orderBy: [{ task: { completedAt: { sort: 'asc', nulls: 'first' } } }, { task: { dueDate: { sort: 'asc', nulls: 'last' } } }, { createdAt: 'asc' }],
       select: taskFields,
     });
@@ -237,7 +237,7 @@ export class TasksService implements OnModuleInit {
   }
 
   async get(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'read');
+    await this.access.assertSpaceItem(userId, itemId, 'read');
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: detailFields });
     if (!row.task) throw new NotFoundException('That item is not a task');
     const subtasks = await this.prisma.item.findMany({
@@ -249,7 +249,7 @@ export class TasksService implements OnModuleInit {
   }
 
   async assertTask(userId: string, itemId: string, access: Access) {
-    const found = await this.access.assertItem(userId, itemId, access);
+    const found = await this.access.assertSpaceItem(userId, itemId, access);
     if (!(await this.prisma.task.count({ where: { itemId } }))) throw new NotFoundException('That item is not a task');
     if (access !== 'read' && found.trashedAt) throw new BadRequestException('Restore this task from the trash before changing it');
     return found;
@@ -345,6 +345,7 @@ export class TasksService implements OnModuleInit {
       where: { id: itemId },
       select: { spaceId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true, repeatRule: true, status: true, completedAt: true } } },
     });
+    if (!spaceId) throw new NotFoundException('That item is not a task');
     const current = task!;
     if (status === current.status) return;
     const next = status === TaskStatus.DONE ? this.nextOccurrence(current) : null;
@@ -383,17 +384,16 @@ export class TasksService implements OnModuleInit {
   }
 
   private async editableTask(userId: string, itemId: string) {
-    await this.assertTask(userId, itemId, 'edit');
+    const { spaceId } = await this.assertTask(userId, itemId, 'edit');
     const item = await this.prisma.item.findUniqueOrThrow({
       where: { id: itemId },
       select: {
-        spaceId: true,
         title: true,
         task: { select: { dueDate: true, dueTime: true, timeZone: true, repeatRule: true, assigneeId: true, completedAt: true } },
       },
     });
     if (!item.task) throw new NotFoundException('That item is not a task');
-    return { ...item, task: item.task };
+    return { ...item, spaceId, task: item.task };
   }
 
   private async checkedFields(spaceId: string, itemId: string | null, input: TaskFieldsDto) {
@@ -477,7 +477,7 @@ export class TasksService implements OnModuleInit {
     const task = item?.task;
     if (!item || !task || item.trashedAt || task.completedAt || dueInstant(task)?.toISOString() !== payload.due) return;
     const recipient = task.assigneeId ?? item.createdById;
-    if (!recipient || !(await this.access.isMember(recipient, item.spaceId))) return;
+    if (!recipient || !item.spaceId || !(await this.access.isMember(recipient, item.spaceId))) return;
     await this.inbox.notify(this.prisma, [
       {
         userId: recipient,

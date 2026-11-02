@@ -11,7 +11,6 @@ import { RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 const empty = { title: 'No recipes yet', hint: 'Write down the recipes you cook, or paste a link to read one from a recipe site.' };
 import { ImportRecipe, RecipeEditor } from '../components/RecipeEditor';
 import { recipeFacts, type Recipe, type RecipeDraft } from '../recipes';
-import { useSpaces } from '../spaces';
 import { useResource } from '../useResource';
 
 export function RecipesArea({
@@ -26,14 +25,12 @@ export function RecipesArea({
   toolbar?: ReactNode;
 }) {
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const [dialog, setDialog] = useState<'import' | { draft?: RecipeDraft }>();
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
   return (
     <Page
       actions={
-        writable.length > 0 && (
+        (
           <>
             <ActionsMenu items={[{ label: 'Add from a link', onSelect: () => setDialog('import') }, ...menu]} name="Recipes" />
             <AddButton label="New recipe" large onClick={() => setDialog({})} primary />
@@ -47,10 +44,10 @@ export function RecipesArea({
       title="Recipes and meals"
       toolbar={toolbar}
     >
-      {typeof children === 'function' ? children(writable.length > 0 && <Button icon="plus" label="New recipe" onClick={() => setDialog({})} primary />) : children}
+      {typeof children === 'function' ? children(<Button icon="plus" label="New recipe" onClick={() => setDialog({})} primary />) : children}
       {dialog === 'import' && <ImportRecipe onClose={() => setDialog(undefined)} onRead={(draft) => setDialog({ draft })} />}
       {dialog && dialog !== 'import' && (
-        <RecipeEditor draft={dialog.draft} onClose={() => setDialog(undefined)} onSaved={(saved) => navigate(`/recipes/${saved.id}`)} spaces={writable} />
+        <RecipeEditor draft={dialog.draft} onClose={() => setDialog(undefined)} onSaved={(saved) => navigate(`/recipes/${saved.id}`)} />
       )}
     </Page>
   );
@@ -82,7 +79,7 @@ export function RecipesPage() {
         ) : (
           <ul className="panel-rows">
             {recipes.data.map((recipe) => (
-              <ListRow href={`/recipes/${recipe.id}`} key={recipe.id} meta={[recipe.spaceName, recipeFacts(recipe)].filter(Boolean).join(' · ')} title={recipe.title} />
+              <ListRow href={`/recipes/${recipe.id}`} key={recipe.id} meta={recipeFacts(recipe)} title={recipe.title} />
             ))}
           </ul>
         )

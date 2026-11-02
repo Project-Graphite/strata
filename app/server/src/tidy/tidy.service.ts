@@ -13,6 +13,8 @@ import { TidyActionDto, type TidyActionName } from './dto/tidy.dto';
 
 const largeFileBytes = 5 * 1024 * 1024;
 const summaryKind = 'tidy.summary';
+const unreadBookmarkDays = 365;
+const unplannedRecipeDays = 90;
 
 const fileFields = {
   id: true,
@@ -23,6 +25,8 @@ const fileFields = {
   updatedAt: true,
   file: { select: { sha256: true, mimeType: true, sizeBytes: true } },
 } satisfies Prisma.ItemSelect;
+
+const accountFields = { id: true, kind: true, title: true, createdAt: true, updatedAt: true } satisfies Prisma.ItemSelect;
 
 const batchFields = {
   id: true,
@@ -39,6 +43,7 @@ function stateFields(userId: string) {
   return {
     id: true,
     spaceId: true,
+    ownerId: true,
     kind: true,
     title: true,
     archivedAt: true,
@@ -49,6 +54,7 @@ function stateFields(userId: string) {
 }
 
 type ItemState = Prisma.ItemGetPayload<{ select: ReturnType<typeof stateFields> }>;
+type TagHome = { id: string; spaceId: string | null; ownerId: string | null };
 
 function presentFile(item: Prisma.ItemGetPayload<{ select: typeof fileFields }>) {
   return {
@@ -61,6 +67,10 @@ function presentFile(item: Prisma.ItemGetPayload<{ select: typeof fileFields }>)
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+}
+
+function presentAccountItem(item: Prisma.ItemGetPayload<{ select: typeof accountFields }>) {
+  return { id: item.id, kind: item.kind.toLowerCase(), title: item.title, createdAt: item.createdAt, updatedAt: item.updatedAt };
 }
 
 function presentBatch(batch: Prisma.TidyBatchGetPayload<{ select: typeof batchFields }>) {
@@ -81,16 +91,16 @@ function presentChange(item: ItemState) {
 }
 
 function canEdit(item: ItemState) {
-  const role = item.space.members[0]?.role;
-  return role === SpaceRole.OWNER || role === SpaceRole.EDITOR;
+  const role = item.space?.members[0]?.role;
+  return item.ownerId !== null || role === SpaceRole.OWNER || role === SpaceRole.EDITOR;
 }
 
-function refusal(item: ItemState | undefined, action: TidyActionName, tag: { id: string; spaceId: string } | null) {
+function refusal(item: ItemState | undefined, action: TidyActionName, tag: TagHome | null) {
   if (!item) return 'Not found';
   if (!canEdit(item)) return 'You can only view this space';
   if (item.trashedAt) return action === 'trash' ? 'Already in the trash' : 'In the trash';
   if (action === 'archive' && item.archivedAt) return 'Already archived';
-  if (action === 'tag' && item.spaceId !== tag!.spaceId) return 'The tag belongs to another space';
+  if (action === 'tag' && (tag!.spaceId !== item.spaceId || tag!.ownerId !== item.ownerId)) return item.spaceId ? 'The tag belongs to another space' : 'Only your own tags go on your own items';
   if (action === 'tag' && item.tags.some(({ tagId }) => tagId === tag!.id)) return 'Already has this tag';
   return null;
 }
@@ -150,12 +160,14 @@ export class TidyService implements OnModuleInit {
   async sendSummary(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { tidySummary: true, isActive: true } });
     if (!user?.tidySummary || !user.isActive) return;
-    const { files } = await this.scan(userId);
+    const { files, account } = await this.scan(userId);
     const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
     const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
     const findings = [
       copies ? `${counted(copies, 'extra copy', 'extra copies')} (${size(saving)})` : '',
       files.old.length ? counted(files.old.length, 'old upload', 'old uploads') : '',
+      account.bookmarks.length ? counted(account.bookmarks.length, 'unread bookmark', 'unread bookmarks') : '',
+      account.goals.length ? counted(account.goals.length, 'goal past its end', 'goals past their end') : '',
     ].filter(Boolean);
     if (findings.length === 0) return;
     const listed = findings.length === 1 ? findings[0] : `${findings.slice(0, -1).join(', ')} and ${findings.at(-1)}`;
@@ -163,7 +175,9 @@ export class TidyService implements OnModuleInit {
   }
 
   async scan(userId: string, spaceId?: string) {
-    const editable = { ...this.access.itemsOf(userId, 'edit'), ...(spaceId ? { spaceId } : {}), trashedAt: null } satisfies Prisma.ItemWhereInput;
+    const editable = { space: this.access.spacesOf(userId, 'edit'), ...(spaceId ? { spaceId } : {}), trashedAt: null } satisfies Prisma.ItemWhereInput;
+    const mine = { ...this.access.ownedBy(userId), trashedAt: null, archivedAt: null } satisfies Prisma.ItemWhereInput;
+    const today = localDate((await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } })).timeZone);
     const groups = await this.prisma.file.groupBy({
       by: ['sha256'],
       where: { item: editable },
@@ -175,7 +189,7 @@ export class TidyService implements OnModuleInit {
       .map((group) => ({ sha256: group.sha256, sizeBytes: group._max.sizeBytes ?? 0, copies: group._count._all }))
       .sort((a, b) => (b.copies - 1) * b.sizeBytes - (a.copies - 1) * a.sizeBytes)
       .slice(0, 20);
-    const [copies, large, old] = await Promise.all([
+    const [copies, large, old, bookmarks, goals, recipes] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...editable, file: { sha256: { in: biggest.map((group) => group.sha256) } } },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -193,6 +207,24 @@ export class TidyService implements OnModuleInit {
         take: 50,
         select: fileFields,
       }),
+      this.prisma.item.findMany({
+        where: { ...mine, kind: ItemKind.BOOKMARK, bookmark: { readAt: null }, createdAt: { lt: new Date(Date.now() - unreadBookmarkDays * dayMs) } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 50,
+        select: accountFields,
+      }),
+      this.prisma.item.findMany({
+        where: { ...mine, kind: ItemKind.GOAL, goal: { status: 'active', endsOn: { lt: dateValue(today) } } },
+        orderBy: [{ goal: { endsOn: 'asc' } }, { id: 'asc' }],
+        take: 50,
+        select: accountFields,
+      }),
+      this.prisma.item.findMany({
+        where: { ...mine, kind: ItemKind.RECIPE, mealPlanned: { none: {} }, createdAt: { lt: new Date(Date.now() - unplannedRecipeDays * dayMs) } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 50,
+        select: accountFields,
+      }),
     ]);
     return {
       files: {
@@ -203,6 +235,11 @@ export class TidyService implements OnModuleInit {
         })),
         large: large.map(({ item }) => presentFile(item)),
         old: old.map(presentFile),
+      },
+      account: {
+        bookmarks: bookmarks.map(presentAccountItem),
+        goals: goals.map(presentAccountItem),
+        recipes: recipes.map(presentAccountItem),
       },
     };
   }
@@ -289,7 +326,7 @@ export class TidyService implements OnModuleInit {
   private async plan(userId: string, input: TidyActionDto) {
     const tag =
       input.action === 'tag'
-        ? await this.prisma.tag.findFirst({ where: { id: input.tagId, space: this.access.spacesOf(userId) }, select: { id: true, spaceId: true } })
+        ? await this.prisma.tag.findFirst({ where: { id: input.tagId, OR: [{ space: this.access.spacesOf(userId) }, { ownerId: userId }] }, select: { id: true, spaceId: true, ownerId: true } })
         : null;
     if (input.action === 'tag' && !tag) throw new BadRequestException('Choose a tag from the list');
     const found = await this.prisma.item.findMany({

@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react';
 import { ConfirmDialog, ListRow, Sheet, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
+import { useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
@@ -21,16 +21,13 @@ const EventEditor = lazy(() => import('./EventEditor').then((module) => ({ defau
 const responseLabels: Record<Guest['response'], string> = { yes: 'coming', no: 'not coming', maybe: 'maybe', pending: 'no answer yet' };
 
 export function useEvent(id: string) {
-  const spaces = useSpaces();
   const event = useResource<EventDetails>(`/events/${id}`, true);
   const poll = useResource<{ options: PollOption[] }>(`/events/${id}/poll`, true);
-  const space = spaces.data?.find((candidate) => candidate.id === event.data?.spaceId);
-  const editable = space ? space.role !== 'viewer' : false;
+  const editable = true;
   const options = poll.data?.options ?? [];
   const shape = useRememberedShape(
     `event-${id}`,
     event.data &&
-      spaces.data &&
       poll.data && [
         Number(editable),
         Number(Boolean(event.data.location)),
@@ -42,13 +39,13 @@ export function useEvent(id: string) {
       ],
     [1, 0, 0, 0, 0, 0, 0],
   );
-  return { event, poll, space, editable, shape };
+  return { event, poll, editable, shape };
 }
 
-export function EventSummary({ details, space }: { details: EventDetails; space?: string }) {
+export function EventSummary({ details }: { details: EventDetails }) {
   return (
     <>
-      <p className="m-0">{[space, eventWhen(details)].filter(Boolean).join(' · ')}</p>
+      <p className="m-0">{eventWhen(details)}</p>
       {details.location && (
         <p className="mt-1 mb-0">
           {details.location} ·{' '}
@@ -129,6 +126,7 @@ export function EventSections({
 }) {
   const auth = useAuth();
   const boards = useItemBoards(details.id);
+  const personal = useAllSpaces().data?.find((space) => space.kind === 'personal');
   const action = useAction();
   const inviting = useAction();
   const sharing = useAction();
@@ -187,7 +185,7 @@ export function EventSections({
         </Section>
       )}
 
-      {boards.boards.length > 0 && <ItemBoards boards={boards} editable={editable} spaceId={details.spaceId} title={details.title} />}
+      {boards.boards.length > 0 && personal && <ItemBoards boards={boards} editable={editable} spaceId={personal.id} title={details.title} />}
 
       {guestsShown && (
         <Section description={`${details.headcount.yes} coming · ${details.headcount.maybe} maybe · ${details.headcount.no} not coming · ${details.headcount.pending} waiting`} title="Guests">
@@ -270,7 +268,7 @@ export function EventSections({
         <div className="flex flex-wrap gap-2">
           {!guestsShown && <Button icon="users" label="Invite" onClick={() => setInvitingOpen(true)} />}
           {canOfferDates && <Button icon="calendar" label="Offer dates" onClick={() => setPlanning(true)} />}
-          {canAddBoard && <Button disabled={boards.busy} icon="board" label="Add a board" onClick={() => boards.add(details.spaceId, details.title)} />}
+          {canAddBoard && personal && <Button disabled={boards.busy} icon="board" label="Add a board" onClick={() => boards.add(personal.id, details.title)} />}
         </div>
       )}
 
@@ -348,7 +346,7 @@ export function useTrashEvent(onTrashed: () => void, onRestored: (id: string) =>
 }
 
 export function EventSheet({ id, onClose, onOpen }: { id: string; onClose: () => void; onOpen: (id: string) => void }) {
-  const { event, poll, space, editable, shape } = useEvent(id);
+  const { event, poll, editable, shape } = useEvent(id);
   const [editing, setEditing] = useState(false);
   const trash = useTrashEvent(onClose, onOpen);
   const details = event.data;
@@ -372,7 +370,7 @@ export function EventSheet({ id, onClose, onOpen }: { id: string; onClose: () =>
         <LoadError compact error={event.error} onRetry={event.reload} />
       ) : (
         <div className="grid gap-8">
-          <div className="text-small text-muted">{details ? <EventSummary details={details} space={space?.name} /> : <SkeletonLine width="w-64 max-w-full" />}</div>
+          <div className="text-small text-muted">{details ? <EventSummary details={details} /> : <SkeletonLine width="w-64 max-w-full" />}</div>
           {details ? <EventSections details={details} editable={editable} event={event} poll={poll} /> : <EventSectionsSkeleton shape={shape} />}
         </div>
       )}

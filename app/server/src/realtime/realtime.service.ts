@@ -210,7 +210,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         });
         this.savedSnapshots.set(documentName, snapshot);
         this.sendSaved(document);
-        this.changes.notify('pages', { spaceId: item.spaceId });
+        if (item.spaceId) this.changes.notify('pages', { spaceId: item.spaceId });
         if (lastContext?.userId) await this.syncLinks(documentName, document, lastContext.userId);
         await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },

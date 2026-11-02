@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,12 +14,10 @@ const reminderKind = 'person.birthday';
 
 const personFields = {
   id: true,
-  spaceId: true,
   title: true,
   trashedAt: true,
   createdAt: true,
   updatedAt: true,
-  space: { select: { name: true } },
   person: true,
 } satisfies Prisma.ItemSelect;
 
@@ -36,8 +34,6 @@ function present(row: PersonRow, today: string) {
   const upcoming = person.birthdayMonth && person.birthdayDay ? nextBirthday(person.birthdayMonth, person.birthdayDay, today) : null;
   return {
     id: row.id,
-    spaceId: row.spaceId,
-    spaceName: row.space.name,
     name: row.title,
     relationship: person.relationship,
     birthdayMonth: person.birthdayMonth,
@@ -64,7 +60,7 @@ export class PeopleService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
     private readonly jobs: JobsService,
     private readonly inbox: InboxService,
   ) {}
@@ -73,10 +69,10 @@ export class PeopleService implements OnModuleInit {
     this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; birthday: string }));
   }
 
-  async list(userId: string, spaceId?: string) {
+  async list(userId: string) {
     const today = await this.today(userId);
     const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.PERSON, trashedAt: null },
+      where: { ...this.access.ownedBy(userId), kind: ItemKind.PERSON, trashedAt: null },
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
       take: 2_000,
       select: personFields,
@@ -84,13 +80,12 @@ export class PeopleService implements OnModuleInit {
     return rows.map((row) => present(row, today));
   }
 
-  async create(userId: string, spaceId: string, input: CreatePersonDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, input: CreatePersonDto) {
     checkedBirthday(input.birthdayMonth, input.birthdayDay);
     const id = await this.prisma.$transaction(async (transaction) => {
       const item = await transaction.item.create({
         data: {
-          spaceId,
+          ownerId: userId,
           kind: ItemKind.PERSON,
           title: input.name,
           createdById: userId,
@@ -109,10 +104,10 @@ export class PeopleService implements OnModuleInit {
         },
         select: { id: true },
       });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.name } });
       await this.reschedule(transaction, item.id, userId);
       return item.id;
     });
+    this.changes.notify('items', { userId });
     return this.get(userId, id);
   }
 
@@ -164,9 +159,9 @@ export class PeopleService implements OnModuleInit {
           },
         },
       });
-      await this.activity.record(transaction, { spaceId: row.spaceId, actorId: userId, itemId, verb: 'item.updated', data: { title: input.name ?? row.title } });
       await this.reschedule(transaction, itemId, userId);
     });
+    this.changes.notify('items', { userId });
     return this.get(userId, itemId);
   }
 
@@ -184,21 +179,15 @@ export class PeopleService implements OnModuleInit {
   private async remind({ itemId, birthday }: { itemId: string; birthday: string }) {
     const item = await this.prisma.item.findUnique({
       where: { id: itemId },
-      select: { title: true, spaceId: true, trashedAt: true, updatedById: true, createdById: true, person: true },
+      select: { title: true, trashedAt: true, person: true, owner: { select: { id: true, isActive: true, features: true } } },
     });
-    if (!item?.person || item.trashedAt || !item.person.birthdayMonth || !item.person.birthdayDay) return;
-    const members = await this.prisma.spaceMember.findMany({
-      where: { spaceId: item.spaceId, user: { isActive: true, features: { has: 'people' } } },
-      select: { userId: true },
-    });
+    if (!item?.person || !item.owner || item.trashedAt || !item.person.birthdayMonth || !item.person.birthdayDay) return;
     const turning = item.person.birthYear ? ` (turning ${Number(birthday.slice(0, 4)) - item.person.birthYear})` : '';
-    await this.inbox.notify(
-      this.prisma,
-      members.map((member) => ({ userId: member.userId, kind: 'birthday' as const, title: `${item.title}’s birthday is tomorrow${turning}`, link: `/people/${itemId}` })),
-    );
-    const owner = item.updatedById ?? item.createdById;
+    if (item.owner.isActive && item.owner.features.includes('people')) {
+      await this.inbox.notify(this.prisma, [{ userId: item.owner.id, kind: 'birthday', title: `${item.title}’s birthday is tomorrow${turning}`, link: `/people/${itemId}` }]);
+    }
     const dayAfter = dateText(new Date(dateValue(birthday).getTime() + dayMs));
-    if (owner) await this.prisma.$transaction((transaction) => this.reschedule(transaction, itemId, owner, dayAfter));
+    await this.prisma.$transaction((transaction) => this.reschedule(transaction, itemId, item.owner!.id, dayAfter));
   }
 
   private async row(userId: string, itemId: string, access: 'read' | 'edit') {

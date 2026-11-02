@@ -121,7 +121,7 @@ export function SpaceTags() {
           title={`Delete ${deleting.name}?`}
           tone="danger"
         >
-          It comes off every item in this space, and the items themselves stay.
+          It comes off every item it was on, and the items themselves stay.
         </ConfirmDialog>
       )}
     </>

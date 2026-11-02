@@ -11,7 +11,8 @@ and files, built by Project Graphite.
   attachments, repeating tasks, assignment and reminders, and a quick-add box that reads dates,
   tags and priority. Ticking off a task can be undone.
 - **Agenda**: Day, Week, Month and List views with drag to create, move and resize, events with
-  guest RSVPs and date polls, followed outside calendars and a private calendar link.
+  guest RSVPs and date polls, followed outside calendars and a private calendar link. Events and
+  calendars are yours; tasks due in your spaces show alongside them.
 - **Pages**: notes with live co-editing, offline drafts, version history, templates, mentions,
   comments and database views. Pages and boards can be moved to the trash.
 - **Boards**: full-screen whiteboards drawn with Excalidraw, with templates, sticky notes and
@@ -26,15 +27,18 @@ and files, built by Project Graphite.
   texts and payment app notifications from allow-listed senders; confident ones are recorded, the
   rest wait for review.
 - **Habits** with check-ins and streaks.
-- **Files**: uploads, previews and downloads, with metadata stripped.
-- **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
+- **Files**: your own library of uploads, previews and downloads, with metadata stripped.
+  Attachments in pages and tasks stay with their space and count toward the same storage quota.
+- **Spaces**: shared spaces that hold pages, tasks and boards, with members, invitations, tags,
+  share links, activity and trash. Everything else belongs to your account, with its own tags.
 - **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
   restored from the Trash for 30 days.
 - **Confirmations**: deleting for good, discarding edits and cutting off someone's access ask first.
   One-time secrets, such as tokens and recovery codes, stay on screen until you confirm you saved
   them.
 - **Optional features**, turned on in Settings: Goals, People, Recipes and meals and Tidy. Tidy
-  suggests stale uploads to clear, with bulk actions, undo and tagging rules.
+  suggests stale uploads in your spaces, and unread bookmarks, overdue goals and unplanned recipes
+  of your own, to clear with bulk actions, undo and tagging rules.
 - **Inbox**: notices in the app and as push notifications to chosen devices.
 - **Search** and a command palette, an installable app, personal access tokens that can be limited
   to one space and can write page content, and webhooks.

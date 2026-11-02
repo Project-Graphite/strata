@@ -16,9 +16,9 @@ describe('Home summary against Postgres', () => {
 
     expect((await owner.call('GET', '/me/home')).body).toEqual(quiet);
 
-    await owner.call('POST', `/spaces/${home}/events`, { title: 'All day', startsOn: today });
-    await owner.call('POST', `/spaces/${home}/events`, { title: 'Dentist', startsOn: day(1), startTime: '10:00', endTime: '11:00' });
-    await owner.call('POST', `/spaces/${home}/events`, { title: 'Later', startsOn: day(2), startTime: '09:00', endTime: '10:00' });
+    await owner.call('POST', '/me/events', { title: 'All day', startsOn: today });
+    await owner.call('POST', '/me/events', { title: 'Dentist', startsOn: day(1), startTime: '10:00', endTime: '11:00' });
+    await owner.call('POST', '/me/events', { title: 'Later', startsOn: day(2), startTime: '09:00', endTime: '10:00' });
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Pay rent', dueDate: today });
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Overdue', dueDate: day(-2) });
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Next week', dueDate: day(6) });

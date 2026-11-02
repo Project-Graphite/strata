@@ -8,8 +8,6 @@ export interface GiftIdea {
 
 export interface Person {
   id: string;
-  spaceId: string;
-  spaceName: string;
   name: string;
   relationship: string | null;
   birthdayMonth: number | null;

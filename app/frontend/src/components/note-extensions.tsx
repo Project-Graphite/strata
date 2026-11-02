@@ -60,7 +60,7 @@ function sectionsOf(items: Candidate[]) {
 }
 
 interface SearchReply {
-  items: { id: string; spaceId: string; spaceName: string; kind: string; quick: boolean; title: string }[];
+  items: { id: string; spaceId: string | null; spaceName: string | null; kind: string; quick: boolean; title: string }[];
 }
 
 type Request = ReturnType<typeof useAuth>['request'];
@@ -198,7 +198,7 @@ export function mentionExtension(request: Request | undefined, noteId: string, p
         id: item.id,
         label: item.title || 'Untitled',
         href: itemHref(item) ?? `/spaces/${item.spaceId}`,
-        hint: pagesOnly ? item.spaceName : `${itemKindName(item)} · ${item.spaceName}`,
+        hint: pagesOnly ? (item.spaceName ?? 'Yours') : `${itemKindName(item)} · ${item.spaceName ?? 'Yours'}`,
         group: pagesOnly ? undefined : 'Pages and items',
       }));
   };

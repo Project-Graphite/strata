@@ -63,7 +63,7 @@ export class WeeklyReviewService implements OnModuleInit {
   async create(userId: string) {
     const { timeZone } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const today = localDate(timeZone);
-    const readable = { ...this.access.itemsOf(userId), trashedAt: null, kind: ItemKind.TASK };
+    const readable = { ...this.access.spaceItemsOf(userId), trashedAt: null, kind: ItemKind.TASK };
     const [done, open, coming, habits, space] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...readable, task: { completedAt: { gte: zonedInstant(dateValue(shiftDay(today, -6)).getTime() / dayMs, 0, 0, timeZone) } } },

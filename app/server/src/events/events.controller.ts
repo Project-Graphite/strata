@@ -13,10 +13,10 @@ import { Public } from '../auth/public.decorator';
 export class EventsController {
   constructor(private readonly events: EventsService) {}
 
-  @Post('spaces/:spaceId/events')
+  @Post('me/events')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateEventDto) {
-    return this.events.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateEventDto) {
+    return this.events.create(user.id, input);
   }
 
   @Get('agenda')

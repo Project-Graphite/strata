@@ -6,6 +6,7 @@ export interface AppEntry {
   description: string;
   icon: IconName;
   href: string;
+  scope: 'account' | 'space';
   within?: string[];
   phoneTab?: boolean;
 }
@@ -13,13 +14,15 @@ export interface AppEntry {
 export const appCatalogue: AppEntry[] = [
   {
     key: 'tasks',
+    scope: 'space',
     label: 'Tasks',
-    description: 'Lists of things to do, with due dates, repeats and habits, on their own or shared in a space.',
+    description: 'Lists of things to do, with due dates, repeats and a board view, on your own or shared in a space.',
     icon: 'check-mark',
     href: '/tasks',
   },
   {
     key: 'agenda',
+    scope: 'account',
     label: 'Agenda',
     description: 'Your day, week and month in one place, with events, connected calendars and what is due.',
     icon: 'calendar',
@@ -29,6 +32,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'pages',
+    scope: 'space',
     label: 'Pages',
     description: 'Notes and documents you can nest, link and share, plus quick notes for anything in passing.',
     icon: 'file',
@@ -37,6 +41,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'boards',
+    scope: 'space',
     label: 'Boards',
     description: 'Canvases for sketching ideas, arranging cards and laying out plans.',
     icon: 'board',
@@ -44,6 +49,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'bookmarks',
+    scope: 'account',
     label: 'Bookmarks',
     description: 'Links you save from anywhere, with a preview, tags and a place to read later.',
     icon: 'bookmark',
@@ -51,6 +57,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'journal',
+    scope: 'account',
     label: 'Journal',
     description: 'A daily entry and a weekly review of what you did and what comes next.',
     icon: 'pencil',
@@ -58,13 +65,15 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'files',
+    scope: 'account',
     label: 'Files',
-    description: 'Uploads in the current space, in one library you can search and sort.',
+    description: 'Your own uploads in one library, with everything you attached in spaces beside them.',
     icon: 'library',
     href: '/files',
   },
   {
     key: 'spending',
+    scope: 'account',
     label: 'Spending',
     description: 'Accounts, transactions, budgets, recurring payments and your net worth over time.',
     icon: 'wallet',
@@ -73,6 +82,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'goals',
+    scope: 'account',
     label: 'Goals',
     description: 'Goals for the year, quarter or month, with progress from a number or from linked tasks and habits.',
     icon: 'target',
@@ -80,6 +90,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'people',
+    scope: 'account',
     label: 'People',
     description: 'Birthdays on your agenda with a reminder the day before, gift ideas, and the events you shared.',
     icon: 'users',
@@ -87,6 +98,7 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'recipes',
+    scope: 'account',
     label: 'Recipes and meals',
     description: 'Recipes you can paste from a link, a weekly meal plan, and a shopping list made from it.',
     icon: 'utensils',
@@ -94,8 +106,9 @@ export const appCatalogue: AppEntry[] = [
   },
   {
     key: 'tidy',
+    scope: 'account',
     label: 'Tidy',
-    description: 'Suggestions and rules that file, tag and clear out items in the current space, with an optional weekly summary.',
+    description: 'Suggestions and rules that file, tag and clear out uploads in your spaces and clutter of your own, with an optional weekly summary.',
     icon: 'sparkles',
     href: '/tidy',
   },

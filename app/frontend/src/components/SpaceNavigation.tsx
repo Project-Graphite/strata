@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { appCatalogue } from '../apps';
 import { collapseCrumbs } from '../breadcrumbs';
 import { HeaderTitleContext } from '../header-title';
-import { areaOf } from '../navigation';
+import { areaOf, inSpaceArea } from '../navigation';
 import { noteHref, noteTitle, pageHref } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { SpaceMark, useAllSpaces, useChosenSpace, type Space } from '../spaces';
@@ -26,7 +26,6 @@ export function SpaceNavigation({ active }: { active: string | null }) {
   const parents = page?.path.map((parent) => ({ href: pageHref(parent.id), label: parent.title || 'Untitled' })) ?? (current?.back && current.back.to !== root.href ? [{ href: current.back.to, label: current.back.label }] : []);
   const title = page ? noteTitle(page) : /^\/(?:pages\/(?!quick-notes$|journal$)|boards\/)[^/]+$/.test(pathname) ? undefined : current?.title !== root.label && current?.title !== space?.name ? current?.title : undefined;
   const tab = !page && current?.tab && current.tab.href !== root.href && current.tab.label !== title ? current.tab : undefined;
-  const personal = active === '/spending' ? spaces.data?.find((candidate) => candidate.kind === 'personal') : undefined;
   const { shown, hidden } = collapseCrumbs([root, ...parents, ...(title ? [{ label: title }] : []), ...(tab ? [tab] : []), ...(current?.subpage ? [{ label: current.subpage }] : [])]);
   const currentCrumb = shown.at(-1)!;
   if (!space) return spaces.loading ? <nav aria-label="Breadcrumb" className="space-navigation"><Skeleton className="h-8 w-36 max-w-full rounded-field" /></nav> : null;
@@ -34,7 +33,7 @@ export function SpaceNavigation({ active }: { active: string | null }) {
     <nav aria-label="Breadcrumb" className="space-navigation min-w-0 flex-1 text-small text-muted">
       <ol className="m-0 flex min-w-0 list-none items-center gap-2 p-0">
         <li className="min-w-0 max-w-[50%] shrink-0 md:max-w-[30%]">
-          {personal ? <span className={spaceFrame}>{spaceName(personal)}</span> : <Menu
+          {!inSpaceArea(active) ? <span className={`${spaceFrame} gap-2`}><Icon name="user" size={16} />Yours</span> : <Menu
             items={[
               ...(spaces.data ?? []).map((candidate) => ({
                 label: candidate.name,

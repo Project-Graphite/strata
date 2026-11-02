@@ -65,6 +65,12 @@ export class MealPlanWeekDto {
   from!: string;
 }
 
+export class ShoppingListDto extends MealPlanWeekDto {
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose a space from the list.' })
+  spaceId?: string;
+}
+
 export class CreateMealDto {
   @DayText()
   day!: string;

@@ -75,7 +75,7 @@ function ScrollToTop() {
 
 function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; spaces: Resource<Space[]> }) {
   const auth = useAuth();
-  const { spaceId } = useChosenSpace();
+  const { spaceId, space } = useChosenSpace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
@@ -154,7 +154,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               footer={auth.user && <PageTree key={spaceId} />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={sidebarSections(active, spaces.data, apps)}
+              sections={sidebarSections(active, spaces.data, apps, space)}
             />
           )
         }

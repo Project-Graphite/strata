@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Checkbox, ListRow, TextField } from '@project-graphite/ui';
-import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
-import { dayKey } from '../agenda';
+import { addDays, dayKey, type AgendaEntry } from '../agenda';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
@@ -13,7 +12,6 @@ import { DetailState, Page, Section } from '../components/Page';
 import { PersonEditor } from '../components/PersonEditor';
 import { AddButtonSkeleton, ButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { birthdayText, type GiftIdea, type PersonDetail } from '../people';
-import { useSpaces, type Item } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -28,23 +26,20 @@ export function PersonPage() {
   const { id = '' } = useParams();
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
   const person = useResource<PersonDetail>(`/people/${id}`, true);
   const action = useAction();
   const ideaForm = useFormErrors();
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<'idea' | 'event'>();
-  const events = useResource<ResultPage<Item>>(dialog === 'event' && person.data ? `/spaces/${person.data.spaceId}/items?kind=event` : null, true);
-
-  const space = spaces.data?.find((candidate) => candidate.id === person.data?.spaceId);
-  const editable = Boolean(space && space.role !== 'viewer');
   const today = dayKey(new Date());
+  const agenda = useResource<AgendaEntry[]>(dialog === 'event' ? `/agenda?from=${today}&to=${addDays(today, 100)}` : null, true);
+  const events = [...new Map((agenda.data ?? []).filter((entry) => entry.kind === 'event').map((entry) => [entry.itemId, entry])).values()];
+  const editable = true;
   const upcoming = (person.data?.events ?? []).filter((event) => event.startsOn >= today).reverse();
   const earlier = (person.data?.events ?? []).filter((event) => event.startsOn < today);
   const [wasEditable, birthday, contactRows, notesLines, ideaRows, upcomingRows, earlierRows] = useRememberedShape(
     `person-${id}`,
-    person.data &&
-      spaces.data && [
+    person.data && [
         Number(editable),
         Number(Boolean(birthdayText(person.data))),
         [person.data.email, person.data.phone].filter(Boolean).length,
@@ -195,7 +190,7 @@ export function PersonPage() {
         )
       }
       back={back}
-      description={[shown.spaceName, shown.relationship].filter(Boolean).join(' · ')}
+      description={shown.relationship}
       title={shown.name}
     >
       {(details.length > 0 || shown.notes) && (
@@ -255,7 +250,7 @@ export function PersonPage() {
         )}
       </Section>
 
-      {editing && space && <PersonEditor onClose={() => setEditing(false)} onSaved={(saved) => person.mutate((current) => ({ ...current, ...saved }))} person={shown} spaces={[space]} />}
+      {editing && <PersonEditor onClose={() => setEditing(false)} onSaved={(saved) => person.mutate((current) => ({ ...current, ...saved }))} person={shown} />}
 
       {dialog === 'idea' && (
         <FormDialog
@@ -282,15 +277,15 @@ export function PersonPage() {
       {dialog === 'event' && (
         <LinkItemDialog
           busy={action.busy}
-          choices={events.data?.results.filter((event) => !shown.events.some((linked) => linked.id === event.id)).map((event) => ({ value: event.id, label: event.title || 'Untitled' }))}
-          empty={`There are no other events in ${shown.spaceName} to link.`}
+          choices={agenda.data && events.filter((event) => !shown.events.some((linked) => linked.id === event.itemId)).map((event) => ({ value: event.itemId, label: event.title || 'Untitled', hint: event.start.slice(0, 10) }))}
+          empty="There are no other events in the next 100 days to link."
           noun="event"
           onClose={() => setDialog(undefined)}
           onLink={(eventId) =>
             void action
               .run(async () => {
                 await link(eventId);
-                return `Linked ${events.data?.results.find((event) => event.id === eventId)?.title || 'the event'}.`;
+                return `Linked ${events.find((event) => event.itemId === eventId)?.title || 'the event'}.`;
               }, 'Could not link the event')
               .then((done) => done && setDialog(undefined))
           }

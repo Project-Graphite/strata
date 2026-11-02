@@ -33,7 +33,7 @@ export function MealPlanPage() {
   const today = dayKey(new Date());
   const monday = mondayOf(params.get('week') ?? today);
   const { spaceId, space, editable } = useChosenSpace();
-  const plan = useResource<PlannedMeal[]>(spaceId ? `/spaces/${spaceId}/meal-plan?from=${monday}` : null, true);
+  const plan = useResource<PlannedMeal[]>(`/me/meal-plan?from=${monday}`, true);
   const [adding, setAdding] = useState<{ day: string; meal: Meal }>();
   const days = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
   const go = (next: Record<string, string>) => setParams((current) => ({ ...Object.fromEntries(current), ...next }));
@@ -50,7 +50,7 @@ export function MealPlanPage() {
       return {
         message: `Removed ${entry.recipe?.title ?? entry.note} from the plan.`,
         undo: async () => {
-          const restored = await auth.request<PlannedMeal>(`/spaces/${spaceId}/meal-plan`, {
+          const restored = await auth.request<PlannedMeal>('/me/meal-plan', {
             method: 'POST',
             body: JSON.stringify({ day: entry.day, meal: entry.meal, ...(entry.recipe ? { recipeId: entry.recipe.id } : { note: entry.note }) }),
           });
@@ -64,15 +64,15 @@ export function MealPlanPage() {
   return (
     <RecipesArea
       menu={
-        editable && plan.data?.some((entry) => entry.recipe)
+        spaceId && editable && plan.data?.some((entry) => entry.recipe)
           ? [
               {
                 label: 'Make a shopping list',
                 onSelect: () =>
                   void action.run(async () => {
-                    const made = await auth.request<{ listId: string; added: number; already: number }>(`/spaces/${spaceId}/meal-plan/shopping-list`, {
+                    const made = await auth.request<{ listId: string; added: number; already: number }>('/me/meal-plan/shopping-list', {
                       method: 'POST',
-                      body: JSON.stringify({ from: monday }),
+                      body: JSON.stringify({ from: monday, spaceId }),
                     });
                     show({
                       message: made.added
@@ -163,13 +163,12 @@ export function MealPlanPage() {
           )}
         </>
       )}
-      {adding && spaceId && (
+      {adding && (
         <PlanMealDialog
           day={adding.day}
           meal={adding.meal}
           onClose={() => setAdding(undefined)}
           onPlanned={(entry) => plan.mutate((current) => [...current, entry])}
-          spaceId={spaceId}
         />
       )}
     </RecipesArea>
@@ -182,14 +181,12 @@ export function PlanMealDialog({
   onClose,
   onPlanned,
   recipe,
-  spaceId,
 }: {
   day?: string;
   meal?: Meal;
   onClose: () => void;
   onPlanned?: (entry: PlannedMeal) => void;
   recipe?: Recipe;
-  spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
@@ -197,7 +194,7 @@ export function PlanMealDialog({
   const [chosen, setChosen] = useState('');
   const [when, setWhen] = useState({ day: day ?? dayKey(new Date()), meal: meal ?? ('dinner' as Meal) });
   const [error, setError] = useState<string>();
-  const inSpace = (recipes.data ?? []).filter((candidate) => candidate.spaceId === spaceId);
+  const choices = recipes.data ?? [];
   const mealLabel = meals.find((option) => option.value === when.meal)!.label;
 
   return (
@@ -215,12 +212,12 @@ export function PlanMealDialog({
         void saving
           .run(async () => {
             onPlanned?.(
-              await auth.request<PlannedMeal>(`/spaces/${spaceId}/meal-plan`, {
+              await auth.request<PlannedMeal>('/me/meal-plan', {
                 method: 'POST',
                 body: JSON.stringify({ day: when.day, meal: when.meal, ...(recipeId ? { recipeId } : { note }) }),
               }),
             );
-            return `Planned ${recipe?.title ?? inSpace.find((candidate) => candidate.id === recipeId)?.title ?? note} for ${mealLabel.toLowerCase()} on ${formatDay(when.day)}.`;
+            return `Planned ${recipe?.title ?? choices.find((candidate) => candidate.id === recipeId)?.title ?? note} for ${mealLabel.toLowerCase()} on ${formatDay(when.day)}.`;
           }, 'Could not plan the meal')
           .then((saved) => saved && onClose());
       }}
@@ -241,8 +238,8 @@ export function PlanMealDialog({
               setChosen(next);
               setError(undefined);
             }}
-            options={inSpace.map((candidate) => ({ value: candidate.id, label: candidate.title }))}
-            placeholder={recipes.data ? (inSpace.length ? 'Choose a recipe' : 'No recipes in this space yet') : 'Loading recipes…'}
+            options={choices.map((candidate) => ({ value: candidate.id, label: candidate.title }))}
+            placeholder={recipes.data ? (choices.length ? 'Choose a recipe' : 'No recipes yet') : 'Loading recipes…'}
             searchable
             value={chosen}
           />

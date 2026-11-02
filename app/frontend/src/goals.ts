@@ -7,8 +7,6 @@ export type GoalStatus = 'active' | 'done' | 'dropped';
 
 export interface Goal {
   id: string;
-  spaceId: string;
-  spaceName: string;
   title: string;
   period: GoalPeriod;
   startsOn: string;

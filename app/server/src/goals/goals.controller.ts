@@ -16,10 +16,10 @@ export class GoalsController {
     return this.goals.list(user.id, query);
   }
 
-  @Post('spaces/:spaceId/goals')
+  @Post('me/goals')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateGoalDto) {
-    return this.goals.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateGoalDto) {
+    return this.goals.create(user.id, input);
   }
 
   @Get('goals/:id')

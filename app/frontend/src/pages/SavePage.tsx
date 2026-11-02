@@ -82,12 +82,12 @@ function SaveShared() {
   const spaceId = editable[0]?.id;
   const link = shared && !shared.files.length ? firstLink(shared.url, shared.text, shared.title) : '';
 
-  function save(shared: Shared, spaceId: string) {
+  function save(shared: Shared) {
     setFailed(false);
     void saving
       .run(async () => {
         const title = linkTitle(shared, link);
-        const quick = await quickBookmark(auth.request, spaceId, link, title);
+        const quick = await quickBookmark(auth.request, link, title);
         setSaved(quick);
         void caches.delete(shareCache);
         if (quick.created) {
@@ -106,9 +106,9 @@ function SaveShared() {
   }, []);
 
   useEffect(() => {
-    if (!shared || !link || !spaceId || started.current) return;
+    if (!shared || !link || started.current) return;
     started.current = true;
-    save(shared, spaceId);
+    save(shared);
   });
 
   if (shared === undefined || !spaces.data) {
@@ -152,13 +152,13 @@ function SaveShared() {
           </ul>
           <DialogActions>
             <Button
-              disabled={!saved || saving.busy}
+              disabled={!saved || saving.busy || !spaceId}
               label="Make it a task"
               large
               onClick={() => {
-                if (!saved) return;
+                if (!saved || !spaceId) return;
                 void saving.run(async () => {
-                  const task = await auth.request<{ id: string }>(`/spaces/${saved.bookmark.spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
+                  const task = await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
                   if (saved.created) await auth.request(`/items/${saved.bookmark.id}/trash`, { method: 'POST' });
                   navigate(`/tasks?task=${task.id}`);
                   return `Added ${title}.`;
@@ -169,10 +169,10 @@ function SaveShared() {
               <Button label="Open" large primary onClick={() => navigate(`/bookmarks/${saved.bookmark.id}`)} />
             ) : (
               <Button
-                disabled={!failed || saving.busy || !spaceId}
+                disabled={!failed || saving.busy}
                 label={failed && !saving.busy ? 'Try again' : 'Saving…'}
                 large
-                onClick={() => spaceId && save(shared, spaceId)}
+                onClick={() => save(shared)}
                 primary
               />
             )}
@@ -202,7 +202,7 @@ function SaveShared() {
           if (!form.check(target, { title: shared.files.length ? [length] : [required('Enter a title for the task.'), length] })) return;
           void saving.run(async () => {
             const task = taskTitle ? await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title: taskTitle }) }) : null;
-            const uploaded = shared.files.length ? await uploadFiles(auth.request, spaceId, shared.files) : '';
+            const uploaded = shared.files.length ? await uploadFiles(auth.request, null, shared.files) : '';
             await caches.delete(shareCache);
             navigate(shared.files.length || !task ? '/files' : `/tasks?task=${task.id}`);
             return [task && `Added ${taskTitle}.`, uploaded].filter(Boolean).join(' ');

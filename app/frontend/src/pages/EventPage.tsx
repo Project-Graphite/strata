@@ -12,7 +12,7 @@ const back = { to: '/agenda', label: 'Agenda' };
 export function EventPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { event, poll, space, editable, shape } = useEvent(id);
+  const { event, poll, editable, shape } = useEvent(id);
   const [editing, setEditing] = useState(false);
   const trash = useTrashEvent(
     () => navigate('/agenda'),
@@ -53,7 +53,7 @@ export function EventPage() {
         )
       }
       back={back}
-      description={<EventSummary details={details} space={space?.name} />}
+      description={<EventSummary details={details} />}
       title={details.title}
     >
       <EventSections details={details} editable={editable} event={event} poll={poll} />

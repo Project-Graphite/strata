@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Fieldset, Select, TextAreaField, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { dayOptions, monthOptions, type Person } from '../people';
-import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, emailAddress, required, useFormErrors, type Check } from '../validation';
 import { FormDialog } from './FormDialog';
 
 const yearCheck: Check = (value) => (!value.trim() || /^(19|20)\d{2}$/.test(value.trim()) ? undefined : 'Enter a year such as 1990.');
 
-export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: () => void; onSaved: (person: Person) => void; person?: Person; spaces: Space[] }) {
+export function PersonEditor({ onClose, onSaved, person }: { onClose: () => void; onSaved: (person: Person) => void; person?: Person }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
@@ -43,7 +42,7 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
         void saving
           .run(async () => {
             onSaved(
-              await auth.request<Person>(person ? `/people/${person.id}` : `/spaces/${String(values.get('spaceId'))}/people`, {
+              await auth.request<Person>(person ? `/people/${person.id}` : '/me/people', {
                 method: person ? 'PATCH' : 'POST',
                 body: JSON.stringify(body),
               }),
@@ -56,7 +55,6 @@ export function PersonEditor({ onClose, onSaved, person, spaces }: { onClose: ()
       title={person ? 'Edit person' : 'New person'}
     >
       <TextField autoComplete="off" autoFocus defaultValue={person?.name} label="Name" maxLength={200} {...form.field('name')} />
-      {!person && spaces[0] && <input name="spaceId" type="hidden" value={spaces[0]!.id} />}
       <TextField defaultValue={person?.relationship ?? ''} label="Relationship (optional)" maxLength={60} name="relationship" />
       <Fieldset className="gap-4 sm:grid-cols-3" legend="Birthday (optional)">
         <Select error={birthdayError} label="Day" onChange={setDay} options={[{ value: '', label: 'None' }, ...dayOptions]} value={day} />

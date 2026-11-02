@@ -11,6 +11,19 @@ import { TagsService } from './tags.service';
 export class TagsController {
   constructor(private readonly tags: TagsService) {}
 
+  @Get('me/tags')
+  @Scope('spaces:read')
+  mine(@CurrentUser() user: AuthenticatedUser) {
+    return this.tags.mine(user.id);
+  }
+
+  @Post('me/tags')
+  @Scope('items:write')
+  @RateLimit('create-tag', 300, 3_600)
+  createMine(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateTagDto) {
+    return this.tags.createMine(user.id, input);
+  }
+
   @Get('spaces/:spaceId/tags')
   @Scope('spaces:read')
   list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {

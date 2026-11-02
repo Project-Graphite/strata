@@ -7,7 +7,6 @@ import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CalendarFeedService } from './calendar-feed.service';
 import { CalendarSubscriptionsService } from './calendar-subscriptions.service';
-import { SpaceQueryDto } from '../validation/space-query.dto';
 import { AddCalendarDto, CalendarEventDto } from './dto/calendar.dto';
 import { Public } from '../auth/public.decorator';
 
@@ -45,8 +44,8 @@ export class CalendarController {
 
   @Get('me/calendars')
   @Scope('items:read')
-  calendars(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.subscriptions.mine(user.id, query.spaceId);
+  calendars(@CurrentUser() user: AuthenticatedUser) {
+    return this.subscriptions.mine(user.id);
   }
 
   @Post('me/calendars/refresh')
@@ -56,11 +55,11 @@ export class CalendarController {
     return this.subscriptions.refreshMine(user.id, new Date());
   }
 
-  @Post('spaces/:spaceId/calendars')
+  @Post('me/calendars')
   @Scope('items:write')
   @RateLimit('calendar-add', 20, 3_600)
-  add(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: AddCalendarDto) {
-    return this.subscriptions.add(user.id, spaceId, input);
+  add(@CurrentUser() user: AuthenticatedUser, @Body() input: AddCalendarDto) {
+    return this.subscriptions.add(user.id, input);
   }
 
   @Get('calendars/:id/event')

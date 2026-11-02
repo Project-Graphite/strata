@@ -2,9 +2,14 @@ import { Link, useLocation, type Location } from 'react-router';
 import { Banner } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { Section } from '../../components/Page';
-import { appCatalogue, enabledApps } from '../../apps';
+import { appCatalogue, enabledApps, type AppEntry } from '../../apps';
 import { useAction } from '../../useAction';
 import { Toggle } from '../../components/Toggle';
+
+const groups: { scope: AppEntry['scope']; title: string; description: string }[] = [
+  { scope: 'account', title: 'Yours', description: 'Only you see these, whichever space you are in.' },
+  { scope: 'space', title: 'In spaces', description: 'These follow the space you are in and are shared with its members.' },
+];
 
 export function AppsSettings() {
   const auth = useAuth();
@@ -35,18 +40,24 @@ export function AppsSettings() {
         ) : (
           <Banner>Turn on {asked.label} to open it.</Banner>
         ))}
-      <div className="panel-rows">
-        {appCatalogue.map((app) => (
-          <Toggle
-            checked={keys.includes(app.key)}
-            description={app.description}
-            disabled={saving.busy}
-            key={app.key}
-            label={app.label}
-            onChange={(on) => toggle(app.key, app.label, on)}
-          />
-        ))}
-      </div>
+      {groups.map((group) => (
+        <Section description={group.description} key={group.scope} level={3} title={group.title}>
+          <div className="panel-rows">
+            {appCatalogue
+              .filter((app) => app.scope === group.scope)
+              .map((app) => (
+                <Toggle
+                  checked={keys.includes(app.key)}
+                  description={app.description}
+                  disabled={saving.busy}
+                  key={app.key}
+                  label={app.label}
+                  onChange={(on) => toggle(app.key, app.label, on)}
+                />
+              ))}
+          </div>
+        </Section>
+      ))}
     </Section>
   );
 }

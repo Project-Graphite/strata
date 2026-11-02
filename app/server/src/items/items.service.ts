@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ActivityService, type ActivityVerb } from '../activity/activity.service';
+import { ChangesService } from '../changes/changes.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
@@ -65,6 +66,7 @@ export class ItemsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
+    private readonly changes: ChangesService,
     private readonly pages: PageAccessService,
   ) {}
 
@@ -109,26 +111,31 @@ export class ItemsService {
         },
         select: itemFields,
       }),
-      this.activity.record(this.prisma, {
-        spaceId: found.spaceId,
-        actorId: userId,
-        itemId,
-        verb: 'item.updated',
-        data: {
-          title: input.title ?? found.title,
-          ...(input.title !== undefined && input.title !== found.title ? { renamedFrom: found.title } : {}),
-          ...(input.archived === undefined ? {} : { archived: input.archived }),
-        },
-      }),
+      ...(found.spaceId
+        ? [
+            this.activity.record(this.prisma, {
+              spaceId: found.spaceId,
+              actorId: userId,
+              itemId,
+              verb: 'item.updated',
+              data: {
+                title: input.title ?? found.title,
+                ...(input.title !== undefined && input.title !== found.title ? { renamedFrom: found.title } : {}),
+                ...(input.archived === undefined ? {} : { archived: input.archived }),
+              },
+            }),
+          ]
+        : []),
     ]);
+    if (!found.spaceId) this.changes.notify('items', { userId });
     return presentItem(item);
   }
 
   async setTags(userId: string, itemId: string, tagIds: string[]) {
     const item = await this.access.assertItem(userId, itemId, 'edit');
     assertNotTrashed(item);
-    if ((await this.prisma.tag.count({ where: { id: { in: tagIds }, spaceId: item.spaceId } })) !== tagIds.length) {
-      throw new BadRequestException("Choose tags from this item's space");
+    if ((await this.prisma.tag.count({ where: { id: { in: tagIds }, ...(item.spaceId ? { spaceId: item.spaceId } : { ownerId: userId }) } })) !== tagIds.length) {
+      throw new BadRequestException(item.spaceId ? "Choose tags from this item's space" : 'Choose tags from your list');
     }
     const [, , updated] = await this.prisma.$transaction([
       this.prisma.itemTag.deleteMany({ where: { itemId, tagId: { notIn: tagIds } } }),
@@ -228,7 +235,8 @@ export class ItemsService {
     const item = await this.access.assertItem(userId, itemId, 'edit');
     return this.prisma.$transaction(async (transaction) => {
       const { count } = await change(transaction);
-      if (count === 1) {
+      if (count === 1 && !item.spaceId) this.changes.notify('items', { userId });
+      if (count === 1 && item.spaceId) {
         await this.activity.record(transaction, {
           spaceId: item.spaceId,
           actorId: userId,

@@ -114,6 +114,18 @@ describe('Spaces, items, tags and links against Postgres', () => {
     expect((await owner.call('POST', `/spaces/${shared.body.id}/tags`, { name: 'Ideas' })).status).toBe(201);
     expect((await owner.call('PUT', `/items/${note.id}/tags`, { tagIds: [personalTag.body.id] })).status).toBe(400);
     expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Odd', color: 'beige' })).status).toBe(400);
+
+    const mine = (await owner.call('POST', '/me/tags', { name: 'Ideas' })).body;
+    expect(mine).toMatchObject({ name: 'Ideas', spaceId: null });
+    expect((await owner.call('POST', '/me/tags', { name: 'ideas' })).status).toBe(409);
+    expect((await owner.call('PUT', `/items/${note.id}/tags`, { tagIds: [mine.id] })).status).toBe(400);
+    const link = (await owner.call('POST', '/me/bookmarks', { url: 'https://tags.example/', fetch: false })).body.bookmark;
+    expect((await owner.call('PUT', `/items/${link.id}/tags`, { tagIds: [personalTag.body.id] })).status).toBe(400);
+    expect((await owner.call('PUT', `/items/${link.id}/tags`, { tagIds: [mine.id] })).body.tags).toEqual([expect.objectContaining({ id: mine.id, name: 'Ideas' })]);
+    expect((await owner.call('GET', '/me/tags')).body.map((tag: { id: string }) => tag.id)).toEqual([mine.id]);
+    expect((await owner.call('PATCH', `/tags/${mine.id}`, { name: 'Sparks' })).body.name).toBe('Sparks');
+    expect((await owner.call('DELETE', `/tags/${mine.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/items/${link.id}`)).body).toMatchObject({ spaceId: null, tags: [] });
   });
 
   it('shows links and backlinks only for items the viewer can open', async () => {
