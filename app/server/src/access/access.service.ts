@@ -19,6 +19,11 @@ const refusals: Record<Exclude<Access, 'read'>, string> = {
 
 const pinnedSpace = () => (requestContext.getStore()?.request as AuthenticatedRequest | undefined)?.user?.tokenSpaceId ?? null;
 
+export function reachable(spaceId: string) {
+  const pinned = pinnedSpace();
+  return !pinned || pinned === spaceId;
+}
+
 @Injectable()
 export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,7 +42,7 @@ export class AccessService {
       where: { spaceId_userId: { spaceId, userId } },
       select: { role: true },
     });
-    if (!member || !this.reachable(spaceId)) {
+    if (!member || !reachable(spaceId)) {
       throw new NotFoundException('Space not found');
     }
     this.assertRole(member.role, access);
@@ -45,7 +50,7 @@ export class AccessService {
   }
 
   async isMember(userId: string, spaceId: string) {
-    return this.reachable(spaceId) && (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
+    return reachable(spaceId) && (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
   }
 
   async assertItem(userId: string, itemId: string, access: Access) {
@@ -60,16 +65,11 @@ export class AccessService {
       },
     });
     const role = item?.space.members[0]?.role;
-    if (!item || !role || !this.reachable(item.spaceId)) {
+    if (!item || !role || !reachable(item.spaceId)) {
       throw new NotFoundException('Item not found');
     }
     this.assertRole(role, access);
     return { id: item.id, spaceId: item.spaceId, title: item.title, trashedAt: item.trashedAt, role };
-  }
-
-  reachable(spaceId: string) {
-    const pinned = pinnedSpace();
-    return !pinned || pinned === spaceId;
   }
 
   private assertRole(role: SpaceRole, access: Access) {

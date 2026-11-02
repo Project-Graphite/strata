@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, PageRole, Prisma, SpaceRole } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { AccessService, reachable } from '../access/access.service';
 import { pagePermissions } from '../access/page-permissions';
 import { PrismaService } from '../prisma/prisma.service';
 import { pageKinds } from './document-text';
@@ -44,7 +44,7 @@ export class PageAccessService {
         space: { select: { members: { where: { userId }, select: { role: true } } } },
       },
     });
-    if (!item || !pageKinds.includes(item.kind) || !this.spaces.reachable(item.spaceId)) throw new NotFoundException('Page not found');
+    if (!item || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
     const granted = accessFrom(item.space.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
     if (!granted) throw new NotFoundException('Page not found');
     const { permissions, role } = granted;
