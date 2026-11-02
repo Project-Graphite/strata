@@ -22,7 +22,7 @@ function keepWidth(width: number) {
   }
 }
 
-export function CommentsPanel({ children, docked = false, onClose, open }: { children: ReactNode; docked?: boolean; onClose: () => void; open: boolean }) {
+export function CommentsPanel({ children, closeLabel = 'Close comments', docked = false, onClose, open, title = 'Comments' }: { children: ReactNode; closeLabel?: string; docked?: boolean; onClose: () => void; open: boolean; title?: string }) {
   const [width, setWidth] = useState(storedWidth);
   const [resizing, setResizing] = useState(false);
   const [drag, setDrag] = useState(0);
@@ -54,7 +54,7 @@ export function CommentsPanel({ children, docked = false, onClose, open }: { chi
     <>
       <div aria-hidden="true" className="comments-scrim" data-open={open} onClick={onClose} />
       <aside
-        aria-label="Comments"
+        aria-label={title}
         className="comments-panel"
         data-docked={docked || undefined}
         data-open={open}
@@ -108,8 +108,8 @@ export function CommentsPanel({ children, docked = false, onClose, open }: { chi
           }}
         >
           <span aria-hidden="true" className="comments-panel-grabber" />
-          <h2 className="m-0 text-h3">Comments</h2>
-          <IconButton icon="x" label="Close comments" onClick={onClose} />
+          <h2 className="m-0 text-h3">{title}</h2>
+          <IconButton icon="x" label={closeLabel} onClick={onClose} />
         </div>
         <div className="comments-panel-body">{children}</div>
       </aside>

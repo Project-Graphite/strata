@@ -18,7 +18,7 @@ import { atMost, required, useFormErrors } from '../validation';
 import { chosenDashboard, rememberDashboard, ShowBackdrop, useBackdrop, type Background } from './backdrop';
 import { DashboardGrid } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
-import { gridColumns, placed, sizeWidths } from './grid';
+import { gridColumns, minColumns, placed, sizeWidths } from './grid';
 import { Greeting, NowStrip } from './NowStrip';
 import { useWide, WidgetEmpty, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
@@ -28,13 +28,14 @@ import { clockTime, profileDay } from '../time';
 interface Layout {
   widgets: PlacedWidget[];
   background?: Background;
+  free?: boolean;
 }
 
 interface Dashboard {
   id: string;
   name: string;
   position: number;
-  layout: { widgets: Widget[]; background?: Background };
+  layout: { widgets: Widget[]; background?: Background; free?: boolean };
 }
 
 const templates = [
@@ -46,6 +47,7 @@ const templates = [
 
 const heights: [string, string][] = [
   ['', 'Fit content'],
+  ['5', 'Tiny'],
   ['10', 'Short'],
   ['16', 'Medium'],
   ['24', 'Tall'],
@@ -82,7 +84,7 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
 }
 
 function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Partial<PlacedWidget>) => void; onClose: () => void; widget: PlacedWidget }) {
-  const { minH, Settings, title } = widgetKinds[widget.type];
+  const { Settings, title } = widgetKinds[widget.type];
   return (
     <Dialog onClose={onClose} title={`${cardTitle(widget)} settings`}>
       <div className="mt-5 grid gap-6">
@@ -109,7 +111,7 @@ function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Part
               label="Height"
               onChange={(rows: string) => onChange({ h: rows ? Number(rows) : null })}
               options={[
-                ...heights.filter(([value]) => !value || Number(value) >= minH).map(([value, label]) => ({ value, label })),
+                ...heights.map(([value, label]) => ({ value, label })),
                 ...(widget.h && !heights.some(([value]) => value === String(widget.h)) ? [{ value: String(widget.h), label: 'Custom' }] : []),
               ]}
               value={widget.h ? String(widget.h) : ''}
@@ -202,6 +204,7 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
             );
           }}
           dashboard={dashboard.id}
+          free={dashboard.layout.free}
           label={cardTitle}
           widgets={placed(dashboard.layout.widgets.filter((widget) => widget.type !== 'clock'))}
         />
@@ -365,7 +368,7 @@ export function DashboardHome() {
                 items={[
                   { label: 'Settings', onSelect: () => setSettingsOpen(widget.id) },
                   ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
-                  ...(wide && widget.w > kind.minW ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                  ...(wide && widget.w > minColumns ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
                   ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
                   { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
                 ]}
@@ -398,9 +401,10 @@ export function DashboardHome() {
           }}
           dashboard={current.id}
           editing={editing}
+          free={layout.free}
           key={current.id}
           label={cardTitle}
-          onChange={(next) => change({ widgets: next })}
+          onChange={(next) => change({ widgets: next, free: true })}
           widgets={widgets}
         />
       )}

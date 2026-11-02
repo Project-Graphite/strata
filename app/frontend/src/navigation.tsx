@@ -60,21 +60,14 @@ const toItem = (area: Area, active: string | null) => ({ active: area.href === a
 
 const accountApps = (apps: AppEntry[]) => apps.filter((app) => app.scope === 'account');
 
-function spaceSection(active: string | null, apps: AppEntry[], space: Space | undefined, label: string): SidebarSection {
-  const href = space ? `/spaces/${space.id}` : '/spaces';
-  return {
-    label,
-    items: [
-      ...apps.filter((app) => app.scope === 'space').map((app) => toItem(app, active)),
-      { active: active === href, href, icon: space ? <SpaceMark space={space} /> : ('folder' as const), label: 'Members and settings' },
-    ],
-  };
+function spaceSection(active: string | null, apps: AppEntry[], label: string): SidebarSection {
+  return { label, items: apps.filter((app) => app.scope === 'space').map((app) => toItem(app, active)) };
 }
 
 export function sidebarSections(active: string | null, spaces: Space[] | undefined, apps: AppEntry[], space?: Space): SidebarSection[] {
   return [
     { items: [home, ...accountApps(apps)].map((area) => toItem(area, active)) },
-    spaceSection(active, apps, space, space ? `In ${space.name}` : 'In your space'),
+    spaceSection(active, apps, space ? `In ${space.name}` : 'In your space'),
     {
       label: 'Spaces',
       items: [
@@ -89,7 +82,7 @@ export function moreSections(active: string | null, apps: AppEntry[], space?: Sp
   const tabbed = phoneApps(apps);
   return [
     { label: 'Yours', items: accountApps(apps).filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) },
-    spaceSection(active, apps.filter((app) => !tabbed.includes(app)), space, space ? `In ${space.name}` : 'In your space'),
+    spaceSection(active, apps.filter((app) => !tabbed.includes(app)), space ? `In ${space.name}` : 'In your space'),
   ];
 }
 

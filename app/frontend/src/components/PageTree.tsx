@@ -1,31 +1,29 @@
-import { createContext, useContext, useEffect, useState, type DragEvent } from 'react';
+import { createContext, useContext, useEffect, useState, type CSSProperties, type DragEvent } from 'react';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Icon, useShell, type MenuItem } from '@project-graphite/ui';
+import { Icon, useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { childPagesPath, noteHref, noteTitle, onPagesChanged, pageHref, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { ActionsMenu } from './ActionsMenu';
 import { TextButton } from './Button';
 import { NoteMark } from './NoteMark';
 
 type Place = 'before' | 'inside' | 'after';
 type Move = { parentId: string | null } | { relativeTo: string; placement: 'before' | 'after' };
+type Target = { id: string; place: Place; expandable?: boolean };
 
 interface TreeControls {
   open: Set<string>;
   reveal?: { spaceId: string; path: string[] };
-  busy: boolean;
   dragged?: Note;
-  target?: { id: string; place: Place };
+  target?: Target;
   toggle(id: string): void;
-  add(spaceId: string, parentId: string | null): void;
   move(note: Note, change: Move): void;
   drag(note?: Note): void;
-  aim(target?: { id: string; place: Place }): void;
+  aim(target?: Target): void;
 }
 
 const TreeContext = createContext<TreeControls>(null!);
@@ -39,19 +37,19 @@ function readOpen() {
   }
 }
 
-function placeFor(event: DragEvent<HTMLElement>, nests: boolean): Place {
+function placeFor(event: DragEvent<HTMLElement>): Place {
   const box = event.currentTarget.getBoundingClientRect();
   const share = (event.clientY - box.top) / box.height;
-  if (share < 0.3) return 'before';
-  if (share > 0.7 || !nests) return 'after';
+  if (share < 0.25) return 'before';
+  if (share > 0.75) return 'after';
   return 'inside';
 }
 
-function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, searching = true }: { spaceId: string; parentId: string | null; depth: number; writable: boolean; cursor?: string; preceding?: Note; searching?: boolean }) {
+function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = true }: { spaceId: string; parentId: string | null; depth: number; writable: boolean; cursor?: string; searching?: boolean }) {
   const tree = useContext(TreeContext);
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
-  const listed = useResource<ChildPages & { nextPage: Note | null }>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId });
+  const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor, 'note'), true, { live: ['page-details', 'items', 'spaces'], spaceId });
   const reload = listed.reload;
   useEffect(() => onPagesChanged(reload), [reload]);
   const parentIndex = tree.reveal?.path.indexOf(parentId ?? '') ?? -1;
@@ -59,31 +57,24 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
     ? tree.reveal.path[parentIndex + 1]
     : undefined;
   const seeking = Boolean(searching && wanted && !listed.data?.pages.some((note) => note.id === wanted));
+  const indent = `${0.75 + Math.min(depth, 4) * 0.875}rem`;
 
   return (
     <>
       {(listed.error || listed.refreshError) && <TextButton label="Retry loading pages" onClick={reload} />}
       {listed.loading && <p className="m-0 px-4 text-small text-muted" role="status">Loading pages…</p>}
-      {listed.data?.pages.map((note, index, pages) => {
+      {listed.data?.pages.map((note) => {
         const expanded = tree.open.has(note.id);
-        const nests = note.kind !== 'board';
-        const previous = pages[index - 1] ?? preceding;
-        const next = pages[index + 1] ?? listed.data?.nextPage;
-        const actions: MenuItem[] = [
-          ...(nests ? [{ label: 'Add page inside', onSelect: () => tree.add(spaceId, note.id) }] : []),
-          ...(previous ? [{ label: 'Move up', onSelect: () => tree.move(note, { relativeTo: previous.id, placement: 'before' }) }] : []),
-          ...(next ? [{ label: 'Move down', onSelect: () => tree.move(note, { relativeTo: next.id, placement: 'after' }) }] : []),
-          ...(previous?.kind === 'note' ? [{ label: `Move inside ${noteTitle(previous)}`, onSelect: () => tree.move(note, { parentId: previous.id }) }] : []),
-          ...(note.parentId ? [{ label: 'Move to space root', onSelect: () => tree.move(note, { parentId: null }) }] : []),
-        ];
+        const title = noteTitle(note);
         return (
           <div key={note.id}>
-            <div className="page-tree-row" data-drop={tree.target?.id === note.id ? tree.target.place : undefined} draggable={writable}
+            <div className="page-tree-row" data-dragging={tree.dragged?.id === note.id || undefined} data-drop={tree.target?.id === note.id ? tree.target.place : undefined} draggable={writable}
               onDragEnd={() => { tree.drag(); tree.aim(); }}
               onDragOver={(event) => {
-                if (!tree.dragged || tree.dragged.spaceId !== spaceId) return;
+                if (!tree.dragged || tree.dragged.spaceId !== spaceId || tree.dragged.id === note.id) return;
                 event.preventDefault();
-                tree.aim({ id: note.id, place: placeFor(event, nests) });
+                event.dataTransfer.dropEffect = 'move';
+                tree.aim({ id: note.id, place: placeFor(event), expandable: note.hasChildren && !expanded });
               }}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move';
@@ -93,22 +84,21 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
               onDrop={(event) => {
                 event.preventDefault();
                 if (tree.dragged && tree.dragged.id !== note.id && tree.dragged.spaceId === spaceId) {
-                  const place = placeFor(event, nests);
+                  const place = placeFor(event);
                   tree.move(tree.dragged, place === 'inside' ? { parentId: note.id } : { relativeTo: note.id, placement: place });
                 }
                 tree.drag(); tree.aim();
-              }} style={{ paddingLeft: `${0.5 + Math.min(depth, 3) * 0.6}rem` }}>
-              {note.hasChildren ? (
-                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${noteTitle(note)}` : `Expand ${noteTitle(note)}`} className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(note.id)} type="button">
-                  <Icon name="chevron-right" size={16} />
+              }} style={{ paddingLeft: indent, '--drop-indent': indent } as CSSProperties}>
+              {note.hasChildren && (
+                <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`} className="page-tree-slot page-tree-expand cursor-pointer" onClick={() => tree.toggle(note.id)} type="button">
+                  <NoteMark note={note} />
+                  <span aria-hidden="true" className="page-tree-chevron"><Icon name="chevron-right" size={16} /></span>
                 </button>
-              ) : (
-                <span aria-hidden="true" className="page-tree-toggle" />
               )}
-              <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={noteTitle(note)} to={noteHref(note)}>
-                <NoteMark note={note} /><span className="min-w-0 flex-1 truncate">{noteTitle(note)}</span>
+              <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={title} to={noteHref(note)}>
+                {!note.hasChildren && <span className="page-tree-slot"><NoteMark note={note} /></span>}
+                <span className="min-w-0 flex-1 truncate">{title}</span>
               </Link>
-              {writable && actions.length > 0 && <ActionsMenu name={noteTitle(note)} items={actions} />}
             </div>
             {note.hasChildren && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
           </div>
@@ -116,7 +106,7 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, preceding, sea
       })}
       {listed.data?.pages.length === 0 && !listed.error && <p className="m-0 px-4 text-small text-muted">No pages inside</p>}
       {listed.data?.nextCursor && (more || seeking
-        ? <TreeBranch cursor={listed.data.nextCursor} depth={depth} key={listed.data.nextCursor} parentId={parentId} preceding={listed.data.pages.at(-1)} searching={seeking} spaceId={spaceId} writable={writable} />
+        ? <TreeBranch cursor={listed.data.nextCursor} depth={depth} key={listed.data.nextCursor} parentId={parentId} searching={seeking} spaceId={spaceId} writable={writable} />
         : <TextButton label="Load more pages" onClick={() => setMore(true)} />)}
     </>
   );
@@ -133,8 +123,8 @@ export function PageTree() {
   const action = useAction();
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
-  const [target, setTarget] = useState<{ id: string; place: Place }>();
-  const reveal = currentPage && pathname === noteHref(currentPage) && !currentPage.quick && !currentPage.template
+  const [target, setTarget] = useState<Target>();
+  const reveal = currentPage?.spaceId && pathname === noteHref(currentPage) && !currentPage.quick && !currentPage.template
     ? { spaceId: currentPage.spaceId, path: [...currentPage.path.map((page) => page.id), currentPage.id] }
     : undefined;
   const revealKey = reveal ? `${reveal.spaceId}|${reveal.path.join('|')}` : '';
@@ -143,6 +133,12 @@ export function PageTree() {
     const [, ...path] = revealKey.split('|');
     setOpen((current) => new Set([...current, ...path.slice(0, -1)]));
   }, [revealKey]);
+
+  useEffect(() => {
+    if (!target?.expandable || target.place !== 'inside') return;
+    const timer = window.setTimeout(() => toggle(target.id), 700);
+    return () => window.clearTimeout(timer);
+  }, [target]);
 
   function toggle(id: string) {
     setOpen((current) => {
@@ -158,15 +154,8 @@ export function PageTree() {
   }
 
   const tree: TreeControls = {
-    open, reveal, busy: action.busy, dragged, target, toggle, drag: setDragged, aim: setTarget,
-    add: (spaceId, parentId) => {
-      void action.run(async () => {
-        const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(parentId ? { parentId } : {}) });
-        if (parentId && !open.has(parentId)) toggle(parentId);
-        navigate(pageHref(created.id));
-        return '';
-      }, 'Could not add the page');
-    },
+    open, reveal, dragged, target, toggle, drag: setDragged,
+    aim: (next) => setTarget((current) => (current?.id === next?.id && current?.place === next?.place ? current : next)),
     move: (note, change) => {
       if (action.busy) return;
       void action.run(async () => {
@@ -181,10 +170,13 @@ export function PageTree() {
     <TreeContext.Provider value={tree}>
       <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
         <div className="page-tree-head" data-drop={target?.id === 'root' ? 'inside' : undefined}
-          onDragOver={(event) => { if (space && dragged?.spaceId === space.id) { event.preventDefault(); setTarget({ id: 'root', place: 'inside' }); } }}
+          onDragOver={(event) => { if (space && dragged?.spaceId === space.id) { event.preventDefault(); tree.aim({ id: 'root', place: 'inside' }); } }}
           onDrop={(event) => { event.preventDefault(); if (space && dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
           <p className="sidebar-section-label">Pages</p>
-          {space && writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.add(space.id, null)} type="button"><Icon name="plus" size={16} /></button>}
+          {space && writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => void action.run(async () => {
+            navigate(pageHref((await auth.request<Note>(`/spaces/${space.id}/notes`, { method: 'POST', body: '{}' })).id));
+            return '';
+          }, 'Could not add the page')} type="button"><Icon name="plus" size={16} /></button>}
         </div>
         {space && shown && <TreeBranch depth={0} key={space.id} parentId={null} spaceId={space.id} writable={writable} />}
       </section>

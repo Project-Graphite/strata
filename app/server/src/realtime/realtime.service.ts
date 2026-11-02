@@ -148,7 +148,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (next.files.size === 0 && next.mentions.size === 0) return;
         const current = documentLinks(document);
         for (const id of [...next.files].filter((id) => !current.files.has(id))) {
-          if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, kind: 'FILE', trashedAt: null, space: this.access.spacesOf(context.userId) }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible files'), { code: 4403, reason: 'Edit rejected' });
+          if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, kind: 'FILE', trashedAt: null, ...this.access.itemsOf(context.userId) }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible files'), { code: 4403, reason: 'Edit rejected' });
         }
         for (const id of [...next.mentions].filter((id) => !current.mentions.has(id))) {
           if (context.userId === null || !(await this.prisma.item.findFirst({ where: { id, OR: [this.access.itemsOf(context.userId), this.pages.pagesOf(context.userId)] }, select: { id: true } }))) throw Object.assign(new Error('Edits cannot add inaccessible references'), { code: 4403, reason: 'Edit rejected' });

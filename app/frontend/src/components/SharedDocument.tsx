@@ -22,7 +22,7 @@ export default function SharedDocument({ code, editable, noteId, onTitle }: { co
   if (!connection || (!ready && !connection.refused)) return <LinesSkeleton label="Loading the page" lines={6} />;
   return (
     <FileSourceContext.Provider value={files}>
-      <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={false} />
+      <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={false} spaceId="" />
     </FileSourceContext.Provider>
   );
 }

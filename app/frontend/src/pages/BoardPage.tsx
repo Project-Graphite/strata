@@ -125,7 +125,7 @@ export function BoardPage() {
                 : undefined
             }
             onOpenThread={openThread}
-            spaceId={details.permissions.organize ? details.spaceId : ''}
+            spaceId={details.permissions.organize ? (details.spaceId ?? '') : ''}
           />
         </Suspense>
       </FileSourceContext>

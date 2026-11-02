@@ -134,20 +134,40 @@ describe('The file store against Postgres', () => {
     await manager.call('PATCH', '/admin/site', { fileQuotaMb: 150 });
   });
 
-  it('reports storage used against the quota, with what is in the trash, and lists only my readable files', async () => {
+  it('reports storage used against the quota by home, with what is in the trash and in spaces I left', async () => {
     const owner = await member('storage-owner');
     const other = await member('storage-neighbour');
     const shared = (await owner.call('POST', '/spaces', { name: 'Storage' })).body;
+    const club = (await other.call('POST', '/spaces', { name: 'Club' })).body;
+    await strata.join(club.id, owner, SpaceRole.EDITOR);
+    const library = await (
+      await fetch(`${strata.base}/me/files`, { method: 'POST', headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'image/png', 'X-File-Name': 'mine.png' }, body: new Uint8Array(png('mine', 'library')) })
+    ).json();
     const kept = await (await upload(owner, owner.personalSpaceId, 'kept.png', png('kept'))).json();
     const binned = await (await upload(owner, shared.id, 'binned.png', png('binned', 'more pixels'))).json();
+    const left = await (await upload(owner, club.id, 'left.png', png('left', 'club pixels'))).json();
     await upload(other, other.personalSpaceId, 'theirs.png', png('theirs'));
     await owner.call('POST', `/items/${binned.id}/trash`);
+    await strata.prisma.spaceMember.delete({ where: { spaceId_userId: { spaceId: club.id, userId: owner.id } } });
+    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Frame it' })).body;
+    expect((await owner.call('PUT', `/tasks/${task.id}/attachments/${kept.id}`)).status).toBe(200);
 
-    const storage = (await owner.call('GET', '/me/storage')).body;
-    const sizes = await strata.prisma.file.findMany({ where: { itemId: { in: [kept.id, binned.id] } }, select: { itemId: true, sizeBytes: true } });
+    const storage = (await owner.call('GET', `/me/storage?spaceId=${shared.id}`)).body;
+    const sizes = await strata.prisma.file.findMany({ where: { itemId: { in: [library.id, kept.id, binned.id, left.id] } }, select: { itemId: true, sizeBytes: true } });
     const size = (id: string) => sizes.find((file) => file.itemId === id)!.sizeBytes;
     expect(storage.quotaBytes).toBe((await owner.call('GET', '/site')).body.fileQuotaMb * 1024 * 1024);
-    expect(storage).toMatchObject({ usedBytes: size(kept.id) + size(binned.id), trashedBytes: size(binned.id) });
-    expect(storage.files).toEqual([{ id: kept.id, spaceId: owner.personalSpaceId, name: 'kept.png', mimeType: 'image/png', sizeBytes: size(kept.id), createdAt: expect.any(String) }]);
+    expect(storage).toMatchObject({
+      usedBytes: size(library.id) + size(kept.id) + size(binned.id) + size(left.id),
+      trashedBytes: size(binned.id),
+      elsewhereBytes: size(left.id),
+    });
+    expect(storage.homes).toEqual([
+      { spaceId: null, spaceName: null, count: 1, sizeBytes: size(library.id) },
+      { spaceId: owner.personalSpaceId, spaceName: expect.any(String), count: 1, sizeBytes: size(kept.id) },
+    ]);
+    expect(storage.files).toEqual([
+      expect.objectContaining({ id: kept.id, spaceId: owner.personalSpaceId, attachedTo: { id: task.id, kind: 'task', title: 'Frame it' }, name: 'kept.png', sizeBytes: size(kept.id) }),
+      expect.objectContaining({ id: library.id, spaceId: null, spaceName: null, attachedTo: null, name: 'mine.png', mimeType: 'image/png' }),
+    ]);
   });
 });

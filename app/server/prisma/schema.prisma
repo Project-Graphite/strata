@@ -140,6 +140,7 @@ model User {
   capturedMessages     CapturedMessage[]
   parserReports        ParserReport[]
   journalEntries       JournalEntry[]
+  weeklyReviews        WeeklyReview[]
   noteComments         NoteComment[]          @relation("CommentAuthor")
   resolvedComments     NoteComment[]          @relation("CommentResolver")
   pushSubscriptions    PushSubscription[]
@@ -312,6 +313,7 @@ model Item {
   properties     NoteProperty[]
   tidyChanges    TidyChange[]
   journalEntries JournalEntry[]
+  weeklyReview   WeeklyReview?
   comments       NoteComment[]
   pollOptions    EventPollOption[]
   bookmark       Bookmark?
@@ -890,6 +892,17 @@ model JournalEntry {
   @@id([userId, day])
   @@index([noteId])
   @@map("journal_entries")
+}
+
+model WeeklyReview {
+  noteId    String   @id @map("note_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  note      Item     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("weekly_reviews")
 }
 
 model NoteComment {

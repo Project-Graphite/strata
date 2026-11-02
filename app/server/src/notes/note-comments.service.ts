@@ -44,7 +44,7 @@ export class NoteCommentsService {
   }
 
   async create(userId: string, noteId: string, input: CreateCommentDto) {
-    const found = await this.notes.note(userId, noteId, 'comment');
+    const found = await this.notes.spaceNote(userId, noteId, 'comment');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before commenting');
     if ((await this.prisma.noteComment.count({ where: { itemId: noteId } })) >= maxComments) {
       throw new ConflictException(`A page can hold ${maxComments} comments. Delete some resolved ones first.`);
@@ -108,7 +108,7 @@ export class NoteCommentsService {
   private async comment(userId: string, commentId: string) {
     const comment = await this.prisma.noteComment.findUnique({ where: { id: commentId }, select: { itemId: true, parentId: true, authorId: true } });
     if (!comment) throw new NotFoundException('Comment not found');
-    const { role, spaceId } = await this.notes.note(userId, comment.itemId, 'comment');
+    const { role, spaceId } = await this.notes.spaceNote(userId, comment.itemId, 'comment');
     return { ...comment, role, spaceId };
   }
 

@@ -14,6 +14,11 @@ const pageRoles: Record<PageAccess, PageRole[]> = {
   share: [PageRole.MANAGE],
 };
 
+const ownerAccess = {
+  role: SpaceRole.OWNER,
+  permissions: { comment: false, edit: true, share: false, organize: false, history: true, spaceRole: null, pageRole: null },
+};
+
 @Injectable()
 export class PageAccessService {
   constructor(private readonly prisma: PrismaService, private readonly spaces: AccessService) {}
@@ -23,6 +28,7 @@ export class PageAccessService {
       { kind: { in: pageKinds } },
       { OR: [
         { space: this.spaces.spacesOf(userId, access === 'read' || access === 'comment' ? 'read' : 'edit') },
+        this.spaces.ownedBy(userId),
         { trashedAt: null, archivedAt: null, pageGrants: { some: { userId, role: { in: pageRoles[access] } } } },
       ] },
     ] };
@@ -38,19 +44,21 @@ export class PageAccessService {
     const item = await transaction.item.findUnique({
       where: { id: itemId },
       select: {
-        id: true, kind: true, spaceId: true, title: true, trashedAt: true, archivedAt: true,
+        id: true, kind: true, spaceId: true, ownerId: true, title: true, trashedAt: true, archivedAt: true,
         note: { select: { quick: true } },
         pageGrants: { where: { userId }, select: { role: true } },
         space: { select: { members: { where: { userId }, select: { role: true } } } },
       },
     });
-    if (!item || !item.spaceId || !item.space || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
-    const granted = accessFrom(item.space.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
+    if (!item || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
+    const granted = item.ownerId
+      ? item.ownerId === userId ? ownerAccess : null
+      : accessFrom(item.space?.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
     if (!granted) throw new NotFoundException('Page not found');
     const { permissions, role } = granted;
     if (access !== 'read' && !permissions[access]) throw new ForbiddenException(access === 'share' ? 'You cannot manage sharing for this page' : access === 'comment' ? 'This page is view only' : 'You cannot edit this page');
     return {
-      id: item.id, spaceId: item.spaceId, kind: item.kind, title: item.title, trashedAt: item.trashedAt, archivedAt: item.archivedAt,
+      id: item.id, spaceId: item.spaceId, ownerId: item.ownerId, kind: item.kind, title: item.title, trashedAt: item.trashedAt, archivedAt: item.archivedAt,
       quick: item.note?.quick ?? false,
       role,
       permissions,
@@ -61,7 +69,7 @@ export class PageAccessService {
     const items = itemIds.length === 0 || userIds.length === 0 ? [] : await this.prisma.item.findMany({
       where: { id: { in: itemIds }, kind: { in: pageKinds }, trashedAt: null },
       select: {
-        id: true, archivedAt: true,
+        id: true, archivedAt: true, ownerId: true,
         pageGrants: { where: { userId: { in: userIds } }, select: { userId: true, role: true } },
         space: { select: { members: { where: { userId: { in: userIds } }, select: { userId: true, role: true } } } },
       },
@@ -70,6 +78,7 @@ export class PageAccessService {
     return (itemId: string, userId: string) => {
       const item = byId.get(itemId);
       if (!item) return null;
+      if (item.ownerId) return item.ownerId === userId ? ownerAccess : null;
       return accessFrom(item.space?.members.find((member) => member.userId === userId)?.role ?? null, item.archivedAt ? null : item.pageGrants.find((grant) => grant.userId === userId)?.role ?? null);
     };
   }

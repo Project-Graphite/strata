@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { BoardPreview } from '../components/BoardPreview';
 import { AddButton, Button } from '../components/Button';
+import { Drafts } from '../components/Drafts';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
@@ -61,7 +62,7 @@ export function BoardsIndex() {
             <Card as="li" className="board-card" interactive key={board.id} padding="sm">
               <Link className="board-card-link" to={noteHref(board)}>
                 <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
-                <RowText detail={[spaceNames.get(board.spaceId), noteEdited(board)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
+                <RowText detail={[board.spaceId && spaceNames.get(board.spaceId), noteEdited(board)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
               </Link>
               {writable.some((space) => space.id === board.spaceId) && (
                 <span className="board-card-menu">
@@ -72,6 +73,7 @@ export function BoardsIndex() {
           ))}
         </ul>
       )}
+      <Drafts kind="board" />
     </Page>
   );
 }

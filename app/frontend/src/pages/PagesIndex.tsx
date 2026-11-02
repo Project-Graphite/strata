@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import { Icon, ListRow, Placeholder, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
-import { AddButton, Button, ButtonLink, TextButton } from '../components/Button';
+import { AddButton, Button, TextButton } from '../components/Button';
+import { Drafts } from '../components/Drafts';
 import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
@@ -21,7 +22,6 @@ import { useResource } from '../useResource';
 const emptyStates: Record<PagesSection, { title: string; hint: string; icon: IconName }> = {
   pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.', icon: 'file' },
   'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.', icon: 'file' },
-  journal: { title: 'No journal entries yet', hint: 'The pages you write from the Journal show up here.', icon: 'pencil' },
 };
 
 interface PagesTreeControls {
@@ -149,7 +149,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   }
 
   if (!spaces.data || (!notes.data && !notes.error)) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
-  if (notes.data && !notes.data.some((note) => !note.journal && !note.holdsJournal)) {
+  if (notes.data?.length === 0) {
     return (
       <Empty action={firstRun} icon={emptyStates.pages.icon} title={emptyStates.pages.title} variant="page">
         {emptyStates.pages.hint}
@@ -187,7 +187,7 @@ function PageSearch({ query }: { query: string }) {
   const listed = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
   const text = query.trim().toLocaleLowerCase();
-  const found = listed.data?.filter((note) => !note.journal && !note.holdsJournal && noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
+  const found = listed.data?.filter((note) => noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
   if (listed.error) return <LoadError error={listed.error} onRetry={listed.reload} />;
   if (!listed.data) return <RowsSkeleton lead={<IconSkeleton />} rows={3} />;
   if (found.length === 0) return <Empty title="No pages match">Try another word from the page title.</Empty>;
@@ -198,7 +198,7 @@ function PageSearch({ query }: { query: string }) {
           href={noteHref(note)}
           key={note.id}
           lead={<NoteMark note={note} />}
-          meta={[spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+          meta={[note.spaceId && spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
           title={noteTitle(note)}
         />
       ))}
@@ -211,7 +211,7 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: Exclude
   const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
-  const pages = listed.data?.filter((note) => note.journal === (section === 'journal')) ?? [];
+  const pages = listed.data ?? [];
   const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
   const empty = emptyStates[section];
   const [pageRows] = useRememberedShape(`pages-${section}`, listed.data && [pages.length], [4]);
@@ -224,7 +224,7 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: Exclude
         href={noteHref(note)}
         key={note.id}
         lead={<NoteMark note={note} />}
-        meta={[spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+        meta={[note.spaceId && spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
         title={noteTitle(note)}
         trail={
           writable.some((space) => space.id === note.spaceId) && (
@@ -278,7 +278,6 @@ export function PagesIndex({ section }: { section: PagesSection }) {
   }
 
   function primary(large: boolean) {
-    if (section === 'journal') return <ButtonLink icon="pencil" label="Write today’s page" large={large} primary to="/journal" />;
     if (section === 'quick-notes') return <CreateButton busy={creating.busy} label="New quick note" large={large} onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaceId={writable[0]!.id} />;
     return <CreateButton busy={creating.busy} label="New page" large={large} onCreate={(spaceId) => create(spaceId, {}, 'page')} spaceId={writable[0]!.id} />;
   }
@@ -305,6 +304,7 @@ export function PagesIndex({ section }: { section: PagesSection }) {
     >
       {importing && <ImportPages onClose={() => setImporting(false)} onDone={announcePagesChanged} spaces={writable} />}
       {section !== 'pages' ? <NoteList firstRun={firstRun} section={section} /> : query.trim() ? <PageSearch query={query} /> : <PagesTree firstRun={firstRun} />}
+      {section === 'pages' && !query.trim() && <Drafts kind="note" />}
     </Page>
   );
 }

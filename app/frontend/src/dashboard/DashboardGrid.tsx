@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { compact, gapPixels, gridColumns, inOrder, phoneOrder, pixelsOf, rowPixels, rowsFor, swapWithNeighbour, type Cell } from './grid';
+import { arrange, gapPixels, gridColumns, inOrder, minColumns, minRows, phoneOrder, pixelsOf, rowPixels, rowsFor, type Cell } from './grid';
 import { useWide } from './widget-parts';
-import { widgetKinds, type PlacedWidget } from './widgets';
+import type { PlacedWidget } from './widgets';
 
 const paddings = { compact: 'p-3', normal: 'p-4', roomy: 'p-6' };
 const unmeasuredRows = 8;
@@ -31,6 +31,7 @@ export function DashboardGrid({
   card,
   dashboard,
   editing = false,
+  free = false,
   label,
   onChange,
   widgets,
@@ -38,6 +39,7 @@ export function DashboardGrid({
   card: (widget: PlacedWidget) => ReactNode;
   dashboard: string;
   editing?: boolean;
+  free?: boolean;
   label: (widget: PlacedWidget) => string;
   onChange?: (next: PlacedWidget[]) => void;
   widgets: PlacedWidget[];
@@ -78,10 +80,11 @@ export function DashboardGrid({
     moved.current = undefined;
   }, [widgets]);
 
-  const contentRows = (widget: PlacedWidget) => Math.max(measured[widget.id] ?? unmeasuredRows, widgetKinds[widget.type].minH);
+  const contentRows = (widget: PlacedWidget) => Math.max(measured[widget.id] ?? unmeasuredRows, minRows);
   const shown = widgets.map((widget) => (preview?.id === widget.id ? { ...widget, ...preview, h: preview.fixed ? preview.h : widget.h } : widget));
-  const cells = compact(
-    shown.map((widget) => ({ id: widget.id, x: widget.x, y: widget.y, w: widget.w, h: Math.max(widget.h ?? 0, contentRows(widget)) })),
+  const cells = arrange(
+    shown.map((widget) => ({ id: widget.id, x: widget.x, y: widget.y, w: widget.w, h: widget.h ?? contentRows(widget) })),
+    free || Boolean(preview),
     preview?.id,
   );
   const cellOf = new Map(cells.map((cell) => [cell.id, cell]));
@@ -107,8 +110,7 @@ export function DashboardGrid({
     if (gesture.mode === 'move') {
       setPreview({ id: cell.id, x: Math.min(Math.max(cell.x + columns, 0), gridColumns - cell.w), y: Math.max(cell.y + rows, 0) });
     } else {
-      const { minH, minW } = widgetKinds[widgets.find((widget) => widget.id === cell.id)!.type];
-      setPreview({ id: cell.id, w: Math.min(Math.max(cell.w + columns, minW), gridColumns - cell.x), h: Math.max(cell.h + rows, minH), fixed: rows !== 0 });
+      setPreview({ id: cell.id, w: Math.min(Math.max(cell.w + columns, minColumns), gridColumns - cell.x), h: Math.max(cell.h + rows, minRows), fixed: rows !== 0 });
     }
   }
 
@@ -134,16 +136,16 @@ export function DashboardGrid({
     event.preventDefault();
     const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
     const across = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
-    const { minH, minW } = widgetKinds[widget.type];
-    const update = (fields: Partial<PlacedWidget>) => onChange(widgets.map((shown) => (shown.id === widget.id ? { ...shown, ...fields } : shown)));
+    const cell = cellOf.get(widget.id)!;
+    const update = (fields: Partial<PlacedWidget>) => onChange(placedCells.map((shown) => (shown.id === widget.id ? { ...shown, ...fields } : shown)));
     if (mode === 'resize') {
-      if (across) update({ w: Math.min(Math.max(widget.w + step, minW), gridColumns - widget.x) });
-      else update({ h: Math.max((widget.h ?? cellOf.get(widget.id)!.h) + step, minH) });
+      if (across) update({ w: Math.min(Math.max(cell.w + step, minColumns), gridColumns - cell.x) });
+      else update({ h: Math.max((widget.h ?? cell.h) + step, minRows) });
       return;
     }
     moved.current = widget.id;
-    if (across) update({ x: Math.min(Math.max(widget.x + step, 0), gridColumns - widget.w) });
-    else onChange(swapWithNeighbour(widgets, widget.id, step));
+    if (across) update({ x: Math.min(Math.max(cell.x + step, 0), gridColumns - cell.w) });
+    else update({ y: Math.max(cell.y + step, 0) });
   }
 
   return (
@@ -159,7 +161,7 @@ export function DashboardGrid({
         <article
           aria-label={label(widget)}
           aria-roledescription={editable ? 'Movable card, use the arrow keys to move it' : undefined}
-          className={`dashboard-card overflow-hidden ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${!wide && widget.w > gridColumns / 2 ? 'md:col-span-2' : ''}`}
+          className={`dashboard-card overflow-hidden ${widget.h ? 'dashboard-card-fixed' : ''} ${widget.accent ? `card-accent tag-${widget.accent}` : ''} ${editing ? 'dashboard-card-editing' : ''} ${gesture?.id === widget.id ? 'dashboard-card-moving' : ''} ${!wide && widget.w > gridColumns / 2 ? 'md:col-span-2' : ''}`}
           data-widget={widget.id}
           key={widget.id}
           onKeyDown={editable ? (event) => nudge(event, widget, 'move') : undefined}
@@ -167,7 +169,7 @@ export function DashboardGrid({
           style={
             wide
               ? { gridColumn: `${widget.x + 1} / span ${widget.w}`, gridRow: `${widget.y + 1} / span ${cellOf.get(widget.id)!.h}` }
-              : { minHeight: Math.min(pixelsOf(widgetKinds[widget.type].minH), phoneMinHeight) }
+              : { minHeight: Math.min(pixelsOf(minRows), phoneMinHeight) }
           }
           tabIndex={editable ? 0 : undefined}
         >

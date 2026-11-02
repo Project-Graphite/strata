@@ -13,7 +13,7 @@ const messages = async (value: object) =>
 
 function setup({ quick = false, organize = true, image = true } = {}) {
   const row = {
-    id: 'page', spaceId: 'home', title: 'Trip', kind: ItemKind.NOTE, createdAt: new Date(), updatedAt: new Date(), databaseSchema: null, _count: { journalEntries: 0 },
+    id: 'page', spaceId: 'home', title: 'Trip', kind: ItemKind.NOTE, createdAt: new Date(), updatedAt: new Date(), databaseSchema: null,
     note: { parentId: null, position: 1, icon: null, pinnedAt: null, template: false, quick, narrow: false, coverId: null as string | null, coverAlt: '' },
   };
   const upsert = vi.fn(async ({ update }: { update: Record<string, unknown> }) => {
@@ -22,7 +22,7 @@ function setup({ quick = false, organize = true, image = true } = {}) {
   const findFirst = vi.fn(async () => (image ? { id: 'photo' } : null));
   const transaction = {
     $queryRaw: async () => [],
-    item: { findFirst, update: async () => row },
+    item: { count: async () => 0, findFirst, update: async () => row },
     note: { upsert },
   };
   const prisma = { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) };

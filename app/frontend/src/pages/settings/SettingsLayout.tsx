@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { ListRow } from '@project-graphite/ui';
-import { AboutLinks } from '../../components/AboutLinks';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
 
@@ -66,7 +65,6 @@ export function SettingsLayout() {
       <div className="grid max-w-narrow gap-8">
         <Outlet />
       </div>
-      <AboutLinks />
     </Page>
   );
 }

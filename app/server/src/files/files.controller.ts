@@ -1,4 +1,3 @@
-import { SpaceQueryDto } from '../validation/space-query.dto';
 import {
   BadRequestException,
   Controller,
@@ -7,7 +6,6 @@ import {
   Param,
   Post,
   Req,
-  Query,
   Res,
   StreamableFile,
 } from '@nestjs/common';
@@ -85,8 +83,8 @@ export class FilesController {
 
   @Get('me/storage')
   @Scope('items:read')
-  storage(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.files.storage(user.id, query.spaceId);
+  storage(@CurrentUser() user: AuthenticatedUser) {
+    return this.files.storage(user.id);
   }
 
   @Get('files/:id')

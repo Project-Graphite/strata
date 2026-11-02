@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog, Icon, IconButton, LinesSkeleton, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { saveBlob, uploadFile } from '../files';
@@ -94,8 +94,9 @@ export function NotePage() {
   const loadFile = useCallback((fileId: string) => auth.request<Blob>(`/notes/${id}/files/${fileId}`, {}, readBlob), [auth.request, id]);
   const spaces = useSpaces();
   const navigate = useNavigate();
+  const location = useLocation();
   const note = useResource<NoteDetails>(`/notes/${id}`, true, { live: ['page-details', 'items', 'spaces'], itemIds: [id] });
-  useLiveRefresh(note.reload, { live: ['page-databases'], itemIds: [id, ...(note.data?.parentId ? [note.data.parentId] : [])], spaceId: note.data?.spaceId });
+  useLiveRefresh(note.reload, { live: ['page-databases'], itemIds: [id, ...(note.data?.parentId ? [note.data.parentId] : [])], spaceId: note.data?.spaceId ?? undefined });
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commenting, setCommenting] = useState<string>();
   const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
@@ -110,7 +111,7 @@ export function NotePage() {
     setThread({ id: threadId });
     setPanelOpen(true);
   }, []);
-  const inside = useResource<ChildPages>(note.data && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId });
+  const inside = useResource<ChildPages>(note.data?.spaceId && !note.data.quick && note.data.permissions.spaceRole ? childPagesPath(note.data.spaceId, note.data.id) : null, true, { live: ['page-details', 'items'], spaceId: note.data?.spaceId ?? undefined });
   const members = useResource<Member[]>(
     note.data?.permissions.spaceRole && (note.data.permissions.comment || note.data.row?.properties.some((property) => property.type === 'person')) ? `/spaces/${note.data.spaceId}/members` : null,
     true,
@@ -123,7 +124,7 @@ export function NotePage() {
     setCurrentPage(note.data);
     return () => setCurrentPage((current) => current?.id === id ? undefined : current);
   }, [id, note.data, setCurrentPage]);
-  const back = !note.data ? { to: '/pages', label: 'Pages' } : parent ? { to: pageHref(parent.id), label: noteTitle(parent) } : noteParent(note.data);
+  const back = !note.data ? (location.pathname.startsWith('/journal/') ? { to: '/journal', label: 'Journal' } : { to: '/pages', label: 'Pages' }) : parent ? { to: pageHref(parent.id), label: noteTitle(parent) } : noteParent(note.data);
   const moveToTrash = useMovePageToTrash(
     () => navigate(back.to),
     (restored) => navigate(pageHref(restored.id)),
@@ -151,10 +152,12 @@ export function NotePage() {
     );
   }
   const details = note.data;
-  if (details.kind === 'board') return <Navigate replace to={noteHref(details)} />;
+  if (noteHref(details) !== location.pathname) return <Navigate replace to={`${noteHref(details)}${location.search}${location.hash}`} />;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = inside.data?.pages ?? [];
   const pageOnly = !details.quick;
+  const owned = details.spaceId === null;
+  const decorate = details.permissions.organize || owned;
   const history = pageOnly && details.permissions.history;
 
   function quote(block: QuotedBlock) {
@@ -217,7 +220,7 @@ export function NotePage() {
 
   const add: NestedMenuItem[] = [
     ...(pageOnly && details.permissions.organize && !details.database && tools?.addPage ? [{ label: 'Page inside', onSelect: tools.addPage }] : []),
-    ...(pageOnly && details.permissions.comment
+    ...(pageOnly && !owned && details.permissions.comment
       ? [{
           label: 'Comment',
           onSelect: () => {
@@ -226,7 +229,7 @@ export function NotePage() {
           },
         }]
       : []),
-    ...(pageOnly && details.permissions.organize && !details.cover ? [{ label: 'Cover image', onSelect: () => coverInput.current?.click() }] : []),
+    ...(pageOnly && decorate && !details.cover ? [{ label: 'Cover image', onSelect: () => coverInput.current?.click() }] : []),
   ];
   const settings: NestedMenuItem[] = [
     ...(details.permissions.organize && details.quick
@@ -252,7 +255,6 @@ export function NotePage() {
   ];
   const menu: NestedMenuItem[] = [
     ...(add.length > 0 ? [{ label: 'Add', items: add }] : []),
-    ...(tools ? [{ label: 'Find in page', onSelect: tools.find }] : []),
     ...(history ? [{ label: 'History', onSelect: () => setOpen('history') }] : []),
     ...(settings.length > 0 ? [{ label: 'Page settings', items: settings, separated: true }] : []),
     ...(tools
@@ -264,13 +266,13 @@ export function NotePage() {
           ],
         }]
       : []),
-    ...(details.permissions.organize ? [{ label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: true }] : []),
+    ...(decorate ? [{ label: 'Move to trash', onSelect: () => moveToTrash(details, children.length), separated: true }] : []),
   ];
 
   return (
     <article className={`note-page page-enter grid min-w-0 grid-cols-1 gap-8 ${details.quick || (details.narrow && !details.database) ? 'note-narrow' : 'max-w-none'} ${details.database ? 'database-page' : ''}`}>
       <h1 className="sr-only">{noteTitle(details)}</h1>
-      {details.permissions.organize && pageOnly && (
+      {decorate && pageOnly && (
         <input
           accept="image/jpeg,image/png,image/gif,image/webp"
           className="hidden"
@@ -287,7 +289,7 @@ export function NotePage() {
       {details.cover && pageOnly && (
         <PageCover
           actions={
-            details.permissions.organize && (
+            decorate && (
               <>
                 <TextButton label="Change cover" onClick={() => coverInput.current?.click()} />
                 <TextButton label="Describe" onClick={() => setDescribingCover(details.cover!.alt)} />
@@ -302,11 +304,11 @@ export function NotePage() {
       <header className="page-header note-header">
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
-          {pageOnly && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
+          {pageOnly && !owned && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
           {menu.length > 0 && <NestedMenu items={menu} label={`${noteTitle(details)} actions`} trigger={<Icon name="more" size={18} />} triggerClassName="toolbar-button page-menu-button" triggerLabel={`Actions for ${noteTitle(details)}`} />}
         </div>
-        {pageOnly && details.editable && (!details.icon || (details.permissions.organize && !details.cover)) && (
+        {pageOnly && details.editable && (!details.icon || (decorate && !details.cover)) && (
           <div className="note-title-extras">
             {!details.icon && (
               <IconPicker
@@ -321,7 +323,7 @@ export function NotePage() {
                 onPick={(icon) => save({ icon }, () => '', 'Could not change the icon')}
               />
             )}
-            {details.permissions.organize && !details.cover && (
+            {decorate && !details.cover && (
               <button className="note-title-extra" onClick={() => coverInput.current?.click()} type="button">
                 <Icon name="upload" size={14} />
                 Add cover
@@ -376,13 +378,13 @@ export function NotePage() {
             onComment={details.quick || !details.permissions.comment ? undefined : quote}
             onThread={openThread}
             onTools={setTools}
-            peopleSpaceId={details.permissions.spaceRole ? details.spaceId : undefined}
+            peopleSpaceId={details.permissions.spaceRole ? (details.spaceId ?? undefined) : undefined}
             quick={details.quick}
-            spaceId={details.permissions.organize ? details.spaceId : ''}
+            spaceId={owned ? null : details.permissions.organize ? details.spaceId : ''}
             statusSlot={statusSlot ?? undefined}
           />
         </Suspense></FileSourceContext>
-        {!details.quick && (
+        {!details.quick && !owned && (
           <CommentsPanel docked onClose={() => setPanelOpen(false)} open={panelOpen}>
             <NoteComments
               commentable={details.permissions.comment}
@@ -402,7 +404,7 @@ export function NotePage() {
           </CommentsPanel>
         )}
       </div>
-      {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
+      {details.database && details.spaceId && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {describingCover !== undefined && details.cover && (
         <AltTextDialog initial={describingCover} onClose={() => setDescribingCover(undefined)} onSave={(alt) => void save({ coverAlt: alt }, () => '', 'Could not describe the cover image')} />
       )}

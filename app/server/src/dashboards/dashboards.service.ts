@@ -142,6 +142,7 @@ function checkedLayout(layout: LayoutDto): Prisma.InputJsonObject {
       defined({ id, type, size, x, y, w, h, title, hideTitle, accent, padding, settings: settings as Prisma.InputJsonObject }),
     ),
     ...(layout.background ? { background: defined({ colour: layout.background.colour, imageId: layout.background.imageId }) } : {}),
+    ...(layout.free ? { free: true } : {}),
   } as Prisma.InputJsonObject;
 }
 

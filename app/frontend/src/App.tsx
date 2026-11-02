@@ -186,7 +186,6 @@ export function App() {
               <Route path="pages">
                 <Route index element={<PagesIndex key="pages" section="pages" />} />
                 <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
-                <Route path="journal" element={<PagesIndex key="journal" section="journal" />} />
               </Route>
             </Route>
             <Route element={<AppRoute app="boards" />}>
@@ -201,6 +200,7 @@ export function App() {
             </Route>
             <Route element={<AppRoute app="journal" />}>
               <Route path="journal" element={<JournalPage />} />
+              <Route path="journal/:id" element={<NotePage />} />
             </Route>
             <Route element={<AppRoute app="files" />}>
               <Route path="files" element={<FilesPage />} />

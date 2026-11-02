@@ -1,16 +1,15 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type RefObject } from 'react';
 import { Dialog, FloatingToolbar, Icon, LinesSkeleton, Popover, TextField, ToolbarButton, ToolbarSeparator, useSnackbar } from '@project-graphite/ui';
 import { isValidYoutubeUrl } from '@tiptap/extension-youtube';
 import { Extension, type JSONContent } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import type { Node as BlockNode, Slice } from '@tiptap/pm/model';
-import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { Mapping } from '@tiptap/pm/transform';
 import type { EditorView } from '@tiptap/pm/view';
 import { Placeholder } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
-import { BubbleMenu } from '@tiptap/react/menus';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../auth';
@@ -27,8 +26,7 @@ import type { QuotedBlock } from './NoteComments';
 import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
 import { AltTextDialog } from './AltTextDialog';
 import { AlignGlyph, alignments, GlyphButton, webAddress } from './media-blocks';
-import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions, type BlockChoice } from './note-extensions';
-import { FindBar, FindInPage } from './find-in-page';
+import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions } from './note-extensions';
 import { usePageFollowing } from './page-following';
 import { cspNonce } from '../csp-nonce';
 
@@ -55,7 +53,6 @@ const textColors = [
   ['Purple', '#a388e8'],
   ['Pink', '#e07fb5'],
 ] as const;
-const bubblePlacement = { placement: window.matchMedia('(pointer: coarse)').matches ? 'bottom-start' : 'top-start', shift: { padding: 16 } } as const;
 const maxInsertBytes = 768 * 1024;
 
 interface Block {
@@ -389,131 +386,6 @@ function PageToolbar({ actions, editor, onComment }: { actions: BlockActions; ed
   );
 }
 
-function showBubble({ editor, element, view, state }: { editor: Editor; element: HTMLElement; view: EditorView; state: EditorState }) {
-  const { from, to } = state.selection;
-  return editor.isEditable && !(state.selection instanceof NodeSelection) && state.doc.textBetween(from, to).length > 0 && (view.hasFocus() || element.contains(document.activeElement));
-}
-
-const SelectionMenu = memo(function SelectionMenu({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
-  const [panel, setPanel] = useState<'format' | 'colour' | 'block'>('format');
-  const [linking, setLinking] = useState(false);
-  const toolbar = useRef<HTMLDivElement>(null);
-  const options = useMemo(() => ({ ...bubblePlacement, onHide: () => setPanel('format') }), []);
-  const choices = useMemo(() => blockChoices(actions).filter((choice) => choice.id in blockKinds), [actions]);
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: current }) => ({
-      bold: current.isActive('bold'),
-      italic: current.isActive('italic'),
-      underline: current.isActive('underline'),
-      strike: current.isActive('strike'),
-      code: current.isActive('code'),
-      link: current.isActive('link'),
-      color: current.getAttributes('textStyle').color as string | undefined,
-      highlight: current.isActive('highlight') ? ((current.getAttributes('highlight').color as string | undefined) ?? 'default') : undefined,
-      kind: Object.keys(blockKinds).reverse().find((id) => current.isActive(...blockKinds[id]!)) ?? 'text',
-      align: alignments.find(([align]) => current.isActive({ textAlign: align }))?.[0] ?? 'left',
-    }),
-  });
-
-  useEffect(() => {
-    const dom = editor.view.dom;
-    const focusToolbar = (event: KeyboardEvent) => {
-      const first = toolbar.current?.querySelector('button');
-      if (!event.altKey || event.key !== 'F10' || !first?.isConnected) return;
-      event.preventDefault();
-      first.focus();
-    };
-    dom.addEventListener('keydown', focusToolbar);
-    return () => dom.removeEventListener('keydown', focusToolbar);
-  }, [editor]);
-
-  useLayoutEffect(() => {
-    if (document.activeElement === document.body && toolbar.current?.isConnected) toolbar.current.querySelector('button')?.focus();
-  }, [panel]);
-
-  const turn = (choice: BlockChoice) => {
-    choice.run(editor.chain().focus().clearNodes(), editor);
-    setPanel('format');
-  };
-  const current = choices.find((choice) => choice.id === state.kind);
-  const comment = onComment && (() => {
-    const { from, to } = editor.state.selection;
-    const id = crypto.randomUUID();
-    editor.chain().focus().setMark('comment', { id }).run();
-    onComment({ id, excerpt: editor.state.doc.textBetween(from, to, ' ').trim().slice(0, 80) });
-  });
-
-  return (
-    <>
-      <BubbleMenu className="z-20" editor={editor} options={options} shouldShow={showBubble}>
-        <div
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            editor.commands.focus();
-          }}
-        >
-          {panel === 'format' ? (
-            <FloatingToolbar className="note-bubble" label="Format the selection" ref={toolbar}>
-              <ToolbarButton active={state.bold} icon="bold" label="Bold" onClick={() => editor.chain().focus().toggleBold().run()} />
-              <ToolbarButton active={state.italic} icon="italic" label="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} />
-              <GlyphButton active={state.underline} label="Underline" onClick={() => editor.chain().focus().toggleUnderline().run()}>
-                <span className="font-semibold underline">U</span>
-              </GlyphButton>
-              <GlyphButton active={state.strike} label="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()}>
-                <span className="font-semibold line-through">S</span>
-              </GlyphButton>
-              <ToolbarButton active={state.code} icon="code" label="Inline code" onClick={() => editor.chain().focus().toggleCode().run()} />
-              <ToolbarSeparator />
-              <ToolbarButton active={state.highlight !== undefined} icon="highlight" label="Highlight" onClick={() => editor.chain().focus().toggleHighlight().run()} />
-              <GlyphButton active={Boolean(state.color)} label="Text and highlight colour" onClick={() => setPanel('colour')}>
-                <span className="font-semibold underline" style={{ color: state.color }}>A</span>
-              </GlyphButton>
-              <ToolbarButton active={state.link} icon="link" label="Link" onClick={() => setLinking(true)} />
-              <ToolbarSeparator />
-              <GlyphButton label={`Turn into, now ${current?.label ?? 'Text'}`} onClick={() => setPanel('block')}>
-                {current?.label ?? 'Text'}
-                <Icon name="chevron-down" size={16} />
-              </GlyphButton>
-              {comment && <ToolbarButton label="Comment on the selection" onClick={comment}>Comment</ToolbarButton>}
-            </FloatingToolbar>
-          ) : panel === 'colour' ? (
-            <FloatingToolbar className="note-bubble flex-col items-start" label="Text and highlight colour" ref={toolbar}>
-              <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
-              <ColourGrid color={state.color} editor={editor} highlight={state.highlight} />
-            </FloatingToolbar>
-          ) : (
-            <FloatingToolbar className="note-bubble" label="Turn into" ref={toolbar}>
-              <ToolbarButton icon="chevron-left" label="Back" onClick={() => setPanel('format')} />
-              {choices.map((choice) =>
-                choice.icon ? (
-                  <ToolbarButton active={state.kind === choice.id} icon={choice.icon} key={choice.id} label={choice.label} onClick={() => turn(choice)} />
-                ) : (
-                  <GlyphButton active={state.kind === choice.id} key={choice.id} label={choice.label} onClick={() => turn(choice)}>
-                    <span className="font-semibold">{choice.glyph}</span>
-                  </GlyphButton>
-                ),
-              )}
-              {['text', 'heading1', 'heading2', 'heading3'].includes(state.kind) && (
-                <>
-                  <ToolbarSeparator />
-                  {alignments.map(([align, label]) => (
-                    <GlyphButton active={state.align === align} key={align} label={label} onClick={() => (align === 'left' ? editor.chain().focus().unsetTextAlign().run() : editor.chain().focus().setTextAlign(align).run())}>
-                      <AlignGlyph align={align} />
-                    </GlyphButton>
-                  ))}
-                </>
-              )}
-            </FloatingToolbar>
-          )}
-        </div>
-      </BubbleMenu>
-      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
-    </>
-  );
-});
-
 interface CommentHooks {
   onComment?: (block: QuotedBlock) => void;
   onThread?: (id: string) => void;
@@ -523,7 +395,6 @@ interface CommentHooks {
 }
 
 export interface EditorTools {
-  find: () => void;
   document: () => JSONContent;
   removeComment: (id: string) => void;
   addPage?: () => void;
@@ -548,7 +419,7 @@ export function CollaborativeEditor({
   commentedBlocks,
   onTools,
   statusSlot,
-}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId?: string; peopleSpaceId?: string } & CommentHooks) {
+}: { connection: Connection; editable: boolean; noteId: string; quick: boolean; spaceId: string | null; peopleSpaceId?: string } & CommentHooks) {
   const auth = useAuth();
   const show = useSnackbar();
   const navigate = useNavigate();
@@ -556,14 +427,13 @@ export function CollaborativeEditor({
   const [blocked, setBlocked] = useState(true);
   const [embedding, setEmbedding] = useState<Editor>();
   const [describing, setDescribing] = useState<{ fileId: string; name: string }[]>([]);
-  const [finding, setFinding] = useState(false);
   const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
   const handlers = useRef({ addBoard, addPage, copyBlock, insert, insertFiles, onThread });
   handlers.current = { addBoard, addPage, copyBlock, insert, insertFiles, onThread };
   const { guest } = connection;
 
   const actions = useMemo<BlockActions>(() => ({
-    onFiles: guest || !spaceId ? undefined : (view, files) => handlers.current.insertFiles(view, files),
+    onFiles: guest || spaceId === '' ? undefined : (view, files) => handlers.current.insertFiles(view, files),
     onEmbed: guest ? undefined : setEmbedding,
     onBoard: quick || guest || !spaceId ? undefined : (target) => handlers.current.addBoard(target),
     onPage: quick || guest || !spaceId ? undefined : (target) => handlers.current.addPage(target),
@@ -583,7 +453,6 @@ export function CollaborativeEditor({
         blockMenuExtension(actions),
         BlockMoves,
         CommentedBlocks,
-        FindInPage.configure({ onFind: () => setFinding(true) }),
       ],
       editorProps: {
         attributes: { 'aria-label': 'Page content', class: 'note-content' },
@@ -642,7 +511,7 @@ export function CollaborativeEditor({
   }
 
   function insertFiles(view: EditorView, files: File[]) {
-    if (!editable || connection.guest || !spaceId || files.length === 0) return false;
+    if (!editable || connection.guest || spaceId === '' || files.length === 0) return false;
     void (async () => {
       for (const file of files) {
         if (file.size > maxUploadBytes) {
@@ -672,7 +541,6 @@ export function CollaborativeEditor({
   useEffect(() => {
     if (editor) {
       onTools?.({
-        find: () => setFinding(true),
         document: () => editor.getJSON(),
         removeComment: (id) => editor.view.dispatch(editor.state.tr.removeMark(0, editor.state.doc.content.size, editor.schema.marks.comment!.create({ id })).setMeta('addToHistory', false)),
         addPage: editable && !blocked && actions.onPage ? () => {
@@ -691,16 +559,14 @@ export function CollaborativeEditor({
   if (!editor) return <LinesSkeleton label="Loading the editor" lines={6} />;
   const status = <LiveStatus connection={connection} editable={editable} editor={editor} noteId={noteId} onBlocked={setBlocked} />;
   return (
-    <div className="note-editor relative grid min-w-0 grid-cols-1 gap-3" onDragStartCapture={(event) => event.preventDefault()}>
+    <div className="note-editor relative grid min-w-0 grid-cols-1 gap-3">
       {statusSlot && createPortal(status, statusSlot)}
-      {(!statusSlot || (editable && !blocked) || finding) && (
+      {(!statusSlot || (editable && !blocked)) && (
         <div className={`note-editor-header ${editable && !blocked ? 'sticky top-(--header-height) z-10 bg-paper py-2' : ''}`}>
           {!statusSlot && status}
           {editable && !blocked && <PageToolbar actions={actions} editor={editor} onComment={onComment} />}
-          {finding && <FindBar editor={editor} onClose={() => setFinding(false)} />}
         </div>
       )}
-      {editable && !blocked && <SelectionMenu actions={actions} editor={editor} onComment={onComment} />}
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <PageBlockTarget editor={editor} provider={connection.provider} />
       <EditorContent editor={editor} />
@@ -780,8 +646,28 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
   }, [editor]);
 
   if (!block) return null;
+  const drag = (event: ReactDragEvent<HTMLDivElement>) => {
+    const { view } = editor;
+    const dom = view.nodeDOM(block.pos);
+    const selection = NodeSelection.create(view.state.doc, block.pos);
+    view.dispatch(view.state.tr.setSelection(selection));
+    const slice = selection.content();
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', slice.content.textBetween(0, slice.content.size, ' '));
+    if (dom instanceof HTMLElement) event.dataTransfer.setDragImage(dom, 0, 0);
+    view.dragging = { slice, move: true };
+  };
   return (
-    <div className="note-block-gutter absolute z-10 -translate-x-full" style={{ top: block.top, left: block.left, height: block.line }}>
+    <div
+      className="note-block-gutter absolute z-10 -translate-x-full"
+      draggable
+      onDragEnd={() => {
+        editor.view.dragging = null;
+        setBlock(undefined);
+      }}
+      onDragStart={drag}
+      style={{ top: block.top, left: block.left, height: block.line }}
+    >
       <NestedMenu
         align="start"
         header={<HoldHandle held={held} />}
@@ -795,7 +681,7 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
   );
 });
 
-export default function NoteEditor({ editable, noteId, quick, spaceId, peopleSpaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string; peopleSpaceId?: string } & CommentHooks) {
+export default function NoteEditor({ editable, noteId, quick, spaceId, peopleSpaceId, ...hooks }: { editable: boolean; noteId: string; quick: boolean; spaceId: string | null; peopleSpaceId?: string } & CommentHooks) {
   const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the editor" lines={6} />;
   return <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} peopleSpaceId={peopleSpaceId} quick={quick} spaceId={spaceId} {...hooks} />;

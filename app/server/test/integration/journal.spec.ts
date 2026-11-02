@@ -7,7 +7,7 @@ describe('Journal against Postgres', () => {
   const strata = integrationApp();
   const { member } = strata;
 
-  it('keeps one page a day under a Journal page in the personal space, with a mood', async () => {
+  it('keeps one page a day owned by the account, outside every space and page tree, with a mood', async () => {
     const writer = await member('diarist');
     const other = await member('reader-of-diaries');
     const today = localDate('Etc/UTC');
@@ -20,14 +20,13 @@ describe('Journal against Postgres', () => {
     expect(again.body.noteId).toBe(racing.body.noteId);
 
     const page = (await writer.call('GET', `/notes/${first.body.noteId}`)).body;
-    expect(page.spaceId).toBe(writer.personalSpaceId);
-    const parent = (await writer.call('GET', `/notes/${page.parentId}`)).body;
-    expect(parent.title).toBe('Journal');
-    expect((await writer.call('GET', `/notes/${again.body.noteId}`)).body.parentId).toBe(page.parentId);
-    expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE' } })).toBe(3);
-    const listed = (await writer.call('GET', '/me/notes?kind=note')).body as { id: string; journal: boolean }[];
-    expect(listed.filter((note) => note.journal).map((note) => note.id).sort()).toEqual([first.body.noteId, again.body.noteId].sort());
-    expect(listed.find((note) => note.id === page.parentId)?.journal).toBe(false);
+    expect(page).toMatchObject({ spaceId: null, parentId: null, permissions: { edit: true, history: true, comment: false, share: false, organize: false } });
+    expect(await strata.prisma.item.count({ where: { ownerId: writer.id, kind: 'NOTE' } })).toBe(2);
+    expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE' } })).toBe(0);
+    expect((await writer.call('GET', '/me/notes?kind=note')).body).toEqual([]);
+    expect((await writer.call('PATCH', `/notes/${page.id}`, { title: 'A long day', narrow: true })).body).toMatchObject({ title: 'A long day', narrow: true });
+    expect((await writer.call('PATCH', `/notes/${page.id}`, { pinned: true })).status).toBe(403);
+    expect((await writer.call('POST', `/notes/${page.id}/comments`, { body: 'Hello' })).status).toBe(403);
 
     expect((await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 6 })).status).toBe(400);
     expect((await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 4 })).body).toEqual({ day: today, mood: 4 });
@@ -48,15 +47,37 @@ describe('Journal against Postgres', () => {
     await writer.call('POST', `/items/${first.body.noteId}/trash`);
     const replaced = (await writer.call('POST', `/me/journal/${today}/page`)).body.noteId;
     expect(replaced).not.toBe(first.body.noteId);
-    expect((await writer.call('GET', `/notes/${replaced}`)).body.parentId).toBe(page.parentId);
+    expect((await writer.call('GET', `/notes/${replaced}`)).body).toMatchObject({ spaceId: null, parentId: null });
   });
 
-  it('opens one page under one Journal page when the same day is opened twice at once', async () => {
+  it('summarises a day without writing its page', async () => {
+    const writer = await member('day-reader');
+    const other = await member('day-stranger');
+    const today = localDate('Etc/UTC');
+    const task = (await writer.call('POST', `/spaces/${writer.personalSpaceId}/tasks`, { title: 'Post the letters' })).body;
+    await writer.call('POST', `/tasks/${task.id}/complete`);
+    await writer.call('POST', `/spaces/${writer.personalSpaceId}/tasks`, { title: 'Still open' });
+    const habit = (await writer.call('POST', '/me/habits', { name: 'Read' })).body;
+    await writer.call('PUT', `/habits/${habit.id}/check-ins/${today}`);
+    await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 5 });
+
+    const day = await writer.call('GET', `/me/journal/${today}`);
+    expect(day.status).toBe(200);
+    expect(day.body).toMatchObject({ day: today, mood: 5, page: null, tasks: [{ id: task.id, title: 'Post the letters' }], habits: [{ id: habit.id, name: 'Read' }], transactions: [] });
+    expect(await strata.prisma.item.count({ where: { ownerId: writer.id, kind: 'NOTE' } })).toBe(0);
+
+    const noteId = (await writer.call('POST', `/me/journal/${today}/page`)).body.noteId;
+    expect((await writer.call('GET', `/me/journal/${today}`)).body.page).toEqual({ id: noteId, title: expect.any(String), preview: '' });
+    expect((await other.call('GET', `/me/journal/${today}`)).body).toMatchObject({ mood: null, page: null, tasks: [], habits: [] });
+    expect((await writer.call('GET', `/me/journal/${shiftDay(today, 1)}`)).status).toBe(400);
+  });
+
+  it('opens one page when the same day is opened twice at once', async () => {
     const writer = await member('hasty-diarist');
     const today = localDate('Etc/UTC');
     const [first, second] = await Promise.all([writer.call('POST', `/me/journal/${today}/page`), writer.call('POST', `/me/journal/${today}/page`)]);
 
     expect(second.body.noteId).toBe(first.body.noteId);
-    expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE', trashedAt: null } })).toBe(2);
+    expect(await strata.prisma.item.count({ where: { ownerId: writer.id, kind: 'NOTE', trashedAt: null } })).toBe(1);
   });
 });

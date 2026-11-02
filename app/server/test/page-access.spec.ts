@@ -6,11 +6,11 @@ import { PageAccessService } from '../src/notes/page-access.service';
 
 function page(spaceRole: SpaceRole | null, pageRole: PageRole | null, kind: ItemKind = ItemKind.NOTE) {
   const item = {
-    id: 'page', spaceId: 'private-space', kind, title: 'Shared page', trashedAt: null as Date | null, archivedAt: null as Date | null,
+    id: 'page', spaceId: 'private-space' as string | null, ownerId: null as string | null, kind, title: 'Shared page', trashedAt: null as Date | null, archivedAt: null as Date | null,
     note: { quick: false }, pageGrants: pageRole ? [{ role: pageRole }] : [], space: { members: spaceRole ? [{ role: spaceRole }] : [] },
   };
   const findUnique = vi.fn(async () => item);
-  return { item, findUnique, access: new PageAccessService({ item: { findUnique } } as never, { spacesOf: (userId: string, access: string) => ({ members: { some: { userId, access } } }) } as never) };
+  return { item, findUnique, access: new PageAccessService({ item: { findUnique } } as never, { spacesOf: (userId: string, access: string) => ({ members: { some: { userId, access } } }), ownedBy: (userId: string) => ({ ownerId: userId }) } as never) };
 }
 
 describe('page-specific permissions', () => {
@@ -60,12 +60,22 @@ describe('page-specific permissions', () => {
     expect(await page(SpaceRole.OWNER, null).access.assertPage('member', 'page', 'share')).toMatchObject({ role: SpaceRole.OWNER });
   });
 
+  it('gives the owner of an account page full editing without comments, sharing or organizing, and hides it from everyone else', async () => {
+    const owned = page(null, PageRole.MANAGE);
+    owned.item.spaceId = null;
+    owned.item.ownerId = 'owner';
+    expect(await owned.access.assertPage('owner', 'page', 'edit')).toMatchObject({ spaceId: null, permissions: { edit: true, history: true, comment: false, share: false, organize: false } });
+    await expect(owned.access.assertPage('owner', 'page', 'comment')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(owned.access.assertPage('member', 'page', 'read')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('keeps page-kind and grant requirements inside the authorization conjunction', () => {
     const shared = page(null, null);
     expect(shared.access.pagesOf('recipient', 'comment')).toEqual({ AND: [
       { kind: { in: [ItemKind.NOTE, ItemKind.BOARD] } },
       { OR: [
         { space: { members: { some: { userId: 'recipient', access: 'read' } } } },
+        { ownerId: 'recipient' },
         { trashedAt: null, archivedAt: null, pageGrants: { some: { userId: 'recipient', role: { in: [PageRole.COMMENT, PageRole.EDIT, PageRole.MANAGE] } } } },
       ] },
     ] });

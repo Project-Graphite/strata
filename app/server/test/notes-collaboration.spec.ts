@@ -5,13 +5,14 @@ import { NoteDatabasesService } from '../src/notes/note-databases.service';
 import { NotesService } from '../src/notes/notes.service';
 
 function page() {
-  const row = { id: 'page', title: 'Original', kind: ItemKind.NOTE, spaceId: 'space', createdAt: new Date(), updatedAt: new Date(), note: { quick: false }, databaseSchema: null, _count: { journalEntries: 0 } };
+  const row = { id: 'page', title: 'Original', kind: ItemKind.NOTE, spaceId: 'space', createdAt: new Date(), updatedAt: new Date(), note: { quick: false }, databaseSchema: null };
   const changed = vi.fn();
   const titleChanged = vi.fn();
   const transaction = {
     $queryRaw: async () => [],
     note: { upsert: vi.fn(async () => ({})) },
     item: {
+      count: async () => 0,
       findUniqueOrThrow: async () => row,
       updateMany: async ({ where, data }: { where: { title: string }; data: { title: string } }) => {
         if (row.title !== where.title) return { count: 0 };
@@ -62,7 +63,7 @@ function database() {
   };
   const databases = new NoteDatabasesService(
     { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) } as never,
-    { note: async () => ({ spaceId: 'space', trashedAt: null, quick: false, permissions: { organize: true, spaceRole: 'owner' } }) } as never,
+    { spaceNote: async () => ({ spaceId: 'space', trashedAt: null, quick: false, permissions: { organize: true, spaceRole: 'owner' } }), note: async () => ({}) } as never,
     { notify: changed } as never,
     { assertPage: async () => ({}), pagesOf: () => ({}) } as never,
   );
@@ -167,7 +168,7 @@ describe('live comment changes', () => {
     };
     const comments = new NoteCommentsService(
       { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) } as never,
-      { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
+      { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }), spaceNote: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
       { notify: async () => undefined } as never,
       { notify: changed } as never,
     );

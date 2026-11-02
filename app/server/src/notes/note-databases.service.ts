@@ -38,7 +38,7 @@ export class NoteDatabasesService {
   }
 
   async save(userId: string, noteId: string, input: SaveDatabaseDto) {
-    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     if (found.quick) throw new BadRequestException('A note cannot be a database');
     if (!found.permissions.organize) throw new ForbiddenException('Space editing access is required to change the database schema');
@@ -98,7 +98,7 @@ export class NoteDatabasesService {
   }
 
   async remove(userId: string, noteId: string) {
-    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (!found.permissions.organize) throw new ForbiddenException('Space editing access is required to change the database schema');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     await this.prisma.$transaction(async (transaction) => {
@@ -111,7 +111,7 @@ export class NoteDatabasesService {
   }
 
   async setValues(userId: string, noteId: string, input: SetPropertiesDto) {
-    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     const parentId = await this.prisma.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT 1 FROM "items" WHERE "id" = ${noteId}::uuid FOR UPDATE`;

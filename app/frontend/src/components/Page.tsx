@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { ButtonSkeleton, IconButtonSkeleton, SkeletonLine } from './Skeletons';
 import { HeaderTitleContext } from '../header-title';
+import { areaOf } from '../navigation';
 
 export interface Back {
   to: string;
@@ -39,7 +40,11 @@ export function BackLink({ back }: { back: Back }) {
 
 const swipeIgnored =
   'input, textarea, select, [contenteditable="true"], canvas, video, iframe, [role="dialog"], [role="slider"], .note-content, .board-area, .agenda-body, .dashboard-card-editing, .scroll-x, .chip-row, .MuiTabs-scroller';
-let swipedFrom: 1 | -1 | undefined;
+type Motion = 'enter' | 'fade' | 1 | -1;
+
+let lastPage: { area: string | null; tabs: string; index: number; indicator?: { left: string; width: string } } | undefined;
+
+const settleEasing = 'cubic-bezier(0.2, 0, 0, 1)';
 
 function stillMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -59,21 +64,52 @@ function onRow(touch: Touch, surface: Element) {
   });
 }
 
-function useTabSwipe(tabs: TabItem[] | undefined) {
-  const navigate = useNavigate();
-  const { key } = useLocation();
-  const area = useRef<HTMLElement>(null);
+function usePageMotion(tabs: TabItem[] | undefined) {
+  const area = areaOf(useLocation().pathname);
+  const tabsKey = tabs?.map((tab) => tab.href).join(' ') ?? '';
+  const index = tabs?.findIndex((tab) => tab.active) ?? -1;
+  const surface = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const [motion] = useState<Motion>(() => {
+    if (!lastPage || lastPage.area !== area) return 'enter';
+    if (tabsKey && lastPage.tabs === tabsKey && index >= 0 && lastPage.index >= 0 && lastPage.index !== index) return index > lastPage.index ? 1 : -1;
+    return 'fade';
+  });
+  const [from] = useState(() => (typeof motion === 'number' ? lastPage?.indicator : undefined));
+
+  useLayoutEffect(() => {
+    if (stillMotion() || motion === 'enter') return;
+    content.current?.animate(
+      motion === 'fade' ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, translate: `${motion * 1.5}rem 0` }, { opacity: 1, translate: '0 0' }],
+      { duration: motion === 'fade' ? 160 : 240, easing: settleEasing },
+    );
+    if (!from) return;
+    const frame = requestAnimationFrame(() => {
+      const indicator = surface.current?.querySelector<HTMLElement>('.page-tabs .MuiTabs-indicator');
+      if (indicator?.style.width && indicator.style.left) {
+        indicator.animate([from, { left: indicator.style.left, width: indicator.style.width }], { duration: 280, easing: settleEasing });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [from, motion]);
+
+  useLayoutEffect(() => {
+    lastPage = { area, tabs: tabsKey, index };
+    const node = surface.current;
+    return () => {
+      const indicator = node?.querySelector<HTMLElement>('.page-tabs .MuiTabs-indicator');
+      if (lastPage && indicator?.style.width) lastPage.indicator = { left: indicator.style.left, width: indicator.style.width };
+    };
+  }, [area, tabsKey, index]);
+
+  return { motion, surface, content };
+}
+
+function useTabSwipe(tabs: TabItem[] | undefined, area: RefObject<HTMLElement | null>, content: RefObject<HTMLDivElement | null>) {
+  const navigate = useNavigate();
   const index = tabs?.findIndex((tab) => tab.active) ?? -1;
   const previous = index > 0 ? tabs?.[index - 1].href : undefined;
   const next = index >= 0 ? tabs?.[index + 1]?.href : undefined;
-
-  useLayoutEffect(() => {
-    const direction = swipedFrom;
-    swipedFrom = undefined;
-    if (!direction || stillMotion()) return;
-    content.current?.animate([{ opacity: 0, transform: `translateX(${direction * 2}rem)` }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
-  }, [key]);
 
   useEffect(() => {
     const surface = area.current;
@@ -115,7 +151,6 @@ function useTabSwipe(tabs: TabItem[] | undefined) {
       const flicked = start && Math.abs(offset) > 40 && event.timeStamp - start.time < 200;
       if (sideways && href && (Math.abs(offset) > 72 || flicked)) {
         element.style.transform = '';
-        swipedFrom = offset < 0 ? 1 : -1;
         start = undefined;
         offset = 0;
         navigate(href);
@@ -134,9 +169,7 @@ function useTabSwipe(tabs: TabItem[] | undefined) {
       surface.removeEventListener('touchend', end);
       surface.removeEventListener('touchcancel', settle);
     };
-  }, [navigate, next, previous]);
-
-  return { area, content };
+  }, [area, content, navigate, next, previous]);
 }
 
 const PagePrimaryContext = createContext<(primary: ReactNode) => void>(() => undefined);
@@ -179,7 +212,8 @@ export function Page({
   const named = documentTitle ?? (typeof title === 'string' ? title : undefined);
   const tab = tabs?.find((item) => item.active);
   const titleInHeader = Boolean(useContext(HeaderTitleContext)?.enabled && named) && variant === 'app';
-  const swipe = useTabSwipe(tabs);
+  const { motion, surface, content } = usePageMotion(tabs);
+  useTabSwipe(tabs, surface, content);
   const [primary, setPrimary] = useState<ReactNode>();
   const rowActions = primary ? (
     <>
@@ -203,7 +237,7 @@ export function Page({
   }
   const descriptionLine = description && <div className="max-w-narrow text-small text-muted">{description}</div>;
   return (
-    <section className="page-enter grid grid-cols-1 content-start gap-8" ref={swipe.area}>
+    <section className={`${motion === 'enter' ? 'page-enter ' : ''}grid grid-cols-1 content-start gap-8`} ref={surface}>
       {titleHidden ? (
         <h1 className="sr-only">{title}</h1>
       ) : titleInHeader ? (
@@ -228,13 +262,9 @@ export function Page({
         </div>
       )}
       <PagePrimaryContext.Provider value={setPrimary}>
-        {tabs ? (
-          <div className="grid grid-cols-1 content-start gap-8" ref={swipe.content}>
-            {children}
-          </div>
-        ) : (
-          children
-        )}
+        <div className="grid min-w-0 grid-cols-1 content-start gap-8" ref={content}>
+          {children}
+        </div>
       </PagePrimaryContext.Provider>
     </section>
   );
