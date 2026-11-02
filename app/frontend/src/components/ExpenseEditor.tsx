@@ -30,7 +30,6 @@ export function ExpenseEditor({
   onRestored,
   onTrashed,
   reportParsing = false,
-  spaceId,
 }: {
   accounts: MoneyAccount[];
   capture?: CapturedMessage;
@@ -41,12 +40,11 @@ export function ExpenseEditor({
   onRestored?: () => void;
   onTrashed?: () => void;
   reportParsing?: boolean;
-  spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const categories = expenseCategories(useCategories(spaceId).data);
+  const categories = expenseCategories(useCategories().data);
   const suggested = capture?.suggestion;
   const [category, setCategory] = useState(expense?.category ?? suggested?.category ?? '');
   const chosenCategory = category || mostUsedCategory(categories);
@@ -63,7 +61,7 @@ export function ExpenseEditor({
     accounts
       .filter((account) => account.id !== exclude && (!account.archivedAt || account.id === expense?.accountId || account.id === expense?.toAccountId))
       .map((account) => <FilterChip active={account.id === value} key={account.id} label={account.name} onClick={() => onChange(account.id === value ? '' : account.id)} />);
-  const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
+  const cards = useResource<KnownCard[]>(`/me/cards`, true);
   const startCard = expense?.cardDigits ?? suggested?.cardDigits ?? null;
   const startLabel = expense?.paymentLabel ?? suggested?.paymentLabel ?? null;
   const [paidWith, setPaidWith] = useState(startCard ? `card:${startCard}` : startLabel ? `method:${startLabel}` : '');
@@ -158,7 +156,7 @@ export function ExpenseEditor({
           };
           void saving
             .run(async () => {
-              const saved = await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/spaces/${spaceId}/expenses`, {
+              const saved = await auth.request<Expense>(expense ? `/expenses/${expense.id}` : capture ? `/captures/${capture.id}/record` : `/me/expenses`, {
                 method: expense ? 'PATCH' : 'POST',
                 body: JSON.stringify(body),
               });

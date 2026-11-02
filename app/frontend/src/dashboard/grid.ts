@@ -41,7 +41,7 @@ function fitted(widget: PlacedWidget): PlacedWidget {
 export function placed(widgets: Widget[]): PlacedWidget[] {
   let x = 0;
   let row = 0;
-  return widgets.map((widget) => {
+  return widgets.filter((widget) => widget.type in widgetKinds).map((widget) => {
     if (widget.x !== undefined && widget.y !== undefined && widget.w !== undefined) return fitted({ ...widget, x: widget.x, y: widget.y, w: widget.w });
     const w = sizeWidths[widget.size ?? 'medium'];
     if (x + w > gridColumns) {

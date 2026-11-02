@@ -10,75 +10,88 @@ import { SpendingService } from './spending.service';
 export class SpendingController {
   constructor(private readonly spending: SpendingService) {}
 
-  @Get('spaces/:spaceId/spending')
+  @Get('me/spending')
   @Scope('items:read')
-  month(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: MonthDto) {
-    return this.spending.month(user.id, spaceId, query.month);
+  month(@CurrentUser() user: AuthenticatedUser, @Query() query: MonthDto) {
+    return this.spending.month(user.id, query.month);
   }
 
-  @Get('spaces/:spaceId/spending/insights')
+  @Get('me/spending/insights')
   @Scope('items:read')
-  insights(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: InsightsDto) {
-    return this.spending.insights(user.id, spaceId, query.months ?? 6);
+  insights(@CurrentUser() user: AuthenticatedUser, @Query() query: InsightsDto) {
+    return this.spending.insights(user.id, query.months ?? 6);
   }
 
-  @Get('spaces/:spaceId/expenses/export')
+  @Get('me/expenses/export')
   @Scope('items:read')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="transactions.csv"')
-  export(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: ExportDto) {
-    return this.spending.export(user.id, spaceId, query);
+  export(@CurrentUser() user: AuthenticatedUser, @Query() query: ExportDto) {
+    return this.spending.export(user.id, query);
   }
 
-  @Put('spaces/:spaceId/spending-plan')
+  @Put('me/spending-plan')
   @Scope('items:write')
-  savePlan(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: SavePlanDto) {
-    return this.spending.savePlan(user.id, spaceId, input);
+  savePlan(@CurrentUser() user: AuthenticatedUser, @Body() input: SavePlanDto) {
+    return this.spending.savePlan(user.id, input);
   }
 
-  @Get('spaces/:spaceId/expenses')
+  @Get('me/expenses')
   @Scope('items:read')
-  transactions(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: TransactionsDto) {
-    return this.spending.transactions(user.id, spaceId, query);
+  transactions(@CurrentUser() user: AuthenticatedUser, @Query() query: TransactionsDto) {
+    return this.spending.transactions(user.id, query);
   }
 
-  @Patch('spaces/:spaceId/expenses')
+  @Get('me/expenses/trash')
+  @Scope('items:read')
+  trashed(@CurrentUser() user: AuthenticatedUser) {
+    return this.spending.trashed(user.id);
+  }
+
+  @Patch('me/expenses')
   @Scope('items:write')
-  updateMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: UpdateExpensesDto) {
-    return this.spending.updateMany(user.id, spaceId, input);
+  updateMany(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateExpensesDto) {
+    return this.spending.updateMany(user.id, input);
   }
 
-  @Post('spaces/:spaceId/expenses/trash')
+  @Post('me/expenses/trash')
   @Scope('items:write')
   @HttpCode(200)
-  trashMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ExpenseIdsDto) {
-    return this.spending.trashMany(user.id, spaceId, input.ids, true);
+  trashMany(@CurrentUser() user: AuthenticatedUser, @Body() input: ExpenseIdsDto) {
+    return this.spending.trashMany(user.id, input.ids, true);
   }
 
-  @Post('spaces/:spaceId/expenses/restore')
+  @Post('me/expenses/restore')
   @Scope('items:write')
   @HttpCode(200)
-  restoreMany(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ExpenseIdsDto) {
-    return this.spending.trashMany(user.id, spaceId, input.ids, false);
+  restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() input: ExpenseIdsDto) {
+    return this.spending.trashMany(user.id, input.ids, false);
   }
 
-  @Post('spaces/:spaceId/expenses')
+  @Post('me/expenses/delete')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateExpenseDto) {
-    return this.spending.create(user.id, spaceId, input);
+  @HttpCode(200)
+  deleteMany(@CurrentUser() user: AuthenticatedUser, @Body() input: ExpenseIdsDto) {
+    return this.spending.deleteMany(user.id, input.ids);
   }
 
-  @Post('spaces/:spaceId/expenses/import')
+  @Post('me/expenses')
   @Scope('items:write')
-  importExpenses(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ImportExpensesDto) {
-    return this.spending.import(user.id, spaceId, input.expenses);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateExpenseDto) {
+    return this.spending.create(user.id, input);
   }
 
-  @Post('spaces/:spaceId/expenses/import/check')
+  @Post('me/expenses/import')
+  @Scope('items:write')
+  importExpenses(@CurrentUser() user: AuthenticatedUser, @Body() input: ImportExpensesDto) {
+    return this.spending.import(user.id, input.expenses);
+  }
+
+  @Post('me/expenses/import/check')
   @Scope('items:read')
   @HttpCode(200)
-  checkImport(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: ImportExpensesDto) {
-    return this.spending.duplicates(user.id, spaceId, input.expenses);
+  checkImport(@CurrentUser() user: AuthenticatedUser, @Body() input: ImportExpensesDto) {
+    return this.spending.duplicates(user.id, input.expenses);
   }
 
   @Get('expenses/:id')
@@ -93,16 +106,16 @@ export class SpendingController {
     return this.spending.update(user.id, id, input);
   }
 
-  @Put('spaces/:spaceId/budgets/:category')
+  @Put('me/budgets/:category')
   @Scope('items:write')
-  saveBudget(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Param('category') category: string, @Body() input: SaveBudgetDto) {
-    return this.spending.saveBudget(user.id, spaceId, category, input);
+  saveBudget(@CurrentUser() user: AuthenticatedUser, @Param('category') category: string, @Body() input: SaveBudgetDto) {
+    return this.spending.saveBudget(user.id, category, input);
   }
 
-  @Delete('spaces/:spaceId/budgets/:category')
+  @Delete('me/budgets/:category')
   @Scope('items:write')
   @HttpCode(204)
-  removeBudget(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Param('category') category: string) {
-    return this.spending.removeBudget(user.id, spaceId, category);
+  removeBudget(@CurrentUser() user: AuthenticatedUser, @Param('category') category: string) {
+    return this.spending.removeBudget(user.id, category);
   }
 }

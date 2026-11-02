@@ -60,20 +60,20 @@ export function useSpaces() {
   return active ? { ...spaces, data: spaces.data?.filter((space) => space.id === active.space?.id) } : spaces;
 }
 
-const spaceKey = (role: 'active' | 'personal', userId: string) => `strata-${role}-space:${userId}`;
+const spaceKey = (userId: string) => `strata-active-space:${userId}`;
 
-export function storedSpace(role: 'active' | 'personal', userId: string) {
+export function storedSpace(userId: string) {
   try {
-    return localStorage.getItem(spaceKey(role, userId)) ?? undefined;
+    return localStorage.getItem(spaceKey(userId)) ?? undefined;
   } catch (reason) {
     if (!(reason instanceof DOMException)) throw reason;
     return undefined;
   }
 }
 
-function storeSpace(role: 'active' | 'personal', userId: string, spaceId: string) {
+function storeSpace(userId: string, spaceId: string) {
   try {
-    localStorage.setItem(spaceKey(role, userId), spaceId);
+    localStorage.setItem(spaceKey(userId), spaceId);
   } catch (reason) {
     if (!(reason instanceof DOMException)) throw reason;
   }
@@ -85,7 +85,7 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
   const userId = user?.id;
-  const [chosen, setChosen] = useState(() => (userId ? storedSpace('active', userId) : undefined));
+  const [chosen, setChosen] = useState(() => (userId ? storedSpace(userId) : undefined));
   const routed = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1] ?? params.get('space');
   const space = spaces.data?.find((space) => space.id === (routed ?? chosen)) ?? spaces.data?.find((space) => space.kind === 'personal') ?? spaces.data?.[0];
   const choose = useCallback((spaceId: string) => {
@@ -94,9 +94,7 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!userId || !space) return;
-    storeSpace('active', userId, space.id);
-    const personal = spaces.data?.find((candidate) => candidate.kind === 'personal');
-    if (personal) storeSpace('personal', userId, personal.id);
+    storeSpace(userId, space.id);
     if (routed && routed === space.id) setChosen(space.id);
     if (params.has('space') && spaces.data) {
       setParams((current) => {
@@ -119,18 +117,15 @@ export async function addJoinedSpace(
   spaces.mutate((current) => [...current.filter((shown) => shown.id !== space.id), space]);
 }
 
-export function itemHref(item: { id: string; kind: string; spaceId: string }) {
+export function itemHref(item: { id: string; kind: string }) {
   if (item.kind === 'note' || item.kind === 'board') return noteHref(item);
   if (item.kind === 'event') return `/events/${item.id}`;
   if (item.kind === 'bookmark') return `/bookmarks/${item.id}`;
   if (item.kind === 'goal') return `/goals/${item.id}`;
   if (item.kind === 'person') return `/people/${item.id}`;
   if (item.kind === 'recipe') return `/recipes/${item.id}`;
-  if (item.kind === 'expense') return `/spending/transactions?space=${item.spaceId}`;
-  if (item.kind === 'trip') return `/trips/${item.id}`;
   if (item.kind === 'task') return `/tasks?task=${item.id}`;
   if (item.kind === 'list') return `/tasks?list=${item.id}`;
-  if (item.kind === 'subscription') return `/spending/recurring?subscription=${item.id}`;
   return null;
 }
 
@@ -191,11 +186,6 @@ export function NameAndColorFields({
       <ColorSwatches defaultValue={color} label="Colour" name="color" />
     </div>
   );
-}
-
-export function usePersonalSpace() {
-  const space = useAllSpaces().data?.find((candidate) => candidate.kind === 'personal');
-  return { spaceId: space?.id, space, editable: Boolean(space) };
 }
 
 export function useChosenSpace() {

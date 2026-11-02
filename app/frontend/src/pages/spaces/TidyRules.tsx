@@ -34,7 +34,6 @@ const kindNames: Record<string, string> = {
   task: 'tasks',
   list: 'lists',
   event: 'events',
-  subscription: 'subscriptions',
   board: 'boards',
   file: 'files',
   bookmark: 'bookmarks',

@@ -37,8 +37,6 @@ const SpendingAccountsPage = lazy(() => import('./pages/SpendingAccountsPage').t
 const SpendingInsightsPage = lazy(() => import('./pages/SpendingInsightsPage').then((module) => ({ default: module.SpendingInsightsPage })));
 const SpendingPage = lazy(() => import('./pages/SpendingPage').then((module) => ({ default: module.SpendingPage })));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
-const TripPage = lazy(() => import('./pages/TripPage').then((module) => ({ default: module.TripPage })));
-const TripsPage = lazy(() => import('./pages/TripsPage').then((module) => ({ default: module.TripsPage })));
 const PrivacyPage = lazy(() => import('./pages/LegalPages').then((module) => ({ default: module.PrivacyPage })));
 const RecurringPage = lazy(() => import('./pages/RecurringPage').then((module) => ({ default: module.RecurringPage })));
 const MorePage = lazy(() => import('./pages/MorePage').then((module) => ({ default: module.MorePage })));
@@ -65,7 +63,6 @@ const SpaceHabits = lazy(() => import('./pages/spaces/SpaceHabits').then((module
 const SpaceOverview = lazy(() => import('./pages/spaces/SpaceOverview').then((module) => ({ default: module.SpaceOverview })));
 const SpaceNotes = lazy(() => import('./pages/spaces/SpaceNotes').then((module) => ({ default: module.SpaceNotes })));
 const SpacesPage = lazy(() => import('./pages/spaces/SpacesPage').then((module) => ({ default: module.SpacesPage })));
-const SpaceSubscriptions = lazy(() => import('./pages/spaces/SpaceSubscriptions').then((module) => ({ default: module.SpaceSubscriptions })));
 const SpaceTags = lazy(() => import('./pages/spaces/SpaceTags').then((module) => ({ default: module.SpaceTags })));
 const SpaceTasks = lazy(() => import('./pages/spaces/SpaceTasks').then((module) => ({ default: module.SpaceTasks })));
 const TasksPage = lazy(() => import('./pages/TasksPage').then((module) => ({ default: module.TasksPage })));
@@ -226,7 +223,6 @@ export function App() {
                 <Route path="items" element={<SpaceItems />} />
                 <Route path="pages" element={<SpaceNotes />} />
                 <Route path="tasks" element={<SpaceTasks />} />
-                <Route path="recurring" element={<SpaceSubscriptions />} />
                 <Route path="habits" element={<SpaceHabits />} />
                 <Route path="tags" element={<SpaceTags />} />
                 <Route path="members" element={<SpaceMembers />} />
@@ -250,10 +246,6 @@ export function App() {
               <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
               <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
               <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
-            </Route>
-            <Route element={<AppRoute app="trips" />}>
-              <Route path="trips" element={<TripsPage />} />
-              <Route path="trips/:id" element={<TripPage />} />
             </Route>
             <Route path="inbox" element={<InboxPage />} />
             <Route path="more" element={<MorePage />} />

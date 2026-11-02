@@ -1,5 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
+import type { AuthenticatedRequest } from '../auth/auth.types';
+import { requestContext } from '../http/request-context';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type Access = 'read' | 'edit' | 'manage';
@@ -15,12 +17,20 @@ const refusals: Record<Exclude<Access, 'read'>, string> = {
   manage: 'Only owners can manage this space',
 };
 
+const pinnedSpace = () => (requestContext.getStore()?.request as AuthenticatedRequest | undefined)?.user?.tokenSpaceId ?? null;
+
+export function reachable(spaceId: string) {
+  const pinned = pinnedSpace();
+  return !pinned || pinned === spaceId;
+}
+
 @Injectable()
 export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
 
   spacesOf(userId: string, access: Access = 'read'): Prisma.SpaceWhereInput {
-    return { members: { some: { userId, role: { in: rolesFor[access] } } } };
+    const pinned = pinnedSpace();
+    return { ...(pinned ? { id: pinned } : {}), members: { some: { userId, role: { in: rolesFor[access] } } } };
   }
 
   itemsOf(userId: string, access: Access = 'read'): Prisma.ItemWhereInput {
@@ -32,21 +42,15 @@ export class AccessService {
       where: { spaceId_userId: { spaceId, userId } },
       select: { role: true },
     });
-    if (!member) {
+    if (!member || !reachable(spaceId)) {
       throw new NotFoundException('Space not found');
     }
     this.assertRole(member.role, access);
     return member.role;
   }
 
-  async assertPersonalSpace(userId: string, spaceId: string) {
-    const space = await this.prisma.space.findFirst({ where: { id: spaceId, members: { some: { userId } } }, select: { personalOwnerId: true } });
-    if (!space) throw new NotFoundException('Space not found');
-    if (space.personalOwnerId !== userId) throw new ForbiddenException('Spending lives in your personal space');
-  }
-
   async isMember(userId: string, spaceId: string) {
-    return (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
+    return reachable(spaceId) && (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
   }
 
   async assertItem(userId: string, itemId: string, access: Access) {
@@ -61,7 +65,7 @@ export class AccessService {
       },
     });
     const role = item?.space.members[0]?.role;
-    if (!item || !role) {
+    if (!item || !role || !reachable(item.spaceId)) {
       throw new NotFoundException('Item not found');
     }
     this.assertRole(role, access);

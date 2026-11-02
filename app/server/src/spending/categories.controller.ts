@@ -10,28 +10,28 @@ import { CreateMerchantRuleDto, SaveCategoriesDto, UpdateMerchantRuleDto } from 
 export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 
-  @Get('spaces/:spaceId/spending-categories')
+  @Get('me/spending-categories')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.categories.list(user.id, spaceId);
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.categories.list(user.id);
   }
 
-  @Put('spaces/:spaceId/spending-categories')
+  @Put('me/spending-categories')
   @Scope('items:write')
-  save(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: SaveCategoriesDto) {
-    return this.categories.save(user.id, spaceId, input);
+  save(@CurrentUser() user: AuthenticatedUser, @Body() input: SaveCategoriesDto) {
+    return this.categories.save(user.id, input);
   }
 
-  @Get('spaces/:spaceId/merchant-rules')
+  @Get('me/merchant-rules')
   @Scope('items:read')
-  rules(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.categories.rules(user.id, spaceId);
+  rules(@CurrentUser() user: AuthenticatedUser) {
+    return this.categories.rules(user.id);
   }
 
-  @Post('spaces/:spaceId/merchant-rules')
+  @Post('me/merchant-rules')
   @Scope('items:write')
-  saveRule(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateMerchantRuleDto) {
-    return this.categories.saveRule(user.id, spaceId, input);
+  saveRule(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateMerchantRuleDto) {
+    return this.categories.saveRule(user.id, input);
   }
 
   @Patch('merchant-rules/:id')

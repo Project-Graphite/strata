@@ -141,15 +141,15 @@ describe('The security log against Postgres', () => {
     const box = strata.service(SecretBox);
     const suggestion = { direction: 'spent', amountMinor: 1299, currency: 'USD', merchant: 'NETFLIX.COM', cardDigits: '9876', accountId: null, availableMinor: null, title: 'NETFLIX.COM', category: null };
     const legacy = await strata.prisma.capturedMessage.create({
-      data: { spaceId: owner.personalSpaceId, userId: owner.id, sender: 'CIB', textSealed: box.seal('Your card 9876 was charged USD 12.99 at NETFLIX.COM'), hash: randomBytes(16).toString('hex'), receivedAt: new Date(), suggestion },
+      data: { userId: owner.id, sender: 'CIB', textSealed: box.seal('Your card 9876 was charged USD 12.99 at NETFLIX.COM'), hash: randomBytes(16).toString('hex'), receivedAt: new Date(), suggestion },
     });
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/captures`)).body[0].suggestion).toEqual(suggestion);
+    expect((await owner.call('GET', '/me/captures')).body[0].suggestion).toEqual(suggestion);
 
     await strata.service(MaintenanceScheduler).run(new Date());
 
     const sealed = (await strata.prisma.capturedMessage.findUniqueOrThrow({ where: { id: legacy.id } })).suggestion as { sealed: string };
     expect(Object.keys(sealed)).toEqual(['sealed']);
     expect(JSON.stringify(sealed)).not.toContain('NETFLIX');
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/captures`)).body[0].suggestion).toEqual(suggestion);
+    expect((await owner.call('GET', '/me/captures')).body[0].suggestion).toEqual(suggestion);
   });
 });

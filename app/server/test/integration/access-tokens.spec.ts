@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { integrationApp, password } from './harness';
 
 describe('Access tokens against Postgres', () => {
@@ -75,9 +75,8 @@ describe('Access tokens against Postgres', () => {
     expect(routes('spaces:read')).toContainEqual({ method: 'GET', path: '/spaces' });
     expect(routes('items:read')).toContainEqual({ method: 'GET', path: '/agenda' });
     expect(routes('items:write')).toContainEqual({ method: 'POST', path: '/spaces/:spaceId/tasks' });
-    expect(routes('items:write')).toEqual(expect.arrayContaining([{ method: 'PUT', path: '/subscriptions/:id/split' }]));
-    expect(routes('items:write')).not.toContainEqual({ method: 'PUT', path: '/expenses/:id/split' });
-    expect(routes('spending:capture')).toEqual([{ method: 'POST', path: '/spaces/:spaceId/captures' }]);
+    expect(routes('items:write')).toEqual(expect.arrayContaining([{ method: 'POST', path: '/me/expenses' }, { method: 'DELETE', path: '/subscriptions/:id' }, { method: 'PUT', path: '/notes/:id/content' }]));
+    expect(routes('spending:capture')).toEqual([{ method: 'POST', path: '/me/captures' }]);
     expect(JSON.stringify(reference)).not.toContain('/me/tokens');
 
     const token = (await owner.call('POST', '/me/tokens', { name: 'Docs', scopes: ['items:read'], password })).body.token;
@@ -111,5 +110,38 @@ describe('Access tokens against Postgres', () => {
 
     await fetch(`${strata.base}/auth/logout`, { method: 'POST', headers: { ...headers, Cookie: refreshCookie(refreshed) } });
     expect((await withToken(firstTab, 'GET', '/spaces')).status).toBe(401);
+  });
+
+  it('stays inside the one space a token is pinned to and writes page content', async () => {
+    const owner = await member('pinned-scripter');
+    const stranger = await member('pinned-stranger');
+    const club = (await owner.call('POST', '/spaces', { name: 'Club' })).body;
+    const home = owner.personalSpaceId;
+    expect((await owner.call('POST', '/me/tokens', { name: 'Elsewhere', scopes: ['items:read'], spaceId: stranger.personalSpaceId, password })).status).toBe(404);
+    const pinned = (await owner.call('POST', '/me/tokens', { name: 'Club only', scopes: ['spaces:read', 'items:read', 'items:write'], spaceId: club.id, password })).body;
+    expect(pinned.spaceId).toBe(club.id);
+    expect((await owner.call('GET', '/me/tokens')).body.map((token: { spaceId: string | null }) => token.spaceId)).toEqual([club.id]);
+    const call = (method: string, path: string, body?: unknown) =>
+      withToken(pinned.token, method, path, body).then(async (response) => ({ status: response.status, body: response.status === 204 ? null : await response.json() }));
+
+    expect((await call('GET', '/spaces')).body.map((space: { id: string }) => space.id)).toEqual([club.id]);
+    expect((await call('GET', `/spaces/${home}/notes`)).status).toBe(404);
+    expect((await call('POST', `/spaces/${home}/notes`, { title: 'Nope' })).status).toBe(404);
+    const page = (await call('POST', `/spaces/${club.id}/notes`, { title: 'Minutes' })).body;
+    expect(page.spaceId).toBe(club.id);
+    const written = await call('PUT', `/notes/${page.id}/content`, { blocks: [['heading', 'Agenda'], ['bullets', ['Budget', 'Dates']], ['tasks', ['Book the hall']]] });
+    expect(written.status).toBe(200);
+    expect(written.body.text).toContain('Agenda');
+    expect(written.body.text).toContain('Book the hall');
+    expect((await call('PUT', `/notes/${page.id}/content`, { blocks: [['heading', ['no']]] })).status).toBe(400);
+    expect((await call('PUT', `/notes/${page.id}/content`, { blocks: [['poem', 'no']] })).status).toBe(400);
+    expect((await call('PUT', `/notes/${page.id}/content`, {})).status).toBe(400);
+    expect((await call('PUT', `/notes/${page.id}/content`, { text: 'First line\nSecond line' })).status).toBe(200);
+    await vi.waitFor(async () => expect((await call('GET', `/notes/${page.id}/content`)).body.text).toContain('Second line'), { timeout: 10_000 });
+    expect((await owner.call('GET', `/notes/${page.id}/versions`)).body.length).toBeGreaterThanOrEqual(1);
+    const mine = await strata.item(home, 'Private');
+    expect((await call('GET', `/notes/${mine.id}/content`)).status).toBe(404);
+    expect((await call('PUT', `/notes/${mine.id}/content`, { text: 'Nope' })).status).toBe(404);
+    expect((await owner.call('GET', `/notes/${mine.id}/content`)).body).toEqual({ text: '' });
   });
 });

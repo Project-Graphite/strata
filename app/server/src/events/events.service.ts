@@ -249,9 +249,9 @@ export class EventsService implements OnModuleInit {
         select: { id: true, spaceId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true } } },
         take: 1_000,
       }),
-      this.prisma.item.findMany({
-        where: { ...readable, kind: ItemKind.SUBSCRIPTION, subscription: { cancelledOn: null, nextRenewal: { lte: toDay } } },
-        select: { id: true, spaceId: true, title: true, subscription: { select: { repeatRule: true, startDate: true, timeZone: true, nextRenewal: true, amountMinor: true, currency: true } } },
+      this.prisma.subscription.findMany({
+        where: { userId, cancelledOn: null, nextRenewal: { lte: toDay } },
+        select: { id: true, name: true, repeatRule: true, startDate: true, timeZone: true, nextRenewal: true },
         take: 1_000,
       }),
       this.prisma.subscribedEvent.findMany({
@@ -266,8 +266,8 @@ export class EventsService implements OnModuleInit {
             take: 2_000,
           })
         : [],
-      this.prisma.installmentPlan.findMany({ where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId) }, take: 1_000 }),
-      this.prisma.moneyAccount.findMany({ where: { ...(spaceId ? { spaceId } : {}), space: this.access.spacesOf(userId), kind: 'credit_card', dueDay: { not: null } }, take: 1_000 }),
+      this.prisma.installmentPlan.findMany({ where: { userId }, take: 1_000 }),
+      this.prisma.moneyAccount.findMany({ where: { userId, kind: 'credit_card', dueDay: { not: null } }, take: 1_000 }),
     ]);
     const times = (event: EventTimes, slot: Slot) => ({
       allDay: !event.startTime,
@@ -306,9 +306,8 @@ export class EventsService implements OnModuleInit {
           ? [{ kind: 'task' as const, itemId: item.id, spaceId: item.spaceId, title: item.title, allDay: !task.dueTime, start: task.dueTime ? due.toISOString() : dateText(task.dueDate!), end: null, location: null }]
           : [];
       }),
-      ...subscriptions.flatMap((item) => {
-        const details = item.subscription!;
-        return occurrences(
+      ...subscriptions.flatMap((details) =>
+        occurrences(
           parseRule(details.repeatRule),
           { date: dateText(details.startDate), time: '00:00', timeZone: details.timeZone },
           { from: instant(details.nextRenewal, null, details.timeZone), to: end },
@@ -316,8 +315,8 @@ export class EventsService implements OnModuleInit {
         )
           .map((at) => localDate(details.timeZone, at))
           .filter((day) => day >= from && day < to)
-          .map((day) => ({ kind: 'renewal' as const, itemId: item.id, spaceId: item.spaceId, title: item.title, allDay: true, start: day, end: null, location: null }));
-      }),
+          .map((day) => ({ kind: 'renewal' as const, itemId: details.id, spaceId: null, title: details.name, allDay: true, start: day, end: null, location: null })),
+      ),
       ...people.flatMap((item) => {
         const person = item.person!;
         return birthdaysBetween(person.birthdayMonth!, person.birthdayDay!, from, to).map((day) => ({
@@ -335,12 +334,12 @@ export class EventsService implements OnModuleInit {
         dueDates(plan)
           .slice(plan.paidCount)
           .filter((day) => day >= from && day < to)
-          .map((day) => ({ kind: 'payment' as const, itemId: plan.id, spaceId: plan.spaceId, title: `${plan.name} installment`, allDay: true, start: day, end: null, location: null })),
+          .map((day) => ({ kind: 'payment' as const, itemId: plan.id, spaceId: null, title: `${plan.name} installment`, allDay: true, start: day, end: null, location: null })),
       ),
       ...cards.flatMap((account) => {
         const days: string[] = [];
         for (let day = nextCardDue(from, account.dueDay!); day < to; day = addMonths(`${day.slice(0, 8)}${String(account.dueDay).padStart(2, '0')}`, 1)) days.push(day);
-        return days.map((day) => ({ kind: 'payment' as const, itemId: account.id, spaceId: account.spaceId, title: `${account.name} payment due`, allDay: true, start: day, end: null, location: null }));
+        return days.map((day) => ({ kind: 'payment' as const, itemId: account.id, spaceId: null, title: `${account.name} payment due`, allDay: true, start: day, end: null, location: null }));
       }),
     ];
     return entries.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : Number(b.allDay) - Number(a.allDay)));

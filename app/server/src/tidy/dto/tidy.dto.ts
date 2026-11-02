@@ -3,11 +3,11 @@ import { itemKinds } from '../../items/dto/items.dto';
 import { fileTypes } from '../file-types';
 import { Trimmed } from '../../validation/trimmed.decorator';
 
-export const tidyActions = ['archive', 'trash', 'tag', 'cancel'] as const;
+export const tidyActions = ['archive', 'trash', 'tag'] as const;
 export type TidyActionName = (typeof tidyActions)[number];
 
 export class TidyActionDto {
-  @IsIn(tidyActions, { message: 'Choose archive, trash, tag or cancel.' })
+  @IsIn(tidyActions, { message: 'Choose archive, trash or tag.' })
   action!: TidyActionName;
 
   @IsArray()

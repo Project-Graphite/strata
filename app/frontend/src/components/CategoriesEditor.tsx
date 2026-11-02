@@ -13,7 +13,7 @@ interface Row extends SpendingCategory {
 
 const colourOptions = tagColors.map((colour) => ({ value: colour, label: categoryName(colour), leading: <span aria-hidden="true" className={`swatch-dot tag-${colour}`} /> }));
 
-export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { categories: SpendingCategory[]; onClose: () => void; onSaved: () => void; spaceId: string }) {
+export function CategoriesEditor({ categories, onClose, onSaved }: { categories: SpendingCategory[]; onClose: () => void; onSaved: () => void }) {
   const auth = useAuth();
   const saving = useAction();
   const [rows, setRows] = useState<Row[]>(categories.map((category, key) => ({ ...category, name: categoryName(category.name), key, previous: category.name })));
@@ -27,7 +27,7 @@ export function CategoriesEditor({ categories, onClose, onSaved, spaceId }: { ca
       return next;
     });
   const save = () =>
-    auth.request(`/spaces/${spaceId}/spending-categories`, {
+    auth.request(`/me/spending-categories`, {
       method: 'PUT',
       body: JSON.stringify({
         categories: rows.map(({ name, colour, icon, kind, previous }) => ({

@@ -19,16 +19,16 @@ function agendaData(view: AgendaView) {
   return ['/me', '/me/calendars', agendaPath(from, to)];
 }
 
-const firstData: Record<string, (personal?: string) => string[]> = {
+const firstData: Record<string, () => string[]> = {
   '/tasks': () => ['/me', '/me/lists', taskPage('/me/tasks', 1)],
-  '/spending': (personal) => ['/me', ...(personal ? ['spending', 'accounts', 'captures', 'spending-categories'].map((part) => `/spaces/${personal}/${part}`) : [])],
+  '/spending': () => ['/me', '/me/spending', '/me/accounts', '/me/captures', '/me/spending-categories'],
   ...Object.fromEntries((['day', 'week', 'month', 'list'] as const).map((view) => [`/agenda/${view}`, () => agendaData(view)])),
 };
 
 function prefetchData(pathname: string, userId: string, request: Request) {
   const paths = firstData[pathname];
   if (!paths) return;
-  for (const path of ['/spaces', ...paths(storedSpace('personal', userId))]) cachedRequest(request, userId, path, storedSpace('active', userId))?.catch(() => undefined);
+  for (const path of ['/spaces', ...paths()]) cachedRequest(request, userId, path, storedSpace(userId))?.catch(() => undefined);
 }
 
 export function prefetchRoute(href: string, viewer?: { id: string; request: Request }) {

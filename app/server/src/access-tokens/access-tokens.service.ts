@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { AccessService } from '../access/access.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { linkTokenHash } from '../crypto/link-token';
@@ -13,6 +14,7 @@ const maxActiveTokens = 20;
 const tokenFields = {
   id: true,
   name: true,
+  spaceId: true,
   scopes: true,
   lastUsedAt: true,
   expiresAt: true,
@@ -23,6 +25,7 @@ const tokenFields = {
 export class AccessTokensService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly access: AccessService,
     private readonly auth: AuthService,
     private readonly audit: AuditService,
   ) {}
@@ -40,10 +43,12 @@ export class AccessTokensService {
     if ((await this.list(userId)).length >= maxActiveTokens) {
       throw new ConflictException(`You can have ${maxActiveTokens} tokens at once. Revoke one you no longer use.`);
     }
+    if (input.spaceId) await this.access.assertSpace(userId, input.spaceId, 'read');
     const token = `${tokenPrefix}${randomBytes(32).toString('base64url')}`;
     const created = await this.prisma.accessToken.create({
       data: {
         userId,
+        spaceId: input.spaceId ?? null,
         name: input.name,
         tokenHash: linkTokenHash(token),
         scopes: input.scopes,

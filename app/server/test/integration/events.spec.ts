@@ -45,7 +45,7 @@ describe('Events and the agenda against Postgres', () => {
     expect(practice).toMatchObject({ title: 'Practice', startTime: '18:00', endsOn: utcDate(1), repeatRule: 'FREQ=WEEKLY;COUNT=3', headcount: { yes: 0 } });
     await owner.call('POST', `/spaces/${space.id}/events`, { title: 'Picnic', startsOn: utcDate(3) });
     await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Book the hall', dueDate: utcDate(2) });
-    await owner.call('POST', `/spaces/${space.id}/subscriptions`, {
+    await owner.call('POST', '/me/subscriptions', {
       name: 'Hall hire',
       amountMinor: 2000,
       currency: 'EUR',
@@ -61,7 +61,8 @@ describe('Events and the agenda against Postgres', () => {
     ]);
     expect(agenda.find((entry: { title: string }) => entry.title === 'Picnic')).toMatchObject({ kind: 'event', allDay: true, start: utcDate(3), end: utcDate(3) });
     expect(agenda.find((entry: { title: string }) => entry.title === 'Book the hall')).toMatchObject({ kind: 'task', allDay: true, start: utcDate(2) });
-    expect(agenda.find((entry: { title: string }) => entry.title === 'Hall hire')).toMatchObject({ kind: 'renewal', start: utcDate(5) });
+    expect(agenda.find((entry: { title: string }) => entry.title === 'Hall hire')).toBeUndefined();
+    expect((await owner.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body.find((entry: { title: string }) => entry.title === 'Hall hire')).toMatchObject({ kind: 'renewal', spaceId: null, start: utcDate(5) });
     expect((await outsider.call('GET', `/agenda?from=${utcDate(0)}&to=${utcDate(30)}`)).body).toEqual([]);
     expect((await outsider.call('GET', `/events/${practice.id}`)).status).toBe(404);
     expect((await viewer.call('PATCH', `/events/${practice.id}`, { title: 'Mine' })).status).toBe(403);

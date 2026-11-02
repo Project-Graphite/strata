@@ -10,35 +10,35 @@ import { CreateAccountDto, CreateCardDto, ReconcileAccountDto, UpdateAccountDto,
 export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}
 
-  @Get('spaces/:spaceId/accounts')
+  @Get('me/accounts')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.accounts.list(user.id, spaceId);
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.accounts.list(user.id);
   }
 
-  @Get('spaces/:spaceId/cards')
+  @Get('me/cards')
   @Scope('items:read')
-  cards(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.accounts.cards(user.id, spaceId);
+  cards(@CurrentUser() user: AuthenticatedUser) {
+    return this.accounts.cards(user.id);
   }
 
-  @Get('spaces/:spaceId/cards/seen')
+  @Get('me/cards/seen')
   @Scope('items:read')
-  seenCards(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.accounts.seenCards(user.id, spaceId);
+  seenCards(@CurrentUser() user: AuthenticatedUser) {
+    return this.accounts.seenCards(user.id);
   }
 
-  @Delete('spaces/:spaceId/cards/seen/:digits')
+  @Delete('me/cards/seen/:digits')
   @Scope('items:write')
   @HttpCode(204)
-  forgetSeenCard(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Param('digits') digits: string) {
-    return this.accounts.forgetSeenCard(user.id, spaceId, digits);
+  forgetSeenCard(@CurrentUser() user: AuthenticatedUser, @Param('digits') digits: string) {
+    return this.accounts.forgetSeenCard(user.id, digits);
   }
 
-  @Post('spaces/:spaceId/accounts')
+  @Post('me/accounts')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateAccountDto) {
-    return this.accounts.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateAccountDto) {
+    return this.accounts.create(user.id, input);
   }
 
   @Patch('accounts/:id')

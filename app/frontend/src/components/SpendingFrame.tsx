@@ -6,7 +6,6 @@ import { useAuth } from '../auth';
 import { saveBlob } from '../files';
 import { phoneCaptureAttention, useNativeCaptureStatus } from '../native-capture';
 import { spendingTabs, useCategories, type MoneyAccount, type SpendingCategory, type SpendingTab } from '../spending';
-import { usePersonalSpace } from '../spaces';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -29,9 +28,8 @@ export interface SpendingFirstRun {
 }
 
 export function SpendingFirstRunSkeleton({ empty }: { empty: SpendingFirstRun }) {
-  const { space, editable } = usePersonalSpace();
   return (
-    <Empty action={(!space || editable) && <Button icon="plus" label="New transaction" primary />} icon="wallet" loading title={empty.title} variant="page">
+    <Empty action={<Button icon="plus" label="New transaction" primary />} icon="wallet" loading title={empty.title} variant="page">
       {empty.hint}
     </Empty>
   );
@@ -57,42 +55,33 @@ export function SpendingFrame({
   toolbar?: ReactNode;
 }) {
   const [params] = useSearchParams();
-  const { spaceId, space, editable } = usePersonalSpace();
   const [dialog, setDialog] = useState<'new' | 'import' | 'export' | 'phone' | 'categories' | 'rules'>();
-  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'import' || dialog === 'phone' || dialog === 'rules') && !accounts && spaceId ? `/spaces/${spaceId}/accounts` : null, true);
-  const loadedCategories = useCategories(dialog === 'categories' && !categories ? spaceId : null);
+  const loadedAccounts = useResource<MoneyAccount[]>((dialog === 'new' || dialog === 'import' || dialog === 'phone' || dialog === 'rules') && !accounts ? '/me/accounts' : null, true);
+  const loadedCategories = useCategories(dialog === 'categories' && !categories);
   const editedCategories = categories ?? loadedCategories.data;
   const me = useResource<{ budgetsEnabled: boolean }>('/me', true);
   const nativeCapture = useNativeCaptureStatus();
   const phone = nativeCapture.status;
-  const attention = phone && editable ? phoneCaptureAttention(phone) : null;
+  const attention = phone ? phoneCaptureAttention(phone) : null;
 
   return (
     <Page
       actions={
-        spaceId && (
-          <>
-            <ActionsMenu
-              items={[
-                ...(editable
-                  ? [
-                      { label: 'Import a statement', onSelect: () => setDialog('import') },
-                      { label: 'Connect your phone', onSelect: () => setDialog('phone') },
-                      { label: 'Edit categories', onSelect: () => setDialog('categories') },
-                      { label: 'Edit rules', onSelect: () => setDialog('rules') },
-                    ]
-                  : []),
-                { label: 'Export CSV', onSelect: () => setDialog('export') },
-              ]}
-              name="spending"
-            />
-            {editable && (
-              <span className="page-primary-action">
-                <AddButton label="New transaction" large onClick={() => setDialog('new')} primary />
-              </span>
-            )}
-          </>
-        )
+        <>
+          <ActionsMenu
+            items={[
+              { label: 'Import a statement', onSelect: () => setDialog('import') },
+              { label: 'Connect your phone', onSelect: () => setDialog('phone') },
+              { label: 'Edit categories', onSelect: () => setDialog('categories') },
+              { label: 'Edit rules', onSelect: () => setDialog('rules') },
+              { label: 'Export CSV', onSelect: () => setDialog('export') },
+            ]}
+            name="spending"
+          />
+          <span className="page-primary-action">
+            <AddButton label="New transaction" large onClick={() => setDialog('new')} primary />
+          </span>
+        </>
       }
       tabs={spendingTabs(tab, params, me.data?.budgetsEnabled !== false)}
       title="Spending"
@@ -112,37 +101,35 @@ export function SpendingFrame({
         </Banner>
       )}
       {empty && (
-        <Empty action={editable && <Button icon="plus" label="New transaction" onClick={() => setDialog('new')} primary />} icon="wallet" title={empty.title} variant="page">
+        <Empty action={<Button icon="plus" label="New transaction" onClick={() => setDialog('new')} primary />} icon="wallet" title={empty.title} variant="page">
           {empty.hint}
         </Empty>
       )}
       {children}
-      {editable && (
-        <div className="fab-clearance">
-          <button aria-label="New transaction" className="fab" onClick={() => setDialog('new')} type="button">
-            <Icon name="plus" size={20} />
-          </button>
-        </div>
-      )}
+      <div className="fab-clearance">
+        <button aria-label="New transaction" className="fab" onClick={() => setDialog('new')} type="button">
+          <Icon name="plus" size={20} />
+        </button>
+      </div>
       <Suspense fallback={null}>
-        {spaceId && dialog === 'new' && (
-          <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
+        {dialog === 'new' && (
+          <AddTransaction accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} />
         )}
-        {spaceId && dialog === 'import' && <ExpenseImport accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
-        {spaceId && dialog === 'export' && <ExportDialog onClose={() => setDialog(undefined)} spaceId={spaceId} />}
-        {spaceId && space && dialog === 'phone' && (
-          <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => { setDialog(undefined); nativeCapture.refresh(); }} spaceId={spaceId} spaceName={space.name} />
+        {dialog === 'import' && <ExpenseImport accounts={accounts ?? loadedAccounts.data ?? []} currency={currency} onAdded={() => onChanged?.()} onClose={() => setDialog(undefined)} />}
+        {dialog === 'export' && <ExportDialog onClose={() => setDialog(undefined)} />}
+        {dialog === 'phone' && (
+          <PhoneSetup accounts={accounts ?? loadedAccounts.data ?? []} onChanged={onChanged} onClose={() => { setDialog(undefined); nativeCapture.refresh(); }} />
         )}
-        {spaceId && editedCategories && dialog === 'categories' && (
-          <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} spaceId={spaceId} />
+        {editedCategories && dialog === 'categories' && (
+          <CategoriesEditor categories={editedCategories} onClose={() => setDialog(undefined)} onSaved={() => onChanged?.()} />
         )}
-        {spaceId && dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} spaceId={spaceId} />}
+        {dialog === 'rules' && <RulesEditor accounts={accounts ?? loadedAccounts.data ?? []} onClose={() => setDialog(undefined)} />}
       </Suspense>
     </Page>
   );
 }
 
-function ExportDialog({ onClose, spaceId }: { onClose: () => void; spaceId: string }) {
+function ExportDialog({ onClose }: { onClose: () => void }) {
   const auth = useAuth();
   const saving = useAction();
   const [from, setFrom] = useState('');
@@ -157,7 +144,7 @@ function ExportDialog({ onClose, spaceId }: { onClose: () => void; spaceId: stri
       onSubmit={() =>
         void saving
           .run(async () => {
-            saveBlob(await auth.request<Blob>(`/spaces/${spaceId}/expenses/export${range ? `?${range}` : ''}`, {}, readBlob), `transactions${from ? `-${from}` : ''}${until ? `-to-${until}` : ''}.csv`);
+            saveBlob(await auth.request<Blob>(`/me/expenses/export${range ? `?${range}` : ''}`, {}, readBlob), `transactions${from ? `-${from}` : ''}${until ? `-to-${until}` : ''}.csv`);
             return '';
           }, 'Could not export the transactions')
           .then((done) => done && onClose())

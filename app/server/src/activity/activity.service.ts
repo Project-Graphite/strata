@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const pageSize = 50;
 
-const verbTopics: Record<string, Topic> = { task: 'tasks', subscription: 'subscriptions', space: 'spaces', member: 'spaces' };
+const verbTopics: Record<string, Topic> = { task: 'tasks', space: 'spaces', member: 'spaces' };
 
 export const activityVerbs = [
   'space.updated',
@@ -21,9 +21,6 @@ export const activityVerbs = [
   'item.deleted',
   'task.completed',
   'task.reopened',
-  'subscription.renewed',
-  'subscription.cancelled',
-  'subscription.resumed',
   'tag.created',
   'tag.updated',
   'tag.deleted',

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ListRow, Placeholder, Stat, StatGrid } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, Stat, StatGrid } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { currencyName } from '../choices';
-import { useSpaces } from '../spaces';
 import { categoryLabel, money, type Subscription } from '../subscriptions';
 import { capitalised, formatDate } from '../time';
 import { useAction } from '../useAction';
@@ -42,16 +41,14 @@ const unusedDescription = 'Nobody has marked these as used in two months.';
 
 export function RecurringPage() {
   const auth = useAuth();
-  const spaces = useSpaces();
   const summary = useResource<Summary>('/subscriptions/summary', true, { live: ['subscriptions', 'spending'] });
   const action = useAction();
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Subscription | 'new'>();
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const opener = (subscription: Subscription) => (editable.some((space) => space.id === subscription.spaceId) ? () => setEditing(subscription) : undefined);
+  const [deleting, setDeleting] = useState<Subscription>();
   const [params, setParams] = useSearchParams();
   const linked = useResource<Subscription>(params.get('subscription') ? `/subscriptions/${params.get('subscription')}` : null, true);
-  const opened = editing ?? (linked.data && opener(linked.data) ? linked.data : undefined);
+  const opened = editing ?? linked.data;
   const currency = summary.data?.home?.currency ?? summary.data?.totals[0]?.currency ?? 'EGP';
   const [statCount, trialRows, renewalRows, categoryRows, unusedRows] = useRememberedShape(
     'recurring',
@@ -76,9 +73,14 @@ export function RecurringPage() {
     <ListRow
       key={subscription.id}
       meta={detail}
-      onClick={opener(subscription)}
+      onClick={() => setEditing(subscription)}
       title={subscription.name}
-      trail={<Amount currency={subscription.currency} minor={subscription.amountMinor} />}
+      trail={
+        <>
+          <Amount currency={subscription.currency} minor={subscription.amountMinor} />
+          <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDeleting(subscription) }]} name={subscription.name} />
+        </>
+      }
     />
   );
 
@@ -96,12 +98,10 @@ export function RecurringPage() {
           )}
           <Section
             action={
-              (!spaces.data || editable.length > 0) && (
-                <span className="flex items-center gap-2">
-                  <IconButtonSkeleton />
-                  <AddButtonSkeleton />
-                </span>
-              )
+              <span className="flex items-center gap-2">
+                <IconButtonSkeleton />
+                <AddButtonSkeleton />
+              </span>
             }
             title="Next renewals"
           >
@@ -170,12 +170,10 @@ export function RecurringPage() {
           )}
           <Section
             action={
-              editable.length > 0 && (
-                <span className="flex items-center gap-2">
-                  <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
-                  <AddButton label="New subscription" onClick={() => setEditing('new')} />
-                </span>
-              )
+              <span className="flex items-center gap-2">
+                <ActionsMenu items={[{ label: 'Import subscriptions from a statement', onSelect: () => setImporting(true) }]} name="subscriptions" />
+                <AddButton label="New subscription" onClick={() => setEditing('new')} />
+              </span>
             }
             title="Next renewals"
           >
@@ -214,7 +212,7 @@ export function RecurringPage() {
                 {summary.data.stillWorthIt.map((subscription) => (
                   <ListRow
                     key={subscription.id}
-                    onClick={opener(subscription)}
+                    onClick={() => setEditing(subscription)}
                     title={subscription.name}
                     trail={
                       <>
@@ -242,13 +240,23 @@ export function RecurringPage() {
           )}
         </>
       )}
-      {opened && (
-        <SubscriptionEditor
-          onClose={close}
-          onSaved={summary.reload}
-          spaceId={opened === 'new' ? (editable.find((space) => space.kind === 'personal') ?? editable[0])!.id : opened.spaceId}
-          subscription={opened === 'new' ? undefined : opened}
-        />
+      {opened && <SubscriptionEditor onClose={close} onSaved={summary.reload} subscription={opened === 'new' ? undefined : opened} />}
+      {deleting && (
+        <ConfirmDialog
+          busyLabel="Deleting…"
+          confirmLabel="Delete"
+          errorFallback="Could not delete the subscription"
+          onClose={() => setDeleting(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/subscriptions/${deleting.id}`, { method: 'DELETE' });
+            summary.reload();
+            action.report(`Deleted ${deleting.name}.`);
+          }}
+          title={`Delete ${deleting.name}?`}
+          tone="danger"
+        >
+          Its price history and reminders go with it, and this can’t be undone.
+        </ConfirmDialog>
       )}
       {importing && <StatementImport defaultCurrency={currency} onAdded={summary.reload} onClose={() => setImporting(false)} />}
     </SpendingFrame>

@@ -149,7 +149,6 @@ export function SpaceLayout() {
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;
   const sections = [
-    [`${base}/recurring`, 'Recurring'],
     [`${base}/habits`, 'Habits'],
     [`${base}/tags`, 'Tags'],
     [`${base}/activity`, 'Activity'],

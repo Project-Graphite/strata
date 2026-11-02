@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { MoneyAccount, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService, RateTable } from '../exchange-rates/exchange-rates.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,7 +15,7 @@ export interface AccountFlow {
   direction: string;
   accountId: string | null;
   toAccountId: string | null;
-  item: { createdAt: Date };
+  createdAt: Date;
 }
 
 export const cardKindOf = (accountKind: string) => (accountKind === 'credit_card' ? 'credit' : accountKind === 'prepaid' ? 'prepaid' : 'debit');
@@ -28,7 +27,7 @@ export function balanceOf(account: Pick<MoneyAccount, 'id' | 'currency' | 'balan
   const missing = new Set<string>();
   let balanceMinor = Number(account.balanceMinor);
   for (const flow of flows) {
-    if (flow.item.createdAt <= account.balanceAt) continue;
+    if (flow.createdAt <= account.balanceAt) continue;
     const sign = flowSign(account.id, flow);
     if (!sign) continue;
     const amount = flow.currency === account.currency ? Number(flow.amountMinor) : convertMinor(Number(flow.amountMinor), flow.currency, account.currency, rates);
@@ -42,28 +41,25 @@ export function balanceOf(account: Pick<MoneyAccount, 'id' | 'currency' | 'balan
 export class AccountsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: AccessService,
     private readonly rates: ExchangeRatesService,
     private readonly changes: ChangesService,
   ) {}
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    return this.balances(await this.prisma.moneyAccount.findMany({ where: { spaceId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }));
+  async list(userId: string) {
+    return this.balances(await this.prisma.moneyAccount.findMany({ where: { userId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }));
   }
 
-  async cards(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
+  async cards(userId: string) {
     const [owned, paid] = await Promise.all([
       this.prisma.card.findMany({
-        where: { account: { spaceId } },
+        where: { account: { userId } },
         orderBy: [{ account: { position: 'asc' } }, { account: { createdAt: 'asc' } }, { position: 'asc' }],
         select: { last4: true, accountId: true },
       }),
       this.prisma.expense.findMany({
-        where: { cardDigits: { not: null }, item: { spaceId, trashedAt: null } },
+        where: { userId, trashedAt: null, cardDigits: { not: null } },
         distinct: ['cardDigits'],
-        orderBy: { item: { createdAt: 'desc' } },
+        orderBy: { createdAt: 'desc' },
         select: { cardDigits: true, accountId: true },
       }),
     ]);
@@ -72,10 +68,9 @@ export class AccountsService {
     return [...cards].map(([digits, accountId]) => ({ digits, accountId }));
   }
 
-  async seenCards(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    const saved = await this.prisma.card.findMany({ where: { account: { spaceId } }, select: { last4: true } });
-    const where = { cardDigits: { not: null, notIn: saved.map((card) => card.last4) }, item: { spaceId, trashedAt: null } } satisfies Prisma.ExpenseWhereInput;
+  async seenCards(userId: string) {
+    const saved = await this.prisma.card.findMany({ where: { account: { userId } }, select: { last4: true } });
+    const where = { userId, trashedAt: null, cardDigits: { not: null, notIn: saved.map((card) => card.last4) } } satisfies Prisma.ExpenseWhereInput;
     const [counts, latest] = await Promise.all([
       this.prisma.expense.groupBy({ by: ['cardDigits'], where, _count: { _all: true }, _max: { spentOn: true } }),
       this.prisma.expense.findMany({ where, distinct: ['cardDigits'], orderBy: { spentOn: 'desc' }, select: { cardDigits: true, accountId: true } }),
@@ -90,38 +85,36 @@ export class AccountsService {
       .sort((a, b) => b.lastSpentOn.localeCompare(a.lastSpentOn));
   }
 
-  async forgetSeenCard(userId: string, spaceId: string, digits: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
+  async forgetSeenCard(userId: string, digits: string) {
     if (!/^\d{4}$/.test(digits)) throw new BadRequestException('Card endings are the last 4 digits.');
-    if (await this.prisma.card.count({ where: { last4: digits, account: { spaceId } } })) throw new ConflictException(`The card ending in ${digits} is saved on an account`);
-    await this.prisma.expense.updateMany({ where: { cardDigits: digits, cardId: null, item: { spaceId } }, data: { cardDigits: null } });
-    this.changes.notify('spending', { spaceId });
+    if (await this.prisma.card.count({ where: { last4: digits, account: { userId } } })) throw new ConflictException(`The card ending in ${digits} is saved on an account`);
+    await this.prisma.expense.updateMany({ where: { userId, cardDigits: digits, cardId: null }, data: { cardDigits: null } });
+    this.changes.notify('spending', { userId });
   }
 
-  async create(userId: string, spaceId: string, input: CreateAccountDto) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    await this.assertFunding(spaceId, input.fundedByAccountId, null);
+  async create(userId: string, input: CreateAccountDto) {
+    await this.assertFunding(userId, input.fundedByAccountId, null);
     const { cardDigits = [], senders = [], balanceMinor = 0, ...details } = input;
     const kind = input.kind ?? 'bank_current';
     const account = await this.prisma.moneyAccount.create({
       data: {
         ...details,
-        spaceId,
+        userId,
         kind,
         senders: [...new Set(senders)],
         balanceMinor,
-        position: await this.prisma.moneyAccount.count({ where: { spaceId } }),
+        position: await this.prisma.moneyAccount.count({ where: { userId } }),
         cards: { create: [...new Set(cardDigits)].map((last4, position) => ({ last4, position, kind: cardKindOf(kind) })) },
         balances: { create: { balanceMinor, source: 'manual' } },
       },
     });
-    this.changes.notify('spending', { spaceId });
+    this.changes.notify('spending', { userId });
     return (await this.balances([account]))[0]!;
   }
 
   async update(userId: string, id: string, input: UpdateAccountDto) {
     const existing = await this.find(userId, id);
-    await this.assertFunding(existing.spaceId, input.fundedByAccountId, id);
+    await this.assertFunding(userId, input.fundedByAccountId, id);
     const { cardDigits, senders, balanceMinor, archived, ...details } = input;
     const account = await this.prisma.$transaction(async (transaction) => {
       if (cardDigits) {
@@ -145,14 +138,14 @@ export class AccountsService {
         },
       });
     });
-    this.changes.notify('spending', { spaceId: account.spaceId });
+    this.changes.notify('spending', { userId });
     return (await this.balances([account]))[0]!;
   }
 
   async remove(userId: string, id: string) {
     const account = await this.find(userId, id);
     await this.prisma.moneyAccount.delete({ where: { id: account.id } });
-    this.changes.notify('spending', { spaceId: account.spaceId });
+    this.changes.notify('spending', { userId });
   }
 
   async reconcile(userId: string, id: string, balanceMinor: number) {
@@ -161,7 +154,7 @@ export class AccountsService {
       where: { id },
       data: { balanceMinor, balanceAt: new Date(), balances: { create: { balanceMinor, source: 'reconcile' } } },
     });
-    this.changes.notify('spending', { spaceId: account.spaceId });
+    this.changes.notify('spending', { userId });
     return { account: (await this.balances([account]))[0]!, differenceMinor: balanceMinor - before!.balanceMinor };
   }
 
@@ -183,7 +176,7 @@ export class AccountsService {
       await transaction.expense.updateMany({ where: { accountId, cardDigits: input.last4, cardId: null }, data: { cardId: created.id } });
       return created;
     });
-    this.changes.notify('spending', { spaceId: account.spaceId });
+    this.changes.notify('spending', { userId });
     return card;
   }
 
@@ -198,20 +191,19 @@ export class AccountsService {
         select: cardFields,
       });
     });
-    this.changes.notify('spending', { spaceId: existing.account.spaceId });
+    this.changes.notify('spending', { userId });
     return card;
   }
 
   async removeCard(userId: string, id: string) {
-    const card = await this.findCard(userId, id);
+    await this.findCard(userId, id);
     await this.prisma.card.delete({ where: { id } });
-    this.changes.notify('spending', { spaceId: card.account.spaceId });
+    this.changes.notify('spending', { userId });
   }
 
   private async findCard(userId: string, id: string) {
-    const card = await this.prisma.card.findUnique({ where: { id }, include: { account: { select: { spaceId: true } } } });
+    const card = await this.prisma.card.findFirst({ where: { id, account: { userId } } });
     if (!card) throw new NotFoundException('Card not found');
-    await this.access.assertPersonalSpace(userId, card.account.spaceId);
     return card;
   }
 
@@ -220,16 +212,15 @@ export class AccountsService {
   }
 
   private async find(userId: string, id: string) {
-    const account = await this.prisma.moneyAccount.findUnique({ where: { id } });
+    const account = await this.prisma.moneyAccount.findFirst({ where: { id, userId } });
     if (!account) throw new NotFoundException('Account not found');
-    await this.access.assertPersonalSpace(userId, account.spaceId);
     return account;
   }
 
-  private async assertFunding(spaceId: string, fundedByAccountId: string | null | undefined, accountId: string | null) {
+  private async assertFunding(userId: string, fundedByAccountId: string | null | undefined, accountId: string | null) {
     if (!fundedByAccountId) return;
     if (fundedByAccountId === accountId) throw new BadRequestException('An account cannot fund itself');
-    if (!(await this.prisma.moneyAccount.count({ where: { id: fundedByAccountId, spaceId } }))) throw new BadRequestException('Choose an account from this space');
+    if (!(await this.prisma.moneyAccount.count({ where: { id: fundedByAccountId, userId } }))) throw new BadRequestException('Choose one of your accounts');
   }
 
   async balances(accounts: MoneyAccount[]) {
@@ -237,8 +228,8 @@ export class AccountsService {
     const ids = accounts.map((account) => account.id);
     const [flows, cards, history, rates] = await Promise.all([
       this.prisma.expense.findMany({
-        where: { item: { trashedAt: null }, OR: [{ accountId: { in: ids } }, { toAccountId: { in: ids } }] },
-        select: { amountMinor: true, currency: true, direction: true, accountId: true, toAccountId: true, item: { select: { createdAt: true } } },
+        where: { trashedAt: null, OR: [{ accountId: { in: ids } }, { toAccountId: { in: ids } }] },
+        select: { amountMinor: true, currency: true, direction: true, accountId: true, toAccountId: true, createdAt: true },
       }),
       this.prisma.card.findMany({ where: { accountId: { in: ids } }, orderBy: { position: 'asc' }, select: { ...cardFields, accountId: true } }),
       this.prisma.accountBalance.findMany({
@@ -250,7 +241,6 @@ export class AccountsService {
     ]);
     return accounts.map((account) => ({
       id: account.id,
-      spaceId: account.spaceId,
       name: account.name,
       kind: account.kind,
       currency: account.currency,

@@ -53,7 +53,7 @@ export class SpacesService {
 
   async list(userId: string) {
     const memberships = await this.prisma.spaceMember.findMany({
-      where: { userId },
+      where: { userId, space: this.access.spacesOf(userId) },
       select: { role: true, space: { select: spaceFields } },
     });
     return memberships

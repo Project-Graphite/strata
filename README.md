@@ -19,12 +19,13 @@ and files, built by Project Graphite.
   link.
 - **Bookmarks**: saved links with a read-later list and a reader view.
 - **Journal**: a daily journal with a mood, and a one-click weekly review page.
-- **Recurring**: subscriptions with renewals, price history, reminders, home-currency totals at ECB
-  rates, bank statement suggestions and shared splits; habits with check-ins and streaks.
-- **Spending**, private to each user: accounts and cards with balance history, budgets,
-  installment plans, insights, net worth with assets and savings goals, statement import and CSV
-  export. The Android app captures bank texts and payment app notifications from allow-listed
-  senders; confident ones are recorded, the rest wait for review.
+- **Spending**, one per account and never shared through a space: accounts and cards with balance
+  history, budgets, installment plans, insights, net worth with assets and savings goals, statement
+  import and CSV export, and recurring subscriptions with renewals, price history, reminders,
+  home-currency totals at ECB rates and bank statement suggestions. The Android app captures bank
+  texts and payment app notifications from allow-listed senders; confident ones are recorded, the
+  rest wait for review.
+- **Habits** with check-ins and streaks.
 - **Files**: uploads, previews and downloads, with metadata stripped.
 - **Spaces**: shared spaces with members, invitations, tags, share links, activity and trash.
 - **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
@@ -32,10 +33,11 @@ and files, built by Project Graphite.
 - **Confirmations**: deleting for good, discarding edits and cutting off someone's access ask first.
   One-time secrets, such as tokens and recovery codes, stay on screen until you confirm you saved
   them.
-- **Optional features**, turned on in Settings: Goals, People, Recipes and meals, Tidy and Trips.
-  Tidy suggests stale items to clear, with bulk actions, undo and tagging rules.
+- **Optional features**, turned on in Settings: Goals, People, Recipes and meals and Tidy. Tidy
+  suggests stale uploads to clear, with bulk actions, undo and tagging rules.
 - **Inbox**: notices in the app and as push notifications to chosen devices.
-- **Search** and a command palette, an installable app, personal access tokens and webhooks.
+- **Search** and a command palette, an installable app, personal access tokens that can be limited
+  to one space and can write page content, and webhooks.
 - **Accounts**:
   - registration with email verification and resendable links;
   - sign-in with rotating refresh sessions and reuse detection, rate-limited per session, so people

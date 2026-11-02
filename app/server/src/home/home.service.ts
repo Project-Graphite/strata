@@ -23,15 +23,15 @@ export class HomeService {
   async summary(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true, features: true } });
     const today = localDate(user.timeZone);
-    const personal = user.features.includes('spending') ? await this.prisma.space.findFirst({ where: { personalOwnerId: userId }, select: { id: true } }) : null;
+    const money = user.features.includes('spending');
     const [agenda, due, invitations, inbox, month, plans, toReview] = await Promise.all([
       this.events.agenda(userId, today, dateText(new Date(dateValue(today).getTime() + 7 * dayMs))),
       this.tasks.today(userId),
       this.invitations.received(userId),
       this.inbox.summary(userId),
-      personal ? this.spending.month(userId, personal.id) : null,
-      personal ? this.installments.list(userId, personal.id) : [],
-      personal ? this.prisma.capturedMessage.count({ where: { spaceId: personal.id, status: 'review', textSealed: { not: null } } }) : 0,
+      money ? this.spending.month(userId) : null,
+      money ? this.installments.list(userId) : [],
+      money ? this.prisma.capturedMessage.count({ where: { userId, status: 'review', textSealed: { not: null } } }) : 0,
     ]);
     const now = new Date().toISOString();
     return {
@@ -41,7 +41,7 @@ export class HomeService {
       toReview,
       payments: {
         missed: plans.filter((plan) => plan.status === 'missed').length,
-        upcoming: personal ? agenda.filter((entry) => entry.kind === 'payment').length : 0,
+        upcoming: money ? agenda.filter((entry) => entry.kind === 'payment').length : 0,
       },
       invitations: invitations.length,
       unread: inbox.unread,

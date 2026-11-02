@@ -106,11 +106,11 @@ export function parseChatList(value: string) {
   ];
 }
 
-export function loadCapturePreferences(spaceId: string, accountSenders: string[] = []): CapturePreferences {
+export function loadCapturePreferences(userId: string, accountSenders: string[] = []): CapturePreferences {
   const defaultChats = [...new Set(accountSenders.map((sender) => sender.trim()).filter(Boolean))];
   const defaultApps: DigitalAppId[] = ['instapay', 'nsave', 'paypal'];
   try {
-    const raw = localStorage.getItem(`${prefsPrefix}${spaceId}`);
+    const raw = localStorage.getItem(`${prefsPrefix}${userId}`);
     if (!raw) return { allowedChats: defaultChats, enabledApps: defaultApps };
     const parsed = JSON.parse(raw) as Partial<CapturePreferences>;
     const allowedChats = Array.isArray(parsed.allowedChats)
@@ -125,9 +125,9 @@ export function loadCapturePreferences(spaceId: string, accountSenders: string[]
   }
 }
 
-export function saveCapturePreferences(spaceId: string, prefs: CapturePreferences) {
+export function saveCapturePreferences(userId: string, prefs: CapturePreferences) {
   try {
-    localStorage.setItem(`${prefsPrefix}${spaceId}`, JSON.stringify(prefs));
+    localStorage.setItem(`${prefsPrefix}${userId}`, JSON.stringify(prefs));
   } catch {
     return;
   }

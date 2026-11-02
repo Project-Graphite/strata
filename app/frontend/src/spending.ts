@@ -81,7 +81,6 @@ export interface AccountCard {
 
 export interface MoneyAccount {
   id: string;
-  spaceId: string;
   name: string;
   kind: AccountKind;
   currency: string;
@@ -138,7 +137,6 @@ export const expenseKindOptions: { value: ExpenseKind; label: string }[] = [
 
 export interface Expense {
   id: string;
-  spaceId: string;
   title: string;
   amountMinor: number;
   currency: string;
@@ -157,6 +155,7 @@ export interface Expense {
   toAccountId: string | null;
   cardId: string | null;
   cardDigits: string | null;
+  trashedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -172,7 +171,6 @@ export interface TransactionsPage {
 
 export interface InstallmentPlan {
   id: string;
-  spaceId: string;
   accountId: string | null;
   name: string;
   currency: string;
@@ -199,7 +197,6 @@ export const assetKindOptions = [
 
 export interface Asset {
   id: string;
-  spaceId: string;
   name: string;
   kind: string;
   currency: string;
@@ -221,7 +218,6 @@ export interface NetWorth {
 
 export interface SavingsGoal {
   id: string;
-  spaceId: string;
   accountId: string | null;
   name: string;
   currency: string;
@@ -305,7 +301,7 @@ const spendingTabList: [SpendingTab, string][] = [
 ];
 
 export const spendingHref = (tab: SpendingTab, params?: URLSearchParams) => {
-  const kept = new URLSearchParams([...(params ?? [])].filter(([key]) => key === 'space' || key === 'month')).toString();
+  const kept = new URLSearchParams([...(params ?? [])].filter(([key]) => key === 'month')).toString();
   return `/spending${tab === 'overview' ? '' : `/${tab}`}${kept ? `?${kept}` : ''}`;
 };
 
@@ -314,8 +310,8 @@ export const spendingTabs = (active: SpendingTab, params: URLSearchParams, budge
 
 export const spendingLive: LiveOptions = { live: ['spending', 'items'] };
 
-export function useCategories(spaceId: string | null | undefined) {
-  return useResource<SpendingCategory[]>(spaceId ? `/spaces/${spaceId}/spending-categories` : null, true, spendingLive);
+export function useCategories(enabled = true) {
+  return useResource<SpendingCategory[]>(enabled ? '/me/spending-categories' : null, true, spendingLive);
 }
 
 export const categoryName = (category: string) => category.charAt(0).toUpperCase() + category.slice(1);

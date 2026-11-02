@@ -13,12 +13,11 @@ const spaceId = '10000000-0000-4000-8000-000000000001';
 describe('active workspace', () => {
   it('scopes aggregate reads while retaining filters and replacing a stale space', () => {
     expect(inActiveSpace('/me/tasks?page=2&completed=true&spaceId=old', spaceId)).toBe(`/me/tasks?page=2&completed=true&spaceId=${spaceId}`);
-    expect(inActiveSpace('/subscriptions/summary', spaceId)).toBe(`/subscriptions/summary?spaceId=${spaceId}`);
     expect(inActiveSpace('/agenda?from=2026-10-25&to=2026-10-26', spaceId)).toBe(`/agenda?from=2026-10-25&to=2026-10-26&spaceId=${spaceId}`);
   });
 
   it('keeps explicit resource URLs and account-level APIs unchanged', () => {
-    for (const path of ['/spaces', '/me', '/me/sessions', '/me/dashboards', '/spaces/other/tasks?page=1', '/notes/page', '/me/journal']) {
+    for (const path of ['/spaces', '/me', '/me/sessions', '/me/dashboards', '/spaces/other/tasks?page=1', '/notes/page', '/me/journal', '/subscriptions/summary', '/me/spending']) {
       expect(inActiveSpace(path, spaceId)).toBe(path);
     }
     expect(inActiveSpace('/me/tasks')).toBe('/me/tasks');

@@ -10,7 +10,6 @@ import { Section } from '../components/Page';
 import { AddButtonSkeleton, AmountRowsSkeleton, rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import { assetKindOptions, spendingLive, type Asset, type MoneyAccount, type NetWorth, type SavingsGoal } from '../spending';
-import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { capitalised, formatDate, formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -27,10 +26,9 @@ const emptyAssets = { title: 'No assets yet', hint: 'Add gold, certificates or p
 export function NetWorthPage() {
   const auth = useAuth();
   const action = useAction();
-  const { spaceId, space, editable } = usePersonalSpace();
-  const worth = useResource<NetWorth>(spaceId ? `/spaces/${spaceId}/net-worth` : null, true, spendingLive);
-  const goals = useResource<SavingsGoal[]>(spaceId ? `/spaces/${spaceId}/savings-goals` : null, true, spendingLive);
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
+  const worth = useResource<NetWorth>(`/me/net-worth`, true, spendingLive);
+  const goals = useResource<SavingsGoal[]>(`/me/savings-goals`, true, spendingLive);
+  const accounts = useResource<MoneyAccount[]>(`/me/accounts`, true, spendingLive);
   const [dialog, setDialog] = useState<
     { asset: Asset | null } | { goal: SavingsGoal | null } | { add: SavingsGoal } | { deleteGoal: SavingsGoal } | { deleteAsset: Asset }
   >();
@@ -83,7 +81,7 @@ export function NetWorthPage() {
               ))}
             </StatGrid>
           )}
-          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Savings goals">
+          <Section action={<AddButtonSkeleton />} title="Savings goals">
             {goalRows ? (
               <AmountRowsSkeleton detailed={detailedGoals} metered={goalRows} rows={goalRows} />
             ) : (
@@ -92,7 +90,7 @@ export function NetWorthPage() {
               </Empty>
             )}
           </Section>
-          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Assets">
+          <Section action={<AddButtonSkeleton />} title="Assets">
             {assetRows ? (
               <AmountRowsSkeleton rows={assetRows} />
             ) : (
@@ -114,7 +112,7 @@ export function NetWorthPage() {
           )}
           <MissingRates currencies={worth.data.missing} />
 
-          <Section action={editable && <AddButton label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
+          <Section action={<AddButton label="New savings goal" onClick={() => setDialog({ goal: null })} />} title="Savings goals">
             {goals.data.length === 0 ? (
               <Empty level={3} title={emptyGoals.title}>
                 {emptyGoals.hint}
@@ -125,7 +123,7 @@ export function NetWorthPage() {
                   <ListRow
                     key={goal.id}
                     meta={goalDetail(goal)}
-                    onClick={editable ? () => setDialog({ goal }) : undefined}
+                    onClick={() => setDialog({ goal })}
                     title={goal.name}
                     trail={
                       <>
@@ -134,7 +132,7 @@ export function NetWorthPage() {
                             {` of ${money(goal.targetMinor, goal.currency)}`}
                           </Amount>
                         )}
-                        {editable && (
+                        {
                           <ActionsMenu
                             items={[
                               ...(goal.accountId ? [] : [{ label: 'Add or take out', onSelect: () => setDialog({ add: goal }) }]),
@@ -142,7 +140,7 @@ export function NetWorthPage() {
                             ]}
                             name={goal.name}
                           />
-                        )}
+                        }
                       </>
                     }
                   >
@@ -153,7 +151,7 @@ export function NetWorthPage() {
             )}
           </Section>
 
-          <Section action={editable && <AddButton label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
+          <Section action={<AddButton label="New asset" onClick={() => setDialog({ asset: null })} />} title="Assets">
             {worth.data.assets.length === 0 ? (
               <Empty level={3} title={emptyAssets.title}>
                 {emptyAssets.hint}
@@ -171,12 +169,12 @@ export function NetWorthPage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
-                    onClick={editable ? () => setDialog({ asset }) : undefined}
+                    onClick={() => setDialog({ asset })}
                     title={asset.name}
                     trail={
                       <>
                         <Amount currency={asset.currency} minor={asset.valueMinor} />
-                        {editable && <ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAsset: asset }) }]} name={asset.name} />}
+                        {<ActionsMenu items={[{ label: 'Delete', separated: true, onSelect: () => setDialog({ deleteAsset: asset }) }]} name={asset.name} />}
                       </>
                     }
                   />
@@ -187,17 +185,17 @@ export function NetWorthPage() {
         </>
       )}
 
-      {spaceId && worth.data && dialog && 'asset' in dialog && (
-        <AssetEditor asset={dialog.asset ?? undefined} currency={worth.data.currency} onClose={() => setDialog(undefined)} onSaved={worth.reload} spaceId={spaceId} />
+      {worth.data && dialog && 'asset' in dialog && (
+        <AssetEditor asset={dialog.asset ?? undefined} currency={worth.data.currency} onClose={() => setDialog(undefined)} onSaved={worth.reload} />
       )}
-      {spaceId && worth.data && dialog && 'goal' in dialog && (
+      {worth.data && dialog && 'goal' in dialog && (
         <SavingsGoalEditor
           accounts={accounts.data ?? []}
           currency={worth.data.currency}
           goal={dialog.goal ?? undefined}
           onClose={() => setDialog(undefined)}
           onSaved={goals.reload}
-          spaceId={spaceId}
+         
         />
       )}
       {dialog && 'add' in dialog && <AddToGoal goal={dialog.add} onClose={() => setDialog(undefined)} onSaved={goals.reload} />}
@@ -239,7 +237,7 @@ export function NetWorthPage() {
   );
 }
 
-function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: Asset; currency: string; onClose: () => void; onSaved: () => void; spaceId: string }) {
+function AssetEditor({ asset, currency, onClose, onSaved }: { asset?: Asset; currency: string; onClose: () => void; onSaved: () => void }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
@@ -268,7 +266,7 @@ function AssetEditor({ asset, currency, onClose, onSaved, spaceId }: { asset?: A
         };
         void saving
           .run(async () => {
-            await auth.request(asset ? `/assets/${asset.id}` : `/spaces/${spaceId}/assets`, { method: asset ? 'PATCH' : 'POST', body: JSON.stringify(body) });
+            await auth.request(asset ? `/assets/${asset.id}` : `/me/assets`, { method: asset ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
             return `${asset ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the asset')
@@ -295,14 +293,12 @@ function SavingsGoalEditor({
   goal,
   onClose,
   onSaved,
-  spaceId,
 }: {
   accounts: MoneyAccount[];
   currency: string;
   goal?: SavingsGoal;
   onClose: () => void;
   onSaved: () => void;
-  spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
@@ -323,7 +319,7 @@ function SavingsGoalEditor({
         const body = { name: text('name'), currency: chosenCurrency, targetMinor: toMinor(text('target'), chosenCurrency), dueOn: dueOn || null, accountId: accountId || null };
         void saving
           .run(async () => {
-            await auth.request(goal ? `/savings-goals/${goal.id}` : `/spaces/${spaceId}/savings-goals`, { method: goal ? 'PATCH' : 'POST', body: JSON.stringify(body) });
+            await auth.request(goal ? `/savings-goals/${goal.id}` : `/me/savings-goals`, { method: goal ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
             return `${goal ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the goal')

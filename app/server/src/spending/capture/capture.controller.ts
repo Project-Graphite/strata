@@ -17,24 +17,24 @@ export class CaptureController {
     private readonly senderRules: SenderRulesService,
   ) {}
 
-  @Post('spaces/:spaceId/captures')
+  @Post('me/captures')
   @Scope('spending:capture')
   @RateLimit('captures', 300, 3_600)
   @HttpCode(200)
-  receive(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CaptureMessageDto) {
-    return this.captures.receive(user.id, spaceId, input, user.tokenSpaceId);
+  receive(@CurrentUser() user: AuthenticatedUser, @Body() input: CaptureMessageDto) {
+    return this.captures.receive(user.id, input);
   }
 
-  @Post('spaces/:spaceId/captures/device')
+  @Post('me/captures/device')
   @RateLimit('capture-device', 30, 3_600)
-  connectDevice(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() proof: ProofDto) {
-    return this.captures.connectDevice(user.id, spaceId, proof);
+  connectDevice(@CurrentUser() user: AuthenticatedUser, @Body() proof: ProofDto) {
+    return this.captures.connectDevice(user.id, proof);
   }
 
-  @Get('spaces/:spaceId/captures')
+  @Get('me/captures')
   @Scope('items:read')
-  pending(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.captures.pending(user.id, spaceId);
+  pending(@CurrentUser() user: AuthenticatedUser) {
+    return this.captures.pending(user.id);
   }
 
   @Post('captures/:id/record')
@@ -50,10 +50,10 @@ export class CaptureController {
     await this.captures.ignore(user.id, id, input);
   }
 
-  @Get('spaces/:spaceId/sender-rules')
+  @Get('me/sender-rules')
   @Scope('items:read')
-  rules(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.senderRules.list(user.id, spaceId);
+  rules(@CurrentUser() user: AuthenticatedUser) {
+    return this.senderRules.list(user.id);
   }
 
   @Patch('sender-rules/:id')

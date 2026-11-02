@@ -29,7 +29,6 @@ import {
   type SpendingMonth,
   type SpendingPlan,
 } from '../spending';
-import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { formatDate, formatMonth, formatRange } from '../time';
 import { useAction } from '../useAction';
@@ -57,11 +56,10 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const month = /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month')! : null;
-  const { spaceId, space, editable } = usePersonalSpace();
-  const summary = useResource<SpendingMonth>(spaceId ? `/spaces/${spaceId}/spending${month ? `?month=${month}` : ''}` : null, true, spendingLive);
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
-  const captures = useResource<CapturedMessage[]>(spaceId && tab === 'overview' ? `/spaces/${spaceId}/captures` : null, true, spendingLive);
-  const categories = useCategories(spaceId);
+  const summary = useResource<SpendingMonth>(`/me/spending${month ? `?month=${month}` : ''}`, true, spendingLive);
+  const accounts = useResource<MoneyAccount[]>(`/me/accounts`, true, spendingLive);
+  const captures = useResource<CapturedMessage[]>(tab === 'overview' ? `/me/captures` : null, true, spendingLive);
+  const categories = useCategories();
   const colourOf = (category: string) => categories.data?.find((known) => known.name === category)?.colour ?? 'gray';
   const [dialog, setDialog] = useState<
     | 'plan'
@@ -121,7 +119,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           ]
             .filter(Boolean)
             .join(' · ')}
-          onClick={editable ? () => setDialog({ expense }) : undefined}
+          onClick={() => setDialog({ expense })}
           title={expense.title}
           trail={<Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />}
         />
@@ -161,7 +159,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
         <LoadError error={summary.error} onRetry={summary.reload} />
       ) : !shown || (tab === 'overview' && !accounts.data && !accounts.error) ? (
         <Placeholder className="grid gap-8" label="Adding up the month">
-          <SpendingSkeleton editable={!space || editable} shape={shape} tab={tab} />
+          <SpendingSkeleton shape={shape} tab={tab} />
         </Placeholder>
       ) : firstRun ? null : (
         <>
@@ -201,7 +199,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
                 {captures.data!.map((message) => (
                   <ReviewCard
                     accountName={accountName}
-                    editable={editable}
+                   
                     key={message.id}
                     message={message}
                     onAdd={(ready) =>
@@ -306,7 +304,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           {tab === 'budgets' && shown.budgetsEnabled && (
             <Section
               action={
-                editable && (
+                (
                   <span className="flex items-center gap-2">
                     <ActionsMenu items={[{ label: 'Budget settings…', onSelect: () => setDialog('plan') }]} name="budgets" />
                     <AddButton label="New budget" onClick={() => setDialog({ budget: null })} />
@@ -327,7 +325,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
                 <CategoryRows
                   colourOf={colourOf}
                   currency={currency}
-                  editable={editable}
+                 
                   expenses={shown.expenses}
                   onDelete={(category) => setDialog({ deleteBudget: category })}
                   onEdit={(category) => setDialog({ budget: category })}
@@ -343,7 +341,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
               <CategoryRows
                 colourOf={colourOf}
                 currency={currency}
-                editable={editable}
+               
                 expenses={shown.expenses}
                 onExpense={(expense) => setDialog({ expense })}
                 rows={shown.categories.filter((row) => row.budgetMinor === null && row.spentMinor !== 0)}
@@ -367,7 +365,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
       )}
 
       <Suspense fallback={null}>
-        {spaceId && typeof dialog === 'object' && 'expense' in dialog && (
+        {typeof dialog === 'object' && 'expense' in dialog && (
           <ExpenseEditor
             accounts={accounts.data ?? []}
             currency={currency}
@@ -376,11 +374,11 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             onRestored={reload}
             onSaved={reload}
             onTrashed={reload}
-            spaceId={spaceId}
+           
           />
         )}
 
-        {spaceId && typeof dialog === 'object' && 'capture' in dialog && (
+        {typeof dialog === 'object' && 'capture' in dialog && (
           <ExpenseEditor
             accounts={accounts.data ?? []}
             capture={dialog.capture}
@@ -388,21 +386,21 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
             onClose={() => setDialog(undefined)}
             onSaved={reload}
             reportParsing={dialog.report}
-            spaceId={spaceId}
+           
           />
         )}
-        {spaceId && shown && typeof dialog === 'object' && 'budget' in dialog && (
+        {shown && typeof dialog === 'object' && 'budget' in dialog && (
           <BudgetDialog
             categories={expenseCategories(categories.data)}
             category={dialog.budget}
             currency={currency}
             onClose={() => setDialog(undefined)}
             onSaved={() => summary.reload()}
-            spaceId={spaceId}
+           
             summary={shown}
           />
         )}
-        {spaceId && shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} spaceId={spaceId} />}
+        {shown && dialog === 'plan' && <PlanDialog currency={currency} onClose={() => setDialog(undefined)} onSaved={() => summary.reload()} plan={shown.plan} />}
       </Suspense>
       {typeof dialog === 'object' && 'ignoreAlways' in dialog && (
         <ConfirmDialog
@@ -428,7 +426,7 @@ export function SpendingPage({ tab }: { tab: 'overview' | 'budgets' }) {
           errorFallback="Could not delete the budget"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(dialog.deleteBudget)}`, { method: 'DELETE' });
+            await auth.request(`/me/budgets/${encodeURIComponent(dialog.deleteBudget)}`, { method: 'DELETE' });
             summary.reload();
             action.report(`Deleted the ${categoryName(dialog.deleteBudget).toLowerCase()} budget.`);
           }}
@@ -465,7 +463,6 @@ function quickAdd({ receivedAt, sender, suggestion }: CapturedMessage) {
 
 function ReviewCard({
   accountName,
-  editable,
   message,
   onAdd,
   onEdit,
@@ -474,7 +471,6 @@ function ReviewCard({
   opened,
 }: {
   accountName: (id: string | null) => string | undefined;
-  editable: boolean;
   message: CapturedMessage;
   onAdd: (ready: NonNullable<ReturnType<typeof quickAdd>>) => void;
   onEdit: (report: boolean) => void;
@@ -535,9 +531,9 @@ function ReviewCard({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        {editable && <Button label={ready ? 'Add' : 'Review and add'} onClick={() => (ready ? onAdd(ready) : onEdit(false))} primary={Boolean(ready)} />}
+        {<Button label={ready ? 'Add' : 'Review and add'} onClick={() => (ready ? onAdd(ready) : onEdit(false))} primary={Boolean(ready)} />}
         <TextButton label={opened ? 'Hide message' : 'Show message'} onClick={onToggleMessage} />
-        {editable && (
+        {
           <span className="ms-auto">
             <ActionsMenu
               items={[
@@ -551,13 +547,13 @@ function ReviewCard({
               name={name}
             />
           </span>
-        )}
+        }
       </div>
     </Card>
   );
 }
 
-function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: number[]; tab: 'overview' | 'budgets' }) {
+function SpendingSkeleton({ shape, tab }: { shape: number[]; tab: 'overview' | 'budgets' }) {
   if (tab === 'budgets') {
     const [budgeted = 0, budgetRows = 0, stats = 0, otherRows = 0] = shape;
     return (
@@ -577,7 +573,7 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
         )}
         <Section
           action={
-            editable && (
+            (
               <span className="flex items-center gap-2">
                 <IconButtonSkeleton />
                 <AddButtonSkeleton />
@@ -642,7 +638,7 @@ function SpendingSkeleton({ editable, shape, tab }: { editable: boolean; shape: 
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  {editable && <ButtonSkeleton width="w-14" />}
+                  {<ButtonSkeleton width="w-14" />}
                   <ButtonSkeleton width="w-28" />
                 </div>
               </Card>
@@ -732,7 +728,6 @@ function PaceText({ budgetMinor, pace, spentMinor }: { budgetMinor: number; pace
 function CategoryRows({
   colourOf,
   currency,
-  editable,
   expenses,
   onDelete,
   onEdit,
@@ -741,7 +736,6 @@ function CategoryRows({
 }: {
   colourOf: (category: string) => string;
   currency: string;
-  editable: boolean;
   expenses: Expense[];
   onDelete?: (category: string) => void;
   onEdit?: (category: string) => void;
@@ -781,7 +775,7 @@ function CategoryRows({
                 <>
                   <Amount currency={currency} danger={row.budgetMinor !== null && row.spentMinor > row.budgetMinor} minor={row.spentMinor} />
 
-                  {editable && onEdit && onDelete && (
+                  {onEdit && onDelete && (
                     <ActionsMenu
                       items={[
                         { label: 'Edit budget', onSelect: () => onEdit(row.category) },
@@ -803,7 +797,7 @@ function CategoryRows({
                       className="ps-12"
                       key={expense.id}
                       meta={[formatDate(expense.spentOn), expense.merchant].filter(Boolean).join(' · ')}
-                      onClick={editable ? () => onExpense(expense) : undefined}
+                      onClick={() => onExpense(expense)}
                       title={expense.title}
                       trail={<Amount currency={expense.currency} direction={expense.direction} minor={expense.amountMinor} />}
                     />
@@ -829,7 +823,6 @@ function BudgetDialog({
   currency,
   onClose,
   onSaved,
-  spaceId,
   summary,
 }: {
   categories: SpendingCategory[];
@@ -837,7 +830,6 @@ function BudgetDialog({
   currency: string;
   onClose: () => void;
   onSaved: () => void;
-  spaceId: string;
   summary: SpendingMonth;
 }) {
   const auth = useAuth();
@@ -857,7 +849,7 @@ function BudgetDialog({
         const amountMinor = toMinor(String(new FormData(target).get('amount')).trim(), chosenCurrency);
         void saving
           .run(async () => {
-            await auth.request(`/spaces/${spaceId}/budgets/${encodeURIComponent(chosen)}`, { method: 'PUT', body: JSON.stringify({ amountMinor, currency: chosenCurrency }) });
+            await auth.request(`/me/budgets/${encodeURIComponent(chosen)}`, { method: 'PUT', body: JSON.stringify({ amountMinor, currency: chosenCurrency }) });
             onSaved();
             return `${category ? 'Saved' : 'Added'} the ${categoryName(chosen).toLowerCase()} budget.`;
           }, 'Could not save the budget')
@@ -882,7 +874,7 @@ function BudgetDialog({
   );
 }
 
-function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: string; onClose: () => void; onSaved: () => void; plan: SpendingPlan; spaceId: string }) {
+function PlanDialog({ currency, onClose, onSaved, plan }: { currency: string; onClose: () => void; onSaved: () => void; plan: SpendingPlan }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
@@ -904,7 +896,7 @@ function PlanDialog({ currency, onClose, onSaved, plan, spaceId }: { currency: s
         };
         void saving
           .run(async () => {
-            await auth.request(`/spaces/${spaceId}/spending-plan`, { method: 'PUT', body: JSON.stringify(body) });
+            await auth.request(`/me/spending-plan`, { method: 'PUT', body: JSON.stringify(body) });
             onSaved();
             return 'Saved the budget settings.';
           }, 'Could not save the budget settings')

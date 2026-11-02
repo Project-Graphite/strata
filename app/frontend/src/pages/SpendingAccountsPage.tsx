@@ -26,7 +26,6 @@ import {
   type MoneyAccount,
   type SeenCard,
 } from '../spending';
-import { usePersonalSpace } from '../spaces';
 import { money, toMinor } from '../subscriptions';
 import { formatDate, formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -58,10 +57,9 @@ type Dialog =
 export function SpendingAccountsPage() {
   const auth = useAuth();
   const action = useAction();
-  const { spaceId, space, editable } = usePersonalSpace();
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
-  const installments = useResource<InstallmentPlan[]>(spaceId ? `/spaces/${spaceId}/installments` : null, true, spendingLive);
-  const seen = useResource<SeenCard[]>(spaceId ? `/spaces/${spaceId}/cards/seen` : null, true, spendingLive);
+  const accounts = useResource<MoneyAccount[]>(`/me/accounts`, true, spendingLive);
+  const installments = useResource<InstallmentPlan[]>(`/me/installments`, true, spendingLive);
+  const seen = useResource<SeenCard[]>(`/me/cards/seen`, true, spendingLive);
   const [dialog, setDialog] = useState<Dialog>();
   const currency = accounts.data?.[0]?.currency ?? 'EGP';
   const saved = accounts.data?.flatMap((account) => account.cards.map((card) => ({ card, owner: account }))) ?? [];
@@ -79,7 +77,7 @@ export function SpendingAccountsPage() {
   };
   const saveSeen = (card: SeenCard) => setDialog({ card: null, owner: cardAccounts.find((account) => account.id === card.accountId) ?? null, last4: card.digits });
   const groups = accountKindOptions.map((kind) => ({ ...kind, accounts: open.filter((account) => account.kind === kind.value) })).filter((group) => group.accounts.length > 0);
-  const newAccount = editable && <AddButton label="New account" onClick={() => setDialog({ account: null })} />;
+  const newAccount = <AddButton label="New account" onClick={() => setDialog({ account: null })} />;
   const archive = (account: MoneyAccount, archived: boolean) =>
     void action.run(async () => {
       await auth.request(`/accounts/${account.id}`, { method: 'PATCH', body: JSON.stringify({ archived }) });
@@ -91,7 +89,7 @@ export function SpendingAccountsPage() {
       {shown.map((account) => (
         <AccountRows
           account={account}
-          editable={editable}
+         
           funder={accounts.data?.find((other) => other.id === account.fundedByAccountId)?.name}
           key={account.id}
           onArchive={(archived) => archive(account, archived)}
@@ -108,7 +106,7 @@ export function SpendingAccountsPage() {
       ) : !accounts.data || (!installments.data && !installments.error) || (!seen.data && !seen.error) ? (
         <Placeholder className="grid gap-8" label="Adding up your accounts">
           <section className="grid min-w-0 grid-cols-1 gap-3">
-            <SectionHeading action={(!space || editable) && <AddButtonSkeleton />} title={<SkeletonLine width="w-32" />} />
+            <SectionHeading action={<AddButtonSkeleton />} title={<SkeletonLine width="w-32" />} />
             {accountRows ? (
               <AmountRowsSkeleton rows={accountRows} />
             ) : (
@@ -117,7 +115,7 @@ export function SpendingAccountsPage() {
               </Empty>
             )}
           </section>
-          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Cards">
+          <Section action={<AddButtonSkeleton />} title="Cards">
             {cardRows ? (
               <RowsSkeleton lead={<IconSkeleton />} rows={cardRows} />
             ) : (
@@ -126,7 +124,7 @@ export function SpendingAccountsPage() {
               </Empty>
             )}
           </Section>
-          <Section action={(!space || editable) && <AddButtonSkeleton />} title="Installments">
+          <Section action={<AddButtonSkeleton />} title="Installments">
             {planRows ? (
               <AmountRowsSkeleton metered={planRows} rows={planRows} />
             ) : (
@@ -153,7 +151,7 @@ export function SpendingAccountsPage() {
           )}
           {archived.length > 0 && <Section title="Archived">{accountRowsOf(archived)}</Section>}
 
-          <Section action={editable && cardAccounts.length > 0 && <AddButton label="New card" onClick={() => setDialog({ card: null, owner: null })} />} title="Cards">
+          <Section action={cardAccounts.length > 0 && <AddButton label="New card" onClick={() => setDialog({ card: null, owner: null })} />} title="Cards">
             {seen.error && <LoadError compact error={seen.error} onRetry={seen.reload} />}
             {saved.length === 0 && !seen.data?.length ? (
               !seen.error && (
@@ -168,10 +166,10 @@ export function SpendingAccountsPage() {
                     key={card.id}
                     lead={<Icon name="wallet" size={18} />}
                     meta={[owner.name, card.label].filter(Boolean).join(' · ')}
-                    onClick={editable ? () => setDialog({ card, owner }) : undefined}
+                    onClick={() => setDialog({ card, owner })}
                     title={cardName(card)}
                     trail={
-                      editable && (
+                      (
                         <ActionsMenu
                           items={[
                             { label: 'Edit card', onSelect: () => setDialog({ card, owner }) },
@@ -193,12 +191,12 @@ export function SpendingAccountsPage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
-                    onClick={editable && cardAccounts.length > 0 ? () => saveSeen(card) : undefined}
+                    onClick={cardAccounts.length > 0 ? () => saveSeen(card) : undefined}
                     title={`•••• ${card.digits}`}
                     trail={
                       <>
                         <Badge tone="muted">Not saved</Badge>
-                        {editable && (
+                        {
                           <ActionsMenu
                             items={[
                               ...(cardAccounts.length > 0
@@ -208,7 +206,7 @@ export function SpendingAccountsPage() {
                             ]}
                             name={`Card ending in ${card.digits}`}
                           />
-                        )}
+                        }
                       </>
                     }
                   />
@@ -217,7 +215,7 @@ export function SpendingAccountsPage() {
             )}
           </Section>
 
-          <Section action={editable && <AddButton label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
+          <Section action={<AddButton label="New plan" onClick={() => setDialog({ installment: null })} />} title="Installments">
             {installments.error ? (
               <LoadError compact error={installments.error} onRetry={installments.reload} />
             ) : !installments.data?.length ? (
@@ -234,7 +232,7 @@ export function SpendingAccountsPage() {
                         ? 'Paid off'
                         : `Next: ${money(plan.monthlyMinor, plan.currency)}, due ${formatDate(plan.nextDueOn!)} · ${money(plan.remainingMinor, plan.currency)} left`
                     }
-                    onClick={editable ? () => setDialog({ installment: plan }) : undefined}
+                    onClick={() => setDialog({ installment: plan })}
                     title={plan.name}
                     trail={
                       <>
@@ -242,7 +240,7 @@ export function SpendingAccountsPage() {
                           {plan.paidCount} of {plan.count}
                         </span>
                         {plan.status === 'missed' && <Badge tone="danger">Missed</Badge>}
-                        {editable && (
+                        {
                           <ActionsMenu
                             items={[
                               ...(plan.status === 'done'
@@ -262,7 +260,7 @@ export function SpendingAccountsPage() {
                             ]}
                             name={plan.name}
                           />
-                        )}
+                        }
                       </>
                     }
                   >
@@ -275,21 +273,21 @@ export function SpendingAccountsPage() {
         </>
       )}
 
-      {spaceId && typeof dialog === 'object' && 'account' in dialog && (
-        <AccountEditor account={dialog.account ?? undefined} accounts={accounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={accounts.reload} spaceId={spaceId} />
+      {typeof dialog === 'object' && 'account' in dialog && (
+        <AccountEditor account={dialog.account ?? undefined} accounts={accounts.data ?? []} currency={currency} onClose={() => setDialog(undefined)} onSaved={accounts.reload} />
       )}
       {typeof dialog === 'object' && 'card' in dialog && (
         <CardDialog accounts={cardAccounts} card={dialog.card} last4={dialog.last4} onClose={() => setDialog(undefined)} onSaved={reloadCards} owner={dialog.owner} />
       )}
       {typeof dialog === 'object' && 'reconcile' in dialog && <ReconcileDialog account={dialog.reconcile} onClose={() => setDialog(undefined)} onSaved={accounts.reload} />}
-      {spaceId && typeof dialog === 'object' && 'installment' in dialog && (
+      {typeof dialog === 'object' && 'installment' in dialog && (
         <InstallmentEditor
           accounts={accounts.data ?? []}
           currency={currency}
           onClose={() => setDialog(undefined)}
           onSaved={installments.reload}
           plan={dialog.installment ?? undefined}
-          spaceId={spaceId}
+         
         />
       )}
       {typeof dialog === 'object' && 'deleteAccount' in dialog && (
@@ -326,14 +324,14 @@ export function SpendingAccountsPage() {
           Its transactions stay on {dialog.owner.name} and keep the card ending.
         </ConfirmDialog>
       )}
-      {spaceId && typeof dialog === 'object' && 'forgetCard' in dialog && (
+      {typeof dialog === 'object' && 'forgetCard' in dialog && (
         <ConfirmDialog
           busyLabel="Forgetting…"
           confirmLabel="Forget card"
           errorFallback="Could not forget the card"
           onClose={() => setDialog(undefined)}
           onConfirm={async () => {
-            await auth.request(`/spaces/${spaceId}/cards/seen/${dialog.forgetCard.digits}`, { method: 'DELETE' });
+            await auth.request(`/me/cards/seen/${dialog.forgetCard.digits}`, { method: 'DELETE' });
             reloadCards();
             action.report(`Forgot the card ending in ${dialog.forgetCard.digits}.`);
           }}
@@ -366,13 +364,11 @@ export function SpendingAccountsPage() {
 
 function AccountRows({
   account,
-  editable,
   funder,
   onArchive,
   onDialog,
 }: {
   account: MoneyAccount;
-  editable: boolean;
   funder: string | undefined;
   onArchive: (archived: boolean) => void;
   onDialog: (dialog: Dialog) => void;
@@ -386,12 +382,12 @@ function AccountRows({
         </span>
       }
       meta={[kind.label, account.institution, account.handle, funder && `Funded by ${funder}`].filter(Boolean).join(' · ')}
-      onClick={editable ? () => onDialog({ account }) : undefined}
+      onClick={() => onDialog({ account })}
       title={account.name}
       trail={
         <>
           <AccountBalance account={account} />
-          {editable && (
+          {
             <ActionsMenu
               items={[
                 { label: 'Show transactions', href: `${spendingHref('transactions')}?account=${account.id}` },
@@ -402,7 +398,7 @@ function AccountRows({
               ]}
               name={account.name}
             />
-          )}
+          }
         </>
       }
     >

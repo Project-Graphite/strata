@@ -39,9 +39,8 @@ describe('Home currency totals against Postgres', () => {
     expect(listed.publishedOn).toBe('2026-10-05');
     expect(listed.currencies).toEqual(expect.arrayContaining(['EGP', 'EUR', 'GBP', 'USD']));
 
-    const space = owner.personalSpaceId;
     for (const [name, amountMinor, currency] of [['Music', 1250, 'USD'], ['Video', 850, 'GBP'], ['Gym', 3000, 'XAU']] as const) {
-      await owner.call('POST', `/spaces/${space}/subscriptions`, { name, amountMinor, currency, repeatRule: 'FREQ=YEARLY', startDate: '2026-01-10' });
+      await owner.call('POST', '/me/subscriptions', { name, amountMinor, currency, repeatRule: 'FREQ=YEARLY', startDate: '2026-01-10' });
     }
     expect((await owner.call('GET', '/subscriptions/summary')).body.home).toBeNull();
 

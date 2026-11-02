@@ -51,6 +51,7 @@ export class MaintenanceScheduler implements OnModuleInit, OnModuleDestroy {
   private async prune(now: Date) {
     const ago = (days: number) => new Date(now.getTime() - days * dayMs);
     await this.prisma.item.deleteMany({ where: { trashedAt: { lt: ago(30) } } });
+    await this.prisma.expense.deleteMany({ where: { trashedAt: { lt: ago(30) } } });
     await this.prisma.verificationToken.deleteMany({ where: { expiresAt: { lt: now } } });
     await this.prisma.signInChallenge.deleteMany({ where: { expiresAt: { lt: now } } });
     await this.prisma.refreshSession.deleteMany({

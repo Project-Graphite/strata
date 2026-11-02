@@ -1,5 +1,4 @@
-import { SpaceQueryDto } from '../validation/space-query.dto';
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -11,30 +10,22 @@ import { SubscriptionsService } from './subscriptions.service';
 export class SubscriptionsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 
-  @Get('spaces/:spaceId/subscriptions')
+  @Get('me/subscriptions')
   @Scope('items:read')
-  list(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('spaceId', UuidPipe) spaceId: string,
-    @Query() query: ListSubscriptionsDto,
-  ) {
-    return this.subscriptions.list(user.id, spaceId, query);
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListSubscriptionsDto) {
+    return this.subscriptions.list(user.id, query);
   }
 
-  @Post('spaces/:spaceId/subscriptions')
+  @Post('me/subscriptions')
   @Scope('items:write')
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('spaceId', UuidPipe) spaceId: string,
-    @Body() input: CreateSubscriptionDto,
-  ) {
-    return this.subscriptions.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSubscriptionDto) {
+    return this.subscriptions.create(user.id, input);
   }
 
   @Get('subscriptions/summary')
   @Scope('items:read')
-  summary(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.subscriptions.summary(user.id, query.spaceId);
+  summary(@CurrentUser() user: AuthenticatedUser) {
+    return this.subscriptions.summary(user.id);
   }
 
   @Get('subscriptions/:id')
@@ -53,6 +44,13 @@ export class SubscriptionsController {
   @Scope('items:write')
   update(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateSubscriptionDto) {
     return this.subscriptions.update(user.id, id, input);
+  }
+
+  @Delete('subscriptions/:id')
+  @Scope('items:write')
+  @HttpCode(204)
+  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    await this.subscriptions.remove(user.id, id);
   }
 
   @Post('subscriptions/:id/used')

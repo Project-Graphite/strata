@@ -8,7 +8,7 @@ import { DialogActions } from './DialogActions';
 import { Subheading } from './Page';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from './Skeletons';
 
-export type TidyAction = 'archive' | 'trash' | 'tag' | 'cancel';
+export type TidyAction = 'archive' | 'trash' | 'tag';
 
 export interface TidyRequest {
   action: TidyAction;
@@ -42,7 +42,6 @@ const confirmLabels: Record<TidyAction, { label: string; busy: string }> = {
   archive: { label: 'Archive', busy: 'Archiving…' },
   trash: { label: 'Move to trash', busy: 'Moving…' },
   tag: { label: 'Add the tag', busy: 'Adding…' },
-  cancel: { label: 'Cancel them', busy: 'Cancelling…' },
 };
 
 export const itemsText = (count: number) => `${count} item${count === 1 ? '' : 's'}`;
@@ -50,7 +49,6 @@ export const itemsText = (count: number) => `${count} item${count === 1 ? '' : '
 export function batchSummary(batch: TidyBatch) {
   if (batch.action === 'archive') return `Archived ${itemsText(batch.itemCount)}`;
   if (batch.action === 'trash') return `Moved ${itemsText(batch.itemCount)} to the trash`;
-  if (batch.action === 'cancel') return `Cancelled ${batch.itemCount} subscription${batch.itemCount === 1 ? '' : 's'}`;
   return `Tagged ${itemsText(batch.itemCount)} ${batch.tag ? batch.tag.name : 'with a tag that was since deleted'}`;
 }
 
@@ -64,7 +62,6 @@ export function undoSummary(result: { restored: number; skipped: Skipped[] }) {
 function changeHeading(action: TidyAction, count: number) {
   if (action === 'archive') return `${itemsText(count)} will be archived`;
   if (action === 'trash') return `${itemsText(count)} will move to the trash, which keeps items for 30 days`;
-  if (action === 'cancel') return `${count} subscription${count === 1 ? '' : 's'} will be cancelled`;
   return `${itemsText(count)} will get the tag`;
 }
 

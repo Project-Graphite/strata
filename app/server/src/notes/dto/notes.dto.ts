@@ -177,6 +177,18 @@ export class SetPropertiesDto {
   values!: Record<string, unknown>;
 }
 
+export class SetContentDto {
+  @ValidateIf((input: SetContentDto) => input.blocks === undefined)
+  @IsString()
+  @MaxLength(100_000, { message: 'Page text is at most 100,000 characters long.' })
+  text?: string;
+
+  @ValidateIf((input: SetContentDto) => input.text === undefined)
+  @IsArray()
+  @ArrayMaxSize(1_000, { message: 'A page holds at most 1,000 blocks.' })
+  blocks?: unknown[];
+}
+
 export class CreateCommentDto {
   @Trimmed()
   @IsString()

@@ -10,16 +10,16 @@ import { WealthService } from './wealth.service';
 export class WealthController {
   constructor(private readonly wealth: WealthService) {}
 
-  @Get('spaces/:spaceId/savings-goals')
+  @Get('me/savings-goals')
   @Scope('items:read')
-  goals(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.wealth.goals(user.id, spaceId);
+  goals(@CurrentUser() user: AuthenticatedUser) {
+    return this.wealth.goals(user.id);
   }
 
-  @Post('spaces/:spaceId/savings-goals')
+  @Post('me/savings-goals')
   @Scope('items:write')
-  createGoal(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateSavingsGoalDto) {
-    return this.wealth.createGoal(user.id, spaceId, input);
+  createGoal(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateSavingsGoalDto) {
+    return this.wealth.createGoal(user.id, input);
   }
 
   @Patch('savings-goals/:id')
@@ -42,16 +42,16 @@ export class WealthController {
     await this.wealth.removeGoal(user.id, id);
   }
 
-  @Get('spaces/:spaceId/net-worth')
+  @Get('me/net-worth')
   @Scope('items:read')
-  netWorth(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.wealth.netWorth(user.id, spaceId);
+  netWorth(@CurrentUser() user: AuthenticatedUser) {
+    return this.wealth.netWorth(user.id);
   }
 
-  @Post('spaces/:spaceId/assets')
+  @Post('me/assets')
   @Scope('items:write')
-  createAsset(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateAssetDto) {
-    return this.wealth.createAsset(user.id, spaceId, input);
+  createAsset(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateAssetDto) {
+    return this.wealth.createAsset(user.id, input);
   }
 
   @Patch('assets/:id')

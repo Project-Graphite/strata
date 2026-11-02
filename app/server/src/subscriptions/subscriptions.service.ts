@@ -1,7 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { ItemKind, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
-import { ActivityService } from '../activity/activity.service';
+import { Prisma, Subscription } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
 import { convertMinor, ExchangeRatesService, ratesSourcesOf } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
@@ -17,42 +15,28 @@ const reminderKind = 'subscription.reminder';
 const unusedAfterDays = 60;
 const trialWarningDays = 14;
 
-export const subscriptionFields = {
-  id: true,
-  spaceId: true,
-  title: true,
-  createdAt: true,
-  updatedAt: true,
-  subscription: true,
-  costSplit: { select: { payerId: true, shares: { select: { userId: true, weight: true }, orderBy: { userId: 'asc' } } } },
-} satisfies Prisma.ItemSelect;
+type Reminder = { subscriptionId: string; on: 'renewal' | 'trial'; date: string };
 
-type SubscriptionRow = Prisma.ItemGetPayload<{ select: typeof subscriptionFields }>;
-export type Details = NonNullable<SubscriptionRow['subscription']>;
-
-function present(row: SubscriptionRow) {
-  const details = row.subscription!;
+function present(row: Subscription) {
   return {
     id: row.id,
-    spaceId: row.spaceId,
-    name: row.title,
-    amountMinor: details.amountMinor,
-    currency: details.currency,
-    repeatRule: details.repeatRule,
-    startDate: dateText(details.startDate),
-    nextRenewal: dateText(details.nextRenewal),
-    timeZone: details.timeZone,
-    trialEndsOn: dateText(details.trialEndsOn),
-    noticeDays: details.noticeDays,
-    category: details.category,
-    paymentLabel: details.paymentLabel,
-    cancelUrl: details.cancelUrl,
-    supportUrl: details.supportUrl,
-    usedBy: details.usedBy,
-    reminderDays: details.reminderDays,
-    lastUsedOn: dateText(details.lastUsedOn),
-    cancelledOn: dateText(details.cancelledOn),
-    split: row.costSplit,
+    name: row.name,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    repeatRule: row.repeatRule,
+    startDate: dateText(row.startDate),
+    nextRenewal: dateText(row.nextRenewal),
+    timeZone: row.timeZone,
+    trialEndsOn: dateText(row.trialEndsOn),
+    noticeDays: row.noticeDays,
+    category: row.category,
+    paymentLabel: row.paymentLabel,
+    cancelUrl: row.cancelUrl,
+    supportUrl: row.supportUrl,
+    usedBy: row.usedBy,
+    reminderDays: row.reminderDays,
+    lastUsedOn: dateText(row.lastUsedOn),
+    cancelledOn: dateText(row.cancelledOn),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -72,7 +56,7 @@ function checkedRule(text: string) {
   }
 }
 
-export function renewalsBetween(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZone'>, from: string, to: string, limit = 400) {
+export function renewalsBetween(details: Pick<Subscription, 'repeatRule' | 'startDate' | 'timeZone'>, from: string, to: string, limit = 400) {
   return occurrences(
     parseRule(details.repeatRule),
     { date: dateText(details.startDate), time: '00:00', timeZone: details.timeZone },
@@ -84,18 +68,18 @@ export function renewalsBetween(details: Pick<Details, 'repeatRule' | 'startDate
   ).map((at) => localDate(details.timeZone, at));
 }
 
-export function yearlyCost(details: Details) {
+export function yearlyCost(details: Pick<Subscription, 'repeatRule' | 'startDate' | 'timeZone' | 'amountMinor'>) {
   const today = localDate(details.timeZone);
   const yearAhead = dateText(new Date(dateValue(today).getTime() + 365 * dayMs));
   return renewalsBetween(details, today, yearAhead).length * details.amountMinor;
 }
 
-export function unused(row: { createdAt: Date; subscription: Details }) {
-  const lastUse = row.subscription.lastUsedOn ?? new Date(row.createdAt.toISOString().slice(0, 10));
-  return dateValue(localDate(row.subscription.timeZone)).getTime() - lastUse.getTime() >= unusedAfterDays * dayMs;
+export function unused(row: Pick<Subscription, 'createdAt' | 'lastUsedOn' | 'timeZone'>) {
+  const lastUse = row.lastUsedOn ?? new Date(row.createdAt.toISOString().slice(0, 10));
+  return dateValue(localDate(row.timeZone)).getTime() - lastUse.getTime() >= unusedAfterDays * dayMs;
 }
 
-function nextRenewal(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZone'>, onOrAfter: string) {
+function nextRenewal(details: Pick<Subscription, 'repeatRule' | 'startDate' | 'timeZone'>, onOrAfter: string) {
   const until = dateText(new Date(dateValue(onOrAfter).getTime() + 20 * 366 * dayMs));
   return renewalsBetween(details, onOrAfter, until, 1)[0] ?? null;
 }
@@ -104,8 +88,6 @@ function nextRenewal(details: Pick<Details, 'repeatRule' | 'startDate' | 'timeZo
 export class SubscriptionsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: AccessService,
-    private readonly activity: ActivityService,
     private readonly inbox: InboxService,
     private readonly jobs: JobsService,
     private readonly maintenance: MaintenanceScheduler,
@@ -114,89 +96,70 @@ export class SubscriptionsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; on: 'renewal' | 'trial'; date: string }));
+    this.jobs.handle(reminderKind, (payload) => this.remind(payload as Reminder));
     this.maintenance.register((now) => this.advanceRenewals(now));
   }
 
-  async create(userId: string, spaceId: string, input: CreateSubscriptionDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, input: CreateSubscriptionDto) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const timeZone = input.timeZone ?? user.timeZone;
     const repeatRule = checkedRule(input.repeatRule);
     const next = nextRenewal({ repeatRule, startDate: dateValue(input.startDate), timeZone }, localDate(timeZone));
     if (!next) throw new BadRequestException('This billing cycle has no renewals left');
     const id = await this.prisma.$transaction(async (transaction) => {
-      const item = await transaction.item.create({
+      const row = await transaction.subscription.create({
         data: {
-          spaceId,
-          kind: ItemKind.SUBSCRIPTION,
-          title: input.name,
-          createdById: userId,
-          updatedById: userId,
-          subscription: {
-            create: {
-              amountMinor: input.amountMinor,
-              currency: input.currency,
-              repeatRule,
-              startDate: dateValue(input.startDate),
-              nextRenewal: dateValue(next),
-              timeZone,
-              trialEndsOn: input.trialEndsOn ? dateValue(input.trialEndsOn) : null,
-              noticeDays: input.noticeDays,
-              category: input.category,
-              paymentLabel: input.paymentLabel,
-              cancelUrl: input.cancelUrl,
-              supportUrl: input.supportUrl,
-              usedBy: input.usedBy,
-              reminderDays: input.reminderDays,
-            },
-          },
+          userId,
+          name: input.name,
+          amountMinor: input.amountMinor,
+          currency: input.currency,
+          repeatRule,
+          startDate: dateValue(input.startDate),
+          nextRenewal: dateValue(next),
+          timeZone,
+          trialEndsOn: input.trialEndsOn ? dateValue(input.trialEndsOn) : null,
+          noticeDays: input.noticeDays,
+          category: input.category,
+          paymentLabel: input.paymentLabel,
+          cancelUrl: input.cancelUrl,
+          supportUrl: input.supportUrl,
+          usedBy: input.usedBy,
+          reminderDays: input.reminderDays,
           prices: { create: { amountMinor: input.amountMinor, currency: input.currency, effectiveFrom: dateValue(input.startDate) } },
         },
         select: { id: true },
       });
-      await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.name } });
-      await this.reschedule(transaction, item.id);
-      return item.id;
+      await this.reschedule(transaction, row.id);
+      return row.id;
     });
+    this.changes.notify('subscriptions', { userId });
     return this.get(userId, id);
   }
 
-  async list(userId: string, spaceId: string, query: ListSubscriptionsDto) {
-    await this.access.assertSpace(userId, spaceId, 'read');
-    const rows = await this.prisma.item.findMany({
-      where: {
-        spaceId,
-        kind: ItemKind.SUBSCRIPTION,
-        trashedAt: null,
-        subscription: { cancelledOn: query.status === 'cancelled' ? { not: null } : null },
-      },
-      orderBy: [{ subscription: { nextRenewal: 'asc' } }, { title: 'asc' }, { id: 'asc' }],
+  async list(userId: string, query: ListSubscriptionsDto) {
+    const rows = await this.prisma.subscription.findMany({
+      where: { userId, cancelledOn: query.status === 'cancelled' ? { not: null } : null },
+      orderBy: [{ nextRenewal: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       take: 500,
-      select: subscriptionFields,
     });
     return rows.map(present);
   }
 
-  async get(userId: string, itemId: string) {
-    await this.access.assertItem(userId, itemId, 'read');
-    const row = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: subscriptionFields });
-    if (!row.subscription) throw new NotFoundException('That item is not a subscription');
-    return present(row);
+  async get(userId: string, id: string) {
+    return present(await this.own(userId, id));
   }
 
-  async prices(userId: string, itemId: string) {
-    await this.get(userId, itemId);
+  async prices(userId: string, id: string) {
+    await this.own(userId, id);
     return this.prisma.subscriptionPrice.findMany({
-      where: { itemId },
+      where: { subscriptionId: id },
       orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
       select: { amountMinor: true, currency: true, effectiveFrom: true },
     });
   }
 
-  async update(userId: string, itemId: string, input: UpdateSubscriptionDto) {
-    const current = await this.editable(userId, itemId);
-    const details = current.subscription;
+  async update(userId: string, id: string, input: UpdateSubscriptionDto) {
+    const details = await this.own(userId, id);
     const repeatRule = input.repeatRule === undefined ? details.repeatRule : checkedRule(input.repeatRule);
     const startDate = input.startDate === undefined ? details.startDate : dateValue(input.startDate);
     const timeZone = input.timeZone ?? details.timeZone;
@@ -206,119 +169,91 @@ export class SubscriptionsService implements OnModuleInit {
     const amountMinor = input.amountMinor ?? details.amountMinor;
     const currency = input.currency ?? details.currency;
     await this.prisma.$transaction(async (transaction) => {
-      await transaction.item.update({
-        where: { id: itemId },
+      await transaction.subscription.update({
+        where: { id },
         data: {
-          title: input.name,
-          updatedById: userId,
-          subscription: {
-            update: {
-              amountMinor,
-              currency,
-              repeatRule,
-              startDate,
-              timeZone,
-              nextRenewal: dateValue(next),
-              trialEndsOn: input.trialEndsOn === undefined ? undefined : input.trialEndsOn ? dateValue(input.trialEndsOn) : null,
-              noticeDays: input.noticeDays,
-              category: input.category,
-              paymentLabel: input.paymentLabel,
-              cancelUrl: input.cancelUrl,
-              supportUrl: input.supportUrl,
-              usedBy: input.usedBy,
-              reminderDays: input.reminderDays,
-            },
-          },
+          name: input.name,
+          amountMinor,
+          currency,
+          repeatRule,
+          startDate,
+          timeZone,
+          nextRenewal: dateValue(next),
+          trialEndsOn: input.trialEndsOn === undefined ? undefined : input.trialEndsOn ? dateValue(input.trialEndsOn) : null,
+          noticeDays: input.noticeDays,
+          category: input.category,
+          paymentLabel: input.paymentLabel,
+          cancelUrl: input.cancelUrl,
+          supportUrl: input.supportUrl,
+          usedBy: input.usedBy,
+          reminderDays: input.reminderDays,
         },
       });
       if (amountMinor !== details.amountMinor || currency !== details.currency) {
-        await transaction.subscriptionPrice.create({
-          data: { itemId, amountMinor, currency, effectiveFrom: dateValue(localDate(timeZone)) },
-        });
+        await transaction.subscriptionPrice.create({ data: { subscriptionId: id, amountMinor, currency, effectiveFrom: dateValue(localDate(timeZone)) } });
       }
-      if (input.name !== undefined && input.name !== current.title) {
-        await this.activity.record(transaction, {
-          spaceId: current.spaceId,
-          actorId: userId,
-          itemId,
-          verb: 'item.updated',
-          data: { title: input.name, renamedFrom: current.title },
-        });
-      }
-      await this.reschedule(transaction, itemId);
+      await this.reschedule(transaction, id);
     });
-    this.changes.notify('subscriptions', { spaceId: current.spaceId });
-    return this.get(userId, itemId);
+    this.changes.notify('subscriptions', { userId });
+    return this.get(userId, id);
   }
 
-  async markUsed(userId: string, itemId: string) {
-    const current = await this.editable(userId, itemId);
-    await this.prisma.subscription.update({
-      where: { itemId },
-      data: { lastUsedOn: dateValue(localDate(current.subscription.timeZone)) },
-    });
-    return this.get(userId, itemId);
+  async markUsed(userId: string, id: string) {
+    const current = await this.own(userId, id);
+    await this.prisma.subscription.update({ where: { id }, data: { lastUsedOn: dateValue(localDate(current.timeZone)) } });
+    this.changes.notify('subscriptions', { userId });
+    return this.get(userId, id);
   }
 
-  async cancel(userId: string, itemId: string) {
-    const current = await this.editable(userId, itemId);
+  async cancel(userId: string, id: string) {
+    const current = await this.own(userId, id);
     await this.prisma.$transaction(async (transaction) => {
-      await transaction.subscription.update({
-        where: { itemId },
-        data: { cancelledOn: dateValue(localDate(current.subscription.timeZone)) },
-      });
-      await this.activity.record(transaction, {
-        spaceId: current.spaceId,
-        actorId: userId,
-        itemId,
-        verb: 'subscription.cancelled',
-        data: { title: current.title },
-      });
-      await this.reschedule(transaction, itemId);
+      await transaction.subscription.update({ where: { id }, data: { cancelledOn: dateValue(localDate(current.timeZone)) } });
+      await this.reschedule(transaction, id);
     });
-    return this.get(userId, itemId);
+    this.changes.notify('subscriptions', { userId });
+    return this.get(userId, id);
   }
 
-  async resume(userId: string, itemId: string) {
-    const current = await this.editable(userId, itemId);
-    const next = nextRenewal(current.subscription, localDate(current.subscription.timeZone));
+  async resume(userId: string, id: string) {
+    const current = await this.own(userId, id);
+    const next = nextRenewal(current, localDate(current.timeZone));
     if (!next) throw new BadRequestException('This billing cycle has no renewals left');
     await this.prisma.$transaction(async (transaction) => {
-      await transaction.subscription.update({ where: { itemId }, data: { cancelledOn: null, nextRenewal: dateValue(next) } });
-      await this.activity.record(transaction, {
-        spaceId: current.spaceId,
-        actorId: userId,
-        itemId,
-        verb: 'subscription.resumed',
-        data: { title: current.title },
-      });
-      await this.reschedule(transaction, itemId);
+      await transaction.subscription.update({ where: { id }, data: { cancelledOn: null, nextRenewal: dateValue(next) } });
+      await this.reschedule(transaction, id);
     });
-    return this.get(userId, itemId);
+    this.changes.notify('subscriptions', { userId });
+    return this.get(userId, id);
   }
 
-  async summary(userId: string, spaceId?: string) {
-    const rows = await this.prisma.item.findMany({
-      where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.SUBSCRIPTION, trashedAt: null, subscription: { cancelledOn: null } },
-      select: subscriptionFields,
+  async remove(userId: string, id: string) {
+    await this.own(userId, id);
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.subscription.delete({ where: { id } });
+      await this.unschedule(transaction, id);
     });
+    this.changes.notify('subscriptions', { userId });
+  }
+
+  async summary(userId: string) {
+    const rows = await this.prisma.subscription.findMany({ where: { userId, cancelledOn: null } });
     const totals = new Map<string, { currency: string; yearlyMinor: number }>();
     const byCategory = new Map<string, { category: string; currency: string; yearlyMinor: number }>();
-    const stale: SubscriptionRow[] = [];
-    const trials: SubscriptionRow[] = [];
+    const stale: Subscription[] = [];
+    const trials: Subscription[] = [];
     for (const row of rows) {
-      const details = row.subscription!;
-      const today = localDate(details.timeZone);
-      const yearlyMinor = yearlyCost(details);
-      const total = totals.get(details.currency) ?? { currency: details.currency, yearlyMinor: 0 };
+      const today = localDate(row.timeZone);
+      const yearlyMinor = yearlyCost(row);
+      const total = totals.get(row.currency) ?? { currency: row.currency, yearlyMinor: 0 };
       total.yearlyMinor += yearlyMinor;
-      totals.set(details.currency, total);
-      const key = `${details.category}|${details.currency}`;
-      const category = byCategory.get(key) ?? { category: details.category, currency: details.currency, yearlyMinor: 0 };
+      totals.set(row.currency, total);
+      const key = `${row.category}|${row.currency}`;
+      const category = byCategory.get(key) ?? { category: row.category, currency: row.currency, yearlyMinor: 0 };
       category.yearlyMinor += yearlyMinor;
       byCategory.set(key, category);
-      if (unused({ createdAt: row.createdAt, subscription: details })) stale.push(row);
-      if (details.trialEndsOn && dateText(details.trialEndsOn) >= today && details.trialEndsOn.getTime() - dateValue(today).getTime() <= trialWarningDays * dayMs) {
+      if (unused(row)) stale.push(row);
+      if (row.trialEndsOn && dateText(row.trialEndsOn) >= today && row.trialEndsOn.getTime() - dateValue(today).getTime() <= trialWarningDays * dayMs) {
         trials.push(row);
       }
     }
@@ -329,7 +264,7 @@ export class SubscriptionsService implements OnModuleInit {
       totals: [...totals.values()].map(withMonthly).sort((a, b) => a.currency.localeCompare(b.currency)),
       categories: [...byCategory.values()].map(withMonthly).sort((a, b) => b.yearlyMinor - a.yearlyMinor),
       upcoming: [...rows]
-        .sort((a, b) => a.subscription!.nextRenewal.getTime() - b.subscription!.nextRenewal.getTime())
+        .sort((a, b) => a.nextRenewal.getTime() - b.nextRenewal.getTime())
         .slice(0, 10)
         .map(present),
       trials: trials.map(present),
@@ -358,51 +293,39 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   async advanceRenewals(now: Date) {
-    const due = await this.prisma.subscription.findMany({
-      where: { cancelledOn: null, nextRenewal: { lte: dateValue(dateText(now)) }, item: { trashedAt: null } },
-      select: { itemId: true, repeatRule: true, startDate: true, timeZone: true, nextRenewal: true, item: { select: { spaceId: true, title: true } } },
-      take: 500,
-    });
+    const due = await this.prisma.subscription.findMany({ where: { cancelledOn: null, nextRenewal: { lte: dateValue(dateText(now)) } }, take: 500 });
     for (const subscription of due) {
       const today = localDate(subscription.timeZone, now);
       if (dateText(subscription.nextRenewal) >= today) continue;
       const next = nextRenewal(subscription, today);
       await this.prisma.$transaction(async (transaction) => {
         await transaction.subscription.update({
-          where: { itemId: subscription.itemId },
+          where: { id: subscription.id },
           data: next ? { nextRenewal: dateValue(next) } : { cancelledOn: subscription.nextRenewal },
         });
-        await this.activity.record(transaction, {
-          spaceId: subscription.item.spaceId,
-          actorId: null,
-          itemId: subscription.itemId,
-          verb: next ? 'subscription.renewed' : 'subscription.cancelled',
-          data: { title: subscription.item.title, ...(next ? { nextRenewal: next } : {}) },
-        });
-        await this.reschedule(transaction, subscription.itemId);
+        await this.reschedule(transaction, subscription.id);
       });
+      this.changes.notify('subscriptions', { userId: subscription.userId });
     }
   }
 
-  private async editable(userId: string, itemId: string) {
-    const found = await this.access.assertItem(userId, itemId, 'edit');
-    if (found.trashedAt) throw new BadRequestException('Restore this subscription from the trash before changing it');
-    const item = await this.prisma.item.findUniqueOrThrow({
-      where: { id: itemId },
-      select: { spaceId: true, title: true, subscription: true },
-    });
-    if (!item.subscription) throw new NotFoundException('That item is not a subscription');
-    return { ...item, subscription: item.subscription };
+  private async own(userId: string, id: string) {
+    const row = await this.prisma.subscription.findFirst({ where: { id, userId } });
+    if (!row) throw new NotFoundException('Subscription not found');
+    return row;
   }
 
-  private async reschedule(client: Prisma.TransactionClient, itemId: string) {
-    await client.scheduledJob.deleteMany({
-      where: { kind: reminderKind, doneAt: null, failedAt: null, payload: { path: ['itemId'], equals: itemId } },
+  private unschedule(client: Prisma.TransactionClient, subscriptionId: string) {
+    return client.scheduledJob.deleteMany({
+      where: { kind: reminderKind, doneAt: null, failedAt: null, payload: { path: ['subscriptionId'], equals: subscriptionId } },
     });
-    const details = await client.subscription.findUniqueOrThrow({ where: { itemId } });
+  }
+
+  private async reschedule(client: Prisma.TransactionClient, subscriptionId: string) {
+    await this.unschedule(client, subscriptionId);
+    const details = await client.subscription.findUniqueOrThrow({ where: { id: subscriptionId } });
     if (details.cancelledOn || details.reminderDays === null) return;
-    const remindAt = (date: Date) =>
-      zonedInstant(date.getTime() / dayMs - details.reminderDays!, 9, 0, details.timeZone);
+    const remindAt = (date: Date) => zonedInstant(date.getTime() / dayMs - details.reminderDays!, 9, 0, details.timeZone);
     const reminders = [
       { on: 'renewal' as const, date: details.nextRenewal },
       ...(details.trialEndsOn ? [{ on: 'trial' as const, date: details.trialEndsOn }] : []),
@@ -410,30 +333,26 @@ export class SubscriptionsService implements OnModuleInit {
     for (const reminder of reminders) {
       const at = remindAt(reminder.date);
       if (at > new Date()) {
-        await this.jobs.schedule(reminderKind, at, { itemId, on: reminder.on, date: dateText(reminder.date) }, client);
+        await this.jobs.schedule(reminderKind, at, { subscriptionId, on: reminder.on, date: dateText(reminder.date) } satisfies Reminder, client);
       }
     }
   }
 
-  private async remind(payload: { itemId: string; on: 'renewal' | 'trial'; date: string }) {
-    const item = await this.prisma.item.findUnique({
-      where: { id: payload.itemId },
-      select: { spaceId: true, title: true, trashedAt: true, createdById: true, subscription: true },
-    });
-    const details = item?.subscription;
-    if (!item || !details || item.trashedAt || details.cancelledOn || !item.createdById) return;
+  private async remind(payload: Reminder) {
+    const details = await this.prisma.subscription.findUnique({ where: { id: payload.subscriptionId } });
+    if (!details || details.cancelledOn) return;
     const current = payload.on === 'trial' ? details.trialEndsOn : details.nextRenewal;
-    if (!current || dateText(current) !== payload.date || !(await this.access.isMember(item.createdById, item.spaceId))) return;
+    if (!current || dateText(current) !== payload.date) return;
     const amount = money(details.amountMinor, details.currency);
     await this.inbox.notify(this.prisma, [
       {
-        userId: item.createdById,
+        userId: details.userId,
         kind: 'subscription_due',
         title:
           payload.on === 'trial'
-            ? `The free trial of ${item.title} ends on ${readableDay(payload.date)}, then it costs ${amount}`
-            : `${item.title} renews on ${readableDay(payload.date)} for ${amount}`,
-        link: `/spending/recurring?subscription=${payload.itemId}`,
+            ? `The free trial of ${details.name} ends on ${readableDay(payload.date)}, then it costs ${amount}`
+            : `${details.name} renews on ${readableDay(payload.date)} for ${amount}`,
+        link: `/spending/recurring?subscription=${details.id}`,
       },
     ]);
   }
