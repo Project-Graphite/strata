@@ -6,9 +6,8 @@ import { ItemsService } from '../items/items.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
-import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
+import { dateValue, dayMs, localDate } from '../recurrence/dates';
 import { zonedInstant } from '../recurrence/occurrences';
-import { subscriptionFields, SubscriptionsService, unused, yearlyCost, type Details } from '../subscriptions/subscriptions.service';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { TidyActionDto, type TidyActionName } from './dto/tidy.dto';
 
@@ -45,7 +44,6 @@ function stateFields(userId: string) {
     archivedAt: true,
     trashedAt: true,
     tags: { select: { tagId: true } },
-    subscription: { select: { cancelledOn: true } },
     space: { select: { members: { where: { userId }, select: { role: true } } } },
   } satisfies Prisma.ItemSelect;
 }
@@ -62,19 +60,6 @@ function presentFile(item: Prisma.ItemGetPayload<{ select: typeof fileFields }>)
     archivedAt: item.archivedAt,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
-  };
-}
-
-function presentSubscription(row: { id: string; spaceId: string; title: string; subscription: Details }) {
-  return {
-    id: row.id,
-    spaceId: row.spaceId,
-    name: row.title,
-    category: row.subscription.category,
-    amountMinor: row.subscription.amountMinor,
-    currency: row.subscription.currency,
-    yearlyMinor: yearlyCost(row.subscription),
-    lastUsedOn: dateText(row.subscription.lastUsedOn),
   };
 }
 
@@ -95,15 +80,6 @@ function presentChange(item: ItemState) {
   return { id: item.id, spaceId: item.spaceId, kind: item.kind.toLowerCase(), title: item.title };
 }
 
-function groupedBy<T>(entries: T[], key: (entry: T) => string | null) {
-  const groups = new Map<string, T[]>();
-  for (const entry of entries) {
-    const name = key(entry);
-    if (name !== null) groups.set(name, [...(groups.get(name) ?? []), entry]);
-  }
-  return [...groups].filter(([, members]) => members.length > 1);
-}
-
 function canEdit(item: ItemState) {
   const role = item.space.members[0]?.role;
   return role === SpaceRole.OWNER || role === SpaceRole.EDITOR;
@@ -116,8 +92,6 @@ function refusal(item: ItemState | undefined, action: TidyActionName, tag: { id:
   if (action === 'archive' && item.archivedAt) return 'Already archived';
   if (action === 'tag' && item.spaceId !== tag!.spaceId) return 'The tag belongs to another space';
   if (action === 'tag' && item.tags.some(({ tagId }) => tagId === tag!.id)) return 'Already has this tag';
-  if (action === 'cancel' && !item.subscription) return 'Not a subscription';
-  if (action === 'cancel' && item.subscription!.cancelledOn) return 'Already cancelled';
   return null;
 }
 
@@ -126,7 +100,6 @@ function undoRefusal(item: ItemState, action: TidyAction, tagId: string | null) 
   if (action === TidyAction.TRASH) return item.trashedAt ? null : 'No longer in the trash';
   if (item.trashedAt) return 'In the trash';
   if (action === TidyAction.ARCHIVE) return item.archivedAt ? null : 'No longer archived';
-  if (action === TidyAction.CANCEL) return item.subscription?.cancelledOn ? null : 'No longer cancelled';
   if (!tagId) return 'The tag was deleted';
   return item.tags.some((tag) => tag.tagId === tagId) ? null : 'No longer has this tag';
 }
@@ -152,7 +125,6 @@ export class TidyService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly items: ItemsService,
-    private readonly subscriptions: SubscriptionsService,
     private readonly jobs: JobsService,
     private readonly maintenance: MaintenanceScheduler,
     private readonly inbox: InboxService,
@@ -178,18 +150,12 @@ export class TidyService implements OnModuleInit {
   async sendSummary(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { tidySummary: true, isActive: true } });
     if (!user?.tidySummary || !user.isActive) return;
-    const { files, subscriptions } = await this.scan(userId);
+    const { files } = await this.scan(userId);
     const copies = files.duplicates.reduce((total, group) => total + group.items.length - 1, 0);
     const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
-    const toCheck = new Set(
-      [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
-        (entry) => entry.id,
-      ),
-    ).size;
     const findings = [
       copies ? `${counted(copies, 'extra copy', 'extra copies')} (${size(saving)})` : '',
       files.old.length ? counted(files.old.length, 'old upload', 'old uploads') : '',
-      toCheck ? counted(toCheck, 'subscription to check', 'subscriptions to check') : '',
     ].filter(Boolean);
     if (findings.length === 0) return;
     const listed = findings.length === 1 ? findings[0] : `${findings.slice(0, -1).join(', ')} and ${findings.at(-1)}`;
@@ -209,7 +175,7 @@ export class TidyService implements OnModuleInit {
       .map((group) => ({ sha256: group.sha256, sizeBytes: group._max.sizeBytes ?? 0, copies: group._count._all }))
       .sort((a, b) => (b.copies - 1) * b.sizeBytes - (a.copies - 1) * a.sizeBytes)
       .slice(0, 20);
-    const [copies, large, old, subscriptions] = await Promise.all([
+    const [copies, large, old] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...editable, file: { sha256: { in: biggest.map((group) => group.sha256) } } },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -227,15 +193,7 @@ export class TidyService implements OnModuleInit {
         take: 50,
         select: fileFields,
       }),
-      this.prisma.item.findMany({
-        where: { ...editable, kind: ItemKind.SUBSCRIPTION, subscription: { cancelledOn: null } },
-        select: subscriptionFields,
-      }),
     ]);
-    const active = subscriptions
-      .map((row) => ({ row: { ...row, subscription: row.subscription! }, view: presentSubscription({ ...row, subscription: row.subscription! }) }))
-      .sort((a, b) => b.view.yearlyMinor - a.view.yearlyMinor);
-    const views = active.map(({ view }) => view);
     return {
       files: {
         duplicates: biggest.map((group) => ({
@@ -245,17 +203,6 @@ export class TidyService implements OnModuleInit {
         })),
         large: large.map(({ item }) => presentFile(item)),
         old: old.map(presentFile),
-      },
-      subscriptions: {
-        unused: active.filter(({ row }) => unused(row)).map(({ view }) => view),
-        duplicates: groupedBy(views, (view) => view.name.toLowerCase().replace(/\s+/g, ' ')).map(([, items]) => ({
-          name: items[0]!.name,
-          items,
-        })),
-        overlapping: groupedBy(views, (view) => (view.category === 'other' ? null : view.category)).map(([category, items]) => ({
-          category,
-          items,
-        })),
       },
     };
   }
@@ -363,13 +310,11 @@ export class TidyService implements OnModuleInit {
 
   private change(userId: string, action: Exclude<TidyActionName, 'tag'>, itemId: string) {
     if (action === 'archive') return this.items.update(userId, itemId, { archived: true });
-    if (action === 'trash') return this.items.moveToTrash(userId, itemId);
-    return this.subscriptions.cancel(userId, itemId);
+    return this.items.moveToTrash(userId, itemId);
   }
 
   private reverse(userId: string, action: TidyAction, itemId: string) {
     if (action === TidyAction.ARCHIVE) return this.items.update(userId, itemId, { archived: false });
-    if (action === TidyAction.TRASH) return this.items.restore(userId, itemId);
-    return this.subscriptions.resume(userId, itemId);
+    return this.items.restore(userId, itemId);
   }
 }

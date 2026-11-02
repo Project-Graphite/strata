@@ -17,14 +17,12 @@ export function InstallmentEditor({
   onClose,
   onSaved,
   plan,
-  spaceId,
 }: {
   accounts: MoneyAccount[];
   currency: string;
   onClose: () => void;
   onSaved: () => void;
   plan?: InstallmentPlan;
-  spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
@@ -60,7 +58,7 @@ export function InstallmentEditor({
         };
         void saving
           .run(async () => {
-            await auth.request(plan ? `/installments/${plan.id}` : `/spaces/${spaceId}/installments`, { method: plan ? 'PATCH' : 'POST', body: JSON.stringify(body) });
+            await auth.request(plan ? `/installments/${plan.id}` : `/me/installments`, { method: plan ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
             return `${plan ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the plan')

@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InstallmentPlan } from '@prisma/client';
-import { AccessService } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { fractionDigits } from '../exchange-rates/exchange-rates.service';
 import { InboxService } from '../inbox/inbox.service';
@@ -34,7 +33,6 @@ function present(plan: InstallmentPlan, today: string) {
   const monthlyMinor = Number(plan.monthlyMinor);
   return {
     id: plan.id,
-    spaceId: plan.spaceId,
     accountId: plan.accountId,
     name: plan.name,
     currency: plan.currency,
@@ -54,7 +52,6 @@ function present(plan: InstallmentPlan, today: string) {
 export class InstallmentsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: AccessService,
     private readonly accounts: AccountsService,
     private readonly inbox: InboxService,
     private readonly maintenance: MaintenanceScheduler,
@@ -65,32 +62,30 @@ export class InstallmentsService implements OnModuleInit {
     this.maintenance.register((now) => this.remind(now));
   }
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
+  async list(userId: string) {
     const today = await this.today(userId);
-    const plans = await this.prisma.installmentPlan.findMany({ where: { spaceId }, orderBy: [{ firstDueOn: 'asc' }, { createdAt: 'asc' }] });
+    const plans = await this.prisma.installmentPlan.findMany({ where: { userId }, orderBy: [{ firstDueOn: 'asc' }, { createdAt: 'asc' }] });
     return plans.map((plan) => present(plan, today));
   }
 
-  async create(userId: string, spaceId: string, input: CreateInstallmentDto) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    await this.assertAccount(spaceId, input.accountId);
+  async create(userId: string, input: CreateInstallmentDto) {
+    await this.assertAccount(userId, input.accountId);
     const plan = await this.prisma.installmentPlan.create({
-      data: { spaceId, ...input, firstDueOn: dateValue(input.firstDueOn), accountId: input.accountId ?? null },
+      data: { userId, ...input, firstDueOn: dateValue(input.firstDueOn), accountId: input.accountId ?? null },
     });
-    this.changes.notify('spending', { spaceId });
+    this.changes.notify('spending', { userId });
     return present(plan, await this.today(userId));
   }
 
   async update(userId: string, id: string, input: UpdateInstallmentDto) {
     const plan = await this.find(userId, id);
-    await this.assertAccount(plan.spaceId, input.accountId);
+    await this.assertAccount(userId, input.accountId);
     if ((input.paidCount ?? plan.paidCount) > (input.count ?? plan.count)) throw new BadRequestException('More payments are marked paid than the plan has');
     const updated = await this.prisma.installmentPlan.update({
       where: { id },
       data: { ...input, firstDueOn: input.firstDueOn ? dateValue(input.firstDueOn) : undefined },
     });
-    this.changes.notify('spending', { spaceId: plan.spaceId });
+    this.changes.notify('spending', { userId });
     return present(updated, await this.today(userId));
   }
 
@@ -98,32 +93,32 @@ export class InstallmentsService implements OnModuleInit {
     const plan = await this.find(userId, id);
     if (plan.paidCount >= plan.count) throw new BadRequestException('Every payment is already marked paid');
     const updated = await this.prisma.installmentPlan.update({ where: { id }, data: { paidCount: { increment: 1 } } });
-    this.changes.notify('spending', { spaceId: plan.spaceId });
+    this.changes.notify('spending', { userId });
     return present(updated, await this.today(userId));
   }
 
   async remove(userId: string, id: string) {
     const plan = await this.find(userId, id);
     await this.prisma.installmentPlan.delete({ where: { id: plan.id } });
-    this.changes.notify('spending', { spaceId: plan.spaceId });
+    this.changes.notify('spending', { userId });
   }
 
   async remind(now: Date) {
     const today = dateText(now);
     const plans = await this.prisma.installmentPlan.findMany();
     const cards = await this.prisma.moneyAccount.findMany({ where: { kind: 'credit_card', dueDay: { not: null } } });
-    const notes: { spaceId: string; title: string; body: string }[] = [];
+    const notes: { userId: string; title: string; body: string }[] = [];
     for (const plan of plans) {
       if (plan.paidCount >= plan.count) continue;
       const due = addMonths(dateText(plan.firstDueOn), plan.paidCount);
       const days = daysBetween(today, due);
       const amount = this.format(Number(plan.monthlyMinor), plan.currency);
       if (days >= 0 && days <= plan.reminderDays && dateText(plan.remindedOn) !== due) {
-        notes.push({ spaceId: plan.spaceId, title: `${plan.name} is due ${days === 0 ? 'today' : `on ${readableDay(due)}`}`, body: `${amount}, payment ${plan.paidCount + 1} of ${plan.count}` });
+        notes.push({ userId: plan.userId, title: `${plan.name} is due ${days === 0 ? 'today' : `on ${readableDay(due)}`}`, body: `${amount}, payment ${plan.paidCount + 1} of ${plan.count}` });
         await this.prisma.installmentPlan.update({ where: { id: plan.id }, data: { remindedOn: dateValue(due) } });
       }
       if (days < 0 && dateText(plan.missedOn) !== due) {
-        notes.push({ spaceId: plan.spaceId, title: `Missed payment: ${plan.name}`, body: `${amount} was due on ${readableDay(due)}` });
+        notes.push({ userId: plan.userId, title: `Missed payment: ${plan.name}`, body: `${amount} was due on ${readableDay(due)}` });
         await this.prisma.installmentPlan.update({ where: { id: plan.id }, data: { missedOn: dateValue(due) } });
       }
     }
@@ -131,18 +126,13 @@ export class InstallmentsService implements OnModuleInit {
       const account = cards.find((candidate) => candidate.id === card.id)!;
       const due = nextCardDue(today, account.dueDay!);
       if (card.balanceMinor >= 0 || daysBetween(today, due) > cardReminderDays || dateText(account.dueRemindedOn) === due) continue;
-      notes.push({ spaceId: card.spaceId, title: `${card.name} is due ${due === today ? 'today' : `on ${readableDay(due)}`}`, body: `${this.format(-card.balanceMinor, card.currency)} owed` });
+      notes.push({ userId: account.userId, title: `${card.name} is due ${due === today ? 'today' : `on ${readableDay(due)}`}`, body: `${this.format(-card.balanceMinor, card.currency)} owed` });
       await this.prisma.moneyAccount.update({ where: { id: card.id }, data: { dueRemindedOn: dateValue(due) } });
     }
     if (notes.length === 0) return;
-    const members = await this.prisma.spaceMember.findMany({ where: { spaceId: { in: [...new Set(notes.map((note) => note.spaceId))] } }, select: { spaceId: true, userId: true } });
     await this.inbox.notify(
       this.prisma,
-      notes.flatMap((note) =>
-        members
-          .filter((member) => member.spaceId === note.spaceId)
-          .map((member) => ({ userId: member.userId, kind: 'payment_due' as const, title: note.title, body: note.body, link: `/spending/accounts?space=${note.spaceId}` })),
-      ),
+      notes.map((note) => ({ userId: note.userId, kind: 'payment_due' as const, title: note.title, body: note.body, link: '/spending/accounts' })),
     );
   }
 
@@ -155,14 +145,13 @@ export class InstallmentsService implements OnModuleInit {
     return localDate(user.timeZone);
   }
 
-  private async assertAccount(spaceId: string, accountId: string | null | undefined) {
-    if (accountId && !(await this.prisma.moneyAccount.count({ where: { id: accountId, spaceId } }))) throw new BadRequestException('Choose an account from this space');
+  private async assertAccount(userId: string, accountId: string | null | undefined) {
+    if (accountId && !(await this.prisma.moneyAccount.count({ where: { id: accountId, userId } }))) throw new BadRequestException('Choose one of your accounts');
   }
 
   private async find(userId: string, id: string) {
-    const plan = await this.prisma.installmentPlan.findUnique({ where: { id } });
+    const plan = await this.prisma.installmentPlan.findFirst({ where: { id, userId } });
     if (!plan) throw new NotFoundException('Installment plan not found');
-    await this.access.assertPersonalSpace(userId, plan.spaceId);
     return plan;
   }
 }

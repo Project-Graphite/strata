@@ -1,4 +1,3 @@
-import { SpaceRole } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { JobsService } from '../../src/jobs/jobs.service';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
@@ -12,12 +11,9 @@ describe('Subscriptions against Postgres', () => {
   const strata = integrationApp();
   const { member } = strata;
 
-  it('checks what a subscription may hold and keeps it inside its space', async () => {
+  it('checks what a subscription may hold and keeps it to the account that made it', async () => {
     const owner = await member('payer');
-    const viewer = await member('looker');
     const outsider = await member('nosy');
-    const space = (await owner.call('POST', '/spaces', { name: 'Household' })).body;
-    await strata.join(space.id, viewer, SpaceRole.VIEWER);
     const valid = { name: 'Music', amountMinor: 999, currency: 'eur', repeatRule: 'FREQ=MONTHLY', startDate: utcDate(10) };
 
     for (const [change, reason] of [
@@ -28,26 +24,26 @@ describe('Subscriptions against Postgres', () => {
       [{ repeatRule: 'FREQ=HOURLY' }, 'unsupported rule'],
       [{ category: 'gambling' }, 'unknown category'],
     ] as const) {
-      expect({ reason, status: (await owner.call('POST', `/spaces/${space.id}/subscriptions`, { ...valid, ...change })).status }).toEqual({
-        reason,
-        status: 400,
-      });
+      expect({ reason, status: (await owner.call('POST', '/me/subscriptions', { ...valid, ...change })).status }).toEqual({ reason, status: 400 });
     }
-    const created = await owner.call('POST', `/spaces/${space.id}/subscriptions`, { ...valid, paymentLabel: 'Visa ending 1234' });
+    const created = await owner.call('POST', '/me/subscriptions', { ...valid, paymentLabel: 'Visa ending 1234' });
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ currency: 'EUR', nextRenewal: utcDate(10), paymentLabel: 'Visa ending 1234', category: 'other' });
-    expect((await viewer.call('GET', `/subscriptions/${created.body.id}`)).status).toBe(200);
-    expect((await viewer.call('POST', `/spaces/${space.id}/subscriptions`, valid)).status).toBe(403);
-    expect((await viewer.call('PATCH', `/subscriptions/${created.body.id}`, { amountMinor: 1 })).status).toBe(403);
+    expect(created.body).not.toHaveProperty('spaceId');
     expect((await outsider.call('GET', `/subscriptions/${created.body.id}`)).status).toBe(404);
+    expect((await outsider.call('PATCH', `/subscriptions/${created.body.id}`, { amountMinor: 1 })).status).toBe(404);
+    expect((await outsider.call('DELETE', `/subscriptions/${created.body.id}`)).status).toBe(404);
+    expect((await outsider.call('GET', '/me/subscriptions')).body).toEqual([]);
     expect((await outsider.call('GET', '/subscriptions/summary')).body.totals).toEqual([]);
+    expect((await owner.call('DELETE', `/subscriptions/${created.body.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/subscriptions/${created.body.id}`)).status).toBe(404);
+    expect(await strata.prisma.scheduledJob.count({ where: { kind: 'subscription.reminder', doneAt: null, payload: { path: ['subscriptionId'], equals: created.body.id } } })).toBe(0);
   });
 
   it('adds up yearly and monthly costs, keeps price history and drops cancelled ones', async () => {
     const owner = await member('counter');
-    const space = owner.personalSpaceId;
     const music = (
-      await owner.call('POST', `/spaces/${space}/subscriptions`, {
+      await owner.call('POST', '/me/subscriptions', {
         name: 'Music',
         amountMinor: 999,
         currency: 'EUR',
@@ -56,7 +52,7 @@ describe('Subscriptions against Postgres', () => {
         category: 'music',
       })
     ).body;
-    await owner.call('POST', `/spaces/${space}/subscriptions`, {
+    await owner.call('POST', '/me/subscriptions', {
       name: 'Domain',
       amountMinor: 1500,
       currency: 'USD',
@@ -80,7 +76,7 @@ describe('Subscriptions against Postgres', () => {
 
     expect((await owner.call('POST', `/subscriptions/${music.id}/cancel`)).body.cancelledOn).not.toBeNull();
     expect((await owner.call('GET', '/subscriptions/summary')).body.totals.map((total: { currency: string }) => total.currency)).toEqual(['USD']);
-    expect((await owner.call('GET', `/spaces/${space}/subscriptions?status=cancelled`)).body).toHaveLength(1);
+    expect((await owner.call('GET', '/me/subscriptions?status=cancelled')).body).toHaveLength(1);
     expect((await owner.call('POST', `/subscriptions/${music.id}/resume`)).body.cancelledOn).toBeNull();
   });
 
@@ -88,7 +84,7 @@ describe('Subscriptions against Postgres', () => {
     const owner = await member('trialist');
     const jobs = strata.service(JobsService);
     const trial = (
-      await owner.call('POST', `/spaces/${owner.personalSpaceId}/subscriptions`, {
+      await owner.call('POST', '/me/subscriptions', {
         name: 'Video',
         amountMinor: 1299,
         currency: 'GBP',
@@ -99,7 +95,7 @@ describe('Subscriptions against Postgres', () => {
       })
     ).body;
     const reminders = await strata.prisma.scheduledJob.findMany({
-      where: { kind: 'subscription.reminder', doneAt: null, payload: { path: ['itemId'], equals: trial.id } },
+      where: { kind: 'subscription.reminder', doneAt: null, payload: { path: ['subscriptionId'], equals: trial.id } },
       orderBy: { runAt: 'asc' },
     });
     expect(reminders.map((job) => job.runAt.toISOString())).toEqual([`${utcDate(2)}T09:00:00.000Z`, `${utcDate(7)}T09:00:00.000Z`]);
@@ -107,7 +103,7 @@ describe('Subscriptions against Postgres', () => {
     const summary = (await owner.call('GET', '/subscriptions/summary')).body;
     expect(summary.trials.map((entry: { id: string }) => entry.id)).toEqual([trial.id]);
     expect(summary.stillWorthIt).toEqual([]);
-    await strata.prisma.subscription.update({ where: { itemId: trial.id }, data: { lastUsedOn: new Date(`${utcDate(-61)}T00:00:00Z`) } });
+    await strata.prisma.subscription.update({ where: { id: trial.id }, data: { lastUsedOn: new Date(`${utcDate(-61)}T00:00:00Z`) } });
     expect((await owner.call('GET', '/subscriptions/summary')).body.stillWorthIt.map((entry: { id: string }) => entry.id)).toEqual([trial.id]);
     await owner.call('POST', `/subscriptions/${trial.id}/used`);
     expect((await owner.call('GET', '/subscriptions/summary')).body.stillWorthIt).toEqual([]);
@@ -122,7 +118,7 @@ describe('Subscriptions against Postgres', () => {
   it('moves a passed renewal to the next one on its own', async () => {
     const owner = await member('renewer');
     const gym = (
-      await owner.call('POST', `/spaces/${owner.personalSpaceId}/subscriptions`, {
+      await owner.call('POST', '/me/subscriptions', {
         name: 'Gym',
         amountMinor: 3000,
         currency: 'EUR',
@@ -130,15 +126,11 @@ describe('Subscriptions against Postgres', () => {
         startDate: utcDate(-30),
       })
     ).body;
-    await strata.prisma.subscription.update({ where: { itemId: gym.id }, data: { nextRenewal: new Date(`${utcDate(-9)}T00:00:00Z`) } });
+    await strata.prisma.subscription.update({ where: { id: gym.id }, data: { nextRenewal: new Date(`${utcDate(-9)}T00:00:00Z`) } });
 
     await strata.service(MaintenanceScheduler).run(new Date());
 
     const renewed = (await owner.call('GET', `/subscriptions/${gym.id}`)).body;
     expect(renewed.nextRenewal >= utcDate(0) && renewed.nextRenewal < utcDate(7)).toBe(true);
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/activity`)).body.results[0]).toMatchObject({
-      verb: 'subscription.renewed',
-      data: { title: 'Gym', nextRenewal: renewed.nextRenewal },
-    });
   });
 });

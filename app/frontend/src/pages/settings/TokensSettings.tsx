@@ -5,6 +5,7 @@ import { useAuth } from '../../auth';
 import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
+import { useAllSpaces } from '../../spaces';
 import { formatDate, formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import type { Resource } from '../../useResource';
@@ -18,6 +19,7 @@ import { SecretDialog } from '../../components/Copyable';
 export interface AccessToken {
   id: string;
   name: string;
+  spaceId: string | null;
   scopes: string[];
   lastUsedAt: string | null;
   expiresAt: string;
@@ -29,8 +31,8 @@ const scopes = [
   ['account:write', 'Change your profile, inbox and dashboards'],
   ['spaces:read', 'See your spaces, their members, invitations, tags and activity'],
   ['spaces:write', 'Create and change spaces, members and invitations'],
-  ['items:read', 'Read items, links, share links and the trash, and download files'],
-  ['items:write', 'Change items, tags, guests and share links, upload files and move things to the trash'],
+  ['items:read', 'Read items, page content, links, share links and the trash, and download files'],
+  ['items:write', 'Create and change items, write page content, tags, guests and share links, upload files and move things to the trash'],
   ['spending:capture', 'Send bank text messages to Spending'],
 ] as const;
 
@@ -59,6 +61,7 @@ export const emptyTokens = { title: 'No tokens yet', hint: 'A token lets your ow
 
 export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessToken[]>; twoStep: TwoStepStatus }) {
   const auth = useAuth();
+  const spaces = useAllSpaces();
   const creating = useAction();
   const form = useFormErrors();
   const [open, setOpen] = useState(false);
@@ -104,7 +107,9 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
                 key={token.id}
                 label={token.name}
               >
-                {token.scopes.join(', ')} · {token.lastUsedAt ? `used ${formatMoment(token.lastUsedAt)}` : 'never used'} · expires {formatDate(dayKey(new Date(token.expiresAt)))}
+                {token.scopes.join(', ')}
+                {token.spaceId && ` · only in ${spaces.data?.find((space) => space.id === token.spaceId)?.name ?? 'one space'}`} ·{' '}
+                {token.lastUsedAt ? `used ${formatMoment(token.lastUsedAt)}` : 'never used'} · expires {formatDate(dayKey(new Date(token.expiresAt)))}
               </SettingsRow>
             ))}
           </SettingsRows>
@@ -140,6 +145,7 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
                   name: String(values.get('name')).trim(),
                   scopes: chosen,
                   expiresInDays: Number(values.get('expiresInDays')),
+                  spaceId: String(values.get('spaceId') ?? '') || undefined,
                   ...proofFrom(target),
                 }),
               });
@@ -154,6 +160,12 @@ export function TokensSettings({ tokens, twoStep }: { tokens: Resource<AccessTok
         >
           <TextField autoFocus label="Name" maxLength={60} {...form.field('name')} />
           <ScopeFields chosen={['spaces:read', 'items:read']} missing={noScope} />
+          <Select
+            defaultValue=""
+            label="Works in"
+            name="spaceId"
+            options={[{ value: '', label: 'All your spaces' }, ...(spaces.data ?? []).map((space) => ({ value: space.id, label: space.name }))]}
+          />
           <Select
             defaultValue="90"
             label="Expires after"

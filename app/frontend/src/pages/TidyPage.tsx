@@ -7,7 +7,6 @@ import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
 import { useSpaces } from '../spaces';
-import { categoryLabel, money, shortDate } from '../subscriptions';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { FolderScan } from './FolderScan';
@@ -18,13 +17,11 @@ import { Button } from '../components/Button';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { capitalised, clockTime, formatDate, formatMoment } from '../time';
 
-const emptySuggestions = { title: 'Nothing to tidy', hint: 'There are no duplicate, large or old uploads, and no subscriptions that look unused.' };
+const emptySuggestions = { title: 'Nothing to tidy', hint: 'There are no duplicate, large or old uploads.' };
 const emptyHistory = { title: 'Nothing tidied yet', hint: 'Changes stay here for 90 days, so you can undo them.' };
 const duplicateUploads = { title: 'Duplicate uploads', description: 'The same file, uploaded more than once. Keep the first copy and move the rest to the trash.' };
 const largeUploads = { title: 'Large uploads', description: 'Uploads of 5 MB or more, biggest first.' };
 const oldUploads = { title: 'Old uploads', description: 'Uploads nobody has changed for a year. Archiving keeps them but takes them out of the way.' };
-const unusedSubscriptions = { title: 'Unused subscriptions', description: 'Nobody has marked these as used in two months.' };
-const duplicateSubscriptions = { title: 'Duplicate subscriptions', description: 'Subscriptions with the same name, perhaps paid twice.' };
 const choiceLead = (
   <span className="grid size-9.5 shrink-0 place-items-center">
     <Skeleton className="size-4 rounded-mark" />
@@ -40,23 +37,8 @@ interface FileEntry {
   updatedAt: string;
 }
 
-interface SubscriptionEntry {
-  id: string;
-  spaceId: string;
-  name: string;
-  category: string;
-  currency: string;
-  yearlyMinor: number;
-  lastUsedOn: string | null;
-}
-
 interface Scan {
   files: { duplicates: { sizeBytes: number; savingBytes: number; items: FileEntry[] }[]; large: FileEntry[]; old: FileEntry[] };
-  subscriptions: {
-    unused: SubscriptionEntry[];
-    duplicates: { name: string; items: SubscriptionEntry[] }[];
-    overlapping: { category: string; items: SubscriptionEntry[] }[];
-  };
 }
 
 interface UndoResult {
@@ -72,19 +54,12 @@ function TidySuggestions() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [request, setRequest] = useState<TidyRequest>();
   const found = scan.data;
-  const [extraCopies, largeRows, oldRows, unusedRows] = useRememberedShape(
+  const [extraCopies, largeRows, oldRows] = useRememberedShape(
     'tidy-suggestions',
-    found && [
-      found.files.duplicates.some((group) => group.savingBytes > 0) ? 1 : 0,
-      found.files.large.length,
-      found.files.old.length,
-      found.subscriptions.unused.length,
-    ],
-    [0, 2, 2, 0],
+    found && [found.files.duplicates.some((group) => group.savingBytes > 0) ? 1 : 0, found.files.large.length, found.files.old.length],
+    [0, 2, 2],
   );
   const copyGroups = useRememberedShape('tidy-duplicate-files', found?.files.duplicates.map((group) => group.items.length), []);
-  const twinGroups = useRememberedShape('tidy-duplicate-subscriptions', found?.subscriptions.duplicates.map((group) => group.items.length), []);
-  const overlapGroups = useRememberedShape('tidy-overlapping-subscriptions', found?.subscriptions.overlapping.map((group) => group.items.length), []);
 
   if (scan.error) return <LoadError error={scan.error} onRetry={scan.reload} />;
   if (!scan.data) {
@@ -105,7 +80,6 @@ function TidySuggestions() {
           [
             [largeRows, largeUploads],
             [oldRows, oldUploads],
-            [unusedRows, unusedSubscriptions],
           ] as const
         ).map(
           ([rows, section]) =>
@@ -115,24 +89,7 @@ function TidySuggestions() {
               </Section>
             ),
         )}
-        {twinGroups.length > 0 && (
-          <Section {...duplicateSubscriptions}>
-            {twinGroups.map((rows, group) => (
-              <RowsSkeleton key={group} lead={choiceLead} rows={rows} />
-            ))}
-          </Section>
-        )}
-        {overlapGroups.length > 0 && (
-          <Section title="Overlapping subscriptions">
-            {overlapGroups.map((rows, group) => (
-              <div className="grid gap-3" key={group}>
-                <SkeletonLine className="text-h3" width="w-32" />
-                <RowsSkeleton lead={choiceLead} rows={rows} />
-              </div>
-            ))}
-          </Section>
-        )}
-        {!largeRows && !oldRows && !unusedRows && !copyGroups.length && !twinGroups.length && !overlapGroups.length && (
+        {!largeRows && !oldRows && !copyGroups.length && (
           <Empty loading title={emptySuggestions.title}>
             {emptySuggestions.hint}
           </Empty>
@@ -140,29 +97,14 @@ function TidySuggestions() {
       </Placeholder>
     );
   }
-  const { files, subscriptions } = scan.data;
+  const { files } = scan.data;
   const spaceName = (id: string) => spaces.data?.find((space) => space.id === id)?.name ?? 'a space';
   const toggle = (id: string) => setSelected((current) => toggled(current, id));
-  const subscriptionIds = new Set(
-    [...subscriptions.unused, ...subscriptions.duplicates.flatMap((group) => group.items), ...subscriptions.overlapping.flatMap((group) => group.items)].map(
-      (entry) => entry.id,
-    ),
-  );
   const saving = files.duplicates.reduce((total, group) => total + group.savingBytes, 0);
-  const empty =
-    files.duplicates.length + files.large.length + files.old.length + subscriptionIds.size === 0;
+  const empty = files.duplicates.length + files.large.length + files.old.length === 0;
   const open = (action: TidyAction) => setRequest({ action, itemIds: [...selected] });
   const fileChoice = (file: FileEntry, detail: string) => (
     <Choice checked={selected.has(file.id)} detail={detail} key={file.id} label={file.title} onToggle={() => toggle(file.id)} />
-  );
-  const subscriptionChoice = (entry: SubscriptionEntry, detail: string) => (
-    <Choice
-      checked={selected.has(entry.id)}
-      detail={`${money(entry.yearlyMinor, entry.currency)} a year · ${detail}`}
-      key={entry.id}
-      label={entry.name}
-      onToggle={() => toggle(entry.id)}
-    />
   );
 
   return (
@@ -210,41 +152,10 @@ function TidySuggestions() {
         </Section>
       )}
 
-      {subscriptions.unused.length > 0 && (
-        <Section {...unusedSubscriptions}>
-          <ul className="panel-rows">
-            {subscriptions.unused.map((entry) =>
-              subscriptionChoice(entry, entry.lastUsedOn ? `last used ${shortDate(entry.lastUsedOn)}` : 'never marked as used'),
-            )}
-          </ul>
-        </Section>
-      )}
-
-      {subscriptions.duplicates.length > 0 && (
-        <Section {...duplicateSubscriptions}>
-          {subscriptions.duplicates.map((group) => (
-            <ul className="panel-rows" key={group.name}>
-              {group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}
-            </ul>
-          ))}
-        </Section>
-      )}
-
-      {subscriptions.overlapping.length > 0 && (
-        <Section title="Overlapping subscriptions">
-          {subscriptions.overlapping.map((group) => (
-            <Section key={group.category} level={3} title={`${group.items.length} in ${categoryLabel(group.category)}`}>
-              <ul className="panel-rows">{group.items.map((entry) => subscriptionChoice(entry, spaceName(entry.spaceId)))}</ul>
-            </Section>
-          ))}
-        </Section>
-      )}
-
       {selected.size > 0 && (
         <SelectionBar label={`${itemsText(selected.size)} selected`} onClear={() => setSelected(new Set())}>
           <Button label="Archive" onClick={() => open('archive')} />
           <Button label="Move to trash" onClick={() => open('trash')} />
-          {[...selected].some((id) => subscriptionIds.has(id)) && <Button label="Cancel subscriptions" onClick={() => open('cancel')} />}
         </SelectionBar>
       )}
 

@@ -30,14 +30,12 @@ export function AccountEditor({
   currency,
   onClose,
   onSaved,
-  spaceId,
 }: {
   account?: MoneyAccount;
   accounts: MoneyAccount[];
   currency: string;
   onClose: () => void;
   onSaved: () => void;
-  spaceId: string;
 }) {
   const auth = useAuth();
   const saving = useAction();
@@ -89,7 +87,7 @@ export function AccountEditor({
         };
         void saving
           .run(async () => {
-            await auth.request(account ? `/accounts/${account.id}` : `/spaces/${spaceId}/accounts`, { method: account ? 'PATCH' : 'POST', body: JSON.stringify(body) });
+            await auth.request(account ? `/accounts/${account.id}` : `/me/accounts`, { method: account ? 'PATCH' : 'POST', body: JSON.stringify(body) });
             onSaved();
             return `${account ? 'Saved' : 'Added'} ${body.name}.`;
           }, 'Could not save the account')

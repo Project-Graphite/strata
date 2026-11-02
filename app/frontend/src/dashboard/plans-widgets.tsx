@@ -4,7 +4,6 @@ import { addDays, dayKey } from '../agenda';
 import { useAuth } from '../auth';
 import { periodLabel, progressText, type Goal } from '../goals';
 import { nextBirthdayText, type Person } from '../people';
-import { countdown, tripDates, type Trip } from '../trips';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
@@ -155,30 +154,6 @@ export function Goals() {
       </ul>
       {goals.data.length > 4 && <ShowAll count={goals.data.length} href="/goals" />}
     </div>
-  );
-}
-
-export function NextTrip() {
-  const trips = useResource<Trip[]>('/me/trips', true, { live: ['items'] });
-  const today = dayKey(new Date());
-  if (trips.error) return <LoadError compact error={trips.error} onRetry={trips.reload} />;
-  if (!trips.data) {
-    return (
-      <Placeholder className="grid gap-1" label="Looking for your next trip">
-        <SkeletonLine className="text-h2" width="w-32" />
-        <SkeletonLine width="w-40" />
-        <SkeletonLine className="text-small" width="w-36" />
-      </Placeholder>
-    );
-  }
-  const trip = trips.data.filter((candidate) => candidate.when !== 'past').sort((a, b) => a.startsOn.localeCompare(b.startsOn))[0];
-  if (!trip) return <WidgetEmpty action={<ButtonLink label="Plan a trip" to="/trips" />} icon="plane" title="No trips planned" />;
-  return (
-    <Link className="grid gap-1 text-ink no-underline" to={`/trips/${trip.id}`}>
-      <span className="text-h2 text-ink tabular-nums">{countdown(trip, today)}</span>
-      <span className="truncate text-body text-ink">{trip.destination || trip.title}</span>
-      <span className="truncate text-small text-muted">{tripDates(trip)}</span>
-    </Link>
   );
 }
 

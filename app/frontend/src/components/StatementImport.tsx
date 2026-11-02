@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Dialog } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { useSpaces } from '../spaces';
 import { merchantKey, suggestRecurring } from '../statement';
 import { cycleLabel, money, toMinor, type Subscription } from '../subscriptions';
 import { useAction } from '../useAction';
@@ -15,14 +14,11 @@ import { Choice, toggled } from './Selection';
 
 export function StatementImport({ defaultCurrency, onClose, onAdded }: { defaultCurrency: string; onClose: () => void; onAdded: () => void }) {
   const auth = useAuth();
-  const spaces = useSpaces();
   const adding = useAction();
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const [currency, setCurrency] = useState(defaultCurrency);
   const statement = useStatementFile(setCurrency);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
-  const target = editable[0]?.id;
-  const existing = useResource<Subscription[]>(target ? `/spaces/${target}/subscriptions` : null, true);
+    const existing = useResource<Subscription[]>(`/me/subscriptions`, true);
   const tracked = new Set((existing.data ?? []).map((subscription) => merchantKey(subscription.name)));
   const charges = statement.charges;
   const suggestions = suggestRecurring(charges);
@@ -46,7 +42,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                   return (
                     <Choice
                       checked={!known && !skipped.has(suggestion.key)}
-                      detail={[`${money(toMinor(String(suggestion.amount), currency), currency)} ${cycleLabel(suggestion.repeatRule)}`, `${suggestion.count} charges`, known && 'already tracked in this space']
+                      detail={[`${money(toMinor(String(suggestion.amount), currency), currency)} ${cycleLabel(suggestion.repeatRule)}`, `${suggestion.count} charges`, known && 'already tracked']
                         .filter(Boolean)
                         .join(' · ')}
                       disabled={known}
@@ -66,7 +62,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
         <DialogActions>
           <Button disabled={adding.busy} label="Cancel" large onClick={onClose} />
           <Button
-            disabled={!target || chosen.length === 0 || adding.busy}
+            disabled={chosen.length === 0 || adding.busy}
             label={adding.busy ? 'Adding…' : `Add ${chosen.length} subscription${chosen.length === 1 ? '' : 's'}`}
             large
             onClick={() =>
@@ -74,7 +70,7 @@ export function StatementImport({ defaultCurrency, onClose, onAdded }: { default
                 .run(async () => {
                   if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Currencies are three-letter codes such as EUR or USD.');
                   for (const suggestion of chosen) {
-                    await auth.request(`/spaces/${target}/subscriptions`, {
+                    await auth.request(`/me/subscriptions`, {
                       method: 'POST',
                       body: JSON.stringify({
                         name: suggestion.name,

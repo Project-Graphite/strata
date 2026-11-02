@@ -58,7 +58,7 @@ describe('Money model', () => {
 
   it('adds flows after the anchor to a balance held as BigInt', () => {
     const account = { id: 'bank', currency: 'EGP', balanceMinor: 9_000_000_000_000n, balanceAt: new Date('2026-10-01T00:00:00Z') };
-    const flow = (amountMinor: bigint, direction: string, at: string) => ({ amountMinor, currency: 'EGP', direction, accountId: 'bank', toAccountId: null, item: { createdAt: new Date(at) } });
+    const flow = (amountMinor: bigint, direction: string, at: string) => ({ amountMinor, currency: 'EGP', direction, accountId: 'bank', toAccountId: null, createdAt: new Date(at) });
     expect(
       balanceOf(account, [flow(500n, 'spent', '2026-09-30T00:00:00Z'), flow(2_000_000_000_000n, 'received', '2026-10-02T00:00:00Z'), flow(1000n, 'spent', '2026-10-03T00:00:00Z')], new Map()),
     ).toEqual({ balanceMinor: 10_999_999_999_000, missing: [] });

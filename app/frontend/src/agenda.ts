@@ -7,7 +7,7 @@ import { useResource } from './useResource';
 export interface AgendaEntry {
   kind: 'event' | 'task' | 'renewal' | 'external' | 'birthday' | 'payment';
   itemId: string;
-  spaceId: string;
+  spaceId: string | null;
   title: string;
   allDay: boolean;
   start: string;
@@ -180,6 +180,6 @@ export function entryLink(entry: AgendaEntry) {
   if (entry.kind === 'event') return `/events/${entry.itemId}`;
   if (entry.kind === 'task') return `/tasks?task=${entry.itemId}`;
   if (entry.kind === 'birthday') return `/people/${entry.itemId}`;
-  if (entry.kind === 'payment') return `/spending/accounts?space=${entry.spaceId}`;
+  if (entry.kind === 'payment') return '/spending/accounts';
   return `/spending/recurring?subscription=${entry.itemId}`;
 }

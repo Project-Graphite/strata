@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { ItemKind, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { dateValue } from '../recurrence/dates';
 import { flowSign } from './accounts.service';
 import type { TransactionsDto } from './dto/spending.dto';
@@ -24,47 +24,44 @@ export function readCursor(cursor: string): TransactionKey {
   throw new BadRequestException('That page of transactions no longer exists. Reload the list.');
 }
 
-export const transactionOrder: Prisma.ItemOrderByWithRelationInput[] = [{ expense: { spentOn: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }];
+export const transactionOrder: Prisma.ExpenseOrderByWithRelationInput[] = [{ spentOn: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }];
 
-export function transactionsWhere(spaceId: string, query: Omit<TransactionsDto, 'cursor' | 'limit'>): Prisma.ItemWhereInput {
+export function transactionsWhere(userId: string, query: Omit<TransactionsDto, 'cursor' | 'limit'>): Prisma.ExpenseWhereInput {
   const search = query.q?.trim();
   return {
-    spaceId,
-    kind: ItemKind.EXPENSE,
+    userId,
     trashedAt: null,
-    expense: {
-      ...(query.account ? { OR: [{ accountId: query.account }, { toAccountId: query.account }] } : {}),
-      ...(query.card ? { cardDigits: query.card } : {}),
-      ...(query.category ? { category: query.category, direction: { in: ['spent', 'refund'] } } : {}),
-      ...(query.kind ? { kind: query.kind } : {}),
-      ...(query.direction ? { direction: query.direction } : {}),
-      ...(query.min !== undefined || query.max !== undefined ? { amountMinor: { gte: query.min, lte: query.max } } : {}),
-    },
+    ...(query.account ? { OR: [{ accountId: query.account }, { toAccountId: query.account }] } : {}),
+    ...(query.card ? { cardDigits: query.card } : {}),
+    ...(query.category ? { category: query.category, direction: { in: ['spent', 'refund'] } } : {}),
+    ...(query.kind ? { kind: query.kind } : {}),
+    ...(query.direction ? { direction: query.direction } : {}),
+    ...(query.min !== undefined || query.max !== undefined ? { amountMinor: { gte: query.min, lte: query.max } } : {}),
     ...(search
       ? {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { expense: { merchant: { contains: search, mode: 'insensitive' } } },
-            { expense: { note: { contains: search, mode: 'insensitive' } } },
+          AND: [
+            {
+              OR: [
+                { title: { contains: search, mode: 'insensitive' } },
+                { merchant: { contains: search, mode: 'insensitive' } },
+                { note: { contains: search, mode: 'insensitive' } },
+              ],
+            },
           ],
         }
       : {}),
   };
 }
 
-export function after(key: TransactionKey): Prisma.ItemWhereInput {
+export function after(key: TransactionKey): Prisma.ExpenseWhereInput {
   const spentOn = dateValue(key.spentOn);
   return {
-    OR: [
-      { expense: { spentOn: { lt: spentOn } } },
-      { expense: { spentOn }, createdAt: { lt: key.createdAt } },
-      { expense: { spentOn }, createdAt: key.createdAt, id: { lt: key.id } },
-    ],
+    OR: [{ spentOn: { lt: spentOn } }, { spentOn, createdAt: { lt: key.createdAt } }, { spentOn, createdAt: key.createdAt, id: { lt: key.id } }],
   };
 }
 
 export interface Flow {
-  itemId: string;
+  id: string;
   amountMinor: number;
   currency: string;
   direction: string;
@@ -76,7 +73,7 @@ export function runningBalances(accountId: string, currentMinor: number, newestF
   const balances = new Map<string, number>();
   let balance = currentMinor;
   for (const flow of newestFirst) {
-    balances.set(flow.itemId, balance);
+    balances.set(flow.id, balance);
     balance -= flowSign(accountId, flow) * (convert(flow.amountMinor, flow.currency) ?? 0);
   }
   return balances;

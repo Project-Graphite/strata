@@ -14,12 +14,10 @@ const linkCheck: Check = (value) => (!value.trim() || /^https:\/\/\S+$/.test(val
 export function SubscriptionEditor({
   onClose,
   onSaved,
-  spaceId,
   subscription,
 }: {
   onClose: () => void;
   onSaved: (subscription: Subscription) => void;
-  spaceId: string;
   subscription?: Subscription;
 }) {
   const auth = useAuth();
@@ -61,7 +59,7 @@ export function SubscriptionEditor({
         void saving
           .run(async () => {
             const saved = await auth.request<Subscription>(
-              subscription ? `/subscriptions/${subscription.id}` : `/spaces/${text('spaceId') || spaceId}/subscriptions`,
+              subscription ? `/subscriptions/${subscription.id}` : '/me/subscriptions',
               {
                 method: subscription ? 'PATCH' : 'POST',
                 body: JSON.stringify({

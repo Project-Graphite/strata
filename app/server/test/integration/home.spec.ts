@@ -22,10 +22,10 @@ describe('Home summary against Postgres', () => {
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Pay rent', dueDate: today });
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Overdue', dueDate: day(-2) });
     await owner.call('POST', `/spaces/${home}/tasks`, { title: 'Next week', dueDate: day(6) });
-    await owner.call('PUT', `/spaces/${home}/budgets/groceries`, { amountMinor: 30_000, currency: 'EUR' });
-    await owner.call('POST', `/spaces/${home}/installments`, { name: 'Phone', currency: 'EUR', monthlyMinor: 1_000, count: 3, firstDueOn: day(-10) });
-    await owner.call('POST', `/spaces/${home}/installments`, { name: 'Sofa', currency: 'EUR', monthlyMinor: 2_000, count: 3, firstDueOn: day(3) });
-    await strata.prisma.capturedMessage.create({ data: { spaceId: home, userId: owner.id, sender: 'Bank', textSealed: 'sealed', hash: 'home-capture', receivedAt: new Date() } });
+    await owner.call('PUT', '/me/budgets/groceries', { amountMinor: 30_000, currency: 'EUR' });
+    await owner.call('POST', '/me/installments', { name: 'Phone', currency: 'EUR', monthlyMinor: 1_000, count: 3, firstDueOn: day(-10) });
+    await owner.call('POST', '/me/installments', { name: 'Sofa', currency: 'EUR', monthlyMinor: 2_000, count: 3, firstDueOn: day(3) });
+    await strata.prisma.capturedMessage.create({ data: { userId: owner.id, sender: 'Bank', textSealed: 'sealed', hash: 'home-capture', receivedAt: new Date() } });
     await strata.prisma.inboxNotification.create({ data: { userId: owner.id, kind: 'invitation', title: 'Hello' } });
     const space = (await host.call('POST', '/spaces', { name: 'Flat' })).body;
     expect((await host.call('POST', `/spaces/${space.id}/invitations`, { handle: owner.handle, role: 'editor' })).status).toBe(201);

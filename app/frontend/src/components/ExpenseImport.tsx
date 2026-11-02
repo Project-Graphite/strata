@@ -23,14 +23,14 @@ const ruleFor = (rules: MerchantRule[], description: string) =>
 
 const inBatches = <T,>(list: T[]) => Array.from({ length: Math.ceil(list.length / batchSize) }, (_, index) => list.slice(index * batchSize, (index + 1) * batchSize));
 
-export function ExpenseImport({ accounts, currency, onAdded, onClose, spaceId }: { accounts: MoneyAccount[]; currency: string; onAdded: () => void; onClose: () => void; spaceId: string }) {
+export function ExpenseImport({ accounts, currency, onAdded, onClose }: { accounts: MoneyAccount[]; currency: string; onAdded: () => void; onClose: () => void }) {
   const auth = useAuth();
   const adding = useAction();
   const [chosenCurrency, setChosenCurrency] = useState(currency);
   const [accountId, setAccountId] = useState('');
   const statement = useStatementFile(setChosenCurrency);
-  const categories = useCategories(spaceId);
-  const rules = useResource<MerchantRule[]>(`/spaces/${spaceId}/merchant-rules`, true);
+  const categories = useCategories();
+  const rules = useResource<MerchantRule[]>(`/me/merchant-rules`, true);
   const [category, setCategory] = useState('other');
   const [picked, setPicked] = useState<ReadonlyMap<string, string>>(new Map());
   const [ticked, setTicked] = useState<ReadonlyMap<string, boolean>>(new Map());
@@ -74,7 +74,7 @@ export function ExpenseImport({ accounts, currency, onAdded, onClose, spaceId }:
     if (candidates.length === 0) return;
     let current = true;
     void Promise.all(
-      inBatches(candidates).map((batch) => auth.request<{ duplicates: number[] }>(`/spaces/${spaceId}/expenses/import/check`, { method: 'POST', body: JSON.stringify({ expenses: batch }) })),
+      inBatches(candidates).map((batch) => auth.request<{ duplicates: number[] }>(`/me/expenses/import/check`, { method: 'POST', body: JSON.stringify({ expenses: batch }) })),
     ).then(
       (found) => {
         if (!current) return;
@@ -158,7 +158,7 @@ export function ExpenseImport({ accounts, currency, onAdded, onClose, spaceId }:
                 .run(async () => {
                   let added = 0;
                   for (const batch of inBatches(chosen.map(payloadOf))) {
-                    added += (await auth.request<{ added: number }>(`/spaces/${spaceId}/expenses/import`, { method: 'POST', body: JSON.stringify({ expenses: batch }) })).added;
+                    added += (await auth.request<{ added: number }>(`/me/expenses/import`, { method: 'POST', body: JSON.stringify({ expenses: batch }) })).added;
                   }
                   onAdded();
                   return `Added ${added} transaction${added === 1 ? '' : 's'}${incoming ? `, ${incoming} of them income` : ''}.`;

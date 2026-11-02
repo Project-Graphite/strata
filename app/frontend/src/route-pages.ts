@@ -20,7 +20,6 @@ export const routePages: [pattern: string, module: string][] = [
   ['^/recipes$', 'pages/RecipesPage'],
   ['^/recipes/plan$', 'pages/MealPlanPage'],
   ['^/tidy(/(folder|history))?$', 'pages/TidyPage'],
-  ['^/trips$', 'pages/TripsPage'],
   ['^/inbox$', 'pages/InboxPage'],
   ['^/more$', 'pages/MorePage'],
   ['^/spaces$', 'pages/spaces/SpacesPage'],

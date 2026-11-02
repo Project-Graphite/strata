@@ -14,12 +14,12 @@ import { RowsSkeleton } from './Skeletons';
 
 type Editing = { merchant: MerchantRule } | { sender: SenderRule } | { deleteMerchant: MerchantRule } | { deleteSender: SenderRule };
 
-export function RulesEditor({ accounts, onClose, spaceId }: { accounts: MoneyAccount[]; onClose: () => void; spaceId: string }) {
+export function RulesEditor({ accounts, onClose }: { accounts: MoneyAccount[]; onClose: () => void }) {
   const auth = useAuth();
   const saving = useAction();
-  const merchants = useResource<MerchantRule[]>(`/spaces/${spaceId}/merchant-rules`, true);
-  const senders = useResource<SenderRule[]>(`/spaces/${spaceId}/sender-rules`, true);
-  const categories = expenseCategories(useCategories(spaceId).data);
+  const merchants = useResource<MerchantRule[]>(`/me/merchant-rules`, true);
+  const senders = useResource<SenderRule[]>(`/me/sender-rules`, true);
+  const categories = expenseCategories(useCategories().data);
   const [editing, setEditing] = useState<Editing>();
   const [chosen, setChosen] = useState<{ category: string; accountId: string; toAccountId: string }>({ category: '', accountId: '', toAccountId: '' });
   const accountName = (id: string | null) => accounts.find((account) => account.id === id)?.name ?? 'Removed account';

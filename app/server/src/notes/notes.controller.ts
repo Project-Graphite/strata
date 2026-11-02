@@ -7,7 +7,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UploadQueue } from '../files/upload-queue';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateNoteDto, PageChildrenQueryDto, PageKindQueryDto, SaveDatabaseDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
+import { CreateNoteDto, PageChildrenQueryDto, PageKindQueryDto, SaveDatabaseDto, SetContentDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
 import { NoteDatabasesService } from './note-databases.service';
 import { NoteVersionsService } from './note-versions.service';
 import { NotesService } from './notes.service';
@@ -98,6 +98,18 @@ export class NotesController {
   @HttpCode(204)
   async restore(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('versionId', UuidPipe) versionId: string) {
     await this.versions.restore(user.id, id, versionId);
+  }
+
+  @Get('notes/:id/content')
+  @Scope('items:read')
+  content(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.versions.content(user.id, id);
+  }
+
+  @Put('notes/:id/content')
+  @Scope('items:write')
+  write(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: SetContentDto) {
+    return this.versions.write(user.id, id, input);
   }
 
   @Patch('notes/:id')

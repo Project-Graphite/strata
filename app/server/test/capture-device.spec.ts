@@ -7,7 +7,6 @@ import { CaptureMessageDto } from '../src/spending/dto/capture.dto';
 import { CaptureService } from '../src/spending/capture/capture.service';
 
 const home = '11111111-1111-4111-8111-111111111111';
-const shared = '22222222-2222-4222-8222-222222222222';
 
 function phoneCapture({ reauthenticate = vi.fn(() => Promise.resolve({})) } = {}) {
   const prisma = {
@@ -16,53 +15,45 @@ function phoneCapture({ reauthenticate = vi.fn(() => Promise.resolve({})) } = {}
       create: vi.fn(() => Promise.resolve({})),
     },
   };
-  const access = { assertPersonalSpace: vi.fn(() => Promise.resolve()) };
   const audit = { record: vi.fn(() => Promise.resolve()) };
   const auth = { reauthenticate };
-  const service = new CaptureService(prisma as never, access as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, auth as never, audit as never);
-  return { service, prisma, access, audit, auth };
+  const service = new CaptureService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, auth as never, audit as never);
+  return { service, prisma, audit, auth };
 }
 
 const stampErrors = async (value: object) =>
   (await validate(plainToInstance(CaptureMessageDto, { from: 'CIB', text: 'Card charged EGP 10', ...value }))).map((error) => error.property);
 
 describe('Phone capture tokens', () => {
-  it('mints a 90-day token bound to the personal space only after re-authentication, and audits it', async () => {
+  it('mints a 90-day capture token only after re-authentication, replacing the last phone, and audits it', async () => {
     const { service, prisma, audit, auth } = phoneCapture();
     const before = Date.now();
-    const result = await service.connectDevice('user', home, { password: 'secret', code: '123456' });
+    const result = await service.connectDevice('user', { password: 'secret', code: '123456' });
 
     expect(auth.reauthenticate).toHaveBeenCalledWith('user', { password: 'secret', code: '123456' });
     expect(result.token).toMatch(/^strata_pat_/);
     expect(result.expiresAt.getTime() - before).toBeGreaterThanOrEqual(90 * 86_400_000);
     expect(result.expiresAt.getTime() - before).toBeLessThan(90 * 86_400_000 + 60_000);
     expect(prisma.accessToken.updateMany).toHaveBeenCalledWith({
-      where: { userId: 'user', revokedAt: null, OR: [{ spaceId: home }, { name: 'Android phone (11111111)' }] },
+      where: { userId: 'user', revokedAt: null, OR: [{ scopes: { equals: ['spending:capture'] } }, { name: { startsWith: 'Android phone' } }] },
       data: { revokedAt: expect.any(Date) },
     });
     expect(prisma.accessToken.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ userId: 'user', spaceId: home, scopes: ['spending:capture'], expiresAt: result.expiresAt }),
+      data: { userId: 'user', name: 'Android phone', tokenHash: expect.any(String), scopes: ['spending:capture'], expiresAt: result.expiresAt },
     });
     expect(audit.record.mock.calls).toEqual([
-      ['user', 'capture_device_revoked', { name: 'Android phone (11111111)' }],
-      ['user', 'capture_device_connected', { name: 'Android phone (11111111)' }],
+      ['user', 'capture_device_revoked', { name: 'Android phone' }],
+      ['user', 'capture_device_connected', { name: 'Android phone' }],
     ]);
   });
 
   it('mints nothing when the password or code is wrong', async () => {
     const { service, prisma, audit } = phoneCapture({ reauthenticate: vi.fn(() => Promise.reject(new ForbiddenException('That code is not right'))) });
 
-    await expect(service.connectDevice('user', home, { password: 'secret', code: '000000' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.connectDevice('user', { password: 'secret', code: '000000' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.accessToken.updateMany).not.toHaveBeenCalled();
     expect(prisma.accessToken.create).not.toHaveBeenCalled();
     expect(audit.record).not.toHaveBeenCalled();
-  });
-
-  it('refuses messages sent to a space the phone token is not bound to', async () => {
-    const { service, access } = phoneCapture();
-
-    await expect(service.receive('user', shared, { from: 'CIB', text: 'Card charged EGP 10' }, home)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(access.assertPersonalSpace).not.toHaveBeenCalled();
   });
 
   it('carries the bound space of a token into the signed-in user', async () => {

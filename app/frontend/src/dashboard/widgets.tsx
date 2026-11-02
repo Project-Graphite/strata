@@ -25,14 +25,14 @@ import { OpenTask } from '../components/OpenTask';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
 import { News, NewsSettings, Weather, WeatherSettings } from './outside-widgets';
-import { Birthdays, Goals, Journal, NextTrip } from './plans-widgets';
+import { Birthdays, Goals, Journal } from './plans-widgets';
 import { quoteFor } from './quotes';
 import { CalendarWidget, DayProgress } from './time-widgets';
 import { LinkRowsSkeleton, PageLinks, PageLinksSkeleton, ShowAll, SplitRowsSkeleton, useListRows, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { clockTime, profileDay } from '../time';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 
-export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'trip' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
+export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
 export type WidgetGroup = (typeof widgetGroups)[number];
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'full';
@@ -758,7 +758,6 @@ export const widgetKinds: Record<
   tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', minW: 3, minH: 8, app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
   weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', minW: 3, minH: 10, settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
   news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', minW: 4, minH: 13, settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  trip: { title: 'Next trip', group: 'Around you', description: 'Your next trip and how long until you leave.', icon: 'plane', size: 'small', minW: 3, minH: 7, app: 'trips', href: '/trips', settings: {}, View: NextTrip },
   birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', minW: 3, minH: 11, app: 'people', href: '/people', settings: {}, View: Birthdays },
   quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', minW: 3, minH: 8, settings: {}, View: Quote },
 };

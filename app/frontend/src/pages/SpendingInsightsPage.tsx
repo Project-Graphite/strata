@@ -7,7 +7,6 @@ import { Section } from '../components/Page';
 import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { SpendingFirstRunSkeleton, SpendingFrame } from '../components/SpendingFrame';
 import { categoryName, spendingHref, spendingLive, type SpendingInsights } from '../spending';
-import { usePersonalSpace } from '../spaces';
 import { money } from '../subscriptions';
 import { formatDate, formatMonth, formatRange } from '../time';
 import { useResource } from '../useResource';
@@ -23,10 +22,9 @@ const emptyMerchants = { title: 'No spending in these months', hint: 'The places
 const labelOf = (period: SpendingInsights['periods'][number]) => formatMonth(period.until);
 
 export function SpendingInsightsPage() {
-  const { spaceId } = usePersonalSpace();
   const [params, setParams] = useSearchParams();
   const span = spans.find((value) => value === params.get('months')) ?? '6';
-  const insights = useResource<SpendingInsights>(spaceId ? `/spaces/${spaceId}/spending/insights?months=${span}` : null, true, spendingLive);
+  const insights = useResource<SpendingInsights>(`/me/spending/insights?months=${span}`, true, spendingLive);
   const shown = insights.data;
   const [periodRows, categoryRows, merchantRows, leadCells, dayCells, empty] = useRememberedShape(
     `spending-insights-${span}`,

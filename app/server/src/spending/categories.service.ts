@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Merchant, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMerchantRuleDto, SaveCategoriesDto, UpdateMerchantRuleDto } from './dto/categories.dto';
 
@@ -35,84 +34,77 @@ const presentRule = (merchant: Merchant) => ({ id: merchant.id, match: merchant.
 
 @Injectable()
 export class CategoriesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly access: AccessService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async categories(spaceId: string, client: Client = this.prisma) {
-    const rows = await client.spendingCategory.findMany({ where: { spaceId }, orderBy: { position: 'asc' }, select: { name: true, colour: true, icon: true, kind: true } });
+  async categories(userId: string, client: Client = this.prisma) {
+    const rows = await client.spendingCategory.findMany({ where: { userId }, orderBy: { position: 'asc' }, select: { name: true, colour: true, icon: true, kind: true } });
     return rows.length ? rows : defaultCategories;
   }
 
-  async assertCategory(spaceId: string, category: string | null | undefined) {
+  async assertCategory(userId: string, category: string | null | undefined) {
     if (!category) return;
-    if (!(await this.categories(spaceId)).some((known) => known.name === category)) throw new BadRequestException('Choose a category from the list');
+    if (!(await this.categories(userId)).some((known) => known.name === category)) throw new BadRequestException('Choose a category from the list');
   }
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
+  async list(userId: string) {
     const [categories, counts] = await Promise.all([
-      this.categories(spaceId),
-      this.prisma.expense.groupBy({ by: ['category'], where: { item: { spaceId, trashedAt: null }, direction: { in: ['spent', 'refund'] } }, _count: { _all: true } }),
+      this.categories(userId),
+      this.prisma.expense.groupBy({ by: ['category'], where: { userId, trashedAt: null, direction: { in: ['spent', 'refund'] } }, _count: { _all: true } }),
     ]);
     return categories.map((category) => ({ ...category, uses: counts.find((count) => count.category === category.name)?._count._all ?? 0 }));
   }
 
-  async save(userId: string, spaceId: string, input: SaveCategoriesDto) {
-    await this.access.assertPersonalSpace(userId, spaceId);
+  async save(userId: string, input: SaveCategoriesDto) {
     const names = input.categories.map((category) => category.name);
     if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) throw new BadRequestException('Give each category a different name');
     if (!names.includes('other') || input.categories.some((category) => category.previous === 'other' && category.name !== 'other')) {
       throw new BadRequestException('Keep the Other category');
     }
     await this.prisma.$transaction(async (transaction) => {
-      const existing = await this.categories(spaceId, transaction);
+      const existing = await this.categories(userId, transaction);
       const current = existing.map((category) => category.name);
       const renamed = input.categories.filter((category) => category.previous && category.previous !== category.name && current.includes(category.previous));
       const kept = new Set([...names, ...renamed.map((category) => category.previous!)]);
       const removed = current.filter((name) => !kept.has(name));
       const recategorise = async (from: string, to: string | null) => {
-        await transaction.expense.updateMany({ where: { category: from, item: { spaceId } }, data: { category: to ?? 'other' } });
-        await transaction.merchant.updateMany({ where: { spaceId, category: from }, data: { category: to } });
-        if (to) await transaction.budget.updateMany({ where: { spaceId, category: from }, data: { category: to } });
-        else await transaction.budget.deleteMany({ where: { spaceId, category: from } });
+        await transaction.expense.updateMany({ where: { userId, category: from }, data: { category: to ?? 'other' } });
+        await transaction.merchant.updateMany({ where: { userId, category: from }, data: { category: to } });
+        if (to) await transaction.budget.updateMany({ where: { userId, category: from }, data: { category: to } });
+        else await transaction.budget.deleteMany({ where: { userId, category: from } });
       };
       for (const name of removed) await recategorise(name, null);
       for (const [index, category] of renamed.entries()) await recategorise(category.previous!, `renaming ${index}`);
       for (const [index, category] of renamed.entries()) await recategorise(`renaming ${index}`, category.name);
-      await transaction.spendingCategory.deleteMany({ where: { spaceId } });
+      await transaction.spendingCategory.deleteMany({ where: { userId } });
       await transaction.spendingCategory.createMany({
         data: input.categories.map(({ name, colour, icon, kind, previous }, position) => {
           const was = existing.find((category) => category.name === (previous ?? name));
-          return { spaceId, name, colour, icon: icon ?? was?.icon ?? null, kind: kind ?? was?.kind ?? 'expense', position };
+          return { userId, name, colour, icon: icon ?? was?.icon ?? null, kind: kind ?? was?.kind ?? 'expense', position };
         }),
       });
     });
-    return this.categories(spaceId);
+    return this.categories(userId);
   }
 
-  async rules(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    const merchants = await this.prisma.merchant.findMany({ where: { spaceId } });
+  async rules(userId: string) {
+    const merchants = await this.prisma.merchant.findMany({ where: { userId } });
     return merchants.map(presentRule).sort((a, b) => a.match.localeCompare(b.match));
   }
 
-  async saveRule(userId: string, spaceId: string, input: CreateMerchantRuleDto) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    await this.assertCategory(spaceId, input.category);
+  async saveRule(userId: string, input: CreateMerchantRuleDto) {
+    await this.assertCategory(userId, input.category);
     const data = { name: input.rename ?? input.match, category: input.category ?? null, ignore: input.ignore ?? false };
-    const known = await this.prisma.merchant.findFirst({ where: { spaceId, aliases: { has: input.match } }, select: { id: true } });
+    const known = await this.prisma.merchant.findFirst({ where: { userId, aliases: { has: input.match } }, select: { id: true } });
     return presentRule(
       known
         ? await this.prisma.merchant.update({ where: { id: known.id }, data })
-        : await this.prisma.merchant.create({ data: { spaceId, aliases: [input.match], ...data } }),
+        : await this.prisma.merchant.create({ data: { userId, aliases: [input.match], ...data } }),
     );
   }
 
   async updateRule(userId: string, id: string, input: UpdateMerchantRuleDto) {
     const merchant = await this.ownRule(userId, id);
-    await this.assertCategory(merchant.spaceId, input.category);
+    await this.assertCategory(userId, input.category);
     const name = input.rename === undefined ? undefined : (input.rename ?? merchant.aliases[0] ?? merchant.name);
     return presentRule(await this.prisma.merchant.update({ where: { id }, data: { name, category: input.category, ignore: input.ignore } }));
   }
@@ -123,9 +115,8 @@ export class CategoriesService {
   }
 
   private async ownRule(userId: string, id: string) {
-    const merchant = await this.prisma.merchant.findUnique({ where: { id } });
+    const merchant = await this.prisma.merchant.findFirst({ where: { id, userId } });
     if (!merchant) throw new NotFoundException('Rule not found');
-    await this.access.assertPersonalSpace(userId, merchant.spaceId);
     return merchant;
   }
 }

@@ -11,5 +11,4 @@ export const featureKeys = [
   'people',
   'recipes',
   'tidy',
-  'trips',
 ] as const;

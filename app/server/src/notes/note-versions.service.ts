@@ -1,10 +1,30 @@
-import { ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { ItemKind } from '@prisma/client';
 import * as Y from 'yjs';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { documentText } from './document-text';
+import { SetContentDto } from './dto/notes.dto';
 import { NotesService } from './notes.service';
+import { Block, blocksDocument, textDocument } from './templates';
+
+const blockKinds = ['heading', 'paragraph', 'bullets', 'numbers', 'tasks'] as const;
+const maxBlockText = 10_000;
+
+function readBlocks(blocks: unknown[]): Block[] {
+  return blocks.map((block) => {
+    const [kind, content] = Array.isArray(block) && block.length === 2 ? (block as [unknown, unknown]) : [];
+    const lines = Array.isArray(content) ? content : [content];
+    if (!blockKinds.includes(kind as (typeof blockKinds)[number]) || !lines.every((line) => typeof line === 'string' && line.length <= maxBlockText)) {
+      throw new BadRequestException('Each block is ["heading" | "paragraph", text] or ["bullets" | "numbers" | "tasks", [lines]]');
+    }
+    if ((kind === 'heading' || kind === 'paragraph') !== !Array.isArray(content)) {
+      throw new BadRequestException('Headings and paragraphs take one text; lists take an array of lines');
+    }
+    return [kind, content] as Block;
+  });
+}
 
 @Injectable()
 export class NoteVersionsService implements OnModuleInit {
@@ -42,6 +62,21 @@ export class NoteVersionsService implements OnModuleInit {
     const found = await this.notes.note(userId, noteId, 'edit');
     const version = await this.version(noteId, versionId);
     await this.realtime.restore(noteId, new Uint8Array(version.state), { userId, role: found.role });
+  }
+
+  async content(userId: string, noteId: string) {
+    await this.notes.note(userId, noteId, 'read', [ItemKind.NOTE]);
+    const stored = await this.prisma.noteDocument.findUnique({ where: { itemId: noteId }, select: { state: true } });
+    const document = new Y.Doc();
+    if (stored) Y.applyUpdate(document, new Uint8Array(stored.state));
+    return { text: documentText(document) };
+  }
+
+  async write(userId: string, noteId: string, input: SetContentDto) {
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const document = input.blocks === undefined ? textDocument(input.text ?? '') : blocksDocument(readBlocks(input.blocks));
+    await this.realtime.restore(noteId, Y.encodeStateAsUpdate(document), { userId, role: found.role });
+    return { text: documentText(document) };
   }
 
   thin(now: Date) {

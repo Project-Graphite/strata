@@ -35,8 +35,6 @@ interface PhoneSetupProps {
   accounts?: MoneyAccount[];
   onChanged?: () => void;
   onClose: () => void;
-  spaceId: string;
-  spaceName: string;
 }
 
 const appGroups: FinanceApp['group'][] = ['Banks', 'Wallets', 'Apps'];
@@ -48,7 +46,7 @@ export function PhoneSetup(props: PhoneSetupProps) {
   return isNativeAndroid() ? <PhoneCaptureSettings {...props} /> : <PhoneTokenSetup {...props} />;
 }
 
-function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: PhoneSetupProps) {
+function PhoneCaptureSettings({ accounts = [], onChanged, onClose }: PhoneSetupProps) {
   const auth = useAuth();
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
   const saving = useAction();
@@ -59,7 +57,7 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
   const [enabledPackages, setEnabledPackages] = useState<string[]>();
   if (!status) return null;
 
-  const endpointUrl = `${serverOrigin()}/api/v1/spaces/${spaceId}/captures`;
+  const endpointUrl = `${serverOrigin()}/api/v1/me/captures`;
   const accountWords = accounts.flatMap((account) => [account.name, account.institution ?? '', ...account.senders]).map(squash).filter(Boolean);
   const seededChats = [...new Set(accounts.flatMap((account) => [...account.senders, account.institution ?? '']).map((sender) => sender.trim()).filter(Boolean))];
   const chats = chatsText ?? (status.allowedChats.length > 0 ? status.allowedChats : seededChats).join(', ');
@@ -79,7 +77,7 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
         if (needsToken && !form.check(target, proofRules(twoStepOn))) return;
         void saving.run(async () => {
           const minted = needsToken
-            ? await auth.request<{ token: string; expiresAt: string }>(`/spaces/${spaceId}/captures/device`, { method: 'POST', body: JSON.stringify(proofFrom(target)) })
+            ? await auth.request<{ token: string; expiresAt: string }>(`/me/captures/device`, { method: 'POST', body: JSON.stringify(proofFrom(target)) })
             : null;
           const next = await StrataCapture.configure({
             endpointUrl,
@@ -216,17 +214,18 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose, spaceId }: Ph
   );
 }
 
-function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSetupProps) {
+function PhoneTokenSetup({ accounts = [], onClose }: PhoneSetupProps) {
   const auth = useAuth();
+  const userId = auth.user!.id;
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
   const saving = useAction();
   const form = useFormErrors();
   const accountSenders = accounts.flatMap((account) => account.senders);
-  const initialPrefs = loadCapturePreferences(spaceId, accountSenders);
+  const initialPrefs = loadCapturePreferences(userId, accountSenders);
   const [chatsText, setChatsText] = useState(() => initialPrefs.allowedChats.join(', '));
   const [enabledApps, setEnabledApps] = useState<DigitalAppId[]>(initialPrefs.enabledApps);
   const [token, setToken] = useState('');
-  const endpointUrl = `${serverOrigin()}/api/v1/spaces/${spaceId}/captures`;
+  const endpointUrl = `${serverOrigin()}/api/v1/me/captures`;
   const allowedSources = combinedAllowedSources(parseChatList(chatsText), enabledApps);
 
   const toggleApp = (appId: DigitalAppId, checked: boolean) => {
@@ -276,11 +275,11 @@ function PhoneTokenSetup({ accounts = [], onClose, spaceId, spaceName }: PhoneSe
       onSubmit={(target) => {
         if (!form.check(target, proofRules(Boolean(twoStep.data?.enabled)))) return;
         const nextChats = parseChatList(chatsText);
-        saveCapturePreferences(spaceId, { allowedChats: nextChats, enabledApps });
+        saveCapturePreferences(userId, { allowedChats: nextChats, enabledApps });
         void saving.run(async () => {
           const created = await auth.request<{ token: string }>('/me/tokens', {
             method: 'POST',
-            body: JSON.stringify({ name: `Phone texts for ${spaceName}`.slice(0, 60), scopes: ['spending:capture'], expiresInDays: 90, ...proofFrom(target) }),
+            body: JSON.stringify({ name: 'Phone texts', scopes: ['spending:capture'], expiresInDays: 90, ...proofFrom(target) }),
           });
           setToken(created.token);
           return '';

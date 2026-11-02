@@ -43,12 +43,6 @@ export function describeActivity(event: ActivityEvent) {
       return data.nextDue ? `${who} finished ${title}, next due ${formatDay(String(data.nextDue), { day: 'numeric', month: 'short', year: 'numeric' })}` : `${who} finished ${title}`;
     case 'task.reopened':
       return `${who} reopened ${title}`;
-    case 'subscription.renewed':
-      return `${title} renewed, next on ${formatDay(String(data.nextRenewal), { day: 'numeric', month: 'short', year: 'numeric' })}`;
-    case 'subscription.cancelled':
-      return event.actor ? `${who} marked ${title} cancelled` : `${title} ended`;
-    case 'subscription.resumed':
-      return `${who} resumed ${title}`;
     case 'tag.created':
       return `${who} added the tag “${String(data.name)}”`;
     case 'tag.updated':

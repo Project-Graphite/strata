@@ -10,16 +10,16 @@ import { InstallmentsService } from './installments.service';
 export class InstallmentsController {
   constructor(private readonly installments: InstallmentsService) {}
 
-  @Get('spaces/:spaceId/installments')
+  @Get('me/installments')
   @Scope('items:read')
-  list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.installments.list(user.id, spaceId);
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.installments.list(user.id);
   }
 
-  @Post('spaces/:spaceId/installments')
+  @Post('me/installments')
   @Scope('items:write')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: CreateInstallmentDto) {
-    return this.installments.create(user.id, spaceId, input);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateInstallmentDto) {
+    return this.installments.create(user.id, input);
   }
 
   @Patch('installments/:id')

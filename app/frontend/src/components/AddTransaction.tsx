@@ -14,12 +14,12 @@ import { CurrencyField } from './CurrencyField';
 const shownRecents = 6;
 const formId = 'add-transaction';
 
-export function AddTransaction({ accounts, currency, onClose, onSaved, spaceId }: { accounts: MoneyAccount[]; currency: string; onClose: () => void; onSaved: (expense: Expense) => void; spaceId: string }) {
+export function AddTransaction({ accounts, currency, onClose, onSaved }: { accounts: MoneyAccount[]; currency: string; onClose: () => void; onSaved: (expense: Expense) => void }) {
   const auth = useAuth();
   const saving = useAction();
   const form = useFormErrors();
-  const categories = expenseCategories(useCategories(spaceId).data);
-  const recent = useResource<TransactionsPage>(`/spaces/${spaceId}/expenses?limit=60`, true);
+  const categories = expenseCategories(useCategories().data);
+  const recent = useResource<TransactionsPage>(`/me/expenses?limit=60`, true);
   const open = accounts.filter((account) => !account.archivedAt);
   const [direction, setDirection] = useState<Exclude<ExpenseDirection, 'refund'>>('spent');
   const [refund, setRefund] = useState(false);
@@ -31,7 +31,7 @@ export function AddTransaction({ accounts, currency, onClose, onSaved, spaceId }
   const [chosenCurrency, setChosenCurrency] = useState<string>();
   const [paidWith, setPaidWith] = useState('');
   const [more, setMore] = useState(false);
-  const cards = useResource<KnownCard[]>(more ? `/spaces/${spaceId}/cards` : null, true);
+  const cards = useResource<KnownCard[]>(more ? `/me/cards` : null, true);
   const transfer = direction === 'transfer';
   const recents = [...new Map((recent.data?.expenses ?? []).filter((row) => row.direction !== 'transfer').map((row) => [row.title.toLowerCase(), row] as const)).values()];
   const chosenAccount = accountId === undefined ? (recents.find((row) => open.some((account) => account.id === row.accountId))?.accountId ?? null) : accountId;
@@ -96,7 +96,7 @@ export function AddTransaction({ accounts, currency, onClose, onSaved, spaceId }
           };
           void saving
             .run(async () => {
-              const saved = await auth.request<Expense>(`/spaces/${spaceId}/expenses`, { method: 'POST', body: JSON.stringify(body) });
+              const saved = await auth.request<Expense>(`/me/expenses`, { method: 'POST', body: JSON.stringify(body) });
               onSaved(saved);
               return `Added ${body.title}.`;
             }, 'Could not add the transaction')

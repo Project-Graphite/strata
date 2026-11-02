@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AccessService } from '../../access/access.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { cardKindOf } from '../accounts.service';
 import { UpdateSenderRuleDto } from '../dto/capture.dto';
@@ -8,7 +7,7 @@ import { senderKey } from './matching';
 
 export const senderRuleFields = {
   id: true,
-  spaceId: true,
+  userId: true,
   pattern: true,
   accountId: true,
   cardId: true,
@@ -24,18 +23,14 @@ const present = (rule: SenderRuleRow) => ({ id: rule.id, sender: rule.pattern, a
 
 @Injectable()
 export class SenderRulesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly access: AccessService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  rulesOf(spaceId: string) {
-    return this.prisma.senderRule.findMany({ where: { spaceId }, select: senderRuleFields });
+  rulesOf(userId: string) {
+    return this.prisma.senderRule.findMany({ where: { userId }, select: senderRuleFields });
   }
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertPersonalSpace(userId, spaceId);
-    const rules = await this.prisma.senderRule.findMany({ where: { spaceId }, select: senderRuleFields, orderBy: [{ pattern: 'asc' }, { createdAt: 'asc' }] });
+  async list(userId: string) {
+    const rules = await this.prisma.senderRule.findMany({ where: { userId }, select: senderRuleFields, orderBy: [{ pattern: 'asc' }, { createdAt: 'asc' }] });
     return rules.map(present);
   }
 
@@ -47,7 +42,7 @@ export class SenderRulesService {
     const toAccountId = rule.toAccountId && (input.toAccountId ?? rule.toAccountId);
     if (toAccountId === accountId) throw new BadRequestException('A transfer moves money between two different accounts');
     const ids = [accountId, ...(toAccountId ? [toAccountId] : [])];
-    if ((await this.prisma.moneyAccount.count({ where: { spaceId: rule.spaceId, id: { in: ids } } })) !== ids.length) throw new BadRequestException('Choose an account from this space');
+    if ((await this.prisma.moneyAccount.count({ where: { userId, id: { in: ids } } })) !== ids.length) throw new BadRequestException('Choose one of your accounts');
     return present(
       await this.prisma.senderRule.update({
         where: { id },
@@ -62,32 +57,31 @@ export class SenderRulesService {
     await this.prisma.senderRule.delete({ where: { id } });
   }
 
-  async ignore(spaceId: string, sender: string, cardDigits: string | null = null) {
-    const rule = { spaceId, pattern: senderKey(sender), ignore: true, cardDigits };
+  async ignore(userId: string, sender: string, cardDigits: string | null = null) {
+    const rule = { userId, pattern: senderKey(sender), ignore: true, cardDigits };
     if (!(await this.prisma.senderRule.findFirst({ where: rule, select: { id: true } }))) await this.prisma.senderRule.create({ data: rule });
   }
 
-  async learnAccount(spaceId: string, sender: string, accountId: string, cardDigits: string | null | undefined) {
-    const account = await this.prisma.moneyAccount.findFirstOrThrow({ where: { id: accountId, spaceId }, select: { kind: true } });
+  async learnAccount(userId: string, sender: string, accountId: string, cardDigits: string | null | undefined) {
+    const account = await this.prisma.moneyAccount.findFirstOrThrow({ where: { id: accountId, userId }, select: { kind: true } });
     const card = cardDigits
       ? await this.prisma.card.upsert({ where: { accountId_last4: { accountId, last4: cardDigits } }, create: { accountId, last4: cardDigits, kind: cardKindOf(account.kind) }, update: {}, select: { id: true } })
       : null;
-    const rule = { spaceId, pattern: senderKey(sender), cardId: card?.id ?? null };
+    const rule = { userId, pattern: senderKey(sender), cardId: card?.id ?? null };
     const existing = await this.prisma.senderRule.findFirst({ where: { ...rule, toAccountId: null, ignore: false }, select: { id: true } });
     if (existing) await this.prisma.senderRule.update({ where: { id: existing.id }, data: { accountId } });
     else await this.prisma.senderRule.create({ data: { ...rule, accountId } });
   }
 
-  async learnTransfer(spaceId: string, sender: string, accountId: string, toAccountId: string) {
-    if (!(await this.prisma.senderRule.findFirst({ where: { spaceId, accountId, toAccountId }, select: { id: true } }))) {
-      await this.prisma.senderRule.create({ data: { spaceId, pattern: senderKey(sender), accountId, toAccountId } });
+  async learnTransfer(userId: string, sender: string, accountId: string, toAccountId: string) {
+    if (!(await this.prisma.senderRule.findFirst({ where: { userId, accountId, toAccountId }, select: { id: true } }))) {
+      await this.prisma.senderRule.create({ data: { userId, pattern: senderKey(sender), accountId, toAccountId } });
     }
   }
 
   private async own(userId: string, id: string) {
-    const rule = await this.prisma.senderRule.findUnique({ where: { id }, select: senderRuleFields });
+    const rule = await this.prisma.senderRule.findFirst({ where: { id, userId }, select: senderRuleFields });
     if (!rule) throw new NotFoundException('Rule not found');
-    await this.access.assertPersonalSpace(userId, rule.spaceId);
     return rule;
   }
 }

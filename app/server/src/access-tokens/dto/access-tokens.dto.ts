@@ -1,4 +1,4 @@
-import { ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
 import { ProofDto } from '../../auth/dto/account.dto';
 import { Trimmed } from '../../validation/trimmed.decorator';
 import { tokenScopes, type TokenScope } from '../scopes';
@@ -20,6 +20,10 @@ export class CreateAccessTokenDto extends ProofDto {
   @Min(1, { message: 'Tokens last at least 1 day.' })
   @Max(365, { message: 'Tokens last at most 365 days.' })
   expiresInDays?: number;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose a space from the list.' })
+  spaceId?: string;
 }
 
 export class UpdateAccessTokenDto extends ProofDto {

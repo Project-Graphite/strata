@@ -99,13 +99,6 @@ export const appCatalogue: AppEntry[] = [
     icon: 'sparkles',
     href: '/tidy',
   },
-  {
-    key: 'trips',
-    label: 'Trips',
-    description: 'A place for each trip: itinerary, packing list, documents, pages and what it costs, shared with whoever comes along.',
-    icon: 'plane',
-    href: '/trips',
-  },
 ];
 
 export const enabledApps = (keys: string[] | undefined) =>

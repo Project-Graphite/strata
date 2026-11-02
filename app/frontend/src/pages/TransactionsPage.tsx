@@ -29,7 +29,6 @@ import {
 } from '../spending';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
-import { usePersonalSpace } from '../spaces';
 import { fromMinor, money, toMinor } from '../subscriptions';
 import { capitalised, count, formatDate } from '../time';
 import { useAction } from '../useAction';
@@ -79,9 +78,8 @@ export function TransactionsPage() {
   const auth = useAuth();
   const action = useAction();
   const [params, setParams] = useSearchParams();
-  const { spaceId, editable } = usePersonalSpace();
-  const accounts = useResource<MoneyAccount[]>(spaceId ? `/spaces/${spaceId}/accounts` : null, true, spendingLive);
-  const categories = useCategories(spaceId);
+  const accounts = useResource<MoneyAccount[]>(`/me/accounts`, true, spendingLive);
+  const categories = useCategories();
   const filters = useMemo(() => {
     const query = new URLSearchParams();
     for (const name of filterNames) {
@@ -98,10 +96,9 @@ export function TransactionsPage() {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const loadingMore = useRef(false);
   const request = (cursor?: string | null) =>
-    auth.request<Page>(`/spaces/${spaceId}/expenses?${new URLSearchParams([...new URLSearchParams(filters), ['limit', String(pageSize)], ...(cursor ? [['cursor', cursor]] : [])])}`);
+    auth.request<Page>(`/me/expenses?${new URLSearchParams([...new URLSearchParams(filters), ['limit', String(pageSize)], ...(cursor ? [['cursor', cursor]] : [])])}`);
 
   useEffect(() => {
-    if (!spaceId) return;
     let current = true;
     setSelected(new Set());
     request().then(
@@ -111,10 +108,10 @@ export function TransactionsPage() {
     return () => {
       current = false;
     };
-  }, [spaceId, filters, version]);
+  }, [filters, version]);
 
   const refresh = () => {
-    if (!spaceId || listing?.key !== filters) return;
+    if (listing?.key !== filters) return;
     const key = filters;
     void request().then(
       (page) => setListing((current) => (current?.key === key ? refreshed(current, page) : current)),
@@ -187,13 +184,13 @@ export function TransactionsPage() {
     );
   const trash = (ids: string[]) =>
     void action.run(async () => {
-      await auth.request(`/spaces/${spaceId}/expenses/trash`, { method: 'POST', body: JSON.stringify({ ids }) });
+      await auth.request(`/me/expenses/trash`, { method: 'POST', body: JSON.stringify({ ids }) });
       patchRows(ids, () => null);
       setSelected(new Set());
       return {
         message: ids.length === 1 ? 'Moved the transaction to the trash.' : `Moved ${ids.length} transactions to the trash.`,
         undo: async () => {
-          await auth.request(`/spaces/${spaceId}/expenses/restore`, { method: 'POST', body: JSON.stringify({ ids }) });
+          await auth.request(`/me/expenses/restore`, { method: 'POST', body: JSON.stringify({ ids }) });
           setVersion((current) => current + 1);
           return '';
         },
@@ -270,7 +267,7 @@ export function TransactionsPage() {
             {shown.count === 1 ? '1 transaction' : `${count(shown.count)} transactions`}
             {account && accountOf(account) && ' · balance after each one'}
           </p>
-          <Ledger accountName={accountName} actions={rowActions} balanceCurrency={balanceCurrency} editable={editable} listing={shown} onNearEnd={nearEnd} selected={selected} />
+          <Ledger accountName={accountName} actions={rowActions} balanceCurrency={balanceCurrency} listing={shown} onNearEnd={nearEnd} selected={selected} />
           {shown.next && (
             <p aria-live="polite" className="m-0 py-4 text-center text-small text-muted">
               Loading more…
@@ -279,7 +276,7 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {editable && chosen.length > 0 && (
+      {chosen.length > 0 && (
         <SelectionBar label={`${chosen.length} selected`} onClear={() => setSelected(new Set())}>
           <Button icon="tag" label="Category" onClick={() => setDialog('category')} />
           <Button icon="wallet" label="Account" onClick={() => setDialog('account')} />
@@ -288,7 +285,7 @@ export function TransactionsPage() {
         </SelectionBar>
       )}
 
-      {dialog === 'filters' && spaceId && (
+      {dialog === 'filters' && (
         <FiltersSheet
           accounts={accounts.data ?? []}
           categories={expenseCategories(categories.data).map((category) => category.name)}
@@ -305,10 +302,10 @@ export function TransactionsPage() {
           }}
           onClose={() => setDialog(undefined)}
           params={params}
-          spaceId={spaceId}
+         
         />
       )}
-      {dialog === 'category' && spaceId && (
+      {dialog === 'category' && (
         <BulkCategory
           count={chosen.length}
           initial={mostUsedCategory(expenseCategories(categories.data))}
@@ -316,21 +313,21 @@ export function TransactionsPage() {
           onClose={() => setDialog(undefined)}
           onSave={async (category) => {
             const ids = chosen.map((row) => row.id);
-            await auth.request(`/spaces/${spaceId}/expenses`, { method: 'PATCH', body: JSON.stringify({ ids, category }) });
+            await auth.request(`/me/expenses`, { method: 'PATCH', body: JSON.stringify({ ids, category }) });
             patchRows(ids, (row) => (row.direction === 'spent' || row.direction === 'refund' ? { ...row, category } : row));
             setSelected(new Set());
             return `Moved ${ids.length === 1 ? 'the transaction' : `${ids.length} transactions`} to ${categoryName(category).toLowerCase()}.`;
           }}
         />
       )}
-      {dialog === 'account' && spaceId && (
+      {dialog === 'account' && (
         <BulkAccount
           accounts={accounts.data ?? []}
           count={chosen.length}
           onClose={() => setDialog(undefined)}
           onSave={async (accountId) => {
             const ids = chosen.map((row) => row.id);
-            await auth.request(`/spaces/${spaceId}/expenses`, { method: 'PATCH', body: JSON.stringify({ ids, accountId }) });
+            await auth.request(`/me/expenses`, { method: 'PATCH', body: JSON.stringify({ ids, accountId }) });
             patchRows(ids, (row) => (row.direction === 'transfer' ? row : { ...row, accountId, cardId: null }));
             setSelected(new Set());
             refresh();
@@ -338,7 +335,7 @@ export function TransactionsPage() {
           }}
         />
       )}
-      {spaceId && typeof dialog === 'object' && (
+      {typeof dialog === 'object' && (
         <ExpenseEditor
           accounts={accounts.data ?? []}
           currency={shown?.currency ?? 'EGP'}
@@ -350,7 +347,7 @@ export function TransactionsPage() {
             refresh();
           }}
           onTrashed={() => patchRows([dialog.expense.id], () => null)}
-          spaceId={spaceId}
+         
         />
       )}
     </SpendingFrame>
@@ -366,7 +363,6 @@ function Ledger({
   accountName,
   actions,
   balanceCurrency,
-  editable,
   listing,
   onNearEnd,
   selected,
@@ -374,7 +370,6 @@ function Ledger({
   accountName: (id: string | null) => string | undefined;
   actions: RowActions;
   balanceCurrency: string;
-  editable: boolean;
   listing: Listing;
   onNearEnd: () => void;
   selected: ReadonlySet<string>;
@@ -425,7 +420,7 @@ function Ledger({
                 accountName={accountName}
                 actions={actions}
                 balanceCurrency={balanceCurrency}
-                editable={editable}
+               
                 first={entry.first}
                 last={entry.last}
                 row={entry.row}
@@ -456,7 +451,6 @@ const TransactionRow = memo(function TransactionRow({
   accountName,
   actions,
   balanceCurrency,
-  editable,
   first,
   last,
   row,
@@ -465,7 +459,6 @@ const TransactionRow = memo(function TransactionRow({
   accountName: (id: string | null) => string | undefined;
   actions: RowActions;
   balanceCurrency: string;
-  editable: boolean;
   first: boolean;
   last: boolean;
   row: Row;
@@ -484,13 +477,13 @@ const TransactionRow = memo(function TransactionRow({
     .join(' · ');
   return (
     <div className="list-row ledger-row" data-first={first || undefined} data-last={last || undefined} data-selected={selected || undefined}>
-      {editable && (
+      {
         <span className="list-row-lead max-md:hidden">
           <label className="-m-2.5 grid shrink-0 cursor-pointer place-items-center p-2.5">
             <Checkbox aria-label={`Select ${row.title}`} checked={selected} onChange={() => actions.select(row.id)} />
           </label>
         </span>
-      )}
+      }
       <button className="list-row-main" onClick={() => actions.open(row)} type="button">
         <span className="list-row-text">
           <span className="list-row-title" dir="auto">
@@ -514,7 +507,6 @@ function FiltersSheet({
   onApply,
   onClose,
   params,
-  spaceId,
 }: {
   accounts: MoneyAccount[];
   categories: string[];
@@ -522,9 +514,8 @@ function FiltersSheet({
   onApply: (filters: Record<string, string>) => void;
   onClose: () => void;
   params: URLSearchParams;
-  spaceId: string;
 }) {
-  const cards = useResource<KnownCard[]>(`/spaces/${spaceId}/cards`, true);
+  const cards = useResource<KnownCard[]>(`/me/cards`, true);
   const form = useFormErrors();
   const [chosen, setChosen] = useState(() => Object.fromEntries(['account', 'card', 'category', 'kind', 'direction'].map((name) => [name, params.get(name) ?? ''])));
   const choose = (name: string) => (value: string) => setChosen((current) => ({ ...current, [name]: value }));

@@ -1,4 +1,3 @@
-import { SpaceRole } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { MaintenanceScheduler } from '../../src/jobs/maintenance.scheduler';
 import { InstallmentsService } from '../../src/spending/installments.service';
@@ -11,28 +10,26 @@ describe('Installments and card due dates against Postgres', () => {
   it('tracks plans and card due dates, reminds before and after a missed payment, and puts them on the agenda', async () => {
     const owner = await member('installer');
     const viewer = await member('installment-viewer');
-    const home = { id: owner.personalSpaceId };
-    const shared = (await owner.call('POST', '/spaces', { name: 'Installments' })).body;
-    await strata.join(shared.id, viewer, SpaceRole.EDITOR);
-    expect((await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'Bad card', kind: 'credit_card', currency: 'EGP', dueDay: 32 })).status).toBe(400);
-    const card = (await owner.call('POST', `/spaces/${home.id}/accounts`, { name: 'CIB Visa', kind: 'credit_card', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
+    expect((await owner.call('POST', '/me/accounts', { name: 'Bad card', kind: 'credit_card', currency: 'EGP', dueDay: 32 })).status).toBe(400);
+    const card = (await owner.call('POST', '/me/accounts', { name: 'CIB Visa', kind: 'credit_card', currency: 'EGP', balanceMinor: -250_000, creditLimitMinor: 5_000_000, dueDay: 20 })).body;
     expect(card.dueDay).toBe(20);
-    const elsewhere = (await viewer.call('POST', `/spaces/${viewer.personalSpaceId}/accounts`, { name: 'Other', currency: 'EGP' })).body;
+    expect(card).not.toHaveProperty('spaceId');
+    const elsewhere = (await viewer.call('POST', '/me/accounts', { name: 'Other', currency: 'EGP' })).body;
 
     const plan = { name: 'valU phone', currency: 'EGP', monthlyMinor: 100_000, count: 6, firstDueOn: '2027-01-31', accountId: card.id };
-    expect((await owner.call('POST', `/spaces/${home.id}/installments`, { ...plan, count: 0 })).status).toBe(400);
-    expect((await owner.call('POST', `/spaces/${home.id}/installments`, { ...plan, accountId: elsewhere.id })).status).toBe(400);
-    expect((await viewer.call('POST', `/spaces/${home.id}/installments`, plan)).status).toBe(404);
-    expect((await owner.call('POST', `/spaces/${shared.id}/installments`, { ...plan, accountId: null })).status).toBe(403);
-    const phone = (await owner.call('POST', `/spaces/${home.id}/installments`, plan)).body;
+    expect((await owner.call('POST', '/me/installments', { ...plan, count: 0 })).status).toBe(400);
+    expect((await owner.call('POST', '/me/installments', { ...plan, accountId: elsewhere.id })).status).toBe(400);
+    expect((await viewer.call('POST', '/me/installments', plan)).status).toBe(400);
+    const phone = (await owner.call('POST', '/me/installments', plan)).body;
     expect(phone).toMatchObject({ totalMinor: 600_000, remainingMinor: 600_000, nextDueOn: '2027-01-31', status: 'due', paidCount: 0 });
     expect((await owner.call('POST', `/installments/${phone.id}/paid`)).body.nextDueOn).toBe('2027-02-28');
     expect((await owner.call('POST', `/installments/${phone.id}/paid`)).body).toMatchObject({ nextDueOn: '2027-03-31', remainingMinor: 400_000 });
     expect((await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 7 })).status).toBe(400);
     expect((await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 6 })).body).toMatchObject({ status: 'done', nextDueOn: null, remainingMinor: 0 });
     await owner.call('PATCH', `/installments/${phone.id}`, { paidCount: 2 });
-    expect((await viewer.call('GET', `/spaces/${home.id}/installments`)).status).toBe(404);
-    expect((await owner.call('GET', `/spaces/${home.id}/installments`)).body.map((shown: { name: string }) => shown.name)).toEqual(['valU phone']);
+    expect((await viewer.call('PATCH', `/installments/${phone.id}`, { paidCount: 3 })).status).toBe(404);
+    expect((await viewer.call('GET', '/me/installments')).body).toEqual([]);
+    expect((await owner.call('GET', '/me/installments')).body.map((shown: { name: string }) => shown.name)).toEqual(['valU phone']);
 
     const maintenance = strata.service(MaintenanceScheduler) as unknown as { running: boolean };
     await vi.waitFor(() => expect(maintenance.running).toBe(false), { timeout: 15_000 });
@@ -42,21 +39,23 @@ describe('Installments and card due dates against Postgres', () => {
     const notes = await strata.prisma.inboxNotification.findMany({
       where: { userId: owner.id, kind: 'payment_due', createdAt: { gte: remindedFrom } },
       orderBy: { createdAt: 'asc' },
-      select: { title: true, body: true },
+      select: { title: true, body: true, link: true },
     });
     expect(notes).toEqual([
-      { title: 'valU phone is due on Wed 31 Mar', body: expect.stringMatching(/^EGP\s1,000\.00, payment 3 of 6$/) },
-      { title: 'Missed payment: valU phone', body: expect.stringMatching(/^EGP\s1,000\.00 was due on Wed 31 Mar$/) },
-      { title: 'CIB Visa is due on Tue 20 Apr', body: expect.stringMatching(/^EGP\s2,500\.00 owed$/) },
+      { title: 'valU phone is due on Wed 31 Mar', body: expect.stringMatching(/^EGP\s1,000\.00, payment 3 of 6$/), link: '/spending/accounts' },
+      { title: 'Missed payment: valU phone', body: expect.stringMatching(/^EGP\s1,000\.00 was due on Wed 31 Mar$/), link: '/spending/accounts' },
+      { title: 'CIB Visa is due on Tue 20 Apr', body: expect.stringMatching(/^EGP\s2,500\.00 owed$/), link: '/spending/accounts' },
     ]);
+    expect(await strata.prisma.inboxNotification.count({ where: { userId: viewer.id, kind: 'payment_due' } })).toBe(0);
 
     const agenda = (await owner.call('GET', '/agenda?from=2027-03-01&to=2027-05-01')).body;
-    expect(agenda.filter((entry: { kind: string }) => entry.kind === 'payment').map((entry: { start: string; title: string }) => [entry.start, entry.title])).toEqual([
-      ['2027-03-20', 'CIB Visa payment due'],
-      ['2027-03-31', 'valU phone installment'],
-      ['2027-04-20', 'CIB Visa payment due'],
-      ['2027-04-30', 'valU phone installment'],
+    expect(agenda.filter((entry: { kind: string }) => entry.kind === 'payment').map((entry: { start: string; title: string; spaceId: string | null }) => [entry.start, entry.title, entry.spaceId])).toEqual([
+      ['2027-03-20', 'CIB Visa payment due', null],
+      ['2027-03-31', 'valU phone installment', null],
+      ['2027-04-20', 'CIB Visa payment due', null],
+      ['2027-04-30', 'valU phone installment', null],
     ]);
+    expect((await viewer.call('GET', '/agenda?from=2027-03-01&to=2027-05-01')).body).toEqual([]);
     expect((await owner.call('DELETE', `/installments/${phone.id}`)).status).toBe(204);
     expect((await owner.call('DELETE', `/installments/${phone.id}`)).status).toBe(404);
   });
