@@ -20,7 +20,7 @@ export function SpaceTasks() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const listId = params.get('list');
-  const view: TaskView = params.get('view') === 'board' ? 'board' : 'list';
+  const view: TaskView = params.get('view') === 'list' ? 'list' : 'board';
   const completed = view === 'list' && params.get('completed') === 'true';
   const page = Number(params.get('page')) || 1;
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);

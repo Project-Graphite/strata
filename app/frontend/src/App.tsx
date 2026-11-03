@@ -1,3 +1,4 @@
+import { ThemeProvider, type Theme } from '@mui/material/styles';
 import { lazy, useEffect, useEffectEvent } from 'react';
 import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
@@ -137,6 +138,11 @@ function RouterLink({ href, onMouseEnter, onPointerDown, ...props }: UiLinkProps
   );
 }
 
+function withoutMenuScrollLock(theme: Theme): Theme {
+  const popover = theme.components?.MuiPopover;
+  return { ...theme, components: { ...theme.components, MuiPopover: { ...popover, defaultProps: { ...popover?.defaultProps, disableScrollLock: true } } } };
+}
+
 export function App() {
   const { user } = useAuth();
   usePrefetchRoutes(user && phoneTabBar(null, enabledApps(user.features)).map((tab) => tab.href));
@@ -149,130 +155,132 @@ export function App() {
   }, []);
   return (
     <UiProvider link={RouterLink}>
-      <Routes>
-        <Route element={<Shell />}>
-          <Route index element={<HomePage />} />
-          <Route path="privacy" element={<PrivacyPage />} />
-          <Route path="terms" element={<TermsPage />} />
-          <Route path="register" element={<RegisterPage />} />
-          <Route path="verify" element={<VerifyPage />} />
-          <Route path="login" element={<SignedOutLogin />} />
-          <Route path="forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="reset-password" element={<ResetPasswordPage />} />
-          <Route path="invite/:code" element={<InvitePage />} />
-          <Route path="rsvp/:code" element={<RsvpPage />} />
-          <Route path="share/:code" element={<SharePage />} />
-          {legacyRoutes.map(([path, to]) => (
-            <Route element={<Moved to={to} />} key={path} path={path} />
-          ))}
-          <Route element={<Protected />}>
-            <Route path="wall" element={<WallPage />} />
-            <Route element={<AppRoute app="tasks" />}>
-              <Route path="tasks" element={<TasksPage />} />
-            </Route>
-            <Route element={<AppRoute app="agenda" />}>
-              <Route path="agenda">
-                <Route index element={<AgendaPage key="start" />} />
-                <Route path="today" element={<Moved to="/agenda/day" />} />
-                <Route path="list" element={<AgendaPage key="list" view="list" />} />
-                <Route path="day" element={<AgendaPage key="day" view="day" />} />
-                <Route path="week" element={<AgendaPage key="week" view="week" />} />
-                <Route path="month" element={<AgendaPage key="month" view="month" />} />
-                <Route path="calendars" element={<CalendarsPage />} />
+      <ThemeProvider theme={withoutMenuScrollLock}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route index element={<HomePage />} />
+            <Route path="privacy" element={<PrivacyPage />} />
+            <Route path="terms" element={<TermsPage />} />
+            <Route path="register" element={<RegisterPage />} />
+            <Route path="verify" element={<VerifyPage />} />
+            <Route path="login" element={<SignedOutLogin />} />
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="reset-password" element={<ResetPasswordPage />} />
+            <Route path="invite/:code" element={<InvitePage />} />
+            <Route path="rsvp/:code" element={<RsvpPage />} />
+            <Route path="share/:code" element={<SharePage />} />
+            {legacyRoutes.map(([path, to]) => (
+              <Route element={<Moved to={to} />} key={path} path={path} />
+            ))}
+            <Route element={<Protected />}>
+              <Route path="wall" element={<WallPage />} />
+              <Route element={<AppRoute app="tasks" />}>
+                <Route path="tasks" element={<TasksPage />} />
+              </Route>
+              <Route element={<AppRoute app="agenda" />}>
+                <Route path="agenda">
+                  <Route index element={<AgendaPage key="start" />} />
+                  <Route path="today" element={<Moved to="/agenda/day" />} />
+                  <Route path="list" element={<AgendaPage key="list" view="list" />} />
+                  <Route path="day" element={<AgendaPage key="day" view="day" />} />
+                  <Route path="week" element={<AgendaPage key="week" view="week" />} />
+                  <Route path="month" element={<AgendaPage key="month" view="month" />} />
+                  <Route path="calendars" element={<CalendarsPage />} />
+                </Route>
+              </Route>
+              <Route path="events/:id" element={<EventPage />} />
+              <Route element={<AppRoute app="pages" />}>
+                <Route path="pages">
+                  <Route index element={<PagesIndex key="pages" section="pages" />} />
+                  <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
+                </Route>
+              </Route>
+              <Route element={<AppRoute app="boards" />}>
+                <Route path="boards" element={<BoardsIndex />} />
+              </Route>
+              <Route path="pages/:id" element={<NotePage />} />
+              <Route path="notes/:id" element={<MovedPage />} />
+              <Route path="boards/:id" element={<BoardPage />} />
+              <Route element={<AppRoute app="bookmarks" />}>
+                <Route path="bookmarks" element={<BookmarksPage />} />
+                <Route path="bookmarks/:id" element={<BookmarkPage />} />
+              </Route>
+              <Route element={<AppRoute app="journal" />}>
+                <Route path="journal" element={<JournalPage />} />
+                <Route path="journal/:id" element={<NotePage />} />
+              </Route>
+              <Route element={<AppRoute app="files" />}>
+                <Route path="files" element={<FilesPage />} />
+              </Route>
+              <Route element={<AppRoute app="spending" />}>
+                <Route path="spending">
+                  <Route index element={<SpendingPage key="overview" tab="overview" />} />
+                  <Route path="transactions" element={<TransactionsPage />} />
+                  <Route path="accounts" element={<SpendingAccountsPage />} />
+                  <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
+                  <Route path="recurring" element={<RecurringPage />} />
+                  <Route path="insights" element={<SpendingInsightsPage />} />
+                  <Route path="net-worth" element={<NetWorthPage />} />
+                </Route>
+              </Route>
+              <Route path="spaces">
+                <Route index element={<SpacesPage />} />
+                <Route path="invitations" element={<InvitationsPage />} />
+                <Route path=":id" element={<SpaceLayout />}>
+                  <Route index element={<SpaceOverview />} />
+                  <Route path="items" element={<SpaceItems />} />
+                  <Route path="pages" element={<SpaceNotes />} />
+                  <Route path="tasks" element={<SpaceTasks />} />
+                  <Route path="tags" element={<SpaceTags />} />
+                  <Route path="members" element={<SpaceMembers />} />
+                  <Route path="activity" element={<SpaceActivity />} />
+                </Route>
+              </Route>
+              <Route path="habits" element={<HabitsPage />} />
+              <Route element={<AppRoute app="goals" />}>
+                <Route path="goals" element={<GoalsPage />} />
+                <Route path="goals/:id" element={<GoalPage />} />
+              </Route>
+              <Route element={<AppRoute app="people" />}>
+                <Route path="people" element={<PeoplePage />} />
+                <Route path="people/:id" element={<PersonPage />} />
+              </Route>
+              <Route element={<AppRoute app="recipes" />}>
+                <Route path="recipes" element={<RecipesPage />} />
+                <Route path="recipes/plan" element={<MealPlanPage />} />
+                <Route path="recipes/:id" element={<RecipePage />} />
+              </Route>
+              <Route element={<AppRoute app="tidy" />}>
+                <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
+                <Route path="tidy/yours" element={<TidyPage key="yours" section="yours" />} />
+                <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
+                <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
+              </Route>
+              <Route path="inbox" element={<InboxPage />} />
+              <Route path="more" element={<MorePage />} />
+              <Route path="save" element={<SavePage />} />
+              <Route path="admin" element={<AdminPage />} />
+              <Route path="settings" element={<SettingsLayout />}>
+                <Route index element={<ProfileSettings />} />
+                <Route path="apps" element={<AppsSettings />} />
+                <Route path="tags" element={<TagsSettings />} />
+                <Route path="security" element={<SecuritySettings />} />
+                <Route path="developer" element={<DeveloperSettings />} />
+                <Route path="data" element={<DataSettings />} />
+                <Route path="trash" element={<TrashSettings />} />
+                <Route path="legal">
+                  <Route index element={<LegalSettings />} />
+                  <Route path="terms" element={<LegalSettings page="terms" />} />
+                  <Route path="privacy" element={<LegalSettings page="privacy" />} />
+                  <Route path="licenses" element={<LegalSettings page="licenses" />} />
+                  <Route path="support" element={<LegalSettings page="support" />} />
+                </Route>
               </Route>
             </Route>
-            <Route path="events/:id" element={<EventPage />} />
-            <Route element={<AppRoute app="pages" />}>
-              <Route path="pages">
-                <Route index element={<PagesIndex key="pages" section="pages" />} />
-                <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
-              </Route>
-            </Route>
-            <Route element={<AppRoute app="boards" />}>
-              <Route path="boards" element={<BoardsIndex />} />
-            </Route>
-            <Route path="pages/:id" element={<NotePage />} />
-            <Route path="notes/:id" element={<MovedPage />} />
-            <Route path="boards/:id" element={<BoardPage />} />
-            <Route element={<AppRoute app="bookmarks" />}>
-              <Route path="bookmarks" element={<BookmarksPage />} />
-              <Route path="bookmarks/:id" element={<BookmarkPage />} />
-            </Route>
-            <Route element={<AppRoute app="journal" />}>
-              <Route path="journal" element={<JournalPage />} />
-              <Route path="journal/:id" element={<NotePage />} />
-            </Route>
-            <Route element={<AppRoute app="files" />}>
-              <Route path="files" element={<FilesPage />} />
-            </Route>
-            <Route element={<AppRoute app="spending" />}>
-              <Route path="spending">
-                <Route index element={<SpendingPage key="overview" tab="overview" />} />
-                <Route path="transactions" element={<TransactionsPage />} />
-                <Route path="accounts" element={<SpendingAccountsPage />} />
-                <Route path="budgets" element={<SpendingPage key="budgets" tab="budgets" />} />
-                <Route path="recurring" element={<RecurringPage />} />
-                <Route path="insights" element={<SpendingInsightsPage />} />
-                <Route path="net-worth" element={<NetWorthPage />} />
-              </Route>
-            </Route>
-            <Route path="spaces">
-              <Route index element={<SpacesPage />} />
-              <Route path="invitations" element={<InvitationsPage />} />
-              <Route path=":id" element={<SpaceLayout />}>
-                <Route index element={<SpaceOverview />} />
-                <Route path="items" element={<SpaceItems />} />
-                <Route path="pages" element={<SpaceNotes />} />
-                <Route path="tasks" element={<SpaceTasks />} />
-                <Route path="tags" element={<SpaceTags />} />
-                <Route path="members" element={<SpaceMembers />} />
-                <Route path="activity" element={<SpaceActivity />} />
-              </Route>
-            </Route>
-            <Route path="habits" element={<HabitsPage />} />
-            <Route element={<AppRoute app="goals" />}>
-              <Route path="goals" element={<GoalsPage />} />
-              <Route path="goals/:id" element={<GoalPage />} />
-            </Route>
-            <Route element={<AppRoute app="people" />}>
-              <Route path="people" element={<PeoplePage />} />
-              <Route path="people/:id" element={<PersonPage />} />
-            </Route>
-            <Route element={<AppRoute app="recipes" />}>
-              <Route path="recipes" element={<RecipesPage />} />
-              <Route path="recipes/plan" element={<MealPlanPage />} />
-              <Route path="recipes/:id" element={<RecipePage />} />
-            </Route>
-            <Route element={<AppRoute app="tidy" />}>
-              <Route path="tidy" element={<TidyPage key="suggestions" section="suggestions" />} />
-              <Route path="tidy/yours" element={<TidyPage key="yours" section="yours" />} />
-              <Route path="tidy/folder" element={<TidyPage key="folder" section="folder" />} />
-              <Route path="tidy/history" element={<TidyPage key="history" section="history" />} />
-            </Route>
-            <Route path="inbox" element={<InboxPage />} />
-            <Route path="more" element={<MorePage />} />
-            <Route path="save" element={<SavePage />} />
-            <Route path="admin" element={<AdminPage />} />
-            <Route path="settings" element={<SettingsLayout />}>
-              <Route index element={<ProfileSettings />} />
-              <Route path="apps" element={<AppsSettings />} />
-              <Route path="tags" element={<TagsSettings />} />
-              <Route path="security" element={<SecuritySettings />} />
-              <Route path="developer" element={<DeveloperSettings />} />
-              <Route path="data" element={<DataSettings />} />
-              <Route path="trash" element={<TrashSettings />} />
-              <Route path="legal">
-                <Route index element={<LegalSettings />} />
-                <Route path="terms" element={<LegalSettings page="terms" />} />
-                <Route path="privacy" element={<LegalSettings page="privacy" />} />
-                <Route path="licenses" element={<LegalSettings page="licenses" />} />
-                <Route path="support" element={<LegalSettings page="support" />} />
-              </Route>
-            </Route>
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </ThemeProvider>
     </UiProvider>
   );
 }
