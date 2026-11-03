@@ -1,24 +1,18 @@
 import { Link } from 'react-router';
-import { useAuth } from '../auth';
 import { androidReleasesPageUrl, isNativeAndroid } from '../native-capture';
 
-export function AboutLinks({ className = '' }: { className?: string }) {
-  const auth = useAuth();
-  const links = auth.user
-    ? []
-    : [
-        ['/privacy', 'Privacy'],
-        ['/terms', 'Terms'],
-      ];
-  if (isNativeAndroid() && !links.length) return null;
+export function AboutLinks() {
   return (
-    <nav aria-label="About" className={`flex gap-5 text-small ${className}`}>
+    <nav aria-label="About" className="flex justify-end gap-5 text-small">
       {!isNativeAndroid() && (
         <a className="inline-flex items-center text-muted no-underline hover:text-ink pointer-coarse:min-h-11" href={androidReleasesPageUrl} rel="noreferrer" target="_blank">
           Android app
         </a>
       )}
-      {links.map(([to, label]) => (
+      {[
+        ['/privacy', 'Privacy'],
+        ['/terms', 'Terms'],
+      ].map(([to, label]) => (
         <Link className="inline-flex items-center text-muted no-underline hover:text-ink pointer-coarse:min-h-11" key={to} to={to}>
           {label}
         </Link>

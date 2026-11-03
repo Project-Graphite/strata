@@ -15,6 +15,12 @@ export class JournalController {
     return this.journal.year(user.id, query.year);
   }
 
+  @Get(':day')
+  @Scope('items:read')
+  day(@CurrentUser() user: AuthenticatedUser, @Param('day') day: string) {
+    return this.journal.day(user.id, day);
+  }
+
   @Post(':day/page')
   @Scope('items:write')
   open(@CurrentUser() user: AuthenticatedUser, @Param('day') day: string) {

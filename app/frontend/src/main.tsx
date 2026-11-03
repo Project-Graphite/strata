@@ -5,6 +5,14 @@ import { App } from './App';
 import { AuthProvider } from './auth';
 import './styles/global.css';
 
+function measureScrollbar() {
+  if (document.body.style.overflow === 'hidden') return;
+  document.documentElement.style.setProperty('--scrollbar-width', `${window.innerWidth - document.documentElement.clientWidth}px`);
+}
+
+measureScrollbar();
+window.addEventListener('resize', measureScrollbar);
+
 startTransition(() =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

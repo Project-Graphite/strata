@@ -719,8 +719,6 @@ export const widgetKinds: Record<
     description: string;
     icon: IconName;
     size: WidgetSize;
-    minW: number;
-    minH: number;
     app?: string;
     href?: string;
     settings: Record<string, unknown>;
@@ -728,31 +726,31 @@ export const widgetKinds: Record<
     Settings?: (props: SettingsProps) => ReactNode;
   }
 > = {
-  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', icon: 'clock', size: 'small', minW: 3, minH: 7, settings: {}, View: Clock, Settings: ClockSettings },
-  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", icon: 'home', size: 'medium', minW: 4, minH: 17, settings: {}, View: Today },
-  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', icon: 'check-mark', size: 'medium', minW: 4, minH: 18, app: 'tasks', href: '/tasks', settings: {}, View: Tasks, Settings: TasksSettings },
-  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', icon: 'list', size: 'medium', minW: 3, minH: 17, app: 'agenda', href: '/agenda/week', settings: {}, View: Agenda },
-  calendar: { title: 'Calendar', group: 'Your day', description: 'The month at a glance, with busy days marked.', icon: 'calendar', size: 'small', minW: 3, minH: 13, app: 'agenda', href: '/agenda/month', settings: {}, View: CalendarWidget },
-  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", icon: 'checklist', size: 'medium', minW: 4, minH: 11, app: 'tasks', settings: {}, View: Habits },
-  journal: { title: 'Journal', group: 'Your day', description: "Today's mood, your last two weeks and today's page.", icon: 'pencil', size: 'small', minW: 3, minH: 11, app: 'journal', href: '/journal', settings: {}, View: Journal },
-  goals: { title: 'Goals', group: 'Your day', description: 'Your active goals and how far along they are.', icon: 'target', size: 'medium', minW: 3, minH: 11, app: 'goals', href: '/goals', settings: {}, View: Goals },
-  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', icon: 'gift', size: 'small', minW: 3, minH: 7, settings: {}, View: Countdown, Settings: CountdownSettings },
-  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', icon: 'target', size: 'small', minW: 3, minH: 10, settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
-  progress: { title: 'Day progress', group: 'Your day', description: 'How much of the day, week, month and year has gone.', icon: 'clock', size: 'small', minW: 3, minH: 11, settings: {}, View: DayProgress },
-  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', icon: 'repeat', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/recurring', settings: {}, View: Recurring },
-  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', icon: 'wallet', size: 'medium', minW: 4, minH: 13, app: 'spending', href: '/spending', settings: {}, View: SpendingWidget },
-  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', icon: 'wallet', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/accounts', settings: {}, View: PaymentsWidget },
-  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', icon: 'shield', size: 'small', minW: 3, minH: 9, app: 'spending', href: '/spending/net-worth', settings: {}, View: SavingsWidget },
-  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', icon: 'link', size: 'wide', minW: 3, minH: 7, settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
-  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', icon: 'bell', size: 'medium', minW: 3, minH: 12, href: '/inbox', settings: {}, View: Inbox },
-  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', icon: 'plus', size: 'medium', minW: 4, minH: 16, app: 'pages', href: '/pages/quick-notes', settings: {}, View: Capture },
-  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', icon: 'file', size: 'medium', minW: 3, minH: 15, app: 'pages', href: '/pages', settings: {}, View: Pages },
-  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', icon: 'board', size: 'wide', minW: 4, minH: 12, app: 'boards', settings: {}, View: Board, Settings: BoardSettings },
-  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', icon: 'bookmark', size: 'medium', minW: 3, minH: 12, app: 'bookmarks', href: '/bookmarks', settings: {}, View: ReadLater },
-  files: { title: 'Recent files', group: 'Notes and links', description: 'Your latest uploads and the storage they use.', icon: 'library', size: 'small', minW: 3, minH: 10, app: 'files', href: '/files', settings: {}, View: RecentFiles },
-  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', minW: 3, minH: 8, app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
-  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', minW: 3, minH: 10, settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
-  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', minW: 4, minH: 13, settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
-  birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', minW: 3, minH: 11, app: 'people', href: '/people', settings: {}, View: Birthdays },
-  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', minW: 3, minH: 8, settings: {}, View: Quote },
+  clock: { title: 'Clock', group: 'Around you', description: 'The time here and in other cities.', icon: 'clock', size: 'small', settings: {}, View: Clock, Settings: ClockSettings },
+  today: { title: 'Today', group: 'Your day', description: "What's on today and what's due.", icon: 'home', size: 'medium', settings: {}, View: Today },
+  tasks: { title: 'Tasks', group: 'Your day', description: 'Tasks to tick off.', icon: 'check-mark', size: 'medium', app: 'tasks', href: '/tasks', settings: {}, View: Tasks, Settings: TasksSettings },
+  agenda: { title: 'Agenda', group: 'Your day', description: 'The week ahead.', icon: 'list', size: 'medium', app: 'agenda', href: '/agenda/week', settings: {}, View: Agenda },
+  calendar: { title: 'Calendar', group: 'Your day', description: 'The month at a glance, with busy days marked.', icon: 'calendar', size: 'small', app: 'agenda', href: '/agenda/month', settings: {}, View: CalendarWidget },
+  habits: { title: 'Habits', group: 'Your day', description: "Today's habits to check off.", icon: 'checklist', size: 'medium', app: 'tasks', settings: {}, View: Habits },
+  journal: { title: 'Journal', group: 'Your day', description: "Today's mood, your last two weeks and today's page.", icon: 'pencil', size: 'small', app: 'journal', href: '/journal', settings: {}, View: Journal },
+  goals: { title: 'Goals', group: 'Your day', description: 'Your active goals and how far along they are.', icon: 'target', size: 'medium', app: 'goals', href: '/goals', settings: {}, View: Goals },
+  countdown: { title: 'Countdown', group: 'Your day', description: 'Days left until a date.', icon: 'gift', size: 'small', settings: {}, View: Countdown, Settings: CountdownSettings },
+  focus: { title: 'Focus timer', group: 'Your day', description: 'A focus timer with breaks.', icon: 'target', size: 'small', settings: { minutes: 25, breakMinutes: 5 }, View: Focus, Settings: FocusSettings },
+  progress: { title: 'Day progress', group: 'Your day', description: 'How much of the day, week, month and year has gone.', icon: 'clock', size: 'small', settings: {}, View: DayProgress },
+  recurring: { title: 'Renewals and spend', group: 'Money', description: 'Monthly subscriptions and the next renewals.', icon: 'repeat', size: 'small', app: 'spending', href: '/spending/recurring', settings: {}, View: Recurring },
+  spending: { title: 'Spending this month', group: 'Money', description: 'Spent against your budget this month.', icon: 'wallet', size: 'medium', app: 'spending', href: '/spending', settings: {}, View: SpendingWidget },
+  payments: { title: 'Upcoming payments', group: 'Money', description: 'Installments and card payments coming up.', icon: 'wallet', size: 'small', app: 'spending', href: '/spending/accounts', settings: {}, View: PaymentsWidget },
+  savings: { title: 'Savings goals', group: 'Money', description: 'Progress towards your savings goals.', icon: 'shield', size: 'small', app: 'spending', href: '/spending/net-worth', settings: {}, View: SavingsWidget },
+  shortcuts: { title: 'Shortcuts', group: 'Notes and links', description: 'Links to the sites you use most.', icon: 'link', size: 'wide', settings: { links: [] }, View: Shortcuts, Settings: ShortcutsSettings },
+  inbox: { title: 'Inbox', group: 'Notes and links', description: 'Your latest notifications.', icon: 'bell', size: 'medium', href: '/inbox', settings: {}, View: Inbox },
+  capture: { title: 'Quick note', group: 'Notes and links', description: 'Jot a note straight from Home and see your latest ones.', icon: 'plus', size: 'medium', app: 'pages', href: '/pages/quick-notes', settings: {}, View: Capture },
+  pages: { title: 'Pinned and recent pages', group: 'Notes and links', description: 'Pages you pinned and the ones you opened last.', icon: 'file', size: 'medium', app: 'pages', href: '/pages', settings: {}, View: Pages },
+  board: { title: 'Board', group: 'Notes and links', description: 'One of your boards.', icon: 'board', size: 'wide', app: 'boards', settings: {}, View: Board, Settings: BoardSettings },
+  bookmarks: { title: 'Read later', group: 'Notes and links', description: 'Articles saved to read later.', icon: 'bookmark', size: 'medium', app: 'bookmarks', href: '/bookmarks', settings: {}, View: ReadLater },
+  files: { title: 'Recent files', group: 'Notes and links', description: 'Your latest uploads and the storage they use.', icon: 'library', size: 'small', app: 'files', href: '/files', settings: {}, View: RecentFiles },
+  tidy: { title: 'Tidy status', group: 'Notes and links', description: 'What Tidy suggests clearing up.', icon: 'sparkles', size: 'small', app: 'tidy', href: '/tidy', settings: {}, View: Tidy },
+  weather: { title: 'Weather', group: 'Around you', description: 'The forecast where you are.', icon: 'compass', size: 'small', settings: { unit: 'celsius' }, View: Weather, Settings: WeatherSettings },
+  news: { title: 'News', group: 'Around you', description: 'Headlines from feeds you choose.', icon: 'mail', size: 'medium', settings: { feeds: [], count: 5 }, View: News, Settings: NewsSettings },
+  birthdays: { title: 'Birthdays', group: 'Around you', description: 'Whose birthday is coming up.', icon: 'users', size: 'small', app: 'people', href: '/people', settings: {}, View: Birthdays },
+  quote: { title: 'Quote of the day', group: 'Around you', description: 'A new quote every day.', icon: 'quote', size: 'medium', settings: {}, View: Quote },
 };

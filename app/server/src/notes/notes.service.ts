@@ -24,12 +24,19 @@ export const noteFields = {
   updatedAt: true,
   note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true, narrow: true, coverId: true, coverAlt: true } },
   databaseSchema: { select: { itemId: true } },
-  _count: { select: { journalEntries: true, childNotes: { where: { item: { journalEntries: { some: {} } } } } } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
 
-const notJournal = { journalEntries: { none: {} }, childNotes: { none: { item: { journalEntries: { some: {} } } } } } satisfies Prisma.ItemWhereInput;
+export const draftWhere = {
+  title: '',
+  searchDocument: { is: { bodyText: '' } },
+  databaseSchema: { is: null },
+  childNotes: { none: {} },
+  note: { is: { icon: null, coverId: null, quick: false, template: false } },
+} satisfies Prisma.ItemWhereInput;
+
+const notDraft = { NOT: draftWhere } satisfies Prisma.ItemWhereInput;
 
 const visibleParent = { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } satisfies Prisma.ItemWhereInput;
 
@@ -37,7 +44,7 @@ function siblingsOf(parentId: string | null): Prisma.NoteWhereInput {
   return parentId ? { parentId } : { OR: [{ parentId: null }, { parent: { isNot: visibleParent } }] };
 }
 
-export function present(row: NoteRow) {
+export function present(row: NoteRow, draft = false) {
   return {
     id: row.id,
     spaceId: row.spaceId,
@@ -52,8 +59,7 @@ export function present(row: NoteRow) {
     narrow: row.note?.narrow ?? false,
     cover: row.note?.coverId ? { id: row.note.coverId, alt: row.note.coverAlt } : null,
     database: Boolean(row.databaseSchema),
-    journal: row._count.journalEntries > 0,
-    holdsJournal: row._count.childNotes > 0,
+    draft,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -73,20 +79,20 @@ export class NotesService {
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, note: { quick: false } },
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft, note: { quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       select: noteFields,
     });
-    return rows.map(present);
+    return rows.map((row) => present(row));
   }
 
   async everywhere(userId: string, kind: 'note' | 'board' | 'quick' | undefined, spaceId?: string) {
     const rows = await this.prisma.item.findMany({
-      where: { ...(spaceId ? { spaceId } : {}),
+      where: { spaceId: spaceId ?? { not: null },
         kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' || kind === 'quick' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
-        AND: this.pages.pagesOf(userId),
+        AND: [this.pages.pagesOf(userId), notDraft],
         note: { template: false, quick: kind === 'quick' },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
@@ -96,11 +102,27 @@ export class NotesService {
     return this.visibleRows(userId, rows);
   }
 
+  async drafts(userId: string, kind: 'note' | 'board' | 'quick' | undefined) {
+    const rows = await this.prisma.item.findMany({
+      where: {
+        createdById: userId,
+        kind: kind === 'board' ? ItemKind.BOARD : kind ? ItemKind.NOTE : { in: pageKinds },
+        trashedAt: null,
+        archivedAt: null,
+        AND: [this.pages.pagesOf(userId, 'edit'), draftWhere],
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      take: 100,
+      select: noteFields,
+    });
+    return rows.map((row) => present(row, true));
+  }
+
   async children(userId: string, spaceId: string, query: PageChildrenQueryDto) {
     await this.access.assertSpace(userId, spaceId, 'read');
     if (query.parentId) await this.parentIn(spaceId, query.parentId);
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notJournal, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
+      where: { spaceId, kind: query.kind === 'note' ? ItemKind.NOTE : { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       cursor: query.cursor ? { id: query.cursor } : undefined,
       skip: query.cursor ? 1 : 0,
@@ -110,7 +132,7 @@ export class NotesService {
     const parents = rows.length
       ? await this.prisma.note.groupBy({
           by: ['parentId'],
-          where: { parentId: { in: rows.map((row) => row.id) }, template: false, quick: false, item: { kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notJournal } },
+          where: { parentId: { in: rows.map((row) => row.id) }, template: false, quick: false, item: { kind: query.kind === 'note' ? ItemKind.NOTE : { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft } },
         })
       : [];
     const withChildren = new Set(parents.map((parent) => parent.parentId));
@@ -119,7 +141,7 @@ export class NotesService {
   }
 
   async mine(userId: string, spaceId?: string) {
-    const where = { ...(spaceId ? { spaceId } : {}), kind: { in: pageKinds }, trashedAt: null, archivedAt: null, AND: this.pages.pagesOf(userId) };
+    const where = { spaceId: spaceId ?? { not: null }, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, AND: [this.pages.pagesOf(userId), notDraft] };
     const [pinned, recent] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...where, note: { template: false, quick: false, pinnedAt: { not: null } } },
@@ -177,7 +199,24 @@ export class NotesService {
     });
     if (result.created && input.state && initial) await this.realtime.syncLinks(result.item.id, initial, userId);
     this.changes.notify('page-details', { spaceId, itemId: input.parentId });
-    return present(result.item);
+    return present(result.item, await this.isDraft(result.item.id));
+  }
+
+  async createOwned(userId: string, title: string, document?: Y.Doc, alongside?: (transaction: Prisma.TransactionClient, id: string) => Promise<unknown>) {
+    const item = await this.prisma.$transaction(async (transaction) => {
+      const item = await transaction.item.create({
+        data: { ownerId: userId, kind: ItemKind.NOTE, title, createdById: userId, updatedById: userId, note: { create: {} } },
+        select: noteFields,
+      });
+      if (document) {
+        await transaction.noteDocument.create({ data: { itemId: item.id, state: Buffer.from(Y.encodeStateAsUpdate(document)) } });
+        await transaction.searchDocument.updateMany({ where: { itemId: item.id }, data: { bodyText: documentText(document) } });
+      }
+      await alongside?.(transaction, item.id);
+      return item;
+    });
+    this.changes.notify('journal', { userId });
+    return present(item);
   }
 
   async recover(userId: string, spaceId: string, bytes: Buffer, recoveryId?: string) {
@@ -199,7 +238,7 @@ export class NotesService {
     const path = await this.ancestors(parentId);
     const readable = new Set((await this.prisma.item.findMany({ where: { id: { in: path.map((ancestor) => ancestor.id) }, AND: this.pages.pagesOf(userId) }, select: { id: true } })).map((ancestor) => ancestor.id));
     return {
-      ...present(row),
+      ...present(row, await this.isDraft(noteId)),
       parentId: parentReadable ? parentId : null,
       editable: found.permissions.edit,
       permissions: found.permissions,
@@ -237,7 +276,9 @@ export class NotesService {
 
   async update(userId: string, noteId: string, input: UpdateNoteDto) {
     const found = await this.note(userId, noteId, 'edit');
-    if (!found.permissions.organize && (input.parentId !== undefined || input.position !== undefined || input.relativeTo !== undefined || input.template !== undefined || input.quick !== undefined || input.pinned !== undefined || input.cover !== undefined)) throw new ForbiddenException('Space editing access is required to organize pages');
+    const organizing = input.parentId !== undefined || input.position !== undefined || input.relativeTo !== undefined || input.template !== undefined || input.quick !== undefined || input.pinned !== undefined;
+    if (!found.spaceId && organizing) throw new ForbiddenException('Journal pages stay out of the page tree');
+    if (!found.permissions.organize && found.spaceId && (organizing || input.cover !== undefined)) throw new ForbiddenException('Space editing access is required to organize pages');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     if (input.expectedTitle !== undefined && input.title === undefined) throw new BadRequestException('Include a title when checking its previous value');
     if (input.template && found.kind === ItemKind.BOARD) throw new BadRequestException('A board cannot be a template');
@@ -245,8 +286,8 @@ export class NotesService {
     if (found.quick && input.template) throw new BadRequestException('A note cannot be a template');
     if (found.quick && input.icon) throw new BadRequestException('A note cannot have an icon');
     if (found.quick && input.cover) throw new BadRequestException('A note cannot have a cover');
-    if (input.cover && !(await this.prisma.item.findFirst({ where: { id: input.cover, spaceId: found.spaceId, kind: ItemKind.FILE, trashedAt: null, file: { mimeType: { in: [...inlineTypes] } } }, select: { id: true } }))) {
-      throw new BadRequestException('Choose an image from this space');
+    if (input.cover && !(await this.prisma.item.findFirst({ where: { id: input.cover, ...(found.spaceId ? { spaceId: found.spaceId } : { ownerId: userId }), kind: ItemKind.FILE, trashedAt: null, file: { mimeType: { in: [...inlineTypes] } } }, select: { id: true } }))) {
+      throw new BadRequestException(found.spaceId ? 'Choose an image from this space' : 'Choose one of your own images');
     }
     if (Boolean(input.relativeTo) !== Boolean(input.placement) || (input.relativeTo && (input.parentId !== undefined || input.position !== undefined))) {
       throw new BadRequestException('Choose either a destination page or a sibling placement');
@@ -329,7 +370,7 @@ export class NotesService {
         data: { title: input.title, updatedById: userId },
         select: noteFields,
       });
-      if (input.title !== undefined && input.title !== found.title) {
+      if (found.spaceId && input.title !== undefined && input.title !== found.title) {
         await this.activity.record(transaction, {
           spaceId: found.spaceId,
           actorId: userId,
@@ -340,9 +381,9 @@ export class NotesService {
       }
       return item;
     });
-    this.changes.notify('page-details', { spaceId: found.spaceId, itemId: noteId });
+    this.changes.notify('page-details', found.spaceId ? { spaceId: found.spaceId, itemId: noteId } : { userId, itemId: noteId });
     if (input.title !== undefined) this.realtime.titleChanged(noteId, updated.title, updated.updatedAt);
-    return present(updated);
+    return present(updated, await this.isDraft(noteId));
   }
 
   async note(userId: string, noteId: string, access: PageAccess, kinds: ItemKind[] = pageKinds) {
@@ -351,8 +392,18 @@ export class NotesService {
     return found;
   }
 
+  async spaceNote(userId: string, noteId: string, access: PageAccess, kinds: ItemKind[] = pageKinds) {
+    const found = await this.note(userId, noteId, access, kinds);
+    if (!found.spaceId) throw new ForbiddenException('Only pages in a space can do that');
+    return { ...found, spaceId: found.spaceId };
+  }
+
+  private async isDraft(noteId: string) {
+    return (await this.prisma.item.count({ where: { id: noteId, ...draftWhere } })) > 0;
+  }
+
   private async visibleRows(userId: string, rows: NoteRow[]) {
-    if (!rows.some((row) => row.note?.parentId)) return rows.map(present);
+    if (!rows.some((row) => row.note?.parentId)) return rows.map((row) => present(row));
     const readable = new Set((await this.prisma.item.findMany({ where: { id: { in: rows.flatMap((row) => row.note?.parentId ? [row.note.parentId] : []) }, AND: this.pages.pagesOf(userId) }, select: { id: true } })).map((row) => row.id));
     return rows.map((row) => ({ ...present(row), parentId: row.note?.parentId && readable.has(row.note.parentId) ? row.note.parentId : null }));
   }
@@ -376,7 +427,7 @@ export class NotesService {
     return document;
   }
 
-  private async parentIn(spaceId: string, parentId: string, transaction: Prisma.TransactionClient = this.prisma) {
+  private async parentIn(spaceId: string | null, parentId: string, transaction: Prisma.TransactionClient = this.prisma) {
     const parent = await transaction.item.findFirst({
       where: { id: parentId, spaceId, kind: ItemKind.NOTE, trashedAt: null, note: { quick: false } },
       select: { id: true },

@@ -7,7 +7,6 @@ import { ActionsMenu } from '../components/ActionsMenu';
 import { AccountBalance, Amount } from '../components/Amount';
 import { AddButton, Button, ButtonLink, TextButton } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { Hint } from '../components/Hint';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
@@ -37,6 +36,7 @@ import { moneyAmount, required, useFormErrors } from '../validation';
 import { CategoryChips } from '../components/CategoryChips';
 import { MissingRates } from '../components/Stats';
 import { Toggle } from '../components/Toggle';
+import { MonthStartField } from '../components/MonthStartField';
 
 const CurrencyField = lazy(() => import('../components/CurrencyField').then((module) => ({ default: module.CurrencyField })));
 const ExpenseEditor = lazy(() => import('../components/ExpenseEditor').then((module) => ({ default: module.ExpenseEditor })));
@@ -540,9 +540,14 @@ function ReviewCard({
                 { label: 'Edit and add', onSelect: () => onEdit(false) },
                 { label: 'Report parsing', onSelect: () => onEdit(true) },
                 { label: 'Ignore', separated: true, onSelect: () => onIgnore() },
-                ...(suggested.merchant ? [{ label: `Always ignore ${suggested.merchant}`, onSelect: () => onIgnore('merchant') }] : []),
-                ...(suggested.cardDigits ? [{ label: `Always ignore card •••• ${suggested.cardDigits}`, onSelect: () => onIgnore('card') }] : []),
-                { label: `Always ignore ${message.sender}`, onSelect: () => onIgnore('sender') },
+                {
+                  label: 'Always ignore',
+                  items: [
+                    ...(suggested.merchant ? [{ label: suggested.merchant, onSelect: () => onIgnore('merchant') }] : []),
+                    ...(suggested.cardDigits ? [{ label: `Card •••• ${suggested.cardDigits}`, onSelect: () => onIgnore('card') }] : []),
+                    { label: message.sender, onSelect: () => onIgnore('sender') },
+                  ],
+                },
               ]}
               name={name}
             />
@@ -888,10 +893,14 @@ function PlanDialog({ currency, onClose, onSaved, plan }: { currency: string; on
       onClose={onClose}
       onSubmit={(target) => {
         if (!form.check(target, { budget: [(value) => (value.trim() ? moneyAmount(value) : undefined)] })) return;
-        const budget = String(new FormData(target).get('budget')).trim();
+        const values = new FormData(target);
+        const budget = String(values.get('budget')).trim();
+        const startDay = Number(values.get('startDay'));
+        if (!startDay) return;
         const body = {
           budgetMinor: budget ? toMinor(budget, chosenCurrency) : null,
           currency: budget ? chosenCurrency : null,
+          startDay,
           rollover,
         };
         void saving
@@ -915,9 +924,7 @@ function PlanDialog({ currency, onClose, onSaved, plan }: { currency: string; on
         />
         <CurrencyField onChange={setChosenCurrency} value={chosenCurrency} />
       </div>
-      <Hint>
-        Months start on {plan.startDay === 1 ? 'the 1st' : `day ${plan.startDay}`}. Change it in <TextLink href="/settings">Settings › Profile</TextLink>.
-      </Hint>
+      <MonthStartField defaultValue={plan.startDay} name="startDay" />
       <Toggle checked={rollover} label="Carry what’s left into next month" onChange={setRollover} />
     </FormDialog>
   );

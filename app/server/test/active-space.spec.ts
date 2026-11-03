@@ -17,7 +17,7 @@ describe('active workspace', () => {
   });
 
   it('keeps explicit resource URLs and account-level APIs unchanged', () => {
-    for (const path of ['/spaces', '/me', '/me/sessions', '/me/dashboards', '/spaces/other/tasks?page=1', '/notes/page', '/me/journal', '/subscriptions/summary', '/me/spending', '/agenda?from=2026-10-25&to=2026-10-26', '/me/bookmarks', '/me/goals', '/me/habits']) {
+    for (const path of ['/spaces', '/me', '/me/sessions', '/me/dashboards', '/spaces/other/tasks?page=1', '/notes/page', '/me/journal', '/subscriptions/summary', '/me/spending', '/agenda?from=2026-10-25&to=2026-10-26', '/me/bookmarks', '/me/goals', '/me/habits', '/me/storage']) {
       expect(inActiveSpace(path, spaceId)).toBe(path);
     }
     expect(inActiveSpace('/me/tasks')).toBe('/me/tasks');
@@ -49,19 +49,27 @@ describe('active workspace', () => {
     expect(result.totalResults).toBe(26);
   });
 
-  it('shows workspace uploads from other members without charging them to the viewer quota', async () => {
-    const own = { itemId: 'own', sizeBytes: 10, item: { spaceId: 'personal', trashedAt: null } };
-    const shared = { itemId: 'shared', sizeBytes: 25, originalName: 'team.txt', item: { spaceId, trashedAt: null } };
-    const prisma = {
-      file: { findMany: vi.fn().mockResolvedValueOnce([own]).mockResolvedValueOnce([shared]) },
-      item: { findMany: vi.fn().mockResolvedValue([{ id: 'shared' }]) },
-    };
+  it('lists every upload by its home, whichever space is active, and counts what the viewer can no longer open', async () => {
+    const file = (itemId: string, sizeBytes: number, item: object) => ({ itemId, sizeBytes, originalName: `${itemId}.txt`, mimeType: 'text/plain', createdAt: new Date(), item: { ownerId: null, spaceId: null, trashedAt: null, space: null, linksIn: [], ...item } });
+    const rows = [
+      file('mine', 10, { ownerId: 'reader' }),
+      file('attached', 25, { spaceId, space: { name: 'Flat', members: [{ userId: 'reader' }] }, linksIn: [{ source: { id: 'task', kind: 'TASK', title: 'Fix the tap' } }] }),
+      file('left', 40, { spaceId: 'gone', space: { name: 'Old club', members: [] } }),
+      file('binned', 5, { ownerId: 'reader', trashedAt: new Date() }),
+    ];
+    const prisma = { file: { findMany: vi.fn().mockResolvedValue(rows) } };
     const service = new FilesService(prisma as never, new AccessService({} as never), {} as never, {} as never, { get: async () => ({ fileQuotaMb: 10 }) } as never, {} as never);
-    const result = await service.storage('reader', spaceId);
+    const result = await service.storage('reader');
 
-    expect(result.files.map((file) => file.id)).toEqual(['shared']);
-    expect(result.usedBytes).toBe(10);
-    expect(prisma.file.findMany.mock.calls[1]![0].where.item.spaceId).toBe(spaceId);
-    expect(prisma.file.findMany.mock.calls[1]![0].where.item.space.members.some.userId).toBe('reader');
+    expect(prisma.file.findMany.mock.calls[0]![0].where).toEqual({ uploadedById: 'reader' });
+    expect(result).toMatchObject({ usedBytes: 80, trashedBytes: 5, elsewhereBytes: 40 });
+    expect(result.homes).toEqual([
+      { spaceId: null, spaceName: null, count: 1, sizeBytes: 10 },
+      { spaceId, spaceName: 'Flat', count: 1, sizeBytes: 25 },
+    ]);
+    expect(result.files.map((entry) => [entry.id, entry.spaceName, entry.attachedTo?.title ?? null])).toEqual([
+      ['mine', null, null],
+      ['attached', 'Flat', 'Fix the tap'],
+    ]);
   });
 });

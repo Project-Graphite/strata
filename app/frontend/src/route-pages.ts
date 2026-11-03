@@ -4,7 +4,7 @@ export const routePages: [pattern: string, module: string][] = [
   ['^/tasks$', 'pages/TasksPage'],
   ['^/agenda(/(list|day|week|month))?$', 'pages/AgendaPage'],
   ['^/agenda/calendars$', 'pages/CalendarsPage'],
-  ['^/pages(/(quick-notes|journal))?$', 'pages/PagesIndex'],
+  ['^/pages(/quick-notes)?$', 'pages/PagesIndex'],
   ['^/boards$', 'pages/BoardsIndex'],
   ['^/bookmarks$', 'pages/BookmarksPage'],
   ['^/journal$', 'pages/JournalPage'],

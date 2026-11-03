@@ -35,7 +35,6 @@ const webhookEvents = [
   ['item.trashed', 'Something was moved to the trash'],
   ['task.completed', 'A task was completed'],
   ['task.reopened', 'A task was reopened'],
-  ['subscription.cancelled', 'A subscription was cancelled'],
   ['member.joined', 'Someone joined a space'],
 ] as const;
 

@@ -36,7 +36,7 @@ export class WidgetDto {
 
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(2)
   @Max(12)
   w?: number;
 
@@ -90,6 +90,10 @@ export class LayoutDto {
   @ValidateNested()
   @Type(() => BackgroundDto)
   background?: BackgroundDto;
+
+  @IsOptional()
+  @IsBoolean()
+  free?: boolean;
 }
 
 const DashboardName = () => Length(1, 40, { message: 'Dashboard names are 1 to 40 characters long.' });

@@ -1,7 +1,6 @@
 import { useLocation } from 'react-router';
 import { Icon, ListRow, SectionHeading, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { AboutLinks } from '../components/AboutLinks';
 import { Page } from '../components/Page';
 import { enabledApps } from '../apps';
 import { areaOf, moreSections } from '../navigation';
@@ -30,7 +29,6 @@ export function MorePage() {
           </ul>
         </nav>
       ))}
-      <AboutLinks />
     </Page>
   );
 }

@@ -1,5 +1,6 @@
-import { Icon, Menu, type MenuItem } from '@project-graphite/ui';
+import { Icon } from '@project-graphite/ui';
+import { NestedMenu, type NestedMenuItem } from './NestedMenu';
 
-export function ActionsMenu({ items, name }: { items: MenuItem[]; name: string }) {
-  return <Menu items={items} label={`${name} actions`} trigger={<Icon name="more" size={18} />} triggerLabel={`Actions for ${name}`} triggerVariant="icon" />;
+export function ActionsMenu({ items, name }: { items: NestedMenuItem[]; name: string }) {
+  return <NestedMenu items={items} label={`${name} actions`} trigger={<Icon name="more" size={18} />} triggerLabel={`Actions for ${name}`} />;
 }

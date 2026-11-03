@@ -59,7 +59,7 @@ function rememberSession(signedIn: boolean) {
 function SiteFooter() {
   return (
     <footer className="shell mt-16 border-t border-line-soft py-8">
-      <AboutLinks className="justify-end" />
+      <AboutLinks />
     </footer>
   );
 }
@@ -105,7 +105,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
     () => (
       <CrashBoundary key={spaceId}>
         <Suspense fallback={<PageSkeleton label="Loading page" />}>
-          {transitions ? <PageTransition page={pathname}><Outlet /></PageTransition> : <Fragment key={pathname}><Outlet /></Fragment>}
+          {transitions ? <PageTransition page={areaOf(pathname) ?? pathname}><Fragment key={pathname}><Outlet /></Fragment></PageTransition> : <Fragment key={pathname}><Outlet /></Fragment>}
         </Suspense>
       </CrashBoundary>
     ),

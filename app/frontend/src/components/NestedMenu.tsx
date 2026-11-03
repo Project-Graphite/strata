@@ -1,14 +1,16 @@
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { Icon } from '@project-graphite/ui';
 
-export type NestedMenuItem = { label: string; separated?: boolean; disabled?: boolean } & ({ onSelect: () => void } | { items: NestedMenuItem[] });
+export type NestedMenuItem = { label: string; separated?: boolean; disabled?: boolean } & ({ onSelect: () => void } | { href: string } | { items: NestedMenuItem[] });
 
 type Parent = NestedMenuItem & { items: NestedMenuItem[] };
 
@@ -40,6 +42,10 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         <Icon name="chevron-right" size={16} />
       </MenuItem>
+    ) : 'href' in item ? (
+      <MenuItem component={Link} disabled={item.disabled} key={item.label} onClick={close} onMouseEnter={leave} to={item.href}>
+        {item.label}
+      </MenuItem>
     ) : (
       <MenuItem
         disabled={item.disabled}
@@ -56,7 +62,7 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
   ]);
 }
 
-export function NestedMenu({ align = 'end', header, items, label, trigger, triggerClassName, triggerLabel }: { align?: 'start' | 'end'; header?: ReactNode; items: NestedMenuItem[]; label: string; trigger: ReactNode; triggerClassName: string; triggerLabel: string }) {
+export function NestedMenu({ align = 'end', header, items, label, trigger, triggerClassName, triggerLabel }: { align?: 'start' | 'end'; header?: ReactNode; items: NestedMenuItem[]; label: string; trigger: ReactNode; triggerClassName?: string; triggerLabel: string }) {
   const drill = useMediaQuery('(pointer: coarse), (max-width: 47.99rem)');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [path, setPath] = useState<Parent[]>([]);
@@ -75,20 +81,24 @@ export function NestedMenu({ align = 'end', header, items, label, trigger, trigg
     setFlyout({ item, anchor: target, side: target.getBoundingClientRect().right + 260 < window.innerWidth ? 'right' : 'left', focus });
   }
 
+  const triggerProps = {
+    'aria-expanded': Boolean(anchor),
+    'aria-haspopup': 'menu' as const,
+    'aria-label': triggerLabel,
+    onClick: (event: MouseEvent<HTMLButtonElement>) => (anchor ? close() : setAnchor(event.currentTarget)),
+    onMouseDown: (event: MouseEvent<HTMLButtonElement>) => event.preventDefault(),
+    title: triggerLabel,
+  };
+
   return (
     <>
-      <button
-        aria-expanded={Boolean(anchor)}
-        aria-haspopup="menu"
-        aria-label={triggerLabel}
-        className={triggerClassName}
-        onClick={(event) => (anchor ? close() : setAnchor(event.currentTarget))}
-        onMouseDown={(event) => event.preventDefault()}
-        title={triggerLabel}
-        type="button"
-      >
-        {trigger}
-      </button>
+      {triggerClassName ? (
+        <button {...triggerProps} className={triggerClassName} type="button">
+          {trigger}
+        </button>
+      ) : (
+        <IconButton {...triggerProps}>{trigger}</IconButton>
+      )}
       <MuiMenu
         anchorEl={anchor}
         anchorOrigin={{ horizontal: side, vertical: 'bottom' }}

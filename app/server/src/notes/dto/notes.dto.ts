@@ -225,4 +225,8 @@ export class PageChildrenQueryDto {
   @IsOptionalNotNull()
   @IsUUID('all')
   cursor?: string;
+
+  @IsOptionalNotNull()
+  @IsIn(['note'])
+  kind?: 'note';
 }

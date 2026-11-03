@@ -53,12 +53,15 @@ describe('Dashboards against Postgres', () => {
         { id: 'b', type: 'clock', x: 8, y: 0, w: 4, h: 12, hideTitle: true, settings: {} },
       ],
       background: { colour: 'purple' },
+      free: true,
     };
     expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: arranged })).body.layout).toEqual(arranged);
+    expect((await owner.call('PATCH', `/me/dashboards/${home.id}`, { layout: { ...arranged, free: 'yes' } })).status).toBe(400);
     for (const [layout, reason] of [
       [{ widgets: [{ id: 'a', type: 'today', x: 6, y: 0, w: 7, settings: {} }] }, 'wider than the grid'],
       [{ widgets: [{ id: 'a', type: 'today', settings: {} }] }, 'no place on the grid'],
       [{ widgets: [{ id: 'a', type: 'today', x: 0, y: 0, w: 4, h: 2, settings: {} }] }, 'too short'],
+      [{ widgets: [{ id: 'a', type: 'today', x: 0, y: 0, w: 1, settings: {} }] }, 'too narrow'],
       [{ widgets: [{ id: 'a', type: 'today', x: 0, y: 0, w: 4, accent: 'gold', settings: {} }] }, 'unknown accent'],
       [{ widgets: [], background: { colour: 'teal', imageId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d' } }, 'colour and image'],
     ] as const) {

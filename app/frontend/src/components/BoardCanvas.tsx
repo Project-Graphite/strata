@@ -518,11 +518,16 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
 
   const drawing = editable && !blocked;
   const menu = [
-    drawing ? boardTemplates.map((template) => ({ label: `Add the ${template.label} template`, onSelect: () => addElements(template.build()) })) : [],
+    drawing ? [{ label: 'Templates', items: boardTemplates.map((template) => ({ label: template.label, onSelect: () => addElements(template.build()) })) }] : [],
     [
       ...(drawing ? [{ label: dark ? 'Use a white canvas' : 'Use a dark canvas', onSelect: () => (dark ? canvas.delete('theme') : canvas.set('theme', 'dark')) }] : []),
-      { label: 'Export as image', onSelect: () => api?.updateScene({ appState: { openDialog: { name: 'imageExport' } }, captureUpdate: CaptureUpdateAction.NEVER }) },
-      { label: 'Print or save as PDF', onSelect: () => void printBoard() },
+      {
+        label: 'Export',
+        items: [
+          { label: 'Image', onSelect: () => api?.updateScene({ appState: { openDialog: { name: 'imageExport' } }, captureUpdate: CaptureUpdateAction.NEVER }) },
+          { label: 'Print or PDF', onSelect: () => void printBoard() },
+        ],
+      },
     ],
     bar.menu ?? [],
   ]

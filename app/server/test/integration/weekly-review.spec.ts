@@ -9,7 +9,7 @@ describe('Weekly review against Postgres', () => {
   const strata = integrationApp();
   const { member } = strata;
 
-  it('writes a review page from the past and coming week, under one Weekly reviews page', async () => {
+  it('writes an account-owned review page from the past and coming week, listed in the journal', async () => {
     const owner = await member('reviewer-weekly');
     const space = owner.personalSpaceId;
     const done = (await owner.call('POST', `/spaces/${space}/tasks`, { title: 'File the taxes' })).body;
@@ -22,7 +22,7 @@ describe('Weekly review against Postgres', () => {
     expect(first.status).toBe(201);
     const page = (await owner.call('GET', `/notes/${first.body.noteId}`)).body;
     expect(page.title).toMatch(/^Week to \d{1,2} \w+ \d{4}$/);
-    expect((await owner.call('GET', `/notes/${page.parentId}`)).body.title).toBe('Weekly reviews');
+    expect(page).toMatchObject({ spaceId: null, parentId: null });
     const text = (await strata.prisma.searchDocument.findUniqueOrThrow({ where: { itemId: first.body.noteId } })).bodyText;
     expect(text).toContain('Done this week');
     expect(text).toContain('File the taxes');
@@ -32,7 +32,8 @@ describe('Weekly review against Postgres', () => {
     expect(text).not.toContain('0-day streak');
 
     const second = (await owner.call('POST', '/me/weekly-review')).body;
-    expect((await owner.call('GET', `/notes/${second.noteId}`)).body.parentId).toBe(page.parentId);
+    expect((await owner.call('GET', '/me/journal')).body.reviews.map((review: { id: string }) => review.id)).toEqual([second.noteId, first.body.noteId]);
+    expect(await strata.prisma.item.count({ where: { spaceId: space, kind: 'NOTE' } })).toBe(0);
   });
 
   it('reminds people who asked for it on Sunday evenings', async () => {
@@ -52,14 +53,5 @@ describe('Weekly review against Postgres', () => {
     const notice = (await keen.call('GET', '/me/inbox?page=1')).body.results.find((entry: { kind: string }) => entry.kind === 'weekly_review');
     expect(notice).toMatchObject({ title: 'Time for your weekly review', link: '/journal' });
     expect((await quiet.call('GET', '/me/inbox?page=1')).body.results).toEqual([]);
-  });
-
-  it('keeps one Weekly reviews page when reviews are written at once', async () => {
-    const owner = await member('reviewer-hasty');
-    const written = await Promise.all(Array.from({ length: 4 }, () => owner.call('POST', '/me/weekly-review')));
-    const parents = await Promise.all(written.map(async ({ body }) => (await owner.call('GET', `/notes/${body.noteId}`)).body.parentId));
-
-    expect(new Set(parents).size).toBe(1);
-    expect(await strata.prisma.item.count({ where: { spaceId: owner.personalSpaceId, title: 'Weekly reviews' } })).toBe(1);
   });
 });

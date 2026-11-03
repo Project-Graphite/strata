@@ -36,6 +36,12 @@ export class NotesController {
     return this.notes.everywhere(user.id, query.kind, query.spaceId);
   }
 
+  @Get('me/drafts')
+  @Scope('items:read')
+  drafts(@CurrentUser() user: AuthenticatedUser, @Query() query: PageKindQueryDto) {
+    return this.notes.drafts(user.id, query.kind);
+  }
+
   @Get('spaces/:spaceId/notes')
   @Scope('items:read')
   list(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {

@@ -276,6 +276,31 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, note.id]);
   });
 
+  it('keeps untitled empty pages and boards in drafts until they get a title', async () => {
+    const owner = await member('drafter');
+    const friend = await member('draft-friend');
+    const space = (await owner.call('POST', '/spaces', { name: 'Sketches' })).body;
+    await strata.join(space.id, friend, SpaceRole.EDITOR);
+    const page = (await owner.call('POST', `/spaces/${space.id}/notes`, {})).body;
+    const board = (await owner.call('POST', `/spaces/${space.id}/notes`, { board: true })).body;
+    const titled = (await owner.call('POST', `/spaces/${space.id}/notes`, { title: 'Ideas' })).body;
+    expect(page.draft).toBe(true);
+    expect(titled.draft).toBe(false);
+
+    const ids = (listed: { id: string }[]) => listed.map((shown) => shown.id);
+    expect(ids((await owner.call('GET', '/me/drafts?kind=note')).body)).toEqual([page.id]);
+    expect(ids((await owner.call('GET', '/me/drafts?kind=board')).body)).toEqual([board.id]);
+    expect((await friend.call('GET', '/me/drafts')).body).toEqual([]);
+    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([titled.id]);
+    expect(ids((await owner.call('GET', `/spaces/${space.id}/page-children`)).body.pages)).toEqual([titled.id]);
+    expect(ids((await owner.call('GET', '/me/notes?kind=note')).body)).toEqual([titled.id]);
+    expect(ids((await owner.call('GET', '/me/pages')).body.recent)).toEqual([titled.id]);
+
+    expect((await owner.call('PATCH', `/notes/${page.id}`, { title: 'Garden' })).body.draft).toBe(false);
+    expect((await owner.call('GET', '/me/drafts?kind=note')).body).toEqual([]);
+    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, titled.id]);
+  });
+
   it('syncs edits between people, saves them, feeds search and drops a viewer’s changes', async () => {
     const owner = await member('cowriter');
     const friend = await member('friend');

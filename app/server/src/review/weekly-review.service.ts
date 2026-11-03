@@ -14,7 +14,6 @@ import { dateValue, dayMs, localDate, readableDay } from '../recurrence/dates';
 import { zonedInstant } from '../recurrence/occurrences';
 
 const reminderKind = 'weekly-review.reminder';
-const parentTitle = 'Weekly reviews';
 
 export function nextSundayEvening(timeZone: string, now: Date) {
   const today = dateValue(localDate(timeZone, now)).getTime() / dayMs;
@@ -64,7 +63,7 @@ export class WeeklyReviewService implements OnModuleInit {
     const { timeZone } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const today = localDate(timeZone);
     const readable = { ...this.access.spaceItemsOf(userId), trashedAt: null, kind: ItemKind.TASK };
-    const [done, open, coming, habits, space] = await Promise.all([
+    const [done, open, coming, habits] = await Promise.all([
       this.prisma.item.findMany({
         where: { ...readable, task: { completedAt: { gte: zonedInstant(dateValue(shiftDay(today, -6)).getTime() / dayMs, 0, 0, timeZone) } } },
         orderBy: { task: { completedAt: 'asc' } },
@@ -79,7 +78,6 @@ export class WeeklyReviewService implements OnModuleInit {
       }),
       this.events.agenda(userId, shiftDay(today, 1), shiftDay(today, 8)),
       this.habits.mine(userId),
-      this.prisma.space.findFirstOrThrow({ where: { personalOwnerId: userId }, select: { id: true } }),
     ]);
     const dayAndTime = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone });
     const labels = { event: '', external: '', task: 'due: ', renewal: 'renews: ', birthday: '', payment: 'pay: ' };
@@ -111,24 +109,12 @@ export class WeeklyReviewService implements OnModuleInit {
       ['heading', 'Focus for next week'],
       ['tasks', ['']],
     ];
-    const note = await this.notes.create(
+    const note = await this.notes.createOwned(
       userId,
-      space.id,
-      { title: `Week to ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(dateValue(today))}`, parentId: await this.parent(userId, space.id) },
+      `Week to ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(dateValue(today))}`,
       blocksDocument(blocks),
+      (transaction, noteId) => transaction.weeklyReview.create({ data: { noteId, userId } }),
     );
     return { noteId: note.id };
-  }
-
-  private parent(userId: string, spaceId: string) {
-    return this.prisma.$transaction(async (transaction) => {
-      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${parentTitle}:${spaceId}`}::text))`;
-      const existing = await this.prisma.item.findFirst({
-        where: { spaceId, kind: ItemKind.NOTE, title: parentTitle, trashedAt: null, note: { parentId: null, quick: false } },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      return existing?.id ?? (await this.notes.create(userId, spaceId, { title: parentTitle })).id;
-    });
   }
 }

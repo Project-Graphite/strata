@@ -16,9 +16,9 @@ import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepSt
 import { CurrencyField } from '../../components/CurrencyField';
 import { Button } from '../../components/Button';
 import { Toggle } from '../../components/Toggle';
+import { MonthStartField } from '../../components/MonthStartField';
 
 const weekDays = Array.from({ length: 7 }, (_, day) => new Intl.DateTimeFormat('en', { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, 1 + day))));
-const monthStartOptions = Array.from({ length: 28 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
 
 export function ProfileSettings() {
   const auth = useAuth();
@@ -82,6 +82,7 @@ export function ProfileSettings() {
           if (
             !profileForm.check(target, {
               displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')],
+              monthStartDay: [required('Choose a payday from 1 to 28.')],
             })
           ) {
             return;
@@ -143,12 +144,7 @@ export function ProfileSettings() {
               name="homeCurrency"
               noneLabel="None, keep each currency separate"
             />
-            <Select
-              defaultValue={String(current.monthStartDay)}
-              label="Spending month starts on day"
-              name="monthStartDay"
-              options={monthStartOptions}
-            />
+            <MonthStartField defaultValue={current.monthStartDay} name="monthStartDay" />
             <div className="panel-rows">
               <Toggle checked={budgetsEnabled} description="Shows the Budgets tab and what is left to spend this month." label="Use budgets" onChange={setBudgets} />
             </div>

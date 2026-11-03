@@ -4,9 +4,9 @@ import {
   PayloadTooLargeException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
-import { ItemKind, Prisma } from '@prisma/client';
+import { ItemKind, LinkKind, Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
-import { AccessService } from '../access/access.service';
+import { AccessService, reachable } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { ItemsService } from '../items/items.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,7 +17,29 @@ import { FileStore } from './file-store';
 export const maxFileBytes = 25 * 1024 * 1024;
 const megabyte = 1024 * 1024;
 const orphanAgeMs = 60 * 60 * 1000;
-const storageFields = { itemId: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true, item: { select: { spaceId: true, trashedAt: true } } } satisfies Prisma.FileSelect;
+function storageFields(userId: string) {
+  return {
+    itemId: true,
+    originalName: true,
+    mimeType: true,
+    sizeBytes: true,
+    createdAt: true,
+    item: {
+      select: {
+        spaceId: true,
+        ownerId: true,
+        trashedAt: true,
+        space: { select: { name: true, members: { where: { userId }, select: { userId: true } } } },
+        linksIn: {
+          where: { kind: LinkKind.ATTACHMENT, source: { trashedAt: null } },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: { source: { select: { id: true, kind: true, title: true } } },
+        },
+      },
+    },
+  } satisfies Prisma.FileSelect;
+}
 
 @Injectable()
 export class FilesService {
@@ -86,27 +108,38 @@ export class FilesService {
     return this.items.get(userId, item.id);
   }
 
-  async storage(userId: string, spaceId?: string) {
-    const [{ fileQuotaMb }, files, selectedFiles] = await Promise.all([
+  async storage(userId: string) {
+    const [{ fileQuotaMb }, rows] = await Promise.all([
       this.site.get(),
-      this.prisma.file.findMany({
-        where: { uploadedById: userId },
-        orderBy: { createdAt: 'desc' },
-        select: storageFields,
-      }),
-      spaceId ? this.prisma.file.findMany({ where: { item: { ...this.access.spaceItemsOf(userId), spaceId } }, orderBy: { createdAt: 'desc' }, select: storageFields }) : undefined,
+      this.prisma.file.findMany({ where: { uploadedById: userId }, orderBy: { createdAt: 'desc' }, select: storageFields(userId) }),
     ]);
-    const readable = new Set(
-      (await this.prisma.item.findMany({ where: { ...this.access.itemsOf(userId), ...(spaceId ? { spaceId } : {}), id: { in: (selectedFiles ?? files).map((file) => file.itemId) } }, select: { id: true } })).map((item) => item.id),
-    );
-    const total = (rows: typeof files) => rows.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const total = (list: typeof rows) => list.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const live = rows.filter((file) => !file.item.trashedAt);
+    const readable = live.filter((file) => file.item.ownerId === userId || (file.item.space?.members.length && reachable(file.item.spaceId)));
+    const homes = new Map<string | null, { spaceId: string | null; spaceName: string | null; count: number; sizeBytes: number }>();
+    for (const file of readable) {
+      const home = homes.get(file.item.spaceId) ?? { spaceId: file.item.spaceId, spaceName: file.item.space?.name ?? null, count: 0, sizeBytes: 0 };
+      homes.set(file.item.spaceId, { ...home, count: home.count + 1, sizeBytes: home.sizeBytes + file.sizeBytes });
+    }
     return {
       quotaBytes: fileQuotaMb * megabyte,
-      usedBytes: total(files),
-      trashedBytes: total(files.filter((file) => file.item.trashedAt)),
-      files: (selectedFiles ?? files)
-        .filter((file) => !file.item.trashedAt && readable.has(file.itemId))
-        .map((file) => ({ id: file.itemId, spaceId: file.item.spaceId, name: file.originalName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, createdAt: file.createdAt })),
+      usedBytes: total(rows),
+      trashedBytes: total(rows.filter((file) => file.item.trashedAt)),
+      elsewhereBytes: total(live) - total(readable),
+      homes: [...homes.values()].sort((a, b) => (a.spaceName === null ? -1 : b.spaceName === null ? 1 : a.spaceName.localeCompare(b.spaceName))),
+      files: readable.map((file) => {
+        const source = file.item.linksIn[0]?.source;
+        return {
+          id: file.itemId,
+          spaceId: file.item.spaceId,
+          spaceName: file.item.space?.name ?? null,
+          attachedTo: source ? { id: source.id, kind: source.kind.toLowerCase(), title: source.title } : null,
+          name: file.originalName,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          createdAt: file.createdAt,
+        };
+      }),
     };
   }
 

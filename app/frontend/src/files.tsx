@@ -55,11 +55,13 @@ export function saveBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(link.href);
 }
 
+export const previewable = (mimeType: string) => previewTypes.has(mimeType);
+
 export function hasPreview(item: Item) {
-  return Boolean(item.file && previewTypes.has(item.file.mimeType));
+  return Boolean(item.file && previewable(item.file.mimeType));
 }
 
-export function FilePreview({ item }: { item: Item }) {
+export function FilePreview({ item }: { item: Pick<Item, 'id'> }) {
   const { request } = useAuth();
   const [url, setUrl] = useState('');
 

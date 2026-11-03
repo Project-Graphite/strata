@@ -4,7 +4,7 @@ import { formatMoment } from './time';
 
 export interface Note {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   title: string;
   kind: 'note' | 'board';
   parentId: string | null;
@@ -16,8 +16,7 @@ export interface Note {
   narrow: boolean;
   cover: { id: string; alt: string } | null;
   database: boolean;
-  journal: boolean;
-  holdsJournal: boolean;
+  draft: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,8 +26,8 @@ export interface ChildPages {
   nextCursor: string | null;
 }
 
-export function childPagesPath(spaceId: string, parentId: string | null, cursor?: string) {
-  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}) })}`;
+export function childPagesPath(spaceId: string, parentId: string | null, cursor?: string, kind?: 'note') {
+  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}), ...(kind ? { kind } : {}) })}`;
 }
 
 export function nestedUnder(pages: Note[], parentId: string | null) {
@@ -36,23 +35,22 @@ export function nestedUnder(pages: Note[], parentId: string | null) {
   return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
 }
 
-export type PagesSection = 'pages' | 'quick-notes' | 'journal';
+export type PagesSection = 'pages' | 'quick-notes';
 
 export const pagesTabs = (active: PagesSection) => [
   { active: active === 'pages', href: '/pages', label: 'Pages' },
   { active: active === 'quick-notes', href: '/pages/quick-notes', label: 'Quick notes' },
-  { active: active === 'journal', href: '/pages/journal', label: 'Journal entries' },
 ];
 
 export const pageIndent = (depth: number) => ({ paddingInlineStart: `${1 + depth * 1.25}rem` });
 
-export const noteArea =(note: Pick<Note, 'kind' | 'quick' | 'journal'>) =>
-  note.kind === 'board' ? '/boards' : note.journal ? '/journal' : '/pages';
+export const noteArea = (note: Pick<Note, 'kind' | 'spaceId'>) =>
+  note.kind === 'board' ? '/boards' : note.spaceId === null ? '/journal' : '/pages';
 
-export const noteParent = (note: Pick<Note, 'kind' | 'quick' | 'journal'>) =>
+export const noteParent = (note: Pick<Note, 'kind' | 'quick' | 'spaceId'>) =>
   note.kind === 'board'
     ? { to: '/boards', label: 'Boards' }
-    : note.journal
+    : note.spaceId === null
       ? { to: '/journal', label: 'Journal' }
       : note.quick
         ? { to: '/pages/quick-notes', label: 'Quick notes' }
@@ -164,6 +162,8 @@ export const noteEdited = (note: { updatedAt: string }) => `Edited ${formatMomen
 
 export const pageHref = (id: string) => `/pages/${id}`;
 
-export const noteHref = (note: { id: string; kind: string }) => (note.kind === 'board' ? `/boards/${note.id}` : pageHref(note.id));
+export const journalPageHref = (id: string) => `/journal/${id}`;
+
+export const noteHref = (note: { id: string; kind: string; spaceId?: string | null }) => (note.kind === 'board' ? `/boards/${note.id}` : note.spaceId === null ? journalPageHref(note.id) : pageHref(note.id));
 
 export const pageNoun = (note: Pick<Note, 'kind' | 'quick'>) => (note.kind === 'board' ? 'board' : note.quick ? 'note' : 'page');

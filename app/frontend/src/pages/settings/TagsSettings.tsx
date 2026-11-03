@@ -29,7 +29,7 @@ export function TagsSettings() {
   const [rows] = useRememberedShape('settings-tags', tags.data && [tags.data.length], [3]);
 
   return (
-    <Section action={<AddButton label="New tag" onClick={() => setEditing('new')} />} description="Tags for your own items. Each space keeps its own tags on its page." title="Your tags">
+    <Section action={<AddButton label="New tag" onClick={() => setEditing('new')} />} description="Labels you put on your own bookmarks, events, goals, people, recipes and files, so you can filter and find them later. Each space keeps its own tags for its pages, tasks and boards." title="Your tags">
       {tags.error ? (
         <LoadError error={tags.error} onRetry={tags.reload} />
       ) : !tags.data ? (
