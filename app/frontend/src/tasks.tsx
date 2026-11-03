@@ -196,13 +196,15 @@ export const taskViews: { value: TaskView; label: string }[] = [
 
 export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number; view?: TaskView }) => string;
 
-export function taskLink(base: string, listId: string | null, completed: boolean, view: TaskView = 'list'): TaskLink {
+export function taskLink(base: string, listId: string | null, completed: boolean, view: TaskView): TaskLink {
   return (next) => {
     const query = new URLSearchParams();
     const list = next.list === undefined ? listId : next.list;
     if (list) query.set('list', list);
-    if ((next.view ?? view) === 'board') query.set('view', 'board');
-    else if (next.completed ?? completed) query.set('completed', 'true');
+    if ((next.view ?? view) === 'list') {
+      query.set('view', 'list');
+      if (next.completed ?? completed) query.set('completed', 'true');
+    }
     if (next.page && next.page > 1) query.set('page', String(next.page));
     return `${base}${query.size ? `?${query}` : ''}`;
   };

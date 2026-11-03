@@ -616,8 +616,10 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
         if (!node || !(dom instanceof HTMLElement)) return;
         const box = dom.getBoundingClientRect();
         const bounds = area.getBoundingClientRect();
-        const top = box.top - bounds.top;
-        const line = Math.min(box.height, parseFloat(getComputedStyle(dom).lineHeight) || box.height);
+        const text = node.isAtom ? undefined : TextSelection.near(editor.state.doc.resolve(pos + 1)).from;
+        const first = text !== undefined && text < pos + node.nodeSize ? editor.view.coordsAtPos(text) : undefined;
+        const top = (first ? first.top : box.top) - bounds.top;
+        const line = first ? first.bottom - first.top : Math.min(box.height, parseFloat(getComputedStyle(dom).lineHeight) || box.height);
         const left = box.left - bounds.left;
         setBlock((current) => (current?.node === node && current.pos === pos && current.top === top && current.left === left && current.line === line ? current : { node, pos, top, left, line }));
       });
