@@ -14,6 +14,7 @@ import { CreateNoteDto, PageChildrenQueryDto, UpdateNoteDto } from './dto/notes.
 import { importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
 import { readPageDraft } from './page-draft';
 import { PageAccessService, type PageAccess } from './page-access.service';
+import { WatchersService } from '../watchers/watchers.service';
 
 export const noteFields = {
   id: true,
@@ -74,6 +75,7 @@ export class NotesService {
     private readonly changes: ChangesService,
     private readonly realtime: RealtimeService,
     private readonly pages: PageAccessService,
+    private readonly watchers: WatchersService,
   ) {}
 
   async list(userId: string, spaceId: string) {
@@ -191,6 +193,7 @@ export class NotesService {
         select: noteFields,
       });
       await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: item.title } });
+      await this.watchers.watch(transaction, item.id, [userId]);
       if (initial) {
         await transaction.noteDocument.create({ data: { itemId: item.id, state: Buffer.from(Y.encodeStateAsUpdate(initial)) } });
         await transaction.searchDocument.updateMany({ where: { itemId: item.id }, data: { bodyText: documentText(initial) } });

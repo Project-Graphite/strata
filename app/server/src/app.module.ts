@@ -26,6 +26,7 @@ import { JournalModule } from './journal/journal.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
 import { InboxModule } from './inbox/inbox.module';
+import { WatchersModule } from './watchers/watchers.module';
 import { ItemsModule } from './items/items.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
@@ -58,6 +59,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     ActivityModule,
     AuditModule,
     InboxModule,
+    WatchersModule,
     JobsModule,
     SiteModule,
     AdminModule,

@@ -8,6 +8,7 @@ import { Shell } from './components/Shell';
 import { HomePage } from './pages/HomePage';
 import { phoneTabBar } from './navigation';
 import { LoginPage } from './pages/LoginPage';
+import { syncPushKinds } from './push';
 import { isNativeAndroid, moveCaptureEndpoint, StrataCapture } from './native-capture';
 import { prefetchRoute, usePrefetchRoutes } from './route-data';
 
@@ -144,7 +145,11 @@ function withoutMenuScrollLock(theme: Theme): Theme {
 }
 
 export function App() {
-  const { user } = useAuth();
+  const { request, user } = useAuth();
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void syncPushKinds(request);
+  }, [request, userId]);
   usePrefetchRoutes(user && phoneTabBar(null, enabledApps(user.features)).map((tab) => tab.href));
   const navigate = useNavigate();
   const openShare = useEffectEvent(() => navigate('/save'));

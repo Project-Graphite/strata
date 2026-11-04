@@ -4,6 +4,7 @@ import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TaskCommentDto } from './dto/tasks.dto';
 import { TasksService } from './tasks.service';
+import { WatchersService } from '../watchers/watchers.service';
 
 const maxComments = 500;
 
@@ -22,6 +23,7 @@ export class TaskCommentsService {
     private readonly prisma: PrismaService,
     private readonly tasks: TasksService,
     private readonly changes: ChangesService,
+    private readonly watchers: WatchersService,
   ) {}
 
   async list(userId: string, taskId: string) {
@@ -34,7 +36,13 @@ export class TaskCommentsService {
     if ((await this.prisma.noteComment.count({ where: { itemId: taskId } })) >= maxComments) {
       throw new ConflictException(`A task can hold ${maxComments} comments. Delete some old ones first.`);
     }
-    const created = await this.prisma.noteComment.create({ data: { itemId: taskId, authorId: userId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
+    const created = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.noteComment.create({ data: { itemId: taskId, authorId: userId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
+      const { title } = await transaction.item.findUniqueOrThrow({ where: { id: taskId }, select: { title: true } });
+      await this.watchers.watch(transaction, taskId, [userId]);
+      await this.watchers.notify(transaction, taskId, userId, { title: `${created.author?.displayName ?? 'Someone'} commented on “${title}”`, body: body.slice(0, 200), link: `/tasks?task=${taskId}` });
+      return created;
+    });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
     return created;
   }

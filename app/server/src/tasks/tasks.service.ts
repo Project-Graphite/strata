@@ -13,11 +13,29 @@ import { presentTag, tagFields } from '../tags/tags.service';
 import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskColumnDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
 import { uniqueViolation } from '../prisma/errors';
 import { builtInTaskTypes, taskType } from './task-type';
+import { WatchersService } from '../watchers/watchers.service';
 import { positionBetween, positionGap } from './task-position';
 import { statusFields, statusOf } from './task-status';
 
 const pageSize = 100;
 const reminderKind = 'task.reminder';
+const taskLink = (itemId: string) => `/tasks?task=${itemId}`;
+const statusNames: Record<TaskStatus, string> = { OPEN: 'Open', IN_PROGRESS: 'In progress', DONE: 'Done' };
+const fieldNames = {
+  title: 'title',
+  status: 'status',
+  columnId: 'column',
+  assigneeId: 'assignee',
+  dueDate: 'due date',
+  dueTime: 'due time',
+  priority: 'priority',
+  type: 'type',
+  listId: 'list',
+  parentId: 'parent task',
+  description: 'description',
+  repeatRule: 'repeat',
+  reminderMinutes: 'reminder',
+} as const;
 const maxColumns = 10;
 const columnFields = { id: true, spaceId: true, name: true, position: true } satisfies Prisma.TaskColumnSelect;
 
@@ -112,6 +130,7 @@ export class TasksService implements OnModuleInit {
     private readonly inbox: InboxService,
     private readonly jobs: JobsService,
     private readonly changes: ChangesService,
+    private readonly watchers: WatchersService,
   ) {}
 
   onModuleInit() {
@@ -221,6 +240,7 @@ export class TasksService implements OnModuleInit {
       });
       await this.activity.record(transaction, { spaceId, actorId: userId, itemId: item.id, verb: 'item.created', data: { title: input.title } });
       await this.afterChange(transaction, item.id, userId, null);
+      await this.watchers.watch(transaction, item.id, [userId, input.assigneeId === undefined ? userId : input.assigneeId]);
       return item.id;
     });
     return this.get(userId, id);
@@ -381,6 +401,7 @@ export class TasksService implements OnModuleInit {
       if (input.columnId) await this.changeStatus(transaction, userId, itemId, TaskStatus.IN_PROGRESS);
       else if (input.status) await this.changeStatus(transaction, userId, itemId, statusOf(input.status));
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
+      await this.reportChange(transaction, itemId, userId, input, item.task.assigneeId);
     });
     this.changes.notify('tasks', { spaceId: item.spaceId });
     return this.get(userId, itemId);
@@ -393,6 +414,8 @@ export class TasksService implements OnModuleInit {
       await this.changeStatus(transaction, userId, itemId, TaskStatus.DONE);
       await transaction.item.update({ where: { id: itemId }, data: { updatedById: userId } });
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
+      await this.watchers.watch(transaction, itemId, [userId]);
+      await this.watchers.notify(transaction, itemId, userId, { title: `${await this.watchers.actorName(transaction, userId)} finished “${item.title}”`, link: taskLink(itemId) });
     });
     return this.get(userId, itemId);
   }
@@ -402,8 +425,31 @@ export class TasksService implements OnModuleInit {
     await this.prisma.$transaction(async (transaction) => {
       await this.changeStatus(transaction, userId, itemId, TaskStatus.OPEN);
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
+      await this.watchers.watch(transaction, itemId, [userId]);
+      await this.watchers.notify(transaction, itemId, userId, { title: `${await this.watchers.actorName(transaction, userId)} reopened “${item.title}”`, link: taskLink(itemId) });
     });
     return this.get(userId, itemId);
+  }
+
+  private async reportChange(transaction: Prisma.TransactionClient, itemId: string, userId: string, input: UpdateTaskDto, previousAssignee: string | null) {
+    const changed = (Object.keys(fieldNames) as (keyof typeof fieldNames)[]).filter((field) => input[field] !== undefined);
+    const { title, task } = await transaction.item.findUniqueOrThrow({ where: { id: itemId }, select: { title: true, task: { select: { status: true, assigneeId: true, column: { select: { name: true } } } } } });
+    await this.watchers.watch(transaction, itemId, [userId, task!.assigneeId]);
+    if (changed.length === 0) return;
+    const actor = await this.watchers.actorName(transaction, userId);
+    const moved = changed.every((field) => field === 'status' || field === 'columnId');
+    await this.watchers.notify(
+      transaction,
+      itemId,
+      userId,
+      {
+        title: moved
+          ? `${actor} moved “${title}” to ${task!.column?.name ?? statusNames[task!.status]}`
+          : `${actor} changed the ${changed.map((field) => fieldNames[field]).join(', ')} of “${title}”`,
+        link: taskLink(itemId),
+      },
+      [task!.assigneeId !== previousAssignee ? task!.assigneeId : null],
+    );
   }
 
   private async changeStatus(transaction: Prisma.TransactionClient, userId: string, itemId: string, status: TaskStatus) {

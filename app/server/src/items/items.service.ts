@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { CreateLinkDto, ListItemsDto, UpdateItemDto } from './dto/items.dto';
 import { PageAccessService } from '../notes/page-access.service';
+import { watchedLink, WatchersService } from '../watchers/watchers.service';
 
 const pageSize = 50;
 
@@ -70,6 +71,7 @@ export class ItemsService {
     private readonly activity: ActivityService,
     private readonly changes: ChangesService,
     private readonly pages: PageAccessService,
+    private readonly watchers: WatchersService,
   ) {}
 
   async list(userId: string, spaceId: string, query: ListItemsDto) {
@@ -130,6 +132,15 @@ export class ItemsService {
         : []),
     ]);
     if (!found.spaceId) this.changes.notify('items', { userId });
+    const renamed = input.title !== undefined && input.title !== found.title;
+    if (found.spaceId && (renamed || input.archived !== undefined)) {
+      const actor = await this.watchers.actorName(this.prisma, userId);
+      await this.watchers.watch(this.prisma, itemId, [userId]);
+      await this.watchers.notify(this.prisma, itemId, userId, {
+        title: renamed ? `${actor} renamed “${found.title}” to “${item.title}”` : `${actor} ${input.archived ? 'archived' : 'brought back'} “${item.title}”`,
+        link: watchedLink({ id: itemId, kind: item.kind, spaceId: found.spaceId }),
+      });
+    }
     return presentItem(item);
   }
 
@@ -255,6 +266,13 @@ export class ItemsService {
           verb,
           data: { title: item.title },
         });
+        if (verb !== 'item.deleted') {
+          const { kind } = await transaction.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } });
+          await this.watchers.notify(transaction, itemId, userId, {
+            title: `${await this.watchers.actorName(transaction, userId)} ${verb === 'item.trashed' ? 'moved' : 'restored'} “${item.title}”${verb === 'item.trashed' ? ' to the trash' : ''}`,
+            link: watchedLink({ id: itemId, kind, spaceId: item.spaceId }),
+          });
+        }
       }
       return count;
     });

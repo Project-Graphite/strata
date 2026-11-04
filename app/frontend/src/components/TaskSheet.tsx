@@ -12,6 +12,7 @@ import { Button, TextButton } from './Button';
 import type { OpenTaskProps } from './OpenTask';
 import { RichTextEditor } from './RichText';
 import { TaskFrame } from './TaskFrame';
+import { WatchButton } from './WatchButton';
 import { Attachments, Relations, Subtasks, TaskActivity, TaskDescription } from './TaskTicket';
 
 interface Fields {
@@ -156,6 +157,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       actions={
         task && (
           <>
+            {space?.kind !== 'personal' && <WatchButton itemId={task.id} />}
             {editable && (
           <ActionsMenu
             items={[
@@ -195,34 +197,41 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
         )
       }
       onClose={onClose}
-      title={id ? (heading?.title ?? 'Task') : 'New task'}
+      title={
+        editable && (!id || task) ? (
+          <input
+            aria-label="Title"
+            autoFocus={!id}
+            className="sheet-title-input"
+            maxLength={200}
+            onBlur={() => {
+              if (!task || title === undefined) return;
+              if (title.trim() && title.trim() !== task.title) save({ title: title.trim() });
+              setTitle(undefined);
+            }}
+            onChange={(event) => (task ? setTitle(event.currentTarget.value) : save({ title: event.currentTarget.value }))}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && task) {
+                event.preventDefault();
+                setTitle(undefined);
+              }
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              if (task) event.currentTarget.blur();
+              else create();
+            }}
+            placeholder="Task title"
+            value={title ?? values.title}
+          />
+        ) : (
+          (heading?.title ?? 'Task')
+        )
+      }
     >
       {id && !task ? (
         <LinesSkeleton label="Loading the task" lines={6} />
       ) : (
         <div className="task-sheet-layout grid gap-6">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!task) return create();
-              (event.currentTarget.elements.namedItem('title') as HTMLInputElement | null)?.blur();
-            }}
-          >
-            <TextField
-              autoFocus={!id}
-              disabled={!editable}
-              label="Title"
-              maxLength={200}
-              name="title"
-              onBlur={() => {
-                if (!task || title === undefined) return;
-                if (title.trim() && title.trim() !== task.title) save({ title: title.trim() });
-                setTitle(undefined);
-              }}
-              onChange={(event) => (task ? setTitle(event.currentTarget.value) : save({ title: event.currentTarget.value }))}
-              value={title ?? values.title}
-            />
-          </form>
           <div className="task-sheet">
             <div className="grid min-w-0 content-start gap-8">
               {task ? (

@@ -127,6 +127,7 @@ model User {
   redemptions          InvitationRedemption[]
   createdShareLinks    ShareLink[]
   pageGrants           PageGrant[]            @relation("PageGrantRecipient")
+  watching             ItemWatcher[]
   createdPageGrants    PageGrant[]            @relation("PageGrantCreator")
   activity             ActivityEvent[]
   auditEvents          AuditEvent[]           @relation("AuditSubject")
@@ -300,6 +301,7 @@ model Item {
   linksIn        ItemLink[]        @relation("LinkTarget")
   shareLinks     ShareLink[]
   pageGrants     PageGrant[]
+  watchers       ItemWatcher[]
   activity       ActivityEvent[]
   file           File?
   searchDocument SearchDocument?
@@ -439,6 +441,18 @@ model ShareLink {
 
   @@index([itemId])
   @@map("share_links")
+}
+
+model ItemWatcher {
+  itemId    String   @map("item_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, userId])
+  @@index([userId])
+  @@map("item_watchers")
 }
 
 model PageGrant {

@@ -165,12 +165,14 @@ describe('live comment changes', () => {
       item: { findUniqueOrThrow: async () => ({ createdById: 'member' }) },
       spaceMember: { findMany: async () => [] },
       pageGrant: { findMany: async () => [] },
+      itemWatcher: { findMany: async () => [] },
     };
     const comments = new NoteCommentsService(
       { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) } as never,
       { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }), spaceNote: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
       { notify: async () => undefined } as never,
       { notify: changed } as never,
+      { watch: async () => undefined } as never,
     );
     await comments.create('member', 'page', { body: 'First' });
     await comments.update('member', 'comment', 'Edited');

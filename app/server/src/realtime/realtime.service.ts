@@ -21,6 +21,7 @@ import { editorFormat } from '../notes/editor-format';
 import { PageAccessService } from '../notes/page-access.service';
 export { editorFormat } from '../notes/editor-format';
 import { PrismaService } from '../prisma/prisma.service';
+import { watchedLink, WatchersService } from '../watchers/watchers.service';
 
 export const realtimePath = '/api/v1/realtime';
 const maxUpdateBytes = maxDocumentBytes + 256 * 1024;
@@ -82,6 +83,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   private readonly activity = new Map<Connection<RealtimeContext>, { activeAt: number; presentAt: number; editedAt: number; idle: boolean }>();
   private readonly presencePayloads = new Map<string, string>();
   private readonly removed = new Map<string, number>();
+  private readonly editors = new Map<string, Set<string>>();
   private closing = false;
   private pendingShutdown?: Promise<void>;
   private readonly trustedOrigins: string[];
@@ -99,6 +101,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     private readonly changes: ChangesService,
     config: ConfigService,
     private readonly pages: PageAccessService,
+    private readonly watchers: WatchersService,
   ) {
     this.trustedOrigins = config.get<string>('AUTH_TRUSTED_ORIGINS')?.split(',') ?? [];
     this.accessTokenSecret = config.getOrThrow<string>('AUTH_ACCESS_TOKEN_SECRET');
@@ -192,6 +195,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       },
       onChange: async ({ document, documentName, context, connection }) => {
         if (context) this.lastEditors.set(documentName, context);
+        if (context?.userId && connection && !connection.readOnly) this.editors.set(documentName, (this.editors.get(documentName) ?? new Set()).add(context.userId));
         const activity = connection && this.activity.get(connection);
         if (activity && !connection.readOnly) {
           const wasEditing = !activity.idle && Date.now() - activity.editedAt < editingMs;
@@ -245,6 +249,13 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
           await this.snapshot(documentName, Y.encodeStateAsUpdate(document), this.lastEditors.get(documentName)?.userId ?? null, true).catch((error: unknown) => {
             this.logger.error(`Could not save the final history snapshot for page ${documentName}`, error);
           });
+          const editors = this.editors.get(documentName);
+          this.editors.delete(documentName);
+          if (editors) {
+            await this.reportEdits(documentName, [...editors]).catch((error: unknown) => {
+              this.logger.error(`Could not tell watchers about edits to page ${documentName}`, error);
+            });
+          }
         }
       },
     });
@@ -437,6 +448,14 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       const page = access(name, context.userId);
       if (page?.role !== context.role || !page.permissions.organize !== context.restrictedReferences || page.permissions.share !== context.managesSharing) connection.close({ code: 4403, reason: 'Access changed' });
     }
+  }
+
+  private async reportEdits(itemId: string, editors: string[]) {
+    const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { id: true, kind: true, spaceId: true, title: true } });
+    if (!item?.spaceId) return;
+    const names = await Promise.all(editors.map((editor) => this.watchers.actorName(this.prisma, editor)));
+    await this.watchers.watch(this.prisma, itemId, editors);
+    await this.watchers.notify(this.prisma, itemId, null, { title: `${names.join(' and ')} edited “${item.title || 'Untitled'}”`, link: watchedLink(item) }, editors);
   }
 
   closeShareLink(shareLinkId: string) {

@@ -209,6 +209,31 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('PATCH', `/tasks/${task.id}/comments/${added.body.id}`, { body: 'Plain now' })).body).toMatchObject({ body: 'Plain now', document: null });
   });
 
+  it('makes people who touch a task watchers and tells the others about each change', async () => {
+    const owner = await member('watch-owner');
+    const partner = await member('watch-partner');
+    const outsider = await member('watch-outsider');
+    const team = (await owner.call('POST', '/spaces', { name: 'Watched' })).body;
+    await strata.join(team.id, partner, SpaceRole.EDITOR);
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Ship it', assigneeId: partner.id })).body;
+    const watching = async (person: typeof owner) => (await person.call('GET', '/me/inbox')).body.results.filter((notice: { kind: string }) => notice.kind === 'watching').map((notice: { title: string }) => notice.title);
+
+    expect((await owner.call('GET', `/items/${task.id}/watchers`)).body).toEqual({
+      watching: true,
+      watchers: expect.arrayContaining([expect.objectContaining({ id: owner.id }), expect.objectContaining({ id: partner.id })]),
+    });
+    await partner.call('POST', `/tasks/${task.id}/comments`, { body: 'On it' });
+    await partner.call('PATCH', `/tasks/${task.id}`, { status: 'in_progress' });
+    await owner.call('PATCH', `/tasks/${task.id}`, { priority: 2 });
+    expect(await watching(owner)).toEqual(expect.arrayContaining([expect.stringContaining('commented on “Ship it”'), expect.stringContaining('moved “Ship it” to In progress')]));
+    expect(await watching(partner)).toEqual([expect.stringContaining('changed the priority of “Ship it”')]);
+
+    expect((await owner.call('DELETE', `/items/${task.id}/watch`)).body.watching).toBe(false);
+    await partner.call('POST', `/tasks/${task.id}/complete`);
+    expect(await watching(owner)).not.toEqual(expect.arrayContaining([expect.stringContaining('finished')]));
+    expect((await outsider.call('PUT', `/items/${task.id}/watch`)).status).toBe(404);
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

@@ -3687,3 +3687,29 @@ main.shell {
 .stat-value {
   overflow-wrap: anywhere;
 }
+
+.sheet-head {
+  align-items: center;
+  padding-block: var(--space-3);
+}
+
+.sheet-title-input {
+  width: 100%;
+  min-width: 0;
+  margin-inline-start: -0.375rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  background: transparent;
+  padding: 0.125rem 0.375rem;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.sheet-title-input:hover {
+  border-color: var(--color-line-soft);
+}
+
+.sheet-title-input:focus {
+  border-color: var(--color-muted);
+}

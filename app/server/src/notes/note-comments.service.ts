@@ -5,6 +5,7 @@ import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/notes.dto';
 import { NotesService } from './notes.service';
+import { WatchersService } from '../watchers/watchers.service';
 
 const maxComments = 500;
 
@@ -36,6 +37,7 @@ export class NoteCommentsService {
     private readonly notes: NotesService,
     private readonly inbox: InboxService,
     private readonly changes: ChangesService,
+    private readonly watchers: WatchersService,
   ) {}
 
   async list(userId: string, noteId: string) {
@@ -57,6 +59,7 @@ export class NoteCommentsService {
         data: { itemId: noteId, parentId: input.parentId ?? null, authorId: userId, body: input.body, blockId: input.parentId ? null : (input.blockId ?? null) },
         select: commentFields,
       });
+      await this.watchers.watch(transaction, noteId, [userId]);
       const mentioned = await this.mentioned(transaction, noteId, found.spaceId, userId, created.body);
       const recipients = (await this.recipients(transaction, noteId, found.spaceId, userId)).filter((recipient) => !mentioned.includes(recipient));
       await this.inbox.notify(transaction, [
@@ -124,7 +127,8 @@ export class NoteCommentsService {
   private async recipients(transaction: Prisma.TransactionClient, noteId: string, spaceId: string, writerId: string) {
     const item = await transaction.item.findUniqueOrThrow({ where: { id: noteId }, select: { createdById: true } });
     const commenters = await transaction.noteComment.findMany({ where: { itemId: noteId }, distinct: ['authorId'], select: { authorId: true } });
-    const wanted = [item.createdById, ...commenters.map((commenter) => commenter.authorId)].filter((id): id is string => Boolean(id) && id !== writerId);
+    const watchers = await transaction.itemWatcher.findMany({ where: { itemId: noteId }, select: { userId: true } });
+    const wanted = [item.createdById, ...commenters.map((commenter) => commenter.authorId), ...watchers.map((watcher) => watcher.userId)].filter((id): id is string => Boolean(id) && id !== writerId);
     const members = await transaction.spaceMember.findMany({ where: { spaceId, userId: { in: wanted } }, select: { userId: true } });
     const guests = await transaction.pageGrant.findMany({ where: { itemId: noteId, userId: { in: wanted }, item: { trashedAt: null, archivedAt: null } }, select: { userId: true } });
     return [...new Set([...members, ...guests].map((member) => member.userId))];

@@ -38,6 +38,7 @@ describe('live shared documents', () => {
   let links: Map<string, { id: string; itemId: string; access: ShareAccess; expiresAt: Date; revokedAt: Date | null }>;
   let commit: (operations: Promise<unknown>[]) => Promise<unknown[]>;
   let lastEditor: string | null | undefined;
+  let watchers: { watch: ReturnType<typeof vi.fn>; notify: ReturnType<typeof vi.fn>; actorName: (client: unknown, userId: string) => Promise<string> };
   const peers: Peer[] = [];
 
   beforeEach(async () => {
@@ -45,6 +46,7 @@ describe('live shared documents', () => {
     thumbnails = new Map();
     accessQueries = 0;
     lastEditor = undefined;
+    watchers = { watch: vi.fn(), notify: vi.fn(), actorName: async (_client, userId) => (userId === 'member' ? 'Member' : userId) };
     const signedInAt = new Date();
     links = new Map(['page', 'board'].flatMap((itemId) => [ShareAccess.VIEW, ShareAccess.EDIT].map((access) => [
       linkTokenHash(`${itemId}-${access}`),
@@ -74,7 +76,7 @@ describe('live shared documents', () => {
         },
         searchDocument: { updateMany: async () => ({ count: 1 }) },
         item: {
-          findUnique: async () => ({ title: 'Shared page', updatedAt: new Date() }),
+          findUnique: async () => ({ id: 'page', kind: ItemKind.NOTE, spaceId: 'space', title: 'Shared page', updatedAt: new Date() }),
           findUniqueOrThrow: async ({ where }: { where: { id: string } }) => ({ kind: where.id === 'board' ? ItemKind.BOARD : ItemKind.NOTE }),
           update: async ({ data }: { data: { updatedById: string | null } }) => {
             lastEditor = data.updatedById;
@@ -109,6 +111,7 @@ describe('live shared documents', () => {
           return (_itemId: string, userId: string) => ({ role: SpaceRole.OWNER, permissions: { organize: true, share: userId === 'member' } });
         },
       } as never,
+      watchers as never,
     );
     realtime.onApplicationBootstrap();
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -276,6 +279,21 @@ describe('live shared documents', () => {
     clock.mockRestore();
     await vi.waitFor(() => expect(reader.closed).toContain('Inactive'));
     expect(host.closed).toEqual([]);
+  });
+
+  it('tells watchers once about a live editing session, naming the people who edited', async () => {
+    const host = await open('member');
+    const viewer = await open(guest('page-VIEW'));
+    write(host.document, 'An edit');
+    await vi.waitFor(() => expect(text(viewer)).toContain('An edit'));
+    expect(watchers.notify).not.toHaveBeenCalled();
+    for (const peer of [host, viewer]) {
+      peer.socket.disconnect();
+      peer.socket.destroy();
+    }
+    await vi.waitFor(() => expect(watchers.notify).toHaveBeenCalledTimes(1));
+    expect(watchers.watch).toHaveBeenCalledWith(expect.anything(), 'page', ['member']);
+    expect(watchers.notify).toHaveBeenCalledWith(expect.anything(), 'page', null, { title: 'Member edited “Shared page”', link: '/pages/page' }, ['member']);
   });
 
   it('sends a burst of collaborator pointer moves to each connection as a few batched frames', async () => {

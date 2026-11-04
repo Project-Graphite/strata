@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import { IconButton, LinesSkeleton } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
+import { WatchButton } from '../components/WatchButton';
 import { CommentsButton, CommentsPanel } from '../components/CommentsPanel';
 import { CommitInput } from '../components/CommitInput';
 import { FileSourceContext } from '../components/file-source';
@@ -103,6 +104,7 @@ export function BoardPage() {
               ),
               actions: (
                 <>
+                  {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} />}
                   {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
                   <CommentsButton count={threads} onClick={() => setCommenting(!commenting)} open={commenting} />
                 </>
