@@ -606,7 +606,8 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
       if (held.current) return;
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const at = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+        const content = editor.view.dom.getBoundingClientRect();
+        const at = editor.view.posAtCoords({ left: Math.min(Math.max(event.clientX, content.left + 1), content.right - 1), top: event.clientY });
         if (!at) return;
         const target = at.inside >= 0 ? at.inside : at.pos;
         const resolved = editor.state.doc.resolve(target);
@@ -614,6 +615,10 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
         const node = editor.state.doc.nodeAt(pos);
         const dom = node && editor.view.nodeDOM(pos);
         if (!node || !(dom instanceof HTMLElement)) return;
+        if (node.isTextblock && node.content.size === 0) {
+          setBlock(undefined);
+          return;
+        }
         const box = dom.getBoundingClientRect();
         const bounds = area.getBoundingClientRect();
         const text = node.isAtom ? undefined : TextSelection.near(editor.state.doc.resolve(pos + 1)).from;
@@ -674,6 +679,7 @@ const BlockHandle = memo(function BlockHandle({ actions, editor, onComment }: { 
         align="start"
         header={<HoldHandle held={held} />}
         items={blockItems(editor, actions, block, onComment)}
+        keepFocus={false}
         label="Block actions"
         trigger={<Icon name="grip" size={16} />}
         triggerClassName="note-block-handle"

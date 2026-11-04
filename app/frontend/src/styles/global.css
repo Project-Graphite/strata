@@ -308,6 +308,7 @@
 }
 
 .note-content {
+  display: flow-root;
   min-height: 45vh;
   color: var(--color-ink);
   line-height: 1.5;
@@ -901,7 +902,7 @@
   height: 1.5rem;
   border-radius: var(--radius-field);
   color: var(--color-faint);
-  cursor: pointer;
+  cursor: grab;
 }
 
 .note-block-handle:hover {
@@ -989,6 +990,32 @@
   margin-inline: auto 0;
 }
 
+.note-image[data-wrap] {
+  margin-block: 0.25em 0.75em;
+}
+
+.note-image[data-wrap][data-align='left'] {
+  float: left;
+  margin-right: 1.25rem;
+}
+
+.note-image[data-wrap][data-align='right'] {
+  float: right;
+  margin-left: 1.25rem;
+}
+
+.note-image[data-wrap] .note-image-frame {
+  width: 100%;
+}
+
+@media (max-width: 47.99rem) {
+  .note-image[data-wrap] {
+    float: none !important;
+    width: auto !important;
+    margin-inline: 0 !important;
+  }
+}
+
 .note-image img {
   display: block;
   width: 100%;
@@ -1003,9 +1030,12 @@
 
 .note-image-tools {
   position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  z-index: 1;
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: min(36rem, 90vw);
+  flex-wrap: wrap;
 }
 
 .note-image-resize {
