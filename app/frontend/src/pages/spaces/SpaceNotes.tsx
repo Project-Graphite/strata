@@ -42,7 +42,7 @@ export function SpaceNotes() {
   const editable = space.role !== 'viewer';
   const moveToTrash = useMovePageToTrash(notes.reload, notes.reload);
   const trash = (note: Note) => (editable ? () => moveToTrash(note, (notes.data ?? []).filter((child) => child.parentId === note.id).length) : undefined);
-  const pages = notes.data?.filter((note) => !note.template) ?? [];
+  const pages = notes.data?.filter((note) => !note.template && note.kind !== 'board') ?? [];
   const templates = notes.data?.filter((note) => note.template) ?? [];
   const branches = flattenTree(pages);
   const [pageRows, templateRows] = useRememberedShape(`space-pages-${space.id}`, notes.data && [branches.length, templates.length], [4, 0]);

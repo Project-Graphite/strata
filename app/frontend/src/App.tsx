@@ -66,7 +66,8 @@ const SpaceItems = lazy(() => import('./pages/spaces/SpaceItems').then((module) 
 const SpaceLayout = lazy(() => import('./pages/spaces/SpaceLayout').then((module) => ({ default: module.SpaceLayout })));
 const SpaceMembers = lazy(() => import('./pages/spaces/SpaceMembers').then((module) => ({ default: module.SpaceMembers })));
 const HabitsPage = lazy(() => import('./pages/HabitsPage').then((module) => ({ default: module.HabitsPage })));
-const SpaceOverview = lazy(() => import('./pages/spaces/SpaceOverview').then((module) => ({ default: module.SpaceOverview })));
+const SpaceBoards = lazy(() => import('./pages/spaces/SpaceBoards').then((module) => ({ default: module.SpaceBoards })));
+const SpaceSettings = lazy(() => import('./pages/spaces/SpaceSettings').then((module) => ({ default: module.SpaceSettings })));
 const SpaceNotes = lazy(() => import('./pages/spaces/SpaceNotes').then((module) => ({ default: module.SpaceNotes })));
 const SpacesPage = lazy(() => import('./pages/spaces/SpacesPage').then((module) => ({ default: module.SpacesPage })));
 const SpaceTags = lazy(() => import('./pages/spaces/SpaceTags').then((module) => ({ default: module.SpaceTags })));
@@ -234,8 +235,8 @@ export function App() {
               </Route>
               <Route element={<AppRoute app="files" />}>
                 <Route path="files" element={<DrivePage />} />
-                <Route path="files/spaces" element={<FilesPage key="spaces" tab="spaces" />} />
-                <Route path="files/storage" element={<FilesPage key="storage" tab="storage" />} />
+                <Route path="files/spaces" element={<Moved to="/files" />} />
+                <Route path="files/storage" element={<FilesPage />} />
               </Route>
               <Route element={<AppRoute app="spending" />}>
                 <Route path="spending">
@@ -252,10 +253,12 @@ export function App() {
                 <Route index element={<SpacesPage />} />
                 <Route path="invitations" element={<InvitationsPage />} />
                 <Route path=":id" element={<SpaceLayout />}>
-                  <Route index element={<SpaceOverview />} />
+                  <Route index element={<SpaceNotes />} />
+                  <Route path="pages" element={<Navigate replace to=".." />} />
+                  <Route path="boards" element={<SpaceBoards />} />
                   <Route path="items" element={<SpaceItems />} />
-                  <Route path="pages" element={<SpaceNotes />} />
                   <Route path="tasks" element={<SpaceTasks />} />
+                  <Route path="settings" element={<SpaceSettings />} />
                   <Route path="tags" element={<SpaceTags />} />
                   <Route path="members" element={<SpaceMembers />} />
                   <Route path="activity" element={<SpaceActivity />} />

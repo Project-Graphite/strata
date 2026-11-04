@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
-import { ColorSwatches, Icon, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
 import { ActiveSpaceContext } from './active-space';
 import { useAuth } from './auth';
 import { noteHref } from './notes';
@@ -11,12 +11,19 @@ export type SpaceRole = 'owner' | 'editor' | 'viewer';
 
 export interface Space {
   id: string;
+  slug: string;
   name: string;
   color: TagColor;
-  kind: 'personal' | 'shared';
+  description: string;
   role: SpaceRole;
   createdAt: string;
 }
+
+export const spaceHref = (space: Pick<Space, 'slug'>, tab?: string) => `/spaces/${space.slug}${tab ? `/${tab}` : ''}`;
+
+export const findSpace = (spaces: Space[] | undefined, idOrSlug: string | undefined) => spaces?.find((space) => space.slug === idOrSlug || space.id === idOrSlug);
+
+export const homePath = (spaceId: string | null | undefined, path: string) => `${spaceId ? `/spaces/${spaceId}` : '/me'}/${path}`;
 
 export interface Member {
   userId: string;
@@ -72,9 +79,10 @@ export function storedSpace(userId: string) {
   }
 }
 
-function storeSpace(userId: string, spaceId: string) {
+function storeSpace(userId: string, spaceId: string | undefined) {
   try {
-    localStorage.setItem(spaceKey(userId), spaceId);
+    if (spaceId) localStorage.setItem(spaceKey(userId), spaceId);
+    else localStorage.removeItem(spaceKey(userId));
   } catch (reason) {
     if (!(reason instanceof DOMException)) throw reason;
   }
@@ -87,16 +95,17 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useSearchParams();
   const userId = user?.id;
   const [chosen, setChosen] = useState(() => (userId ? storedSpace(userId) : undefined));
-  const routed = /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1] ?? params.get('space');
-  const space = spaces.data?.find((space) => space.id === (routed ?? chosen)) ?? spaces.data?.find((space) => space.kind === 'personal') ?? spaces.data?.[0];
-  const choose = useCallback((spaceId: string) => {
-    if (spaces.data?.some((space) => space.id === spaceId)) setChosen(spaceId);
+  const routed = findSpace(spaces.data, /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1]);
+  const wanted = routed?.id ?? params.get('space') ?? chosen;
+  const space = spaces.data?.find((space) => space.id === wanted);
+  const choose = useCallback((spaceId: string | null) => {
+    if (!spaceId || spaces.data?.some((space) => space.id === spaceId)) setChosen(spaceId ?? undefined);
   }, [spaces.data]);
 
   useEffect(() => {
-    if (!userId || !space) return;
-    storeSpace(userId, space.id);
-    if (routed && routed === space.id) setChosen(space.id);
+    if (!userId || !spaces.data) return;
+    storeSpace(userId, space?.id);
+    if (space && wanted !== chosen) setChosen(space.id);
     if (params.has('space') && spaces.data) {
       setParams((current) => {
         const next = new URLSearchParams(current);
@@ -104,7 +113,7 @@ export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
         return next;
       }, { replace: true });
     }
-  }, [userId, space, routed, params, setParams, spaces.data]);
+  }, [userId, space, wanted, chosen, params, setParams, spaces.data]);
 
   return <ActiveSpaceContext.Provider value={{ space, choose }}>{children}</ActiveSpaceContext.Provider>;
 }
@@ -116,6 +125,7 @@ export async function addJoinedSpace(
 ) {
   const space = await request<Space>(`/spaces/${spaceId}`);
   spaces.mutate((current) => [...current.filter((shown) => shown.id !== space.id), space]);
+  return space;
 }
 
 export function itemHref(item: { id: string; kind: string }) {
@@ -140,12 +150,8 @@ export const spacesTabs = (active: 'spaces' | 'invitations') => [
 
 export const itemKindName = (item: { kind: string; quick: boolean }) => (item.quick ? 'quick note' : (itemKindNames[item.kind] ?? item.kind));
 
-export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> & { kind?: Space['kind'] } }) {
-  return (
-    <span aria-hidden="true" className={`tag-mark tag-${space.color} ${large ? 'space-mark-large' : ''}`} data-initial={space.kind === 'personal' ? undefined : space.name.charAt(0).toUpperCase()}>
-      {space.kind === 'personal' && <Icon name="user" size={large ? 18 : 16} />}
-    </span>
-  );
+export function SpaceMark({ large = false, space }: { large?: boolean; space: Pick<Space, 'color' | 'name'> }) {
+  return <span aria-hidden="true" className={`tag-mark tag-${space.color} ${large ? 'space-mark-large' : ''}`} data-initial={space.name.charAt(0).toUpperCase()} />;
 }
 
 export function spaceOptions(spaces: Space[]): SelectOption[] {
@@ -196,7 +202,7 @@ export function useChosenSpace() {
   return {
     spaceId: active.space?.id,
     space: active.space,
-    editable: Boolean(active.space && active.space.role !== 'viewer'),
+    editable: active.space?.role !== 'viewer',
     choose: active.choose,
   };
 }

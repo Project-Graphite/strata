@@ -6,7 +6,7 @@ import { useAuth } from '../auth';
 import { Reveal } from '../motion';
 import { childPagesPath, noteHref, noteTitle, onPagesChanged, pageHref, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
-import { useChosenSpace } from '../spaces';
+import { homePath, SpaceMark, spaceHref, useAllSpaces, useChosenSpace, type Space } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { TextButton } from './Button';
@@ -18,7 +18,7 @@ type Target = { id: string; place: Place; expandable?: boolean };
 
 interface TreeControls {
   open: Set<string>;
-  reveal?: { spaceId: string; path: string[] };
+  reveal?: { spaceId: string | null; path: string[] };
   dragged?: Note;
   target?: Target;
   toggle(id: string): void;
@@ -46,12 +46,12 @@ function placeFor(event: DragEvent<HTMLElement>): Place {
   return 'inside';
 }
 
-function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = true }: { spaceId: string; parentId: string | null; depth: number; writable: boolean; cursor?: string; searching?: boolean }) {
+function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = true }: { spaceId: string | null; parentId: string | null; depth: number; writable: boolean; cursor?: string; searching?: boolean }) {
   const tree = useContext(TreeContext);
   const RowLink = useLink();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
-  const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor, 'note'), true, { live: ['page-details', 'items', 'spaces'], spaceId });
+  const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor, 'note'), true, { live: ['page-details', 'items', 'spaces'], spaceId: spaceId ?? undefined });
   const reload = listed.reload;
   useEffect(() => onPagesChanged(reload), [reload]);
   const parentIndex = tree.reveal?.path.indexOf(parentId ?? '') ?? -1;
@@ -118,22 +118,58 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = tr
   );
 }
 
+function SpaceBranch({ space }: { space: Space }) {
+  const tree = useContext(TreeContext);
+  const RowLink = useLink();
+  const { pathname } = useLocation();
+  const branch = `space:${space.id}`;
+  const expanded = tree.open.has(branch);
+
+  return (
+    <div>
+      <div className="page-tree-row" style={{ paddingLeft: '0.75rem' }}>
+        <button aria-expanded={expanded} aria-label={expanded ? `Collapse ${space.name}` : `Expand ${space.name}`} className="page-tree-slot page-tree-expand cursor-pointer" onClick={() => tree.toggle(branch)} type="button">
+          <SpaceMark space={space} />
+          <span aria-hidden="true" className="page-tree-chevron"><Icon name="chevron-right" size={16} /></span>
+        </button>
+        <RowLink aria-current={pathname === spaceHref(space) ? 'page' : undefined} className="page-tree-link" href={spaceHref(space)} title={space.name}>
+          <span className="min-w-0 flex-1 truncate">{space.name}</span>
+        </RowLink>
+      </div>
+      <Reveal open={expanded}>
+        {([['tasks', 'Tasks', 'check-mark'], ['boards', 'Boards', 'board']] as const).map(([tab, label, icon]) => (
+          <div className="page-tree-row" key={tab} style={{ paddingLeft: '1.625rem' }}>
+            <RowLink aria-current={pathname === spaceHref(space, tab) ? 'page' : undefined} className="page-tree-link" href={spaceHref(space, tab)} title={label}>
+              <span className="page-tree-slot"><Icon name={icon} size={16} /></span>
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+            </RowLink>
+          </div>
+        ))}
+        <TreeBranch depth={1} parentId={null} spaceId={space.id} writable={space.role !== 'viewer'} />
+      </Reveal>
+    </div>
+  );
+}
+
 export function PageTree() {
   const { collapsed } = useShell();
   const shown = useMediaQuery('(min-width: 48rem)') && !collapsed;
   const auth = useAuth();
+  const RowLink = useLink();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [currentPage] = usePageNavigation();
   const { space, editable: writable } = useChosenSpace();
+  const spaces = useAllSpaces();
+  const home = space?.id ?? null;
   const action = useAction();
   const [open, setOpen] = useState(readOpen);
   const [dragged, setDragged] = useState<Note>();
   const [target, setTarget] = useState<Target>();
-  const reveal = currentPage?.spaceId && pathname === noteHref(currentPage) && !currentPage.quick && !currentPage.template
+  const reveal = currentPage && pathname === noteHref(currentPage) && !currentPage.quick && !currentPage.template
     ? { spaceId: currentPage.spaceId, path: [...currentPage.path.map((page) => page.id), currentPage.id] }
     : undefined;
-  const revealKey = reveal ? `${reveal.spaceId}|${reveal.path.join('|')}` : '';
+  const revealKey = reveal ? `${reveal.spaceId ?? ''}|${reveal.path.join('|')}` : '';
   useEffect(() => {
     if (!revealKey) return;
     const [, ...path] = revealKey.split('|');
@@ -174,17 +210,24 @@ export function PageTree() {
 
   return (
     <TreeContext.Provider value={tree}>
+      <section aria-label="Spaces" className="page-tree" hidden={collapsed}>
+        <div className="page-tree-head">
+          <p className="sidebar-section-label">Spaces</p>
+          <RowLink aria-current={pathname === '/spaces' ? 'page' : undefined} aria-label="All spaces" className="page-tree-add" href="/spaces" title="All spaces"><Icon name="folder" size={16} /></RowLink>
+        </div>
+        {shown && spaces.data?.map((candidate) => <SpaceBranch key={candidate.id} space={candidate} />)}
+      </section>
       <section aria-label="Page tree" className="page-tree" hidden={collapsed}>
         <div className="page-tree-head" data-drop={target?.id === 'root' ? 'inside' : undefined}
-          onDragOver={(event) => { if (space && dragged?.spaceId === space.id) { event.preventDefault(); tree.aim({ id: 'root', place: 'inside' }); } }}
-          onDrop={(event) => { event.preventDefault(); if (space && dragged?.spaceId === space.id) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
-          <p className="sidebar-section-label">Pages</p>
-          {space && writable && <button aria-label={`Add a page to ${space.name}`} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => void action.run(async () => {
-            navigate(pageHref((await auth.request<Note>(`/spaces/${space.id}/notes`, { method: 'POST', body: '{}' })).id));
+          onDragOver={(event) => { if (dragged && dragged.spaceId === home) { event.preventDefault(); tree.aim({ id: 'root', place: 'inside' }); } }}
+          onDrop={(event) => { event.preventDefault(); if (dragged && dragged.spaceId === home) tree.move(dragged, { parentId: null }); setDragged(undefined); setTarget(undefined); }}>
+          <p className="sidebar-section-label">{space ? `Pages in ${space.name}` : 'Pages'}</p>
+          {writable && <button aria-label={space ? `Add a page to ${space.name}` : 'Add a page'} className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => void action.run(async () => {
+            navigate(pageHref((await auth.request<Note>(homePath(home, 'notes'), { method: 'POST', body: '{}' })).id));
             return '';
           }, 'Could not add the page')} type="button"><Icon name="plus" size={16} /></button>}
         </div>
-        {space && shown && <TreeBranch depth={0} key={space.id} parentId={null} spaceId={space.id} writable={writable} />}
+        {shown && <TreeBranch depth={0} key={home ?? 'account'} parentId={null} spaceId={home} writable={writable} />}
       </section>
     </TreeContext.Provider>
   );

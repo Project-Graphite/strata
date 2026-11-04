@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
+import { Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
 import { ConfirmDialog, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useAllSpaces, type Space } from '../../spaces';
+import { findSpace, roleOptions, SpaceMark, spaceHref, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
-import { useFormErrors } from '../../validation';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import type { NestedMenuItem } from '../../components/NestedMenu';
-import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
+import { NotFoundPage } from '../NotFoundPage';
 import { DetailState, Page } from '../../components/Page';
 import { IconButtonSkeleton, RowsSkeleton, SkeletonLine, SpaceMarkSkeleton } from '../../components/Skeletons';
 import { InviteToSpaceDialog } from './SpaceInvitations';
@@ -34,26 +33,23 @@ export function useSpaceInvites() {
 }
 
 export const spaceDescription = (space: Space) =>
-  space.kind === 'personal' ? 'Only you' : `Shared · you’re ${space.role === 'viewer' ? 'a' : 'an'} ${roleOptions.find((option) => option.value === space.role)?.label.toLowerCase()}`;
+  space.description || `Shared · you’re ${space.role === 'viewer' ? 'a' : 'an'} ${roleOptions.find((option) => option.value === space.role)?.label.toLowerCase()}`;
 
-type SpaceAction = 'rename' | 'invite' | 'leave' | 'delete';
+type SpaceAction = 'invite' | 'leave' | 'delete';
 
 export function useSpaceActions(onInvited?: () => void) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useAllSpaces();
-  const renaming = useAction();
-  const renameForm = useFormErrors();
-  const { report } = renaming;
+  const { report } = useAction();
   const [opened, setOpened] = useState<{ action: SpaceAction; space: Space }>();
   const close = () => setOpened(undefined);
 
   function items(space: Space): NestedMenuItem[] {
     const open = (action: SpaceAction) => () => setOpened({ action, space });
     if (space.role !== 'owner') return [{ label: 'Leave', onSelect: open('leave') }];
-    if (space.kind === 'personal') return [{ label: 'Rename', onSelect: open('rename') }];
     return [
-      { label: 'Rename', onSelect: open('rename') },
+      { label: 'Settings', onSelect: () => navigate(spaceHref(space, 'settings')) },
       { label: 'Invite people', onSelect: open('invite') },
       { label: 'Leave', onSelect: open('leave') },
       { label: 'Delete', onSelect: open('delete'), separated: true },
@@ -68,28 +64,6 @@ export function useSpaceActions(onInvited?: () => void) {
 
   const dialog = opened && (
     <>
-      {opened.action === 'rename' && (
-        <FormDialog
-          busy={renaming.busy}
-          busyLabel="Saving…"
-          onClose={close}
-          onSubmit={(target) => {
-            if (!renameForm.check(target, { name: spaceNameChecks })) return;
-            void renaming
-              .run(async () => {
-                const updated = await auth.request<Space>(`/spaces/${opened.space.id}`, { method: 'PATCH', body: JSON.stringify(nameAndColorFrom(target)) });
-                spaces.mutate((current) => current.map((space) => (space.id === updated.id ? updated : space)));
-                return `Saved ${updated.name}.`;
-              }, 'Could not rename the space')
-              .then((saved) => saved && close());
-          }}
-          submitLabel="Rename space"
-          title="Rename space"
-        >
-          <NameAndColorFields color={opened.space.color} field={renameForm.field('name')} maxLength={60} name={opened.space.name} />
-        </FormDialog>
-      )}
-
       {opened.action === 'invite' && (
         <InviteToSpaceDialog
           onClose={close}
@@ -142,7 +116,7 @@ export function useSpaceActions(onInvited?: () => void) {
 
 export function SpaceLayout() {
   const { id } = useParams();
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const spaces = useAllSpaces();
   const [invited, setInvited] = useState(0);
@@ -150,15 +124,15 @@ export function SpaceLayout() {
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;
   const sections = [
+    [`${base}/members`, 'Members'],
     [`${base}/tags`, 'Tags'],
     [`${base}/activity`, 'Activity'],
   ] as const;
   const tabs = (
     [
-      [base, 'Overview'],
-      [`${base}/pages`, 'Pages'],
+      [base, 'Pages'],
+      [`${base}/boards`, 'Boards'],
       [`${base}/tasks`, 'Tasks'],
-      [`${base}/members`, 'Members'],
     ] as const
   ).map(([href, label]) => ({ active: pathname === href, href, label }));
 
@@ -182,7 +156,7 @@ export function SpaceLayout() {
       </Page>
     );
   }
-  const space = spaces.data.find((candidate) => candidate.id === id);
+  const space = findSpace(spaces.data, id);
   if (!space) {
     return (
       <Page title="Space not found">
@@ -190,6 +164,8 @@ export function SpaceLayout() {
       </Page>
     );
   }
+  if (id !== space.slug) return <Navigate replace to={`${spaceHref(space)}${pathname.slice(base.length)}${search}${hash}`} />;
+  if (pathname === `${base}/settings` && space.role !== 'owner') return <NotFoundPage />;
 
   return (
     <Page
@@ -202,7 +178,7 @@ export function SpaceLayout() {
           name={space.name}
         />
       }
-      documentTitle={sections.find(([href]) => pathname === href)?.[1] ?? space.name}
+      documentTitle={sections.find(([href]) => pathname === href)?.[1] ?? (pathname === `${base}/settings` ? 'Settings' : space.name)}
       tabs={tabs}
       title={
         <span className="inline-flex items-center gap-3">

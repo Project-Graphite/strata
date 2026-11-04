@@ -66,18 +66,18 @@ function SiteFooter() {
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  const area = /^\/(?:(?:s|spaces)\/[^/]+|settings|spending|agenda|pages|recipes|tidy)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
+  const area = /^\/(?:spaces\/[^/]+|settings|spending|agenda|pages|recipes|tidy)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
   useLayoutEffect(() => {
     pageScroller().scrollTo({ top: 0, behavior: 'instant' });
   }, [area]);
   return null;
 }
 
-const routeLayout = (pathname: string) => /^\/(?:(?:s|spaces)\/(?!invitations(?:\/|$))[^/]+|settings)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
+const routeLayout = (pathname: string) => /^\/(?:spaces\/(?!invitations(?:\/|$))[^/]+|settings)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
 
 function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; spaces: Resource<Space[]> }) {
   const auth = useAuth();
-  const { spaceId, space } = useChosenSpace();
+  const { spaceId } = useChosenSpace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
@@ -155,10 +155,10 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         sidebar={
           showSidebar && (
             <Sidebar
-              footer={auth.user && <PageTree key={spaceId} />}
+              footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={sidebarSections(active, spaces.data, apps, space)}
+              sections={sidebarSections(active, apps)}
             />
           )
         }

@@ -3,7 +3,7 @@ import { Pagination, Placeholder, TagChip, type MenuItem } from '@project-graphi
 import { readBlob, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { fileSize, saveBlob, uploadFiles } from '../../files';
-import type { Item, Tag } from '../../spaces';
+import { spaceHref, type Item, type Tag } from '../../spaces';
 import { capitalised, formatMoment } from '../../time';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -30,7 +30,7 @@ export function SpaceItems() {
   const tags = useResource<Tag[]>(tag ? `/spaces/${space.id}/tags` : null, true);
   const action = useAction();
   const uploading = useAction();
-  const base = `/spaces/${space.id}/items`;
+  const base = spaceHref(space, 'items');
   const editable = space.role !== 'viewer';
   const tagName = tags.data?.find((shown) => shown.id === tag)?.name ?? 'Tag';
   usePagePrimary(editable && !archived && <FileButton busy={uploading.busy} label={uploading.busy ? 'Uploading…' : 'Upload files'} large multiple onFiles={upload} primary />);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog, ListRow, Placeholder, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { NameAndColorFields, nameAndColorFrom, type Tag } from '../../spaces';
+import { NameAndColorFields, nameAndColorFrom, spaceHref, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -53,7 +53,7 @@ export function SpaceTags() {
         <ul className="panel-rows">
           {tags.data.map((tag) => (
             <ListRow
-              href={`/spaces/${space.id}/items?tag=${tag.id}`}
+              href={`${spaceHref(space, 'items')}?tag=${tag.id}`}
               key={tag.id}
               label={`Items tagged ${tag.name}`}
               title={<TagChip color={tag.color} label={tag.name} />}
@@ -73,7 +73,7 @@ export function SpaceTags() {
         </ul>
       )}
 
-      {!tags.error && auth.user?.features.includes('tidy') && <TidyRules tags={tags.data} />}
+      {!tags.error && auth.user?.features.includes('tidy') && <TidyRules editable={space.role !== 'viewer'} spaceId={space.id} tags={tags.data} />}
 
       {editing && (
         <FormDialog

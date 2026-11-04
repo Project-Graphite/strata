@@ -14,13 +14,20 @@ describe('active workspace', () => {
   it('scopes aggregate reads while retaining filters and replacing a stale space', () => {
     expect(inActiveSpace('/me/tasks?page=2&completed=true&spaceId=old', spaceId)).toBe(`/me/tasks?page=2&completed=true&spaceId=${spaceId}`);
     expect(inActiveSpace('/me/pages?spaceId=old', spaceId)).toBe(`/me/pages?spaceId=${spaceId}`);
+    expect(inActiveSpace('/me/notes?kind=board', spaceId)).toBe(`/me/notes?kind=board&spaceId=${spaceId}`);
+  });
+
+  it('scopes aggregate reads to the account when no space is chosen, and keeps an explicit account home', () => {
+    expect(inActiveSpace('/me/tasks')).toBe('/me/tasks?home=account');
+    expect(inActiveSpace('/me/tasks?page=2&spaceId=old')).toBe('/me/tasks?page=2&home=account');
+    expect(inActiveSpace('/me/lists?home=account', spaceId)).toBe('/me/lists?home=account');
+    expect(inActiveSpace('/me/storage')).toBe('/me/storage');
   });
 
   it('keeps explicit resource URLs and account-level APIs unchanged', () => {
     for (const path of ['/spaces', '/me', '/me/sessions', '/me/dashboards', '/spaces/other/tasks?page=1', '/notes/page', '/me/journal', '/subscriptions/summary', '/me/spending', '/agenda?from=2026-10-25&to=2026-10-26', '/me/bookmarks', '/me/goals', '/me/habits', '/me/storage']) {
       expect(inActiveSpace(path, spaceId)).toBe(path);
     }
-    expect(inActiveSpace('/me/tasks')).toBe('/me/tasks');
   });
 
   it('validates space IDs alongside existing task and page filters', async () => {

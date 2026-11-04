@@ -9,7 +9,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Page } from '../../components/Page';
 import { RowsSkeleton, SpaceMarkSkeleton, useRememberedShape } from '../../components/Skeletons';
-import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceNameChecks, spacesTabs, useAllSpaces, type Space } from '../../spaces';
+import { NameAndColorFields, nameAndColorFrom, SpaceMark, spaceHref, spaceNameChecks, spacesTabs, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
 import { spaceDescription, useSpaceActions } from './SpaceLayout';
@@ -35,7 +35,7 @@ export function NewSpace() {
             void creating.run(async () => {
               const created = await auth.request<Space>('/spaces', { method: 'POST', body: JSON.stringify(nameAndColorFrom(target)) });
               spaces.mutate((current) => [...current, created]);
-              navigate(`/spaces/${created.id}`);
+              navigate(spaceHref(created));
               return `Added ${created.name}.`;
             }, 'Could not add the space');
           }}
@@ -67,7 +67,7 @@ export function SpacesPage() {
           <ul className="panel-rows">
             {spaces.data.map((space) => (
               <ListRow
-                href={`/spaces/${space.id}`}
+                href={spaceHref(space)}
                 key={space.id}
                 lead={<SpaceMark space={space} />}
                 meta={spaceDescription(space)}
@@ -76,8 +76,8 @@ export function SpacesPage() {
               />
             ))}
           </ul>
-          {spaces.data.every((space) => space.kind === 'personal') && (
-            <Empty title="No shared spaces yet">A shared space holds pages, tasks and an agenda you keep with other people. Make one, or accept an invitation.</Empty>
+          {spaces.data.length === 0 && (
+            <Empty title="No spaces yet">A shared space holds pages, tasks and an agenda you keep with other people. Make one, or accept an invitation.</Empty>
           )}
         </>
       )}
