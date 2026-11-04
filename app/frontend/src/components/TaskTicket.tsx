@@ -1,6 +1,6 @@
 import MuiIconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
-import { useDeferredValue, useState } from 'react';
+import { startTransition, useDeferredValue, useState, ViewTransition } from 'react';
 import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedControl, Select, TextField, useSnackbar } from '@project-graphite/ui';
 import { describeActivity, type ActivityEvent } from '../activity';
 import { readBlob, type Page as ResultPage } from '../api';
@@ -8,6 +8,7 @@ import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import { fileSize, maxUploadBytes, preparedUpload, saveBlob } from '../files';
 import { completeTask, type Task, type TaskDetail } from '../tasks';
+import { Reveal, useHeightMorph } from '../motion';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -52,6 +53,8 @@ export function TaskDescription({ editable, onSave, taskId, value }: { editable:
     setDraft(undefined);
     setEditing(false);
   };
+  const body = useHeightMorph<HTMLDivElement>();
+  const edit = () => body.morph(() => setEditing(true));
 
   return (
     <section aria-label="Description" className="grid gap-2">
@@ -62,39 +65,43 @@ export function TaskDescription({ editable, onSave, taskId, value }: { editable:
             <span className="flex flex-wrap items-center gap-2">
               {draft !== undefined && <Badge tone="wip">Unsaved changes</Badge>}
               {draft !== undefined && <IconButton icon="trash" label="Discard unsaved changes" onClick={discard} size="small" />}
-              <IconButton icon="pencil" label={draft === undefined ? 'Edit the description' : 'Continue editing'} onClick={() => setEditing(true)} size="small" />
+              <IconButton icon="pencil" label={draft === undefined ? 'Edit the description' : 'Continue editing'} onClick={edit} size="small" />
             </span>
           )
         }
         level={3}
         title="Description"
       />
-      {editing ? (
-        <>
-          <RichTextEditor autoFocus label="Description" onChange={change} placeholder="Add a description…" value={draft === undefined ? value : draft} />
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button label="Cancel" onClick={discard} />
-            <Button
-              label="Save"
-              onClick={() => {
-                if (draft !== undefined) onSave(draft);
-                discard();
-              }}
-              primary
-            />
+      <div className="grid gap-2" ref={body.ref}>
+        {editing ? (
+          <>
+            <RichTextEditor autoFocus label="Description" onChange={change} placeholder="Add a description…" value={draft === undefined ? value : draft} />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button label="Cancel" onClick={() => body.morph(discard)} />
+              <Button
+                label="Save"
+                onClick={() =>
+                  body.morph(() => {
+                    if (draft !== undefined) onSave(draft);
+                    discard();
+                  })
+                }
+                primary
+              />
+            </div>
+          </>
+        ) : (
+          <div
+            className="task-description-view"
+            data-editable={editable || undefined}
+            onClick={(event) => {
+              if (editable && !(event.target as HTMLElement).closest('a, input')) edit();
+            }}
+          >
+            {value ? <RichTextView value={value} /> : <p className="m-0 text-muted">{editable ? 'Add a description…' : 'No description'}</p>}
           </div>
-        </>
-      ) : (
-        <div
-          className="task-description-view"
-          data-editable={editable || undefined}
-          onClick={(event) => {
-            if (editable && !(event.target as HTMLElement).closest('a, input')) setEditing(true);
-          }}
-        >
-          {value ? <RichTextView value={value} /> : <p className="m-0 text-muted">{editable ? 'Add a description…' : 'No description'}</p>}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
@@ -155,7 +162,7 @@ export function Subtasks({
       {task.subtasks.length > 0 && (
         <ul className="panel-rows">
           {task.subtasks.map((subtask) => (
-            <li className="list-row" key={subtask.id}>
+            <li className={`list-row ${subtask.completedAt ? 'task-done' : ''}`} key={subtask.id}>
               <span className="list-row-lead">
                 <Checkbox
                   aria-label={subtask.completedAt ? `Mark ${subtask.title} as not done` : `Mark ${subtask.title} as done`}
@@ -293,6 +300,8 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
   const action = useAction();
   const [tab, setTab] = useState<ActivityTab>('comments');
   const [writing, setWriting] = useState(false);
+  const [posted, setPosted] = useState<string>();
+  const composer = useHeightMorph<HTMLDivElement>();
   const [editing, setEditing] = useState<string>();
   const [replying, setReplying] = useState<string>();
   const comments = useResource<Comment[]>(`/tasks/${taskId}/comments`, true, { live: ['task-details'], itemIds: [taskId] });
@@ -331,7 +340,7 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
     const mine = comment.author?.id === auth.user?.id;
     const replies = reply ? [] : (comments.data ?? []).filter((shown) => shown.parentId === comment.id);
     return (
-      <li className="task-comment" key={comment.id}>
+      <li className="task-comment comment-entry" data-posted={posted === comment.id || undefined} key={comment.id}>
         <p className="task-comment-head m-0 text-small text-muted">
           <UserAvatar name={comment.author?.displayName ?? 'Someone'} size="sm" userId={comment.author?.id} />
           <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
@@ -381,6 +390,7 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
                   onSave={(document, body) =>
                     save(`/tasks/${taskId}/comments`, 'POST', { document, body, parentId: comment.id }, (added) => {
                       comments.mutate((current) => [...current, added]);
+                      setPosted(added.id);
                       setReplying(undefined);
                     })
                   }
@@ -398,47 +408,55 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
     <details className="task-activity" open>
       <summary className="text-h3 text-ink">Activity</summary>
       <div className="task-activity-body grid">
-        <SegmentedControl label="Show" onChange={setTab} options={activityTabs} size="small" value={tab} />
-        {editable && tab !== 'history' &&
-          (writing ? (
-            <CommentEditor
-              initial={null}
-              label="New comment"
-              members={members}
-              onCancel={() => setWriting(false)}
-              onSave={(document, body) =>
-                save(`/tasks/${taskId}/comments`, 'POST', { document, body }, (added) => {
-                  comments.mutate((current) => [...current, added]);
-                  setWriting(false);
-                })
-              }
-              saveLabel="Comment"
-            />
-          ) : (
-            <button className="task-comment-prompt" onClick={() => setWriting(true)} type="button">
-              Add a comment…
-            </button>
-          ))}
-        {failed ? (
-          <LoadError compact error={failed.error} onRetry={failed.reload} />
-        ) : !loaded ? (
-          <LinesSkeleton label="Loading the activity" lines={2} />
-        ) : entries.length === 0 ? (
-          <p className="m-0 text-small text-muted">{tab === 'comments' ? 'No comments yet' : 'Nothing has happened yet'}</p>
-        ) : (
-          <ol className="task-activity-list m-0 grid list-none gap-5 p-0">
-            {entries.map((entry) =>
-              entry.kind === 'event' ? (
-                <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
-                  <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
-                  <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
-                </li>
-              ) : (
-                item(entry.comment, false)
-              ),
+        <SegmentedControl label="Show" onChange={(next) => startTransition(() => setTab(next))} options={activityTabs} size="small" value={tab} />
+        <ViewTransition default="none" key={tab} name={`task-activity-${taskId}`} share="auto">
+          <div className="grid gap-4">
+            {editable && tab !== 'history' && (
+              <div ref={composer.ref}>
+                {writing ? (
+                  <CommentEditor
+                    initial={null}
+                    label="New comment"
+                    members={members}
+                    onCancel={() => composer.morph(() => setWriting(false))}
+                    onSave={(document, body) =>
+                      save(`/tasks/${taskId}/comments`, 'POST', { document, body }, (added) => {
+                        comments.mutate((current) => [...current, added]);
+                        setPosted(added.id);
+                        composer.morph(() => setWriting(false));
+                      })
+                    }
+                    saveLabel="Comment"
+                  />
+                ) : (
+                  <button className="task-comment-prompt" onClick={() => composer.morph(() => setWriting(true))} type="button">
+                    Add a comment…
+                  </button>
+                )}
+              </div>
             )}
-          </ol>
-        )}
+            {failed ? (
+              <LoadError compact error={failed.error} onRetry={failed.reload} />
+            ) : !loaded ? (
+              <LinesSkeleton label="Loading the activity" lines={2} />
+            ) : entries.length === 0 ? (
+              <p className="m-0 text-small text-muted">{tab === 'comments' ? 'No comments yet' : 'Nothing has happened yet'}</p>
+            ) : (
+              <ol className="task-activity-list m-0 grid list-none gap-5 p-0">
+                {entries.map((entry) =>
+                  entry.kind === 'event' ? (
+                    <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
+                      <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
+                      <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
+                    </li>
+                  ) : (
+                    item(entry.comment, false)
+                  ),
+                )}
+              </ol>
+            )}
+          </div>
+        </ViewTransition>
       </div>
     </details>
   );
@@ -620,8 +638,8 @@ export function Relations({ editable, onOpen, taskId }: { editable: boolean; onO
           </ul>
         )
       )}
-      {adding && (
-        <div className="grid gap-3">
+      <Reveal className="-mt-3" open={adding}>
+        <div className="grid gap-3 pt-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
             <Select label="This task" onChange={setRelation} options={relationChoices} value={relation} />
             <TextField autoFocus label="Find a task" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
@@ -652,7 +670,7 @@ export function Relations({ editable, onOpen, taskId }: { editable: boolean; onO
             size="small"
           />
         </div>
-      )}
+      </Reveal>
     </section>
   );
 }

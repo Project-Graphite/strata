@@ -160,7 +160,7 @@ export function TaskRow({
   const details = taskDetails(task, where);
   const swipe = useSwipe({ enabled: swipeable && !disabled, onRight: onToggle });
   return (
-    <li {...rowProps} {...swipe.props} className={`list-row task-row swipe-row ${task.parentId ? 'ps-12' : ''} ${rowProps?.className ?? ''}`} style={{ ...rowProps?.style, ...swipe.props.style }}>
+    <li {...rowProps} {...swipe.props} className={`list-row task-row swipe-row ${task.parentId ? 'ps-12' : ''} ${done ? 'task-done' : ''} ${rowProps?.className ?? ''}`} style={{ ...rowProps?.style, ...swipe.props.style }}>
       {swipe.offset > 0 && (
         <span aria-hidden="true" className="swipe-hint">
           <Icon name="check" size={18} />
@@ -176,7 +176,7 @@ export function TaskRow({
       <button className="list-row-main" onClick={onEdit} type="button">
         <span className="list-row-text">
           <span className="list-row-title">
-            <span className={`transition-colors ${done ? 'text-faint' : 'text-ink'}`}>
+            <span className={done ? 'text-faint' : 'text-ink'}>
               <span className={`task-title ${done ? 'is-done' : ''}`}>{task.title}</span>
             </span>
           </span>

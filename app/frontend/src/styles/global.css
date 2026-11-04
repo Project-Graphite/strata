@@ -10,6 +10,10 @@
 
 :root {
   --color-highlight: #d7b24a;
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-enter: 300ms;
+  --duration-highlight: 1500ms;
+  --stagger-step: 50ms;
 }
 
 :is(button, [role='button'], [role='tab'], .MuiButton-root, .MuiToggleButton-root, .MuiTab-root) {
@@ -841,7 +845,6 @@
 .note-toggle > button::before {
   display: inline-block;
   content: '▸';
-  transition: transform 120ms ease;
 }
 
 .note-toggle.is-open > button::before {
@@ -1343,6 +1346,10 @@ button.habit-day::before {
   background-size: 100% 1px;
 }
 
+.task-done :is(.list-row-main, .task-card-main) {
+  opacity: 0.6;
+}
+
 .swipe-row {
   position: relative;
   touch-action: pan-y;
@@ -1729,8 +1736,14 @@ button.habit-day::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .task-activity-list > li,
-  .task-comment-replies > li {
-    animation: rise-in 220ms var(--ease-settle) backwards;
+  .comment-entry {
+    animation: comment-in var(--duration-enter) var(--ease-settle) backwards;
+  }
+
+  .comment-entry[data-posted] {
+    animation:
+      comment-in var(--duration-enter) var(--ease-settle) backwards,
+      comment-posted var(--duration-highlight) ease-out;
   }
 
   .reaction-chip {
@@ -1916,7 +1929,17 @@ button.habit-day::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .task-title {
-    transition: background-size 320ms var(--ease-settle);
+    transition:
+      background-size var(--duration-enter) var(--ease-settle),
+      color var(--duration-slow) var(--ease-settle);
+  }
+
+  :is(.list-row-main, .task-card-main) {
+    transition: opacity var(--duration-slow) var(--ease-settle);
+  }
+
+  .task-done .MuiCheckbox-root.Mui-checked[data-pressed] .MuiSvgIcon-root {
+    animation: check-bounce var(--duration-enter) var(--ease-bounce);
   }
 
   .habit-check,
@@ -3830,7 +3853,7 @@ main.shell {
 
 .task-main > :is(section, details),
 .task-activity-body,
-.task-activity-body > ol {
+.task-activity-list {
   gap: var(--space-4);
 }
 
@@ -4192,4 +4215,85 @@ main.shell {
 .drive-icon > span {
   width: 2rem;
   height: 2rem;
+}
+
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+}
+
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+
+.reveal > * {
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--space-1);
+}
+
+.note-toggle [data-type='detailsContent'] {
+  overflow: clip;
+  overflow-clip-margin: var(--space-2);
+  interpolate-size: allow-keywords;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    transition:
+      grid-template-rows var(--duration-slow) var(--ease-settle),
+      visibility var(--duration-slow);
+  }
+
+  .note-toggle > button::before {
+    transition: transform var(--duration-fast) var(--ease-settle);
+  }
+
+  .note-toggle [data-type='detailsContent'] {
+    transition:
+      height var(--duration-slow) var(--ease-settle),
+      opacity var(--duration-slow) var(--ease-settle),
+      display var(--duration-slow) allow-discrete;
+  }
+
+  .note-toggle [data-type='detailsContent'][hidden] {
+    height: 0;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .note-toggle [data-type='detailsContent']:not([hidden]) {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  textarea.MuiInputBase-inputMultiline {
+    transition: height var(--duration-fast) var(--ease-settle);
+  }
+
+  .nested-menu .MuiMenuItem-root {
+    animation: fade-in var(--duration-base) var(--ease-settle) backwards;
+  }
+}
+
+@keyframes check-bounce {
+  from {
+    scale: 0.6;
+  }
+}
+
+@keyframes comment-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes comment-posted {
+  from {
+    background-color: color-mix(in srgb, var(--color-highlight) 22%, transparent);
+  }
 }

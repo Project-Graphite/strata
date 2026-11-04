@@ -1,4 +1,5 @@
 import Divider from '@mui/material/Divider';
+import Fade from '@mui/material/Fade';
 import IconButton from '@mui/material/IconButton';
 import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -95,6 +96,8 @@ export function NestedMenu({ align = 'end', header, items, keepFocus = true, lab
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [path, setPath] = useState<Parent[]>([]);
   const [flyout, setFlyout] = useState<Flyout>();
+  const [shown, setShown] = useState<Flyout>();
+  if (flyout && flyout !== shown) setShown(flyout);
   const close = () => {
     setAnchor(null);
     setPath([]);
@@ -147,26 +150,30 @@ export function NestedMenu({ align = 'end', header, items, keepFocus = true, lab
         ]}
         {entries(level ? level.items : items, { close, open, leave: () => setFlyout(undefined), expanded: flyout?.item.label })}
       </MuiMenu>
-      {flyout && !drill && (
-        <Popper anchorEl={flyout.anchor} className="nested-menu-flyout" open placement={flyout.side === 'right' ? 'right-start' : 'left-start'}>
-          <Paper className="nested-menu min-w-56">
-            <MenuList
-              aria-label={flyout.item.label}
-              autoFocusItem={flyout.focus}
-              onKeyDown={(event: KeyboardEvent<HTMLUListElement>) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  close();
-                } else if (event.key === 'ArrowLeft') {
-                  event.preventDefault();
-                  flyout.anchor.focus();
-                  setFlyout(undefined);
-                }
-              }}
-            >
-              {entries(flyout.item.items, { close, open: () => undefined })}
-            </MenuList>
-          </Paper>
+      {shown && !drill && (
+        <Popper anchorEl={shown.anchor} className="nested-menu-flyout" open={Boolean(flyout)} placement={shown.side === 'right' ? 'right-start' : 'left-start'} transition>
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps}>
+              <Paper className="nested-menu min-w-56">
+                <MenuList
+                  aria-label={shown.item.label}
+                  autoFocusItem={shown.focus}
+                  onKeyDown={(event: KeyboardEvent<HTMLUListElement>) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      close();
+                    } else if (event.key === 'ArrowLeft') {
+                      event.preventDefault();
+                      shown.anchor.focus();
+                      setFlyout(undefined);
+                    }
+                  }}
+                >
+                  {entries(shown.item.items, { close, open: () => undefined })}
+                </MenuList>
+              </Paper>
+            </Fade>
+          )}
         </Popper>
       )}
     </>

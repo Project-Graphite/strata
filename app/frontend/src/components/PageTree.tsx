@@ -3,6 +3,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Icon, useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { Reveal } from '../motion';
 import { childPagesPath, noteHref, noteTitle, onPagesChanged, pageHref, type ChildPages, type Note } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { useChosenSpace } from '../spaces';
@@ -100,7 +101,11 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = tr
                 <span className="min-w-0 flex-1 truncate">{title}</span>
               </Link>
             </div>
-            {note.hasChildren && expanded && <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />}
+            {note.hasChildren && (
+              <Reveal open={expanded}>
+                <TreeBranch depth={depth + 1} parentId={note.id} spaceId={spaceId} writable={writable} />
+              </Reveal>
+            )}
           </div>
         );
       })}

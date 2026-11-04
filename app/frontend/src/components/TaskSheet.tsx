@@ -231,7 +231,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       ) : (
         <div className="task-sheet-layout grid gap-6">
           <div className="task-sheet">
-            <div className="task-main grid min-w-0 content-start">
+            <div className="task-main stagger-in grid min-w-0 content-start">
               {task ? (
                 <TaskDescription editable={editable} key={task.id} onSave={(description) => save({ description })} taskId={task.id} value={values.description} />
               ) : (
@@ -257,7 +257,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                 </>
               )}
             </div>
-            <aside aria-label="Properties" className="task-properties">
+            <aside aria-label="Properties" className="task-properties stagger-in">
               <Select disabled={!editable} label="Status" onChange={(status) => save({ status })} options={[...taskStatuses]} value={values.status} />
               {namingType ? (
                 <TextField

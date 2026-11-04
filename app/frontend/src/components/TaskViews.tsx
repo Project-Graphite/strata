@@ -356,7 +356,7 @@ export function TaskBoard({
                   const details = taskDetails(task, where?.(task));
                   const done = Boolean(task.completedAt);
                   return (
-                    <Card as="li" className="task-card" interactive key={task.id} padding="sm">
+                    <Card as="li" className={`task-card ${done ? 'task-done' : ''}`} interactive key={task.id} padding="sm">
                       <div
                         className="flex items-start gap-2"
                         draggable={editable(task)}

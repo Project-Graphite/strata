@@ -139,6 +139,7 @@ export function NoteComments({
   const [replying, setReplying] = useState<string>();
   const [editing, setEditing] = useState<string>();
   const [showResolved, setShowResolved] = useState(false);
+  const [posted, setPosted] = useState<string>();
   const [deleting, setDeleting] = useState<{ id: string; replies: number; blockId: string | null }>();
   const commented = (comments.data ?? [])
     .filter((comment) => comment.blockId && !comment.parentId && !comment.resolvedAt)
@@ -169,6 +170,7 @@ export function NoteComments({
     action.run(async () => {
       const saved = await auth.request<NoteComment>(`/notes/${noteId}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId, blockId }) });
       comments.mutate((current) => [...current, saved]);
+      setPosted(saved.id);
       setReplying(undefined);
       if (blockId) onQuoteDone();
       return '';
@@ -207,7 +209,7 @@ export function NoteComments({
           ]
         : changes;
     return (
-      <div className="grid gap-1" key={comment.id}>
+      <div className="comment-entry grid gap-1" data-posted={posted === comment.id || undefined} key={comment.id}>
         <p className="m-0 text-small text-muted">
           {author} · {formatMoment(comment.createdAt)}
           {comment.editedAt ? ' · edited' : ''}
