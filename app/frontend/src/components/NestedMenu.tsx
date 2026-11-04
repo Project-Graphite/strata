@@ -62,6 +62,24 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
   ]);
 }
 
+export function ContextMenu({ at, items, label, onClose }: { at: { x: number; y: number }; items: NestedMenuItem[]; label: string; onClose: () => void }) {
+  return (
+    <MuiMenu
+      anchorPosition={{ left: at.x, top: at.y }}
+      anchorReference="anchorPosition"
+      onClose={onClose}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      open
+      slotProps={{ list: { 'aria-label': label }, paper: { className: 'nested-menu min-w-60' } }}
+    >
+      {entries(items, { close: onClose, open: () => undefined })}
+    </MuiMenu>
+  );
+}
+
 export function NestedMenu({ align = 'end', header, items, keepFocus = true, label, trigger, triggerClassName, triggerLabel }: { align?: 'start' | 'end'; header?: ReactNode; items: NestedMenuItem[]; keepFocus?: boolean; label: string; trigger: ReactNode; triggerClassName?: string; triggerLabel: string }) {
   const drill = useMediaQuery('(pointer: coarse), (max-width: 47.99rem)');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);

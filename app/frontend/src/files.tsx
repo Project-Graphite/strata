@@ -85,7 +85,7 @@ export function hasPreview(item: Item) {
   return Boolean(item.file && previewable(item.file.mimeType));
 }
 
-export function FilePreview({ item }: { item: Pick<Item, 'id'> }) {
+export function FilePreview({ className = 'h-14 w-14 shrink-0 rounded-field border border-line object-cover', item }: { className?: string; item: Pick<Item, 'id'> }) {
   const { request } = useAuth();
   const [url, setUrl] = useState('');
 
@@ -105,9 +105,9 @@ export function FilePreview({ item }: { item: Pick<Item, 'id'> }) {
   }, [item.id, request]);
 
   return url ? (
-    <img alt="" className="h-14 w-14 shrink-0 rounded-field border border-line object-cover" src={url} />
+    <img alt="" className={className} src={url} />
   ) : (
-    <span aria-hidden="true" className="h-14 w-14 shrink-0 rounded-field border border-line bg-surface" />
+    <span aria-hidden="true" className={`${className} bg-surface`} />
   );
 }
 

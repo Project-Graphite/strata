@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Badge, Checkbox, Icon, IconButton, Placeholder, TextField } from '@project-graphite/ui';
+import { Icon, Placeholder, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
-import { FilePreview, fileSize, filesTabs, previewable, saveBlob, uploadFiles, type DriveEntry, type DriveListing } from '../files';
-import { ActionsMenu } from '../components/ActionsMenu';
+import { filesTabs, saveBlob, uploadFiles, type DriveEntry, type DriveListing } from '../files';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
+import { FileBrowser, sortGroups, type BrowserSort } from '../components/FileBrowser';
 import { FileButton } from '../components/FileButton';
+import { FilterMenu } from '../components/FilterMenu';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
 import { ShareLinks } from '../components/ShareLinks';
 import { IconSkeleton, RowsSkeleton } from '../components/Skeletons';
-import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { required, useFormErrors } from '../validation';
@@ -107,44 +107,15 @@ export function DrivePage() {
   const [params] = useSearchParams();
   const folderId = params.get('folder');
   const listing = useResource<DriveListing>(`/me/drive${folderId ? `?folderId=${folderId}` : ''}`, true, { live: ['items'] });
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const anchor = useRef<number>(undefined);
+  const [sort, setSort] = useState<BrowserSort>({ key: 'name', descending: false });
   const [dialog, setDialog] = useState<{ kind: 'folder' } | { kind: 'rename' | 'share'; entry: DriveEntry } | { kind: 'move'; entries: DriveEntry[] }>();
   const [over, setOver] = useState<string | null>();
+  const picker = useRef<HTMLInputElement>(null);
   const entries = listing.data?.entries ?? [];
-  const chosen = entries.filter((entry) => selected.has(entry.id));
-
-  useEffect(() => {
-    setSelected(new Set());
-    anchor.current = undefined;
-  }, [folderId]);
-
-  useEffect(() => {
-    const clear = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !dialog) setSelected(new Set());
-    };
-    window.addEventListener('keydown', clear);
-    return () => window.removeEventListener('keydown', clear);
-  }, [dialog]);
-
-  function toggle(index: number, event: MouseEvent) {
-    const entry = entries[index]!;
-    setSelected((current) => {
-      const next = new Set(current);
-      if (event.shiftKey && anchor.current !== undefined) {
-        const [from, to] = [Math.min(anchor.current, index), Math.max(anchor.current, index)];
-        for (const ranged of entries.slice(from, to + 1)) next.add(ranged.id);
-      } else if (next.has(entry.id)) next.delete(entry.id);
-      else next.add(entry.id);
-      return next;
-    });
-    anchor.current = index;
-  }
 
   const move = (moved: DriveEntry[], target: string | null, name: string) =>
     void action.run(async () => {
       await auth.request('/me/drive/move', { method: 'POST', body: JSON.stringify({ itemIds: moved.map((entry) => entry.id), folderId: target }) });
-      setSelected(new Set());
       setDialog(undefined);
       listing.reload();
       return `Moved ${moved.length === 1 ? moved[0]!.name : counted(moved.length)} to ${name}.`;
@@ -154,7 +125,6 @@ export function DrivePage() {
     void action.run(async () => {
       const itemIds = trashed.map((entry) => entry.id);
       await auth.request('/me/drive/trash', { method: 'POST', body: JSON.stringify({ itemIds }) });
-      setSelected(new Set());
       listing.reload();
       return {
         message: `Moved ${trashed.length === 1 ? trashed[0]!.name : counted(trashed.length)} to the trash.`,
@@ -201,22 +171,13 @@ export function DrivePage() {
     },
   });
 
-  const menu = (entry: DriveEntry) => [
-    ...(entry.kind === 'folder'
-      ? [{ label: 'Open', onSelect: () => navigate(driveHref(entry.id)) }]
-      : [{ label: 'Download', onSelect: () => download([entry]) }]),
-    { label: 'Share', onSelect: () => setDialog({ kind: 'share', entry }) },
-    { label: 'Rename', onSelect: () => setDialog({ kind: 'rename', entry }) },
-    { label: 'Move to…', onSelect: () => setDialog({ kind: 'move', entries: [entry] }) },
-    { label: 'Move to trash', separated: true, onSelect: () => trash([entry]) },
-  ];
-
   const path = listing.data?.path ?? [];
 
   return (
     <Page
       actions={
         <>
+          <FilterMenu groups={sortGroups(sort, setSort)} label="Sort" large />
           <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />
           <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
         </>
@@ -235,109 +196,92 @@ export function DrivePage() {
           upload([...event.dataTransfer.files]);
         }}
       >
-        {selected.size > 0 ? (
-          <div aria-label="Selection" className="drive-selection" role="toolbar">
-            <IconButton icon="x" label="Clear the selection" onClick={() => setSelected(new Set())} />
-            <span className="mr-auto text-ink">{selected.size} selected</span>
-            {chosen.some((entry) => entry.kind === 'file') && <Button icon="download" label="Download" onClick={() => download(chosen)} />}
-            <Button icon="folder" label="Move to…" onClick={() => setDialog({ kind: 'move', entries: chosen })} />
-            <Button icon="trash" label="Move to trash" onClick={() => trash(chosen)} />
-          </div>
-        ) : (
-          <nav aria-label="Folder path" className="drive-path">
-            <Link className="drive-crumb" data-over={over === null || undefined} to={driveHref(null)} {...dropOn(null, 'Files')}>
-              Files
-            </Link>
-            {path.map((step, index) => (
-              <span className="contents" key={step.id}>
-                <Icon name="chevron-right" size={14} />
-                {index === path.length - 1 ? (
-                  <span aria-current="page" className="drive-crumb text-ink">
-                    {step.name}
-                  </span>
-                ) : (
-                  <Link className="drive-crumb" data-over={over === step.id || undefined} to={driveHref(step.id)} {...dropOn(step.id, step.name)}>
-                    {step.name}
-                  </Link>
-                )}
-              </span>
-            ))}
-          </nav>
-        )}
         {listing.error ? (
           <LoadError error={listing.error} onRetry={listing.reload} />
         ) : !listing.data ? (
           <Placeholder label="Loading your files">
             <RowsSkeleton lead={<IconSkeleton />} rows={4} />
           </Placeholder>
-        ) : entries.length === 0 ? (
-          <Empty
-            action={<FileButton busy={action.busy} inputLabel="Files to upload" label="Upload files" multiple onFiles={upload} />}
-            icon="folder"
-            title={folderId ? 'This folder is empty' : 'No files yet'}
-            variant="page"
-          >
-            Upload files or drop them here. Everything is private until you share it.
-          </Empty>
         ) : (
-          <ul aria-label="Files and folders" aria-multiselectable="true" className="panel-rows drive-rows" role="listbox">
-            <li className="drive-head" role="presentation">
-              <Checkbox
-                aria-label="Select everything here"
-                checked={selected.size === entries.length}
-                onChange={() => setSelected(selected.size === entries.length ? new Set() : new Set(entries.map((entry) => entry.id)))}
-              />
-              <span className="text-small text-muted">Name</span>
-            </li>
-            {entries.map((entry, index) => (
-              <li
-                aria-selected={selected.has(entry.id)}
-                className="list-row drive-row"
-                data-over={(entry.kind === 'folder' && over === entry.id) || undefined}
-                draggable
-                key={entry.id}
-                onDragStart={(event) => {
-                  const ids = selected.has(entry.id) ? [...selected] : [entry.id];
-                  event.dataTransfer.setData(dragType, JSON.stringify(ids));
-                  event.dataTransfer.effectAllowed = 'move';
-                }}
-                role="option"
-                {...(entry.kind === 'folder' ? dropOn(entry.id, entry.name) : {})}
-              >
-                <span className="list-row-lead">
-                  <Checkbox aria-label={`Select ${entry.name}`} checked={selected.has(entry.id)} onClick={(event) => toggle(index, event)} readOnly />
-                </span>
-                {entry.kind === 'folder' ? (
-                  <Link className="list-row-main" to={driveHref(entry.id)}>
-                    <span className="drive-icon">
-                      <Icon name="folder" size={18} />
-                    </span>
-                    <span className="list-row-text">
-                      <span className="list-row-title">{entry.name}</span>
-                      <span className="list-row-meta">Folder · {formatMoment(entry.updatedAt)}</span>
-                    </span>
-                  </Link>
-                ) : (
-                  <button className="list-row-main" onClick={() => download([entry])} type="button">
-                    <span className="drive-icon">{entry.mimeType && previewable(entry.mimeType) ? <FilePreview item={entry} /> : <Icon name="file" size={18} />}</span>
-                    <span className="list-row-text">
-                      <span className="list-row-title">{entry.name}</span>
-                      <span className="list-row-meta">{[entry.sizeBytes !== null && fileSize(entry.sizeBytes), formatMoment(entry.createdAt)].filter(Boolean).join(' · ')}</span>
-                    </span>
-                  </button>
-                )}
-                <span className="list-row-trail">
-                  {entry.shared && (
-                    <Badge icon="link" tone="muted">
-                      Shared
-                    </Badge>
-                  )}
-                  <ActionsMenu items={menu(entry)} name={entry.name} />
-                </span>
-              </li>
-            ))}
-          </ul>
+          <FileBrowser
+            backgroundMenu={[
+              { label: 'New folder', onSelect: () => setDialog({ kind: 'folder' }) },
+              { label: 'Upload files', onSelect: () => picker.current?.click() },
+            ]}
+            idle={
+              <nav aria-label="Folder path" className="drive-path">
+                <Link className="drive-crumb" data-over={over === null || undefined} to={driveHref(null)} {...dropOn(null, 'Files')}>
+                  Files
+                </Link>
+                {path.map((step, index) => (
+                  <span className="contents" key={step.id}>
+                    <Icon name="chevron-right" size={14} />
+                    {index === path.length - 1 ? (
+                      <span aria-current="page" className="drive-crumb text-ink">
+                        {step.name}
+                      </span>
+                    ) : (
+                      <Link className="drive-crumb" data-over={over === step.id || undefined} to={driveHref(step.id)} {...dropOn(step.id, step.name)}>
+                        {step.name}
+                      </Link>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            }
+            key={folderId ?? 'files'}
+            label="Files and folders"
+            menu={(selection) => [
+              ...(selection.length === 1 ? [{ icon: 'link' as const, label: 'Share', onSelect: () => setDialog({ kind: 'share', entry: selection[0]! }) }] : []),
+              ...(selection.some((entry) => entry.kind === 'file') ? [{ icon: 'download' as const, label: 'Download', onSelect: () => download(selection) }] : []),
+              ...(selection.length === 1 ? [{ label: 'Rename', onSelect: () => setDialog({ kind: 'rename', entry: selection[0]! }) }] : []),
+              { icon: 'folder', label: 'Move to…', onSelect: () => setDialog({ kind: 'move', entries: selection }) },
+              { icon: 'trash', label: 'Move to trash', separated: true, onSelect: () => trash(selection) },
+            ]}
+            onDelete={trash}
+            onDownload={download}
+            onOpenFolder={(folder) => navigate(driveHref(folder.id))}
+            onSort={setSort}
+            rowProps={(entry, selection) => ({
+              draggable: true,
+              onDragStart: (event) => {
+                event.dataTransfer.setData(dragType, JSON.stringify((selection.includes(entry) ? selection : [entry]).map((dragging) => dragging.id)));
+                event.dataTransfer.effectAllowed = 'move';
+              },
+              ...(entry.kind === 'folder' ? { 'data-over': over === entry.id || undefined, ...dropOn(entry.id, entry.name) } : {}),
+            })}
+            sections={[
+              {
+                key: 'here',
+                entries,
+                empty: (
+                  <Empty
+                    action={<FileButton busy={action.busy} inputLabel="Files to upload" label="Upload files" multiple onFiles={upload} />}
+                    icon="folder"
+                    title={folderId ? 'This folder is empty' : 'No files yet'}
+                    variant="page"
+                  >
+                    Upload files or drop them here. Everything is private until you share it.
+                  </Empty>
+                ),
+              },
+            ]}
+            sort={sort}
+          />
         )}
+        <input
+          aria-hidden="true"
+          className="sr-only"
+          multiple
+          onChange={(event) => {
+            const files = [...(event.currentTarget.files ?? [])];
+            event.currentTarget.value = '';
+            if (files.length) upload(files);
+          }}
+          ref={picker}
+          tabIndex={-1}
+          type="file"
+        />
       </div>
       {dialog?.kind === 'folder' && (
         <NameDialog

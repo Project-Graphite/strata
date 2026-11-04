@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Card, Icon, ListRow, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
+import { Card, Meter, Placeholder, Skeleton } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
-import { FilePreview, fileSize, filesTabs, maxUploadBytes, previewable, saveBlob, type FilesTab } from '../files';
-import { ActionsMenu } from '../components/ActionsMenu';
+import { fileSize, filesTabs, maxUploadBytes, saveBlob, type FilesTab } from '../files';
 import { Empty } from '../components/Empty';
+import { FileBrowser, sortGroups, type BrowserSort } from '../components/FileBrowser';
 import { FilterMenu } from '../components/FilterMenu';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { Page, Section } from '../components/Page';
+import { Page } from '../components/Page';
 import { itemHref, SpaceMark, useAllSpaces, type Space } from '../spaces';
-import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { HintSkeleton, IconButtonSkeleton, IconSkeleton, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
@@ -43,14 +42,6 @@ interface Storage {
   files: StoredFile[];
 }
 
-type Sort = 'newest' | 'name' | 'size';
-
-const sorters: Record<Sort, (a: StoredFile, b: StoredFile) => number> = {
-  newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
-  name: (a, b) => a.name.localeCompare(b.name),
-  size: (a, b) => b.sizeBytes - a.sizeBytes,
-};
-
 const counted = (count: number) => `${count} file${count === 1 ? '' : 's'}`;
 const kindNames: Record<string, string> = { task: 'task', note: 'page', board: 'board' };
 
@@ -59,79 +50,44 @@ export function FilesPage({ tab }: { tab: Exclude<FilesTab, 'files'> }) {
   const spaces = useAllSpaces();
   const action = useAction();
   const storage = useResource<Storage>('/me/storage', true, { live: ['items'] });
-  const [sort, setSort] = useState<Sort>('newest');
+  const [sort, setSort] = useState<BrowserSort>({ key: 'updatedAt', descending: true });
   const shown = storage.data;
-  const inSpaces = [...(shown?.files ?? [])].filter((file) => file.spaceId).sort(sorters[sort]);
+  const inSpaces = (shown?.files ?? [])
+    .filter((file) => file.spaceId)
+    .map((file) => ({
+      ...file,
+      kind: 'file' as const,
+      updatedAt: file.createdAt,
+      detail: file.attachedTo && `On the ${kindNames[file.attachedTo.kind] ?? 'item'} ${file.attachedTo.title || 'Untitled'}`,
+    }));
   const [fileRows] = useRememberedShape('files', shown && [inSpaces.length], [4]);
-  const writable = (spaceId: string | null) => spaces.data?.some((space) => space.id === spaceId && space.role !== 'viewer');
+  const writable = (file: StoredFile) => spaces.data?.some((space) => space.id === file.spaceId && space.role !== 'viewer');
 
-  const row = (file: StoredFile) => (
-    <ListRow
-      key={file.id}
-      lead={previewable(file.mimeType) ? <FilePreview item={file} /> : <Icon name="file" size={18} />}
-      meta={[fileSize(file.sizeBytes), formatMoment(file.createdAt), file.attachedTo && `on the ${kindNames[file.attachedTo.kind] ?? 'item'} ${file.attachedTo.title || 'Untitled'}`]
-        .filter(Boolean)
-        .join(' · ')}
-      title={file.name}
-      trail={
-        <ActionsMenu
-          items={[
-            {
-              label: 'Download',
-              onSelect: () =>
-                void action.run(async () => {
-                  saveBlob(await auth.request<Blob>(`/files/${file.id}`, {}, readBlob), file.name);
-                  return '';
-                }, 'Could not download the file'),
-            },
-            ...(file.attachedTo && itemHref(file.attachedTo) ? [{ label: `Open the ${kindNames[file.attachedTo.kind] ?? 'item'}`, href: itemHref(file.attachedTo)! }] : []),
-            ...(writable(file.spaceId)
-              ? [
-                  {
-                    label: 'Move to trash',
-                    separated: true,
-                    onSelect: () =>
-                      void action.run(async () => {
-                        await auth.request(`/items/${file.id}/trash`, { method: 'POST' });
-                        storage.reload();
-                        return {
-                          message: `Moved ${file.name} to the trash.`,
-                          undo: async () => {
-                            await auth.request(`/items/${file.id}/restore`, { method: 'POST' });
-                            storage.reload();
-                            return '';
-                          },
-                        };
-                      }, 'Could not move the file to the trash'),
-                  },
-                ]
-              : []),
-          ]}
-          name={file.name}
-        />
-      }
-    />
-  );
+  const download = (files: StoredFile[]) =>
+    void action.run(async () => {
+      for (const file of files) saveBlob(await auth.request<Blob>(`/files/${file.id}`, {}, readBlob), file.name);
+      return '';
+    }, 'Could not download the files');
+
+  const trash = (files: StoredFile[]) => {
+    const trashed = files.filter(writable);
+    if (trashed.length === 0) return;
+    void action.run(async () => {
+      await Promise.all(trashed.map((file) => auth.request(`/items/${file.id}/trash`, { method: 'POST' })));
+      storage.reload();
+      return {
+        message: `Moved ${trashed.length === 1 ? trashed[0]!.name : counted(trashed.length)} to the trash.`,
+        undo: async () => {
+          await Promise.all(trashed.map((file) => auth.request(`/items/${file.id}/restore`, { method: 'POST' })));
+          storage.reload();
+          return '';
+        },
+      };
+    }, 'Could not move the files to the trash');
+  };
 
   return (
-    <Page
-      tabs={filesTabs(tab)}
-      title="Files"
-      toolbar={
-        tab === 'spaces' &&
-        inSpaces.length > 1 && (
-          <FilterMenu
-            groups={[
-              {
-                label: 'Sort by',
-                options: (['newest', 'name', 'size'] as const).map((value) => ({ active: sort === value, label: { newest: 'Newest', name: 'Name', size: 'Size' }[value], onSelect: () => setSort(value) })),
-              },
-            ]}
-            label="Sort files"
-          />
-        )
-      }
-    >
+    <Page actions={tab === 'spaces' && <FilterMenu groups={sortGroups(sort, setSort)} label="Sort" large />} tabs={filesTabs(tab)} title="Files">
       {storage.error ? (
         <LoadError error={storage.error} onRetry={storage.reload} />
       ) : !shown ? (
@@ -151,22 +107,37 @@ export function FilesPage({ tab }: { tab: Exclude<FilesTab, 'files'> }) {
       ) : (spaces.data ?? []).length === 0 ? (
         <Empty title="No spaces">Images and attachments you add to pages and tasks in a space show here.</Empty>
       ) : (
-        <Section description="Images and attachments added to pages and tasks stay with their space, and count toward your storage." title="In your spaces">
-          {(spaces.data ?? []).map((space) => {
-            const files = inSpaces.filter((file) => file.spaceId === space.id);
+        <FileBrowser
+          idle={<Hint>Images and attachments added to pages and tasks stay with their space, and count toward your storage.</Hint>}
+          label="Files in your spaces"
+          menu={(selection) => {
+            const attached = selection.length === 1 ? selection[0]!.attachedTo : null;
+            return [
+              { icon: 'download', label: 'Download', onSelect: () => download(selection) },
+              ...(attached && itemHref(attached) ? [{ label: `Open the ${kindNames[attached.kind] ?? 'item'}`, href: itemHref(attached)! }] : []),
+              ...(selection.some(writable) ? [{ icon: 'trash' as const, label: 'Move to trash', separated: true, onSelect: () => trash(selection) }] : []),
+            ];
+          }}
+          onDelete={trash}
+          onDownload={download}
+          onSort={setSort}
+          sections={(spaces.data ?? []).map((space) => {
             const home = shown.homes.find((candidate) => candidate.spaceId === space.id);
-            return (
-              <details className="files-group" key={space.id} open={files.length > 0}>
-                <summary>
+            return {
+              key: space.id,
+              heading: (
+                <>
                   <SpaceMark space={space} />
                   <span className="min-w-0 flex-1 truncate text-ink">{space.name}</span>
                   <span className="shrink-0 text-small text-muted tabular-nums">{home ? `${counted(home.count)} · ${fileSize(home.sizeBytes)}` : 'No files'}</span>
-                </summary>
-                {files.length === 0 ? <Hint>Nothing you added to pages or tasks in {space.name} is a file yet.</Hint> : <ul className="panel-rows">{files.map(row)}</ul>}
-              </details>
-            );
+                </>
+              ),
+              entries: inSpaces.filter((file) => file.spaceId === space.id),
+              empty: <Hint>Nothing you added to pages or tasks in {space.name} is a file yet.</Hint>,
+            };
           })}
-        </Section>
+          sort={sort}
+        />
       )}
     </Page>
   );

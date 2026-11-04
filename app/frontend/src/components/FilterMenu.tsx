@@ -31,7 +31,7 @@ function OptionText({ option }: { option: FilterOption }) {
   );
 }
 
-export function FilterMenu({ children, groups, label }: { children?: ReactNode; groups: FilterGroup[]; label: string }) {
+export function FilterMenu({ children, groups, label, large = false }: { children?: ReactNode; groups: FilterGroup[]; label: string; large?: boolean }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const close = () => setAnchor(null);
   const summary = groups
@@ -46,7 +46,7 @@ export function FilterMenu({ children, groups, label }: { children?: ReactNode; 
         className="w-fit max-w-full shrink-0"
         icon="filter"
         onClick={(event: { currentTarget: HTMLElement }) => setAnchor(anchor ? null : event.currentTarget)}
-        size="small"
+        size={large ? 'medium' : 'small'}
         title={label}
         type="button"
         variant="secondary"
