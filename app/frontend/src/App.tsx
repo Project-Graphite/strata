@@ -170,6 +170,7 @@ export function App() {
             <Route path="invite/:code" element={<InvitePage />} />
             <Route path="rsvp/:code" element={<RsvpPage />} />
             <Route path="share/:code" element={<SharePage />} />
+            <Route path="s/:code" element={<SharePage />} />
             {legacyRoutes.map(([path, to]) => (
               <Route element={<Moved to={to} />} key={path} path={path} />
             ))}

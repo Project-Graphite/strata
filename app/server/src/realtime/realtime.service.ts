@@ -13,7 +13,7 @@ import { AccessService } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
 import { ChangesService } from '../changes/changes.service';
-import { linkTokenHash } from '../crypto/link-token';
+import { liveShareLink, unexpiredLink } from '../share-links/live-share-link';
 import { boardElementsKey, documentLinks, documentText, pageKinds, updateLinks } from '../notes/document-text';
 import { boardThumbnail } from '../notes/board-thumbnail';
 import { maxDocumentBytes } from '../notes/document-limits';
@@ -30,6 +30,9 @@ const recheckMs = 60_000;
 const versionEveryMs = 15 * 60 * 1000;
 const maxLinksPerNote = 200;
 const editingMs = 5_000;
+const removedMs = 60 * 60 * 1000;
+const awayMs = 30 * 60 * 1000;
+const viewerKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface BoardVersion {
   version?: number;
@@ -38,10 +41,16 @@ interface BoardVersion {
 
 export const guestTokenPrefix = 'share:';
 
-export type RealtimeContext = { userId: string; role: SpaceRole; signedInAt?: Date; name?: string; restrictedReferences?: boolean } | { userId: null; shareLinkId: string };
+export type RealtimeContext =
+  | { userId: string; role: SpaceRole; signedInAt?: Date; name?: string; restrictedReferences?: boolean; managesSharing?: boolean }
+  | { userId: null; shareLinkId: string; presenceId: string; name: string };
 
 function openerOf(context: RealtimeContext) {
   return context.userId === null ? `link/${context.shareLinkId}` : context.userId;
+}
+
+function presenceIdOf(context: RealtimeContext) {
+  return context.userId === null ? context.presenceId : `member/${context.userId}`;
 }
 
 function candidateLinks(document: Y.Doc, update: Uint8Array) {
@@ -70,8 +79,9 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   private readonly openDocuments = new Map<string, Set<string>>();
   private readonly savedSnapshots = new Map<string, Y.Snapshot>();
   private readonly lastEditors = new Map<string, RealtimeContext>();
-  private readonly activity = new Map<Connection<RealtimeContext>, { activeAt: number; editedAt: number; idle: boolean }>();
+  private readonly activity = new Map<Connection<RealtimeContext>, { activeAt: number; presentAt: number; editedAt: number; idle: boolean }>();
   private readonly presencePayloads = new Map<string, string>();
+  private readonly removed = new Map<string, number>();
   private closing = false;
   private pendingShutdown?: Promise<void>;
   private readonly trustedOrigins: string[];
@@ -100,8 +110,9 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
       onAuthenticate: async ({ connectionConfig, documentName, requestParameters, socketId, token }) => {
         if (Number(requestParameters.get('format')) < editorFormat) throw Object.assign(new Error('outdated'), { reason: 'outdated' });
         const { context, readOnly } = token.startsWith(guestTokenPrefix)
-          ? await this.guest(token.slice(guestTokenPrefix.length), documentName)
+          ? await this.guest(token.slice(guestTokenPrefix.length), documentName, requestParameters.get('viewer'), socketId)
           : await this.member(token, documentName);
+        if ((this.removed.get(`${documentName} ${presenceIdOf(context)}`) ?? 0) > Date.now()) throw Object.assign(new Error('removed'), { reason: 'removed' });
         const opener = openerOf(context);
         const open = this.openDocuments.get(opener) ?? new Set<string>();
         const key = `${socketId}/${documentName}`;
@@ -118,7 +129,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         return document;
       },
       connected: async ({ connection }) => {
-        this.activity.set(connection, { activeAt: Date.now(), editedAt: 0, idle: false });
+        this.activity.set(connection, { activeAt: Date.now(), presentAt: Date.now(), editedAt: 0, idle: false });
         this.sendPresence(connection.document);
         this.sendSaved(connection.document);
         await this.sendTitle(connection);
@@ -128,9 +139,16 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
           const activity = this.activity.get(connection);
           if (activity) {
             activity.activeAt = Date.now();
+            if (payload === 'active') activity.presentAt = Date.now();
             activity.idle = payload === 'idle';
             this.sendPresence(connection.document, true);
           }
+          return;
+        }
+        if (payload.startsWith('{')) {
+          const { type, id } = JSON.parse(payload) as { type?: unknown; id?: unknown };
+          const context = connection.context as RealtimeContext;
+          if (type === 'remove' && typeof id === 'string' && context.userId !== null && context.managesSharing) this.removeViewer(connection.document, id);
           return;
         }
         if (payload === 'retry-save' && !connection.readOnly) {
@@ -162,7 +180,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (states.size > 1) throw new Error('Send only your own presence');
         for (const state of states.values()) {
           if (JSON.stringify(state).length > 4096) throw new Error('Presence is too large');
-          state.user = { id: context.userId === null ? `guest/${connection.socketId}` : `member/${context.userId}`, name: context.userId === null ? 'Guest' : context.name, color: /^#[0-9a-f]{6}$/i.test(state.user?.color) ? state.user.color : '#6a9eea' };
+          state.user = { id: presenceIdOf(context), name: context.name, color: /^#[0-9a-f]{6}$/i.test(state.user?.color) ? state.user.color : '#6a9eea' };
         }
       },
       afterUnloadDocument: async ({ documentName }) => {
@@ -178,6 +196,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         if (activity && !connection.readOnly) {
           const wasEditing = !activity.idle && Date.now() - activity.editedAt < editingMs;
           activity.activeAt = Date.now();
+          activity.presentAt = Date.now();
           activity.editedAt = Date.now();
           activity.idle = false;
           if (!wasEditing) this.sendPresence(document, true);
@@ -232,16 +251,18 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   }
 
   private sendPresence(document: Document, changedOnly = false) {
-    const people = new Map<string, { id: string; name: string; access: 'view' | 'edit'; guest: boolean; activity: 'reading' | 'editing' | 'idle' }>();
+    const people = new Map<string, { id: string; name: string; access: 'view' | 'edit'; guest: boolean; link: boolean; manages: boolean; activity: 'reading' | 'editing' | 'idle' }>();
     for (const connection of document.getConnections()) {
       const context = connection.context as RealtimeContext;
-      const id = context.userId === null ? `guest/${connection.socketId}` : `member/${context.userId}`;
+      const id = presenceIdOf(context);
       const activity = this.activity.get(connection);
       const state = !activity || activity.idle || Date.now() - activity.activeAt > 45_000 ? 'idle' : !connection.readOnly && Date.now() - activity.editedAt < editingMs ? 'editing' : 'reading';
       const previous = people.get(id);
       people.set(id, {
-        id, name: context.userId === null ? 'Guest' : context.name ?? 'Member',
-        access: !connection.readOnly || previous?.access === 'edit' ? 'edit' : 'view', guest: context.userId === null,
+        id, name: context.name ?? 'Member',
+        access: !connection.readOnly || previous?.access === 'edit' ? 'edit' : 'view', guest: id.startsWith('guest/'),
+        link: context.userId === null && (previous?.link ?? true),
+        manages: (context.userId !== null && Boolean(context.managesSharing)) || Boolean(previous?.manages),
         activity: previous?.activity === 'editing' || state === 'editing' ? 'editing' : previous?.activity === 'reading' || state === 'reading' ? 'reading' : 'idle',
       });
     }
@@ -269,10 +290,15 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => this.upgrade(request, socket, head));
     this.recheck = setInterval(() => void this.recheckAccess().catch((error: unknown) => this.logger.error('Could not recheck live page access', error)), recheckMs);
     this.recheck.unref();
-    this.presenceTimer = setInterval(() => {
-      for (const document of this.hocuspocus.documents.values()) this.sendPresence(document, true);
-    }, 5_000);
+    this.presenceTimer = setInterval(() => this.sweepPresence(), 5_000);
     this.presenceTimer.unref();
+  }
+
+  sweepPresence() {
+    const now = Date.now();
+    for (const [key, until] of this.removed) if (until <= now) this.removed.delete(key);
+    for (const [connection, activity] of this.activity) if (connection.context.userId === null && now - activity.presentAt > awayMs) connection.close({ code: 4408, reason: 'Inactive' });
+    for (const document of this.hocuspocus.documents.values()) this.sendPresence(document, true);
   }
 
   onModuleDestroy() {
@@ -409,7 +435,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         continue;
       }
       const page = access(name, context.userId);
-      if (page?.role !== context.role || !page.permissions.organize !== context.restrictedReferences) connection.close({ code: 4403, reason: 'Access changed' });
+      if (page?.role !== context.role || !page.permissions.organize !== context.restrictedReferences || page.permissions.share !== context.managesSharing) connection.close({ code: 4403, reason: 'Access changed' });
     }
   }
 
@@ -428,28 +454,43 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
     }
   }
 
-  private async member(token: string, documentName: string) {
+  private removeViewer(document: Document, presenceId: string) {
+    const connections = document.getConnections().filter((connection) => presenceIdOf(connection.context as RealtimeContext) === presenceId);
+    if (connections.some((connection) => { const context = connection.context as RealtimeContext; return context.userId !== null && context.managesSharing; })) return;
+    this.removed.set(`${document.name} ${presenceId}`, Date.now() + removedMs);
+    for (const connection of connections) connection.close({ code: 4403, reason: 'Removed' });
+  }
+
+  private async session(token: string) {
     const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret: this.accessTokenSecret, algorithms: ['HS256'] });
     const user = await this.sessions.validate(payload);
+    const { signedInAt, user: profile } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true, user: { select: { displayName: true } } } });
+    return { user, signedInAt, name: profile.displayName };
+  }
+
+  private async member(token: string, documentName: string) {
+    const { user, signedInAt, name } = await this.session(token);
     const found = await this.pages.assertPage(user.id, documentName, 'read');
     const item = await this.prisma.item.findUniqueOrThrow({ where: { id: documentName }, select: { kind: true } });
     if (!pageKinds.includes(item.kind) || found.trashedAt) throw new Error('Only pages and boards can be opened here');
-    const { signedInAt, user: profile } = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: payload.sid }, select: { signedInAt: true, user: { select: { displayName: true } } } });
-    return { context: { userId: user.id, role: found.role, signedInAt, name: profile.displayName, restrictedReferences: !found.permissions.organize }, readOnly: found.role === SpaceRole.VIEWER };
+    return { context: { userId: user.id, role: found.role, signedInAt, name, restrictedReferences: !found.permissions.organize, managesSharing: found.permissions.share }, readOnly: found.role === SpaceRole.VIEWER };
   }
 
-  private async guest(code: string, documentName: string) {
+  private async guest(credentials: string, documentName: string, viewerKey: string | null, socketId: string) {
+    const [code = '', token] = credentials.split(':');
     const link = await this.prisma.shareLink.findFirst({
-      where: { tokenHash: linkTokenHash(code), itemId: documentName, revokedAt: null, expiresAt: { gt: new Date() }, item: { kind: { in: pageKinds }, trashedAt: null } },
+      where: { ...liveShareLink(code), itemId: documentName, item: { kind: { in: pageKinds }, trashedAt: null } },
       select: { id: true, access: true },
     });
     if (!link) throw new Error('This link has expired or was turned off');
-    return { context: { userId: null, shareLinkId: link.id }, readOnly: link.access !== ShareAccess.EDIT };
+    const viewer = token ? await this.session(token) : null;
+    const presenceId = viewer ? `member/${viewer.user.id}` : `guest/${viewerKey && viewerKeyPattern.test(viewerKey) ? viewerKey : socketId}`;
+    return { context: { userId: null, shareLinkId: link.id, presenceId, name: viewer?.name ?? 'Guest' }, readOnly: link.access !== ShareAccess.EDIT };
   }
 
   private async liveShareLinks(ids: string[]) {
     if (ids.length === 0) return new Set<string>();
-    const live = await this.prisma.shareLink.findMany({ where: { id: { in: ids }, revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } }, select: { id: true } });
+    const live = await this.prisma.shareLink.findMany({ where: { id: { in: ids }, ...unexpiredLink(), item: { trashedAt: null } }, select: { id: true } });
     return new Set(live.map((link) => link.id));
   }
 

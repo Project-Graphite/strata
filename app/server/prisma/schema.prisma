@@ -425,7 +425,8 @@ model ShareLink {
   itemId      String      @map("item_id") @db.Uuid
   access      ShareAccess
   tokenHash   String      @unique @map("token_hash")
-  expiresAt   DateTime    @map("expires_at")
+  slug        String?     @unique
+  expiresAt   DateTime?   @map("expires_at")
   revokedAt   DateTime?   @map("revoked_at")
   createdById String?     @map("created_by") @db.Uuid
   createdAt   DateTime    @default(now()) @map("created_at")

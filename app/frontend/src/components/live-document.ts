@@ -13,7 +13,9 @@ export interface Connection {
   provider: HocuspocusProvider;
   guest: boolean;
   drafts?: LocalPageDraft;
-  refused?: 'closed' | 'outdated' | 'restricted' | 'oversized';
+  refused?: 'closed' | 'outdated' | 'restricted' | 'oversized' | 'removed' | 'inactive';
+  leave: () => void;
+  rejoin: () => void;
 }
 
 export interface Person {
@@ -21,11 +23,24 @@ export interface Person {
   name: string;
   access: 'view' | 'edit';
   guest: boolean;
+  link: boolean;
+  manages: boolean;
   activity: 'reading' | 'editing' | 'idle';
 }
 
 const colors = ['#e5736b', '#e0915a', '#d7b24a', '#5fbf7f', '#4fb8b0', '#6a9eea', '#a388e8', '#e07fb5'];
 const tokenUnavailableReason = 'Session renewal unavailable';
+const viewerKeyName = 'strata-viewer-key';
+
+function viewerKey() {
+  try {
+    const key = localStorage.getItem(viewerKeyName) ?? crypto.randomUUID();
+    localStorage.setItem(viewerKeyName, key);
+    return key;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 
 export function colorFor(id: string) {
   let hash = 0;
@@ -37,6 +52,7 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
   const auth = useAuth();
   const userId = auth.user?.id;
   const [connection, setConnection] = useState<Connection>();
+  const [visit, setVisit] = useState(0);
   const accessToken = useRef(auth.accessToken);
   accessToken.current = auth.accessToken;
   const titleChanged = useRef(onTitle);
@@ -51,16 +67,17 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
     let renewalDelay = 1_000;
     let renewalTimer: number | undefined;
     const drafts = !shareCode && localDrafts ? new LocalPageDraft(`strata-note-v${editorFormat}-${userId}-${noteId}`, document, [`strata-note-v6-${userId}-${noteId}`, `strata-note-v5-${userId}-${noteId}`, `strata-note-v4-${userId}-${noteId}`,`strata-note-${userId}-${noteId}`]) : undefined;
-    const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}` });
+    const websocketProvider = new HocuspocusProviderWebsocket({ url: `${realtimeUrl()}?format=${editorFormat}${shareCode ? `&viewer=${viewerKey()}` : ''}` });
     const provider = new HocuspocusProvider({
       name: noteId,
       document,
       websocketProvider,
       flushDelay: 16,
       token: async () => {
-        if (shareCode) return `share:${shareCode}`;
+        if (shareCode && !userId) return `share:${shareCode}`;
         try {
-          return await accessToken.current();
+          const session = await accessToken.current();
+          return shareCode ? `share:${shareCode}:${session}` : session;
         } catch (error) {
           renewalDelay = Math.max(Math.min(30_000, 1_000 * 2 ** Math.min(5, renewalFailures)), error instanceof ApiError ? (error.retryAfter ?? 0) * 1_000 : 0);
           renewalFailures += 1;
@@ -80,11 +97,13 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
           websocketProvider.disconnect();
           window.clearTimeout(renewalTimer);
           renewalTimer = window.setTimeout(() => { if (active) void websocketProvider.connect(); }, renewalDelay);
-        } else refuse(reason === 'outdated' ? 'outdated' : 'closed');
+        } else refuse(reason === 'outdated' || reason === 'removed' ? reason : 'closed');
       },
       onAuthenticated: () => { renewalFailures = 0; window.clearTimeout(renewalTimer); },
       onClose: ({ event }) => {
         if (event.reason === 'Access changed' || event.reason === 'Signed out') refuse('closed');
+        else if (event.reason === 'Removed') refuse('removed');
+        else if (event.reason === 'Inactive') refuse('inactive');
         else if (event.reason === 'Edit rejected') refuse('restricted');
         else if (event.code === 1009) refuse('oversized');
         else if (event.reason === 'This page is too large') websocketProvider.disconnect();
@@ -97,7 +116,7 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
       websocketProvider.disconnect();
     }
     provider.attach();
-    setConnection({ document, provider, guest: Boolean(shareCode), drafts });
+    setConnection({ document, provider, guest: Boolean(shareCode), drafts, leave: () => refuse('inactive'), rejoin: () => setVisit((count) => count + 1) });
     return () => {
       active = false;
       window.clearTimeout(renewalTimer);
@@ -106,12 +125,13 @@ export function useLiveDocument(noteId: string, { shareCode, onTitle, localDraft
       drafts?.destroy();
       document.destroy();
     };
-  }, [noteId, shareCode, userId, localDrafts]);
+  }, [noteId, shareCode, userId, localDrafts, visit]);
 
   return connection;
 }
 
 export function useLiveStatus(connection: Connection, editable: boolean) {
+  const userId = useAuth().user?.id;
   const draftStatus = useSyncExternalStore(connection.drafts?.subscribe ?? (() => () => {}), () => connection.drafts?.status);
   const [people, setPeople] = useState<Person[]>([]);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>(connection.provider.isSynced ? 'connected' : 'connecting');
@@ -202,6 +222,8 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
           closed: 'Access changed. Reload the page to continue',
           restricted: 'This edit needs member access. Reload the page to continue',
           oversized: 'That change is too large to send. Download the draft to recover it as smaller pages',
+          removed: 'You were removed from this page. Try again in an hour',
+          inactive: 'You were away, so this page closed. Reload to rejoin',
         }[connection.refused]
       : failure
         ? {
@@ -220,9 +242,11 @@ export function useLiveStatus(connection: Connection, editable: boolean) {
             ? 'Saved'
             : 'View only';
   const canRetry = editable && failure === 'save-failed' && status === 'connected' && !blocked;
+  const managing = !connection.guest && people.some((person) => person.id === `member/${userId}` && person.manages);
   return {
     label,
     people: blocked ? [] : people,
+    remove: managing ? (person: Person) => connection.provider.sendStateless(JSON.stringify({ type: 'remove', id: person.id })) : undefined,
     blocked,
     canRetry,
     retrying,

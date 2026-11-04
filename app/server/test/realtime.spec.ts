@@ -23,7 +23,7 @@ function write(document: Y.Doc, text: string) {
 interface Peer {
   document: Y.Doc;
   provider: HocuspocusProvider;
-  messages: { type: string; title?: string; updatedAt?: string; snapshot?: string; people?: { id: string; name: string; access: string; guest: boolean; activity: string }[] }[];
+  messages: { type: string; title?: string; updatedAt?: string; snapshot?: string; people?: { id: string; name: string; access: string; guest: boolean; link: boolean; manages: boolean; activity: string }[] }[];
   closed: string[];
   socket: HocuspocusProviderWebsocket;
 }
@@ -56,8 +56,8 @@ describe('live shared documents', () => {
       { httpAdapter: { getHttpServer: () => server } } as never,
       {
         shareLink: {
-          findFirst: async ({ where }: { where: { tokenHash: string; itemId: string } }) => {
-            const link = links.get(where.tokenHash);
+          findFirst: async ({ where }: { where: { itemId: string } }) => {
+            const link = links.get(JSON.stringify(where).match(/"tokenHash":"([0-9a-f]+)"/)?.[1] ?? '');
             return link && link.itemId === where.itemId && !link.revokedAt && link.expiresAt > new Date() ? link : null;
           },
           findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
@@ -82,7 +82,7 @@ describe('live shared documents', () => {
           },
         },
         refreshSession: {
-          findUniqueOrThrow: async () => ({ signedInAt, user: { displayName: 'Member' } }),
+          findUniqueOrThrow: async ({ where }: { where: { id: string } }) => ({ signedInAt, user: { displayName: where.id === 'reader' ? 'Reader' : 'Member' } }),
           findMany: async ({ where }: { where: { userId: { in: string[] } } }) => {
             accessQueries += 1;
             return where.userId.in.map((userId) => ({ userId, signedInAt }));
@@ -98,15 +98,15 @@ describe('live shared documents', () => {
         },
       } as never,
       { assertItem: async () => ({ role: SpaceRole.OWNER, trashedAt: null }) } as never,
-      { verifyAsync: async (token: string) => ({ sub: token, sid: 'session' }) } as never,
+      { verifyAsync: async (token: string) => ({ sub: token, sid: token }) } as never,
       { validate: async ({ sub }: { sub: string }) => ({ id: sub }) } as never,
       { notify: () => undefined } as never,
       new ConfigService({ AUTH_TRUSTED_ORIGINS: 'http://localhost:4104', AUTH_ACCESS_TOKEN_SECRET: 'test-realtime-secret' }),
       {
-        assertPage: async () => ({ role: SpaceRole.OWNER, trashedAt: null, permissions: { organize: true } }),
+        assertPage: async (userId: string) => ({ role: SpaceRole.OWNER, trashedAt: null, permissions: { organize: true, share: userId === 'member' } }),
         openPageAccess: async () => {
           accessQueries += 1;
-          return () => ({ role: SpaceRole.OWNER, permissions: { organize: true } });
+          return (_itemId: string, userId: string) => ({ role: SpaceRole.OWNER, permissions: { organize: true, share: userId === 'member' } });
         },
       } as never,
     );
@@ -126,10 +126,10 @@ describe('live shared documents', () => {
     await vi.waitFor(() => expect(realtime.hocuspocus.documents.size).toBe(0));
   });
 
-  function open(token: string, name = 'page', document = new Y.Doc()) {
+  function open(token: string, name = 'page', document = new Y.Doc(), query = '') {
     const messages: Peer['messages'] = [];
     const closed: string[] = [];
-    const socket = new HocuspocusProviderWebsocket({ url: base, WebSocketPolyfill: TrustedSocket });
+    const socket = new HocuspocusProviderWebsocket({ url: `${base}${query}`, WebSocketPolyfill: TrustedSocket });
     return new Promise<Peer>((resolve, reject) => {
       const provider = new HocuspocusProvider({
         name,
@@ -219,9 +219,9 @@ describe('live shared documents', () => {
     host.provider.sendStateless('status');
     await vi.waitFor(() => {
       expect(host.messages.filter((message) => message.type === 'presence').at(-1)?.people).toEqual([
-        { id: 'member/member', name: 'Member', access: 'edit', guest: false, activity: 'reading' },
-        { id: expect.stringMatching(/^guest\//), name: 'Guest', access: 'view', guest: true, activity: 'reading' },
-        { id: expect.stringMatching(/^guest\//), name: 'Guest', access: 'view', guest: true, activity: 'reading' },
+        { id: 'member/member', name: 'Member', access: 'edit', guest: false, link: false, manages: true, activity: 'reading' },
+        { id: expect.stringMatching(/^guest\//), name: 'Guest', access: 'view', guest: true, link: true, manages: false, activity: 'reading' },
+        { id: expect.stringMatching(/^guest\//), name: 'Guest', access: 'view', guest: true, link: true, manages: false, activity: 'reading' },
       ]);
     });
     viewer.provider.setAwarenessField('user', { id: 'member/member', name: 'Pretend owner', color: 'invalid' });
@@ -237,6 +237,45 @@ describe('live shared documents', () => {
     viewer.socket.disconnect();
     viewer.socket.destroy();
     await vi.waitFor(() => expect(host.messages.filter((message) => message.type === 'presence').at(-1)?.people).toHaveLength(2));
+  });
+
+  it('lets a page manager remove a viewer for an hour and ignores removals by anyone else', async () => {
+    const viewerKey = '&viewer=6f1c2a8e-0d3b-4c5a-9e7f-1a2b3c4d5e6f';
+    const host = await open('member');
+    const other = await open('other');
+    const viewer = await open(guest('page-VIEW'), 'page', new Y.Doc(), viewerKey);
+    const people = () => host.messages.filter((message) => message.type === 'presence').at(-1)?.people;
+    await vi.waitFor(() => expect(people()).toHaveLength(3));
+    const viewerId = people()!.find((person) => person.guest)!.id;
+    expect(viewerId).toBe('guest/6f1c2a8e-0d3b-4c5a-9e7f-1a2b3c4d5e6f');
+    const answered = other.messages.length;
+    other.provider.sendStateless(JSON.stringify({ type: 'remove', id: viewerId }));
+    other.provider.sendStateless(JSON.stringify({ type: 'remove', id: 'member/member' }));
+    host.provider.sendStateless(JSON.stringify({ type: 'remove', id: 'member/member' }));
+    other.provider.sendStateless('status');
+    await vi.waitFor(() => expect(other.messages.length).toBeGreaterThan(answered));
+    expect([viewer.closed, host.closed, other.closed]).toEqual([[], [], []]);
+    host.provider.sendStateless(JSON.stringify({ type: 'remove', id: viewerId }));
+    await vi.waitFor(() => expect(viewer.closed).toContain('Removed'));
+    await expect(open(guest('page-VIEW'), 'page', new Y.Doc(), viewerKey)).rejects.toThrow('removed');
+    await open(guest('page-VIEW'));
+    const later = Date.now() + 61 * 60 * 1000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(later);
+    realtime.sweepPresence();
+    clock.mockRestore();
+    await open(guest('page-VIEW'), 'page', new Y.Doc(), viewerKey);
+  });
+
+  it('names signed-in link viewers and closes link sessions that stay away', async () => {
+    const host = await open('member');
+    const reader = await open(guest('page-VIEW:reader'));
+    const people = () => host.messages.filter((message) => message.type === 'presence').at(-1)?.people;
+    await vi.waitFor(() => expect(people()).toContainEqual({ id: 'member/reader', name: 'Reader', access: 'view', guest: false, link: true, manages: false, activity: 'reading' }));
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31 * 60 * 1000);
+    realtime.sweepPresence();
+    clock.mockRestore();
+    await vi.waitFor(() => expect(reader.closed).toContain('Inactive'));
+    expect(host.closed).toEqual([]);
   });
 
   it('sends a burst of collaborator pointer moves to each connection as a few batched frames', async () => {

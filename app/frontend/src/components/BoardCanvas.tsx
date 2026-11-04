@@ -13,6 +13,7 @@ import { Button, IconLink } from './Button';
 import { boardImage } from './board-files';
 import { useFileSource } from './file-source';
 import { boardTemplates } from './board-templates';
+import { useCollaboratorsHidden } from './collaborator-visibility';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
 import { downloadPageDraft } from '../page-draft';
@@ -123,6 +124,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   const auth = useAuth();
   const show = useSnackbar();
   const status = useLiveStatus(connection, editable);
+  const hideCollaborators = useCollaboratorsHidden();
   const { blocked } = status;
   const [api, setApi] = useState<ExcalidrawImperativeAPI>();
   const [picked, setPicked] = useState<string[]>([]);
@@ -229,16 +231,17 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
       if (target && shown !== followedView.current) {
         followedView.current = shown;
         const { appState } = zoomToFitBounds({ bounds: target, appState: api.getAppState(), fitToViewport: true, viewportZoomFactor: 1 });
-        api.updateScene({ collaborators, appState: { scrollX: appState.scrollX, scrollY: appState.scrollY, zoom: appState.zoom }, captureUpdate: CaptureUpdateAction.NEVER });
+        api.updateScene({ collaborators: hideCollaborators ? new Map() : collaborators, appState: { scrollX: appState.scrollX, scrollY: appState.scrollY, zoom: appState.zoom }, captureUpdate: CaptureUpdateAction.NEVER });
         return;
       }
-      api.updateScene({ collaborators, captureUpdate: CaptureUpdateAction.NEVER });
+      api.updateScene({ collaborators: hideCollaborators ? new Map() : collaborators, captureUpdate: CaptureUpdateAction.NEVER });
     };
+    toCollaborators();
     connection.provider.on('awarenessChange', toCollaborators);
     return () => {
       connection.provider.off('awarenessChange', toCollaborators);
     };
-  }, [api, connection, view]);
+  }, [api, connection, view, hideCollaborators]);
 
   useEffect(
     () => () => {

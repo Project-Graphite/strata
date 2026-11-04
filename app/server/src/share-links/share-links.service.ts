@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma, ShareAccess } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { AccessService } from '../access/access.service';
 import { AuditService } from '../audit/audit.service';
 import { linkTokenHash } from '../crypto/link-token';
@@ -11,12 +11,27 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { documentLinks, pageKinds } from '../notes/document-text';
-import { CreateShareLinkDto } from './dto/share-links.dto';
+import { CreateShareLinkDto, RenameShareLinkDto } from './dto/share-links.dto';
 import { PageAccessService } from '../notes/page-access.service';
+import { uniqueViolation } from '../prisma/errors';
+import { liveShareLink, unexpiredLink } from './live-share-link';
 
-const dayMs = 24 * 60 * 60 * 1000;
+const minuteMs = 60 * 1000;
+const dayMinutes = 24 * 60;
+const slugAlphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
 
-const linkFields = { id: true, access: true, tokenHash: true, expiresAt: true, createdAt: true } satisfies Prisma.ShareLinkSelect;
+const linkFields = { id: true, access: true, tokenHash: true, slug: true, expiresAt: true, createdAt: true } satisfies Prisma.ShareLinkSelect;
+
+function shortSlug() {
+  return [...randomBytes(8)].map((byte) => slugAlphabet[byte % slugAlphabet.length]).join('');
+}
+
+function slugTaken(error: unknown): never {
+  if (uniqueViolation(error)) {
+    throw new ConflictException('That link name is taken. Try another.');
+  }
+  throw error;
+}
 
 @Injectable()
 export class ShareLinksService {
@@ -40,17 +55,23 @@ export class ShareLinksService {
       throw new BadRequestException('Only pages and boards can be shared for editing');
     }
     const id = randomUUID();
-    const link = await this.prisma.shareLink.create({
-      data: {
-        id,
-        itemId,
-        access: input.access.toUpperCase() as ShareAccess,
-        tokenHash: linkTokenHash(this.box.linkToken(id)),
-        expiresAt: new Date(Date.now() + (input.expiresInDays ?? 30) * dayMs),
-        createdById: userId,
-      },
-      select: linkFields,
-    });
+    const minutes = input.expiresInMinutes === undefined ? (input.expiresInDays ?? 30) * dayMinutes : input.expiresInMinutes;
+    const slug = input.slug ?? shortSlug();
+    await this.releaseSlug(slug);
+    const link = await this.prisma.shareLink
+      .create({
+        data: {
+          id,
+          itemId,
+          access: input.access.toUpperCase() as ShareAccess,
+          tokenHash: linkTokenHash(this.box.linkToken(id)),
+          slug,
+          expiresAt: minutes === null ? null : new Date(Date.now() + minutes * minuteMs),
+          createdById: userId,
+        },
+        select: linkFields,
+      })
+      .catch(slugTaken);
     await this.audit.record(userId, 'share_link_created', { itemId, linkId: id, access: input.access });
     return this.present(link);
   }
@@ -58,18 +79,28 @@ export class ShareLinksService {
   async list(userId: string, itemId: string) {
     await this.assertSharing(userId, itemId);
     const links = await this.prisma.shareLink.findMany({
-      where: { itemId, revokedAt: null, expiresAt: { gt: new Date() } },
+      where: { itemId, ...unexpiredLink() },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       select: linkFields,
     });
     return links.map((link) => this.present(link));
   }
 
+  async rename(userId: string, itemId: string, linkId: string, input: RenameShareLinkDto) {
+    await this.assertSharing(userId, itemId);
+    await this.releaseSlug(input.slug);
+    const renamed = await this.prisma.shareLink.updateMany({ where: { id: linkId, itemId, ...unexpiredLink() }, data: { slug: input.slug } }).catch(slugTaken);
+    if (renamed.count === 0) {
+      throw new NotFoundException('That link is already turned off');
+    }
+    return this.present(await this.prisma.shareLink.findUniqueOrThrow({ where: { id: linkId }, select: linkFields }));
+  }
+
   async revoke(userId: string, itemId: string, linkId: string) {
     await this.assertSharing(userId, itemId);
     const revoked = await this.prisma.shareLink.updateMany({
       where: { id: linkId, itemId, revokedAt: null },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: new Date(), slug: null },
     });
     if (revoked.count === 0) {
       throw new NotFoundException('That link is already turned off');
@@ -80,7 +111,7 @@ export class ShareLinksService {
 
   async open(code: string) {
     const link = await this.prisma.shareLink.findFirst({
-      where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
+      where: { ...liveShareLink(code), item: { trashedAt: null } },
       select: {
         access: true,
         item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } }, databaseSchema: { select: { itemId: true } } } },
@@ -111,20 +142,26 @@ export class ShareLinksService {
     return pageKinds.includes(item.kind) ? this.pages.assertPage(userId, itemId, 'share') : this.access.assertItem(userId, itemId, 'edit');
   }
 
+  private async releaseSlug(slug: string) {
+    await this.prisma.shareLink.updateMany({ where: { slug, NOT: unexpiredLink() }, data: { slug: null } });
+  }
+
   private present(link: Prisma.ShareLinkGetPayload<{ select: typeof linkFields }>) {
     const token = this.box.linkToken(link.id);
     return {
       id: link.id,
       access: link.access.toLowerCase(),
+      slug: link.slug,
       expiresAt: link.expiresAt,
       createdAt: link.createdAt,
       link: linkTokenHash(token) === link.tokenHash ? this.mail.link(`/share/${token}`) : null,
+      shortLink: link.slug ? this.mail.link(`/s/${link.slug}`) : null,
     };
   }
 
   async file(code: string, fileId: string) {
     const link = await this.prisma.shareLink.findFirst({
-      where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null } },
+      where: { ...liveShareLink(code), item: { trashedAt: null } },
       select: { itemId: true, item: { select: { spaceId: true } } },
     });
     const document = link && this.realtime.hocuspocus.documents.get(link.itemId);

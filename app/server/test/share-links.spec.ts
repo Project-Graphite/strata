@@ -1,4 +1,4 @@
-import { ItemKind } from '@prisma/client';
+import { ItemKind, Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { ShareLinksService } from '../src/share-links/share-links.service';
@@ -23,6 +23,7 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
         itemLink: { findFirst: async () => ({ id: 'attachment' }) },
         shareLink: {
           create,
+          updateMany: async () => ({ count: 0 }),
           findFirst: async () => ({ access: 'VIEW', itemId: 'page', item: { id: 'page', spaceId: 'space', kind, title: 'Shared', event: null, pollOptions: [], noteDocument: null, databaseSchema: database ? { itemId: 'page', properties: [{ id: 'secret' }], rows: [{ title: 'Private row' }] } : null } }),
         },
       } as never,
@@ -44,6 +45,26 @@ describe('page share links', () => {
     expect(await shared.links.create('member', 'page', { access: 'edit', expiresInDays: 7 })).toMatchObject({ access: 'edit', link: expect.stringContaining('/share/') });
     expect(shared.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ itemId: 'page', access: 'EDIT', createdById: 'member' }) }));
     expect(shared.audit.record).toHaveBeenCalledWith('member', 'share_link_created', { itemId: 'page', linkId: expect.any(String), access: 'edit' });
+  });
+
+  it('gives every link a short name, takes a custom name and lasts from 30 minutes to forever', async () => {
+    const shared = service(ItemKind.NOTE);
+    const brief = await shared.links.create('member', 'page', { access: 'view', expiresInMinutes: 30 });
+    expect(brief).toMatchObject({ slug: expect.stringMatching(/^[a-z2-9]{8}$/), shortLink: `https://example.com/s/${brief.slug}` });
+    expect(brief.expiresAt!.getTime() - Date.now()).toBeGreaterThan(29 * 60 * 1000);
+    expect(brief.expiresAt!.getTime() - Date.now()).toBeLessThanOrEqual(30 * 60 * 1000);
+    expect(await shared.links.create('member', 'page', { access: 'view', slug: 'team-notes', expiresInMinutes: null })).toMatchObject({
+      slug: 'team-notes',
+      shortLink: 'https://example.com/s/team-notes',
+      expiresAt: null,
+    });
+    expect((await shared.links.create('member', 'page', { access: 'view' })).expiresAt!.getTime() - Date.now()).toBeGreaterThan(29 * 24 * 60 * 60 * 1000);
+  });
+
+  it('refuses a link name that is already in use', async () => {
+    const shared = service(ItemKind.NOTE);
+    shared.create.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }));
+    await expect(shared.links.create('member', 'page', { access: 'view', slug: 'taken' })).rejects.toThrow('That link name is taken');
   });
 
   it('continues to reject edit links for events and trashed pages', async () => {

@@ -3,7 +3,7 @@ import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
-import { LinkCodeDto } from '../validation/link-code.dto';
+import { LinkCodeDto, ShareCodeDto } from '../validation/link-code.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { AgendaDto, CreateEventDto, InviteGuestDto, OpenRsvpDto, RsvpDto, UpdateEventDto } from './dto/events.dto';
 import { EventsService } from './events.service';
@@ -72,7 +72,7 @@ export class EventsController {
   @Public()
   @Post('share/:code/rsvp')
   @RateLimit('rsvp', 30, 3_600)
-  rsvpByShareLink(@Param() input: LinkCodeDto, @Body() answer: OpenRsvpDto) {
+  rsvpByShareLink(@Param() input: ShareCodeDto, @Body() answer: OpenRsvpDto) {
     return this.events.rsvpByShareLink(input.code, answer);
   }
 }
