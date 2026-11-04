@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
+import { AccessService } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { unexpiredLink } from '../share-links/live-share-link';
@@ -38,6 +39,7 @@ export class DriveService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly changes: ChangesService,
+    private readonly access: AccessService,
   ) {}
 
   async list(userId: string, folderId?: string) {
@@ -45,7 +47,28 @@ export class DriveService {
     return {
       path: folderId ? ((await this.ancestors(folderId, null)) ?? []) : [],
       entries: await this.entries({ ownerId: userId, folderId: folderId ?? null, avatarOf: { is: null } }),
+      ...(folderId ? {} : { spaces: await this.spaceFolders(userId) }),
     };
+  }
+
+  async spaceFolder(userId: string, spaceId: string) {
+    const role = await this.access.assertSpace(userId, spaceId, 'read');
+    const space = await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { id: true, slug: true, name: true, color: true } });
+    return {
+      path: [{ id: space.id, name: space.name }],
+      entries: await this.entries({ spaceId }),
+      space: { ...space, role: role.toLowerCase() },
+    };
+  }
+
+  private async spaceFolders(userId: string) {
+    const memberships = await this.prisma.spaceMember.findMany({
+      where: { userId, space: this.access.spacesOf(userId) },
+      select: { role: true, space: { select: { id: true, slug: true, name: true, color: true, _count: { select: { items: { where: { kind: ItemKind.FILE, trashedAt: null } } } } } } },
+    });
+    return memberships
+      .map(({ role, space: { _count, ...space } }) => ({ ...space, role: role.toLowerCase(), fileCount: _count.items }))
+      .sort((first, second) => first.name.localeCompare(second.name));
   }
 
   async entries(where: Prisma.ItemWhereInput) {

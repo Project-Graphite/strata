@@ -5,6 +5,10 @@ export class DriveQueryDto {
   @IsOptional()
   @IsUUID('all', { message: 'Choose a folder from your files.' })
   folderId?: string;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Choose one of your spaces.' })
+  spaceId?: string;
 }
 
 export class FolderDto {
