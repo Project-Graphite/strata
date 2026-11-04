@@ -17,6 +17,7 @@ import { SearchField } from '../components/SearchField';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, childPagesPath, nestedUnder, noteEdited, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
 import { useSpaces } from '../spaces';
+import { Reveal } from '../motion';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
@@ -67,23 +68,30 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
         return (
           <li key={page.id} role="none">
             <div aria-expanded={page.hasChildren ? expanded : undefined} aria-label={`${noteTitle(page)}, ${noteEdited(page).toLowerCase()}`} aria-level={depth + 1} aria-owns={expanded ? `pages-group-${page.id}` : undefined} className="pages-tree-row" data-href={noteHref(page)} data-tree-id={page.id} role="treeitem" style={pageIndent(depth)} tabIndex={-1}>
-              {page.hasChildren ? (
-                <button aria-hidden="true" className="page-tree-toggle cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
-                  <Icon name="chevron-right" size={16} />
+              {page.hasChildren && (
+                <button aria-hidden="true" className="page-tree-slot page-tree-expand cursor-pointer" onClick={() => tree.toggle(page.id)} tabIndex={-1} type="button">
+                  <NoteMark note={page} />
+                  <span className="page-tree-chevron">
+                    <Icon name="chevron-right" size={16} />
+                  </span>
                 </button>
-              ) : (
-                <span aria-hidden="true" className="page-tree-toggle" />
               )}
-              <Link className="flex min-w-0 flex-1 items-center gap-3 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
-                <NoteMark note={page} />
+              <Link className="flex min-w-0 flex-1 items-center gap-2 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
+                {!page.hasChildren && (
+                  <span className="page-tree-slot">
+                    <NoteMark note={page} />
+                  </span>
+                )}
                 <RowText detail={noteEdited(page)} title={noteTitle(page)} />
               </Link>
               <PageActionsMenu note={page} onTrash={writable ? () => tree.trash(page) : undefined} />
             </div>
-            {expanded && (
-              <ul id={`pages-group-${page.id}`} role="group">
-                <TreeLevel depth={depth + 1} parentId={page.id} spaceId={spaceId} writable={writable} />
-              </ul>
+            {page.hasChildren && (
+              <Reveal open={expanded}>
+                <ul id={`pages-group-${page.id}`} role="group">
+                  <TreeLevel depth={depth + 1} parentId={page.id} spaceId={spaceId} writable={writable} />
+                </ul>
+              </Reveal>
             )}
           </li>
         );
@@ -120,7 +128,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
   function navigateTree(event: KeyboardEvent<HTMLUListElement>) {
     const item = event.target as HTMLElement;
     if (item.getAttribute('role') !== 'treeitem') return;
-    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]')];
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]')].filter((candidate) => !candidate.closest('[inert]'));
     const index = items.indexOf(item);
     const id = item.dataset.treeId!;
     const expanded = item.getAttribute('aria-expanded') === 'true';

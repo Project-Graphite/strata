@@ -9,6 +9,8 @@ import { fileSize, saveBlob } from '../files';
 import { Button } from './Button';
 import { AltTextDialog } from './AltTextDialog';
 import { useFileSource } from './file-source';
+import { ExpandGlyph } from './glyphs';
+import { NestedMenu } from './NestedMenu';
 import { showPageBlock } from './page-blocks';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
@@ -165,17 +167,36 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
         {editing && selected && (
           <>
             <FloatingToolbar className={`note-image-tools ${below ? 'is-below' : ''}`} label="Image">
-              {alignments.map(([option, label]) => (
-                <GlyphButton active={align === option} key={option} label={label} onClick={() => updateAttributes({ align: option })}>
-                  <AlignGlyph align={option} />
-                </GlyphButton>
-              ))}
-              <ToolbarButton active={wrap} label="Wrap text around the image" onClick={() => updateAttributes({ wrap: !wrap, align: align === 'center' ? 'left' : align })}>Wrap</ToolbarButton>
-              {imageSizes.map(([size, label]) => (
-                <ToolbarButton active={width === size} key={size} label={`${label} image`} onClick={() => updateAttributes({ width: size })}>{label}</ToolbarButton>
-              ))}
-              <ToolbarButton label="Original size" onClick={() => updateAttributes({ width: null })}>Original</ToolbarButton>
-              <ToolbarButton label="Describe the image" onClick={() => setDescribing(true)}>Alt text</ToolbarButton>
+              <NestedMenu
+                align="start"
+                items={alignments.map(([option, label]) => ({ label, selected: align === option, onSelect: () => updateAttributes({ align: option }) }))}
+                label="Alignment"
+                trigger={<AlignGlyph align={align} />}
+                triggerClassName="toolbar-button"
+                triggerLabel="Align the image"
+              />
+              <NestedMenu
+                align="start"
+                items={[
+                  ...imageSizes.map(([size, label]) => ({ label, selected: width === size, onSelect: () => updateAttributes({ width: size }) })),
+                  { label: 'Original size', selected: width === null, separated: true, onSelect: () => updateAttributes({ width: null }) },
+                ]}
+                label="Size"
+                trigger={<ExpandGlyph />}
+                triggerClassName="toolbar-button"
+                triggerLabel="Resize the image"
+              />
+              <NestedMenu
+                align="start"
+                items={[
+                  { label: wrap ? 'Stop wrapping text' : 'Wrap text around the image', onSelect: () => updateAttributes({ wrap: !wrap, align: align === 'center' ? 'left' : align }) },
+                  { label: 'Describe the image', onSelect: () => setDescribing(true) },
+                ]}
+                label="More image actions"
+                trigger={<Icon name="more" size={16} />}
+                triggerClassName="toolbar-button"
+                triggerLabel="More image actions"
+              />
             </FloatingToolbar>
             <span aria-hidden="true" className="note-image-resize" data-side="start" onPointerDown={resize} />
             <span

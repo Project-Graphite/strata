@@ -2112,15 +2112,16 @@ button.habit-day::before {
   transition: rotate 180ms var(--ease-settle);
 }
 
-.page-tree-expand[aria-expanded='true'] .page-tree-chevron svg {
+.page-tree-expand[aria-expanded='true'] .page-tree-chevron svg,
+[aria-expanded='true'] > .page-tree-expand .page-tree-chevron svg {
   rotate: 90deg;
 }
 
-:is(.page-tree-row:hover, .page-tree-expand:focus-visible) .page-tree-expand > .note-mark {
+:is(:is(.page-tree-row, .pages-tree-row):is(:hover, :focus-visible, [aria-expanded='true']) > .page-tree-expand, .page-tree-expand:is(:focus-visible, [aria-expanded='true'])) > .note-mark {
   visibility: hidden;
 }
 
-:is(.page-tree-row:hover, .page-tree-expand:focus-visible) .page-tree-chevron {
+:is(:is(.page-tree-row, .pages-tree-row):is(:hover, :focus-visible, [aria-expanded='true']) > .page-tree-expand, .page-tree-expand:is(:focus-visible, [aria-expanded='true'])) > .page-tree-chevron {
   visibility: visible;
 }
 
@@ -2132,21 +2133,6 @@ button.habit-day::before {
   .page-tree-chevron {
     visibility: visible;
   }
-}
-
-.page-tree-toggle {
-  position: relative;
-  display: grid;
-  width: 1.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-  place-items: center;
-  border-radius: var(--radius-field);
-  color: var(--color-faint);
-}
-
-.page-tree-toggle:not(:disabled):hover {
-  color: var(--color-ink);
 }
 
 .pages-tree,
@@ -3128,7 +3114,7 @@ header.backdrop-blur-md {
     font-size: max(1rem, 1em);
   }
 
-  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root, .page-tree-toggle, .page-tree-expand)::after {
+  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root, .page-tree-expand)::after {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -3233,15 +3219,6 @@ header.backdrop-blur-md {
   margin-inline-start: auto;
 }
 
-.page-tree-toggle svg {
-  transition: rotate 180ms var(--ease-settle);
-}
-
-.page-tree-toggle[aria-expanded='true'] svg,
-[aria-expanded='true'] > .page-tree-toggle svg {
-  rotate: 90deg;
-}
-
 .tab-bar::before {
   left: calc(env(safe-area-inset-left) - 1.75rem);
   translate: calc((100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) / var(--tab-count) * (var(--tab-index) + 0.5)) 0;
@@ -3266,7 +3243,7 @@ header.backdrop-blur-md {
 @media (prefers-reduced-motion: reduce) {
   .comments-panel,
   .comments-panel[data-open='true'],
-  .page-tree-toggle svg {
+  .page-tree-chevron svg {
     transition: none;
   }
 }
