@@ -15,9 +15,13 @@ interface ResourceState<T> {
 }
 
 const cache = new Map<string, { at: number; data?: unknown; promise: Promise<unknown> }>();
-const freshFor = 5_000;
+const freshFor = 30_000;
 const burst = 250;
 const cacheLimit = 300;
+
+onChange(() => {
+  for (const entry of cache.values()) entry.at = 0;
+});
 
 function sharedRequest<T>(key: string, load: () => Promise<T>, since: number) {
   const hit = cache.get(key);
@@ -44,7 +48,7 @@ export function clearResourceCache() {
 function resolveResource(path: string | null, authenticated: boolean, userId: string | undefined, activeSpaceId: string | undefined) {
   const scoped = authenticated && path !== null && isSpaceResource(path);
   const spaceId = scoped ? activeSpaceId : undefined;
-  const resolved = !path || (scoped && !spaceId) ? null : authenticated ? inActiveSpace(path, spaceId) : path;
+  const resolved = !path ? null : authenticated ? inActiveSpace(path, spaceId) : path;
   const key = !resolved ? null : authenticated ? (userId ? `${userId}|${spaceId ?? ''}|${resolved}` : null) : resolved;
   return { key, path: resolved, spaceId };
 }
@@ -170,7 +174,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const settled = useSettled(key ? (current ? current.data : (cached ?? (sameViewer ? state.data : undefined))) : null);
   const data = key ? (settled as T | undefined) : undefined;
   useEffect(() => {
-    if (path && /^\/(notes|tasks)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && typeof data.spaceId === 'string' && data.spaceId !== active?.space?.id) active?.choose(data.spaceId);
+    if (path && /^\/(notes|tasks)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && (typeof data.spaceId === 'string' || data.spaceId === null) && data.spaceId !== (active?.space?.id ?? null)) active?.choose(data.spaceId);
   }, [path, data, active]);
   return {
     data,

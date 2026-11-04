@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
+import { audienceOf, inHome } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { FilesService } from '../files/files.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,7 +37,7 @@ export class TaskAttachmentsService {
 
   async attach(userId: string, taskId: string, fileId: string) {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
-    if (!(await this.prisma.item.count({ where: { id: fileId, spaceId: task.spaceId, kind: ItemKind.FILE, trashedAt: null } }))) {
+    if (!(await this.prisma.item.count({ where: { id: fileId, ...inHome(task.home), kind: ItemKind.FILE, trashedAt: null } }))) {
       throw new BadRequestException('Choose a file from this space');
     }
     const link = await this.prisma.itemLink.upsert({
@@ -45,7 +46,7 @@ export class TaskAttachmentsService {
       update: {},
       select: attachmentFields,
     });
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(link);
   }
 
@@ -59,6 +60,6 @@ export class TaskAttachmentsService {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
     const { count } = await this.prisma.itemLink.deleteMany({ where: { sourceItemId: taskId, targetItemId: fileId, kind: LinkKind.ATTACHMENT } });
     if (count === 0) throw new NotFoundException('That file is not attached to this task');
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
   }
 }

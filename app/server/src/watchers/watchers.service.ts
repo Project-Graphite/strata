@@ -8,7 +8,7 @@ export function watchedLink(item: { id: string; kind: ItemKind; spaceId: string 
   if (item.kind === ItemKind.TASK) return `/tasks?task=${item.id}`;
   if (item.kind === ItemKind.NOTE) return `/pages/${item.id}`;
   if (item.kind === ItemKind.BOARD) return `/boards/${item.id}`;
-  return `/spaces/${item.spaceId}/items`;
+  return item.spaceId ? `/spaces/${item.spaceId}/items` : '/';
 }
 
 export interface WatchedChange {
@@ -31,13 +31,15 @@ export class WatchersService {
   }
 
   async notify(client: Prisma.TransactionClient, itemId: string, actorId: string | null, change: WatchedChange, skip: (string | null | undefined)[] = []) {
-    const item = await client.item.findUnique({ where: { id: itemId }, select: { spaceId: true } });
-    if (!item?.spaceId) return;
+    const item = await client.item.findUnique({ where: { id: itemId }, select: { spaceId: true, ownerId: true } });
+    if (!item) return;
     const left = [actorId, ...skip].filter((userId): userId is string => Boolean(userId));
     const watchers = (await client.itemWatcher.findMany({ where: { itemId, userId: { notIn: left }, user: { isActive: true } }, select: { userId: true } })).map((watcher) => watcher.userId);
     if (watchers.length === 0) return;
     const [members, guests] = await Promise.all([
-      client.spaceMember.findMany({ where: { spaceId: item.spaceId, userId: { in: watchers } }, select: { userId: true } }),
+      item.spaceId
+        ? client.spaceMember.findMany({ where: { spaceId: item.spaceId, userId: { in: watchers } }, select: { userId: true } })
+        : watchers.filter((watcher) => watcher === item.ownerId).map((watcher) => ({ userId: watcher })),
       client.pageGrant.findMany({ where: { itemId, userId: { in: watchers } }, select: { userId: true } }),
     ]);
     const recipients = [...new Set([...members, ...guests].map((reader) => reader.userId))];

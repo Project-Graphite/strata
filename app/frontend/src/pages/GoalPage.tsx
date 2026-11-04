@@ -38,7 +38,7 @@ export function GoalPage() {
   const [editing, setEditing] = useState(false);
   const [taskEditing, setTaskEditing] = useState<Task | 'new'>();
   const [dialog, setDialog] = useState<'progress' | 'link' | 'habits'>();
-  const openTasks = useResource<ResultPage<Task>>(dialog === 'link' && spaceId ? `/spaces/${spaceId}/tasks?page=1` : null, true);
+  const openTasks = useResource<ResultPage<Task>>(dialog === 'link' ? `${spaceId ? `/spaces/${spaceId}/tasks?` : '/me/tasks?home=account&'}page=1` : null, true);
   const editable = true;
   const [wasEditable, whyLines, metered, targeted, taskRows, detailedTasks, habitRows] = useRememberedShape(
     `goal-${id}`,
@@ -285,7 +285,7 @@ export function GoalPage() {
         <LinkItemDialog
           busy={action.busy}
           choices={openTasks.data?.results.filter((task) => !shown.taskList.some((linked) => linked.id === task.id)).map((task) => ({ value: task.id, label: task.title, hint: dueLabel(task) || undefined }))}
-          empty={`Every open task in ${space?.name ?? 'this space'} is already linked.`}
+          empty={`Every open task in ${space?.name ?? 'your account'} is already linked.`}
           noun="task"
           onClose={() => setDialog(undefined)}
           onLink={(taskId) =>
@@ -321,7 +321,7 @@ export function GoalPage() {
               return '';
             }, 'Could not link the task')
           }
-          spaceId={spaceId!}
+          spaceId={spaceId ?? null}
           task={taskEditing === 'new' ? undefined : taskEditing}
         />
       )}

@@ -28,13 +28,12 @@ export const activityVerbs = [
 
 export type ActivityVerb = (typeof activityVerbs)[number];
 
-export interface ActivityEntry {
-  spaceId: string;
+export type ActivityEntry = ({ spaceId: string } | { ownerId: string }) & {
   actorId: string | null;
   verb: ActivityVerb;
   itemId?: string;
   data?: Prisma.InputJsonObject;
-}
+};
 
 const eventFields = {
   id: true,
@@ -65,7 +64,7 @@ export class ActivityService {
   ) {}
 
   record(client: Prisma.TransactionClient, entry: ActivityEntry) {
-    this.changes.notify(verbTopics[entry.verb.split('.')[0]!] ?? 'items', { spaceId: entry.spaceId });
+    this.changes.notify(verbTopics[entry.verb.split('.')[0]!] ?? 'items', 'spaceId' in entry ? { spaceId: entry.spaceId } : { userId: entry.ownerId });
     return client.activityEvent.create({ data: { ...entry, data: entry.data ?? {} } });
   }
 

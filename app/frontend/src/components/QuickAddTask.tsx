@@ -2,21 +2,21 @@ import { useId, useState } from 'react';
 import { Badge, formatDay, TagChip } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { parseQuickTask, priorityNames, quickSuggestions, withSuggestion } from '../quick-add';
-import type { Tag } from '../spaces';
+import { homePath, type Tag } from '../spaces';
 import type { Task } from '../tasks';
 import { clockTime } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button } from './Button';
 
-export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; onAdded: (task: Task) => void; spaceId: string }) {
+export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; onAdded: (task: Task) => void; spaceId: string | null }) {
   const auth = useAuth();
   const adding = useAction();
   const hintId = useId();
   const suggestionsId = useId();
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
-  const tags = useResource<Tag[]>(focused ? `/spaces/${spaceId}/tags` : null, true);
+  const tags = useResource<Tag[]>(focused ? homePath(spaceId, 'tags') : null, true);
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState('');
   const known = (tags.data ?? []).map((tag) => tag.name);
@@ -37,7 +37,7 @@ export function QuickAddTask({ listId, onAdded, spaceId }: { listId?: string; on
         event.preventDefault();
         if (!quick.title) return;
         void adding.run(async () => {
-          const added = await auth.request<Task>(`/spaces/${spaceId}/tasks`, {
+          const added = await auth.request<Task>(homePath(spaceId, 'tasks'), {
             method: 'POST',
             body: JSON.stringify({ title: quick.title.slice(0, 200), listId, dueDate: quick.dueDate, dueTime: quick.dueTime, priority: quick.priority }),
           });

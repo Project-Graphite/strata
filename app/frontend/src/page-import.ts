@@ -125,7 +125,7 @@ export async function preparePageImport(files: File[], progress?: ImportProgress
   return plan;
 }
 
-export async function runPageImport(request: Request, spaceId: string, plan: PageImportPlan, progress: () => void, signal?: AbortSignal) {
+export async function runPageImport(request: Request, spaceId: string | null, plan: PageImportPlan, progress: () => void, signal?: AbortSignal) {
   const send: Request = (path, init) => request(path, { ...init, signal });
   for (const page of plan.pages) {
     if (signal?.aborted) return;
@@ -139,7 +139,7 @@ export async function runPageImport(request: Request, spaceId: string, plan: Pag
           if (plan.uploaded.has(path) || plan.omitted.has(path)) continue;
           const image = plan.files.get(path)!;
           try {
-            plan.uploaded.set(path, (await send<{ id: string }>(`/spaces/${spaceId}/files`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(image.name) }, body: image })).id);
+            plan.uploaded.set(path, (await send<{ id: string }>(spaceId ? `/spaces/${spaceId}/files` : '/me/files', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(image.name) }, body: image })).id);
           } catch (error) {
             if (!(error instanceof ApiError && [400, 413, 415].includes(error.status))) throw error;
             plan.omitted.set(path, error.message);

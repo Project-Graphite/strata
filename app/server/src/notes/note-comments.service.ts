@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
+import { audienceOf, type Home, homeOf } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,7 +47,8 @@ export class NoteCommentsService {
   }
 
   async create(userId: string, noteId: string, input: CreateCommentDto) {
-    const found = await this.notes.spaceNote(userId, noteId, 'comment');
+    const found = await this.notes.note(userId, noteId, 'comment');
+    const home = homeOf(found);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before commenting');
     if ((await this.prisma.noteComment.count({ where: { itemId: noteId } })) >= maxComments) {
       throw new ConflictException(`A page can hold ${maxComments} comments. Delete some resolved ones first.`);
@@ -60,8 +62,8 @@ export class NoteCommentsService {
         select: commentFields,
       });
       await this.watchers.watch(transaction, noteId, [userId]);
-      const mentioned = await this.mentioned(transaction, noteId, found.spaceId, userId, created.body);
-      const recipients = (await this.recipients(transaction, noteId, found.spaceId, userId)).filter((recipient) => !mentioned.includes(recipient));
+      const mentioned = await this.mentioned(transaction, noteId, home, userId, created.body);
+      const recipients = (await this.recipients(transaction, noteId, home, userId)).filter((recipient) => !mentioned.includes(recipient));
       await this.inbox.notify(transaction, [
         ...mentioned.map((recipient) => ({ recipient, verb: 'mentioned you on' })),
         ...recipients.map((recipient) => ({ recipient, verb: 'commented on' })),
@@ -74,7 +76,7 @@ export class NoteCommentsService {
       })));
       return created;
     });
-    this.changes.notify('page-comments', { spaceId: found.spaceId, itemId: noteId });
+    this.changes.notify('page-comments', { ...audienceOf(home), itemId: noteId });
     return created;
   }
 
@@ -82,7 +84,7 @@ export class NoteCommentsService {
     const comment = await this.comment(userId, commentId);
     if (comment.authorId !== userId) throw new ForbiddenException('Only the person who wrote a comment can change it');
     const updated = await this.prisma.noteComment.update({ where: { id: commentId }, data: { body, editedAt: new Date() }, select: commentFields });
-    this.changes.notify('page-comments', { spaceId: comment.spaceId, itemId: comment.itemId });
+    this.changes.notify('page-comments', { ...audienceOf(comment.home), itemId: comment.itemId });
     return updated;
   }
 
@@ -92,7 +94,7 @@ export class NoteCommentsService {
       throw new ForbiddenException('Only the person who wrote a comment or an owner of the space can delete it');
     }
     await this.prisma.noteComment.deleteMany({ where: { id: commentId } });
-    this.changes.notify('page-comments', { spaceId: comment.spaceId, itemId: comment.itemId });
+    this.changes.notify('page-comments', { ...audienceOf(comment.home), itemId: comment.itemId });
   }
 
   async resolve(userId: string, commentId: string, resolved: boolean) {
@@ -104,32 +106,36 @@ export class NoteCommentsService {
       data: resolved ? { resolvedAt: new Date(), resolvedById: userId } : { resolvedAt: null, resolvedById: null },
       select: commentFields,
     });
-    this.changes.notify('page-comments', { spaceId: comment.spaceId, itemId: comment.itemId });
+    this.changes.notify('page-comments', { ...audienceOf(comment.home), itemId: comment.itemId });
     return updated;
   }
 
   private async comment(userId: string, commentId: string) {
     const comment = await this.prisma.noteComment.findUnique({ where: { id: commentId }, select: { itemId: true, parentId: true, authorId: true } });
     if (!comment) throw new NotFoundException('Comment not found');
-    const { role, spaceId } = await this.notes.spaceNote(userId, comment.itemId, 'comment');
-    return { ...comment, role, spaceId };
+    const found = await this.notes.note(userId, comment.itemId, 'comment');
+    return { ...comment, role: found.role, home: homeOf(found) };
   }
 
-  private async mentioned(transaction: Prisma.TransactionClient, noteId: string, spaceId: string, writerId: string, body: string) {
+  private async mentioned(transaction: Prisma.TransactionClient, noteId: string, home: Home, writerId: string, body: string) {
     if (!body.includes('@')) return [];
     const people = [
-      ...(await transaction.spaceMember.findMany({ where: { spaceId }, select: { userId: true, user: { select: { displayName: true } } } })),
+      ...(home.spaceId === null
+        ? (await transaction.user.findMany({ where: { id: home.ownerId }, select: { id: true, displayName: true } })).map((owner) => ({ userId: owner.id, user: owner }))
+        : await transaction.spaceMember.findMany({ where: { spaceId: home.spaceId }, select: { userId: true, user: { select: { displayName: true } } } })),
       ...(await transaction.pageGrant.findMany({ where: { itemId: noteId, item: { trashedAt: null, archivedAt: null } }, select: { userId: true, user: { select: { displayName: true } } } })),
     ];
     return [...new Set(people.filter((person) => person.userId !== writerId && mentions(body, person.user.displayName)).map((person) => person.userId))];
   }
 
-  private async recipients(transaction: Prisma.TransactionClient, noteId: string, spaceId: string, writerId: string) {
+  private async recipients(transaction: Prisma.TransactionClient, noteId: string, home: Home, writerId: string) {
     const item = await transaction.item.findUniqueOrThrow({ where: { id: noteId }, select: { createdById: true } });
     const commenters = await transaction.noteComment.findMany({ where: { itemId: noteId }, distinct: ['authorId'], select: { authorId: true } });
     const watchers = await transaction.itemWatcher.findMany({ where: { itemId: noteId }, select: { userId: true } });
     const wanted = [item.createdById, ...commenters.map((commenter) => commenter.authorId), ...watchers.map((watcher) => watcher.userId)].filter((id): id is string => Boolean(id) && id !== writerId);
-    const members = await transaction.spaceMember.findMany({ where: { spaceId, userId: { in: wanted } }, select: { userId: true } });
+    const members = home.spaceId
+      ? await transaction.spaceMember.findMany({ where: { spaceId: home.spaceId, userId: { in: wanted } }, select: { userId: true } })
+      : wanted.filter((id) => id === home.ownerId).map((id) => ({ userId: id }));
     const guests = await transaction.pageGrant.findMany({ where: { itemId: noteId, userId: { in: wanted }, item: { trashedAt: null, archivedAt: null } }, select: { userId: true } });
     return [...new Set([...members, ...guests].map((member) => member.userId))];
   }

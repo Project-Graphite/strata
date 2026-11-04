@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { DatePicker, LinesSkeleton, Select, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
-import { useAllSpaces, type Member, type Tag } from '../spaces';
+import { homePath, spaceHref, useAllSpaces, type Member, type Tag } from '../spaces';
 import { builtInTaskTypes, defaultEpicName, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type Task, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -78,14 +78,16 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const detail = useResource<TaskDetail>(id ? `/tasks/${id}` : null, true, id ? { live: ['tasks', 'task-details'], itemIds: [id] } : undefined);
   const task = id ? detail.data : undefined;
   const heading = task ?? (given?.id === id ? given : undefined);
-  const spaceId = heading?.spaceId ?? newIn;
+  const spaceId = heading ? heading.spaceId : newIn;
   const space = spaces.data?.find((candidate) => candidate.id === spaceId);
-  const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
-  const members = useResource<Member[]>(spaceId ? `/spaces/${spaceId}/members` : null, true);
-  const tags = useResource<Tag[]>(spaceId ? `/spaces/${spaceId}/tags` : null, true);
-  const choices = useResource<TaskFilterChoices>(spaceId ? `/me/task-filters?spaceId=${spaceId}` : null, true);
+  const known = spaceId !== undefined;
+  const lists = useResource<TaskList[]>(!known ? null : spaceId ? `/spaces/${spaceId}/lists` : '/me/lists?home=account', true);
+  const spaceMembers = useResource<Member[]>(spaceId ? `/spaces/${spaceId}/members` : null, true);
+  const members = spaceId === null && auth.user ? { ...spaceMembers, data: [{ userId: auth.user.id, handle: auth.user.handle, displayName: auth.user.displayName }] } : spaceMembers;
+  const tags = useResource<Tag[]>(!known ? null : homePath(spaceId, 'tags'), true);
+  const choices = useResource<TaskFilterChoices>(!known ? null : `/me/task-filters?${spaceId ? `spaceId=${spaceId}` : 'home=account'}`, true);
   const [namingType, setNamingType] = useState(false);
-  const editable = Boolean(space && space.role !== 'viewer');
+  const editable = spaceId === null || Boolean(space && space.role !== 'viewer');
   const values = task ? fieldsOf(task) : draft;
   const labels = task ? task.labels : draft.labels;
   const missing = detail.error;
@@ -136,10 +138,10 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   }
 
   function create() {
-    if (!draft.title.trim() || !newIn) return;
+    if (!draft.title.trim() || newIn === undefined) return;
     const { labels: chosen, ...fields } = draft;
     void action.run(async () => {
-      const saved = await auth.request<TaskDetail>(`/spaces/${newIn}/tasks`, { method: 'POST', body: JSON.stringify({ ...fields, title: fields.title.trim() }) });
+      const saved = await auth.request<TaskDetail>(homePath(newIn, 'tasks'), { method: 'POST', body: JSON.stringify({ ...fields, title: fields.title.trim() }) });
       if (chosen.length) await auth.request(`/items/${saved.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds: chosen.map((tag) => tag.id) }) });
       const added = { ...saved, labels: chosen };
       onChanged(added);
@@ -154,8 +156,8 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       actions={
         task && (
           <>
-            <TaskShare editable={editable} shared={space?.kind !== 'personal'} spaceId={task.spaceId} taskId={task.id} title={task.title} />
-            {space?.kind !== 'personal' && <WatchButton itemId={task.id} manage={editable} spaceId={task.spaceId} />}
+            <TaskShare editable={editable} spaceId={task.spaceId} taskId={task.id} title={task.title} />
+            {task.spaceId && <WatchButton itemId={task.id} manage={editable} spaceId={task.spaceId} />}
             {editable && (
           <ActionsMenu
             items={[
@@ -231,7 +233,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       ) : (
         <div className="task-sheet-layout grid gap-6">
           <div className="task-sheet">
-            <div className="task-main grid min-w-0 content-start">
+            <div className="task-main stagger-in grid min-w-0 content-start">
               {task ? (
                 <TaskDescription editable={editable} key={task.id} onSave={(description) => save({ description })} taskId={task.id} value={values.description} />
               ) : (
@@ -257,7 +259,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                 </>
               )}
             </div>
-            <aside aria-label="Properties" className="task-properties">
+            <aside aria-label="Properties" className="task-properties stagger-in">
               <Select disabled={!editable} label="Status" onChange={(status) => save({ status })} options={[...taskStatuses]} value={values.status} />
               {namingType ? (
                 <TextField
@@ -328,7 +330,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                   hint={
                     editable && tags.data?.length === 0 ? (
                       <>
-                        No labels yet. <Link to={`/spaces/${spaceId}/tags`}>Create labels for this space</Link>
+                        No labels yet. <Link to={space ? spaceHref(space, 'tags') : '/settings/tags'}>{space ? 'Create labels for this space' : 'Create your labels'}</Link>
                       </>
                     ) : undefined
                   }

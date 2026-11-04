@@ -130,14 +130,6 @@ export class AuthService implements OnModuleInit {
             },
             select: { id: true, email: true, displayName: true },
           });
-          await transaction.space.create({
-            data: {
-              name: 'Personal',
-              personalOwnerId: user.id,
-              createdById: user.id,
-              members: { create: { userId: user.id, role: SpaceRole.OWNER } },
-            },
-          });
           if (input.invite) {
             await this.invitations.redeemOnSignUp(transaction, input.invite, user);
           }
@@ -428,7 +420,7 @@ export class AuthService implements OnModuleInit {
 
   async deleteAccount(userId: string, proof: Proof) {
     const owned = await this.prisma.space.findMany({
-      where: { personalOwnerId: null, members: { some: { userId, role: SpaceRole.OWNER } } },
+      where: { members: { some: { userId, role: SpaceRole.OWNER } } },
       select: {
         id: true,
         name: true,

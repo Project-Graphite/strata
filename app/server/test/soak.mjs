@@ -102,7 +102,7 @@ if (!accessToken) {
 let boardId = env.SOAK_BOARD;
 if (!boardId) {
   const spaces = await api('/spaces');
-  const spaceId = env.SOAK_SPACE ?? (spaces.find((space) => space.kind === 'personal') ?? spaces[0]).id;
+  const spaceId = env.SOAK_SPACE ?? spaces[0].id;
   boardId = (await api(`/spaces/${spaceId}/notes`, { method: 'POST', body: { board: true, title: `Realtime soak ${new Date().toISOString()}` } })).id;
 }
 let shareCode = env.SOAK_SHARE_CODE;

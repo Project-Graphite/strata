@@ -29,7 +29,6 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     const space = (await owner.call('POST', '/spaces', { name: 'Garden' })).body;
     await strata.join(space.id, viewer, SpaceRole.VIEWER);
 
-    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/invitations`, { handle: guest.handle, role: 'editor' })).status).toBe(400);
     expect((await viewer.call('POST', `/spaces/${space.id}/invitations`, { handle: guest.handle, role: 'editor' })).status).toBe(403);
     expect((await outsider.call('POST', `/spaces/${space.id}/invitations`, { handle: guest.handle, role: 'editor' })).status).toBe(404);
     expect((await owner.call('POST', `/spaces/${space.id}/invitations`, { handle: viewer.handle, role: 'editor' })).status).toBe(409);
@@ -174,15 +173,15 @@ describe('Invitations, the invite-only switch and share links against Postgres',
 
   it('keeps database schemas, rows and embedded boards outside a page-only guest link', async () => {
     const owner = await member('shared-database');
-    const board = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private embedded board', board: true })).body;
+    const board = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Private embedded board', board: true })).body;
     const document = new Y.Doc();
     const embed = new Y.XmlElement('boardEmbed');
     embed.setAttribute('boardId', board.id);
     document.getXmlFragment('default').push([embed]);
     const state = Buffer.from(Y.encodeStateAsUpdate(document)).toString('base64');
     document.destroy();
-    const page = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Shared database body', state })).body;
-    const row = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Private row title', parentId: page.id })).body;
+    const page = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Shared database body', state })).body;
+    const row = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Private row title', parentId: page.id })).body;
     expect((await owner.call('PUT', `/notes/${page.id}/database`, { properties: [{ id: 'secret', name: 'Private property', type: 'text' }], view: 'table' })).status).toBe(200);
     expect((await owner.call('PATCH', `/notes/${row.id}/properties`, { values: { secret: 'Private property value' } })).status).toBe(200);
     const shared = (await owner.call('POST', `/items/${page.id}/share-links`, { access: 'view' })).body;
@@ -235,7 +234,7 @@ describe('Invitations, the invite-only switch and share links against Postgres',
     const note = await strata.item(space.id, 'Album');
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
     const inSpace = (await (await strata.upload(owner, space.id, 'shared.png', png)).json()).id;
-    const elsewhere = (await (await strata.upload(owner, owner.personalSpaceId, 'private.png', png)).json()).id;
+    const elsewhere = (await (await strata.upload(owner, owner.soloSpaceId, 'private.png', png)).json()).id;
     await strata.prisma.itemLink.createMany({
       data: [inSpace, elsewhere].map((targetItemId) => ({ sourceItemId: note.id, targetItemId, kind: 'ATTACHMENT' as const })),
     });

@@ -11,68 +11,74 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { boardsTabs, noteEdited, noteHref, noteTitle, type Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { homePath, useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-export function BoardsIndex({ section }: { section: 'boards' | 'drafts' }) {
+export function useCreateBoard() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
-  const listed = useResource<Note[]>(section === 'boards' ? '/me/notes?kind=board' : null, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
+  const { spaceId, editable } = useChosenSpace();
   const creating = useAction();
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
-  const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
-
-  function create(spaceId: string) {
+  const create = () =>
     void creating.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true }) });
+      const created = await auth.request<Note>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({ board: true }) });
       navigate(noteHref(created));
       return '';
     }, 'Could not create the board');
-  }
+  return { busy: creating.busy, create: editable ? create : undefined };
+}
 
-  return (
-    <Page actions={writable.length > 0 && <AddButton disabled={creating.busy} label="New board" large onClick={() => create(writable[0]!.id)} primary />} tabs={boardsTabs(section)} title="Boards">
-      {section === 'drafts' ? (
-        <Drafts kind="board" />
-      ) : listed.error ? (
-        <LoadError error={listed.error} onRetry={listed.reload} />
-      ) : !listed.data ? (
-        <Placeholder label="Loading your boards">
-          <ul className="board-grid">
-            {[0, 1, 2].map((index) => (
-              <li key={index}>
-                <Skeleton className="board-card-skeleton" />
-              </li>
-            ))}
-          </ul>
-        </Placeholder>
-      ) : listed.data.length === 0 ? (
-        <Empty
-          action={writable.length > 0 && <Button disabled={creating.busy} icon="plus" label="New board" onClick={() => create(writable[0]!.id)} primary />}
-          icon="board"
-          title="No boards yet"
-          variant="page"
-        >
-          A board is a blank canvas to draw, sketch and plan on together.
-        </Empty>
-      ) : (
+export function BoardGrid() {
+  const listed = useResource<Note[]>('/me/notes?kind=board', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
+  const { editable } = useChosenSpace();
+  const creating = useCreateBoard();
+  const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
+
+  if (listed.error) return <LoadError error={listed.error} onRetry={listed.reload} />;
+  if (!listed.data) {
+    return (
+      <Placeholder label="Loading your boards">
         <ul className="board-grid">
-          {listed.data.map((board) => (
-            <Card as="li" className="board-card" interactive key={board.id} padding="sm">
-              <Link className="board-card-link" to={noteHref(board)}>
-                <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
-                <RowText detail={[board.spaceId && spaceNames.get(board.spaceId), noteEdited(board)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
-              </Link>
-              <span className="board-card-menu">
-                <PageActionsMenu note={board} onTrash={writable.some((space) => space.id === board.spaceId) ? () => moveToTrash(board, 0) : undefined} />
-              </span>
-            </Card>
+          {[0, 1, 2].map((index) => (
+            <li key={index}>
+              <Skeleton className="board-card-skeleton" />
+            </li>
           ))}
         </ul>
-      )}
+      </Placeholder>
+    );
+  }
+  if (listed.data.length === 0) {
+    return (
+      <Empty action={creating.create && <Button disabled={creating.busy} icon="plus" label="New board" onClick={creating.create} primary />} icon="board" title="No boards yet" variant="page">
+        A board is a blank canvas to draw, sketch and plan on together.
+      </Empty>
+    );
+  }
+  return (
+    <ul className="board-grid">
+      {listed.data.map((board) => (
+        <Card as="li" className="board-card" interactive key={board.id} padding="sm">
+          <Link className="board-card-link" to={noteHref(board)}>
+            <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
+            <RowText detail={noteEdited(board)} title={noteTitle(board)} />
+          </Link>
+          <span className="board-card-menu">
+            <PageActionsMenu note={board} onTrash={editable ? () => moveToTrash(board, 0) : undefined} />
+          </span>
+        </Card>
+      ))}
+    </ul>
+  );
+}
+
+export function BoardsIndex({ section }: { section: 'boards' | 'drafts' }) {
+  const creating = useCreateBoard();
+
+  return (
+    <Page actions={creating.create && <AddButton disabled={creating.busy} label="New board" large onClick={creating.create} primary />} tabs={boardsTabs(section)} title="Boards">
+      {section === 'drafts' ? <Drafts kind="board" /> : <BoardGrid />}
     </Page>
   );
 }

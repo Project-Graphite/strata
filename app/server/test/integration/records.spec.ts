@@ -142,8 +142,8 @@ describe('Activity, the security log, the inbox and background work against Post
 
   it('empties the trash after 30 days and keeps newer items', async () => {
     const owner = await member('tidier');
-    const old = await strata.item(owner.personalSpaceId, 'Old');
-    const recent = await strata.item(owner.personalSpaceId, 'Recent');
+    const old = await strata.item(owner.soloSpaceId, 'Old');
+    const recent = await strata.item(owner.soloSpaceId, 'Recent');
     const now = new Date();
     await strata.prisma.item.update({ where: { id: old.id }, data: { trashedAt: new Date(now.getTime() - 31 * dayMs) } });
     await strata.prisma.item.update({ where: { id: recent.id }, data: { trashedAt: new Date(now.getTime() - 29 * dayMs) } });

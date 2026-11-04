@@ -33,9 +33,9 @@ export function SpaceMembers() {
   const members = useResource<Member[]>(`/spaces/${space.id}/members`, true);
   const action = useAction();
   const [removing, setRemoving] = useState<Member>();
-  const manages = space.role === 'owner' && space.kind === 'shared';
+  const manages = space.role === 'owner';
   const self = auth.user?.id;
-  const [rows] = useRememberedShape(`space-members-${space.id}`, members.data && [members.data.length], [space.kind === 'shared' ? 2 : 1]);
+  const [rows] = useRememberedShape(`space-members-${space.id}`, members.data && [members.data.length], [2]);
   usePagePrimary(manages && <AddButton label="Invite people" large onClick={invite} primary />);
 
   function changeRole(member: Member, role: SpaceRole) {
@@ -94,12 +94,7 @@ export function SpaceMembers() {
           ))}
         </ul>
       )}
-      {members.data?.length === 1 &&
-        (space.kind === 'personal' ? (
-          <Empty title="Only you can see this space">To work with other people, make a shared space from Spaces.</Empty>
-        ) : (
-          <Empty title="No one else here yet">Invite people by email or @handle. They join when they accept.</Empty>
-        ))}
+      {members.data?.length === 1 && <Empty title="No one else here yet">Invite people by email or @handle. They join when they accept.</Empty>}
       {manages && <SpaceInvitations key={invited} space={space} />}
 
       {removing && (

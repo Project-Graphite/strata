@@ -5,7 +5,7 @@ import { formatMoment } from '../time';
 import { ActionsMenu } from './ActionsMenu';
 import { Button } from './Button';
 import { DialogActions } from './DialogActions';
-import type { FilterGroup } from './FilterMenu';
+import { FilterMenu, type FilterGroup } from './FilterMenu';
 import { Hint } from './Hint';
 import { ContextMenu, NestedMenu, type NestedMenuItem } from './NestedMenu';
 
@@ -231,6 +231,9 @@ export function FileBrowser<T extends BrowserEntry>({
                 {sort.key === key && <Icon name={sort.descending ? 'chevron-down' : 'chevron-up'} size={14} />}
               </button>
             ))}
+            <div className="drive-narrow">
+              <FilterMenu groups={sortGroups(sort, onSort)} label="Sort" />
+            </div>
           </div>
         )}
         {ordered.map((section) => {

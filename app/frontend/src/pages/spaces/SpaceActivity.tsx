@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router';
 import { ListRow, Pagination, Placeholder } from '@project-graphite/ui';
 import { describeActivity, type ActivityEvent } from '../../activity';
 import type { Page } from '../../api';
+import { spaceHref } from '../../spaces';
 import { capitalised, formatMoment } from '../../time';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
@@ -43,7 +44,7 @@ export function SpaceActivity() {
       </ol>
       <Pagination
         page={activity.data.page}
-        pageHref={(next) => `/spaces/${space.id}/activity?page=${next}`}
+        pageHref={(next) => `${spaceHref(space, 'activity')}?page=${next}`}
         totalPages={activity.data.totalPages}
       />
     </>

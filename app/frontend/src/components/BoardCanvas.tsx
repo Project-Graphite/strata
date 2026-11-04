@@ -8,6 +8,7 @@ import { Banner, FloatingToolbar, IconButton, LinesSkeleton, ToolbarButton, Tool
 import type * as Y from 'yjs';
 import { useAuth } from '../auth';
 import { fileSize, uploadFile } from '../files';
+import { homePath } from '../spaces';
 import { ActionsMenu } from './ActionsMenu';
 import { Button, IconLink } from './Button';
 import { boardImage } from './board-files';
@@ -110,7 +111,7 @@ interface BoardComments {
 
 interface BoardMember {
   comments: BoardComments;
-  spaceId: string;
+  spaceId: string | null;
 }
 
 export interface BoardBar {
@@ -154,6 +155,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   const user = auth.user ? { id: auth.user.id, name: auth.user.displayName } : { id: `guest-${connection.document.clientID}`, name: 'Guest' };
   const load = useFileSource();
   const spaceId = member?.spaceId;
+  const homed = spaceId !== undefined && spaceId !== '';
   const pointer = useMemo(() => framedPresence(connection, 'pointer'), [connection]);
   const view = useMemo(() => framedPresence(connection, 'view'), [connection]);
   const latest = useRef({ api, editing: false, commented: commentedBlocks, stickyColor });
@@ -406,15 +408,15 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
 
   const upload = useCallback(
     async (file: File) => {
-      if (!spaceId) throw new Error('Images need a space');
+      if (!homed) throw new Error('Images need a space');
       if (imageBytes.current + file.size > maxBoardImageBytes) {
         show({ message: `Images on a board can add up to ${fileSize(maxBoardImageBytes)}. ${file.name} does not fit.`, tone: 'error' });
         throw new Error('Too large');
       }
-      const uploaded = await uploadFile(auth.request, spaceId, file);
+      const uploaded = await uploadFile(auth.request, spaceId ?? null, file);
       return uploaded.id as FileId;
     },
-    [auth.request, show, spaceId],
+    [auth.request, homed, show, spaceId],
   );
 
   function addElements(skeletons: Parameters<typeof convertToExcalidrawElements>[0]) {
@@ -472,11 +474,11 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   }
 
   const makeTasks = useCallback(
-    async (spaceId: string) => {
+    async (spaceId: string | null) => {
       setMaking(true);
       try {
         for (const title of picked) {
-          const task = await auth.request<{ id: string }>(`/spaces/${spaceId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) });
+          const task = await auth.request<{ id: string }>(homePath(spaceId, 'tasks'), { method: 'POST', body: JSON.stringify({ title }) });
           await auth.request(`/items/${task.id}/links`, { method: 'POST', body: JSON.stringify({ targetId: boardId, kind: 'reference' }) });
         }
         show({ message: picked.length === 1 ? 'Added a task.' : `Added ${picked.length} tasks.` });
@@ -492,18 +494,18 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   const onComment = member?.comments.onComment;
   const renderTopRightUI = useCallback(
     () =>
-      spaceId && editable && !blocked ? (
+      homed && editable && !blocked ? (
         <div className="flex gap-2">
           {single && onComment && <Button label="Comment" onClick={() => api && onComment({ id: single, excerpt: shapeLabel(api.getSceneElements(), single) })} primary />}
-          {picked.length > 0 && <Button disabled={making} label={`Make ${picked.length === 1 ? 'a task' : `${picked.length} tasks`}`} onClick={() => void makeTasks(spaceId)} primary />}
+          {picked.length > 0 && <Button disabled={making} label={`Make ${picked.length === 1 ? 'a task' : `${picked.length} tasks`}`} onClick={() => void makeTasks(spaceId ?? null)} primary />}
         </div>
       ) : null,
-    [api, blocked, editable, makeTasks, making, onComment, picked.length, single, spaceId],
+    [api, blocked, editable, homed, makeTasks, making, onComment, picked.length, single, spaceId],
   );
 
   const uiOptions = useMemo<ExcalidrawProps['UIOptions']>(
-    () => ({ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false }, tools: { image: Boolean(spaceId) } }),
-    [spaceId],
+    () => ({ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false }, tools: { image: homed } }),
+    [homed],
   );
 
   const mainMenu = useMemo(
@@ -584,7 +586,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
         ))}
         <Excalidraw
           excalidrawAPI={setApi}
-          generateIdForFile={spaceId ? upload : undefined}
+          generateIdForFile={homed ? upload : undefined}
           isCollaborating
           onChange={onChange}
           onPointerUp={onPointerUp}
@@ -602,7 +604,7 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   );
 }
 
-export default function BoardCanvas({ bar, editable, noteId, spaceId, ...comments }: { bar: BoardBar; editable: boolean; noteId: string; spaceId: string } & BoardComments) {
+export default function BoardCanvas({ bar, editable, noteId, spaceId, ...comments }: { bar: BoardBar; editable: boolean; noteId: string; spaceId: string | null } & BoardComments) {
   const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
   return <LiveBoard bar={bar} boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;

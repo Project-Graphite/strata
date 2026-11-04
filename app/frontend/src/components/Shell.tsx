@@ -73,9 +73,11 @@ function ScrollToTop() {
   return null;
 }
 
+const routeLayout = (pathname: string) => /^\/(?:spaces\/(?!invitations(?:\/|$))[^/]+|settings)(?=\/|$)/.exec(pathname)?.[0] ?? pathname;
+
 function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; spaces: Resource<Space[]> }) {
   const auth = useAuth();
-  const { spaceId, space } = useChosenSpace();
+  const { spaceId } = useChosenSpace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
@@ -101,15 +103,17 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
 
   const showSidebar = auth.user || (!auth.ready && expectSession);
   const slowNavigation = useSlowNavigation(pathname);
+  const layout = routeLayout(pathname);
+  const crashKey = pageRoute ? layout : spaceId;
   const content = useMemo(
     () => (
-      <CrashBoundary key={spaceId}>
+      <CrashBoundary key={crashKey}>
         <Suspense fallback={<PageSkeleton label="Loading page" />}>
-          {transitions ? <PageTransition page={areaOf(pathname) ?? pathname}><Fragment key={pathname}><Outlet /></Fragment></PageTransition> : <Fragment key={pathname}><Outlet /></Fragment>}
+          {transitions ? <PageTransition page={areaOf(layout) ?? layout}><Fragment key={layout}><Outlet /></Fragment></PageTransition> : <Fragment key={layout}><Outlet /></Fragment>}
         </Suspense>
       </CrashBoundary>
     ),
-    [pathname, spaceId, transitions],
+    [crashKey, layout, transitions],
   );
 
   return (
@@ -151,10 +155,10 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
         sidebar={
           showSidebar && (
             <Sidebar
-              footer={auth.user && <PageTree key={spaceId} />}
+              footer={auth.user && <PageTree />}
               label="Areas"
               loading={!auth.user || spaces.loading}
-              sections={sidebarSections(active, spaces.data, apps, space)}
+              sections={sidebarSections(active, apps)}
             />
           )
         }

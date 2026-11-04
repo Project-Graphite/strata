@@ -3,7 +3,7 @@ import type { Space } from './spaces';
 
 export const ActiveSpaceContext = createContext<{
   space?: Space;
-  choose(spaceId: string): void;
+  choose(spaceId: string | null): void;
 } | null>(null);
 
 const scopedPaths = new Set(['/tasks/today', '/search', '/me/notes', '/me/pages', '/me/tasks', '/me/lists', '/tidy/scan']);
@@ -13,9 +13,14 @@ export function isSpaceResource(path: string) {
 }
 
 export function inActiveSpace(path: string, spaceId?: string) {
-  if (!spaceId || !isSpaceResource(path)) return path;
+  if (!isSpaceResource(path)) return path;
   const [pathname, query] = path.split('?');
   const params = new URLSearchParams(query);
-  params.set('spaceId', spaceId);
+  if (params.get('home') === 'account') return path;
+  if (spaceId) params.set('spaceId', spaceId);
+  else {
+    params.delete('spaceId');
+    params.set('home', 'account');
+  }
   return `${pathname}?${params}`;
 }

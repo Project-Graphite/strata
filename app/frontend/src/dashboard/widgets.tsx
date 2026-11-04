@@ -125,7 +125,7 @@ function TasksSkeleton({ adding }: { adding: boolean }) {
   );
 }
 
-function TaskWidget({ add, empty, path }: { add?: { spaceId: string; listId?: string }; empty?: ReactNode; path: string }) {
+function TaskWidget({ add, empty, path }: { add?: { spaceId: string | null; listId?: string }; empty?: ReactNode; path: string }) {
   const auth = useAuth();
   const spaces = useSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
@@ -193,33 +193,30 @@ function Today() {
 }
 
 function Tasks({ settings }: WidgetProps) {
-  const { spaceId, space } = useChosenSpace();
-  const listId = settings.spaceId === spaceId && typeof settings.listId === 'string' ? settings.listId : undefined;
-  if (!spaceId) return <TasksSkeleton adding />;
+  const { spaceId = null, editable } = useChosenSpace();
+  const listId = (settings.spaceId ?? null) === spaceId && typeof settings.listId === 'string' ? settings.listId : undefined;
   return (
     <TaskWidget
-      add={space && space.role !== 'viewer' ? { spaceId, listId } : undefined}
+      add={editable ? { spaceId, listId } : undefined}
       empty={<WidgetEmpty icon="check-mark" title="All done" />}
       key={`${spaceId}/${listId ?? ''}`}
-      path={`/spaces/${spaceId}/tasks?page=1${listId ? `&listId=${listId}` : ''}`}
+      path={`${spaceId ? `/spaces/${spaceId}/tasks?` : '/me/tasks?home=account&'}page=1${listId ? `&listId=${listId}` : ''}`}
     />
   );
 }
 
 function TasksSettings({ onChange, settings }: SettingsProps) {
-  const { spaceId } = useChosenSpace();
-  const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
+  const { spaceId = null } = useChosenSpace();
+  const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : '/me/lists?home=account', true);
   return (
     <div className="grid gap-3">
-      {spaceId && (
-        <Select
-          label="Epic"
-          onChange={(listId) => onChange({ ...settings, spaceId, listId: listId || undefined })}
-          options={[{ value: '', label: 'All open tasks' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
-          size="small"
-          value={settings.spaceId === spaceId && typeof settings.listId === 'string' ? settings.listId : ''}
-        />
-      )}
+      <Select
+        label="Epic"
+        onChange={(listId) => onChange({ ...settings, spaceId: spaceId ?? undefined, listId: listId || undefined })}
+        options={[{ value: '', label: 'All open tasks' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
+        size="small"
+        value={(settings.spaceId ?? null) === spaceId && typeof settings.listId === 'string' ? settings.listId : ''}
+      />
     </div>
   );
 }

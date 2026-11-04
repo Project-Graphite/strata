@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AccessService } from '../access/access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
+import { SpaceQueryDto } from '../validation/space-query.dto';
 
 const itemLimit = 20;
 const tagLimit = 10;
@@ -13,7 +14,8 @@ export class SearchService {
     private readonly access: AccessService,
   ) {}
 
-  async search(userId: string, text: string, spaceId?: string) {
+  async search(userId: string, text: string, { spaceId, home }: SpaceQueryDto) {
+    const account = home === 'account';
     const terms = text.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.slice(0, 8) ?? [];
     if (terms.length === 0) {
       return { items: [], tags: [] };
@@ -28,13 +30,14 @@ export class SearchService {
           OR ("d"."owner_id" = ${userId}::uuid AND ${spaceId ?? null}::uuid IS NULL)
           OR ("i"."kind" IN ('note', 'board') AND "i"."archived_at" IS NULL AND EXISTS (SELECT 1 FROM "page_grants" AS "g" WHERE "g"."item_id" = "i"."id" AND "g"."user_id" = ${userId}::uuid)))
           AND (${spaceId ?? null}::uuid IS NULL OR "i"."space_id" = ${spaceId ?? null}::uuid)
+          AND (NOT ${account} OR "d"."owner_id" = ${userId}::uuid)
           AND "i"."trashed_at" IS NULL
           AND to_tsvector('english', "d"."title" || ' ' || "d"."body_text") @@ to_tsquery('english', ${query})
         ORDER BY ts_rank(to_tsvector('english', "d"."title" || ' ' || "d"."body_text"), to_tsquery('english', ${query})) DESC,
           "i"."updated_at" DESC
         LIMIT ${itemLimit}`,
       this.prisma.tag.findMany({
-        where: { ...(spaceId ? { spaceId, space: this.access.spacesOf(userId) } : { OR: [{ space: this.access.spacesOf(userId) }, { ownerId: userId }] }), name: { contains: text, mode: 'insensitive' } },
+        where: { ...(account ? { ownerId: userId } : spaceId ? { spaceId, space: this.access.spacesOf(userId) } : { OR: [{ space: this.access.spacesOf(userId) }, { ownerId: userId }] }), name: { contains: text, mode: 'insensitive' } },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         take: tagLimit,
         select: tagFields,

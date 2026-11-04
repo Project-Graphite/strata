@@ -29,6 +29,7 @@ import { AlignGlyph, alignments, GlyphButton, webAddress } from './media-blocks'
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions } from './note-extensions';
 import { usePageFollowing } from './page-following';
 import { cspNonce } from '../csp-nonce';
+import { homePath } from '../spaces';
 
 const turnInto = new Set(['text', 'heading1', 'heading2', 'heading3', 'bullets', 'numbers', 'checklist', 'quote', 'code', 'callout', 'toggle']);
 const blockKinds: Record<string, [string, Record<string, unknown>?]> = {
@@ -425,8 +426,8 @@ export function CollaborativeEditor({
   const actions = useMemo<BlockActions>(() => ({
     onFiles: guest || spaceId === '' ? undefined : (view, files) => handlers.current.insertFiles(view, files),
     onEmbed: guest ? undefined : setEmbedding,
-    onBoard: quick || guest || !spaceId ? undefined : (target) => handlers.current.addBoard(target),
-    onPage: quick || guest || !spaceId ? undefined : (target) => handlers.current.addPage(target),
+    onBoard: quick || guest || spaceId === '' ? undefined : (target) => handlers.current.addBoard(target),
+    onPage: quick || guest || spaceId === '' ? undefined : (target) => handlers.current.addPage(target),
     pageLinks: !guest,
     onCopyBlock: (id) => handlers.current.copyBlock(id),
   }), [guest, quick, spaceId]);
@@ -477,7 +478,7 @@ export function CollaborativeEditor({
 
   function addBoard(target: Editor) {
     auth
-      .request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, parentId: noteId, title: 'Board' }) })
+      .request<{ id: string }>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({ board: true, parentId: noteId, title: 'Board' }) })
       .then(
         (board) => target.chain().focus().insertContent({ type: 'boardEmbed', attrs: { boardId: board.id } }).run(),
         () => show({ message: 'Could not add a board.', tone: 'error' }),
@@ -486,7 +487,7 @@ export function CollaborativeEditor({
 
   function addPage(target: Editor) {
     auth
-      .request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ parentId: noteId }) })
+      .request<{ id: string }>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({ parentId: noteId }) })
       .then(
         (page) => target.chain().focus().insertContent([{ type: 'pageLink', attrs: { pageId: page.id } }, { type: 'text', text: ' ' }]).run(),
         () => show({ message: 'Could not add a page.', tone: 'error' }),

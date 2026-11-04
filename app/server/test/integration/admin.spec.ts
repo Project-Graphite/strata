@@ -9,7 +9,7 @@ describe('Admin against Postgres', () => {
   it('lists every account with its role and storage to admins only', async () => {
     const admin = await member('overseer', UserRole.ADMIN);
     const someone = await member('regular');
-    expect((await upload(someone, someone.personalSpaceId, 'notes.txt', Buffer.alloc(2048, 0x61))).status).toBe(201);
+    expect((await upload(someone, someone.soloSpaceId, 'notes.txt', Buffer.alloc(2048, 0x61))).status).toBe(201);
 
     expect((await someone.call('GET', '/admin/users')).status).toBe(403);
     const listed = await admin.call('GET', '/admin/users');

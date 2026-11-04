@@ -60,13 +60,10 @@ interface Format {
   isActive?: (editor: Editor) => boolean;
   run: (editor: Editor) => void;
   separated?: boolean;
-  history?: boolean;
 }
 
 const formatting: Format[] = [
-  { label: 'Undo', icon: 'undo', history: true, run: (editor) => editor.chain().focus().undo().run() },
-  { label: 'Redo', icon: 'redo', history: true, run: (editor) => editor.chain().focus().redo().run() },
-  { label: 'Heading', icon: 'heading-1', separated: true, isActive: (editor) => editor.isActive('heading', { level: 2 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+  { label: 'Heading', icon: 'heading-1', isActive: (editor) => editor.isActive('heading', { level: 2 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run() },
   { label: 'Subheading', icon: 'heading-2', isActive: (editor) => editor.isActive('heading', { level: 3 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run() },
   { label: 'Bold', icon: 'bold', separated: true, isActive: (editor) => editor.isActive('bold'), run: (editor) => editor.chain().focus().toggleBold().run() },
   { label: 'Italic', icon: 'italic', isActive: (editor) => editor.isActive('italic'), run: (editor) => editor.chain().focus().toggleItalic().run() },
@@ -82,12 +79,11 @@ const formatting: Format[] = [
   { label: 'Divider', glyph: <span aria-hidden="true">—</span>, run: (editor) => editor.chain().focus().setHorizontalRule().run() },
 ];
 
-function Toolbar({ compact, editor }: { compact: boolean; editor: Editor }) {
-  const formats = compact ? formatting.filter((format) => !format.history) : formatting;
-  const active = useEditorState({ editor, selector: ({ editor: current }) => formats.map((format) => Boolean(format.isActive?.(current))) });
+function Toolbar({ editor }: { editor: Editor }) {
+  const active = useEditorState({ editor, selector: ({ editor: current }) => formatting.map((format) => Boolean(format.isActive?.(current))) });
   return (
     <FloatingToolbar className="rich-editor-toolbar" label="Formatting">
-      {formats.map((format, index) => [
+      {formatting.map((format, index) => [
         format.separated && index > 0 && <ToolbarSeparator key={`${format.label}-separator`} />,
         format.icon ? (
           <ToolbarButton active={active[index]} icon={format.icon} key={format.label} label={format.label} onClick={() => format.run(editor)} />
@@ -171,7 +167,7 @@ export function RichTextEditor({
   return (
     <div className="relative">
       <div className="rich-editor" data-compact={compact || undefined}>
-        <Toolbar compact={compact} editor={editor} />
+        <Toolbar editor={editor} />
         <EditorContent editor={editor} />
       </div>
       <LinkActions editor={editor} />

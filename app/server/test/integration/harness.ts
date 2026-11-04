@@ -35,7 +35,7 @@ export interface Member {
   id: string;
   email: string;
   handle: string;
-  personalSpaceId: string;
+  soloSpaceId: string;
   token: string;
   call: Call;
 }
@@ -126,8 +126,8 @@ export function integrationApp() {
       });
       const space = await prisma.space.create({
         data: {
-          name: 'Personal',
-          personalOwnerId: user.id,
+          name: 'Solo',
+          slug: randomBytes(5).toString('hex'),
           createdById: user.id,
           members: { create: { userId: user.id, role: SpaceRole.OWNER } },
         },
@@ -139,7 +139,7 @@ export function integrationApp() {
         { sub: user.id, sid: session.id },
         { secret: settings.AUTH_ACCESS_TOKEN_SECRET, expiresIn: 3_600 },
       );
-      return { id: user.id, email: user.email, handle: user.handle, personalSpaceId: space.id, token, call: caller(token) };
+      return { id: user.id, email: user.email, handle: user.handle, soloSpaceId: space.id, token, call: caller(token) };
     },
 
     upload(as: Member, spaceId: string, name: string, data: Buffer, type = 'application/octet-stream') {

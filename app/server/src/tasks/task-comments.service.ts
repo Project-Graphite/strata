@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
+import { audienceOf } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -68,7 +69,7 @@ export class TaskCommentsService {
       await this.watchers.notify(transaction, taskId, userId, { title: `${created.author?.displayName ?? 'Someone'} commented on “${title}”`, body: body.slice(0, 200), link: `/tasks?task=${taskId}` }, mentioned);
       return created;
     });
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(created, userId);
   }
 
@@ -81,7 +82,7 @@ export class TaskCommentsService {
       await this.mention(transaction, { spaceId: task.spaceId, taskId, title, authorId: userId, body, before: comment.body });
       return updated;
     });
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(updated, userId);
   }
 
@@ -91,7 +92,7 @@ export class TaskCommentsService {
       throw new ForbiddenException('Only the person who wrote a comment or an owner of the space can delete it');
     }
     await this.prisma.noteComment.deleteMany({ where: { id: commentId } });
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
   }
 
   async react(userId: string, taskId: string, commentId: string, emoji: string, reacting: boolean) {
@@ -100,17 +101,17 @@ export class TaskCommentsService {
     if (!(await this.prisma.noteComment.count({ where: { id: commentId, itemId: taskId } }))) throw new NotFoundException('Comment not found');
     if (reacting) await this.prisma.commentReaction.createMany({ data: [{ commentId, userId, emoji }], skipDuplicates: true });
     else await this.prisma.commentReaction.deleteMany({ where: { commentId, userId, emoji } });
-    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(await this.prisma.noteComment.findUniqueOrThrow({ where: { id: commentId }, select: commentFields }), userId);
   }
 
   private async mention(
     transaction: Prisma.TransactionClient,
-    { spaceId, taskId, title, authorId, body, before = '' }: { spaceId: string; taskId: string; title: string; authorId: string; body: string; before?: string },
+    { spaceId, taskId, title, authorId, body, before = '' }: { spaceId: string | null; taskId: string; title: string; authorId: string; body: string; before?: string },
   ) {
     const already = handlesIn(before);
     const handles = [...handlesIn(body)].filter((handle) => !already.has(handle));
-    if (handles.length === 0) return [];
+    if (handles.length === 0 || !spaceId) return [];
     const mentioned = (
       await transaction.spaceMember.findMany({ where: { spaceId, userId: { not: authorId }, user: { handle: { in: handles }, isActive: true } }, select: { userId: true } })
     ).map((member) => member.userId);

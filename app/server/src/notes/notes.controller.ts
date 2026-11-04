@@ -27,13 +27,32 @@ export class NotesController {
   @Get('me/pages')
   @Scope('items:read')
   mine(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.notes.mine(user.id, query.spaceId);
+    return this.notes.mine(user.id, query);
   }
 
   @Get('me/notes')
   @Scope('items:read')
   everywhere(@CurrentUser() user: AuthenticatedUser, @Query() query: PageKindQueryDto) {
-    return this.notes.everywhere(user.id, query.kind, query.spaceId);
+    return this.notes.everywhere(user.id, query.kind, query);
+  }
+
+  @Post('me/notes')
+  @Scope('items:write')
+  createMine(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateNoteDto) {
+    return this.notes.create(user.id, null, input);
+  }
+
+  @Get('me/page-children')
+  @Scope('items:read')
+  myChildren(@CurrentUser() user: AuthenticatedUser, @Query() query: PageChildrenQueryDto) {
+    return this.notes.children(user.id, null, query);
+  }
+
+  @Post('me/page-drafts')
+  @Scope('items:write')
+  @RateLimit('page-draft', 200, 86_400)
+  recoverMine(@CurrentUser() user: AuthenticatedUser, @Req() request: Request, @Headers('x-recovery-id') recoveryId?: string) {
+    return this.recoverInto(user.id, null, request, recoveryId);
   }
 
   @Get('me/drafts')
@@ -63,10 +82,14 @@ export class NotesController {
   @Post('spaces/:spaceId/page-drafts')
   @Scope('items:write')
   @RateLimit('page-draft', 200, 86_400)
-  async recover(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Req() request: Request, @Headers('x-recovery-id') recoveryId?: string) {
+  recover(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Req() request: Request, @Headers('x-recovery-id') recoveryId?: string) {
+    return this.recoverInto(user.id, spaceId, request, recoveryId);
+  }
+
+  private async recoverInto(userId: string, spaceId: string | null, request: Request, recoveryId?: string) {
     if (!request.is('application/octet-stream')) throw new BadRequestException('Send the draft file itself as the request body');
     if (recoveryId !== undefined && !isUUID(recoveryId)) throw new BadRequestException('The recovery ID is invalid');
-    return this.uploads.run(user.id, async () => this.notes.recover(user.id, spaceId, await readBody(request, maxDraftFileBytes, 'Draft files can be at most 8 MB'), recoveryId));
+    return this.uploads.run(userId, async () => this.notes.recover(userId, spaceId, await readBody(request, maxDraftFileBytes, 'Draft files can be at most 8 MB'), recoveryId));
   }
 
   @Get('notes/:id')

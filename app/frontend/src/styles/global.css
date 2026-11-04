@@ -10,6 +10,10 @@
 
 :root {
   --color-highlight: #d7b24a;
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-enter: 300ms;
+  --duration-highlight: 1500ms;
+  --stagger-step: 50ms;
 }
 
 :is(button, [role='button'], [role='tab'], .MuiButton-root, .MuiToggleButton-root, .MuiTab-root) {
@@ -841,7 +845,6 @@
 .note-toggle > button::before {
   display: inline-block;
   content: '▸';
-  transition: transform 120ms ease;
 }
 
 .note-toggle.is-open > button::before {
@@ -1343,6 +1346,10 @@ button.habit-day::before {
   background-size: 100% 1px;
 }
 
+.task-done :is(.list-row-main, .task-card-main) {
+  opacity: 0.6;
+}
+
 .swipe-row {
   position: relative;
   touch-action: pan-y;
@@ -1729,8 +1736,14 @@ button.habit-day::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .task-activity-list > li,
-  .task-comment-replies > li {
-    animation: rise-in 220ms var(--ease-settle) backwards;
+  .comment-entry {
+    animation: comment-in var(--duration-enter) var(--ease-settle) backwards;
+  }
+
+  .comment-entry[data-posted] {
+    animation:
+      comment-in var(--duration-enter) var(--ease-settle) backwards,
+      comment-posted var(--duration-highlight) ease-out;
   }
 
   .reaction-chip {
@@ -1916,7 +1929,17 @@ button.habit-day::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .task-title {
-    transition: background-size 320ms var(--ease-settle);
+    transition:
+      background-size var(--duration-enter) var(--ease-settle),
+      color var(--duration-slow) var(--ease-settle);
+  }
+
+  :is(.list-row-main, .task-card-main) {
+    transition: opacity var(--duration-slow) var(--ease-settle);
+  }
+
+  .task-done .MuiCheckbox-root.Mui-checked[data-pressed] .MuiSvgIcon-root {
+    animation: check-bounce var(--duration-enter) var(--ease-bounce);
   }
 
   .habit-check,
@@ -2089,41 +2112,27 @@ button.habit-day::before {
   transition: rotate 180ms var(--ease-settle);
 }
 
-.page-tree-expand[aria-expanded='true'] .page-tree-chevron svg {
+.page-tree-expand[aria-expanded='true'] .page-tree-chevron svg,
+[aria-expanded='true'] > .page-tree-expand .page-tree-chevron svg {
   rotate: 90deg;
 }
 
-:is(.page-tree-row:hover, .page-tree-expand:focus-visible) .page-tree-expand > .note-mark {
+:is(:is(.page-tree-row, .pages-tree-row):is(:hover, :focus-visible, [aria-expanded='true']) > .page-tree-expand, .page-tree-expand:is(:focus-visible, [aria-expanded='true'])) > :not(.page-tree-chevron) {
   visibility: hidden;
 }
 
-:is(.page-tree-row:hover, .page-tree-expand:focus-visible) .page-tree-chevron {
+:is(:is(.page-tree-row, .pages-tree-row):is(:hover, :focus-visible, [aria-expanded='true']) > .page-tree-expand, .page-tree-expand:is(:focus-visible, [aria-expanded='true'])) > .page-tree-chevron {
   visibility: visible;
 }
 
 @media (hover: none) {
-  .page-tree-expand > .note-mark {
+  .page-tree-expand > :not(.page-tree-chevron) {
     visibility: hidden;
   }
 
   .page-tree-chevron {
     visibility: visible;
   }
-}
-
-.page-tree-toggle {
-  position: relative;
-  display: grid;
-  width: 1.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-  place-items: center;
-  border-radius: var(--radius-field);
-  color: var(--color-faint);
-}
-
-.page-tree-toggle:not(:disabled):hover {
-  color: var(--color-ink);
 }
 
 .pages-tree,
@@ -3105,7 +3114,7 @@ header.backdrop-blur-md {
     font-size: max(1rem, 1em);
   }
 
-  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root, .page-tree-toggle, .page-tree-expand)::after {
+  :is(.MuiIconButton-root, .MuiChip-clickable, .MuiPaginationItem-root, .MuiCheckbox-root, .MuiRadio-root, .page-tree-expand)::after {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -3210,15 +3219,6 @@ header.backdrop-blur-md {
   margin-inline-start: auto;
 }
 
-.page-tree-toggle svg {
-  transition: rotate 180ms var(--ease-settle);
-}
-
-.page-tree-toggle[aria-expanded='true'] svg,
-[aria-expanded='true'] > .page-tree-toggle svg {
-  rotate: 90deg;
-}
-
 .tab-bar::before {
   left: calc(env(safe-area-inset-left) - 1.75rem);
   translate: calc((100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) / var(--tab-count) * (var(--tab-index) + 0.5)) 0;
@@ -3243,7 +3243,7 @@ header.backdrop-blur-md {
 @media (prefers-reduced-motion: reduce) {
   .comments-panel,
   .comments-panel[data-open='true'],
-  .page-tree-toggle svg {
+  .page-tree-chevron svg {
     transition: none;
   }
 }
@@ -3830,7 +3830,7 @@ main.shell {
 
 .task-main > :is(section, details),
 .task-activity-body,
-.task-activity-body > ol {
+.task-activity-list {
   gap: var(--space-4);
 }
 
@@ -4147,7 +4147,7 @@ main.shell {
   }
 
   .drive-cell,
-  .drive-head > :not(:first-child) {
+  .drive-sort {
     display: none;
   }
 }
@@ -4192,4 +4192,85 @@ main.shell {
 .drive-icon > span {
   width: 2rem;
   height: 2rem;
+}
+
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+}
+
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+
+.reveal > * {
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--space-1);
+}
+
+.note-toggle [data-type='detailsContent'] {
+  overflow: clip;
+  overflow-clip-margin: var(--space-2);
+  interpolate-size: allow-keywords;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    transition:
+      grid-template-rows var(--duration-slow) var(--ease-settle),
+      visibility var(--duration-slow);
+  }
+
+  .note-toggle > button::before {
+    transition: transform var(--duration-fast) var(--ease-settle);
+  }
+
+  .note-toggle [data-type='detailsContent'] {
+    transition:
+      height var(--duration-slow) var(--ease-settle),
+      opacity var(--duration-slow) var(--ease-settle),
+      display var(--duration-slow) allow-discrete;
+  }
+
+  .note-toggle [data-type='detailsContent'][hidden] {
+    height: 0;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .note-toggle [data-type='detailsContent']:not([hidden]) {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  textarea.MuiInputBase-inputMultiline {
+    transition: height var(--duration-fast) var(--ease-settle);
+  }
+
+  .nested-menu .MuiMenuItem-root {
+    animation: fade-in var(--duration-base) var(--ease-settle) backwards;
+  }
+}
+
+@keyframes check-bounce {
+  from {
+    scale: 0.6;
+  }
+}
+
+@keyframes comment-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes comment-posted {
+  from {
+    background-color: color-mix(in srgb, var(--color-highlight) 22%, transparent);
+  }
 }

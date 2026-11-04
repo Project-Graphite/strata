@@ -13,7 +13,7 @@ export class DriveController {
   @Get('drive')
   @Scope('items:read')
   list(@CurrentUser() user: AuthenticatedUser, @Query() query: DriveQueryDto) {
-    return this.drive.list(user.id, query.folderId);
+    return query.spaceId ? this.drive.spaceFolder(user.id, query.spaceId) : this.drive.list(user.id, query.folderId);
   }
 
   @Post('folders')

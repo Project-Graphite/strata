@@ -20,6 +20,7 @@ import {
 } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
 import { PageDto } from '../../validation/page.dto';
+import { SpaceQueryDto } from '../../validation/space-query.dto';
 import { IsRichText } from '../../validation/rich-text.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 import { taskStatuses } from '../task-status';
@@ -38,6 +39,17 @@ export class TaskColumnDto {
   @IsString()
   @Length(1, 30, { message: 'Column names are 1 to 30 characters long.' })
   name!: string;
+
+  @IsOptional()
+  @ValidateIf((_input, value) => value !== null)
+  @IsUUID('all', { message: 'Choose an epic.' })
+  listId?: string | null;
+}
+
+export class TaskColumnQueryDto extends SpaceQueryDto {
+  @IsOptional()
+  @Matches(/^(none|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, { message: 'Choose General or an epic.' })
+  listId?: string;
 }
 
 export class TaskFieldsDto {

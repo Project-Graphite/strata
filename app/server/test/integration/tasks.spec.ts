@@ -20,7 +20,7 @@ describe('Tasks against Postgres', () => {
     await strata.join(space.id, helper, SpaceRole.EDITOR);
     await strata.join(space.id, viewer, SpaceRole.VIEWER);
     const list = (await owner.call('POST', `/spaces/${space.id}/lists`, { title: 'Chores' })).body;
-    const otherList = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/lists`, { title: 'Mine' })).body;
+    const otherList = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/lists`, { title: 'Mine' })).body;
 
     const parent = await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Clean the kitchen', listId: list.id, priority: 2 });
     expect(parent.status).toBe(201);
@@ -53,7 +53,7 @@ describe('Tasks against Postgres', () => {
   it('moves a repeating task to its next date and finishes it when the rule runs out', async () => {
     const owner = await member('repeater');
     const task = (
-      await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, {
+      await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, {
         title: 'Bins out',
         dueDate: '2026-10-05',
         dueTime: '19:00',
@@ -67,11 +67,11 @@ describe('Tasks against Postgres', () => {
     expect(moved).toMatchObject({ dueDate: '2026-10-12', repeatRule: 'FREQ=WEEKLY;COUNT=1', completedAt: null });
     const done = (await owner.call('POST', `/tasks/${task.id}/complete`)).body;
     expect(done.completedAt).not.toBeNull();
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/tasks?completed=true`)).body.totalResults).toBe(1);
+    expect((await owner.call('GET', `/spaces/${owner.soloSpaceId}/tasks?completed=true`)).body.totalResults).toBe(1);
     const reopened = (await owner.call('POST', `/tasks/${task.id}/reopen`)).body;
     expect(reopened.completedAt).toBeNull();
 
-    const verbs = (await owner.call('GET', `/spaces/${owner.personalSpaceId}/activity`)).body.results.map(
+    const verbs = (await owner.call('GET', `/spaces/${owner.soloSpaceId}/activity`)).body.results.map(
       (event: { verb: string }) => event.verb,
     );
     expect(verbs).toEqual(['task.reopened', 'task.completed', 'task.completed', 'item.created']);
@@ -85,11 +85,11 @@ describe('Tasks against Postgres', () => {
     const make = (spaceId: string, title: string, extra: object) =>
       owner.call('POST', `/spaces/${spaceId}/tasks`, { title, ...extra }).then((reply) => reply.body);
 
-    const overdue = await make(owner.personalSpaceId, 'Overdue', { dueDate: utcDate(-2) });
+    const overdue = await make(owner.soloSpaceId, 'Overdue', { dueDate: utcDate(-2) });
     const due = await make(shared.id, 'Today', { dueDate: utcDate(0), dueTime: '08:00', assigneeId: null });
     await make(shared.id, 'Tomorrow', { dueDate: utcDate(1) });
     await make(shared.id, 'Theirs', { dueDate: utcDate(0), assigneeId: other.id });
-    const finished = await make(owner.personalSpaceId, 'Done', { dueDate: utcDate(0) });
+    const finished = await make(owner.soloSpaceId, 'Done', { dueDate: utcDate(0) });
     await owner.call('POST', `/tasks/${finished.id}/complete`);
 
     expect((await owner.call('GET', '/tasks/today')).body.map((task: { id: string }) => task.id)).toEqual([overdue.id, due.id]);
@@ -103,16 +103,16 @@ describe('Tasks against Postgres', () => {
     const home = (await owner.call('POST', '/spaces', { name: 'Home' })).body;
     await strata.join(home.id, partner, SpaceRole.EDITOR);
     const groceries = (await owner.call('POST', `/spaces/${home.id}/lists`, { title: 'Groceries' })).body;
-    const errands = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/lists`, { title: 'Errands' })).body;
+    const errands = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/lists`, { title: 'Errands' })).body;
     const make = (spaceId: string, title: string, extra: object = {}) =>
       owner.call('POST', `/spaces/${spaceId}/tasks`, { title, ...extra }).then((reply) => reply.body);
-    await make(owner.personalSpaceId, 'Call the bank', { dueDate: utcDate(1) });
-    await make(owner.personalSpaceId, 'Post the parcel', { listId: errands.id });
+    await make(owner.soloSpaceId, 'Call the bank', { dueDate: utcDate(1) });
+    await make(owner.soloSpaceId, 'Post the parcel', { listId: errands.id });
     await make(home.id, 'Milk', { listId: groceries.id, assigneeId: null });
     await make(home.id, 'Fix the shelf', { assigneeId: partner.id });
     const done = await make(home.id, 'Bread', { listId: groceries.id });
     await owner.call('POST', `/tasks/${done.id}/complete`);
-    await make(outsider.personalSpaceId, 'Not yours');
+    await make(outsider.soloSpaceId, 'Not yours');
 
     const titles = (reply: { body: { results: { title: string }[] } }) => reply.body.results.map((task) => task.title);
     expect(titles(await owner.call('GET', '/me/tasks'))).toEqual(['Call the bank', 'Post the parcel', 'Milk']);
@@ -122,7 +122,7 @@ describe('Tasks against Postgres', () => {
     expect(titles(await outsider.call('GET', `/me/tasks?listId=${groceries.id}`))).toEqual([]);
     expect((await owner.call('GET', '/me/lists')).body).toEqual([
       expect.objectContaining({ id: groceries.id, spaceId: home.id, title: 'Groceries', openTasks: 1 }),
-      expect.objectContaining({ id: errands.id, spaceId: owner.personalSpaceId, title: 'Errands', openTasks: 1 }),
+      expect.objectContaining({ id: errands.id, spaceId: owner.soloSpaceId, title: 'Errands', openTasks: 1 }),
     ]);
     expect((await partner.call('GET', '/me/lists')).body.map((list: { title: string }) => list.title)).toEqual(['Groceries']);
   });
@@ -155,10 +155,10 @@ describe('Tasks against Postgres', () => {
 
   it('relates tasks to tasks only, once per pair, and lets either task drop the relation', async () => {
     const owner = await member('linker');
-    const make = (title: string) => owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title }).then((reply) => reply.body);
+    const make = (title: string) => owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title }).then((reply) => reply.body);
     const api = await make('API change');
     const app = await make('App update');
-    const list = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/lists`, { title: 'Not a task' })).body;
+    const list = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/lists`, { title: 'Not a task' })).body;
 
     const blocks = await owner.call('POST', `/items/${api.id}/links`, { targetId: app.id, kind: 'blocks' });
     expect(blocks.status).toBe(201);
@@ -181,7 +181,7 @@ describe('Tasks against Postgres', () => {
     expect(qa.status).toBe(201);
     expect((await owner.call('POST', `/spaces/${team.id}/task-columns`, { name: 'QA' })).status).toBe(409);
     expect((await viewer.call('POST', `/spaces/${team.id}/task-columns`, { name: 'Review' })).status).toBe(403);
-    const elsewhere = (await outsider.call('POST', `/spaces/${outsider.personalSpaceId}/task-columns`, { name: 'Theirs' })).body;
+    const elsewhere = (await outsider.call('POST', `/spaces/${outsider.soloSpaceId}/task-columns`, { name: 'Theirs' })).body;
 
     const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Check the build', columnId: qa.body.id })).body;
     expect(task).toMatchObject({ status: 'in_progress', columnId: qa.body.id });
@@ -201,7 +201,7 @@ describe('Tasks against Postgres', () => {
 
   it('keeps a formatted copy of a comment beside its plain text', async () => {
     const owner = await member('formatter');
-    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Write notes' })).body;
+    const task = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title: 'Write notes' })).body;
     const document = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Looks good', marks: [{ type: 'bold' }] }] }] };
     const added = await owner.call('POST', `/tasks/${task.id}/comments`, { body: 'Looks good', document });
     expect(added.body).toMatchObject({ body: 'Looks good', document });
@@ -328,7 +328,7 @@ describe('Tasks against Postgres', () => {
           orderBy: { runAt: 'asc' },
         })
       ).map((job) => job.runAt.toISOString());
-    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Call the bank', dueDate: utcDate(2), dueTime: '10:00' })).body;
+    const task = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title: 'Call the bank', dueDate: utcDate(2), dueTime: '10:00' })).body;
     expect(await reminders()).toEqual([`${utcDate(1)}T10:00:00.000Z`, `${utcDate(2)}T09:00:00.000Z`]);
 
     await owner.call('PATCH', `/tasks/${task.id}`, { dueTime: '11:00' });
@@ -361,7 +361,7 @@ describe('Tasks against Postgres', () => {
 
   it('gives a new task to its creator, keeps status and finishing time together and records each step', async () => {
     const owner = await member('ticket-owner');
-    const create = (body: object) => owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, body).then((reply) => reply.body);
+    const create = (body: object) => owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, body).then((reply) => reply.body);
     const task = await create({ title: 'File taxes' });
     expect(task).toMatchObject({ status: 'open', completedAt: null, assignee: { id: owner.id }, labels: [], subtaskCounts: { total: 0, done: 0 }, description: null, subtasks: [] });
     expect((await create({ title: 'Anyone', assigneeId: null })).assignee).toBeNull();
@@ -370,7 +370,7 @@ describe('Tasks against Postgres', () => {
     const done = (await owner.call('PATCH', `/tasks/${task.id}`, { status: 'done' })).body;
     expect(done.status).toBe('done');
     expect(done.completedAt).not.toBeNull();
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/tasks?completed=true`)).body.results.map((row: { id: string }) => row.id)).toEqual([task.id]);
+    expect((await owner.call('GET', `/spaces/${owner.soloSpaceId}/tasks?completed=true`)).body.results.map((row: { id: string }) => row.id)).toEqual([task.id]);
     expect((await owner.call('POST', `/tasks/${task.id}/reopen`)).body).toMatchObject({ status: 'open', completedAt: null });
     expect((await owner.call('POST', `/tasks/${task.id}/complete`)).body.status).toBe('done');
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { status: 'in_progress' })).body).toMatchObject({ status: 'in_progress', completedAt: null });
@@ -384,7 +384,7 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { description: { type: 'paragraph' } })).status).toBe(400);
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { description: null })).body.description).toBeNull();
 
-    const tag = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Paperwork' })).body;
+    const tag = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Paperwork' })).body;
     await owner.call('PUT', `/items/${task.id}/tags`, { tagIds: [tag.id] });
     expect((await owner.call('GET', `/tasks/${task.id}`)).body.labels).toEqual([expect.objectContaining({ id: tag.id, name: 'Paperwork' })]);
 
@@ -395,7 +395,7 @@ describe('Tasks against Postgres', () => {
 
   it('keeps sub-tasks one level deep and returns them with their counts', async () => {
     const owner = await member('breakdown');
-    const create = (body: object) => owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, body);
+    const create = (body: object) => owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, body);
     const parent = (await create({ title: 'Move house' })).body;
     const boxes = (await create({ title: 'Pack boxes', parentId: parent.id })).body;
     const van = (await create({ title: 'Book a van', parentId: parent.id })).body;
@@ -406,7 +406,7 @@ describe('Tasks against Postgres', () => {
     const detail = (await owner.call('GET', `/tasks/${parent.id}`)).body;
     expect(detail.subtaskCounts).toEqual({ total: 2, done: 1 });
     expect(detail.subtasks.map((task: { title: string }) => task.title)).toEqual(['Pack boxes', 'Book a van']);
-    expect((await owner.call('GET', `/spaces/${owner.personalSpaceId}/tasks`)).body.results.find((task: { id: string }) => task.id === parent.id).subtaskCounts).toEqual({ total: 2, done: 1 });
+    expect((await owner.call('GET', `/spaces/${owner.soloSpaceId}/tasks`)).body.results.find((task: { id: string }) => task.id === parent.id).subtaskCounts).toEqual({ total: 2, done: 1 });
 
     const loose = (await create({ title: 'Clean the flat' })).body;
     expect((await create({ title: 'Tape', parentId: boxes.id })).status).toBe(400);
@@ -440,7 +440,7 @@ describe('Tasks against Postgres', () => {
     expect((await move(third, { previousId: first.id, nextId: second.id })).status).toBe(200);
     expect(await order()).toEqual(['First', 'Third', 'Second']);
 
-    const elsewhere = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Elsewhere' })).body;
+    const elsewhere = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title: 'Elsewhere' })).body;
     expect((await move(first, { previousId: elsewhere.id })).status).toBe(400);
     expect((await move(first, { previousId: first.id })).status).toBe(400);
     expect((await move(first, {})).status).toBe(400);
@@ -491,7 +491,7 @@ describe('Tasks against Postgres', () => {
     await strata.join(space.id, viewer, SpaceRole.VIEWER);
     const task = (await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Print the tickets' })).body;
     const ticket = await (await strata.upload(owner, space.id, 'ticket.txt', Buffer.from(`ticket ${owner.id}`))).json();
-    const personal = await (await strata.upload(owner, owner.personalSpaceId, 'private.txt', Buffer.from(`private ${owner.id}`))).json();
+    const personal = await (await strata.upload(owner, owner.soloSpaceId, 'private.txt', Buffer.from(`private ${owner.id}`))).json();
 
     expect((await owner.call('PUT', `/tasks/${task.id}/attachments/${ticket.id}`)).body).toMatchObject({ id: ticket.id, name: 'ticket.txt' });
     expect((await owner.call('PUT', `/tasks/${task.id}/attachments/${ticket.id}`)).status).toBe(200);

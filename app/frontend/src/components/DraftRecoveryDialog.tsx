@@ -8,7 +8,7 @@ import { Button } from './Button';
 import { DialogActions } from './DialogActions';
 import { Hint } from './Hint';
 
-export function DraftRecoveryDialog({ parts, spaceId, onClose, onComplete }: { parts: DraftPart[]; spaceId: string; onClose: () => void; onComplete: (firstId: string) => void }) {
+export function DraftRecoveryDialog({ parts, spaceId, onClose, onComplete }: { parts: DraftPart[]; spaceId: string | null; onClose: () => void; onComplete: (firstId: string) => void }) {
   const auth = useAuth();
   const action = useAction();
   const [completed, setCompleted] = useState<Record<number, string>>({});

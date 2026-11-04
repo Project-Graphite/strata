@@ -104,7 +104,7 @@ export function BoardPage() {
               ),
               actions: (
                 <>
-                  {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
+                  {details.spaceId && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
                   {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
                   <CommentsButton count={threads} onClick={() => setCommenting(!commenting)} open={commenting} />
                 </>
@@ -127,7 +127,7 @@ export function BoardPage() {
                 : undefined
             }
             onOpenThread={openThread}
-            spaceId={details.permissions.organize ? (details.spaceId ?? '') : ''}
+            spaceId={details.permissions.organize ? details.spaceId : ''}
           />
         </Suspense>
       </FileSourceContext>

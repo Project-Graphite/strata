@@ -9,18 +9,18 @@ describe('Spaces, items, tags and links against Postgres', () => {
   it("hides one person's spaces, items and tags from everyone else", async () => {
     const alice = await member('alice');
     const mallory = await member('mallory');
-    const note = await item(alice.personalSpaceId, 'Private note');
-    const tag = await alice.call('POST', `/spaces/${alice.personalSpaceId}/tags`, { name: 'Health' });
+    const note = await item(alice.soloSpaceId, 'Private note');
+    const tag = await alice.call('POST', `/spaces/${alice.soloSpaceId}/tags`, { name: 'Health' });
     expect(tag.status).toBe(201);
     expect((await alice.call('PUT', `/items/${note.id}/tags`, { tagIds: [tag.body.id] })).status).toBe(200);
     await strata.prisma.item.update({ where: { id: note.id }, data: { trashedAt: new Date() } });
 
     expect((await mallory.call('GET', '/spaces')).body.map((space: { id: string }) => space.id)).toEqual([
-      mallory.personalSpaceId,
+      mallory.soloSpaceId,
     ]);
     expect((await mallory.call('GET', '/trash')).body.totalResults).toBe(0);
 
-    const space = `/spaces/${alice.personalSpaceId}`;
+    const space = `/spaces/${alice.soloSpaceId}`;
     const refused = [
       ['GET', space],
       ['PATCH', space, { name: 'Mine now' }],
@@ -62,15 +62,17 @@ describe('Spaces, items, tags and links against Postgres', () => {
     const viewer = await member('viewer');
     const outsider = await member('outsider');
     const shared = await owner.call('POST', '/spaces', { name: 'Family', color: 'teal' });
-    expect(shared.body).toMatchObject({ name: 'Family', color: 'teal', kind: 'shared', role: 'owner' });
+    expect(shared.body).toMatchObject({ name: 'Family', slug: expect.stringMatching(/^[a-z0-9]{10}$/), color: 'teal', role: 'owner' });
+    expect((await viewer.call('GET', `/spaces/${shared.body.slug}`)).status).toBe(404);
+    expect((await owner.call('GET', `/spaces/${shared.body.slug}`)).body).toMatchObject({ id: shared.body.id });
     const spaceId = shared.body.id;
     await join(spaceId, viewer, SpaceRole.VIEWER);
     const task = await item(spaceId, 'Groceries', ItemKind.TASK);
     await item(spaceId, 'Holiday', ItemKind.EVENT);
 
     expect((await viewer.call('GET', '/spaces')).body.map((space: { name: string }) => space.name)).toEqual([
-      'Personal',
       'Family',
+      'Solo',
     ]);
     const tasks = await viewer.call('GET', `/spaces/${spaceId}/items?kind=task`);
     expect(tasks.body.results.map((listed: { id: string }) => listed.id)).toEqual([task.id]);
@@ -108,12 +110,12 @@ describe('Spaces, items, tags and links against Postgres', () => {
     const owner = await member('tagger');
     const shared = await owner.call('POST', '/spaces', { name: 'Work' });
     const note = await item(shared.body.id, 'Plan');
-    const personalTag = await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Ideas' });
+    const personalTag = await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Ideas' });
 
-    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: ' IDEAS ' })).status).toBe(409);
+    expect((await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: ' IDEAS ' })).status).toBe(409);
     expect((await owner.call('POST', `/spaces/${shared.body.id}/tags`, { name: 'Ideas' })).status).toBe(201);
     expect((await owner.call('PUT', `/items/${note.id}/tags`, { tagIds: [personalTag.body.id] })).status).toBe(400);
-    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Odd', color: 'beige' })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Odd', color: 'beige' })).status).toBe(400);
 
     const mine = (await owner.call('POST', '/me/tags', { name: 'Ideas' })).body;
     expect(mine).toMatchObject({ name: 'Ideas', spaceId: null });
@@ -134,8 +136,8 @@ describe('Spaces, items, tags and links against Postgres', () => {
     const shared = await owner.call('POST', '/spaces', { name: 'Project' });
     await join(shared.body.id, editor, SpaceRole.EDITOR);
     const sharedNote = await item(shared.body.id, 'Shared plan');
-    const privateNote = await item(owner.personalSpaceId, 'Private research');
-    const editorNote = await item(editor.personalSpaceId, 'Editor scratch');
+    const privateNote = await item(owner.soloSpaceId, 'Private research');
+    const editorNote = await item(editor.soloSpaceId, 'Editor scratch');
 
     const link = await owner.call('POST', `/items/${sharedNote.id}/links`, { targetId: privateNote.id, kind: 'reference' });
     expect(link.body).toMatchObject({ kind: 'reference', item: { id: privateNote.id, title: 'Private research' } });
@@ -160,7 +162,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
     expect((await editor.call('DELETE', `/items/${sharedNote.id}/links/${link.body.id}`)).status).toBe(404);
   });
 
-  it('always leaves a space with an owner and never deletes a personal space', async () => {
+  it('always leaves a space with an owner', async () => {
     const owner = await member('founder');
     const editor = await member('helper');
     const shared = await owner.call('POST', '/spaces', { name: 'Club' });
@@ -169,8 +171,8 @@ describe('Spaces, items, tags and links against Postgres', () => {
 
     expect((await owner.call('PATCH', `/spaces/${spaceId}/members/${owner.id}`, { role: 'editor' })).status).toBe(409);
     expect((await owner.call('DELETE', `/spaces/${spaceId}/members/${owner.id}`)).status).toBe(409);
-    expect((await owner.call('DELETE', `/spaces/${owner.personalSpaceId}`)).status).toBe(400);
-    expect((await owner.call('DELETE', `/spaces/${owner.personalSpaceId}/members/${owner.id}`)).status).toBe(409);
+    expect((await owner.call('DELETE', `/spaces/${owner.soloSpaceId}/members/${owner.id}`)).status).toBe(409);
+    expect((await owner.call('DELETE', `/spaces/${owner.soloSpaceId}`)).status).toBe(204);
 
     await owner.call('PATCH', `/spaces/${spaceId}/members/${editor.id}`, { role: 'owner' });
     expect((await owner.call('DELETE', `/spaces/${spaceId}/members/${owner.id}`)).status).toBe(204);
@@ -191,7 +193,7 @@ describe('Spaces, items, tags and links against Postgres', () => {
 
     await owner.call('PATCH', `/spaces/${kept.body.id}/members/${editor.id}`, { role: 'owner' });
     expect((await owner.call('DELETE', '/me', { password })).status).toBe(204);
-    expect(await strata.prisma.space.count({ where: { id: { in: [solo.body.id, owner.personalSpaceId] } } })).toBe(0);
+    expect(await strata.prisma.space.count({ where: { id: { in: [solo.body.id, owner.soloSpaceId] } } })).toBe(0);
     expect((await editor.call('GET', `/spaces/${kept.body.id}/members`)).body.map((shown: { userId: string }) => shown.userId)).toEqual([
       editor.id,
     ]);

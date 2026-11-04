@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { AccessService, inHome } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs } from '../recurrence/dates';
@@ -168,8 +168,8 @@ export class RecipesService {
   }
 
   async shoppingList(userId: string, input: ShoppingListDto) {
-    const spaceId = input.spaceId ?? (await this.prisma.space.findFirstOrThrow({ where: { personalOwnerId: userId }, select: { id: true } })).id;
-    await this.access.assertSpace(userId, spaceId, 'edit');
+    const spaceId = input.spaceId ?? null;
+    const home = await this.access.assertHome(userId, spaceId, 'edit');
     const start = dateValue(input.from);
     const planned = await this.prisma.mealPlanEntry.findMany({
       where: { userId, day: { gte: start, lt: new Date(start.getTime() + 7 * dayMs) }, recipe: { trashedAt: null } },
@@ -182,7 +182,7 @@ export class RecipesService {
     if (wanted.length === 0) throw new BadRequestException('Plan meals with recipes this week before making a shopping list');
     const list = (await this.tasks.lists(userId, spaceId)).find((candidate) => candidate.title === shoppingListTitle) ?? (await this.tasks.createList(userId, spaceId, { title: shoppingListTitle }));
     const open = await this.prisma.item.findMany({
-      where: { spaceId, kind: ItemKind.TASK, trashedAt: null, task: { listId: list.id, completedAt: null } },
+      where: { ...inHome(home), kind: ItemKind.TASK, trashedAt: null, task: { listId: list.id, completedAt: null } },
       select: { title: true },
     });
     const have = new Set(open.map((task) => task.title.toLowerCase()));

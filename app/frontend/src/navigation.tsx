@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import type { IconName, ShellTab, SidebarSection } from '@project-graphite/ui';
 import { appCatalogue, type AppEntry } from './apps';
-import { SpaceMark, type Space } from './spaces';
 
 interface Area {
   href: string;
@@ -58,32 +57,13 @@ export function useInArea(area: string | null) {
 
 const toItem = (area: Area, active: string | null) => ({ active: area.href === active, href: area.href, icon: area.icon, label: area.label });
 
-const accountApps = (apps: AppEntry[]) => apps.filter((app) => app.scope === 'account');
-
-function spaceSection(active: string | null, apps: AppEntry[], label: string): SidebarSection {
-  return { label, items: apps.filter((app) => app.scope === 'space').map((app) => toItem(app, active)) };
+export function sidebarSections(active: string | null, apps: AppEntry[]): SidebarSection[] {
+  return [{ items: [home, ...apps].map((area) => toItem(area, active)) }];
 }
 
-export function sidebarSections(active: string | null, spaces: Space[] | undefined, apps: AppEntry[], space?: Space): SidebarSection[] {
-  return [
-    { items: [home, ...accountApps(apps)].map((area) => toItem(area, active)) },
-    spaceSection(active, apps, space ? `In ${space.name}` : 'In your space'),
-    {
-      label: 'Spaces',
-      items: [
-        ...(spaces ?? []).map((candidate) => ({ active: active === `/spaces/${candidate.id}`, href: `/spaces/${candidate.id}`, icon: <SpaceMark space={candidate} />, label: candidate.name })),
-        { active: active === '/spaces', href: '/spaces', icon: 'folder' as const, label: 'All spaces' },
-      ],
-    },
-  ];
-}
-
-export function moreSections(active: string | null, apps: AppEntry[], space?: Space): SidebarSection[] {
+export function moreSections(active: string | null, apps: AppEntry[]): SidebarSection[] {
   const tabbed = phoneApps(apps);
-  return [
-    { label: 'Yours', items: accountApps(apps).filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) },
-    spaceSection(active, apps.filter((app) => !tabbed.includes(app)), space ? `In ${space.name}` : 'In your space'),
-  ];
+  return [{ label: 'Yours', items: apps.filter((app) => !tabbed.includes(app)).map((app) => toItem(app, active)) }];
 }
 
 export function phoneTabBar(active: string | null, apps: AppEntry[]): ShellTab[] {

@@ -150,12 +150,9 @@ export class InvitationsService {
     }
     await this.access.assertSpace(userId, spaceId, 'manage');
     const [space, inviter] = await Promise.all([
-      this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { name: true, personalOwnerId: true } }),
+      this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { name: true } }),
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } }),
     ]);
-    if (space.personalOwnerId) {
-      throw new BadRequestException('Personal spaces cannot be shared. Create a shared space instead.');
-    }
     const invitee = input.handle
       ? await this.prisma.user.findUnique({
           where: { handle: input.handle },

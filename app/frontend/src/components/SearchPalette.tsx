@@ -4,7 +4,7 @@ import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@p
 import { isAdmin, useAuth } from '../auth';
 import { enabledApps } from '../apps';
 import { searchableAreas } from '../navigation';
-import { itemHref, itemKindName, useChosenSpace, useSpaces, type Tag } from '../spaces';
+import { homePath, itemHref, itemKindName, spaceHref, useChosenSpace, useSpaces, type Tag } from '../spaces';
 import { useAction } from '../useAction';
 import { inActiveSpace } from '../active-space';
 import { pageHref } from '../notes';
@@ -17,16 +17,19 @@ interface SearchResults {
 export function SearchPalette({ onClose }: { onClose: () => void }) {
   const { request, user } = useAuth();
   const spaces = useSpaces();
-  const { spaceId } = useChosenSpace();
+  const { spaceId, editable } = useChosenSpace();
   const navigate = useNavigate();
   const creating = useAction();
-  const personal = spaces.data?.find((space) => space.role !== 'viewer');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults & { error?: string }>();
   const text = query.trim();
+  const spaceItems = (id: string, query: string) => {
+    const space = spaces.data?.find((candidate) => candidate.id === id);
+    return space ? `${spaceHref(space, 'items')}${query}` : '/spaces';
+  };
 
   useEffect(() => {
-    if (!text || !spaceId) {
+    if (!text) {
       setResults(undefined);
       return;
     }
@@ -47,7 +50,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
   const matches = (label: string) => label.toLowerCase().includes(text.toLowerCase());
   const spaceName = (spaceId: string) => spaces.data?.find((space) => space.id === spaceId)?.name;
-  const actions: CommandItem[] = personal
+  const actions: CommandItem[] = editable
     ? [
         {
           group: 'Create',
@@ -55,7 +58,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           label: 'New page',
           onSelect: () =>
             void creating.run(async () => {
-              const created = await request<{ id: string }>(`/spaces/${personal.id}/notes`, { method: 'POST', body: JSON.stringify({}) });
+              const created = await request<{ id: string }>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({}) });
               navigate(pageHref(created.id));
               return '';
             }, 'Could not create the page'),
@@ -67,20 +70,20 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(results?.items ?? []).map((item) => ({
       group: 'Items',
       hint: `${itemKindName(item)} · ${item.spaceName ?? 'Yours'}${item.archived ? ' · archived' : ''}`,
-      href: itemHref(item) ?? (item.spaceId ? `/spaces/${item.spaceId}/items${item.archived ? '?archived=true' : ''}` : '/files'),
+      href: itemHref(item) ?? (item.spaceId ? spaceItems(item.spaceId, item.archived ? '?archived=true' : '') : '/files'),
       id: `item-${item.id}`,
       label: item.title || 'Untitled',
     })),
     ...(results?.tags ?? []).map((tag) => ({
       group: 'Tags',
       hint: tag.spaceId ? spaceName(tag.spaceId) : 'Yours',
-      href: tag.spaceId ? `/spaces/${tag.spaceId}/items?tag=${tag.id}` : '/settings/tags',
+      href: tag.spaceId ? spaceItems(tag.spaceId, `?tag=${tag.id}`) : '/settings/tags',
       id: `tag-${tag.id}`,
       label: tag.name,
     })),
     ...(spaces.data ?? [])
       .filter((space) => matches(space.name))
-      .map((space) => ({ group: 'Spaces', href: `/spaces/${space.id}`, id: `space-${space.id}`, label: space.name })),
+      .map((space) => ({ group: 'Spaces', href: spaceHref(space), id: `space-${space.id}`, label: space.name })),
     ...searchableAreas(enabledApps(user?.features), isAdmin(user))
       .filter((area) => matches(area.label) || (area.hint && matches(area.hint)))
       .map((area) => ({ group: 'Go to', hint: area.hint, href: area.href, id: `page-${area.href}`, label: area.label })),

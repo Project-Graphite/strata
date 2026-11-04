@@ -4,7 +4,7 @@ import { formatDay, IconButton, ListRow, Placeholder, SegmentedControl, Select, 
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteHref, noteTitle, pageHref, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
-import type { Member } from '../../spaces';
+import { homePath, type Member } from '../../spaces';
 import { useWeekStart } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
@@ -26,11 +26,11 @@ const emptyState = (loading: boolean) => (
   </Empty>
 );
 
-export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string }) {
+export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean; noteId: string; spaceId: string | null }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const database = useResource<NoteDatabase>(`/notes/${noteId}/database`, true, { live: ['page-databases', 'page-details', 'items', 'spaces'], spaceId });
-  const members = useResource<Member[]>(database.data?.properties.some((property) => property.type === 'person') ? `/spaces/${spaceId}/members` : null, true);
+  const database = useResource<NoteDatabase>(`/notes/${noteId}/database`, true, { live: ['page-databases', 'page-details', 'items', 'spaces'], spaceId: spaceId ?? undefined });
+  const members = useResource<Member[]>(spaceId && database.data?.properties.some((property) => property.type === 'person') ? `/spaces/${spaceId}/members` : null, true);
   const saving = useAction();
   const adding = useAction();
   const [editing, setEditing] = useState<NoteDatabase>();
@@ -110,7 +110,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
 
   function addRow(values: PropertyValues = {}) {
     void adding.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ parentId: noteId }) });
+      const created = await auth.request<Note>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({ parentId: noteId }) });
       if (Object.keys(values).length) await auth.request(`/notes/${created.id}/properties`, { method: 'PATCH', body: JSON.stringify({ values }) });
       navigate(pageHref(created.id));
       return '';

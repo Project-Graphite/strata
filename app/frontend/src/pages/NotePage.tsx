@@ -221,7 +221,7 @@ export function NotePage() {
 
   const add: NestedMenuItem[] = [
     ...(pageOnly && details.permissions.organize && !details.database && tools?.addPage ? [{ label: 'Page inside', onSelect: tools.addPage }] : []),
-    ...(pageOnly && !owned && details.permissions.comment
+    ...(pageOnly && details.permissions.comment
       ? [{
           label: 'Comment',
           onSelect: () => {
@@ -305,8 +305,8 @@ export function NotePage() {
       <header className="page-header note-header">
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
-          {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
-          {pageOnly && !owned && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
+          {details.spaceId && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
+          {pageOnly && (!owned || details.permissions.comment) && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
           {menu.length > 0 && <NestedMenu items={menu} label={`${noteTitle(details)} actions`} trigger={<Icon name="more" size={18} />} triggerClassName="toolbar-button page-menu-button" triggerLabel={`Actions for ${noteTitle(details)}`} />}
         </div>
@@ -386,7 +386,7 @@ export function NotePage() {
             statusSlot={statusSlot ?? undefined}
           />
         </Suspense></FileSourceContext>
-        {!details.quick && !owned && (
+        {!details.quick && (!owned || details.permissions.comment) && (
           <CommentsPanel docked onClose={() => setPanelOpen(false)} open={panelOpen}>
             <NoteComments
               commentable={details.permissions.comment}
@@ -406,7 +406,7 @@ export function NotePage() {
           </CommentsPanel>
         )}
       </div>
-      {details.database && details.spaceId && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
+      {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
       {describingCover !== undefined && details.cover && (
         <AltTextDialog initial={describingCover} onClose={() => setDescribingCover(undefined)} onSave={(alt) => void save({ coverAlt: alt }, () => '', 'Could not describe the cover image')} />
       )}

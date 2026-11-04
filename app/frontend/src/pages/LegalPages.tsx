@@ -75,7 +75,7 @@ export function Privacy({ level }: { level?: 2 | 3 }) {
         </p>
         <p className="m-0 text-muted">
           Spending is private to you. Accounts, cards, transactions, budgets and captured messages
-          live only in your personal space, so members of the spaces you share never see them.
+          belong to your account only, so members of the spaces you share never see them.
         </p>
       </Section>
       <Section level={level} title="The Android app">
@@ -96,7 +96,7 @@ export function Privacy({ level }: { level?: 2 | 3 }) {
         </p>
         <p className="m-0 text-muted">
           Connecting a phone needs your password, and a two-step code if you use one. The phone gets
-          a key that can only send messages to your personal space. It lasts 90 days, the server
+          a key that can only send messages to your account. It lasts 90 days, the server
           keeps only a hash of it, and you can revoke it at any time in Settings, Developer.
         </p>
       </Section>

@@ -11,7 +11,7 @@ import { FileButton } from '../components/FileButton';
 import { FormDialog } from '../components/FormDialog';
 import { Hint } from '../components/Hint';
 import { Page, useDocumentTitle } from '../components/Page';
-import { colorOptions, useSpaces } from '../spaces';
+import { colorOptions } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -219,7 +219,6 @@ export function DashboardHome() {
   const [params] = useSearchParams();
   const dashboards = useResource<Dashboard[]>('/me/dashboards', true, { live: ['dashboards'] });
   const saving = useAction();
-  const spaces = useSpaces();
   const wide = useWide();
   const [draft, setDraft] = useState<Layout>();
   const [history, setHistory] = useState<Layout[]>([]);
@@ -253,7 +252,6 @@ export function DashboardHome() {
   const editing = draft !== undefined;
   const unsaved = history.length > 0 || name !== current.name;
   const configured = widgets.find((widget) => widget.id === settingsOpen);
-  const personal = spaces.data?.find((space) => space.role !== 'viewer');
   const features = auth.user?.features ?? [];
 
   function startEditing() {
@@ -444,21 +442,19 @@ export function DashboardHome() {
               <ColorSwatches label="Background" name="background" onChange={(colour) => change({ background: { colour } })} value={layout.background?.colour ?? null} />
               <div className="flex flex-wrap items-center gap-3">
                 {layout.background?.imageId && <BackgroundPreview background={layout.background} />}
-                {personal && (
-                  <FileButton
-                    accept="image/*"
-                    busy={saving.busy}
-                    inputLabel="Background image"
-                    label={saving.busy ? 'Uploading…' : layout.background?.imageId ? 'Change the image' : 'Use an image'}
-                    onFiles={(files) =>
-                      void saving.run(async () => {
-                        const uploaded = await uploadFile(auth.request, personal.id, files[0]!);
-                        change({ background: { imageId: uploaded.id } });
-                        return '';
-                      }, 'Could not upload the image')
-                    }
-                  />
-                )}
+                <FileButton
+                  accept="image/*"
+                  busy={saving.busy}
+                  inputLabel="Background image"
+                  label={saving.busy ? 'Uploading…' : layout.background?.imageId ? 'Change the image' : 'Use an image'}
+                  onFiles={(files) =>
+                    void saving.run(async () => {
+                      const uploaded = await uploadFile(auth.request, null, files[0]!);
+                      change({ background: { imageId: uploaded.id } });
+                      return '';
+                    }, 'Could not upload the image')
+                  }
+                />
                 {layout.background && <TextButton label="No background" onClick={() => change({ background: undefined })} />}
               </div>
             </div>

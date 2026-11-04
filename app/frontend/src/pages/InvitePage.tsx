@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { invitedLine, type InviteDetails } from '../invitations';
-import { addJoinedSpace, useSpaces } from '../spaces';
+import { addJoinedSpace, spaceHref, useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
@@ -88,8 +88,7 @@ export function InvitePage() {
                   method: 'POST',
                   body: JSON.stringify({ code }),
                 });
-                await addJoinedSpace(auth.request, spaces, spaceId);
-                navigate(`/spaces/${spaceId}`);
+                navigate(spaceHref(await addJoinedSpace(auth.request, spaces, spaceId)));
                 return '';
               }, 'Could not join the space')
             }

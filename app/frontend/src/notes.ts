@@ -26,8 +26,8 @@ export interface ChildPages {
   nextCursor: string | null;
 }
 
-export function childPagesPath(spaceId: string, parentId: string | null, cursor?: string, kind?: 'note') {
-  return `/spaces/${spaceId}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}), ...(kind ? { kind } : {}) })}`;
+export function childPagesPath(spaceId: string | null, parentId: string | null, cursor?: string, kind?: 'note') {
+  return `${spaceId ? `/spaces/${spaceId}` : '/me'}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}), ...(kind ? { kind } : {}) })}`;
 }
 
 export function nestedUnder(pages: Note[], parentId: string | null) {
