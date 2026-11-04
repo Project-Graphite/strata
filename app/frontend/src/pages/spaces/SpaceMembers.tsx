@@ -79,7 +79,13 @@ export function SpaceMembers() {
                       size="small"
                       value={member.role}
                     />
-                    {member.userId !== self && <ActionsMenu items={[{ label: 'Remove', onSelect: () => setRemoving(member) }]} name={member.displayName} />}
+                    {member.userId !== self ? (
+                      <ActionsMenu items={[{ label: 'Remove', onSelect: () => setRemoving(member) }]} name={member.displayName} />
+                    ) : (
+                      <span aria-hidden="true" className="invisible">
+                        <ActionsMenu items={[]} name={member.displayName} />
+                      </span>
+                    )}
                   </>
                 )
               }

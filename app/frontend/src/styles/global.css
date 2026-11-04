@@ -1653,7 +1653,8 @@ button.habit-day::before {
 
   .task-board {
     height: var(--board-height, auto);
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--board-columns, 3), minmax(15rem, 1fr));
+    overflow-x: auto;
     grid-template-rows: minmax(0, 1fr);
   }
 

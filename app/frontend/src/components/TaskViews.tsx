@@ -1,15 +1,16 @@
-import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
+import { useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { Badge, Card, Checkbox, Icon, IconButton, SectionHeading } from '@project-graphite/ui';
+import { Badge, Card, Checkbox, Icon, IconButton, SectionHeading, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
 import { groupTasks, reorderTask } from '../task-groups';
-import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task } from '../tasks';
+import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task, type TaskColumn } from '../tasks';
 import { profileDay } from '../time';
 import { useAction } from '../useAction';
 import { ActionsMenu } from './ActionsMenu';
 import { AssigneeButton } from './AssigneeButton';
+import type { NestedMenuItem } from './NestedMenu';
 
 type Update = (change: (tasks: Task[]) => Task[]) => void;
 
@@ -88,7 +89,18 @@ export function useTaskChanges(update: Update, finished?: Update) {
       'Could not change the assignee',
     );
 
-  return { pending, toggle, setStatus, move, assign };
+  const setColumn = (task: Task, columnId: string) =>
+    run(
+      task,
+      { ...task, columnId, status: 'in_progress', completedAt: null },
+      async () => {
+        replace(await auth.request<Task>(`/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ columnId }) }));
+        return '';
+      },
+      'Could not move the task',
+    );
+
+  return { pending, toggle, setStatus, setColumn, move, assign };
 }
 
 interface ViewProps {
@@ -228,10 +240,57 @@ export function TaskGroups({ tasks, weekStart, ...view }: ViewProps & { tasks: T
   );
 }
 
-export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, where }: ViewProps & { finished?: { shown: number; total: number; href: string }; onAdd?: (status: Task['status']) => void; tasks: Task[] }) {
+interface BoardColumn {
+  key: string;
+  label: string;
+  status: Task['status'];
+  custom: TaskColumn[];
+}
+
+function boardColumns(columns: TaskColumn[]): BoardColumn[] {
+  const custom = new Map<string, BoardColumn>();
+  for (const column of columns) {
+    const key = `column:${column.name.toLowerCase()}`;
+    const entry = custom.get(key) ?? { key, label: column.name, status: 'in_progress', custom: [] };
+    custom.set(key, { ...entry, custom: [...entry.custom, column] });
+  }
+  const fixed = taskStatuses.map((status) => ({ key: status.value, label: status.label, status: status.value, custom: [] }));
+  return [fixed[0]!, fixed[1]!, ...custom.values(), fixed[2]!];
+}
+
+export function TaskBoard({
+  changes,
+  columnActions,
+  columns,
+  editable,
+  finished,
+  onAdd,
+  onOpen,
+  tasks,
+  where,
+}: ViewProps & {
+  columnActions?: (column: TaskColumn) => NestedMenuItem[];
+  columns: TaskColumn[];
+  finished?: { shown: number; total: number; href: string };
+  onAdd?: (status: Task['status']) => void;
+  tasks: Task[];
+}) {
+  const show = useSnackbar();
   const [dragging, setDragging] = useState<Task>();
-  const [over, setOver] = useState<Task['status']>();
-  const statusOf = (task: Task) => (task.completedAt ? 'done' : task.status === 'done' ? 'open' : task.status);
+  const [over, setOver] = useState<string>();
+  const shownColumns = boardColumns(columns);
+  const keyOf = (task: Task) => {
+    if (task.completedAt) return 'done';
+    const column = task.columnId && columns.find((candidate) => candidate.id === task.columnId);
+    if (column) return `column:${column.name.toLowerCase()}`;
+    return task.status === 'done' ? 'open' : task.status;
+  };
+  const moveTo = (task: Task, column: BoardColumn) => {
+    if (column.custom.length === 0) return changes.setStatus(task, column.status);
+    const target = column.custom.find((candidate) => candidate.spaceId === task.spaceId);
+    if (target) changes.setColumn(task, target.id);
+    else show({ message: `The space of ${task.title} has no ${column.label} column.`, tone: 'error' });
+  };
   const board = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -253,26 +312,26 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
   }, []);
 
   return (
-    <div className="task-board" ref={board}>
-      {taskStatuses.map((column) => {
-        const shown = tasks.filter((task) => statusOf(task) === column.value);
+    <div className="task-board" ref={board} style={{ '--board-columns': shownColumns.length } as CSSProperties}>
+      {shownColumns.map((column) => {
+        const shown = tasks.filter((task) => keyOf(task) === column.key);
         return (
           <section
-            aria-labelledby={`task-column-${column.value}`}
+            aria-labelledby={`task-column-${column.key}`}
             className="task-column"
-            data-over={(over === column.value && dragging && statusOf(dragging) !== column.value) || undefined}
-            key={column.value}
+            data-over={(over === column.key && dragging && keyOf(dragging) !== column.key) || undefined}
+            key={column.key}
             onDragLeave={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(undefined);
             }}
             onDragOver={(event) => {
               if (!dragging) return;
               event.preventDefault();
-              setOver(column.value);
+              setOver(column.key);
             }}
             onDrop={(event) => {
               event.preventDefault();
-              if (dragging && statusOf(dragging) !== column.value) changes.setStatus(dragging, column.value);
+              if (dragging && keyOf(dragging) !== column.key) moveTo(dragging, column);
               setDragging(undefined);
               setOver(undefined);
             }}
@@ -281,15 +340,16 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
               action={
                 <span className="flex items-center gap-1">
                   <span className="text-small text-muted tabular-nums">{shown.length}</span>
-                  {onAdd && <IconButton icon="plus" label={`New task in ${column.label}`} onClick={() => onAdd(column.value)} />}
+                  {onAdd && column.custom.length === 0 && <IconButton icon="plus" label={`New task in ${column.label}`} onClick={() => onAdd(column.status)} />}
+                  {columnActions && column.custom.length === 1 && <ActionsMenu items={columnActions(column.custom[0]!)} name={`the ${column.label} column`} />}
                 </span>
               }
-              id={`task-column-${column.value}`}
+              id={`task-column-${column.key}`}
               level={2}
               title={column.label}
             />
             {shown.length === 0 ? (
-              <p className="task-column-empty">{dragging ? `Drop here to mark it ${column.label.toLowerCase()}` : 'No tasks'}</p>
+              <p className="task-column-empty">{dragging ? `Drop here to move it to ${column.label}` : 'No tasks'}</p>
             ) : (
               <ul className="task-column-cards m-0 grid list-none content-start gap-2 p-0">
                 {shown.map((task) => {
@@ -335,9 +395,9 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
                         <AssigneeButton onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined} task={task} />
                         {editable(task) && (
                           <ActionsMenu
-                            items={taskStatuses
-                              .filter((status) => status.value !== column.value)
-                              .map((status) => ({ label: `Move to ${status.label}`, onSelect: () => changes.setStatus(task, status.value) }))}
+                            items={shownColumns
+                              .filter((other) => other.key !== column.key)
+                              .map((other) => ({ label: `Move to ${other.label}`, onSelect: () => moveTo(task, other) }))}
                             name={task.title}
                           />
                         )}
@@ -347,7 +407,7 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
                 })}
               </ul>
             )}
-            {column.value === 'done' && finished && finished.total > finished.shown && (
+            {column.key === 'done' && finished && finished.total > finished.shown && (
               <Link className="task-column-more" to={finished.href}>
                 Show all {finished.total} finished tasks
               </Link>

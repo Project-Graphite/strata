@@ -9,7 +9,7 @@ import { UploadQueue } from '../files/upload-queue';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskColumnDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { TaskCommentsService } from './task-comments.service';
 import { TasksService } from './tasks.service';
@@ -61,6 +61,37 @@ export class TasksController {
   @Scope('items:read')
   mine(@CurrentUser() user: AuthenticatedUser, @Query() query: ListTasksDto) {
     return this.tasks.mine(user.id, query);
+  }
+
+  @Get('spaces/:spaceId/task-columns')
+  @Scope('items:read')
+  columns(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
+    return this.tasks.columns(user.id, spaceId);
+  }
+
+  @Post('spaces/:spaceId/task-columns')
+  @Scope('items:write')
+  createColumn(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Body() input: TaskColumnDto) {
+    return this.tasks.createColumn(user.id, spaceId, input);
+  }
+
+  @Get('me/task-columns')
+  @Scope('items:read')
+  myColumns(@CurrentUser() user: AuthenticatedUser) {
+    return this.tasks.myColumns(user.id);
+  }
+
+  @Patch('task-columns/:id')
+  @Scope('items:write')
+  renameColumn(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: TaskColumnDto) {
+    return this.tasks.renameColumn(user.id, id, input);
+  }
+
+  @Delete('task-columns/:id')
+  @Scope('items:write')
+  @HttpCode(204)
+  async removeColumn(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    await this.tasks.removeColumn(user.id, id);
   }
 
   @Get('me/task-filters')

@@ -27,12 +27,20 @@ export interface Task {
   position: number;
   status: 'open' | 'in_progress' | 'done';
   type: string;
+  columnId: string | null;
   labels: Tag[];
   subtaskCounts: { total: number; done: number };
   assignee: { id: string; handle: string; displayName: string } | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskColumn {
+  id: string;
+  spaceId: string;
+  name: string;
+  position: number;
 }
 
 export interface TaskDetail extends Task {
