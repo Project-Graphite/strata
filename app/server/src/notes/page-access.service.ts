@@ -43,10 +43,13 @@ export class PageAccessService {
         note: { select: { quick: true } },
         pageGrants: { where: { userId }, select: { role: true } },
         space: { select: { members: { where: { userId }, select: { role: true } } } },
+        ...journalSelect,
       },
     });
     if (!item || !pageKinds.includes(item.kind) || !reachable(item.spaceId)) throw new NotFoundException('Page not found');
-    const granted = accessFrom(item.ownerId ? (item.ownerId === userId ? SpaceRole.OWNER : null) : item.space?.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
+    const granted = journalPage(item)
+      ? item.ownerId === userId ? journalAccess : null
+      : accessFrom(item.ownerId ? (item.ownerId === userId ? SpaceRole.OWNER : null) : item.space?.members[0]?.role ?? null, !item.trashedAt && !item.archivedAt ? item.pageGrants[0]?.role ?? null : null);
     if (!granted) throw new NotFoundException('Page not found');
     const { permissions, role } = granted;
     if (access !== 'read' && !permissions[access]) throw new ForbiddenException(access === 'share' ? 'You cannot manage sharing for this page' : access === 'comment' ? 'This page is view only' : 'You cannot edit this page');
@@ -65,17 +68,28 @@ export class PageAccessService {
         id: true, archivedAt: true, ownerId: true,
         pageGrants: { where: { userId: { in: userIds } }, select: { userId: true, role: true } },
         space: { select: { members: { where: { userId: { in: userIds } }, select: { userId: true, role: true } } } },
+        ...journalSelect,
       },
     });
     const byId = new Map(items.map((item) => [item.id, item]));
     return (itemId: string, userId: string) => {
       const item = byId.get(itemId);
       if (!item) return null;
+      if (journalPage(item)) return item.ownerId === userId ? journalAccess : null;
       const role = item.ownerId ? (item.ownerId === userId ? SpaceRole.OWNER : null) : item.space?.members.find((member) => member.userId === userId)?.role ?? null;
       return accessFrom(role, item.archivedAt ? null : item.pageGrants.find((grant) => grant.userId === userId)?.role ?? null);
     };
   }
 }
+
+const journalSelect = { _count: { select: { journalEntries: true } }, weeklyReview: { select: { noteId: true } } } as const;
+
+const journalPage = (item: { _count: { journalEntries: number }; weeklyReview: unknown }) => item._count.journalEntries > 0 || item.weeklyReview !== null;
+
+const journalAccess = {
+  role: SpaceRole.OWNER,
+  permissions: { comment: false, edit: true, share: false, organize: false, history: true, spaceRole: null, pageRole: null },
+};
 
 function accessFrom(spaceRole: SpaceRole | null, pageRole: PageRole | null) {
   if (!spaceRole && !pageRole) return null;
