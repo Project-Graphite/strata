@@ -4170,7 +4170,7 @@ main.shell {
   }
 
   .drive-cell,
-  .drive-head > :not(:first-child) {
+  .drive-sort {
     display: none;
   }
 }

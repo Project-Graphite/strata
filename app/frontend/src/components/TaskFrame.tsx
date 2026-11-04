@@ -1,7 +1,7 @@
 import MuiDialog from '@mui/material/Dialog';
 import MuiIconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Icon, IconButton, Sheet } from '@project-graphite/ui';
 import { ExpandGlyph } from './glyphs';
 
@@ -28,6 +28,14 @@ function storeView(view: FrameView) {
 export function TaskFrame({ actions, children, eyebrow, footer, onClose, title }: { actions?: ReactNode; children: ReactNode; eyebrow?: ReactNode; footer?: ReactNode; onClose: () => void; title: ReactNode }) {
   const phone = useMediaQuery('(max-width: 47.99rem)', { noSsr: true });
   const [view, setView] = useState(storedView);
+  const [pointerOpener] = useState(() => (document.activeElement instanceof HTMLElement && !document.activeElement.matches(':focus-visible') ? document.activeElement : null));
+  useEffect(
+    () => () =>
+      queueMicrotask(() => {
+        if (document.activeElement === pointerOpener) pointerOpener?.blur();
+      }),
+    [pointerOpener],
+  );
   const titleId = useId();
   const toggleLabel = view === 'modal' ? 'Open in the side panel' : 'Open in the middle of the screen';
   const toggle = !phone && (

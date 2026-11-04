@@ -6,9 +6,8 @@ import { useAuth } from '../auth';
 import { filesTabs, saveBlob, uploadFiles, type DriveEntry, type DriveListing } from '../files';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
-import { FileBrowser, sortGroups, type BrowserSort } from '../components/FileBrowser';
+import { FileBrowser, type BrowserSort } from '../components/FileBrowser';
 import { FileButton } from '../components/FileButton';
-import { FilterMenu } from '../components/FilterMenu';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { Page } from '../components/Page';
@@ -177,7 +176,6 @@ export function DrivePage() {
     <Page
       actions={
         <>
-          <FilterMenu groups={sortGroups(sort, setSort)} label="Sort" large />
           <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />
           <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
         </>
