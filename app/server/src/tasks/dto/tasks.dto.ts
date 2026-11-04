@@ -29,7 +29,7 @@ const nullable = (value: unknown) => value === null;
 export class CreateListDto {
   @Trimmed()
   @IsString()
-  @Length(1, 100, { message: 'List names are 1 to 100 characters long.' })
+  @Length(1, 100, { message: 'Epic names are 1 to 100 characters long.' })
   title!: string;
 }
 
@@ -43,7 +43,7 @@ export class TaskColumnDto {
 export class TaskFieldsDto {
   @IsOptional()
   @ValidateIf((_input, value) => !nullable(value))
-  @IsUUID('all', { message: 'Choose a list from this space.' })
+  @IsUUID('all', { message: 'Choose an epic from this space.' })
   listId?: string | null;
 
   @IsOptional()
@@ -71,13 +71,6 @@ export class TaskFieldsDto {
   @IsString()
   @MaxLength(300, { message: 'Repetition rules are at most 300 characters long.' })
   repeatRule?: string | null;
-
-  @IsOptional()
-  @ValidateIf((_input, value) => !nullable(value))
-  @IsInt()
-  @Min(0)
-  @Max(40_320, { message: 'Reminders can be at most four weeks early.' })
-  reminderMinutes?: number | null;
 
   @IsOptional()
   @ValidateIf((_input, value) => !nullable(value))
@@ -132,7 +125,7 @@ export class UpdateTaskDto extends TaskFieldsDto {
 
 export class ListTasksDto extends PageDto {
   @IsOptional()
-  @IsUUID('all', { message: 'Choose a list from this space.' })
+  @Matches(/^(none|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, { message: 'Choose General or an epic from this space.' })
   listId?: string;
 
   @IsOptional()
@@ -169,6 +162,10 @@ export class TaskCommentDto {
   @IsOptional()
   @IsRichText()
   document?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Reply to a comment on this task.' })
+  parentId?: string;
 }
 
 export class ShareTaskDto {

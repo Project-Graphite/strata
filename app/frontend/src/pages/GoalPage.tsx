@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Checkbox, Fieldset, type MenuItem, Meter, Skeleton, TextField } from '@project-graphite/ui';
+import { Checkbox, Fieldset, Meter, Skeleton, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import type { NestedMenuItem } from '../components/NestedMenu';
 import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
@@ -122,13 +123,16 @@ export function GoalPage() {
     goal.reload();
   }
 
-  const statusItems: MenuItem[] = [
-    ...(['active', 'done', 'dropped'] as GoalStatus[])
-      .filter((status) => status !== shown.status)
-      .map((status) => ({
-        label: status === 'active' ? 'Make active again' : status === 'done' ? 'Mark as done' : 'Drop this goal',
-        onSelect: () => void patch({ status }, status === 'done' ? `Marked ${shown.title} as done.` : status === 'dropped' ? `Dropped ${shown.title}.` : `Made ${shown.title} active again.`),
-      })),
+  const statusItems: NestedMenuItem[] = [
+    {
+      label: 'Change status',
+      items: (['active', 'done', 'dropped'] as GoalStatus[])
+        .filter((status) => status !== shown.status)
+        .map((status) => ({
+          label: status === 'active' ? 'Make active again' : status === 'done' ? 'Mark as done' : 'Drop this goal',
+          onSelect: () => void patch({ status }, status === 'done' ? `Marked ${shown.title} as done.` : status === 'dropped' ? `Dropped ${shown.title}.` : `Made ${shown.title} active again.`),
+        })),
+    },
     {
       label: 'Move to trash',
       separated: true,

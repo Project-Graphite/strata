@@ -24,16 +24,19 @@ function OptionText({ option }: { option: FilterOption }) {
     <>
       <span className="min-w-0 flex-1 truncate">{option.label}</span>
       {option.count !== undefined && <span className="text-small text-muted tabular-nums">{option.count}</span>}
-      <span aria-hidden="true" className={`inline-flex w-4 ${option.active ? '' : 'invisible'}`}>
-        <Icon name="check" size={16} />
-      </span>
     </>
   );
 }
 
 export function FilterMenu({ children, groups, label, large = false }: { children?: ReactNode; groups: FilterGroup[]; label: string; large?: boolean }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const close = () => setAnchor(null);
+  const [drilled, setDrilled] = useState<number>();
+  const close = () => {
+    setAnchor(null);
+    setDrilled(undefined);
+  };
+  const nested = groups.length > 2;
+  const shown = nested ? (drilled === undefined ? [] : [groups[drilled]!]) : groups;
   const summary = groups
     .flatMap((group) => group.options.filter((option, index) => option.active && (groups.length === 1 || index > 0)).map((option) => option.label))
     .join(' · ');
@@ -54,10 +57,26 @@ export function FilterMenu({ children, groups, label, large = false }: { childre
         <span className="truncate">{summary || label}</span>
       </UiButton>
       {children}
-      <MuiMenu anchorEl={anchor} onClose={close} open={Boolean(anchor)} slotProps={{ list: { 'aria-label': label }, paper: { className: 'nested-menu min-w-56' } }}>
-        {groups.flatMap((group, index) => [
+      <MuiMenu anchorEl={anchor} onClose={close} open={Boolean(anchor)} slotProps={{ list: { 'aria-label': drilled === undefined ? label : groups[drilled]!.label }, paper: { className: 'nested-menu min-w-56' } }}>
+        {nested &&
+          (drilled === undefined
+            ? groups.map((group, index) => (
+                <MenuItem aria-haspopup="menu" className="nested-menu-parent" key={group.label} onClick={() => setDrilled(index)}>
+                  <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                  <span className="max-w-32 truncate text-small text-muted">{group.options.find((option) => option.active)?.label}</span>
+                  <Icon name="chevron-right" size={16} />
+                </MenuItem>
+              ))
+            : [
+                <MenuItem className="nested-menu-back" key="back" onClick={() => setDrilled(undefined)}>
+                  <Icon name="chevron-left" size={16} />
+                  <span className="font-semibold">{groups[drilled]!.label}</span>
+                </MenuItem>,
+                <Divider key="back-divider" />,
+              ])}
+        {shown.flatMap((group, index) => [
           ...(index > 0 ? [<Divider key={`${group.label}-divider`} />] : []),
-          ...(groups.length > 1 ? [<ListSubheader className="filter-menu-heading" key={`${group.label}-heading`}>{group.label}</ListSubheader>] : []),
+          ...(shown.length > 1 ? [<ListSubheader className="filter-menu-heading" key={`${group.label}-heading`}>{group.label}</ListSubheader>] : []),
           ...group.options.map((option) =>
             option.href ? (
               <MenuItem aria-current={option.active || undefined} component={Link} key={`${group.label}-${option.label}`} onClick={close} selected={option.active} to={option.href}>

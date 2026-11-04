@@ -1,38 +1,42 @@
 import { useState } from 'react';
-import { Fieldset, FilterChip, Placeholder, Select, TextField } from '@project-graphite/ui';
+import { IconButton, Placeholder, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
-import { timeZoneOptions } from '../../choices';
-import { timeFormatOptions, type TimeFormat } from '../../time';
-import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
+import { FileButton } from '../../components/FileButton';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { LoadError } from '../../components/LoadError';
 import { ProofFields, proofFrom } from '../../components/ProofFields';
+import { forgetAvatar, UserAvatar } from '../../components/UserAvatar';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, emailAddress, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
-import { ButtonSkeleton, ChipsSkeleton, FieldSkeleton } from '../../components/Skeletons';
+import { ButtonSkeleton, FieldSkeleton } from '../../components/Skeletons';
 import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
-import { CurrencyField } from '../../components/CurrencyField';
 import { Button } from '../../components/Button';
-import { Toggle } from '../../components/Toggle';
-import { MonthStartField } from '../../components/MonthStartField';
 
-const weekDays = Array.from({ length: 7 }, (_, day) => new Intl.DateTimeFormat('en', { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, 1 + day))));
+const pictureSide = 256;
+
+async function squared(file: File) {
+  const image = await createImageBitmap(file);
+  const side = Math.min(image.width, image.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = pictureSide;
+  canvas.height = pictureSide;
+  canvas.getContext('2d')!.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, pictureSide, pictureSide);
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not read that image.'))), 'image/png'));
+}
 
 export function ProfileSettings() {
   const auth = useAuth();
   const me = useResource<Me>('/me', true);
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
-  const currencies = useResource<{ currencies: string[] }>('/exchange-rates', true);
   const profile = useAction();
+  const picture = useAction();
   const email = useAction();
   const profileForm = useFormErrors();
   const emailForm = useFormErrors();
   const [changingEmail, setChangingEmail] = useState(false);
-  const [weekend, setWeekend] = useState<number[]>();
-  const [budgets, setBudgets] = useState<boolean>();
 
   if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
@@ -40,142 +44,98 @@ export function ProfileSettings() {
     return (
       <Placeholder className="grid gap-8" label="Loading your profile">
         <Section title="Profile">
-          <FieldSkeleton />
-        </Section>
-        <Section title="Time and calendar">
           <div className="grid gap-4">
             <FieldSkeleton />
-            <FieldSkeleton />
-            <ChipsSkeleton count={7} />
+            <ButtonSkeleton large width="w-32" />
           </div>
         </Section>
-        <Section title="Money">
-          <div className="grid gap-4">
-            <FieldSkeleton hint />
-            <FieldSkeleton hint />
-          </div>
-        </Section>
-        <ButtonSkeleton large width="w-32" />
         <Section title="Account">
           <SettingsRows>
             <SettingsRowSkeleton action={<ButtonSkeleton width="w-18" />} />
             <SettingsRowSkeleton row={1} />
           </SettingsRows>
         </Section>
-        <Section title="Notifications">
-          <DevicePushSkeleton />
-        </Section>
       </Placeholder>
     );
   }
   const current = me.data;
-  const weekendDays = weekend ?? current.weekendDays;
-  const budgetsEnabled = budgets ?? current.budgetsEnabled;
+  const changePicture = (avatarId: string | null) => {
+    forgetAvatar(current.id);
+    me.mutate((shown) => ({ ...shown, avatarId }));
+    auth.updateUser({ avatarId });
+  };
 
   return (
     <>
-      <form
-        className="grid gap-8"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          const target = event.currentTarget;
-          if (
-            !profileForm.check(target, {
-              displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')],
-              monthStartDay: [required('Choose a payday from 1 to 28.')],
-            })
-          ) {
-            return;
-          }
-          const values = new FormData(target);
-          void profile.run(async () => {
-            const next = await auth.request<Me>('/me', {
-              method: 'PATCH',
-              body: JSON.stringify({
-                displayName: String(values.get('displayName')).trim(),
-                timeZone: String(values.get('timeZone')),
-                timeFormat: String(values.get('timeFormat')),
-                homeCurrency: String(values.get('homeCurrency')) || null,
-                weekStart: Number(values.get('weekStart')),
-                weekendDays,
-                monthStartDay: Number(values.get('monthStartDay')),
-                budgetsEnabled,
-              }),
-            });
-            me.mutate(() => next);
-            auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone, timeFormat: next.timeFormat });
-            return 'Saved your profile.';
-          }, 'Could not save your profile');
-        }}
-      >
-        <Section title="Profile">
-          <TextField autoComplete="name" defaultValue={current.displayName} label="Display name" maxLength={80} {...profileForm.field('displayName')} />
-        </Section>
-        <Section title="Time and calendar">
-          <div className="grid gap-4">
-            <Select
-              defaultValue={current.timeZone}
-              label="Time zone"
-              name="timeZone"
-              options={timeZoneOptions(current.timeZone)}
-              placeholder="Choose a time zone"
-              searchable
+      <Section title="Profile">
+        <div className="grid gap-6">
+          <div className="profile-picture">
+            <UserAvatar name={current.displayName} size="lg" userId={current.avatarId ? current.id : undefined} />
+            <FileButton
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              busy={picture.busy}
+              iconOnly
+              label="Upload a profile picture"
+              onFiles={([file]) =>
+                void picture.run(async () => {
+                  const { avatarId } = await auth.request<{ avatarId: string }>('/me/avatar', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': 'profile.png' },
+                    body: await squared(file!),
+                  });
+                  changePicture(avatarId);
+                  return 'Updated your profile picture.';
+                }, 'Could not update your profile picture')
+              }
             />
-            <Select<TimeFormat> defaultValue={current.timeFormat} label="Time format" name="timeFormat" options={timeFormatOptions} />
-            <Select defaultValue={String(current.weekStart)} label="Week starts on" name="weekStart" options={weekDays.map((label, day) => ({ value: String(day), label }))} />
-            <Fieldset legend="Weekend days">
-              <div className="flex flex-wrap gap-2">
-                {weekDays.map((label, day) => (
-                  <FilterChip
-                    active={weekendDays.includes(day)}
-                    key={label}
-                    label={label}
-                    onClick={() => setWeekend(weekendDays.includes(day) ? weekendDays.filter((other) => other !== day) : [...weekendDays, day])}
-                  />
-                ))}
-              </div>
-            </Fieldset>
+            {current.avatarId && (
+              <IconButton
+                disabled={picture.busy}
+                icon="trash"
+                label="Remove your profile picture"
+                onClick={() =>
+                  void picture.run(async () => {
+                    await auth.request('/me/avatar', { method: 'DELETE' });
+                    changePicture(null);
+                    return 'Removed your profile picture.';
+                  }, 'Could not remove your profile picture')
+                }
+                size="small"
+              />
+            )}
           </div>
-        </Section>
-        <Section title="Money">
-          <div className="grid gap-4">
-            <CurrencyField
-              codes={currencies.data?.currencies}
-              defaultValue={current.homeCurrency ?? ''}
-              label="Home currency"
-              name="homeCurrency"
-              noneLabel="None, keep each currency separate"
-            />
-            <MonthStartField defaultValue={current.monthStartDay} name="monthStartDay" />
-            <div className="panel-rows">
-              <Toggle checked={budgetsEnabled} description="Shows the Budgets tab and what is left to spend this month." label="Use budgets" onChange={setBudgets} />
+          <form
+            className="grid gap-4"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              const target = event.currentTarget;
+              if (!profileForm.check(target, { displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')] })) return;
+              const displayName = String(new FormData(target).get('displayName')).trim();
+              void profile.run(async () => {
+                const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ displayName }) });
+                me.mutate(() => next);
+                auth.updateUser({ displayName: next.displayName });
+                return 'Saved your name.';
+              }, 'Could not save your name');
+            }}
+          >
+            <TextField autoComplete="name" defaultValue={current.displayName} label="Display name" maxLength={80} {...profileForm.field('displayName')} />
+            <div>
+              <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save'} primary submit />
             </div>
-          </div>
-        </Section>
-        <div>
-          <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save changes'} large primary submit />
+          </form>
         </div>
-      </form>
+      </Section>
 
       <Section title="Account">
         <SettingsRows>
-          <SettingsRow
-            action={
-              <Button label="Change" onClick={() => setChangingEmail(true)} />
-            }
-            label="Email"
-          >
+          <SettingsRow action={<IconButton icon="pencil" label="Change your email" onClick={() => setChangingEmail(true)} size="small" />} label="Email">
             {current.email}
           </SettingsRow>
           <SettingsRow label="Handle">@{current.handle}</SettingsRow>
         </SettingsRows>
       </Section>
-
-      <Section title="Notifications">
-        <DevicePush />
-      </Section>
-
       {changingEmail && (
         <FormDialog
           busy={email.busy}

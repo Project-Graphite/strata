@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, ConfirmDialog, ListRow, Placeholder, Select, Skeleton } from '@project-graphite/ui';
+import { ConfirmDialog, ListRow, Placeholder, Select, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { roleOptions, useAllSpaces, type SpaceRole } from '../../spaces';
 import { formatMoment } from '../../time';
@@ -13,6 +13,7 @@ import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { usePagePrimary } from '../../components/Page';
 import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { UserAvatar } from '../../components/UserAvatar';
 
 interface Member {
   userId: string;
@@ -64,7 +65,7 @@ export function SpaceMembers() {
           {members.data.map((member) => (
             <ListRow
               key={member.userId}
-              lead={<Avatar name={member.displayName} />}
+              lead={<UserAvatar name={member.displayName} userId={member.userId} />}
               meta={[`@${member.handle}`, !manages && roleLabel(member.role), `joined ${formatMoment(member.joinedAt)}`].filter(Boolean).join(' · ')}
               title={member.userId === self ? `${member.displayName} · you` : member.displayName}
               trail={

@@ -295,34 +295,48 @@ describe('Tasks against Postgres', () => {
     expect(await notices(teammate)).toHaveLength(1);
   });
 
-  it('reminds the right person once, and replaces the reminder when the task changes', async () => {
+  it('threads one level of replies and toggles a fixed set of reactions on task comments', async () => {
+    const owner = await member('react-lead');
+    const viewer = await member('react-viewer');
+    const team = (await owner.call('POST', '/spaces', { name: 'Reactions' })).body;
+    await strata.join(team.id, viewer, SpaceRole.VIEWER);
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Ship the beta' })).body;
+    const comments = `/tasks/${task.id}/comments`;
+    const comment = (await owner.call('POST', comments, { body: 'Ready?' })).body;
+    const reply = (await owner.call('POST', comments, { body: 'Yes', parentId: comment.id })).body;
+    expect(reply).toMatchObject({ parentId: comment.id, reactions: [] });
+    expect((await owner.call('POST', comments, { body: 'Deeper', parentId: reply.id })).status).toBe(400);
+
+    const thumbs = `${comments}/${comment.id}/reactions/${encodeURIComponent('👍')}`;
+    expect((await viewer.call('PUT', thumbs)).body.reactions).toEqual([{ emoji: '👍', count: 1, mine: true }]);
+    await owner.call('PUT', thumbs);
+    expect((await owner.call('GET', comments)).body[0].reactions).toEqual([{ emoji: '👍', count: 2, mine: true }]);
+    expect((await owner.call('PUT', `${comments}/${comment.id}/reactions/${encodeURIComponent('🐍')}`)).status).toBe(400);
+    expect((await owner.call('DELETE', thumbs)).body.reactions).toEqual([{ emoji: '👍', count: 1, mine: false }]);
+
+    expect((await owner.call('DELETE', `${comments}/${comment.id}`)).status).toBe(204);
+    expect((await owner.call('GET', comments)).body).toEqual([]);
+  });
+
+  it('reminds the right person a day and an hour before a task is due, and moves the reminders with the task', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);
-    const reminders = () =>
-      strata.prisma.scheduledJob.findMany({ where: { kind: 'task.reminder', doneAt: null, failedAt: null, payload: { path: ['itemId'], equals: task.id } } });
-    const task = (
-      await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, {
-        title: 'Call the bank',
-        dueDate: utcDate(2),
-        dueTime: '10:00',
-        reminderMinutes: 60,
-      })
-    ).body;
-    const [first] = await reminders();
-    expect(first!.runAt.toISOString()).toBe(`${utcDate(2)}T09:00:00.000Z`);
+    const reminders = async () =>
+      (
+        await strata.prisma.scheduledJob.findMany({
+          where: { kind: 'task.reminder', doneAt: null, failedAt: null, payload: { path: ['itemId'], equals: task.id } },
+          orderBy: { runAt: 'asc' },
+        })
+      ).map((job) => job.runAt.toISOString());
+    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Call the bank', dueDate: utcDate(2), dueTime: '10:00' })).body;
+    expect(await reminders()).toEqual([`${utcDate(1)}T10:00:00.000Z`, `${utcDate(2)}T09:00:00.000Z`]);
 
-    await owner.call('PATCH', `/tasks/${task.id}`, { reminderMinutes: 30 });
-    const [second, extra] = await reminders();
-    expect(extra).toBeUndefined();
-    expect(second!.runAt.toISOString()).toBe(`${utcDate(2)}T09:30:00.000Z`);
+    await owner.call('PATCH', `/tasks/${task.id}`, { dueTime: '11:00' });
+    expect(await reminders()).toEqual([`${utcDate(1)}T11:00:00.000Z`, `${utcDate(2)}T10:00:00.000Z`]);
 
-    await jobs.runDue(new Date(second!.runAt.getTime() + 1_000));
-    expect((await owner.call('GET', '/me/inbox')).body.results[0]).toMatchObject({
-      kind: 'task_due',
-      title: '“Call the bank” is due at 10:00',
-    });
+    await jobs.runDue(new Date(`${utcDate(1)}T11:00:01.000Z`));
+    expect((await owner.call('GET', '/me/inbox')).body.results[0]).toMatchObject({ kind: 'task_due', title: '“Call the bank” is due tomorrow at 11:00' });
 
-    await owner.call('PATCH', `/tasks/${task.id}`, { reminderMinutes: 15 });
     await owner.call('POST', `/tasks/${task.id}/complete`);
     expect(await reminders()).toEqual([]);
   });
@@ -333,7 +347,7 @@ describe('Tasks against Postgres', () => {
     const space = (await owner.call('POST', '/spaces', { name: 'Fair' })).body;
     await strata.join(space.id, helper, SpaceRole.EDITOR);
     const task = (
-      await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Book the hall', dueDate: utcDate(2), dueTime: '10:00', reminderMinutes: 60 })
+      await owner.call('POST', `/spaces/${space.id}/tasks`, { title: 'Book the hall', dueDate: utcDate(2), dueTime: '10:00' })
     ).body;
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { assigneeId: helper.id })).status).toBe(200);
     expect((await owner.call('DELETE', `/spaces/${space.id}/members/${helper.id}`)).status).toBe(204);

@@ -44,7 +44,7 @@ export class DriveService {
     if (folderId) await this.ownedFolder(userId, folderId);
     return {
       path: folderId ? ((await this.ancestors(folderId, null)) ?? []) : [],
-      entries: await this.entries({ ownerId: userId, folderId: folderId ?? null }),
+      entries: await this.entries({ ownerId: userId, folderId: folderId ?? null, avatarOf: { is: null } }),
     };
   }
 
@@ -115,7 +115,7 @@ export class DriveService {
 
   private async ownedEntries(userId: string, itemIds: string[], state: 'live' | 'any' = 'live') {
     const entries = await this.prisma.item.findMany({
-      where: { id: { in: itemIds }, ownerId: userId, kind: { in: driveKinds }, ...(state === 'live' ? { trashedAt: null } : {}) },
+      where: { id: { in: itemIds }, ownerId: userId, avatarOf: { is: null }, kind: { in: driveKinds }, ...(state === 'live' ? { trashedAt: null } : {}) },
       select: { id: true, kind: true },
     });
     if (entries.length !== new Set(itemIds).size) throw new NotFoundException('Some of those are not in your files');

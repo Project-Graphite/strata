@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
-import { ConfirmDialog, Placeholder, type MenuItem } from '@project-graphite/ui';
+import { ConfirmDialog, Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { NameAndColorFields, nameAndColorFrom, roleOptions, SpaceMark, spaceNameChecks, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useFormErrors } from '../../validation';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import type { NestedMenuItem } from '../../components/NestedMenu';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
 import { DetailState, Page } from '../../components/Page';
@@ -16,7 +17,7 @@ interface SpaceOutlet {
   space: Space;
   invite: () => void;
   invited: number;
-  setMenu: (items: MenuItem[]) => void;
+  setMenu: (items: NestedMenuItem[]) => void;
 }
 
 export function useSpace() {
@@ -47,7 +48,7 @@ export function useSpaceActions(onInvited?: () => void) {
   const [opened, setOpened] = useState<{ action: SpaceAction; space: Space }>();
   const close = () => setOpened(undefined);
 
-  function items(space: Space): MenuItem[] {
+  function items(space: Space): NestedMenuItem[] {
     const open = (action: SpaceAction) => () => setOpened({ action, space });
     if (space.role !== 'owner') return [{ label: 'Leave', onSelect: open('leave') }];
     if (space.kind === 'personal') return [{ label: 'Rename', onSelect: open('rename') }];
@@ -145,7 +146,7 @@ export function SpaceLayout() {
   const navigate = useNavigate();
   const spaces = useAllSpaces();
   const [invited, setInvited] = useState(0);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [menu, setMenu] = useState<NestedMenuItem[]>([]);
   const actions = useSpaceActions(() => setInvited((current) => current + 1));
   const base = `/spaces/${id}`;
   const sections = [

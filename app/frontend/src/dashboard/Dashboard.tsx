@@ -367,9 +367,18 @@ export function DashboardHome() {
               <ActionsMenu
                 items={[
                   { label: 'Settings', onSelect: () => setSettingsOpen(widget.id) },
-                  ...(wide && widget.x + widget.w < gridColumns ? [{ label: 'Wider', separated: true, onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
-                  ...(wide && widget.w > minColumns ? [{ label: 'Narrower', separated: widget.x + widget.w >= gridColumns, onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
-                  ...(wide && widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
+                  ...(wide
+                    ? [
+                        {
+                          label: 'Size',
+                          items: [
+                            ...(widget.x + widget.w < gridColumns ? [{ label: 'Wider', onSelect: () => update(widget.id, { w: widget.w + 1 }) }] : []),
+                            ...(widget.w > minColumns ? [{ label: 'Narrower', onSelect: () => update(widget.id, { w: widget.w - 1 }) }] : []),
+                            ...(widget.h ? [{ label: 'Fit height to content', onSelect: () => update(widget.id, { h: null }) }] : []),
+                          ],
+                        },
+                      ]
+                    : []),
                   { label: 'Remove', separated: true, onSelect: () => change({ widgets: widgets.filter((shown) => shown.id !== widget.id) }) },
                 ]}
                 name={cardTitle(widget)}

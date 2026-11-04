@@ -131,7 +131,7 @@ export function itemHref(item: { id: string; kind: string }) {
   return null;
 }
 
-const itemKindNames: Record<string, string> = { note: 'page', list: 'task list' };
+const itemKindNames: Record<string, string> = { note: 'page', list: 'epic' };
 
 export const spacesTabs = (active: 'spaces' | 'invitations') => [
   { active: active === 'spaces', href: '/spaces', label: 'Spaces' },

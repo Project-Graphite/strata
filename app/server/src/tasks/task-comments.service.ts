@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
 import { InboxService } from '../inbox/inbox.service';
@@ -16,8 +16,23 @@ const commentFields = {
   document: true,
   editedAt: true,
   createdAt: true,
+  parentId: true,
   author: { select: { id: true, displayName: true } },
+  reactions: { select: { emoji: true, userId: true }, orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.NoteCommentSelect;
+
+export const commentReactions = ['👍', '❤️', '🎉', '😄', '👀', '🚀'];
+
+function present({ reactions, ...comment }: Prisma.NoteCommentGetPayload<{ select: typeof commentFields }>, userId: string) {
+  const emojis = [...new Set(reactions.map((reaction) => reaction.emoji))];
+  return {
+    ...comment,
+    reactions: emojis.map((emoji) => {
+      const given = reactions.filter((reaction) => reaction.emoji === emoji);
+      return { emoji, count: given.length, mine: given.some((reaction) => reaction.userId === userId) };
+    }),
+  };
+}
 
 const handlesIn = (text: string) => new Set([...text.matchAll(mentionPattern)].map((match) => match[1]!.toLowerCase()));
 
@@ -33,16 +48,20 @@ export class TaskCommentsService {
 
   async list(userId: string, taskId: string) {
     await this.tasks.assertTask(userId, taskId, 'read');
-    return this.prisma.noteComment.findMany({ where: { itemId: taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: commentFields });
+    const comments = await this.prisma.noteComment.findMany({ where: { itemId: taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: commentFields });
+    return comments.map((comment) => present(comment, userId));
   }
 
-  async create(userId: string, taskId: string, { body, document }: TaskCommentDto) {
+  async create(userId: string, taskId: string, { body, document, parentId }: TaskCommentDto) {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
     if ((await this.prisma.noteComment.count({ where: { itemId: taskId } })) >= maxComments) {
       throw new ConflictException(`A task can hold ${maxComments} comments. Delete some old ones first.`);
     }
+    if (parentId && !(await this.prisma.noteComment.count({ where: { id: parentId, itemId: taskId, parentId: null } }))) {
+      throw new BadRequestException('Reply to a comment on this task.');
+    }
     const created = await this.prisma.$transaction(async (transaction) => {
-      const created = await transaction.noteComment.create({ data: { itemId: taskId, authorId: userId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
+      const created = await transaction.noteComment.create({ data: { itemId: taskId, authorId: userId, parentId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
       const { title } = await transaction.item.findUniqueOrThrow({ where: { id: taskId }, select: { title: true } });
       const mentioned = await this.mention(transaction, { spaceId: task.spaceId, taskId, title, authorId: userId, body });
       await this.watchers.watch(transaction, taskId, [userId]);
@@ -50,7 +69,7 @@ export class TaskCommentsService {
       return created;
     });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
-    return created;
+    return present(created, userId);
   }
 
   async update(userId: string, taskId: string, commentId: string, { body, document }: TaskCommentDto) {
@@ -63,7 +82,7 @@ export class TaskCommentsService {
       return updated;
     });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
-    return updated;
+    return present(updated, userId);
   }
 
   async remove(userId: string, taskId: string, commentId: string) {
@@ -73,6 +92,16 @@ export class TaskCommentsService {
     }
     await this.prisma.noteComment.deleteMany({ where: { id: commentId } });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+  }
+
+  async react(userId: string, taskId: string, commentId: string, emoji: string, reacting: boolean) {
+    if (!commentReactions.includes(emoji)) throw new BadRequestException('Choose one of the offered reactions.');
+    const task = await this.tasks.assertTask(userId, taskId, 'read');
+    if (!(await this.prisma.noteComment.count({ where: { id: commentId, itemId: taskId } }))) throw new NotFoundException('Comment not found');
+    if (reacting) await this.prisma.commentReaction.createMany({ data: [{ commentId, userId, emoji }], skipDuplicates: true });
+    else await this.prisma.commentReaction.deleteMany({ where: { commentId, userId, emoji } });
+    this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
+    return present(await this.prisma.noteComment.findUniqueOrThrow({ where: { id: commentId }, select: commentFields }), userId);
   }
 
   private async mention(

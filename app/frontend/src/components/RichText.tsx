@@ -10,6 +10,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { cspNonce } from '../csp-nonce';
 import type { Member } from '../spaces';
+import { LinkActions } from './LinkActions';
 
 export type RichDocument = Record<string, unknown> | null;
 
@@ -44,7 +45,7 @@ const MentionTokens = Extension.create({
 });
 
 const extensions = (placeholder: string) => [
-  StarterKit.configure({ link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
+  StarterKit.configure({ link: { openOnClick: false, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Highlight,
@@ -173,6 +174,7 @@ export function RichTextEditor({
         <Toolbar compact={compact} editor={editor} />
         <EditorContent editor={editor} />
       </div>
+      <LinkActions editor={editor} />
       {suggestions.length > 0 && (
         <ul
           aria-label="People to mention"
@@ -219,5 +221,12 @@ export function RichTextView({ value }: { value: RichDocument }) {
   useEffect(() => {
     if (editor && !editor.isDestroyed) editor.commands.setContent(value ?? '', { emitUpdate: false });
   }, [editor, value]);
-  return editor && <EditorContent editor={editor} />;
+  return (
+    editor && (
+      <>
+        <EditorContent editor={editor} />
+        <LinkActions editor={editor} />
+      </>
+    )
+  );
 }

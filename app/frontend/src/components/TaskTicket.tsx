@@ -1,3 +1,5 @@
+import MuiIconButton from '@mui/material/IconButton';
+import Popover from '@mui/material/Popover';
 import { useDeferredValue, useState } from 'react';
 import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedControl, Select, TextField, useSnackbar } from '@project-graphite/ui';
 import { describeActivity, type ActivityEvent } from '../activity';
@@ -9,8 +11,10 @@ import { completeTask, type Task, type TaskDetail } from '../tasks';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
-import { Button, TextButton } from './Button';
+import { Button } from './Button';
 import { FileButton } from './FileButton';
+import { ReplyGlyph, SmileGlyph } from './glyphs';
+import { UserAvatar } from './UserAvatar';
 import { LoadError } from './LoadError';
 import { RichTextEditor, RichTextView, type RichDocument } from './RichText';
 
@@ -57,8 +61,8 @@ export function TaskDescription({ editable, onSave, taskId, value }: { editable:
           !editing && (
             <span className="flex flex-wrap items-center gap-2">
               {draft !== undefined && <Badge tone="wip">Unsaved changes</Badge>}
-              {draft !== undefined && <TextButton danger label="Discard" onClick={discard} />}
-              <TextButton label={draft === undefined ? 'Edit' : 'Continue editing'} onClick={() => setEditing(true)} />
+              {draft !== undefined && <IconButton icon="trash" label="Discard unsaved changes" onClick={discard} size="small" />}
+              <IconButton icon="pencil" label={draft === undefined ? 'Edit the description' : 'Continue editing'} onClick={() => setEditing(true)} size="small" />
             </span>
           )
         }
@@ -201,16 +205,20 @@ interface Comment {
   document: RichDocument;
   editedAt: string | null;
   createdAt: string;
+  parentId: string | null;
   author: { id: string; displayName: string } | null;
+  reactions: { emoji: string; count: number; mine: boolean }[];
 }
 
-type ActivityTab = 'all' | 'comments' | 'history';
+type ActivityTab = 'comments' | 'history' | 'all';
 
 const activityTabs: { value: ActivityTab; label: string }[] = [
-  { value: 'all', label: 'All' },
   { value: 'comments', label: 'Comments' },
   { value: 'history', label: 'History' },
+  { value: 'all', label: 'All' },
 ];
+
+const reactionChoices = ['👍', '❤️', '🎉', '😄', '👀', '🚀'];
 
 const paragraphOf = (text: string): RichDocument => ({ type: 'doc', content: text.split('\n').map((line) => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
 
@@ -248,27 +256,143 @@ function CommentEditor({ initial, label, members, onCancel, onSave, saveLabel }:
   );
 }
 
+function Reactions({ comment, onReact }: { comment: Comment; onReact: (emoji: string, on: boolean) => void }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      {comment.reactions.map((reaction) => (
+        <button aria-label={`${reaction.emoji} ${reaction.count}`} aria-pressed={reaction.mine} className="reaction-chip" key={reaction.emoji} onClick={() => onReact(reaction.emoji, !reaction.mine)} type="button">
+          <span aria-hidden="true">{reaction.emoji}</span>
+          <span className="tabular-nums">{reaction.count}</span>
+        </button>
+      ))}
+      <MuiIconButton aria-label="Add a reaction" onClick={(event) => setAnchor(event.currentTarget)} size="small" title="Add a reaction">
+        <SmileGlyph />
+      </MuiIconButton>
+      <Popover anchorEl={anchor} anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }} onClose={() => setAnchor(null)} open={Boolean(anchor)} slotProps={{ paper: { className: 'reaction-picker' } }}>
+        {reactionChoices.map((emoji) => (
+          <button
+            aria-label={`React with ${emoji}`}
+            key={emoji}
+            onClick={() => {
+              setAnchor(null);
+              onReact(emoji, !comment.reactions.some((reaction) => reaction.emoji === emoji && reaction.mine));
+            }}
+            type="button"
+          >
+            {emoji}
+          </button>
+        ))}
+      </Popover>
+    </>
+  );
+}
+
 export function TaskActivity({ editable, members, owner, taskId }: { editable: boolean; members?: Member[]; owner: boolean; taskId: string }) {
   const auth = useAuth();
   const action = useAction();
-  const [tab, setTab] = useState<ActivityTab>('all');
+  const [tab, setTab] = useState<ActivityTab>('comments');
   const [writing, setWriting] = useState(false);
   const [editing, setEditing] = useState<string>();
+  const [replying, setReplying] = useState<string>();
   const comments = useResource<Comment[]>(`/tasks/${taskId}/comments`, true, { live: ['task-details'], itemIds: [taskId] });
   const history = useResource<ResultPage<ActivityEvent>>(tab === 'comments' ? null : `/tasks/${taskId}/activity?page=1`, true, { live: ['tasks'], itemIds: [taskId] });
   const failed = [comments, ...(tab === 'comments' ? [] : [history])].find((resource) => resource.error);
   const loaded = comments.data && (tab === 'comments' || history.data);
   const entries = [
-    ...(tab === 'history' ? [] : (comments.data ?? []).map((comment) => ({ kind: 'comment' as const, at: comment.createdAt, comment }))),
+    ...(tab === 'history' ? [] : (comments.data ?? []).filter((comment) => !comment.parentId).map((comment) => ({ kind: 'comment' as const, at: comment.createdAt, comment }))),
     ...(tab === 'comments' ? [] : (history.data?.results ?? []).map((event) => ({ kind: 'event' as const, at: event.createdAt, event }))),
-  ].sort((first, second) => first.at.localeCompare(second.at));
+  ].sort((first, second) => second.at.localeCompare(first.at));
 
-  const save = (path: string, method: 'POST' | 'PATCH', document: RichDocument, body: string, done: (saved: Comment) => void) =>
+  const replace = (saved: Comment) => comments.mutate((current) => current.map((shown) => (shown.id === saved.id ? saved : shown)));
+
+  const save = (path: string, method: 'POST' | 'PATCH', fields: { document: RichDocument; body: string; parentId?: string }, done: (saved: Comment) => void) =>
     action.run(async () => {
-      const saved = await auth.request<Comment>(path, { method, body: JSON.stringify({ body, ...(document ? { document } : {}) }) });
+      const { document, ...rest } = fields;
+      const saved = await auth.request<Comment>(path, { method, body: JSON.stringify({ ...rest, ...(document ? { document } : {}) }) });
       done(saved);
       return '';
     }, 'Could not save the comment');
+
+  const react = (comment: Comment, emoji: string, on: boolean) =>
+    void action.run(async () => {
+      replace(await auth.request<Comment>(`/tasks/${taskId}/comments/${comment.id}/reactions/${encodeURIComponent(emoji)}`, { method: on ? 'PUT' : 'DELETE' }));
+      return '';
+    }, 'Could not change the reaction');
+
+  const remove = (comment: Comment) =>
+    void action.run(async () => {
+      await auth.request(`/tasks/${taskId}/comments/${comment.id}`, { method: 'DELETE' });
+      comments.mutate((current) => current.filter((shown) => shown.id !== comment.id && shown.parentId !== comment.id));
+      return 'Deleted the comment.';
+    }, 'Could not delete the comment');
+
+  const item = (comment: Comment, reply: boolean) => {
+    const mine = comment.author?.id === auth.user?.id;
+    const replies = reply ? [] : (comments.data ?? []).filter((shown) => shown.parentId === comment.id);
+    return (
+      <li className="task-comment" key={comment.id}>
+        <p className="task-comment-head m-0 text-small text-muted">
+          <UserAvatar name={comment.author?.displayName ?? 'Someone'} size="sm" userId={comment.author?.id} />
+          <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
+          {comment.editedAt && ' · edited'}
+        </p>
+        {editing === comment.id ? (
+          <CommentEditor
+            initial={comment.document ?? paragraphOf(comment.body)}
+            label="Edit comment"
+            members={members}
+            onCancel={() => setEditing(undefined)}
+            onSave={(document, body) =>
+              save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', { document, body }, (saved) => {
+                replace(saved);
+                setEditing(undefined);
+              })
+            }
+            saveLabel="Save"
+          />
+        ) : comment.document ? (
+          <RichTextView value={comment.document} />
+        ) : (
+          <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
+        )}
+        {editing !== comment.id && (
+          <div className="task-comment-actions">
+            <Reactions comment={comment} onReact={(emoji, on) => react(comment, emoji, on)} />
+            {editable && !reply && (
+              <MuiIconButton aria-label="Reply" onClick={() => setReplying(comment.id)} size="small" title="Reply">
+                <ReplyGlyph />
+              </MuiIconButton>
+            )}
+            {editable && mine && <IconButton icon="pencil" label="Edit comment" onClick={() => setEditing(comment.id)} size="small" />}
+            {editable && (mine || owner) && <IconButton disabled={action.busy} icon="trash" label="Delete comment" onClick={() => remove(comment)} size="small" />}
+          </div>
+        )}
+        {(replies.length > 0 || replying === comment.id) && (
+          <ol className="task-comment-replies">
+            {replies.map((shown) => item(shown, true))}
+            {replying === comment.id && (
+              <li>
+                <CommentEditor
+                  initial={null}
+                  label="Reply"
+                  members={members}
+                  onCancel={() => setReplying(undefined)}
+                  onSave={(document, body) =>
+                    save(`/tasks/${taskId}/comments`, 'POST', { document, body, parentId: comment.id }, (added) => {
+                      comments.mutate((current) => [...current, added]);
+                      setReplying(undefined);
+                    })
+                  }
+                  saveLabel="Reply"
+                />
+              </li>
+            )}
+          </ol>
+        )}
+      </li>
+    );
+  };
 
   return (
     <details className="task-activity" open>
@@ -283,7 +407,7 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
               members={members}
               onCancel={() => setWriting(false)}
               onSave={(document, body) =>
-                save(`/tasks/${taskId}/comments`, 'POST', document, body, (added) => {
+                save(`/tasks/${taskId}/comments`, 'POST', { document, body }, (added) => {
                   comments.mutate((current) => [...current, added]);
                   setWriting(false);
                 })
@@ -302,63 +426,17 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
         ) : entries.length === 0 ? (
           <p className="m-0 text-small text-muted">{tab === 'comments' ? 'No comments yet' : 'Nothing has happened yet'}</p>
         ) : (
-          <ol className="m-0 grid list-none gap-4 p-0">
-            {entries.map((entry) => {
-              if (entry.kind === 'event') {
-                return (
-                  <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
-                    <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
-                    <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
-                  </li>
-                );
-              }
-              const { comment } = entry;
-              const mine = comment.author?.id === auth.user?.id;
-              return (
-                <li className="grid gap-2" key={`comment-${comment.id}`}>
-                  <p className="m-0 text-small text-muted">
-                    <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
-                    {comment.editedAt && ' · edited'}
-                  </p>
-                  {editing === comment.id ? (
-                    <CommentEditor
-                      initial={comment.document ?? paragraphOf(comment.body)}
-                      label="Edit comment"
-                      members={members}
-                      onCancel={() => setEditing(undefined)}
-                      onSave={(document, body) =>
-                        save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', document, body, (saved) => {
-                          comments.mutate((current) => current.map((shown) => (shown.id === saved.id ? saved : shown)));
-                          setEditing(undefined);
-                        })
-                      }
-                      saveLabel="Save"
-                    />
-                  ) : comment.document ? (
-                    <RichTextView value={comment.document} />
-                  ) : (
-                    <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
-                  )}
-                  {editable && (mine || owner) && editing !== comment.id && (
-                    <div className="flex gap-1">
-                      {mine && <TextButton label="Edit" onClick={() => setEditing(comment.id)} />}
-                      <TextButton
-                        danger
-                        disabled={action.busy}
-                        label="Delete"
-                        onClick={() =>
-                          void action.run(async () => {
-                            await auth.request(`/tasks/${taskId}/comments/${comment.id}`, { method: 'DELETE' });
-                            comments.mutate((current) => current.filter((shown) => shown.id !== comment.id));
-                            return 'Deleted the comment.';
-                          }, 'Could not delete the comment')
-                        }
-                      />
-                    </div>
-                  )}
+          <ol className="task-activity-list m-0 grid list-none gap-5 p-0">
+            {entries.map((entry) =>
+              entry.kind === 'event' ? (
+                <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
+                  <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
+                  <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
                 </li>
-              );
-            })}
+              ) : (
+                item(entry.comment, false)
+              ),
+            )}
           </ol>
         )}
       </div>
@@ -386,7 +464,8 @@ export function Attachments({ editable, taskId }: { editable: boolean; taskId: s
           editable && (
             <FileButton
               busy={action.busy}
-              label="Attach"
+              iconOnly
+              label="Attach files"
               multiple
               onFiles={(files) =>
                 void action.run(async () => {
@@ -504,7 +583,7 @@ export function Relations({ editable, onOpen, taskId }: { editable: boolean; onO
 
   return (
     <section className="grid gap-3">
-      <SectionHeading action={editable && !adding && <TextButton label="Relate a task" onClick={() => setAdding(true)} />} level={3} title="Related tasks" />
+      <SectionHeading action={editable && !adding && <IconButton icon="plus" label="Relate a task" onClick={() => setAdding(true)} size="small" />} level={3} title="Related tasks" />
       {links.error ? (
         <LoadError compact error={links.error} onRetry={links.reload} />
       ) : !links.data ? (
@@ -562,7 +641,16 @@ export function Relations({ editable, onOpen, taskId }: { editable: boolean; onO
             </ul>
           )}
           {search && found.data && candidates.length === 0 && <p className="m-0 text-small text-muted">No matching tasks</p>}
-          <TextButton label="Cancel" onClick={() => { setAdding(false); setQuery(''); }} />
+          <IconButton
+            className="justify-self-end"
+            icon="x"
+            label="Stop relating a task"
+            onClick={() => {
+              setAdding(false);
+              setQuery('');
+            }}
+            size="small"
+          />
         </div>
       )}
     </section>

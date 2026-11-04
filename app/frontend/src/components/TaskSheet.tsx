@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { DatePicker, LinesSkeleton, Select, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
 import { useAllSpaces, type Member, type Tag } from '../spaces';
-import { builtInTaskTypes, reminderOptions, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type Task, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
-import { TimeField, zoneLabel } from '../time';
+import { builtInTaskTypes, defaultEpicName, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type Task, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
@@ -26,7 +26,6 @@ interface Fields {
   listId: string | null;
   assigneeId: string | null;
   repeatRule: string | null;
-  reminderMinutes: number | null;
   description: Record<string, unknown> | null;
 }
 
@@ -42,7 +41,6 @@ const fieldsOf = (task: TaskDetail): Fields => ({
   listId: task.listId,
   assigneeId: task.assignee?.id ?? null,
   repeatRule: task.repeatRule,
-  reminderMinutes: task.reminderMinutes,
   description: task.description,
 });
 
@@ -74,7 +72,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
     listId: listId ?? null,
     assigneeId: auth.user?.id ?? null,
     repeatRule: null,
-    reminderMinutes: null,
     description: null,
     labels: [],
   }));
@@ -91,7 +88,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const editable = Boolean(space && space.role !== 'viewer');
   const values = task ? fieldsOf(task) : draft;
   const labels = task ? task.labels : draft.labels;
-  const zone = zoneLabel(task?.timeZone ?? auth.user?.timeZone ?? 'UTC');
   const missing = detail.error;
 
   useEffect(() => {
@@ -297,13 +293,12 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                 value={values.dueDate ?? ''}
                 weekStartsOn={weekStart ?? 0}
               />
-              <TimeField disabled={!editable || !values.dueDate} label="Time" onChange={(dueTime) => save({ dueTime: dueTime || null })} value={values.dueTime ?? ''} />
               <Select disabled={!editable} label="Priority" onChange={(priority) => save({ priority: Number(priority) })} options={priorityOptions} value={String(values.priority)} />
               <Select
                 disabled={!editable}
-                label="List"
+                label="Epic"
                 onChange={(chosen) => save({ listId: chosen || null })}
-                options={[{ value: '', label: 'No list' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
+                options={[{ value: '', label: defaultEpicName }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
                 value={values.listId ?? ''}
               />
               <Select
@@ -315,17 +310,11 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
               />
               <Select
                 disabled={!editable || !values.dueDate}
+                hint={editable && !values.dueDate ? 'Set a due date to repeat this task.' : undefined}
                 label="Repeats"
                 onChange={(rule) => save({ repeatRule: rule || null })}
                 options={repeatOptions(values.repeatRule)}
                 value={values.repeatRule ?? ''}
-              />
-              <Select
-                disabled={!editable}
-                label="Reminder"
-                onChange={(minutes) => save({ reminderMinutes: minutes === '' ? null : Number(minutes) })}
-                options={reminderOptions(values.reminderMinutes)}
-                value={values.reminderMinutes == null ? '' : String(values.reminderMinutes)}
               />
               <div className="task-labels">
                 <Select
@@ -336,6 +325,13 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                     if (tag) saveLabels([...labels, tag]);
                   }}
                   options={(tags.data ?? []).filter((tag) => !labels.some((label) => label.id === tag.id)).map((tag) => ({ value: tag.id, label: tag.name }))}
+                  hint={
+                    editable && tags.data?.length === 0 ? (
+                      <>
+                        No labels yet. <Link to={`/spaces/${spaceId}/tags`}>Create labels for this space</Link>
+                      </>
+                    ) : undefined
+                  }
                   placeholder={tags.data?.length ? 'Add a label' : 'No labels in this space'}
                   value=""
                 />
@@ -347,7 +343,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                   </div>
                 )}
               </div>
-              {zone && <p className="task-labels m-0 text-small text-muted">Times are in {zone}.</p>}
             </aside>
           </div>
         </div>

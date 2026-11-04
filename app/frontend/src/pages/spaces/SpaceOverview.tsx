@@ -1,9 +1,11 @@
-import { Avatar, ListRow, Placeholder } from '@project-graphite/ui';
+import { ListRow, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../../api';
 import { ButtonLink } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
+import { useMovePageToTrash } from '../../components/MovePageToTrash';
 import { NoteMark } from '../../components/NoteMark';
+import { PageActionsMenu } from '../../components/PageActionsMenu';
 import { Section } from '../../components/Page';
 import { AvatarSkeleton, IconSkeleton, RowsSkeleton, TaskRowsSkeleton } from '../../components/Skeletons';
 import { noteHref, noteTitle, type Note } from '../../notes';
@@ -12,6 +14,7 @@ import { taskDetails, type Task } from '../../tasks';
 import { capitalised, formatMoment } from '../../time';
 import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
+import { UserAvatar } from '../../components/UserAvatar';
 
 const shownRows = 5;
 
@@ -19,6 +22,7 @@ export function SpaceOverview() {
   const space = useSpace();
   const base = `/spaces/${space.id}`;
   const notes = useResource<Note[]>(`${base}/notes`, true, { live: ['page-details', 'pages', 'items'], spaceId: space.id });
+  const moveToTrash = useMovePageToTrash(notes.reload, notes.reload);
   const tasks = useResource<ResultPage<Task>>(`${base}/tasks?page=1`, true, { live: ['tasks', 'items'], spaceId: space.id });
   const members = useResource<{ userId: string; displayName: string; role: SpaceRole }[]>(space.kind === 'shared' ? `${base}/members` : null, true);
   const recent = notes.data
@@ -47,6 +51,7 @@ export function SpaceOverview() {
                 lead={<NoteMark note={note} />}
                 meta={capitalised([note.kind === 'board' && 'Board', `edited ${formatMoment(note.updatedAt)}`].filter(Boolean).join(' · '))}
                 title={noteTitle(note)}
+                trail={<PageActionsMenu note={note} onTrash={space.role === 'viewer' ? undefined : () => moveToTrash(note, 0)} />}
               />
             ))}
           </ul>
@@ -84,7 +89,7 @@ export function SpaceOverview() {
               {members.data.slice(0, shownRows).map((member) => (
                 <ListRow
                   key={member.userId}
-                  lead={<Avatar name={member.displayName} />}
+                  lead={<UserAvatar name={member.displayName} userId={member.userId} />}
                   meta={roleOptions.find((option) => option.value === member.role)?.label}
                   title={member.displayName}
                 />

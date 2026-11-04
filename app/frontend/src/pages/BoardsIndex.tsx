@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router';
 import { Card, Placeholder, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import { ActionsMenu } from '../components/ActionsMenu';
+import { PageActionsMenu } from '../components/PageActionsMenu';
 import { BoardPreview } from '../components/BoardPreview';
 import { AddButton, Button } from '../components/Button';
 import { Drafts } from '../components/Drafts';
@@ -66,11 +66,9 @@ export function BoardsIndex({ section }: { section: 'boards' | 'drafts' }) {
                 <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
                 <RowText detail={[board.spaceId && spaceNames.get(board.spaceId), noteEdited(board)].filter(Boolean).join(' · ')} title={noteTitle(board)} />
               </Link>
-              {writable.some((space) => space.id === board.spaceId) && (
-                <span className="board-card-menu">
-                  <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(board, 0) }]} name={noteTitle(board)} />
-                </span>
-              )}
+              <span className="board-card-menu">
+                <PageActionsMenu note={board} onTrash={writable.some((space) => space.id === board.spaceId) ? () => moveToTrash(board, 0) : undefined} />
+              </span>
             </Card>
           ))}
         </ul>

@@ -10,7 +10,7 @@ import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'r
 import { Link } from 'react-router';
 import { Icon } from '@project-graphite/ui';
 
-export type NestedMenuItem = { label: string; separated?: boolean; disabled?: boolean } & ({ onSelect: () => void } | { href: string } | { items: NestedMenuItem[] });
+export type NestedMenuItem = { label: string; separated?: boolean; disabled?: boolean; selected?: boolean } & ({ onSelect: () => void } | { href: string } | { items: NestedMenuItem[] });
 
 type Parent = NestedMenuItem & { items: NestedMenuItem[] };
 
@@ -21,7 +21,7 @@ interface Flyout {
   focus: boolean;
 }
 
-function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { close: () => void; open: (item: Parent, target: HTMLElement, focus: boolean) => void; leave?: () => void; expanded?: string }) {
+function entries(items: NestedMenuItem[], { close, open, leave, expanded, hover = true }: { close: () => void; open: (item: Parent, target: HTMLElement, focus: boolean) => void; leave?: () => void; expanded?: string; hover?: boolean }) {
   return items.flatMap((item) => [
     ...(item.separated ? [<Divider key={`${item.label}-divider`} />] : []),
     'items' in item ? (
@@ -37,13 +37,13 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
           event.preventDefault();
           open(item, event.currentTarget, true);
         }}
-        onMouseEnter={(event) => open(item, event.currentTarget, false)}
+        onMouseEnter={hover ? (event) => open(item, event.currentTarget, false) : undefined}
       >
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         <Icon name="chevron-right" size={16} />
       </MenuItem>
     ) : 'href' in item ? (
-      <MenuItem component={Link} disabled={item.disabled} key={item.label} onClick={close} onMouseEnter={leave} to={item.href}>
+      <MenuItem component={Link} disabled={item.disabled} key={item.label} onClick={close} onMouseEnter={leave} selected={item.selected} to={item.href}>
         {item.label}
       </MenuItem>
     ) : (
@@ -55,6 +55,7 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
           item.onSelect();
         }}
         onMouseEnter={leave}
+        selected={item.selected}
       >
         {item.label}
       </MenuItem>
@@ -63,6 +64,8 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
 }
 
 export function ContextMenu({ at, items, label, onClose }: { at: { x: number; y: number }; items: NestedMenuItem[]; label: string; onClose: () => void }) {
+  const [path, setPath] = useState<Parent[]>([]);
+  const level = path.at(-1);
   return (
     <MuiMenu
       anchorPosition={{ left: at.x, top: at.y }}
@@ -73,9 +76,16 @@ export function ContextMenu({ at, items, label, onClose }: { at: { x: number; y:
         onClose();
       }}
       open
-      slotProps={{ list: { 'aria-label': label }, paper: { className: 'nested-menu min-w-60' } }}
+      slotProps={{ list: { 'aria-label': level?.label ?? label }, paper: { className: 'nested-menu min-w-60' } }}
     >
-      {entries(items, { close: onClose, open: () => undefined })}
+      {level && [
+        <MenuItem className="nested-menu-back" key="back" onClick={() => setPath((current) => current.slice(0, -1))}>
+          <Icon name="chevron-left" size={16} />
+          <span className="font-semibold">{level.label}</span>
+        </MenuItem>,
+        <Divider key="back-divider" />,
+      ]}
+      {entries(level ? level.items : items, { close: onClose, hover: false, open: (item) => setPath((current) => [...current, item]) })}
     </MuiMenu>
   );
 }

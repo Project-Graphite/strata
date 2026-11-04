@@ -22,7 +22,6 @@ export interface Task {
   dueTime: string | null;
   timeZone: string;
   repeatRule: string | null;
-  reminderMinutes: number | null;
   priority: number;
   position: number;
   status: 'open' | 'in_progress' | 'done';
@@ -199,6 +198,8 @@ export function TaskRow({
   );
 }
 
+export const defaultEpicName = 'General';
+
 export type TaskView = 'list' | 'board';
 
 export const taskViews: { value: TaskView; label: string }[] = [
@@ -270,9 +271,10 @@ export function taskFilters({
   const { assignee, completed, listId, type, view } = state;
   return [
     {
-      label: 'List',
+      label: 'Epic',
       options: [
-        { active: !listId, href: link({ list: null, page: 1 }), label: 'All lists' },
+        { active: !listId, href: link({ list: null, page: 1 }), label: 'All epics' },
+        { active: listId === 'none', href: link({ list: 'none', page: 1 }), label: defaultEpicName },
         ...lists.map((list) => ({ active: listId === list.id, count: list.openTasks, href: link({ list: list.id, page: 1 }), label: list.title })),
       ],
     },

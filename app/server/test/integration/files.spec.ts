@@ -31,6 +31,34 @@ describe('The file store against Postgres', () => {
 
   afterAll(() => strata.prisma.siteSettings.deleteMany({ where: { id: 1 } }));
 
+  it('keeps a profile picture out of Files and shows it only to people who share a space', async () => {
+    const owner = await member('avatar-owner');
+    const mate = await member('avatar-mate');
+    const stranger = await member('avatar-stranger');
+    const team = (await owner.call('POST', '/spaces', { name: 'Faces' })).body;
+    await strata.join(team.id, mate, SpaceRole.VIEWER);
+    const setAvatar = (note: string) =>
+      fetch(`${strata.base}/me/avatar`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'image/png', 'X-File-Name': 'me.png' },
+        body: new Uint8Array(png(note, `${note} pixels`)),
+      }).then((reply) => reply.json() as Promise<{ avatarId: string }>);
+    const status = (person: Member) => fetch(`${strata.base}/users/${owner.id}/avatar`, { headers: { Authorization: `Bearer ${person.token}` } }).then((reply) => reply.status);
+
+    expect(await status(mate)).toBe(404);
+    const first = await setAvatar('first');
+    const second = await setAvatar('second');
+    expect((await owner.call('GET', '/me')).body.avatarId).toBe(second.avatarId);
+    expect(await strata.prisma.item.count({ where: { id: first.avatarId } })).toBe(0);
+    expect((await owner.call('GET', '/me/drive')).body.entries).toEqual([]);
+    expect(await status(owner)).toBe(200);
+    expect(await status(mate)).toBe(200);
+    expect(await status(stranger)).toBe(404);
+
+    expect((await owner.call('DELETE', '/me/avatar')).status).toBe(204);
+    expect(await status(mate)).toBe(404);
+  });
+
   it('keeps files in nested folders, moves and trashes them together and shares a folder by link', async () => {
     const owner = await member('drive-owner');
     const other = await member('drive-other');

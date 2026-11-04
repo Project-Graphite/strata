@@ -13,6 +13,7 @@ export class UsersService {
       email: user.email,
       handle: user.handle,
       displayName: user.displayName,
+      avatarId: user.avatarId,
       timeZone: user.timeZone,
       timeFormat: user.timeFormat,
       tidySummary: user.tidySummary,

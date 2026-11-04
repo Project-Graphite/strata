@@ -5,7 +5,9 @@ import { useAuth } from '../../auth';
 import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
+import { useMovePageToTrash } from '../../components/MovePageToTrash';
 import { NoteMark } from '../../components/NoteMark';
+import { PageActionsMenu } from '../../components/PageActionsMenu';
 import { Section, usePagePrimary } from '../../components/Page';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 import { builtInTemplates, flattenTree, noteHref, noteTitle, type Note } from '../../notes';
@@ -18,7 +20,7 @@ const empty = { title: 'No pages yet', hint: 'Pages and boards you add to this s
 
 const nested = ['', 'ps-12', 'ps-20', 'ps-28'];
 
-function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
+function PageRow({ depth = 0, note, onTrash }: { depth?: number; note: Note; onTrash?: () => void }) {
   return (
     <ListRow
       className={nested[Math.min(depth, nested.length - 1)]}
@@ -26,6 +28,7 @@ function PageRow({ depth = 0, note }: { depth?: number; note: Note }) {
       lead={<NoteMark note={note} />}
       meta={capitalised([note.kind === 'board' && 'Board', note.pinnedAt && 'Pinned', formatMoment(note.updatedAt)].filter(Boolean).join(' · '))}
       title={noteTitle(note)}
+      trail={<PageActionsMenu note={note} onTrash={onTrash} />}
     />
   );
 }
@@ -37,6 +40,8 @@ export function SpaceNotes() {
   const notes = useResource<Note[]>(`/spaces/${space.id}/notes`, true, { live: ['page-details', 'pages', 'items'], spaceId: space.id });
   const creating = useAction();
   const editable = space.role !== 'viewer';
+  const moveToTrash = useMovePageToTrash(notes.reload, notes.reload);
+  const trash = (note: Note) => (editable ? () => moveToTrash(note, (notes.data ?? []).filter((child) => child.parentId === note.id).length) : undefined);
   const pages = notes.data?.filter((note) => !note.template) ?? [];
   const templates = notes.data?.filter((note) => note.template) ?? [];
   const branches = flattenTree(pages);
@@ -55,11 +60,20 @@ export function SpaceNotes() {
   useEffect(() => {
     if (!editable) return;
     setMenu([
-      { label: 'New board', onSelect: () => create({ board: true }) },
-      ...builtInTemplates.map(([template, label]) => ({ label: `New page from ${label}`, onSelect: () => create({ template, title: label }) })),
-      ...(notes.data ?? [])
-        .filter((note) => note.template)
-        .map((note) => ({ label: `New page from ${noteTitle(note)}`, onSelect: () => create({ fromNoteId: note.id, title: note.title }) })),
+      {
+        label: 'New',
+        items: [
+          { label: 'Page', onSelect: () => create({}) },
+          { label: 'Board', onSelect: () => create({ board: true }) },
+          {
+            label: 'From a template',
+            items: [
+              ...builtInTemplates.map(([template, label]) => ({ label, onSelect: () => create({ template, title: label }) })),
+              ...(notes.data ?? []).filter((note) => note.template).map((note) => ({ label: noteTitle(note), onSelect: () => create({ fromNoteId: note.id, title: note.title }) })),
+            ],
+          },
+        ],
+      },
     ]);
     return () => setMenu([]);
   }, [editable, notes.data, setMenu]);
@@ -88,7 +102,7 @@ export function SpaceNotes() {
       ) : (
         <ul className="panel-rows">
           {branches.map(({ note, depth }) => (
-            <PageRow depth={depth} key={note.id} note={note} />
+            <PageRow depth={depth} key={note.id} note={note} onTrash={trash(note)} />
           ))}
         </ul>
       )}
@@ -96,7 +110,7 @@ export function SpaceNotes() {
         <Section title="Templates">
           <ul className="panel-rows">
             {templates.map((note) => (
-              <PageRow key={note.id} note={note} />
+              <PageRow key={note.id} note={note} onTrash={trash(note)} />
             ))}
           </ul>
         </Section>

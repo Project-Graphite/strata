@@ -63,7 +63,7 @@ export function TasksPage() {
       toolbar={
         lists.data ? (
           <FilterMenu groups={taskFilters({ choices: choices.data ?? noFilterChoices, defaultAssignee: listId ? 'Anyone' : 'Me or unassigned', link, lists: lists.data, state })} label="Filter tasks">
-            {editableSpaces.length > 0 && <AddButton label="New list" onClick={() => setCreatingList(true)} />}
+            {editableSpaces.length > 0 && <AddButton label="New epic" onClick={() => setCreatingList(true)} />}
           </FilterMenu>
         ) : (
           !lists.error && <ButtonSkeleton width="w-28" />
@@ -99,7 +99,7 @@ export function TasksPage() {
           busyLabel="Adding…"
           onClose={() => setCreatingList(false)}
           onSubmit={(target) => {
-            if (!listForm.check(target, { title: [required('Name the list.'), atMost(100, 'Use at most 100 characters.')] })) return;
+            if (!listForm.check(target, { title: [required('Name the epic.'), atMost(100, 'Use at most 100 characters.')] })) return;
             const values = new FormData(target);
             void action
               .run(async () => {
@@ -110,11 +110,11 @@ export function TasksPage() {
                 lists.mutate((current) => [...current, created]);
                 navigate(link({ list: created.id, completed: false, page: 1 }));
                 return `Added ${created.title}.`;
-              }, 'Could not add the list')
+              }, 'Could not add the epic')
               .then((saved) => saved && setCreatingList(false));
           }}
-          submitLabel="Add list"
-          title="New list"
+          submitLabel="Add epic"
+          title="New epic"
         >
           <TextField autoFocus label="Name" maxLength={100} {...listForm.field('title')} />
           <input name="spaceId" type="hidden" value={editableSpaces[0]!.id} />

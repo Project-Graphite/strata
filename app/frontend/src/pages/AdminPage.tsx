@@ -1,4 +1,4 @@
-import { Avatar, ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
+import { ListRow, Placeholder, TextField, timeAgo } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -9,6 +9,7 @@ import { Page, Section } from '../components/Page';
 import { fileSize } from '../files';
 import { AvatarSkeleton, ButtonSkeleton, FieldSkeleton, RowsSkeleton, SkeletonLine, ToggleSkeleton, useRememberedShape } from '../components/Skeletons';
 import { Toggle } from '../components/Toggle';
+import { UserAvatar } from '../components/UserAvatar';
 
 interface SiteSettings {
   inviteOnly: boolean;
@@ -129,7 +130,7 @@ export function AdminPage() {
             {accounts.data.map((account) => (
               <ListRow
                 key={account.id}
-                lead={<Avatar name={account.displayName} />}
+                lead={<UserAvatar name={account.displayName} userId={account.id} />}
                 meta={[
                   account.email,
                   `@${account.handle}`,

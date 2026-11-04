@@ -19,6 +19,10 @@ import { statusFields, statusOf } from './task-status';
 
 const pageSize = 100;
 const reminderKind = 'task.reminder';
+const reminderLeads = [
+  ['day', 24 * 60 * 60_000],
+  ['hour', 60 * 60_000],
+] as const;
 const taskLink = (itemId: string) => `/tasks?task=${itemId}`;
 const statusNames: Record<TaskStatus, string> = { OPEN: 'Open', IN_PROGRESS: 'In progress', DONE: 'Done' };
 const fieldNames = {
@@ -34,7 +38,6 @@ const fieldNames = {
   parentId: 'parent task',
   description: 'description',
   repeatRule: 'repeat',
-  reminderMinutes: 'reminder',
 } as const;
 const maxColumns = 10;
 const columnFields = { id: true, spaceId: true, name: true, position: true } satisfies Prisma.TaskColumnSelect;
@@ -62,7 +65,6 @@ const taskFields = {
       dueTime: true,
       timeZone: true,
       repeatRule: true,
-      reminderMinutes: true,
       priority: true,
       position: true,
       status: true,
@@ -90,7 +92,6 @@ function present(row: TaskRow) {
     dueTime: task.dueTime,
     timeZone: task.timeZone,
     repeatRule: task.repeatRule,
-    reminderMinutes: task.reminderMinutes,
     priority: task.priority,
     position: task.position,
     status: task.status.toLowerCase(),
@@ -134,7 +135,7 @@ export class TasksService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; due: string }));
+    this.jobs.handle(reminderKind, (payload) => this.remind(payload as { itemId: string; due: string; lead?: 'day' | 'hour' }));
   }
 
   async createList(userId: string, spaceId: string, input: CreateListDto) {
@@ -271,7 +272,7 @@ export class TasksService implements OnModuleInit {
       trashedAt: null,
       task: {
         ...tasks,
-        ...(query.listId ? { listId: query.listId } : {}),
+        ...(query.listId ? { listId: query.listId === 'none' ? null : query.listId } : {}),
         ...(query.assignee && query.assignee !== 'any' ? { assigneeId: query.assignee === 'me' ? userId : query.assignee === 'none' ? null : query.assignee } : {}),
         ...(query.type ? { type: { equals: taskType(query.type), mode: 'insensitive' as const } } : {}),
         completedAt: query.completed ? { not: null } : null,
@@ -536,7 +537,7 @@ export class TasksService implements OnModuleInit {
   private async checkedFields(spaceId: string, itemId: string | null, input: TaskFieldsDto) {
     if (input.listId) {
       const list = await this.prisma.item.count({ where: { id: input.listId, spaceId, kind: ItemKind.LIST, trashedAt: null } });
-      if (!list) throw new BadRequestException('Choose a list from this space');
+      if (!list) throw new BadRequestException('Choose an epic from this space');
     }
     if (input.parentId) {
       const parent = await this.prisma.task.findFirst({
@@ -567,7 +568,6 @@ export class TasksService implements OnModuleInit {
       dueTime: input.dueTime,
       timeZone: input.timeZone,
       repeatRule,
-      reminderMinutes: input.reminderMinutes,
       assigneeId: input.assigneeId,
       columnId: input.columnId,
       priority: input.priority,
@@ -584,7 +584,7 @@ export class TasksService implements OnModuleInit {
         spaceId: true,
         title: true,
         createdById: true,
-        task: { select: { dueDate: true, dueTime: true, timeZone: true, reminderMinutes: true, assigneeId: true, completedAt: true } },
+        task: { select: { dueDate: true, dueTime: true, timeZone: true, assigneeId: true, completedAt: true } },
       },
     });
     const task = item.task!;
@@ -592,10 +592,10 @@ export class TasksService implements OnModuleInit {
       where: { kind: reminderKind, doneAt: null, failedAt: null, payload: { path: ['itemId'], equals: itemId } },
     });
     const due = dueInstant(task);
-    if (due && task.reminderMinutes !== null && !task.completedAt) {
-      const remindAt = new Date(due.getTime() - task.reminderMinutes * 60_000);
-      if (remindAt > new Date()) {
-        await this.jobs.schedule(reminderKind, remindAt, { itemId, due: due.toISOString() }, client);
+    if (due && !task.completedAt) {
+      for (const [lead, leadMs] of reminderLeads) {
+        const remindAt = new Date(due.getTime() - leadMs);
+        if (remindAt > new Date()) await this.jobs.schedule(reminderKind, remindAt, { itemId, due: due.toISOString(), lead }, client);
       }
     }
     if (task.assigneeId && task.assigneeId !== previousAssignee && task.assigneeId !== actorId) {
@@ -605,7 +605,7 @@ export class TasksService implements OnModuleInit {
     }
   }
 
-  private async remind(payload: { itemId: string; due: string }) {
+  private async remind(payload: { itemId: string; due: string; lead?: 'day' | 'hour' }) {
     const item = await this.prisma.item.findUnique({
       where: { id: payload.itemId },
       select: {
@@ -624,7 +624,7 @@ export class TasksService implements OnModuleInit {
       {
         userId: recipient,
         kind: 'task_due',
-        title: `“${item.title}” is due ${task.dueTime ? `at ${task.dueTime}` : 'today'}`,
+        title: `“${item.title}” is due ${payload.lead === 'day' ? 'tomorrow' : 'today'}${task.dueTime ? ` at ${task.dueTime}` : ''}`,
         link: `/tasks?task=${payload.itemId}`,
       },
     ]);

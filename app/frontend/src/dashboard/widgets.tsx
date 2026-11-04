@@ -213,7 +213,7 @@ function TasksSettings({ onChange, settings }: SettingsProps) {
     <div className="grid gap-3">
       {spaceId && (
         <Select
-          label="List"
+          label="Epic"
           onChange={(listId) => onChange({ ...settings, spaceId, listId: listId || undefined })}
           options={[{ value: '', label: 'All open tasks' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
           size="small"

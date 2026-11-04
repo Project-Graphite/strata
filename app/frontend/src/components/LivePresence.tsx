@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Avatar, Checkbox, ConfirmDialog, Dialog, ListRow } from '@project-graphite/ui';
+import { Checkbox, ConfirmDialog, Dialog, ListRow } from '@project-graphite/ui';
 import { ActionsMenu } from './ActionsMenu';
 import { TextButton } from './Button';
 import { setCollaboratorsHidden, useCollaboratorsHidden } from './collaborator-visibility';
 import type { Person } from './live-document';
+import { UserAvatar } from './UserAvatar';
 
 export interface PresenceActions {
   positions: ReadonlyMap<string, string>;
@@ -37,7 +38,7 @@ export function LivePresence({ people, actions, onRemove }: { people: Person[]; 
     <>
       <div className="live-presence">
         <div aria-hidden="true" className="live-presence-avatars flex -space-x-2">
-          {people.slice(0, 5).map((person) => <Avatar key={person.id} name={person.name} present={person.activity !== 'idle'} />)}
+          {people.slice(0, 5).map((person) => <UserAvatar key={person.id} name={person.name} present={person.activity !== 'idle'} userId={person.guest ? undefined : person.id} />)}
         </div>
         <TextButton label={`${people.length} ${people.length === 1 ? 'person' : 'people'} here`} onClick={() => setOpen(true)} />
         {actions?.following && <div className="live-presence-follow"><span className="text-small text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></div>}
@@ -58,7 +59,7 @@ export function LivePresence({ people, actions, onRemove }: { people: Person[]; 
               return (
                 <ListRow
                   key={person.id}
-                  lead={<Avatar name={person.name} present={person.activity !== 'idle'} size="md" />}
+                  lead={<UserAvatar name={person.name} present={person.activity !== 'idle'} size="md" userId={person.guest ? undefined : person.id} />}
                   meta={[person.guest ? 'Guest' : person.link ? 'Through a link' : 'Member', person.access === 'edit' ? 'Can edit' : 'Can view', { reading: 'Reading', editing: 'Editing', idle: 'Idle' }[person.activity]].join(' · ')}
                   title={person.name}
                   trail={items.length > 0 && <ActionsMenu items={items} name={person.name} />}

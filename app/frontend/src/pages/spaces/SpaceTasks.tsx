@@ -61,7 +61,7 @@ export function SpaceTasks() {
               shownList && (
                 <ActionsMenu
                   items={[
-                    { label: 'Rename list', onSelect: () => setListDialog('rename') },
+                    { label: 'Rename epic', onSelect: () => setListDialog('rename') },
                     {
                       label: 'Move to trash',
                       separated: true,
@@ -79,14 +79,14 @@ export function SpaceTasks() {
                               return '';
                             },
                           };
-                        }, 'Could not move the list to the trash'),
+                        }, 'Could not move the epic to the trash'),
                     },
                   ]}
                   name={shownList.title}
                 />
               )
             }
-            {editable && <AddButton label="New list" onClick={() => setListDialog('new')} />}
+            {editable && <AddButton label="New epic" onClick={() => setListDialog('new')} />}
           </FilterMenu>
         ) : (
           <>
@@ -130,7 +130,7 @@ export function SpaceTasks() {
           busyLabel={listDialog === 'rename' ? 'Saving…' : 'Adding…'}
           onClose={() => setListDialog(undefined)}
           onSubmit={(target) => {
-            if (!listForm.check(target, { title: [required('Name the list.'), atMost(100, 'Use at most 100 characters.')] })) return;
+            if (!listForm.check(target, { title: [required('Name the epic.'), atMost(100, 'Use at most 100 characters.')] })) return;
             const title = String(new FormData(target).get('title')).trim();
             void action
               .run(
@@ -145,12 +145,12 @@ export function SpaceTasks() {
                   navigate(link({ list: created.id }));
                   return `Added ${created.title}.`;
                 },
-                listDialog === 'rename' ? 'Could not rename the list' : 'Could not add the list',
+                listDialog === 'rename' ? 'Could not rename the epic' : 'Could not add the epic',
               )
               .then((saved) => saved && setListDialog(undefined));
           }}
-          submitLabel={listDialog === 'rename' ? 'Save changes' : 'Add list'}
-          title={listDialog === 'rename' ? 'Rename list' : 'New list'}
+          submitLabel={listDialog === 'rename' ? 'Save changes' : 'Add epic'}
+          title={listDialog === 'rename' ? 'Rename epic' : 'New epic'}
         >
           <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />
         </FormDialog>

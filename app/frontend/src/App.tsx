@@ -54,6 +54,8 @@ const DataSettings = lazy(() => import('./pages/settings/DataSettings').then((mo
 const LegalSettings = lazy(() => import('./pages/settings/LegalSettings').then((module) => ({ default: module.LegalSettings })));
 const DeveloperSettings = lazy(() => import('./pages/settings/DeveloperSettings').then((module) => ({ default: module.DeveloperSettings })));
 const AppsSettings = lazy(() => import('./pages/settings/AppsSettings').then((module) => ({ default: module.AppsSettings })));
+const PreferencesSettings = lazy(() => import('./pages/settings/PreferencesSettings').then((module) => ({ default: module.PreferencesSettings })));
+const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings').then((module) => ({ default: module.NotificationSettings })));
 const ProfileSettings = lazy(() => import('./pages/settings/ProfileSettings').then((module) => ({ default: module.ProfileSettings })));
 const SecuritySettings = lazy(() => import('./pages/settings/SecuritySettings').then((module) => ({ default: module.SecuritySettings })));
 const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout').then((module) => ({ default: module.SettingsLayout })));
@@ -274,6 +276,8 @@ export function App() {
               <Route path="admin" element={<AdminPage />} />
               <Route path="settings" element={<SettingsLayout />}>
                 <Route index element={<ProfileSettings />} />
+            <Route path="preferences" element={<PreferencesSettings />} />
+            <Route path="notifications" element={<NotificationSettings />} />
                 <Route path="apps" element={<AppsSettings />} />
                 <Route path="tags" element={<TagsSettings />} />
                 <Route path="security" element={<SecuritySettings />} />

@@ -56,13 +56,8 @@ export function AppsSettings() {
                     return (
                       <li className={`app-tile ${on ? '' : 'app-tile-off'}`} key={app.key}>
                         <button aria-describedby={`app-${app.key}-about`} aria-pressed={on} disabled={saving.busy} onClick={() => toggle(app)} title={app.description} type="button">
-                          <span className="flex items-start justify-between gap-2">
-                            <span className="app-tile-icon">
-                              <Icon name={app.icon} size={18} />
-                            </span>
-                            <span aria-hidden="true" className="app-tile-check">
-                              {on && <Icon name="check-mark" size={12} />}
-                            </span>
+                          <span className="app-tile-icon">
+                            <Icon name={app.icon} size={18} />
                           </span>
                           <span className="app-tile-label">{app.label}</span>
                           <span className="sr-only" id={`app-${app.key}-about`}>

@@ -23,6 +23,7 @@ interface User {
   email: string;
   handle: string;
   displayName: string;
+  avatarId?: string | null;
   role: UserRole;
   timeZone: string;
   timeFormat?: TimeFormat;
@@ -59,7 +60,7 @@ interface AuthContextValue {
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
-  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
+  updateUser(changes: Partial<Pick<User, 'avatarId' | 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
   accessToken(): Promise<string>;
 }
 

@@ -1,8 +1,10 @@
 import { Menu } from '@project-graphite/ui';
 import { isAdmin, useAuth } from '../auth';
+import { useAvatarUrl } from './UserAvatar';
 
 export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
   const auth = useAuth();
+  const picture = useAvatarUrl(auth.user?.avatarId ? auth.user.id : undefined);
   if (!auth.user) return null;
   const { displayName, handle } = auth.user;
 
@@ -20,7 +22,7 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
         { label: 'Sign out', onSelect: onSignOut, separated: true },
       ]}
       label="Account"
-      trigger={displayName.charAt(0).toUpperCase()}
+      trigger={picture ? <img alt="" className="avatar-button-picture" src={picture} /> : displayName.charAt(0).toUpperCase()}
       triggerLabel={`Account menu for ${displayName}`}
     />
   );

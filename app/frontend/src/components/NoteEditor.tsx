@@ -20,11 +20,11 @@ import { NestedMenu, type NestedMenuItem } from './NestedMenu';
 import { LiveDocumentStatus } from './LiveDocumentStatus';
 import { PageBlockTarget } from './PageBlockTarget';
 import { Copyable } from './Copyable';
+import { LinkActions } from './LinkActions';
 import { downloadPageDraft } from '../page-draft';
 import { colorFor, useLiveDocument, useLiveStatus, type Connection } from './live-document';
 import type { QuotedBlock } from './NoteComments';
 import { addColumn, calloutTints, mergeLastColumn, unwrapColumns } from './editor-blocks';
-import { AltTextDialog } from './AltTextDialog';
 import { AlignGlyph, alignments, GlyphButton, webAddress } from './media-blocks';
 import { blockChoices, blockMenuExtension, CommentedBlocks, commentedBlocksKey, internalPath, openComment, pageContent, type BlockActions } from './note-extensions';
 import { usePageFollowing } from './page-following';
@@ -234,15 +234,6 @@ function EmbedDialog({ editor, onClose }: { editor: Editor; onClose: () => void 
   );
 }
 
-function describeImage(editor: Editor, fileId: string, alt: string) {
-  editor.chain().command(({ tr }) => {
-    tr.doc.descendants((node, pos) => {
-      if (node.type.name === 'image' && node.attrs.fileId === fileId) tr.setNodeAttribute(pos, 'alt', alt);
-    });
-    return true;
-  }).run();
-}
-
 function SelectionBlockMenu({ actions, editor, onComment }: { actions: BlockActions; editor: Editor; onComment?: (block: QuotedBlock) => void }) {
   const block = useEditorState({
     editor,
@@ -426,7 +417,6 @@ export function CollaborativeEditor({
   const [blockLink, setBlockLink] = useState<string>();
   const [blocked, setBlocked] = useState(true);
   const [embedding, setEmbedding] = useState<Editor>();
-  const [describing, setDescribing] = useState<{ fileId: string; name: string }[]>([]);
   const user = connection.guest ? { id: `guest-${connection.document.clientID}`, displayName: 'Guest' } : auth.user!;
   const handlers = useRef({ addBoard, addPage, copyBlock, insert, insertFiles, onThread });
   handlers.current = { addBoard, addPage, copyBlock, insert, insertFiles, onThread };
@@ -468,7 +458,7 @@ export function CollaborativeEditor({
           return true;
         },
         handlePaste: (view, event, slice) => handlers.current.insert(view, [...(event.clipboardData?.files ?? [])], slice),
-        handleDrop: (view, event, slice) => handlers.current.insert(view, [...((event as DragEvent).dataTransfer?.files ?? [])], slice),
+        handleDrop: (view, event, slice, moved) => (moved || view.dragging ? false : handlers.current.insert(view, [...((event as DragEvent).dataTransfer?.files ?? [])], slice)),
       },
     },
     [connection],
@@ -525,7 +515,6 @@ export function CollaborativeEditor({
             ? view.state.schema.nodes.image!.create({ fileId: uploaded.id, alt: file.name })
             : view.state.schema.nodes.fileAttachment!.create({ fileId: uploaded.id, name: file.name, size: uploaded.file?.sizeBytes ?? file.size, mimeType, preview: mimeType === 'application/pdf' });
           view.dispatch(view.state.tr.replaceSelectionWith(node));
-          if (node.type.name === 'image') setDescribing((current) => [...current, { fileId: uploaded.id, name: file.name }]);
         } catch {
           show({ message: `Could not upload ${file.name}.`, tone: 'error' });
         }
@@ -570,16 +559,9 @@ export function CollaborativeEditor({
       {editable && !blocked && <BlockHandle actions={actions} editor={editor} onComment={onComment} />}
       <PageBlockTarget editor={editor} provider={connection.provider} />
       <EditorContent editor={editor} />
+      <LinkActions editor={editor} />
       {blockLink && <Dialog onClose={() => setBlockLink(undefined)} title="Link to block"><div className="mt-5"><Copyable value={blockLink} /></div></Dialog>}
       {embedding && <EmbedDialog editor={embedding} onClose={() => setEmbedding(undefined)} />}
-      {describing[0] && (
-        <AltTextDialog
-          initial={describing[0].name}
-          key={describing[0].fileId}
-          onClose={() => setDescribing((current) => current.slice(1))}
-          onSave={(alt) => describeImage(editor, describing[0]!.fileId, alt)}
-        />
-      )}
     </div>
   );
 }

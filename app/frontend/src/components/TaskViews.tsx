@@ -392,15 +392,21 @@ export function TaskBoard({
                             </span>
                           )}
                         </button>
-                        <AssigneeButton onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined} task={task} />
-                        {editable(task) && (
-                          <ActionsMenu
-                            items={shownColumns
-                              .filter((other) => other.key !== column.key)
-                              .map((other) => ({ label: `Move to ${other.label}`, onSelect: () => moveTo(task, other) }))}
-                            name={task.title}
-                          />
-                        )}
+                        <span className="task-card-trail">
+                          <AssigneeButton onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined} task={task} />
+                          {editable(task) && (
+                            <ActionsMenu
+                              items={[
+                                { label: 'Open', onSelect: () => onOpen(task) },
+                                {
+                                  label: 'Move to',
+                                  items: shownColumns.filter((other) => other.key !== column.key).map((other) => ({ label: other.label, onSelect: () => moveTo(task, other) })),
+                                },
+                              ]}
+                              name={task.title}
+                            />
+                          )}
+                        </span>
                       </div>
                     </Card>
                   );

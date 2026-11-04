@@ -1,3 +1,5 @@
+import { AvatarsController } from './avatars.controller';
+import { AvatarsService } from './avatars.service';
 import { Module } from '@nestjs/common';
 import { ItemsModule } from '../items/items.module';
 import { DiskFileStore, FileStore } from './file-store';
@@ -12,8 +14,8 @@ import { PageFilesController } from './page-files.controller';
 
 @Module({
   imports: [ItemsModule, UploadQueueModule, PageAccessModule, RealtimeModule],
-  controllers: [FilesController, PageFilesController, DriveController],
-  providers: [FilesService, DriveService, { provide: FileStore, useClass: DiskFileStore }],
+  controllers: [FilesController, PageFilesController, DriveController, AvatarsController],
+  providers: [FilesService, DriveService, AvatarsService, { provide: FileStore, useClass: DiskFileStore }],
   exports: [FilesService, DriveService],
 })
 export class FilesModule {}

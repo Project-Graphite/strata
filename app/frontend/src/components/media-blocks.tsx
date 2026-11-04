@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { FloatingToolbar, Icon, IconButton, ToolbarButton, useSnackbar } from '@project-graphite/ui';
 import { Node } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
@@ -57,6 +57,7 @@ function useEditable(editor: Editor) {
 }
 
 const minImageWidth = 15;
+const toolbarRoom = 56;
 const imageWidth = (value: unknown) => (typeof value === 'number' && value >= minImageWidth && value <= 100 ? value : null);
 const imageSizes = [
   [33, 'Small'],
@@ -72,6 +73,7 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
   const [source, setSource] = useState<string>();
   const [failed, setFailed] = useState(false);
   const [describing, setDescribing] = useState(false);
+  const [below, setBelow] = useState(false);
   const [dragged, setDragged] = useState<number>();
   const fileId = uuidOrNull(node.attrs.fileId);
   const align = alignmentOf(node.attrs.align);
@@ -80,6 +82,21 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
   const caption = typeof node.attrs.caption === 'string' ? node.attrs.caption : '';
   const alt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
   const editing = useEditable(editor);
+
+  useLayoutEffect(() => {
+    if (!editing || !selected) return;
+    const place = () => {
+      const covered = frame.current?.closest('.note-editor')?.querySelector('.note-editor-header')?.getBoundingClientRect().bottom ?? 0;
+      setBelow(frame.current!.getBoundingClientRect().top - toolbarRoom < covered);
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [editing, selected]);
 
   useEffect(() => {
     if (!fileId) return;
@@ -147,7 +164,7 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
         )}
         {editing && selected && (
           <>
-            <FloatingToolbar className="note-image-tools" label="Image">
+            <FloatingToolbar className={`note-image-tools ${below ? 'is-below' : ''}`} label="Image">
               {alignments.map(([option, label]) => (
                 <GlyphButton active={align === option} key={option} label={label} onClick={() => updateAttributes({ align: option })}>
                   <AlignGlyph align={option} />

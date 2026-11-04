@@ -4,12 +4,13 @@ import ListSubheader from '@mui/material/ListSubheader';
 import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useState } from 'react';
-import { Avatar, Icon } from '@project-graphite/ui';
+import { Icon } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { EyeGlyph } from './glyphs';
+import { UserAvatar } from './UserAvatar';
 
 interface WatchStatus {
   watching: boolean;
@@ -67,7 +68,7 @@ export function WatchButton({ itemId, manage, spaceId }: { itemId: string; manag
                           change(`/items/${itemId}/watchers/${member.userId}`, 'PUT', `${member.displayName} is watching this now.`);
                         }}
                       >
-                        <Avatar name={member.displayName} size="sm" />
+                        <UserAvatar name={member.displayName} size="sm" userId={member.userId} />
                         <span className="ms-2 min-w-0 truncate">{member.displayName}</span>
                       </MenuItem>
                     ))
@@ -92,7 +93,7 @@ export function WatchButton({ itemId, manage, spaceId }: { itemId: string; manag
               ...(watchers.length > 0
                 ? watchers.map((watcher) => (
                     <li className="watch-menu-person" key={watcher.id}>
-                      <Avatar name={watcher.displayName} size="sm" />
+                      <UserAvatar name={watcher.displayName} size="sm" userId={watcher.id} />
                       <span className="min-w-0 flex-1 truncate">{watcher.id === auth.user?.id ? `${watcher.displayName} (you)` : watcher.displayName}</span>
                       {manage && watcher.id !== auth.user?.id && (
                         <button

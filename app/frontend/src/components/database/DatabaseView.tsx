@@ -181,9 +181,12 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
                         {title(card)}
                         {editable && (
                           <ActionsMenu
-                            items={columns
-                              .filter((other) => other.id !== column.id)
-                              .map((other) => ({ label: `Move to ${other.name}`, onSelect: () => setValues(card.id, { [group.id]: other.id || null }) }))}
+                            items={[
+                              {
+                                label: 'Move to',
+                                items: columns.filter((other) => other.id !== column.id).map((other) => ({ label: other.name, onSelect: () => setValues(card.id, { [group.id]: other.id || null }) })),
+                              },
+                            ]}
                             name={noteTitle(card)}
                           />
                         )}

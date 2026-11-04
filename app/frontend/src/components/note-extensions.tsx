@@ -560,7 +560,7 @@ const blockTypes = ['paragraph', 'heading', 'blockquote', 'codeBlock', 'callout'
 
 export function pageContent(request: Request | undefined, noteId: string, peopleSpaceId?: string) {
   return [
-    StarterKit.configure({ undoRedo: false, link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
+    StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
     TaskList,
     TaskItem.configure({ nested: true }),
     Highlight.configure({ multicolor: true }),

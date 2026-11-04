@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { Icon, ListRow, Placeholder, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { PageActionsMenu } from '../components/PageActionsMenu';
 import { AddButton, Button, TextButton } from '../components/Button';
 import { Drafts } from '../components/Drafts';
 import { Empty } from '../components/Empty';
@@ -77,7 +78,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
                 <NoteMark note={page} />
                 <RowText detail={noteEdited(page)} title={noteTitle(page)} />
               </Link>
-              {writable && <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => tree.trash(page) }]} name={noteTitle(page)} />}
+              <PageActionsMenu note={page} onTrash={writable ? () => tree.trash(page) : undefined} />
             </div>
             {expanded && (
               <ul id={`pages-group-${page.id}`} role="group">
@@ -227,9 +228,7 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-
         meta={[note.spaceId && spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
         title={noteTitle(note)}
         trail={
-          writable.some((space) => space.id === note.spaceId) && (
-            <ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(note, nestedUnder(pages, note.id).length) }]} name={noteTitle(note)} />
-          )
+          <PageActionsMenu note={note} onTrash={writable.some((space) => space.id === note.spaceId) ? () => moveToTrash(note, nestedUnder(pages, note.id).length) : undefined} />
         }
       />,
       ...rows(note.id, depth + 1),

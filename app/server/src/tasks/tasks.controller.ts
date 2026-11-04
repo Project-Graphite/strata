@@ -182,6 +182,19 @@ export class TasksController {
     await this.taskComments.remove(user.id, id, commentId);
   }
 
+  @Put('tasks/:id/comments/:commentId/reactions/:emoji')
+  @Scope('items:write')
+  @RateLimit('reaction', 600, 3_600)
+  react(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('commentId', UuidPipe) commentId: string, @Param('emoji') emoji: string) {
+    return this.taskComments.react(user.id, id, commentId, emoji, true);
+  }
+
+  @Delete('tasks/:id/comments/:commentId/reactions/:emoji')
+  @Scope('items:write')
+  unreact(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('commentId', UuidPipe) commentId: string, @Param('emoji') emoji: string) {
+    return this.taskComments.react(user.id, id, commentId, emoji, false);
+  }
+
   @Get('tasks/:id/attachments')
   @Scope('items:read')
   attachments(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {

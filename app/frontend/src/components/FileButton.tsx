@@ -1,10 +1,11 @@
 import { useRef } from 'react';
-import { Button } from '@project-graphite/ui';
+import { Button, IconButton } from '@project-graphite/ui';
 
 export function FileButton({
   accept,
   busy = false,
   folder = false,
+  iconOnly = false,
   inputLabel,
   label,
   large = false,
@@ -15,6 +16,7 @@ export function FileButton({
   accept?: string;
   busy?: boolean;
   folder?: boolean;
+  iconOnly?: boolean;
   inputLabel?: string;
   label: string;
   large?: boolean;
@@ -25,9 +27,13 @@ export function FileButton({
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size={large ? 'medium' : 'small'} variant={primary ? 'primary' : 'secondary'}>
-        {label}
-      </Button>
+      {iconOnly ? (
+        <IconButton disabled={busy} icon="upload" label={label} onClick={() => input.current?.click()} size="small" />
+      ) : (
+        <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size={large ? 'medium' : 'small'} variant={primary ? 'primary' : 'secondary'}>
+          {label}
+        </Button>
+      )}
       <input
         accept={accept}
         aria-label={inputLabel}

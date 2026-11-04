@@ -4,7 +4,7 @@ import { noteHref, noteTitle, onPagesChanged, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { formatMoment } from '../time';
 import { useResource } from '../useResource';
-import { ActionsMenu } from './ActionsMenu';
+import { PageActionsMenu } from './PageActionsMenu';
 import { Empty } from './Empty';
 import { LoadError } from './LoadError';
 import { useMovePageToTrash } from './MovePageToTrash';
@@ -43,7 +43,7 @@ export function Drafts({ kind }: { kind: 'note' | 'board' }) {
           lead={<NoteMark note={draft} />}
           meta={[draft.spaceId && spaceNames.get(draft.spaceId), `Started ${formatMoment(draft.createdAt)}`].filter(Boolean).join(' · ')}
           title={noteTitle(draft)}
-          trail={<ActionsMenu items={[{ label: 'Move to trash', onSelect: () => moveToTrash(draft, 0) }]} name={noteTitle(draft)} />}
+          trail={<PageActionsMenu note={draft} onTrash={() => moveToTrash(draft, 0)} />}
         />
       ))}
     </ul>

@@ -10,6 +10,7 @@ export interface Me {
   email: string;
   handle: string;
   displayName: string;
+  avatarId: string | null;
   timeZone: string;
   timeFormat: TimeFormat;
   tidySummary: boolean;
@@ -29,6 +30,8 @@ export interface TwoStepStatus {
 
 const tabs = [
   ['/settings', 'Profile'],
+  ['/settings/preferences', 'Preferences'],
+  ['/settings/notifications', 'Notifications'],
   ['/settings/apps', 'Apps'],
   ['/settings/tags', 'Tags'],
   ['/settings/security', 'Security'],

@@ -53,6 +53,7 @@ interface SessionUser {
   email: string;
   handle: string;
   displayName: string;
+  avatarId: string | null;
   role: UserRole;
   timeZone: string;
   timeFormat: string;
@@ -548,6 +549,7 @@ export class AuthService implements OnModuleInit {
         email: user.email,
         handle: user.handle,
         displayName: user.displayName,
+        avatarId: user.avatarId,
         role: user.role.toLowerCase(),
         timeZone: user.timeZone,
         timeFormat: user.timeFormat,

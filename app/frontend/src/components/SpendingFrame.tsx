@@ -70,10 +70,20 @@ export function SpendingFrame({
         <>
           <ActionsMenu
             items={[
-              { label: 'Import a statement', onSelect: () => setDialog('import') },
-              { label: 'Connect your phone', onSelect: () => setDialog('phone') },
-              { label: 'Edit categories', onSelect: () => setDialog('categories') },
-              { label: 'Edit rules', onSelect: () => setDialog('rules') },
+              {
+                label: 'Import',
+                items: [
+                  { label: 'A statement', onSelect: () => setDialog('import') },
+                  { label: 'From your phone', onSelect: () => setDialog('phone') },
+                ],
+              },
+              {
+                label: 'Edit',
+                items: [
+                  { label: 'Categories', onSelect: () => setDialog('categories') },
+                  { label: 'Rules', onSelect: () => setDialog('rules') },
+                ],
+              },
               { label: 'Export CSV', onSelect: () => setDialog('export') },
             ]}
             name="spending"
