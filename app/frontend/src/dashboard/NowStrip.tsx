@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { FilterChip, formatDay, Placeholder, Skeleton, Stat, StatGrid } from '@project-graphite/ui';
+import { formatDay, Placeholder, Skeleton, Stat, StatGrid } from '@project-graphite/ui';
 import { entryClock, entryDay, entryLink, type AgendaEntry } from '../agenda';
 import { useAuth } from '../auth';
 import { LoadError } from '../components/LoadError';
 import { rowsOf, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { money } from '../subscriptions';
-import { capitalised, formatMoment, profileDay } from '../time';
+import { capitalised, formatMoment, profileClock, profileDay } from '../time';
 import { useResource } from '../useResource';
 
 interface HomeSummary {
@@ -49,7 +49,9 @@ export function Greeting() {
       <h2 className="m-0 text-h2 text-ink">
         {greeting(now, user?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)}, {user?.displayName.split(' ')[0]}
       </h2>
-      <p className="m-0 text-small text-muted">{formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <p className="m-0 text-small text-muted">
+        <span className="tabular-nums">{profileClock(now)}</span> · {formatDay(profileDay(now), { weekday: 'long', day: 'numeric', month: 'long' })}
+      </p>
     </div>
   );
 }
@@ -61,11 +63,11 @@ export function NowStrip() {
   const features = user?.features ?? [];
   const [stats] = useRememberedShape(
     'home-stats',
-    summary.data && [[features.includes('agenda'), features.includes('tasks'), Boolean(summary.data.safeToSpend)].filter(Boolean).length],
-    [3],
+    summary.data && [[features.includes('agenda'), features.includes('tasks'), Boolean(summary.data.safeToSpend)].filter(Boolean).length + 1],
+    [4],
   );
   const next = summary.data?.nextEvent;
-  const chips = summary.data
+  const needs = summary.data
     ? ([
         [summary.data.toReview, 'To review', '/spending'],
         [summary.data.payments.missed, summary.data.payments.missed === 1 ? 'Missed payment' : 'Missed payments', '/spending/accounts'],
@@ -74,6 +76,7 @@ export function NowStrip() {
         [summary.data.unread, 'Unread', '/inbox'],
       ] as const).filter(([count]) => count > 0)
     : [];
+  const needsTotal = needs.reduce((total, [count]) => total + count, 0);
 
   return (
     <section aria-label="Now" className="grid gap-4">
@@ -124,15 +127,22 @@ export function NowStrip() {
                 }
               />
             )}
+            <Stat
+              detail={
+                needs.length > 0 && (
+                  <span className="flex flex-wrap gap-x-3 gap-y-1">
+                    {needs.map(([count, label, href]) => (
+                      <Link className="text-ink no-underline hover:underline" key={label} to={href}>
+                        {count} {label.toLowerCase()}
+                      </Link>
+                    ))}
+                  </span>
+                )
+              }
+              label="Needs you"
+              value={needsTotal > 0 ? needsTotal : <span className="text-muted">All clear</span>}
+            />
           </StatGrid>
-          {chips.length > 0 && (
-            <div aria-label="Needs you" className="flex flex-wrap items-center gap-2" role="group">
-              <span className="text-small text-muted">Needs you</span>
-              {chips.map(([count, label, href]) => (
-                <FilterChip active={false} count={count} href={href} key={label} label={label} />
-              ))}
-            </div>
-          )}
         </>
       )}
     </section>

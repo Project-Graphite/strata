@@ -3596,3 +3596,11 @@ main.shell {
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
 }
+
+.stat {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stat-value {
+  overflow-wrap: anywhere;
+}
