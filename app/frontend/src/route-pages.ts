@@ -5,7 +5,9 @@ export const routePages: [pattern: string, module: string][] = [
   ['^/agenda(/(list|day|week|month))?$', 'pages/AgendaPage'],
   ['^/agenda/calendars$', 'pages/CalendarsPage'],
   ['^/pages(/(quick-notes|drafts))?$', 'pages/PagesIndex'],
+  ['^/pages/[^/]+$', 'pages/NotePage'],
   ['^/boards(/drafts)?$', 'pages/BoardsIndex'],
+  ['^/boards/[^/]+$', 'pages/BoardPage'],
   ['^/bookmarks$', 'pages/BookmarksPage'],
   ['^/journal$', 'pages/JournalPage'],
   ['^/files$', 'pages/DrivePage'],
@@ -25,6 +27,7 @@ export const routePages: [pattern: string, module: string][] = [
   ['^/inbox$', 'pages/InboxPage'],
   ['^/more$', 'pages/MorePage'],
   ['^/spaces$', 'pages/spaces/SpacesPage'],
+  ['^/spaces/(?!invitations$)[^/]+(/[^/]+)?$', 'pages/spaces/SpaceLayout'],
 ];
 
 export const routePage = (pathname: string) => routePages.find(([pattern]) => new RegExp(pattern).test(pathname.replace(/(.)\/$/, '$1')))?.[1];

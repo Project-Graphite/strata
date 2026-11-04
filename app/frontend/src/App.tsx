@@ -1,5 +1,5 @@
 import { ThemeProvider, type Theme } from '@mui/material/styles';
-import { lazy, useEffect, useEffectEvent } from 'react';
+import { lazy, useEffect, useEffectEvent, useRef } from 'react';
 import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, type Location } from 'react-router';
 import { FormPanelSkeleton, PageSkeleton, UiProvider, type UiLinkProps } from '@project-graphite/ui';
 import { enabledApps } from './apps';
@@ -124,16 +124,27 @@ const legacyRoutes = [
   ['trash', '/settings/trash'],
 ] as const;
 
-function RouterLink({ href, onMouseEnter, onPointerDown, ...props }: UiLinkProps) {
+function RouterLink({ href, onFocus, onMouseEnter, onMouseLeave, onPointerDown, ...props }: UiLinkProps) {
   const { request, user } = useAuth();
+  const intent = useRef<number>(undefined);
+  const prefetch = () => prefetchRoute(href, user && { id: user.id, request });
   return (
     <Link
+      onFocus={(event) => {
+        prefetch();
+        onFocus?.(event);
+      }}
       onMouseEnter={(event) => {
         prefetchRoute(href);
+        intent.current = window.setTimeout(prefetch, 80);
         onMouseEnter?.(event);
       }}
+      onMouseLeave={(event) => {
+        window.clearTimeout(intent.current);
+        onMouseLeave?.(event);
+      }}
       onPointerDown={(event) => {
-        prefetchRoute(href, user && { id: user.id, request });
+        prefetch();
         onPointerDown?.(event);
       }}
       to={href}

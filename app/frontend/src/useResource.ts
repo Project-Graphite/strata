@@ -15,9 +15,13 @@ interface ResourceState<T> {
 }
 
 const cache = new Map<string, { at: number; data?: unknown; promise: Promise<unknown> }>();
-const freshFor = 5_000;
+const freshFor = 30_000;
 const burst = 250;
 const cacheLimit = 300;
+
+onChange(() => {
+  for (const entry of cache.values()) entry.at = 0;
+});
 
 function sharedRequest<T>(key: string, load: () => Promise<T>, since: number) {
   const hit = cache.get(key);

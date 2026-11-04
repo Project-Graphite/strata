@@ -11,7 +11,7 @@ type Request = <T>(path: string) => Promise<T>;
 
 export const taskPage = (path: string, number: number) => `${path}${path.includes('?') ? '&' : '?'}page=${number}`;
 
-const pages = import.meta.glob(['./pages/*.tsx', './pages/spaces/SpacesPage.tsx', './dashboard/Dashboard.tsx', '!./pages/HomePage.tsx', '!./pages/LoginPage.tsx']);
+const pages = import.meta.glob(['./pages/*.tsx', './pages/spaces/SpacesPage.tsx', './pages/spaces/SpaceLayout.tsx', './dashboard/Dashboard.tsx', '!./pages/HomePage.tsx', '!./pages/LoginPage.tsx']);
 
 function agendaData(view: AgendaView) {
   if (view === 'month' || view === 'week') return ['/me', '/me/calendars'];
@@ -19,16 +19,20 @@ function agendaData(view: AgendaView) {
   return ['/me', '/me/calendars', agendaPath(from, to)];
 }
 
-const firstData: Record<string, () => string[]> = {
-  '/tasks': () => ['/me', '/me/lists', taskPage('/me/tasks', 1)],
-  '/spending': () => ['/me', '/me/spending', '/me/accounts', '/me/captures', '/me/spending-categories'],
-  ...Object.fromEntries((['day', 'week', 'month', 'list'] as const).map((view) => [`/agenda/${view}`, () => agendaData(view)])),
-};
+const firstData: [RegExp, (match: RegExpExecArray) => string[]][] = [
+  [/^\/tasks$/, () => ['/me', '/me/lists', taskPage('/me/tasks', 1)]],
+  [/^\/spending$/, () => ['/me', '/me/spending', '/me/accounts', '/me/captures', '/me/spending-categories']],
+  [/^\/agenda\/(day|week|month|list)$/, ([, view]) => agendaData(view as AgendaView)],
+  [/^\/(?:pages|boards)\/(?!quick-notes$|drafts$)([^/]+)$/, ([, id]) => [`/notes/${id}`]],
+];
 
 function prefetchData(pathname: string, userId: string, request: Request) {
-  const paths = firstData[pathname];
-  if (!paths) return;
-  for (const path of ['/spaces', ...paths()]) cachedRequest(request, userId, path, storedSpace(userId))?.catch(() => undefined);
+  for (const [pattern, paths] of firstData) {
+    const match = pattern.exec(pathname);
+    if (!match) continue;
+    for (const path of ['/spaces', ...paths(match)]) cachedRequest(request, userId, path, storedSpace(userId))?.catch(() => undefined);
+    return;
+  }
 }
 
 export function prefetchRoute(href: string, viewer?: { id: string; request: Request }) {
