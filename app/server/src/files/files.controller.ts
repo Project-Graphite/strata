@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Headers,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,6 +18,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { readBody } from '../http/read-body';
 import { UuidPipe } from '../validation/uuid.pipe';
+import { UpdateFileDto } from './dto/files.dto';
 import { fileHeaders, FilesService, maxFileBytes } from './files.service';
 import { UploadQueue } from './upload-queue';
 
@@ -85,6 +88,12 @@ export class FilesController {
   @Scope('items:read')
   storage(@CurrentUser() user: AuthenticatedUser) {
     return this.files.storage(user.id);
+  }
+
+  @Patch('files/:id')
+  @Scope('items:write')
+  update(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateFileDto) {
+    return this.files.setPublic(user.id, id, input.public);
   }
 
   @Get('files/:id')

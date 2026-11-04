@@ -51,8 +51,12 @@ export class ShareLinksService {
     if (item.trashedAt) {
       throw new BadRequestException('Restore this item from the trash before sharing it');
     }
-    if (input.access === 'edit' && !pageKinds.includes((await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } })).kind)) {
+    const target = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true, file: { select: { public: true } } } });
+    if (input.access === 'edit' && !pageKinds.includes(target.kind)) {
       throw new BadRequestException('Only pages and boards can be shared for editing');
+    }
+    if (target.kind === ItemKind.FILE && !target.file?.public) {
+      throw new BadRequestException('Move this file to your public folder before sharing it');
     }
     const id = randomUUID();
     const minutes = input.expiresInMinutes === undefined ? (input.expiresInDays ?? 30) * dayMinutes : input.expiresInMinutes;
@@ -114,7 +118,7 @@ export class ShareLinksService {
       where: { ...liveShareLink(code), item: { trashedAt: null } },
       select: {
         access: true,
-        item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } }, databaseSchema: { select: { itemId: true } } } },
+        item: { select: { id: true, kind: true, title: true, event: true, pollOptions: { select: { id: true }, take: 1 }, noteDocument: { select: { state: true } }, databaseSchema: { select: { itemId: true } }, file: { select: { originalName: true, mimeType: true, sizeBytes: true, public: true } } } },
       },
     });
     if (!link) {
@@ -132,7 +136,9 @@ export class ShareLinksService {
           ? { kind: 'note', id: item.id, state: state ? Buffer.from(state).toString('base64') : null, ...(item.databaseSchema ? { database: true } : {}) }
           : item.kind === ItemKind.BOARD
             ? { kind: 'board', id: item.id }
-            : null,
+            : item.file?.public
+              ? { kind: 'file', id: item.id, name: item.file.originalName, mimeType: item.file.mimeType, sizeBytes: item.file.sizeBytes }
+              : null,
     };
   }
 
@@ -162,8 +168,9 @@ export class ShareLinksService {
   async file(code: string, fileId: string) {
     const link = await this.prisma.shareLink.findFirst({
       where: { ...liveShareLink(code), item: { trashedAt: null } },
-      select: { itemId: true, item: { select: { spaceId: true } } },
+      select: { itemId: true, item: { select: { spaceId: true, file: { select: { public: true } } } } },
     });
+    if (link?.itemId === fileId && link.item.file?.public) return this.files.read(fileId);
     const document = link && this.realtime.hocuspocus.documents.get(link.itemId);
     const attached =
       link &&

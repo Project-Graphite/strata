@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Card, Icon, ListRow, Meter, Placeholder, SegmentedControl, Skeleton } from '@project-graphite/ui';
+import { Card, ConfirmDialog, Icon, ListRow, Meter, Placeholder, SegmentedControl, Skeleton } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
-import { FilePreview, fileSize, maxUploadBytes, previewable, saveBlob, uploadFiles } from '../files';
+import { FilePreview, fileSize, maxUploadBytes, previewable, saveBlob, uploadFile, uploadFiles } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { Empty } from '../components/Empty';
 import { FileButton } from '../components/FileButton';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
 import { Page, Section } from '../components/Page';
+import { ShareLinks } from '../components/ShareLinks';
 import { itemHref, SpaceMark, useAllSpaces, type Space } from '../spaces';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -26,6 +27,7 @@ interface StoredFile {
   name: string;
   mimeType: string;
   sizeBytes: number;
+  public: boolean;
   createdAt: string;
 }
 
@@ -64,7 +66,16 @@ export function FilesPage() {
   const [sort, setSort] = useState<Sort>('newest');
   const shown = storage.data;
   const sorted = [...(shown?.files ?? [])].sort(sorters[sort]);
-  const mine = sorted.filter((file) => !file.spaceId);
+  const mine = sorted.filter((file) => !file.spaceId && !file.public);
+  const shared = sorted.filter((file) => !file.spaceId && file.public);
+  const [sharing, setSharing] = useState<StoredFile>();
+  const [unpublishing, setUnpublishing] = useState<StoredFile>();
+  const publish = (file: StoredFile, value: boolean) =>
+    void action.run(async () => {
+      await auth.request(`/files/${file.id}`, { method: 'PATCH', body: JSON.stringify({ public: value }) });
+      storage.reload();
+      return value ? `Moved ${file.name} to your public folder.` : `Moved ${file.name} out of your public folder and turned off its links.`;
+    }, 'Could not move the file');
   const [fileRows] = useRememberedShape('files', shown && [shown.files.length], [4]);
   const writable = (spaceId: string | null) => !spaceId || spaces.data?.some((space) => space.id === spaceId && space.role !== 'viewer');
 
@@ -91,6 +102,14 @@ export function FilesPage() {
                   return '';
                 }, 'Could not download the file'),
             },
+            ...(file.spaceId
+              ? []
+              : file.public
+                ? [
+                    { label: 'Share link', onSelect: () => setSharing(file) },
+                    { label: 'Move out of the public folder', onSelect: () => setUnpublishing(file) },
+                  ]
+                : [{ label: 'Move to the public folder', onSelect: () => publish(file, true) }]),
             ...(file.attachedTo && itemHref(file.attachedTo) ? [{ label: `Open the ${kindNames[file.attachedTo.kind] ?? 'item'}`, href: itemHref(file.attachedTo)! }] : []),
             ...(writable(file.spaceId)
               ? [
@@ -177,6 +196,30 @@ export function FilesPage() {
       ) : (
         <>
           <StorageCard spaces={spaces.data ?? []} storage={shown} />
+          <Section
+            action={
+              <FileButton
+                busy={action.busy}
+                inputLabel="Files to add to your public folder"
+                label="Upload"
+                multiple
+                onFiles={(files) =>
+                  void action.run(async () => {
+                    for (const file of files) {
+                      const added = await uploadFile(auth.request, null, file);
+                      await auth.request(`/files/${added.id}`, { method: 'PATCH', body: JSON.stringify({ public: true }) });
+                    }
+                    storage.reload();
+                    return files.length === 1 ? `Added ${files[0]!.name} to your public folder.` : `Added ${files.length} files to your public folder.`;
+                  }, 'Could not upload the files')
+                }
+              />
+            }
+            description="Anything here can be shared with a link that lasts from 30 minutes to forever."
+            title="Public folder"
+          >
+            {shared.length === 0 ? <Hint>Move a file here from your files, or upload one, to share it with a link.</Hint> : <ul className="panel-rows">{shared.map(row)}</ul>}
+          </Section>
           <Section description={`${counted(mine.length)} · ${fileSize(mine.reduce((total, file) => total + file.sizeBytes, 0))}`} title="Your files">
             {mine.length === 0 ? <Empty title={empty.title}>{empty.hint}</Empty> : <ul className="panel-rows">{mine.map(row)}</ul>}
           </Section>
@@ -203,6 +246,20 @@ export function FilesPage() {
             </Section>
           )}
         </>
+      )}
+      {sharing && <ShareLinks editLinks={false} itemId={sharing.id} noun={sharing.name} onClose={() => setSharing(undefined)} />}
+      {unpublishing && (
+        <ConfirmDialog
+          busyLabel="Moving…"
+          confirmLabel="Move out"
+          errorFallback="Could not move the file"
+          onClose={() => setUnpublishing(undefined)}
+          onConfirm={async () => publish(unpublishing, false)}
+          title={`Move ${unpublishing.name} out of the public folder?`}
+          tone="danger"
+        >
+          Every link to this file stops working.
+        </ConfirmDialog>
       )}
     </Page>
   );
