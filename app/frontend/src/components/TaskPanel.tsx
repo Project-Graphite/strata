@@ -134,6 +134,7 @@ export function TaskPanel({
                 <TaskRow
                   disabled={!editable(task) || changes.pending.includes(task.id)}
                   key={task.id}
+                  onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined}
                   onEdit={() => setOpened(task)}
                   onToggle={() => changes.toggle(task)}
                   swipeable

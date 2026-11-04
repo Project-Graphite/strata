@@ -1,8 +1,9 @@
 import { startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, Pagination } from '@project-graphite/ui';
+import { Badge, Button, Checkbox, errorMessage, Icon, Pagination } from '@project-graphite/ui';
 import { ActiveSpaceContext } from './active-space';
 import type { Page as ResultPage } from './api';
 import { useAuth } from './auth';
+import { AssigneeButton } from './components/AssigneeButton';
 import type { FilterGroup } from './components/FilterMenu';
 import { priorityNames } from './quick-add';
 import { useSwipe } from './swipe';
@@ -129,6 +130,7 @@ export function TaskRow({
   actions,
   disabled,
   handle,
+  onAssign,
   onEdit,
   onToggle,
   rowProps,
@@ -139,6 +141,7 @@ export function TaskRow({
   actions?: ReactNode;
   disabled: boolean;
   handle?: ReactNode;
+  onAssign?: (assignee: Task['assignee']) => void;
   onEdit: () => void;
   onToggle: () => void;
   rowProps?: ComponentProps<'li'> & { [data: `data-${string}`]: string | number | undefined };
@@ -173,14 +176,14 @@ export function TaskRow({
           {details.length > 0 && <span className="list-row-meta tabular-nums">{capitalised(details.join(' · '))}</span>}
         </span>
       </button>
-      {(isOverdue(task) || task.assignee || actions) && (
+      {(isOverdue(task) || task.assignee || onAssign || actions) && (
         <span className="list-row-trail">
           {isOverdue(task) && (
             <Badge icon="alert" tone="danger">
               Overdue
             </Badge>
           )}
-          {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
+          <AssigneeButton onAssign={onAssign} task={task} />
           {actions}
         </span>
       )}
