@@ -9,7 +9,6 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
-import { CommentsButton, CommentsPanel } from './CommentsPanel';
 import type { OpenTaskProps } from './OpenTask';
 import { Activity, Attachments, Comments, DescriptionEditor, Relations, Subtasks } from './TaskTicket';
 
@@ -64,8 +63,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const [descriptionChanged, setDescriptionChanged] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [comments, setComments] = useState(0);
   const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
     title: '',
     status: status ?? 'open',
@@ -161,7 +158,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
         actions={
           task && (
             <>
-              <CommentsButton count={comments} onClick={() => setCommentsOpen(!commentsOpen)} open={commentsOpen} />
               {editable && (
             <ActionsMenu
               items={[
@@ -249,6 +245,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                     )}
                     <Relations editable={editable} onOpen={setId} taskId={task.id} />
                     <Attachments editable={editable} taskId={task.id} />
+                    <Comments editable={editable} key={task.id} owner={space?.role === 'owner'} taskId={task.id} />
                     <details className="task-activity" onToggle={(event) => setActivityOpen(event.currentTarget.open)}>
                       <summary className="text-h3 text-ink">Activity</summary>
                       {activityOpen && <Activity taskId={task.id} />}
@@ -345,11 +342,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                 {zone && <p className="task-labels m-0 text-small text-muted">Times are in {zone}.</p>}
               </aside>
             </div>
-            {task && (
-              <CommentsPanel onClose={() => setCommentsOpen(false)} open={commentsOpen}>
-                <Comments editable={editable} key={task.id} onCount={setComments} owner={space?.role === 'owner'} taskId={task.id} />
-              </CommentsPanel>
-            )}
           </div>
         )}
       </Sheet>
