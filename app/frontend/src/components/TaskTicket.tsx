@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, TextAreaField, ToolbarButton, useSnackbar, type IconName } from '@project-graphite/ui';
+import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, Select, TextAreaField, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type IconName } from '@project-graphite/ui';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import Highlight from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extensions';
@@ -20,31 +20,56 @@ import { cspNonce } from '../csp-nonce';
 
 type Description = Record<string, unknown> | null;
 
-const formatting: [IconName, string, (editor: Editor) => boolean, (editor: Editor) => void][] = [
-  ['bold', 'Bold', (editor) => editor.isActive('bold'), (editor) => editor.chain().focus().toggleBold().run()],
-  ['italic', 'Italic', (editor) => editor.isActive('italic'), (editor) => editor.chain().focus().toggleItalic().run()],
-  ['highlight', 'Highlight', (editor) => editor.isActive('highlight'), (editor) => editor.chain().focus().toggleHighlight().run()],
-  ['list', 'Bulleted list', (editor) => editor.isActive('bulletList'), (editor) => editor.chain().focus().toggleBulletList().run()],
-  ['list-ordered', 'Numbered list', (editor) => editor.isActive('orderedList'), (editor) => editor.chain().focus().toggleOrderedList().run()],
-  ['checklist', 'Checklist', (editor) => editor.isActive('taskList'), (editor) => editor.chain().focus().toggleTaskList().run()],
-  ['code', 'Code block', (editor) => editor.isActive('codeBlock'), (editor) => editor.chain().focus().toggleCodeBlock().run()],
+interface Format {
+  label: string;
+  icon?: IconName;
+  glyph?: ReactNode;
+  isActive?: (editor: Editor) => boolean;
+  run: (editor: Editor) => void;
+  separated?: boolean;
+}
+
+const formatting: Format[] = [
+  { label: 'Undo', icon: 'undo', run: (editor) => editor.chain().focus().undo().run() },
+  { label: 'Redo', icon: 'redo', run: (editor) => editor.chain().focus().redo().run() },
+  { label: 'Heading', icon: 'heading-1', separated: true, isActive: (editor) => editor.isActive('heading', { level: 2 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+  { label: 'Subheading', icon: 'heading-2', isActive: (editor) => editor.isActive('heading', { level: 3 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run() },
+  { label: 'Bold', icon: 'bold', separated: true, isActive: (editor) => editor.isActive('bold'), run: (editor) => editor.chain().focus().toggleBold().run() },
+  { label: 'Italic', icon: 'italic', isActive: (editor) => editor.isActive('italic'), run: (editor) => editor.chain().focus().toggleItalic().run() },
+  { label: 'Underline', glyph: <span className="underline">U</span>, isActive: (editor) => editor.isActive('underline'), run: (editor) => editor.chain().focus().toggleUnderline().run() },
+  { label: 'Strikethrough', glyph: <span className="line-through">S</span>, isActive: (editor) => editor.isActive('strike'), run: (editor) => editor.chain().focus().toggleStrike().run() },
+  { label: 'Inline code', glyph: <span className="font-mono">{'</>'}</span>, isActive: (editor) => editor.isActive('code'), run: (editor) => editor.chain().focus().toggleCode().run() },
+  { label: 'Highlight', icon: 'highlight', isActive: (editor) => editor.isActive('highlight'), run: (editor) => editor.chain().focus().toggleHighlight().run() },
+  { label: 'Bulleted list', icon: 'list', separated: true, isActive: (editor) => editor.isActive('bulletList'), run: (editor) => editor.chain().focus().toggleBulletList().run() },
+  { label: 'Numbered list', icon: 'list-ordered', isActive: (editor) => editor.isActive('orderedList'), run: (editor) => editor.chain().focus().toggleOrderedList().run() },
+  { label: 'Checklist', icon: 'checklist', isActive: (editor) => editor.isActive('taskList'), run: (editor) => editor.chain().focus().toggleTaskList().run() },
+  { label: 'Quote', icon: 'quote', isActive: (editor) => editor.isActive('blockquote'), run: (editor) => editor.chain().focus().toggleBlockquote().run() },
+  { label: 'Code block', icon: 'code', isActive: (editor) => editor.isActive('codeBlock'), run: (editor) => editor.chain().focus().toggleCodeBlock().run() },
+  { label: 'Divider', glyph: <span aria-hidden="true">—</span>, run: (editor) => editor.chain().focus().setHorizontalRule().run() },
 ];
 
 function DescriptionToolbar({ editor }: { editor: Editor }) {
-  const active = useEditorState({ editor, selector: ({ editor: current }) => formatting.map(([, , isActive]) => isActive(current)) });
+  const active = useEditorState({ editor, selector: ({ editor: current }) => formatting.map((format) => Boolean(format.isActive?.(current))) });
   return (
     <FloatingToolbar className="task-description-toolbar" label="Formatting">
-      {formatting.map(([icon, label, , run], index) => (
-        <ToolbarButton active={active[index]} icon={icon} key={label} label={label} onClick={() => run(editor)} />
-      ))}
+      {formatting.map((format, index) => [
+        format.separated && <ToolbarSeparator key={`${format.label}-separator`} />,
+        format.icon ? (
+          <ToolbarButton active={active[index]} icon={format.icon} key={format.label} label={format.label} onClick={() => format.run(editor)} />
+        ) : (
+          <ToolbarButton active={active[index]} key={format.label} label={format.label} onClick={() => format.run(editor)}>
+            {format.glyph}
+          </ToolbarButton>
+        ),
+      ])}
     </FloatingToolbar>
   );
 }
 
-export function DescriptionEditor({ editable, onSave, value }: { editable: boolean; onSave: (description: Description) => void; value: Description }) {
-  const timer = useRef<number>(undefined);
+export function DescriptionEditor({ editable, onDirty, onSave, staged, value }: { editable: boolean; onDirty?: (dirty: boolean) => void; onSave: (description: Description) => void; staged: boolean; value: Description }) {
   const latest = useRef(onSave);
   latest.current = onSave;
+  const [dirty, setDirty] = useState(false);
   const editor = useEditor({
     content: value ?? undefined,
     editable,
@@ -58,11 +83,8 @@ export function DescriptionEditor({ editable, onSave, value }: { editable: boole
     ],
     editorProps: { attributes: { 'aria-label': 'Description', class: 'note-content task-description' } },
     onUpdate: ({ editor: current }) => {
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => {
-        timer.current = undefined;
-        latest.current(current.isEmpty ? null : current.getJSON());
-      }, 800);
+      if (staged) setDirty(true);
+      else latest.current(current.isEmpty ? null : current.getJSON());
     },
   });
 
@@ -70,20 +92,35 @@ export function DescriptionEditor({ editable, onSave, value }: { editable: boole
     editor?.setEditable(editable);
   }, [editor, editable]);
 
-  useEffect(
-    () => () => {
-      if (timer.current === undefined || !editor) return;
-      window.clearTimeout(timer.current);
-      latest.current(editor.isEmpty ? null : editor.getJSON());
-    },
-    [editor],
-  );
+  useEffect(() => {
+    onDirty?.(dirty);
+    return () => onDirty?.(false);
+  }, [dirty, onDirty]);
 
   if (!editor) return <LinesSkeleton label="Loading the description" lines={3} />;
   return (
     <div className="grid gap-2">
       {editable && <DescriptionToolbar editor={editor} />}
       <EditorContent editor={editor} />
+      {dirty && (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            label="Cancel"
+            onClick={() => {
+              editor.commands.setContent(value ?? '', { emitUpdate: false });
+              setDirty(false);
+            }}
+          />
+          <Button
+            label="Save"
+            onClick={() => {
+              onSave(editor.isEmpty ? null : editor.getJSON());
+              setDirty(false);
+            }}
+            primary
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -196,17 +233,17 @@ interface Comment {
   author: { id: string; displayName: string } | null;
 }
 
-export function Comments({ editable, onCount, owner, taskId }: { editable: boolean; onCount: (count: number) => void; owner: boolean; taskId: string }) {
+export function Comments({ editable, owner, taskId }: { editable: boolean; owner: boolean; taskId: string }) {
   const auth = useAuth();
   const action = useAction();
   const comments = useResource<Comment[]>(`/tasks/${taskId}/comments`, true, { live: ['task-details'], itemIds: [taskId] });
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<{ id: string; body: string }>();
   const count = comments.data?.length ?? 0;
-  useEffect(() => onCount(count), [count, onCount]);
 
   return (
-    <section aria-label="Comment threads" className="grid gap-3">
+    <section className="grid gap-3">
+      <SectionHeading action={count > 0 && <span className="text-small text-muted tabular-nums">{count}</span>} level={3} title="Comments" />
       {comments.error ? (
         <LoadError compact error={comments.error} onRetry={comments.reload} />
       ) : !comments.data ? (
@@ -380,6 +417,117 @@ export function Attachments({ editable, taskId }: { editable: boolean; taskId: s
             ))}
           </ul>
         )
+      )}
+    </section>
+  );
+}
+
+interface Relation {
+  id: string;
+  kind: string;
+  item: { id: string; kind: string; title: string };
+}
+
+const relationChoices = [
+  { value: 'relates', label: 'Relates to', kind: 'relates', incoming: false },
+  { value: 'blocks', label: 'Blocks', kind: 'blocks', incoming: false },
+  { value: 'blocked-by', label: 'Is blocked by', kind: 'blocks', incoming: true },
+  { value: 'duplicates', label: 'Duplicates', kind: 'duplicates', incoming: false },
+  { value: 'duplicated-by', label: 'Is duplicated by', kind: 'duplicates', incoming: true },
+];
+
+const relationKinds = new Set(['relates', 'blocks', 'duplicates']);
+const relationLabel = (kind: string, incoming: boolean) =>
+  kind === 'relates' ? 'Relates to' : kind === 'blocks' ? (incoming ? 'Is blocked by' : 'Blocks') : incoming ? 'Is duplicated by' : 'Duplicates';
+
+export function Relations({ editable, onOpen, taskId }: { editable: boolean; onOpen: (taskId: string) => void; taskId: string }) {
+  const auth = useAuth();
+  const action = useAction();
+  const links = useResource<{ outgoing: Relation[]; backlinks: Relation[] }>(`/items/${taskId}/links`, true, { live: ['task-details'], itemIds: [taskId] });
+  const [adding, setAdding] = useState(false);
+  const [relation, setRelation] = useState('relates');
+  const [query, setQuery] = useState('');
+  const search = useDeferredValue(query.trim());
+  const found = useResource<{ items: { id: string; kind: string; title: string; spaceName?: string | null }[] }>(adding && search ? `/search?q=${encodeURIComponent(search)}` : null, true);
+  const shown = [
+    ...(links.data?.outgoing ?? []).filter((link) => relationKinds.has(link.kind)).map((link) => ({ ...link, label: relationLabel(link.kind, false) })),
+    ...(links.data?.backlinks ?? []).filter((link) => relationKinds.has(link.kind)).map((link) => ({ ...link, label: relationLabel(link.kind, true) })),
+  ];
+  const candidates = (found.data?.items ?? []).filter((item) => item.kind === 'task' && item.id !== taskId && !shown.some((link) => link.item.id === item.id));
+
+  function relate(targetId: string, title: string) {
+    const { incoming, kind } = relationChoices.find((choice) => choice.value === relation)!;
+    void action.run(async () => {
+      await auth.request(`/items/${incoming ? targetId : taskId}/links`, { method: 'POST', body: JSON.stringify({ targetId: incoming ? taskId : targetId, kind }) });
+      links.reload();
+      setAdding(false);
+      setQuery('');
+      return `Related ${title}.`;
+    }, 'Could not relate the tasks');
+  }
+
+  return (
+    <section className="grid gap-3">
+      <SectionHeading action={editable && !adding && <TextButton label="Relate a task" onClick={() => setAdding(true)} />} level={3} title="Related tasks" />
+      {links.error ? (
+        <LoadError compact error={links.error} onRetry={links.reload} />
+      ) : !links.data ? (
+        <LinesSkeleton label="Loading the related tasks" lines={1} />
+      ) : (
+        shown.length > 0 && (
+          <ul className="panel-rows">
+            {shown.map((link) => (
+              <li className="list-row" key={link.id}>
+                <button className="list-row-main" onClick={() => onOpen(link.item.id)} type="button">
+                  <span className="list-row-text">
+                    <span className="list-row-meta">{link.label}</span>
+                    <span className="list-row-title">{link.item.title || 'Untitled task'}</span>
+                  </span>
+                </button>
+                {editable && (
+                  <span className="list-row-trail">
+                    <IconButton
+                      icon="x"
+                      label={`Remove the relation to ${link.item.title}`}
+                      onClick={() =>
+                        void action.run(async () => {
+                          await auth.request(`/items/${taskId}/links/${link.id}`, { method: 'DELETE' });
+                          links.reload();
+                          return '';
+                        }, 'Could not remove the relation')
+                      }
+                      size="small"
+                    />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+      {adding && (
+        <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+            <Select label="This task" onChange={setRelation} options={relationChoices} value={relation} />
+            <TextField autoFocus label="Find a task" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
+          </div>
+          {candidates.length > 0 && (
+            <ul className="panel-rows">
+              {candidates.slice(0, 8).map((item) => (
+                <li className="list-row" key={item.id}>
+                  <button className="list-row-main" disabled={action.busy} onClick={() => relate(item.id, item.title)} type="button">
+                    <span className="list-row-text">
+                      <span className="list-row-title">{item.title || 'Untitled task'}</span>
+                      {item.spaceName && <span className="list-row-meta">{item.spaceName}</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {search && found.data && candidates.length === 0 && <p className="m-0 text-small text-muted">No matching tasks</p>}
+          <TextButton label="Cancel" onClick={() => { setAdding(false); setQuery(''); }} />
+        </div>
       )}
     </section>
   );

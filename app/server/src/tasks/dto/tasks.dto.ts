@@ -88,6 +88,12 @@ export class TaskFieldsDto {
   @IsIn(taskStatuses, { message: 'Choose open, in progress or done.' })
   status?: (typeof taskStatuses)[number];
 
+  @IsOptionalNotNull()
+  @Trimmed()
+  @IsString()
+  @Length(1, 30, { message: 'Task types are 1 to 30 characters long.' })
+  type?: string;
+
   @IsOptional()
   @ValidateIf((_input, value) => !nullable(value))
   @IsRichText()
@@ -118,6 +124,15 @@ export class ListTasksDto extends PageDto {
   @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
   @IsBoolean()
   completed?: boolean;
+
+  @IsOptional()
+  @Matches(/^(me|none|any|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, { message: 'Choose me, nobody, anyone or a person.' })
+  assignee?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 30, { message: 'Task types are 1 to 30 characters long.' })
+  type?: string;
 }
 
 export class MoveTaskDto {

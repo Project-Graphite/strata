@@ -35,6 +35,9 @@ enum LinkKind {
   MENTION    @map("mention")
   REFERENCE  @map("reference")
   ATTACHMENT @map("attachment")
+  RELATES    @map("relates")
+  BLOCKS     @map("blocks")
+  DUPLICATES @map("duplicates")
 }
 
 enum TaskStatus {
@@ -593,6 +596,7 @@ model Task {
   priority        Int        @default(0)
   position        Float      @default(0)
   status          TaskStatus @default(OPEN)
+  type            String     @default("task")
   description     Json?
   completedAt     DateTime?  @map("completed_at")
   item            Item       @relation("TaskItem", fields: [itemId], references: [id], onDelete: Cascade)
@@ -604,6 +608,7 @@ model Task {
   @@index([parentId])
   @@index([assigneeId])
   @@index([dueDate])
+  @@index([type])
   @@map("tasks")
 }
 

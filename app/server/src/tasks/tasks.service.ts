@@ -11,6 +11,7 @@ import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { builtInTaskTypes, taskType } from './task-type';
 import { positionBetween, positionGap } from './task-position';
 import { statusFields, statusOf } from './task-status';
 
@@ -39,6 +40,7 @@ const taskFields = {
       priority: true,
       position: true,
       status: true,
+      type: true,
       completedAt: true,
       assignee: { select: { id: true, handle: true, displayName: true } },
     },
@@ -65,6 +67,7 @@ function present(row: TaskRow) {
     priority: task.priority,
     position: task.position,
     status: task.status.toLowerCase(),
+    type: task.type,
     labels: row.tags.map(({ tag }) => presentTag(tag)),
     subtaskCounts: { total: row.subtasks.length, done: row.subtasks.filter((subtask) => subtask.completedAt).length },
     assignee: task.assignee,
@@ -174,14 +177,23 @@ export class TasksService implements OnModuleInit {
 
   async list(userId: string, spaceId: string, query: ListTasksDto) {
     await this.access.assertSpace(userId, spaceId, 'read');
-    return this.pageOf({ spaceId }, {}, query);
+    return this.pageOf({ spaceId }, {}, query, userId);
   }
 
   mine(userId: string, query: ListTasksDto) {
-    return this.pageOf({ ...this.access.spaceItemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}) }, query.listId || query.spaceId ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query);
+    return this.pageOf({ ...this.access.spaceItemsOf(userId), ...(query.spaceId ? { spaceId: query.spaceId } : {}) }, query.listId || query.spaceId || query.assignee ? {} : { OR: [{ assigneeId: userId }, { assigneeId: null }] }, query, userId);
   }
 
-  private async pageOf(scope: Prisma.ItemWhereInput, tasks: Prisma.TaskWhereInput, query: ListTasksDto) {
+  async filters(userId: string, spaceId?: string) {
+    const scope: Prisma.ItemWhereInput = { ...this.access.spaceItemsOf(userId), ...(spaceId ? { spaceId } : {}), kind: ItemKind.TASK, trashedAt: null };
+    const [types, assignees] = await Promise.all([
+      this.prisma.task.findMany({ where: { item: scope, type: { notIn: builtInTaskTypes } }, distinct: ['type'], orderBy: { type: 'asc' }, select: { type: true } }),
+      this.prisma.user.findMany({ where: { assignedTasks: { some: { item: scope } } }, orderBy: { displayName: 'asc' }, select: { id: true, displayName: true } }),
+    ]);
+    return { types: types.map((row) => row.type), assignees };
+  }
+
+  private async pageOf(scope: Prisma.ItemWhereInput, tasks: Prisma.TaskWhereInput, query: ListTasksDto, userId: string) {
     const where: Prisma.ItemWhereInput = {
       ...scope,
       kind: ItemKind.TASK,
@@ -189,6 +201,8 @@ export class TasksService implements OnModuleInit {
       task: {
         ...tasks,
         ...(query.listId ? { listId: query.listId } : {}),
+        ...(query.assignee && query.assignee !== 'any' ? { assigneeId: query.assignee === 'me' ? userId : query.assignee === 'none' ? null : query.assignee } : {}),
+        ...(query.type ? { type: { equals: taskType(query.type), mode: 'insensitive' as const } } : {}),
         completedAt: query.completed ? { not: null } : null,
       },
     };
@@ -396,6 +410,12 @@ export class TasksService implements OnModuleInit {
     return { ...item, spaceId, task: item.task };
   }
 
+  private async knownType(spaceId: string, type: string) {
+    if (builtInTaskTypes.includes(type)) return type;
+    const existing = await this.prisma.task.findFirst({ where: { type: { equals: type, mode: 'insensitive' }, item: { spaceId } }, select: { type: true } });
+    return existing?.type ?? type;
+  }
+
   private async checkedFields(spaceId: string, itemId: string | null, input: TaskFieldsDto) {
     if (input.listId) {
       const list = await this.prisma.item.count({ where: { id: input.listId, spaceId, kind: ItemKind.LIST, trashedAt: null } });
@@ -431,6 +451,7 @@ export class TasksService implements OnModuleInit {
       assigneeId: input.assigneeId,
       priority: input.priority,
       position: input.position,
+      type: input.type === undefined ? undefined : await this.knownType(spaceId, taskType(input.type)),
       description: input.description === null ? Prisma.DbNull : (input.description as Prisma.InputJsonObject | undefined),
     };
   }

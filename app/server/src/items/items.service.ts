@@ -43,6 +43,8 @@ function presentItem(item: Prisma.ItemGetPayload<{ select: typeof itemFields }>)
   };
 }
 
+const relationKinds: LinkKind[] = [LinkKind.RELATES, LinkKind.BLOCKS, LinkKind.DUPLICATES];
+
 function presentLink(
   link: { id: string; kind: LinkKind },
   item: Prisma.ItemGetPayload<{ select: typeof linkedFields }>,
@@ -199,12 +201,21 @@ export class ItemsService {
       throw new BadRequestException('An item cannot link to itself');
     }
     await this.pages.assertReference(userId, input.targetId, 'read');
+    const kind = input.kind.toUpperCase() as LinkKind;
+    if (relationKinds.includes(kind)) {
+      if ((await this.prisma.item.count({ where: { id: { in: [itemId, input.targetId] }, kind: ItemKind.TASK } })) !== 2) {
+        throw new BadRequestException('Only tasks can be related to each other');
+      }
+      if (await this.prisma.itemLink.count({ where: { sourceItemId: input.targetId, targetItemId: itemId, kind: { in: relationKinds } } })) {
+        throw new ConflictException('These tasks are already related');
+      }
+    }
     const link = await this.prisma.itemLink
       .create({
         data: {
           sourceItemId: itemId,
           targetItemId: input.targetId,
-          kind: input.kind.toUpperCase() as LinkKind,
+          kind,
           createdById: userId,
         },
         select: { id: true, kind: true, target: { select: linkedFields } },
@@ -220,7 +231,7 @@ export class ItemsService {
 
   async unlink(userId: string, itemId: string, linkId: string) {
     await this.pages.assertReference(userId, itemId, 'edit');
-    const deleted = await this.prisma.itemLink.deleteMany({ where: { id: linkId, sourceItemId: itemId } });
+    const deleted = await this.prisma.itemLink.deleteMany({ where: { id: linkId, OR: [{ sourceItemId: itemId }, { targetItemId: itemId, kind: { in: relationKinds } }] } });
     if (deleted.count === 0) {
       throw new NotFoundException('That link is already gone');
     }

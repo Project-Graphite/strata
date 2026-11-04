@@ -34,7 +34,9 @@ function OptionText({ option }: { option: FilterOption }) {
 export function FilterMenu({ children, groups, label }: { children?: ReactNode; groups: FilterGroup[]; label: string }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const close = () => setAnchor(null);
-  const summary = groups.flatMap((group) => group.options.filter((option) => option.active).map((option) => option.label)).join(' · ');
+  const summary = groups
+    .flatMap((group) => group.options.filter((option, index) => option.active && (groups.length === 1 || index > 0)).map((option) => option.label))
+    .join(' · ');
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <UiButton

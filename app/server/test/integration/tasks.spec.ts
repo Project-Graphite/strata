@@ -127,6 +127,50 @@ describe('Tasks against Postgres', () => {
     expect((await partner.call('GET', '/me/lists')).body.map((list: { title: string }) => list.title)).toEqual(['Groceries']);
   });
 
+  it('keeps task types, folds custom type spellings together and filters by assignee and type', async () => {
+    const owner = await member('triager');
+    const partner = await member('builder');
+    const team = (await owner.call('POST', '/spaces', { name: 'Team' })).body;
+    await strata.join(team.id, partner, SpaceRole.EDITOR);
+    const make = (title: string, extra: object = {}) => owner.call('POST', `/spaces/${team.id}/tasks`, { title, ...extra }).then((reply) => reply.body);
+    expect(await make('Plain')).toMatchObject({ type: 'task' });
+    expect(await make('Dark mode', { type: 'IDEA', assigneeId: null })).toMatchObject({ type: 'idea' });
+    expect(await make('Crash on save', { type: 'Bug', assigneeId: partner.id })).toMatchObject({ type: 'Bug' });
+    expect(await make('Login loop', { type: ' bug ' })).toMatchObject({ type: 'Bug' });
+    expect((await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Long', type: 'x'.repeat(31) })).status).toBe(400);
+
+    const titles = (reply: { body: { results: { title: string }[] } }) => reply.body.results.map((task) => task.title).sort();
+    expect(titles(await owner.call('GET', `/spaces/${team.id}/tasks?type=bug`))).toEqual(['Crash on save', 'Login loop']);
+    expect(titles(await owner.call('GET', `/spaces/${team.id}/tasks?type=idea`))).toEqual(['Dark mode']);
+    expect(titles(await owner.call('GET', `/spaces/${team.id}/tasks?assignee=none`))).toEqual(['Dark mode']);
+    expect(titles(await owner.call('GET', `/spaces/${team.id}/tasks?assignee=${partner.id}&type=Bug`))).toEqual(['Crash on save']);
+    expect(titles(await owner.call('GET', '/me/tasks?assignee=me'))).toEqual(['Login loop', 'Plain']);
+    expect(titles(await owner.call('GET', '/me/tasks?assignee=any'))).toEqual(['Crash on save', 'Dark mode', 'Login loop', 'Plain']);
+    expect((await owner.call('GET', '/me/tasks?assignee=someone')).status).toBe(400);
+    expect((await owner.call('GET', `/me/task-filters?spaceId=${team.id}`)).body).toEqual({
+      types: ['Bug'],
+      assignees: expect.arrayContaining([{ id: owner.id, displayName: expect.any(String) }, { id: partner.id, displayName: expect.any(String) }]),
+    });
+  });
+
+  it('relates tasks to tasks only, once per pair, and lets either task drop the relation', async () => {
+    const owner = await member('linker');
+    const make = (title: string) => owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title }).then((reply) => reply.body);
+    const api = await make('API change');
+    const app = await make('App update');
+    const list = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/lists`, { title: 'Not a task' })).body;
+
+    const blocks = await owner.call('POST', `/items/${api.id}/links`, { targetId: app.id, kind: 'blocks' });
+    expect(blocks.status).toBe(201);
+    expect(blocks.body).toMatchObject({ kind: 'blocks', item: { id: app.id, kind: 'task' } });
+    expect((await owner.call('POST', `/items/${app.id}/links`, { targetId: api.id, kind: 'relates' })).status).toBe(409);
+    expect((await owner.call('POST', `/items/${api.id}/links`, { targetId: list.id, kind: 'relates' })).status).toBe(400);
+    expect((await owner.call('GET', `/items/${app.id}/links`)).body.backlinks).toEqual([expect.objectContaining({ kind: 'blocks', item: expect.objectContaining({ id: api.id }) })]);
+
+    expect((await owner.call('DELETE', `/items/${app.id}/links/${blocks.body.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/items/${api.id}/links`)).body.outgoing).toEqual([]);
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

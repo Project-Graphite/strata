@@ -9,7 +9,7 @@ import { Toolbar, usePagePrimary } from '../../components/Page';
 import { ButtonSkeleton, IconButtonSkeleton } from '../../components/Skeletons';
 import { TaskPanel } from '../../components/TaskPanel';
 import { FilterMenu } from '../../components/FilterMenu';
-import { taskFilters, taskLink, taskViews, type TaskList, type TaskView } from '../../tasks';
+import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type TaskFilterChoices, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -20,17 +20,17 @@ export function SpaceTasks() {
   const space = useSpace();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const listId = params.get('list');
-  const view: TaskView = params.get('view') === 'list' ? 'list' : 'board';
-  const completed = view === 'list' && params.get('completed') === 'true';
+  const state = taskFilterState(params);
+  const { completed, listId, view } = state;
   const page = Number(params.get('page')) || 1;
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);
+  const choices = useResource<TaskFilterChoices>(`/me/task-filters?spaceId=${space.id}`, true, { live: ['tasks'] });
   const action = useAction();
   const listForm = useFormErrors();
   const [creating, setCreating] = useState(false);
   const [listDialog, setListDialog] = useState<'new' | 'rename'>();
   const editable = space.role !== 'viewer';
-  const link = taskLink(`/spaces/${space.id}/tasks`, listId, completed, view);
+  const link = taskLink(`/spaces/${space.id}/tasks`, state);
   const shownList = lists.data?.find((list) => list.id === listId);
   usePagePrimary(
     editable && (
@@ -50,7 +50,7 @@ export function SpaceTasks() {
         }
       >
         {lists.data ? (
-          <FilterMenu groups={taskFilters({ completed, link, listId, lists: lists.data, view })} label="Filter tasks">
+          <FilterMenu groups={taskFilters({ choices: choices.data ?? noFilterChoices, defaultAssignee: 'Anyone', link, lists: lists.data, state })} label="Filter tasks">
             {
               editable &&
               shownList && (
@@ -98,11 +98,11 @@ export function SpaceTasks() {
         editable={() => editable}
         failed={lists.error ? lists : undefined}
         link={link}
-        listId={listId}
         onClosed={() => setCreating(false)}
         onCreate={() => setCreating(true)}
         onListsChanged={lists.reload}
         page={page}
+        query={taskFilterQuery(state)}
         ready={Boolean(lists.data)}
         shape={`space-tasks-${space.id}`}
         tasksPath={`/spaces/${space.id}/tasks`}
