@@ -95,6 +95,19 @@ export function apiUrl(path: string) {
   return Capacitor.isNativePlatform() ? `${serverOrigin()}/api/v1${path}` : `/api/v1${path}`;
 }
 
+export function captureEndpointUrl() {
+  return `${serverOrigin()}/api/v1/me/captures`;
+}
+
+export async function moveCaptureEndpoint() {
+  const status = await StrataCapture.getStatus();
+  const endpointUrl = captureEndpointUrl();
+  if (!status.configured || status.endpointUrl === endpointUrl) return;
+  await StrataCapture.configure({ endpointUrl, allowedChats: status.allowedChats, enabledPackages: status.enabledPackages });
+  await StrataCapture.retryRejected();
+  await StrataCapture.flushOutbox();
+}
+
 export function parseChatList(value: string) {
   return [
     ...new Set(

@@ -3,6 +3,7 @@ import { Banner, Checkbox, Dialog, Fieldset, TextField } from '@project-graphite
 import { useAuth } from '../auth';
 import {
   androidReleaseUrl,
+  captureEndpointUrl,
   combinedAllowedSources,
   digitalAppOptions,
   isNativeAndroid,
@@ -10,7 +11,6 @@ import {
   parseChatList,
   phoneCaptureAttention,
   saveCapturePreferences,
-  serverOrigin,
   StrataCapture,
   useNativeCaptureStatus,
   type DigitalAppId,
@@ -57,7 +57,7 @@ function PhoneCaptureSettings({ accounts = [], onChanged, onClose }: PhoneSetupP
   const [enabledPackages, setEnabledPackages] = useState<string[]>();
   if (!status) return null;
 
-  const endpointUrl = `${serverOrigin()}/api/v1/me/captures`;
+  const endpointUrl = captureEndpointUrl();
   const accountWords = accounts.flatMap((account) => [account.name, account.institution ?? '', ...account.senders]).map(squash).filter(Boolean);
   const seededChats = [...new Set(accounts.flatMap((account) => [...account.senders, account.institution ?? '']).map((sender) => sender.trim()).filter(Boolean))];
   const chats = chatsText ?? (status.allowedChats.length > 0 ? status.allowedChats : seededChats).join(', ');
@@ -225,7 +225,7 @@ function PhoneTokenSetup({ accounts = [], onClose }: PhoneSetupProps) {
   const [chatsText, setChatsText] = useState(() => initialPrefs.allowedChats.join(', '));
   const [enabledApps, setEnabledApps] = useState<DigitalAppId[]>(initialPrefs.enabledApps);
   const [token, setToken] = useState('');
-  const endpointUrl = `${serverOrigin()}/api/v1/me/captures`;
+  const endpointUrl = captureEndpointUrl();
   const allowedSources = combinedAllowedSources(parseChatList(chatsText), enabledApps);
 
   const toggleApp = (appId: DigitalAppId, checked: boolean) => {

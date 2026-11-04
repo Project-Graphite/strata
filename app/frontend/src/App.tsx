@@ -8,7 +8,7 @@ import { Shell } from './components/Shell';
 import { HomePage } from './pages/HomePage';
 import { phoneTabBar } from './navigation';
 import { LoginPage } from './pages/LoginPage';
-import { isNativeAndroid, StrataCapture } from './native-capture';
+import { isNativeAndroid, moveCaptureEndpoint, StrataCapture } from './native-capture';
 import { prefetchRoute, usePrefetchRoutes } from './route-data';
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
@@ -150,6 +150,7 @@ export function App() {
   const openShare = useEffectEvent(() => navigate('/save'));
   useEffect(() => {
     if (!isNativeAndroid()) return;
+    void moveCaptureEndpoint();
     const listening = StrataCapture.addListener('share', () => openShare());
     return () => void listening.then((handle) => handle.remove());
   }, []);
