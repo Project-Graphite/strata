@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type CSSProperties, type DragEvent } from 'react';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { Link, useLocation, useNavigate } from 'react-router';
-import { Icon, useShell } from '@project-graphite/ui';
+import { useLocation, useNavigate } from 'react-router';
+import { Icon, useLink, useShell } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { Reveal } from '../motion';
 import { childPagesPath, noteHref, noteTitle, onPagesChanged, pageHref, type ChildPages, type Note } from '../notes';
@@ -48,6 +48,7 @@ function placeFor(event: DragEvent<HTMLElement>): Place {
 
 function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = true }: { spaceId: string; parentId: string | null; depth: number; writable: boolean; cursor?: string; searching?: boolean }) {
   const tree = useContext(TreeContext);
+  const RowLink = useLink();
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
   const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor, 'note'), true, { live: ['page-details', 'items', 'spaces'], spaceId });
@@ -96,10 +97,10 @@ function TreeBranch({ spaceId, parentId, depth, writable, cursor, searching = tr
                   <span aria-hidden="true" className="page-tree-chevron"><Icon name="chevron-right" size={16} /></span>
                 </button>
               )}
-              <Link aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} title={title} to={noteHref(note)}>
+              <RowLink aria-current={pathname === noteHref(note) ? 'page' : undefined} className="page-tree-link" draggable={false} href={noteHref(note)} title={title}>
                 {!note.hasChildren && <span className="page-tree-slot"><NoteMark note={note} /></span>}
                 <span className="min-w-0 flex-1 truncate">{title}</span>
-              </Link>
+              </RowLink>
             </div>
             {note.hasChildren && (
               <Reveal open={expanded}>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Icon, ListRow, Placeholder, type IconName } from '@project-graphite/ui';
+import { useNavigate } from 'react-router';
+import { Icon, ListRow, Placeholder, useLink, type IconName } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { PageActionsMenu } from '../components/PageActionsMenu';
@@ -48,6 +48,7 @@ function TreeNote({ children, depth }: { children: ReactNode; depth: number }) {
 
 function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: string; depth: number; parentId: string | null; spaceId: string; writable: boolean }) {
   const tree = useContext(PagesTreeContext);
+  const RowLink = useLink();
   const [more, setMore] = useState(false);
   const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId });
   const reload = listed.reload;
@@ -76,14 +77,14 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
                   </span>
                 </button>
               )}
-              <Link className="flex min-w-0 flex-1 items-center gap-2 py-2 text-ink no-underline" tabIndex={-1} to={noteHref(page)}>
+              <RowLink className="flex min-w-0 flex-1 items-center gap-2 py-2 text-ink no-underline" href={noteHref(page)} tabIndex={-1}>
                 {!page.hasChildren && (
                   <span className="page-tree-slot">
                     <NoteMark note={page} />
                   </span>
                 )}
                 <RowText detail={noteEdited(page)} title={noteTitle(page)} />
-              </Link>
+              </RowLink>
               <PageActionsMenu note={page} onTrash={writable ? () => tree.trash(page) : undefined} />
             </div>
             {page.hasChildren && (
