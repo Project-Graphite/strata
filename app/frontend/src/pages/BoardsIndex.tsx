@@ -10,16 +10,16 @@ import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
-import { noteEdited, noteHref, noteTitle, type Note } from '../notes';
+import { boardsTabs, noteEdited, noteHref, noteTitle, type Note } from '../notes';
 import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-export function BoardsIndex() {
+export function BoardsIndex({ section }: { section: 'boards' | 'drafts' }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
-  const listed = useResource<Note[]>('/me/notes?kind=board', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
+  const listed = useResource<Note[]>(section === 'boards' ? '/me/notes?kind=board' : null, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const creating = useAction();
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
@@ -34,8 +34,10 @@ export function BoardsIndex() {
   }
 
   return (
-    <Page actions={writable.length > 0 && <AddButton disabled={creating.busy} label="New board" large onClick={() => create(writable[0]!.id)} primary />} title="Boards">
-      {listed.error ? (
+    <Page actions={writable.length > 0 && <AddButton disabled={creating.busy} label="New board" large onClick={() => create(writable[0]!.id)} primary />} tabs={boardsTabs(section)} title="Boards">
+      {section === 'drafts' ? (
+        <Drafts kind="board" />
+      ) : listed.error ? (
         <LoadError error={listed.error} onRetry={listed.reload} />
       ) : !listed.data ? (
         <Placeholder label="Loading your boards">
@@ -73,7 +75,6 @@ export function BoardsIndex() {
           ))}
         </ul>
       )}
-      <Drafts kind="board" />
     </Page>
   );
 }

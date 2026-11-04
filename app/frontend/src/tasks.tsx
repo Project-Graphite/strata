@@ -3,8 +3,7 @@ import { Avatar, Badge, Button, Checkbox, errorMessage, Icon, Pagination } from 
 import { ActiveSpaceContext } from './active-space';
 import type { Page as ResultPage } from './api';
 import { useAuth } from './auth';
-import { AddButton } from './components/Button';
-import { FilterChips } from './components/Page';
+import type { FilterGroup } from './components/FilterMenu';
 import { priorityNames } from './quick-add';
 import { useSwipe } from './swipe';
 import type { Tag } from './spaces';
@@ -210,31 +209,27 @@ export function taskLink(base: string, listId: string | null, completed: boolean
   };
 }
 
-export function TaskListChips({ link, listId, lists, menu, onNewList }: { link: TaskLink; listId: string | null; lists: TaskList[]; menu?: ReactNode; onNewList?: () => void }) {
-  return (
-    <FilterChips
-      items={[
+export function taskFilters({ completed, link, listId, lists, view }: { completed: boolean; link: TaskLink; listId: string | null; lists: TaskList[]; view: TaskView }): FilterGroup[] {
+  return [
+    {
+      label: 'List',
+      options: [
         { active: !listId, href: link({ list: null, page: 1 }), label: 'All tasks' },
         ...lists.map((list) => ({ active: listId === list.id, count: list.openTasks, href: link({ list: list.id, page: 1 }), label: list.title })),
-      ]}
-      label="Lists"
-    >
-      {menu}
-      {onNewList && <AddButton label="New list" onClick={onNewList} />}
-    </FilterChips>
-  );
-}
-
-export function TaskStatusChips({ completed, link }: { completed: boolean; link: TaskLink }) {
-  return (
-    <FilterChips
-      items={[
-        { active: !completed, href: link({ completed: false, page: 1 }), label: 'Open' },
-        { active: completed, href: link({ completed: true, page: 1 }), label: 'Finished' },
-      ]}
-      label="Status"
-    />
-  );
+      ],
+    },
+    ...(view === 'list'
+      ? [
+          {
+            label: 'Status',
+            options: [
+              { active: !completed, href: link({ completed: false, page: 1 }), label: 'Open' },
+              { active: completed, href: link({ completed: true, page: 1 }), label: 'Finished' },
+            ],
+          },
+        ]
+      : []),
+  ];
 }
 
 export function TaskListFooter({ completed, link, tasks }: { completed?: boolean; link: TaskLink; tasks: ResultPage<Task> }) {

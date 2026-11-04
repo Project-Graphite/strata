@@ -6,9 +6,10 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { AddButton } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { Toolbar, usePagePrimary } from '../../components/Page';
-import { ChipsSkeleton, IconButtonSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { ButtonSkeleton, IconButtonSkeleton } from '../../components/Skeletons';
 import { TaskPanel } from '../../components/TaskPanel';
-import { TaskListChips, taskLink, TaskStatusChips, taskViews, type TaskList, type TaskView } from '../../tasks';
+import { FilterMenu } from '../../components/FilterMenu';
+import { taskFilters, taskLink, taskViews, type TaskList, type TaskView } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -31,7 +32,6 @@ export function SpaceTasks() {
   const editable = space.role !== 'viewer';
   const link = taskLink(`/spaces/${space.id}/tasks`, listId, completed, view);
   const shownList = lists.data?.find((list) => list.id === listId);
-  const [listCount] = useRememberedShape(`space-task-lists-${space.id}`, lists.data && [lists.data.length], [1]);
   usePagePrimary(
     editable && (
       <span className="page-primary-action">
@@ -46,16 +46,12 @@ export function SpaceTasks() {
         actions={
           <>
             <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
-            {view === 'list' && <TaskStatusChips completed={completed} link={link} />}
           </>
         }
       >
         {lists.data ? (
-          <TaskListChips
-            link={link}
-            listId={listId}
-            lists={lists.data}
-            menu={
+          <FilterMenu groups={taskFilters({ completed, link, listId, lists: lists.data, view })} label="Filter tasks">
+            {
               editable &&
               shownList && (
                 <ActionsMenu
@@ -85,12 +81,12 @@ export function SpaceTasks() {
                 />
               )
             }
-            onNewList={editable ? () => setListDialog('new') : undefined}
-          />
+            {editable && <AddButton label="New list" onClick={() => setListDialog('new')} />}
+          </FilterMenu>
         ) : (
           <>
             {editable && listId && !lists.error && <IconButtonSkeleton />}
-            {!lists.error && <ChipsSkeleton count={listCount + (editable ? 2 : 1)} />}
+            {!lists.error && <ButtonSkeleton width="w-28" />}
           </>
         )}
       </Toolbar>
