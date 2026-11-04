@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { readBlob } from './api';
 import { useAuth } from './auth';
-import type { Item } from './spaces';
+import type { TagColor } from '@project-graphite/ui';
+import type { Item, SpaceRole } from './spaces';
 
 export const maxUploadBytes = 25 * 1024 * 1024;
 const maxPhotoSide = 2560;
@@ -38,16 +39,24 @@ export interface DriveEntry {
   shared?: boolean;
 }
 
+export interface DriveSpace {
+  id: string;
+  slug: string;
+  name: string;
+  color: TagColor;
+  role: SpaceRole;
+  fileCount?: number;
+}
+
 export interface DriveListing {
   path: { id: string; name: string }[];
   entries: DriveEntry[];
+  spaces?: DriveSpace[];
+  space?: DriveSpace;
 }
 
-export type FilesTab = 'files' | 'spaces' | 'storage';
-
-export const filesTabs = (active: FilesTab) => [
+export const filesTabs = (active: 'files' | 'storage') => [
   { active: active === 'files', href: '/files', label: 'Files' },
-  { active: active === 'spaces', href: '/files/spaces', label: 'In spaces' },
   { active: active === 'storage', href: '/files/storage', label: 'Storage' },
 ];
 

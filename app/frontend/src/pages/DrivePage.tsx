@@ -105,12 +105,19 @@ export function DrivePage() {
   const action = useAction();
   const [params] = useSearchParams();
   const folderId = params.get('folder');
-  const listing = useResource<DriveListing>(`/me/drive${folderId ? `?folderId=${folderId}` : ''}`, true, { live: ['items'] });
+  const spaceId = params.get('space');
+  const listing = useResource<DriveListing>(`/me/drive${spaceId ? `?spaceId=${spaceId}` : folderId ? `?folderId=${folderId}` : ''}`, true, { live: ['items'] });
   const [sort, setSort] = useState<BrowserSort>({ key: 'name', descending: false });
   const [dialog, setDialog] = useState<{ kind: 'folder' } | { kind: 'rename' | 'share'; entry: DriveEntry } | { kind: 'move'; entries: DriveEntry[] }>();
   const [over, setOver] = useState<string | null>();
   const picker = useRef<HTMLInputElement>(null);
-  const entries = listing.data?.entries ?? [];
+  const spaceFolders = new Set(listing.data?.spaces?.map((space) => space.id));
+  const entries: (DriveEntry & { detail?: string })[] = [
+    ...(listing.data?.entries ?? []),
+    ...(listing.data?.spaces ?? []).map((space) => ({ id: space.id, kind: 'folder' as const, name: space.name, mimeType: null, sizeBytes: null, createdAt: '', updatedAt: '', detail: `Space · ${space.fileCount ?? 0} file${space.fileCount === 1 ? '' : 's'}` })),
+  ];
+  const ownEntries = (selection: DriveEntry[]) => selection.filter((entry) => !spaceFolders.has(entry.id));
+  const writable = !listing.data?.space || listing.data.space.role !== 'viewer';
 
   const move = (moved: DriveEntry[], target: string | null, name: string) =>
     void action.run(async () => {
@@ -120,20 +127,27 @@ export function DrivePage() {
       return `Moved ${moved.length === 1 ? moved[0]!.name : counted(moved.length)} to ${name}.`;
     }, 'Could not move them');
 
-  const trash = (trashed: DriveEntry[]) =>
+  const trash = (selection: DriveEntry[]) => {
+    const trashed = ownEntries(selection);
+    if (trashed.length === 0 || !writable) return;
+    const itemIds = trashed.map((entry) => entry.id);
+    const send = (restore: boolean) =>
+      spaceId
+        ? Promise.all(itemIds.map((itemId) => auth.request(`/items/${itemId}/${restore ? 'restore' : 'trash'}`, { method: 'POST' })))
+        : auth.request(`/me/drive/${restore ? 'restore' : 'trash'}`, { method: 'POST', body: JSON.stringify({ itemIds }) });
     void action.run(async () => {
-      const itemIds = trashed.map((entry) => entry.id);
-      await auth.request('/me/drive/trash', { method: 'POST', body: JSON.stringify({ itemIds }) });
+      await send(false);
       listing.reload();
       return {
         message: `Moved ${trashed.length === 1 ? trashed[0]!.name : counted(trashed.length)} to the trash.`,
         undo: async () => {
-          await auth.request('/me/drive/restore', { method: 'POST', body: JSON.stringify({ itemIds }) });
+          await send(true);
           listing.reload();
           return '';
         },
       };
     }, 'Could not move them to the trash');
+  };
 
   const download = (files: DriveEntry[]) =>
     void action.run(async () => {
@@ -143,7 +157,7 @@ export function DrivePage() {
 
   const upload = (files: File[]) =>
     void action.run(async () => {
-      const message = await uploadFiles(auth.request, null, files, folderId);
+      const message = await uploadFiles(auth.request, spaceId, files, folderId);
       listing.reload();
       return message;
     }, 'Could not upload the files');
@@ -175,10 +189,12 @@ export function DrivePage() {
   return (
     <Page
       actions={
-        <>
-          <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />
-          <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
-        </>
+        writable && (
+          <>
+            {!spaceId && <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />}
+            <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
+          </>
+        )
       }
       tabs={filesTabs('files')}
       title="Files"
@@ -189,7 +205,7 @@ export function DrivePage() {
           if (event.dataTransfer.types.includes('Files')) event.preventDefault();
         }}
         onDrop={(event) => {
-          if (event.dataTransfer.files.length === 0) return;
+          if (event.dataTransfer.files.length === 0 || !writable) return;
           event.preventDefault();
           upload([...event.dataTransfer.files]);
         }}
@@ -203,8 +219,8 @@ export function DrivePage() {
         ) : (
           <FileBrowser
             backgroundMenu={[
-              { label: 'New folder', onSelect: () => setDialog({ kind: 'folder' }) },
-              { label: 'Upload files', onSelect: () => picker.current?.click() },
+              ...(spaceId ? [] : [{ label: 'New folder', onSelect: () => setDialog({ kind: 'folder' }) }]),
+              ...(writable ? [{ label: 'Upload files', onSelect: () => picker.current?.click() }] : []),
             ]}
             idle={
               <nav aria-label="Folder path" className="drive-path">
@@ -227,20 +243,24 @@ export function DrivePage() {
                 ))}
               </nav>
             }
-            key={folderId ?? 'files'}
+            key={spaceId ?? folderId ?? 'files'}
             label="Files and folders"
-            menu={(selection) => [
-              ...(selection.length === 1 ? [{ icon: 'link' as const, label: 'Share', onSelect: () => setDialog({ kind: 'share', entry: selection[0]! }) }] : []),
-              ...(selection.some((entry) => entry.kind === 'file') ? [{ icon: 'download' as const, label: 'Download', onSelect: () => download(selection) }] : []),
-              ...(selection.length === 1 ? [{ label: 'Rename', onSelect: () => setDialog({ kind: 'rename', entry: selection[0]! }) }] : []),
-              { icon: 'folder', label: 'Move to…', onSelect: () => setDialog({ kind: 'move', entries: selection }) },
-              { icon: 'trash', label: 'Move to trash', separated: true, onSelect: () => trash(selection) },
-            ]}
+            menu={(selection) => {
+              const own = ownEntries(selection);
+              const managed = !spaceId && own.length === selection.length;
+              return [
+                ...(managed && selection.length === 1 ? [{ icon: 'link' as const, label: 'Share', onSelect: () => setDialog({ kind: 'share', entry: selection[0]! }) }] : []),
+                ...(own.some((entry) => entry.kind === 'file') ? [{ icon: 'download' as const, label: 'Download', onSelect: () => download(own) }] : []),
+                ...(managed && selection.length === 1 ? [{ label: 'Rename', onSelect: () => setDialog({ kind: 'rename', entry: selection[0]! }) }] : []),
+                ...(managed ? [{ icon: 'folder' as const, label: 'Move to…', onSelect: () => setDialog({ kind: 'move', entries: selection }) }] : []),
+                ...(writable && own.length > 0 ? [{ icon: 'trash' as const, label: 'Move to trash', separated: true, onSelect: () => trash(own) }] : []),
+              ];
+            }}
             onDelete={trash}
             onDownload={download}
-            onOpenFolder={(folder) => navigate(driveHref(folder.id))}
+            onOpenFolder={(folder) => navigate(spaceFolders.has(folder.id) ? `/files?space=${folder.id}` : driveHref(folder.id))}
             onSort={setSort}
-            rowProps={(entry, selection) => ({
+            rowProps={(entry, selection) => spaceId || spaceFolders.has(entry.id) ? {} : ({
               draggable: true,
               onDragStart: (event) => {
                 event.dataTransfer.setData(dragType, JSON.stringify((selection.includes(entry) ? selection : [entry]).map((dragging) => dragging.id)));
@@ -254,9 +274,9 @@ export function DrivePage() {
                 entries,
                 empty: (
                   <Empty
-                    action={<FileButton busy={action.busy} inputLabel="Files to upload" label="Upload files" multiple onFiles={upload} />}
+                    action={writable && <FileButton busy={action.busy} inputLabel="Files to upload" label="Upload files" multiple onFiles={upload} />}
                     icon="folder"
-                    title={folderId ? 'This folder is empty' : 'No files yet'}
+                    title={folderId || spaceId ? 'This folder is empty' : 'No files yet'}
                     variant="page"
                   >
                     Upload files or drop them here. Everything is private until you share it.
