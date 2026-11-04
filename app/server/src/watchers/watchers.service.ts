@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, type Prisma } from '@prisma/client';
 import { InboxService } from '../inbox/inbox.service';
 import { PageAccessService } from '../notes/page-access.service';
@@ -58,6 +58,20 @@ export class WatchersService {
     await this.pages.assertReference(userId, itemId, 'read');
     if (watching) await this.watch(this.prisma, itemId, [userId]);
     else await this.prisma.itemWatcher.deleteMany({ where: { itemId, userId } });
+    return this.status(userId, itemId);
+  }
+
+  async setOtherWatching(userId: string, itemId: string, watcherId: string, watching: boolean) {
+    await this.pages.assertReference(userId, itemId, 'edit');
+    if (watching) {
+      await this.pages.assertReference(watcherId, itemId, 'read').catch((error: unknown) => {
+        if (error instanceof NotFoundException) throw new BadRequestException('Choose someone who can see this');
+        throw error;
+      });
+      await this.watch(this.prisma, itemId, [watcherId]);
+    } else {
+      await this.prisma.itemWatcher.deleteMany({ where: { itemId, userId: watcherId } });
+    }
     return this.status(userId, itemId);
   }
 }

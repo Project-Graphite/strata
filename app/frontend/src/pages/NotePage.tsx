@@ -305,7 +305,7 @@ export function NotePage() {
       <header className="page-header note-header">
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
-          {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} />}
+          {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
           {pageOnly && !owned && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
           {menu.length > 0 && <NestedMenu items={menu} label={`${noteTitle(details)} actions`} trigger={<Icon name="more" size={18} />} triggerClassName="toolbar-button page-menu-button" triggerLabel={`Actions for ${noteTitle(details)}`} />}

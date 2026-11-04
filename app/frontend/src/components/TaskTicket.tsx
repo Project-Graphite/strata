@@ -271,7 +271,7 @@ export function TaskActivity({ editable, owner, taskId }: { editable: boolean; o
   return (
     <details className="task-activity" open>
       <summary className="text-h3 text-ink">Activity</summary>
-      <div className="grid gap-4 pt-3">
+      <div className="task-activity-body grid">
         <SegmentedControl label="Show" onChange={setTab} options={activityTabs} size="small" value={tab} />
         {editable && tab !== 'history' &&
           (writing ? (
@@ -312,7 +312,7 @@ export function TaskActivity({ editable, owner, taskId }: { editable: boolean; o
               const { comment } = entry;
               const mine = comment.author?.id === auth.user?.id;
               return (
-                <li className="grid gap-1" key={`comment-${comment.id}`}>
+                <li className="grid gap-2" key={`comment-${comment.id}`}>
                   <p className="m-0 text-small text-muted">
                     <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
                     {comment.editedAt && ' · edited'}

@@ -157,7 +157,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       actions={
         task && (
           <>
-            {space?.kind !== 'personal' && <WatchButton itemId={task.id} />}
+            {space?.kind !== 'personal' && <WatchButton itemId={task.id} manage={editable} spaceId={task.spaceId} />}
             {editable && (
           <ActionsMenu
             items={[
@@ -233,7 +233,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       ) : (
         <div className="task-sheet-layout grid gap-6">
           <div className="task-sheet">
-            <div className="grid min-w-0 content-start gap-8">
+            <div className="task-main grid min-w-0 content-start">
               {task ? (
                 <TaskDescription editable={editable} key={task.id} onSave={(description) => save({ description })} taskId={task.id} value={values.description} />
               ) : (

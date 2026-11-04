@@ -26,4 +26,16 @@ export class WatchersController {
   unwatch(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
     return this.watchers.setWatching(user.id, id, false);
   }
+
+  @Put('watchers/:userId')
+  @Scope('items:write')
+  add(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('userId', UuidPipe) watcherId: string) {
+    return this.watchers.setOtherWatching(user.id, id, watcherId, true);
+  }
+
+  @Delete('watchers/:userId')
+  @Scope('items:write')
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Param('userId', UuidPipe) watcherId: string) {
+    return this.watchers.setOtherWatching(user.id, id, watcherId, false);
+  }
 }

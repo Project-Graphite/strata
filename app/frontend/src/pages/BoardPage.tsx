@@ -104,7 +104,7 @@ export function BoardPage() {
               ),
               actions: (
                 <>
-                  {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} />}
+                  {details.spaceId && space?.kind !== 'personal' && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
                   {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
                   <CommentsButton count={threads} onClick={() => setCommenting(!commenting)} open={commenting} />
                 </>

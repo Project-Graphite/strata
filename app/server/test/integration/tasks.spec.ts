@@ -234,6 +234,23 @@ describe('Tasks against Postgres', () => {
     expect((await outsider.call('PUT', `/items/${task.id}/watch`)).status).toBe(404);
   });
 
+  it('lets editors add and remove other watchers who can see the task', async () => {
+    const owner = await member('watch-lead');
+    const editor = await member('watch-editor');
+    const viewer = await member('watch-viewer');
+    const outsider = await member('watch-stranger');
+    const team = (await owner.call('POST', '/spaces', { name: 'Watchlist' })).body;
+    await strata.join(team.id, editor, SpaceRole.EDITOR);
+    await strata.join(team.id, viewer, SpaceRole.VIEWER);
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Review copy' })).body;
+    const ids = (reply: { body: { watchers: { id: string }[] } }) => reply.body.watchers.map((watcher) => watcher.id).sort();
+
+    expect(ids(await editor.call('PUT', `/items/${task.id}/watchers/${viewer.id}`))).toEqual([owner.id, viewer.id].sort());
+    expect((await editor.call('PUT', `/items/${task.id}/watchers/${outsider.id}`)).status).toBe(400);
+    expect((await viewer.call('PUT', `/items/${task.id}/watchers/${editor.id}`)).status).toBe(403);
+    expect(ids(await editor.call('DELETE', `/items/${task.id}/watchers/${viewer.id}`))).toEqual([owner.id]);
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

@@ -3717,3 +3717,35 @@ main.shell {
 .sheet-title-input:focus {
   border-color: var(--color-muted);
 }
+
+.task-main {
+  gap: var(--space-8);
+}
+
+.task-main > :is(section, details),
+.task-activity-body,
+.task-activity-body > ol {
+  gap: var(--space-4);
+}
+
+.task-activity-body {
+  padding-top: var(--space-4);
+}
+
+.task-properties {
+  gap: var(--space-4);
+}
+
+@media (min-width: 64rem) {
+  .task-main {
+    padding-inline-end: var(--space-3);
+  }
+}
+
+.watch-menu-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-small);
+}
