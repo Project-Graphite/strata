@@ -55,6 +55,6 @@ export class CreateLinkDto {
   @IsUUID('all', { message: 'Choose an item to link to.' })
   targetId!: string;
 
-  @IsIn(['mention', 'reference', 'attachment'], { message: 'Choose mention, reference or attachment.' })
-  kind!: 'mention' | 'reference' | 'attachment';
+  @IsIn(['mention', 'reference', 'attachment', 'relates', 'blocks', 'duplicates'], { message: 'Choose mention, reference, attachment, relates, blocks or duplicates.' })
+  kind!: 'mention' | 'reference' | 'attachment' | 'relates' | 'blocks' | 'duplicates';
 }

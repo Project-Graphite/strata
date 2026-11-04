@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, TextAreaField, ToolbarButton, useSnackbar, type IconName } from '@project-graphite/ui';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, Select, TextAreaField, TextField, ToolbarButton, useSnackbar, type IconName } from '@project-graphite/ui';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import Highlight from '@tiptap/extension-highlight';
 import { Placeholder } from '@tiptap/extensions';
@@ -380,6 +380,117 @@ export function Attachments({ editable, taskId }: { editable: boolean; taskId: s
             ))}
           </ul>
         )
+      )}
+    </section>
+  );
+}
+
+interface Relation {
+  id: string;
+  kind: string;
+  item: { id: string; kind: string; title: string };
+}
+
+const relationChoices = [
+  { value: 'relates', label: 'Relates to', kind: 'relates', incoming: false },
+  { value: 'blocks', label: 'Blocks', kind: 'blocks', incoming: false },
+  { value: 'blocked-by', label: 'Is blocked by', kind: 'blocks', incoming: true },
+  { value: 'duplicates', label: 'Duplicates', kind: 'duplicates', incoming: false },
+  { value: 'duplicated-by', label: 'Is duplicated by', kind: 'duplicates', incoming: true },
+];
+
+const relationKinds = new Set(['relates', 'blocks', 'duplicates']);
+const relationLabel = (kind: string, incoming: boolean) =>
+  kind === 'relates' ? 'Relates to' : kind === 'blocks' ? (incoming ? 'Is blocked by' : 'Blocks') : incoming ? 'Is duplicated by' : 'Duplicates';
+
+export function Relations({ editable, onOpen, taskId }: { editable: boolean; onOpen: (taskId: string) => void; taskId: string }) {
+  const auth = useAuth();
+  const action = useAction();
+  const links = useResource<{ outgoing: Relation[]; backlinks: Relation[] }>(`/items/${taskId}/links`, true, { live: ['task-details'], itemIds: [taskId] });
+  const [adding, setAdding] = useState(false);
+  const [relation, setRelation] = useState('relates');
+  const [query, setQuery] = useState('');
+  const search = useDeferredValue(query.trim());
+  const found = useResource<{ items: { id: string; kind: string; title: string; spaceName?: string | null }[] }>(adding && search ? `/search?q=${encodeURIComponent(search)}` : null, true);
+  const shown = [
+    ...(links.data?.outgoing ?? []).filter((link) => relationKinds.has(link.kind)).map((link) => ({ ...link, label: relationLabel(link.kind, false) })),
+    ...(links.data?.backlinks ?? []).filter((link) => relationKinds.has(link.kind)).map((link) => ({ ...link, label: relationLabel(link.kind, true) })),
+  ];
+  const candidates = (found.data?.items ?? []).filter((item) => item.kind === 'task' && item.id !== taskId && !shown.some((link) => link.item.id === item.id));
+
+  function relate(targetId: string, title: string) {
+    const { incoming, kind } = relationChoices.find((choice) => choice.value === relation)!;
+    void action.run(async () => {
+      await auth.request(`/items/${incoming ? targetId : taskId}/links`, { method: 'POST', body: JSON.stringify({ targetId: incoming ? taskId : targetId, kind }) });
+      links.reload();
+      setAdding(false);
+      setQuery('');
+      return `Related ${title}.`;
+    }, 'Could not relate the tasks');
+  }
+
+  return (
+    <section className="grid gap-3">
+      <SectionHeading action={editable && !adding && <TextButton label="Relate a task" onClick={() => setAdding(true)} />} level={3} title="Related tasks" />
+      {links.error ? (
+        <LoadError compact error={links.error} onRetry={links.reload} />
+      ) : !links.data ? (
+        <LinesSkeleton label="Loading the related tasks" lines={1} />
+      ) : (
+        shown.length > 0 && (
+          <ul className="panel-rows">
+            {shown.map((link) => (
+              <li className="list-row" key={link.id}>
+                <button className="list-row-main" onClick={() => onOpen(link.item.id)} type="button">
+                  <span className="list-row-text">
+                    <span className="list-row-meta">{link.label}</span>
+                    <span className="list-row-title">{link.item.title || 'Untitled task'}</span>
+                  </span>
+                </button>
+                {editable && (
+                  <span className="list-row-trail">
+                    <IconButton
+                      icon="x"
+                      label={`Remove the relation to ${link.item.title}`}
+                      onClick={() =>
+                        void action.run(async () => {
+                          await auth.request(`/items/${taskId}/links/${link.id}`, { method: 'DELETE' });
+                          links.reload();
+                          return '';
+                        }, 'Could not remove the relation')
+                      }
+                      size="small"
+                    />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+      {adding && (
+        <div className="grid gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+            <Select label="This task" onChange={setRelation} options={relationChoices} value={relation} />
+            <TextField autoFocus label="Find a task" onChange={(event) => setQuery(event.currentTarget.value)} value={query} />
+          </div>
+          {candidates.length > 0 && (
+            <ul className="panel-rows">
+              {candidates.slice(0, 8).map((item) => (
+                <li className="list-row" key={item.id}>
+                  <button className="list-row-main" disabled={action.busy} onClick={() => relate(item.id, item.title)} type="button">
+                    <span className="list-row-text">
+                      <span className="list-row-title">{item.title || 'Untitled task'}</span>
+                      {item.spaceName && <span className="list-row-meta">{item.spaceName}</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {search && found.data && candidates.length === 0 && <p className="m-0 text-small text-muted">No matching tasks</p>}
+          <TextButton label="Cancel" onClick={() => { setAdding(false); setQuery(''); }} />
+        </div>
       )}
     </section>
   );

@@ -3,7 +3,7 @@ import { DatePicker, LinesSkeleton, Select, Sheet, TagChip, TextField, useSnackb
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
 import { useAllSpaces, type Member, type Tag } from '../spaces';
-import { reminderOptions, repeatOptions, taskStatuses, useWeekStart, type Task, type TaskDetail, type TaskList } from '../tasks';
+import { builtInTaskTypes, reminderOptions, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type Task, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
 import { TimeField, zoneLabel } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -11,11 +11,12 @@ import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
 import { CommentsButton, CommentsPanel } from './CommentsPanel';
 import type { OpenTaskProps } from './OpenTask';
-import { Activity, Attachments, Comments, DescriptionEditor, Subtasks } from './TaskTicket';
+import { Activity, Attachments, Comments, DescriptionEditor, Relations, Subtasks } from './TaskTicket';
 
 interface Fields {
   title: string;
   status: Task['status'];
+  type: string;
   dueDate: string | null;
   dueTime: string | null;
   priority: number;
@@ -31,6 +32,7 @@ const priorityOptions = priorityNames.map((label, value) => ({ value: String(val
 const fieldsOf = (task: TaskDetail): Fields => ({
   title: task.title,
   status: task.status,
+  type: task.type,
   dueDate: task.dueDate,
   dueTime: task.dueTime,
   priority: task.priority,
@@ -58,7 +60,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const spaces = useAllSpaces();
   const weekStart = useWeekStart();
   const [id, setId] = useState(given?.id ?? taskId);
-  const [created, setCreated] = useState<TaskDetail>();
   const [title, setTitle] = useState<string>();
   const [activityOpen, setActivityOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -66,6 +67,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
     title: '',
     status: status ?? 'open',
+    type: 'task',
     dueDate: null,
     dueTime: null,
     priority: 0,
@@ -77,13 +79,15 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
     labels: [],
   }));
   const detail = useResource<TaskDetail>(id ? `/tasks/${id}` : null, true, id ? { live: ['tasks', 'task-details'], itemIds: [id] } : undefined);
-  const task = id ? (detail.data ?? (created?.id === id ? created : undefined)) : undefined;
+  const task = id ? detail.data : undefined;
   const heading = task ?? (given?.id === id ? given : undefined);
   const spaceId = heading?.spaceId ?? newIn;
   const space = spaces.data?.find((candidate) => candidate.id === spaceId);
   const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : null, true);
   const members = useResource<Member[]>(spaceId ? `/spaces/${spaceId}/members` : null, true);
   const tags = useResource<Tag[]>(spaceId ? `/spaces/${spaceId}/tags` : null, true);
+  const choices = useResource<TaskFilterChoices>(spaceId ? `/me/task-filters?spaceId=${spaceId}` : null, true);
+  const [namingType, setNamingType] = useState(false);
   const editable = Boolean(space && space.role !== 'viewer');
   const values = task ? fieldsOf(task) : draft;
   const labels = task ? task.labels : draft.labels;
@@ -142,10 +146,9 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       const saved = await auth.request<TaskDetail>(`/spaces/${newIn}/tasks`, { method: 'POST', body: JSON.stringify({ ...fields, title: fields.title.trim() }) });
       if (chosen.length) await auth.request(`/items/${saved.id}/tags`, { method: 'PUT', body: JSON.stringify({ tagIds: chosen.map((tag) => tag.id) }) });
       const added = { ...saved, labels: chosen };
-      setCreated(added);
-      setId(added.id);
       onChanged(added);
       onCreated?.(added);
+      onClose();
       return `Added ${added.title}.`;
     }, 'Could not add the task');
   }
@@ -241,6 +244,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                       update={(change) => detail.mutate(change)}
                     />
                   )}
+                  <Relations editable={editable} onOpen={setId} taskId={task.id} />
                   <Attachments editable={editable} taskId={task.id} />
                   <details className="task-activity" onToggle={(event) => setActivityOpen(event.currentTarget.open)}>
                     <summary className="text-h3 text-ink">Activity</summary>
@@ -251,6 +255,33 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
             </div>
             <aside aria-label="Properties" className="task-properties">
               <Select disabled={!editable} label="Status" onChange={(status) => save({ status })} options={[...taskStatuses]} value={values.status} />
+              {namingType ? (
+                <TextField
+                  autoFocus
+                  label="New type"
+                  maxLength={30}
+                  onBlur={(event) => {
+                    const name = event.currentTarget.value.trim();
+                    if (name) save({ type: name });
+                    setNamingType(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') event.currentTarget.value = '';
+                    if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
+                  }}
+                />
+              ) : (
+                <Select
+                  disabled={!editable}
+                  label="Type"
+                  onChange={(chosen) => (chosen ? save({ type: chosen }) : setNamingType(true))}
+                  options={[
+                    ...[...new Set([...builtInTaskTypes, ...(choices.data?.types ?? []), values.type])].map((type) => ({ value: type, label: taskTypeLabel(type) })),
+                    { value: '', label: 'New type…' },
+                  ]}
+                  value={values.type}
+                />
+              )}
               <DatePicker
                 disabled={!editable}
                 label="Due date"

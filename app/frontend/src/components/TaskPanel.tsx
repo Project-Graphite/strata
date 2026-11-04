@@ -20,12 +20,12 @@ export function TaskPanel({
   failed,
   link,
   linkedTask,
-  listId,
   onClosed,
   onCloseLinked,
   onCreate,
   onListsChanged,
   page,
+  query,
   ready,
   shape,
   tasksPath,
@@ -39,12 +39,12 @@ export function TaskPanel({
   failed?: { error: string; reload: () => void };
   link: TaskLink;
   linkedTask?: string | null;
-  listId: string | null;
   onClosed: () => void;
   onCloseLinked?: () => void;
   onCreate: () => void;
   onListsChanged: () => void;
   page: number;
+  query: string;
   ready: boolean;
   shape: string;
   tasksPath: string;
@@ -52,10 +52,9 @@ export function TaskPanel({
   where: (task: Task) => string | undefined;
 }) {
   const weekStart = useWeekStart();
-  const listQuery = listId ? `listId=${encodeURIComponent(listId)}` : '';
   const board = view === 'board';
-  const open = useAllTasks(completed && !board ? null : `${tasksPath}${listQuery ? `?${listQuery}` : ''}`);
-  const finished = useResource<ResultPage<Task>>(completed || board ? `${tasksPath}?page=${board ? 1 : page}&completed=true${listQuery ? `&${listQuery}` : ''}` : null, true, {
+  const open = useAllTasks(completed && !board ? null : `${tasksPath}${query ? `?${query}` : ''}`);
+  const finished = useResource<ResultPage<Task>>(completed || board ? `${tasksPath}?page=${board ? 1 : page}&completed=true${query ? `&${query}` : ''}` : null, true, {
     live: ['tasks', 'items'],
   });
   const updateFinished = (change: (tasks: Task[]) => Task[]) => finished.mutate((current) => ({ ...current, results: change(current.results) }));
@@ -64,7 +63,7 @@ export function TaskPanel({
   const [addingTo, setAddingTo] = useState<Task['status']>();
   const shown = completed && !board ? finished.data?.results : open.data;
   const [rows, detailed] = useRememberedShape(
-    `${shape}${listQuery}${completed ? '-done' : ''}`,
+    `${shape}${query}${completed ? '-done' : ''}`,
     ready && shown ? [shown.length, shown.filter((task) => taskDetails(task, where(task)).length > 0).length] : undefined,
     [5, 5],
   );

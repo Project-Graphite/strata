@@ -63,6 +63,12 @@ export class TasksController {
     return this.tasks.mine(user.id, query);
   }
 
+  @Get('me/task-filters')
+  @Scope('items:read')
+  taskFilters(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
+    return this.tasks.filters(user.id, query.spaceId);
+  }
+
   @Get('tasks/today')
   @Scope('items:read')
   today(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {

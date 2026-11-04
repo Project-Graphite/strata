@@ -9,7 +9,7 @@ import { FilterMenu } from '../components/FilterMenu';
 import { ButtonSkeleton } from '../components/Skeletons';
 import { TaskPanel } from '../components/TaskPanel';
 import { useSpaces } from '../spaces';
-import { taskFilters, taskLink, taskViews, type Task, type TaskList, type TaskView } from '../tasks';
+import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type Task, type TaskFilterChoices, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -19,11 +19,11 @@ export function TasksPage() {
   const navigate = useNavigate();
   const spaces = useSpaces();
   const [params, setParams] = useSearchParams();
-  const listId = params.get('list');
-  const view: TaskView = params.get('view') === 'list' ? 'list' : 'board';
-  const completed = view === 'list' && params.get('completed') === 'true';
+  const state = taskFilterState(params);
+  const { completed, listId, view } = state;
   const page = Number(params.get('page')) || 1;
   const lists = useResource<TaskList[]>('/me/lists', true);
+  const choices = useResource<TaskFilterChoices>('/me/task-filters', true, { live: ['tasks'] });
   const action = useAction();
   const listForm = useFormErrors();
   const [creatingList, setCreatingList] = useState(false);
@@ -42,7 +42,7 @@ export function TasksPage() {
   const spaceOf = (id: string) => spaces.data?.find((space) => space.id === id);
   const editableSpaces = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
   const personal = spaces.data?.[0];
-  const link = taskLink('/tasks', listId, completed, view);
+  const link = taskLink('/tasks', state);
   const shownList = lists.data?.find((list) => list.id === listId);
   const addTo = shownList ? spaceOf(shownList.spaceId) : personal;
   const whereOf = (task: Task) =>
@@ -61,7 +61,7 @@ export function TasksPage() {
       title="Tasks"
       toolbar={
         lists.data ? (
-          <FilterMenu groups={taskFilters({ completed, link, listId, lists: lists.data, view })} label="Filter tasks">
+          <FilterMenu groups={taskFilters({ choices: choices.data ?? noFilterChoices, defaultAssignee: listId ? 'Anyone' : 'Me or unassigned', link, lists: lists.data, state })} label="Filter tasks">
             {editableSpaces.length > 0 && <AddButton label="New list" onClick={() => setCreatingList(true)} />}
           </FilterMenu>
         ) : (
@@ -78,12 +78,12 @@ export function TasksPage() {
         failed={[lists, spaces].find((resource) => resource.error)}
         link={link}
         linkedTask={params.get('task')}
-        listId={listId}
         onCloseLinked={closeLinked}
         onClosed={() => setCreating(false)}
         onCreate={() => setCreating(true)}
         onListsChanged={lists.reload}
         page={page}
+        query={taskFilterQuery(state)}
         ready={Boolean(lists.data && spaces.data)}
         shape="tasks"
         tasksPath="/me/tasks"

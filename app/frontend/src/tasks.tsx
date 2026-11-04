@@ -25,6 +25,7 @@ export interface Task {
   priority: number;
   position: number;
   status: 'open' | 'in_progress' | 'done';
+  type: string;
   labels: Tag[];
   subtaskCounts: { total: number; done: number };
   assignee: { id: string; handle: string; displayName: string } | null;
@@ -114,6 +115,7 @@ export async function completeTask(request: ReturnType<typeof useAuth>['request'
 
 export function taskDetails(task: Task, where?: string) {
   return [
+    task.type !== 'task' && taskTypeLabel(task.type),
     where,
     dueLabel(task),
     repeatLabel(task.repeatRule),
@@ -193,29 +195,91 @@ export const taskViews: { value: TaskView; label: string }[] = [
   { value: 'board', label: 'Board' },
 ];
 
-export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number; view?: TaskView }) => string;
+export interface TaskFilterState {
+  listId: string | null;
+  completed: boolean;
+  view: TaskView;
+  assignee: string | null;
+  type: string | null;
+}
 
-export function taskLink(base: string, listId: string | null, completed: boolean, view: TaskView): TaskLink {
+export function taskFilterState(params: URLSearchParams): TaskFilterState {
+  const view = params.get('view') === 'list' ? 'list' : 'board';
+  return { listId: params.get('list'), view, completed: view === 'list' && params.get('completed') === 'true', assignee: params.get('assignee'), type: params.get('type') };
+}
+
+export const noFilterChoices: TaskFilterChoices = { types: [], assignees: [] };
+
+export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number; view?: TaskView; assignee?: string | null; type?: string | null }) => string;
+
+export function taskLink(base: string, state: TaskFilterState): TaskLink {
   return (next) => {
     const query = new URLSearchParams();
-    const list = next.list === undefined ? listId : next.list;
+    const list = next.list === undefined ? state.listId : next.list;
+    const assignee = next.assignee === undefined ? state.assignee : next.assignee;
+    const type = next.type === undefined ? state.type : next.type;
     if (list) query.set('list', list);
-    if ((next.view ?? view) === 'list') {
+    if (assignee) query.set('assignee', assignee);
+    if (type) query.set('type', type);
+    if ((next.view ?? state.view) === 'list') {
       query.set('view', 'list');
-      if (next.completed ?? completed) query.set('completed', 'true');
+      if (next.completed ?? state.completed) query.set('completed', 'true');
     }
     if (next.page && next.page > 1) query.set('page', String(next.page));
     return `${base}${query.size ? `?${query}` : ''}`;
   };
 }
 
-export function taskFilters({ completed, link, listId, lists, view }: { completed: boolean; link: TaskLink; listId: string | null; lists: TaskList[]; view: TaskView }): FilterGroup[] {
+export const builtInTaskTypes = ['task', 'idea'];
+
+export const taskTypeLabel = (type: string) => (type === 'task' ? 'Task' : type === 'idea' ? 'Idea' : type);
+
+export interface TaskFilterChoices {
+  types: string[];
+  assignees: { id: string; displayName: string }[];
+}
+
+export function taskFilterQuery({ assignee, listId, type }: Pick<TaskFilterState, 'assignee' | 'listId' | 'type'>) {
+  return new URLSearchParams([...(listId ? [['listId', listId]] : []), ...(assignee ? [['assignee', assignee]] : []), ...(type ? [['type', type]] : [])]).toString();
+}
+
+export function taskFilters({
+  choices,
+  defaultAssignee,
+  link,
+  lists,
+  state,
+}: {
+  choices: TaskFilterChoices;
+  defaultAssignee: string;
+  link: TaskLink;
+  lists: TaskList[];
+  state: TaskFilterState;
+}): FilterGroup[] {
+  const { assignee, completed, listId, type, view } = state;
   return [
     {
       label: 'List',
       options: [
-        { active: !listId, href: link({ list: null, page: 1 }), label: 'All tasks' },
+        { active: !listId, href: link({ list: null, page: 1 }), label: 'All lists' },
         ...lists.map((list) => ({ active: listId === list.id, count: list.openTasks, href: link({ list: list.id, page: 1 }), label: list.title })),
+      ],
+    },
+    {
+      label: 'Assignee',
+      options: [
+        { active: !assignee, href: link({ assignee: null, page: 1 }), label: defaultAssignee },
+        ...(defaultAssignee === 'Anyone' ? [] : [{ active: assignee === 'any', href: link({ assignee: 'any', page: 1 }), label: 'Anyone' }]),
+        { active: assignee === 'me', href: link({ assignee: 'me', page: 1 }), label: 'Assigned to me' },
+        { active: assignee === 'none', href: link({ assignee: 'none', page: 1 }), label: 'Unassigned' },
+        ...choices.assignees.map((person) => ({ active: assignee === person.id, href: link({ assignee: person.id, page: 1 }), label: person.displayName })),
+      ],
+    },
+    {
+      label: 'Type',
+      options: [
+        { active: !type, href: link({ type: null, page: 1 }), label: 'All types' },
+        ...[...builtInTaskTypes, ...choices.types].map((option) => ({ active: type === option, href: link({ type: option, page: 1 }), label: taskTypeLabel(option) })),
       ],
     },
     ...(view === 'list'
