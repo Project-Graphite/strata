@@ -62,7 +62,7 @@ function entries(items: NestedMenuItem[], { close, open, leave, expanded }: { cl
   ]);
 }
 
-export function NestedMenu({ align = 'end', header, items, label, trigger, triggerClassName, triggerLabel }: { align?: 'start' | 'end'; header?: ReactNode; items: NestedMenuItem[]; label: string; trigger: ReactNode; triggerClassName?: string; triggerLabel: string }) {
+export function NestedMenu({ align = 'end', header, items, keepFocus = true, label, trigger, triggerClassName, triggerLabel }: { align?: 'start' | 'end'; header?: ReactNode; items: NestedMenuItem[]; keepFocus?: boolean; label: string; trigger: ReactNode; triggerClassName?: string; triggerLabel: string }) {
   const drill = useMediaQuery('(pointer: coarse), (max-width: 47.99rem)');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [path, setPath] = useState<Parent[]>([]);
@@ -86,7 +86,7 @@ export function NestedMenu({ align = 'end', header, items, label, trigger, trigg
     'aria-haspopup': 'menu' as const,
     'aria-label': triggerLabel,
     onClick: (event: MouseEvent<HTMLButtonElement>) => (anchor ? close() : setAnchor(event.currentTarget)),
-    onMouseDown: (event: MouseEvent<HTMLButtonElement>) => event.preventDefault(),
+    onMouseDown: keepFocus ? (event: MouseEvent<HTMLButtonElement>) => event.preventDefault() : undefined,
     title: triggerLabel,
   };
 

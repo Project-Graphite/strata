@@ -58,6 +58,12 @@ function useEditable(editor: Editor) {
 
 const minImageWidth = 15;
 const imageWidth = (value: unknown) => (typeof value === 'number' && value >= minImageWidth && value <= 100 ? value : null);
+const imageSizes = [
+  [33, 'Small'],
+  [50, 'Medium'],
+  [75, 'Large'],
+  [100, 'Full width'],
+] as const;
 const alignmentOf = (value: unknown): Alignment => alignments.find(([align]) => align === value)?.[0] ?? 'center';
 
 function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps) {
@@ -69,7 +75,8 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
   const [dragged, setDragged] = useState<number>();
   const fileId = uuidOrNull(node.attrs.fileId);
   const align = alignmentOf(node.attrs.align);
-  const width = dragged ?? imageWidth(node.attrs.width);
+  const wrap = node.attrs.wrap === true && align !== 'center';
+  const width = dragged ?? imageWidth(node.attrs.width) ?? (wrap ? 50 : null);
   const caption = typeof node.attrs.caption === 'string' ? node.attrs.caption : '';
   const alt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
   const editing = useEditable(editor);
@@ -92,12 +99,16 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
     };
   }, [fileId, load]);
 
-  const widthFrom = (pixels: number) => Math.round(Math.min(100, Math.max(minImageWidth, (pixels / frame.current!.parentElement!.clientWidth) * 100)));
+  const widthFrom = (pixels: number) => {
+    const figure = frame.current!.parentElement!;
+    const room = (wrap ? figure.parentElement! : figure).clientWidth;
+    return Math.round(Math.min(100, Math.max(minImageWidth, (pixels / room) * 100)));
+  };
 
   function resize(event: PointerEvent<HTMLSpanElement>) {
     const handle = event.currentTarget;
     const start = { x: event.clientX, width: frame.current!.getBoundingClientRect().width };
-    const factor = align === 'center' ? 2 : align === 'right' ? -1 : 1;
+    const factor = (align === 'center' ? 2 : 1) * (handle.dataset.side === 'start' ? -1 : 1);
     let latest = widthFrom(start.width);
     const move = (moved: globalThis.PointerEvent) => {
       latest = widthFrom(start.width + (moved.clientX - start.x) * factor);
@@ -125,12 +136,12 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
   }
 
   return (
-    <NodeViewWrapper as="figure" className={`note-image ${selected ? 'is-selected' : ''}`} data-align={align}>
-      <div className="note-image-frame" ref={frame} style={width ? { width: `${width}%` } : undefined}>
+    <NodeViewWrapper as="figure" className={`note-image ${selected ? 'is-selected' : ''}`} data-align={align} data-wrap={wrap || undefined} style={wrap ? { width: `${width}%` } : undefined}>
+      <div className="note-image-frame" ref={frame} style={width && !wrap ? { width: `${width}%` } : undefined}>
         {failed || !fileId ? (
           <span className="text-small text-muted">This image is no longer available.</span>
         ) : source ? (
-          <img alt={alt} src={source} />
+          <img alt={alt} data-drag-handle src={source} />
         ) : (
           <span aria-hidden="true" className="skeleton block h-40 w-full" />
         )}
@@ -142,8 +153,14 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
                   <AlignGlyph align={option} />
                 </GlyphButton>
               ))}
+              <ToolbarButton active={wrap} label="Wrap text around the image" onClick={() => updateAttributes({ wrap: !wrap, align: align === 'center' ? 'left' : align })}>Wrap</ToolbarButton>
+              {imageSizes.map(([size, label]) => (
+                <ToolbarButton active={width === size} key={size} label={`${label} image`} onClick={() => updateAttributes({ width: size })}>{label}</ToolbarButton>
+              ))}
+              <ToolbarButton label="Original size" onClick={() => updateAttributes({ width: null })}>Original</ToolbarButton>
               <ToolbarButton label="Describe the image" onClick={() => setDescribing(true)}>Alt text</ToolbarButton>
             </FloatingToolbar>
+            <span aria-hidden="true" className="note-image-resize" data-side="start" onPointerDown={resize} />
             <span
               aria-label="Image width"
               aria-valuemax={100}
@@ -151,7 +168,7 @@ function StoredImage({ editor, node, selected, updateAttributes }: NodeViewProps
               aria-valuenow={width ?? 100}
               aria-valuetext={`${width ?? 100}% of the page width`}
               className="note-image-resize"
-              data-side={align === 'right' ? 'start' : 'end'}
+              data-side="end"
               onKeyDown={nudge}
               onPointerDown={resize}
               role="slider"
@@ -190,6 +207,11 @@ export const StoredImageExtension = Image.extend({
         default: 'center',
         parseHTML: (element: HTMLElement) => alignmentOf(element.getAttribute('data-align')),
         renderHTML: (attributes: { align?: string }) => ({ 'data-align': attributes.align }),
+      },
+      wrap: {
+        default: false,
+        parseHTML: (element: HTMLElement) => element.hasAttribute('data-wrap'),
+        renderHTML: (attributes: { wrap?: boolean }) => (attributes.wrap ? { 'data-wrap': '' } : {}),
       },
       caption: {
         default: null,
