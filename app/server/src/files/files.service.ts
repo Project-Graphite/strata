@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SiteSettingsService } from '../site/site-settings.service';
 import { inspectFile, inlineTypes } from './file-inspection';
 import { FileStore } from './file-store';
+import { DriveService } from './drive.service';
 
 export const maxFileBytes = 25 * 1024 * 1024;
 const megabyte = 1024 * 1024;
@@ -23,7 +24,6 @@ function storageFields(userId: string) {
     originalName: true,
     mimeType: true,
     sizeBytes: true,
-    public: true,
     createdAt: true,
     item: {
       select: {
@@ -51,10 +51,12 @@ export class FilesService {
     private readonly items: ItemsService,
     private readonly site: SiteSettingsService,
     private readonly store: FileStore,
+    private readonly drive: DriveService,
   ) {}
 
-  async upload(userId: string, spaceId: string | null, name: string, data: Buffer) {
+  async upload(userId: string, spaceId: string | null, name: string, data: Buffer, folderId?: string) {
     if (spaceId) await this.access.assertSpace(userId, spaceId, 'edit');
+    if (folderId) await this.drive.ownedFolder(userId, folderId);
     const file = inspectFile(data, name);
     if (!file) {
       throw new UnsupportedMediaTypeException(
@@ -79,7 +81,7 @@ export class FilesService {
         });
         const created = await transaction.item.create({
           data: {
-            ...(spaceId ? { spaceId } : { ownerId: userId }),
+            ...(spaceId ? { spaceId } : { ownerId: userId, folderId: folderId ?? null }),
             kind: ItemKind.FILE,
             title: name,
             createdById: userId,
@@ -138,22 +140,10 @@ export class FilesService {
           name: file.originalName,
           mimeType: file.mimeType,
           sizeBytes: file.sizeBytes,
-          public: file.public,
           createdAt: file.createdAt,
         };
       }),
     };
-  }
-
-  async setPublic(userId: string, itemId: string, shared: boolean) {
-    if (!(await this.prisma.file.count({ where: { itemId, item: { ownerId: userId, trashedAt: null } } }))) {
-      throw new NotFoundException('Only files in your own library can go in your public folder');
-    }
-    await this.prisma.$transaction([
-      this.prisma.file.update({ where: { itemId }, data: { public: shared } }),
-      ...(shared ? [] : [this.prisma.shareLink.updateMany({ where: { itemId, revokedAt: null }, data: { revokedAt: new Date(), slug: null } })]),
-    ]);
-    return { id: itemId, public: shared };
   }
 
   async download(userId: string, itemId: string) {

@@ -1,12 +1,11 @@
 import {
   BadRequestException,
-  Body,
   Controller,
   Get,
   Headers,
   Param,
-  Patch,
   Post,
+  Query,
   Req,
   Res,
   StreamableFile,
@@ -18,7 +17,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { readBody } from '../http/read-body';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { UpdateFileDto } from './dto/files.dto';
+import { DriveQueryDto } from './dto/files.dto';
 import { fileHeaders, FilesService, maxFileBytes } from './files.service';
 import { UploadQueue } from './upload-queue';
 
@@ -76,11 +75,11 @@ export class FilesController {
   @Post('me/files')
   @Scope('items:write')
   @RateLimit('upload', 200, 86_400)
-  async uploadMine(@CurrentUser() user: AuthenticatedUser, @Headers('x-file-name') name: string | undefined, @Req() request: Request) {
+  async uploadMine(@CurrentUser() user: AuthenticatedUser, @Headers('x-file-name') name: string | undefined, @Req() request: Request, @Query() query: DriveQueryDto) {
     const read = uploadedFile(request, name);
     return this.uploads.run(user.id, async () => {
       const file = await read();
-      return this.files.upload(user.id, null, file.name, file.data);
+      return this.files.upload(user.id, null, file.name, file.data, query.folderId);
     });
   }
 
@@ -88,12 +87,6 @@ export class FilesController {
   @Scope('items:read')
   storage(@CurrentUser() user: AuthenticatedUser) {
     return this.files.storage(user.id);
-  }
-
-  @Patch('files/:id')
-  @Scope('items:write')
-  update(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateFileDto) {
-    return this.files.setPublic(user.id, id, input.public);
   }
 
   @Get('files/:id')

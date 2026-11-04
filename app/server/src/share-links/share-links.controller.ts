@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Res, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { DriveQueryDto } from '../files/dto/files.dto';
 import { fileHeaders } from '../files/files.service';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { ShareCodeDto } from '../validation/link-code.dto';
@@ -55,6 +56,13 @@ export class ShareLinksController {
   @RateLimit('share-open', 120, 3_600)
   open(@Param() input: ShareCodeDto) {
     return this.shareLinks.open(input.code);
+  }
+
+  @Public()
+  @Get('share/:code/folder')
+  @RateLimit('share-open', 120, 3_600)
+  folder(@Param() input: ShareCodeDto, @Query() query: DriveQueryDto) {
+    return this.shareLinks.folder(input.code, query.folderId);
   }
 
   @Public()

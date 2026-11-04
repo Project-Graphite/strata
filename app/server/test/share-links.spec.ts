@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { ShareLinksService } from '../src/share-links/share-links.service';
 
-function service(kind: ItemKind, trashedAt: Date | null = null, database = false, publicFile = false) {
+function service(kind: ItemKind, trashedAt: Date | null = null, database = false) {
   const id = kind === ItemKind.FILE ? 'file' : 'page';
-  const file = kind === ItemKind.FILE ? { originalName: 'plan.pdf', mimeType: 'application/pdf', sizeBytes: 10, public: publicFile } : null;
+  const file = kind === ItemKind.FILE ? { originalName: 'plan.pdf', mimeType: 'application/pdf', sizeBytes: 10 } : null;
   const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, createdAt: new Date() }));
   const documents = new Map<string, Y.Doc>();
   const read = vi.fn(async () => Buffer.from('image'));
@@ -36,6 +36,7 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
       { hocuspocus: { documents } } as never,
       { assertPage: async () => ({ trashedAt }) } as never,
       audit as never,
+      {} as never,
     ),
     audit,
   };
@@ -69,14 +70,12 @@ describe('page share links', () => {
     await expect(shared.links.create('member', 'page', { access: 'view', slug: 'taken' })).rejects.toThrow('That link name is taken');
   });
 
-  it('shares and serves files only while they are in the public folder', async () => {
-    await expect(service(ItemKind.FILE).links.create('member', 'file', { access: 'view' })).rejects.toThrow('Move this file to your public folder');
-    const shared = service(ItemKind.FILE, null, false, true);
+  it('shares and serves any file you own, but only for viewing', async () => {
+    const shared = service(ItemKind.FILE);
     expect(await shared.links.create('member', 'file', { access: 'view', expiresInMinutes: null })).toMatchObject({ expiresAt: null });
     expect((await shared.links.open('code')).content).toEqual({ kind: 'file', id: 'file', name: 'plan.pdf', mimeType: 'application/pdf', sizeBytes: 10 });
     expect(await shared.links.file('code', 'file')).toEqual(Buffer.from('image'));
     await expect(shared.links.create('member', 'file', { access: 'edit' })).rejects.toThrow('Only pages and boards');
-    expect((await service(ItemKind.FILE).links.open('code')).content).toBeNull();
   });
 
   it('continues to reject edit links for events and trashed pages', async () => {

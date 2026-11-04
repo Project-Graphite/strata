@@ -31,6 +31,51 @@ describe('The file store against Postgres', () => {
 
   afterAll(() => strata.prisma.siteSettings.deleteMany({ where: { id: 1 } }));
 
+  it('keeps files in nested folders, moves and trashes them together and shares a folder by link', async () => {
+    const owner = await member('drive-owner');
+    const other = await member('drive-other');
+    const intoFolder = (folderId: string | null, name: string, note: string) =>
+      fetch(`${strata.base}/me/files${folderId ? `?folderId=${folderId}` : ''}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'image/png', 'X-File-Name': name },
+        body: new Uint8Array(png(note, `${note} pixels`)),
+      }).then((reply) => reply.json());
+    const names = (reply: { body: { entries: { name: string }[] } }) => reply.body.entries.map((entry) => entry.name);
+
+    const work = (await owner.call('POST', '/me/folders', { name: 'Work' })).body;
+    const reports = (await owner.call('POST', '/me/folders', { name: 'Reports', parentId: work.id })).body;
+    expect(work).toMatchObject({ kind: 'folder', name: 'Work', shared: false });
+    expect((await other.call('POST', '/me/folders', { name: 'Sneaky', parentId: work.id })).status).toBe(404);
+    const loose = await intoFolder(null, 'loose.png', 'loose');
+    const report = await intoFolder(reports.id, 'q3.png', 'q3');
+    const outside = await intoFolder(null, 'outside.png', 'outside');
+
+    expect(names(await owner.call('GET', '/me/drive'))).toEqual(['Work', 'loose.png', 'outside.png']);
+    expect((await owner.call('GET', `/me/drive?folderId=${reports.id}`)).body).toMatchObject({ path: [{ id: work.id, name: 'Work' }, { id: reports.id, name: 'Reports' }], entries: [{ id: report.id, kind: 'file' }] });
+    expect((await other.call('GET', `/me/drive?folderId=${work.id}`)).status).toBe(404);
+
+    expect((await owner.call('POST', '/me/drive/move', { itemIds: [work.id], folderId: reports.id })).status).toBe(400);
+    expect((await owner.call('POST', '/me/drive/move', { itemIds: [loose.id], folderId: work.id })).status).toBe(204);
+    expect(names(await owner.call('GET', `/me/drive?folderId=${work.id}`))).toEqual(['Reports', 'loose.png']);
+    expect((await owner.call('PATCH', `/me/drive/${loose.id}`, { name: 'renamed.png' })).body).toMatchObject({ name: 'renamed.png' });
+
+    const link = (await owner.call('POST', `/items/${work.id}/share-links`, { access: 'view' })).body;
+    const code = link.slug;
+    expect((await strata.anonymous('GET', `/share/${code}`)).body.content).toEqual({ kind: 'folder', id: work.id, name: 'Work' });
+    expect(names(await strata.anonymous('GET', `/share/${code}/folder`))).toEqual(['Reports', 'renamed.png']);
+    expect((await strata.anonymous('GET', `/share/${code}/folder?folderId=${reports.id}`)).body.path.map((step: { name: string }) => step.name)).toEqual(['Work', 'Reports']);
+    expect((await fetch(`${strata.base}/share/${code}/files/${report.id}`)).status).toBe(200);
+    expect((await fetch(`${strata.base}/share/${code}/files/${outside.id}`)).status).toBe(404);
+    expect((await strata.anonymous('GET', `/share/${code}/folder?folderId=${outside.id}`)).status).toBe(404);
+    expect((await owner.call('GET', '/me/drive')).body.entries.find((entry: { id: string }) => entry.id === work.id).shared).toBe(true);
+
+    expect((await owner.call('POST', '/me/drive/trash', { itemIds: [work.id, outside.id] })).status).toBe(204);
+    expect(names(await owner.call('GET', '/me/drive'))).toEqual([]);
+    expect((await fetch(`${strata.base}/share/${code}/files/${report.id}`)).status).toBe(404);
+    expect((await owner.call('POST', '/me/drive/restore', { itemIds: [work.id] })).status).toBe(204);
+    expect(names(await owner.call('GET', '/me/drive'))).toEqual(['Work']);
+  });
+
   it('lets page recipients read only files attached to that page and stops access after revocation', async () => {
     const owner = await member('page-file-owner');
     const recipient = await member('page-file-reader');

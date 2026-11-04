@@ -29,6 +29,7 @@ enum ItemKind {
   GOAL     @map("goal")
   PERSON   @map("person")
   RECIPE   @map("recipe")
+  FOLDER   @map("folder")
 }
 
 enum LinkKind {
@@ -284,6 +285,7 @@ model Item {
   id             String            @id @default(uuid()) @db.Uuid
   spaceId        String?           @map("space_id") @db.Uuid
   ownerId        String?           @map("owner_id") @db.Uuid
+  folderId       String?           @map("folder_id") @db.Uuid
   kind           ItemKind
   title          String            @default("")
   createdById    String?           @map("created_by") @db.Uuid
@@ -294,6 +296,8 @@ model Item {
   updatedAt      DateTime          @updatedAt @map("updated_at")
   space          Space?            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   owner          User?             @relation("OwnedItems", fields: [ownerId], references: [id], onDelete: Cascade)
+  folder         Item?             @relation("FolderContents", fields: [folderId], references: [id], onDelete: Cascade)
+  contents       Item[]            @relation("FolderContents")
   createdBy      User?             @relation("CreatedItems", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy      User?             @relation("UpdatedItems", fields: [updatedById], references: [id], onDelete: SetNull)
   tags           ItemTag[]
@@ -331,6 +335,7 @@ model Item {
 
   @@index([spaceId, updatedAt])
   @@index([ownerId, kind, updatedAt])
+  @@index([folderId])
   @@map("items")
 }
 
@@ -552,7 +557,6 @@ model File {
   width        Int?
   height       Int?
   uploadedById String?  @map("uploaded_by") @db.Uuid
-  public       Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
   item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
   blob         FileBlob @relation(fields: [sha256], references: [sha256], onDelete: Restrict)
