@@ -55,7 +55,7 @@ interface AuthContextValue {
     invite?: string;
   }): Promise<void>;
   verify(token: string): Promise<void>;
-  login(email: string, password: string): Promise<{ challenge: string } | undefined>;
+  login(login: string, password: string): Promise<{ challenge: string } | undefined>;
   completeTwoStep(challenge: string, code: string): Promise<void>;
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
@@ -164,10 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ token }),
         });
       },
-      login: async (email, password) => {
+      login: async (login, password) => {
         const result = await apiRequest<Session | { twoStep: true; challenge: string }>('/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ login, password }),
         });
         if ('challenge' in result) return { challenge: result.challenge };
         applySession(result);

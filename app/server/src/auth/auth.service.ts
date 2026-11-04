@@ -199,19 +199,21 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(input: LoginDto, device: Device) {
-    await this.attempts.assertAllowed(input.email, device.address);
+    const identifier = input.login ?? input.email!;
     const user = await this.prisma.user.findUnique({
-      where: { email: input.email },
+      where: identifier.includes('@') ? { email: identifier } : { handle: identifier },
     });
+    const account = user?.email ?? identifier;
+    await this.attempts.assertAllowed(account, device.address);
     if (!user) {
       this.unknownAccountHash ??= this.passwords.hash(randomBytes(16).toString('hex'));
       await this.passwords.verify(input.password, await this.unknownAccountHash);
-      await this.attempts.failed(input.email, device.address);
+      await this.attempts.failed(account, device.address);
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!(await this.passwords.verify(input.password, user.passwordHash))) {
       await this.audit.record(user.id, 'sign_in_failed', { reason: 'password', device: device.label });
-      await this.attempts.failed(input.email, device.address);
+      await this.attempts.failed(account, device.address);
       throw new UnauthorizedException('Email or password is incorrect');
     }
     if (!user.verifiedAt) {
@@ -231,7 +233,7 @@ export class AuthService implements OnModuleInit {
       });
       return { challenge };
     }
-    await this.attempts.clear(input.email);
+    await this.attempts.clear(account);
     return { session: await this.issueSession(user, device, { alertNewDevice: true }) };
   }
 

@@ -4,7 +4,7 @@ import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Page } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
-import { emailAddress, required, useFormErrors } from '../validation';
+import { required, useFormErrors } from '../validation';
 
 const unverified = 'Verify your email before signing in';
 
@@ -80,7 +80,7 @@ export function LoginPage() {
     setError('');
     if (
       !form.check(event.currentTarget, {
-        email: [required('Enter your email address.'), emailAddress],
+        login: [required('Enter your email or handle.')],
         password: [required('Enter your password.')],
       })
     ) {
@@ -88,8 +88,8 @@ export function LoginPage() {
     }
     setBusy(true);
     const values = new FormData(event.currentTarget);
-    const submitted = String(values.get('email')).trim();
-    setEmail(submitted);
+    const submitted = String(values.get('login')).trim();
+    setEmail(submitted.includes('@') && !submitted.startsWith('@') ? submitted : '');
     try {
       const result = await auth.login(submitted, String(values.get('password')));
       if (result) {
@@ -109,12 +109,12 @@ export function LoginPage() {
   return (
     <Page title="Sign in" variant="panel">
       <form className="mt-8 grid gap-5" noValidate onSubmit={submit}>
-        <TextField autoComplete="email" inputMode="email" label="Email" type="email" {...form.field('email')} />
+        <TextField autoCapitalize="none" autoComplete="username" label="Email or handle" spellCheck={false} {...form.field('login')} />
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
         {error && <Banner tone="danger">{error}</Banner>}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
       </form>
-      {error === unverified && <ResendVerification email={email} key={email} />}
+      {error === unverified && email && <ResendVerification email={email} key={email} />}
       <p className="mt-6 text-small text-muted">
         <TextLink href="/forgot-password">Forgot your password?</TextLink>
       </p>
