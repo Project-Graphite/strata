@@ -534,6 +534,7 @@ model File {
   width        Int?
   height       Int?
   uploadedById String?  @map("uploaded_by") @db.Uuid
+  public       Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
   item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
   blob         FileBlob @relation(fields: [sha256], references: [sha256], onDelete: Restrict)

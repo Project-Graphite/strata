@@ -23,6 +23,7 @@ function storageFields(userId: string) {
     originalName: true,
     mimeType: true,
     sizeBytes: true,
+    public: true,
     createdAt: true,
     item: {
       select: {
@@ -137,10 +138,22 @@ export class FilesService {
           name: file.originalName,
           mimeType: file.mimeType,
           sizeBytes: file.sizeBytes,
+          public: file.public,
           createdAt: file.createdAt,
         };
       }),
     };
+  }
+
+  async setPublic(userId: string, itemId: string, shared: boolean) {
+    if (!(await this.prisma.file.count({ where: { itemId, item: { ownerId: userId, trashedAt: null } } }))) {
+      throw new NotFoundException('Only files in your own library can go in your public folder');
+    }
+    await this.prisma.$transaction([
+      this.prisma.file.update({ where: { itemId }, data: { public: shared } }),
+      ...(shared ? [] : [this.prisma.shareLink.updateMany({ where: { itemId, revokedAt: null }, data: { revokedAt: new Date(), slug: null } })]),
+    ]);
+    return { id: itemId, public: shared };
   }
 
   async download(userId: string, itemId: string) {

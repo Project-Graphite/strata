@@ -13,6 +13,7 @@ import { Page, useDocumentTitle } from '../components/Page';
 import { LoadError } from '../components/LoadError';
 import { ButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { FileSourceContext, sharedFiles } from '../components/file-source';
+import { SharedFile, type SharedFileDetails } from '../components/SharedFile';
 import { noteChecks } from '../invitations';
 import { noteTitle } from '../notes';
 import { useAction } from '../useAction';
@@ -22,7 +23,7 @@ import { required, useFormErrors } from '../validation';
 const SharedDocument = lazy(() => import('../components/SharedDocument'));
 const SharedBoard = lazy(() => import('../components/SharedBoard'));
 
-type SharedContent = { kind: 'note' | 'board'; id: string; database?: boolean } | null;
+type SharedContent = { kind: 'note' | 'board'; id: string; database?: boolean } | ({ kind: 'file' } & SharedFileDetails) | null;
 
 function EventPanel({ children, event, undecided }: { children: ReactNode; event: PublicEvent; undecided: boolean }) {
   return (
@@ -181,7 +182,7 @@ export function SharePage() {
     `/share/${encodeURIComponent(code)}`,
   );
   const content = shared.data?.content;
-  const ownAccess = useResource<{ permissions: { edit: boolean } }>(user && content ? `/notes/${content.id}` : null, true);
+  const ownAccess = useResource<{ permissions: { edit: boolean } }>(user && content && content.kind !== 'file' ? `/notes/${content.id}` : null, true);
   const answering = useAction();
   const form = useFormErrors();
   const [unanswered, setUnanswered] = useState(false);
@@ -221,6 +222,7 @@ export function SharePage() {
   }
   if (!shared.data.event) {
     const { access, content, item } = shared.data;
+    if (content?.kind === 'file') return <SharedFile code={code} file={content} />;
     if (content?.kind === 'board') {
       return (
         <FileSourceContext.Provider value={files}>

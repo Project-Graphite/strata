@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { ShareLinksService } from '../src/share-links/share-links.service';
 
-function service(kind: ItemKind, trashedAt: Date | null = null, database = false) {
+function service(kind: ItemKind, trashedAt: Date | null = null, database = false, publicFile = false) {
+  const id = kind === ItemKind.FILE ? 'file' : 'page';
+  const file = kind === ItemKind.FILE ? { originalName: 'plan.pdf', mimeType: 'application/pdf', sizeBytes: 10, public: publicFile } : null;
   const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, createdAt: new Date() }));
   const documents = new Map<string, Y.Doc>();
   const read = vi.fn(async () => Buffer.from('image'));
@@ -16,7 +18,7 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
       {
         item: {
           findUnique: async () => ({ kind }),
-          findUniqueOrThrow: async () => ({ kind }),
+          findUniqueOrThrow: async () => ({ kind, file }),
           findFirst: async ({ where }: { where: { id: string; spaceId: string; kind: ItemKind; trashedAt: null } }) =>
             where.id === 'attached' && where.spaceId === 'space' && where.kind === ItemKind.FILE && where.trashedAt === null ? { id: 'attached' } : null,
         },
@@ -24,7 +26,7 @@ function service(kind: ItemKind, trashedAt: Date | null = null, database = false
         shareLink: {
           create,
           updateMany: async () => ({ count: 0 }),
-          findFirst: async () => ({ access: 'VIEW', itemId: 'page', item: { id: 'page', spaceId: 'space', kind, title: 'Shared', event: null, pollOptions: [], noteDocument: null, databaseSchema: database ? { itemId: 'page', properties: [{ id: 'secret' }], rows: [{ title: 'Private row' }] } : null } }),
+          findFirst: async () => ({ access: 'VIEW', itemId: id, item: { id, spaceId: 'space', kind, title: 'Shared', event: null, pollOptions: [], noteDocument: null, file, databaseSchema: database ? { itemId: 'page', properties: [{ id: 'secret' }], rows: [{ title: 'Private row' }] } : null } }),
         },
       } as never,
       { assertItem: async () => ({ trashedAt }) } as never,
@@ -65,6 +67,16 @@ describe('page share links', () => {
     const shared = service(ItemKind.NOTE);
     shared.create.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }));
     await expect(shared.links.create('member', 'page', { access: 'view', slug: 'taken' })).rejects.toThrow('That link name is taken');
+  });
+
+  it('shares and serves files only while they are in the public folder', async () => {
+    await expect(service(ItemKind.FILE).links.create('member', 'file', { access: 'view' })).rejects.toThrow('Move this file to your public folder');
+    const shared = service(ItemKind.FILE, null, false, true);
+    expect(await shared.links.create('member', 'file', { access: 'view', expiresInMinutes: null })).toMatchObject({ expiresAt: null });
+    expect((await shared.links.open('code')).content).toEqual({ kind: 'file', id: 'file', name: 'plan.pdf', mimeType: 'application/pdf', sizeBytes: 10 });
+    expect(await shared.links.file('code', 'file')).toEqual(Buffer.from('image'));
+    await expect(shared.links.create('member', 'file', { access: 'edit' })).rejects.toThrow('Only pages and boards');
+    expect((await service(ItemKind.FILE).links.open('code')).content).toBeNull();
   });
 
   it('continues to reject edit links for events and trashed pages', async () => {
