@@ -1,13 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { fileHeaders } from '../files/files.service';
 import { RateLimit } from '../redis/rate-limit.guard';
-import { LinkCodeDto } from '../validation/link-code.dto';
+import { ShareCodeDto } from '../validation/link-code.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateShareLinkDto, SharedFileParamsDto } from './dto/share-links.dto';
+import { CreateShareLinkDto, RenameShareLinkDto, SharedFileParamsDto } from './dto/share-links.dto';
 import { ShareLinksService } from './share-links.service';
 import { Public } from '../auth/public.decorator';
 
@@ -28,6 +28,17 @@ export class ShareLinksController {
     return this.shareLinks.list(user.id, id);
   }
 
+  @Patch('items/:id/share-links/:linkId')
+  @Scope('items:write')
+  rename(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', UuidPipe) id: string,
+    @Param('linkId', UuidPipe) linkId: string,
+    @Body() input: RenameShareLinkDto,
+  ) {
+    return this.shareLinks.rename(user.id, id, linkId, input);
+  }
+
   @Delete('items/:id/share-links/:linkId')
   @HttpCode(204)
   @Scope('items:write')
@@ -42,7 +53,7 @@ export class ShareLinksController {
   @Public()
   @Get('share/:code')
   @RateLimit('share-open', 120, 3_600)
-  open(@Param() input: LinkCodeDto) {
+  open(@Param() input: ShareCodeDto) {
     return this.shareLinks.open(input.code);
   }
 

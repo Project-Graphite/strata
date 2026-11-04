@@ -17,7 +17,7 @@ export function LiveDocumentStatus({ onDownload, onDownloadDraft, presenceAction
   return (
     <div className="live-document-status">
       <div className="live-document-summary">
-        <LivePresence actions={presenceActions} people={status.people} />
+        <LivePresence actions={presenceActions} onRemove={status.remove} people={status.people} />
         <span aria-atomic="true" className="live-save-status" data-busy={label === 'Saving…' || label === 'Connecting…'} data-saved={label === 'Saved'} role="status">
           <span aria-hidden="true" className="live-save-indicator" />
           <span>{label}</span>

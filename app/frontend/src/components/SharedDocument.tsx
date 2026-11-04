@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LinesSkeleton } from '@project-graphite/ui';
+import { AwayCheck, LeftSharedPage } from './AwayCheck';
 import { ClosedShareLink } from './ClosedShareLink';
 import { FileSourceContext, sharedFiles } from './file-source';
 import { useLiveDocument } from './live-document';
@@ -19,10 +20,12 @@ export default function SharedDocument({ code, editable, noteId, onTitle }: { co
     };
   }, [connection]);
   if (connection?.refused === 'closed') return <ClosedShareLink />;
+  if (connection?.refused === 'removed' || connection?.refused === 'inactive') return <LeftSharedPage connection={connection} />;
   if (!connection || (!ready && !connection.refused)) return <LinesSkeleton label="Loading the page" lines={6} />;
   return (
     <FileSourceContext.Provider value={files}>
       <CollaborativeEditor connection={connection} editable={editable} noteId={noteId} quick={false} spaceId="" />
+      <AwayCheck connection={connection} />
     </FileSourceContext.Provider>
   );
 }

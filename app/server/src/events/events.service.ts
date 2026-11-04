@@ -11,6 +11,7 @@ import { dateText, dateValue, dayMs, localDate, readableDay } from '../recurrenc
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { birthdaysBetween } from '../people/birthdays';
+import { liveShareLink } from '../share-links/live-share-link';
 import { addMonths, dueDates, nextCardDue } from '../spending/installments.service';
 import { CreateEventDto, InviteGuestDto, OpenRsvpDto, RsvpDto, UpdateEventDto } from './dto/events.dto';
 
@@ -372,7 +373,7 @@ export class EventsService implements OnModuleInit {
 
   async rsvpByShareLink(code: string, input: OpenRsvpDto) {
     const link = await this.prisma.shareLink.findFirst({
-      where: { tokenHash: linkTokenHash(code), revokedAt: null, expiresAt: { gt: new Date() }, item: { trashedAt: null, kind: ItemKind.EVENT } },
+      where: { ...liveShareLink(code), item: { trashedAt: null, kind: ItemKind.EVENT } },
       select: { itemId: true },
     });
     if (!link) throw new NotFoundException('This link has expired or was turned off');

@@ -941,6 +941,14 @@
   user-select: none;
 }
 
+:root[data-hide-collaborators] .collaboration-carets__caret {
+  display: none;
+}
+
+:root[data-hide-collaborators] .ProseMirror-yjs-selection {
+  background-color: transparent !important;
+}
+
 .note-content .mention {
   border-radius: var(--radius-field);
   background: var(--color-line-soft);

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { Banner, LinesSkeleton, Placeholder, Radio, Skeleton, TextAreaField, TextField } from '@project-graphite/ui';
 import { eventWhen, type Guest, type PublicEvent } from '../agenda';
 import { apiRequest } from '../api';
+import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { ClosedShareLink } from '../components/ClosedShareLink';
 import { PollOptions, type PollAnswer, type PollOption } from '../components/DatePoll';
@@ -173,11 +174,14 @@ export function RsvpPage() {
 
 export function SharePage() {
   const { code = '' } = useParams();
+  const { user } = useAuth();
   const files = useMemo(() => sharedFiles(code), [code]);
   const navigate = useNavigate();
   const shared = useResource<{ access: string; item: { kind: string; title: string }; event: PublicEvent | null; datePoll: boolean; content: SharedContent }>(
     `/share/${encodeURIComponent(code)}`,
   );
+  const content = shared.data?.content;
+  const ownAccess = useResource<{ permissions: { edit: boolean } }>(user && content ? `/notes/${content.id}` : null, true);
   const answering = useAction();
   const form = useFormErrors();
   const [unanswered, setUnanswered] = useState(false);
@@ -187,7 +191,8 @@ export function SharePage() {
     shared.mutate((current) => ({ ...current, item: { ...current.item, title } }));
   }
 
-  if (shared.loading) {
+  if (content && ownAccess.data && (ownAccess.data.permissions.edit || shared.data?.access !== 'edit')) return <Navigate replace to={`/${content.kind === 'board' ? 'boards' : 'pages'}/${content.id}`} />;
+  if (shared.loading || ownAccess.loading) {
     return (
       <section className="page-enter grid w-full max-w-narrow gap-6">
         <div>
