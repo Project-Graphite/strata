@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Icon, Placeholder, Skeleton } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
-import { taskDetails, TaskListFooter, TaskRow, useAllTasks, useWeekStart, type Task, type TaskLink, type TaskView } from '../tasks';
+import { taskDetails, TaskListFooter, TaskRow, useAllTasks, useWeekStart, type Task, type TaskColumn, type TaskLink, type TaskView } from '../tasks';
+import type { NestedMenuItem } from './NestedMenu';
 import { useResource } from '../useResource';
 import { Button } from './Button';
 import { Empty } from './Empty';
@@ -14,6 +15,8 @@ import { TaskBoard, TaskGroups, useTaskChanges } from './TaskViews';
 
 export function TaskPanel({
   addTo,
+  columnActions,
+  columns,
   completed,
   creating,
   editable,
@@ -33,6 +36,8 @@ export function TaskPanel({
   where,
 }: {
   addTo?: { spaceId: string; listId?: string };
+  columnActions?: (column: TaskColumn) => NestedMenuItem[];
+  columns: TaskColumn[];
   completed: boolean;
   creating: boolean;
   editable: (task: Task) => boolean;
@@ -117,6 +122,8 @@ export function TaskPanel({
           {board ? (
             <TaskBoard
               changes={changes}
+              columnActions={columnActions}
+              columns={columns}
               editable={editable}
               finished={{ shown: finished.data!.results.length, total: finished.data!.totalResults, href: link({ completed: true, page: 1, view: 'list' }) }}
               onAdd={addTo ? setAddingTo : undefined}

@@ -171,6 +171,34 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('GET', `/items/${api.id}/links`)).body.outgoing).toEqual([]);
   });
 
+  it('adds board columns to a space, keeps their tasks in progress and drops them back when a column goes', async () => {
+    const owner = await member('qa-lead');
+    const viewer = await member('qa-watcher');
+    const outsider = await member('qa-stranger');
+    const team = (await owner.call('POST', '/spaces', { name: 'Release' })).body;
+    await strata.join(team.id, viewer, SpaceRole.VIEWER);
+    const qa = await owner.call('POST', `/spaces/${team.id}/task-columns`, { name: 'QA' });
+    expect(qa.status).toBe(201);
+    expect((await owner.call('POST', `/spaces/${team.id}/task-columns`, { name: 'QA' })).status).toBe(409);
+    expect((await viewer.call('POST', `/spaces/${team.id}/task-columns`, { name: 'Review' })).status).toBe(403);
+    const elsewhere = (await outsider.call('POST', `/spaces/${outsider.personalSpaceId}/task-columns`, { name: 'Theirs' })).body;
+
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Check the build', columnId: qa.body.id })).body;
+    expect(task).toMatchObject({ status: 'in_progress', columnId: qa.body.id });
+    expect((await owner.call('PATCH', `/tasks/${task.id}`, { columnId: elsewhere.id })).status).toBe(400);
+    expect((await owner.call('PATCH', `/tasks/${task.id}`, { status: 'open' })).body).toMatchObject({ status: 'open', columnId: null });
+    await owner.call('PATCH', `/tasks/${task.id}`, { columnId: qa.body.id });
+    expect((await owner.call('POST', `/tasks/${task.id}/complete`)).body).toMatchObject({ columnId: null });
+    await owner.call('POST', `/tasks/${task.id}/reopen`);
+    await owner.call('PATCH', `/tasks/${task.id}`, { columnId: qa.body.id });
+
+    expect((await owner.call('PATCH', `/task-columns/${qa.body.id}`, { name: 'Testing' })).body).toMatchObject({ name: 'Testing' });
+    expect((await viewer.call('GET', `/spaces/${team.id}/task-columns`)).body).toEqual([expect.objectContaining({ id: qa.body.id, name: 'Testing' })]);
+    expect((await owner.call('GET', '/me/task-columns')).body.map((column: { name: string }) => column.name)).toEqual(['Testing']);
+    expect((await owner.call('DELETE', `/task-columns/${qa.body.id}`)).status).toBe(204);
+    expect((await owner.call('GET', `/tasks/${task.id}`)).body).toMatchObject({ status: 'in_progress', columnId: null });
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

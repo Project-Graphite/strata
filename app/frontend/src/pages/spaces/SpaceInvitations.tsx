@@ -8,13 +8,10 @@ import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { required, useFormErrors } from '../../validation';
 import { ActionsMenu } from '../../components/ActionsMenu';
-import { Empty } from '../../components/Empty';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
-
-const emptyPending = { title: 'No invites waiting', hint: 'People you invite show up here until they accept.' };
 
 const invitee = (invitation: SentInvitation) => (invitation.invitee ? `${invitation.invitee.displayName} (@${invitation.invitee.handle})` : (invitation.email ?? 'Invite link'));
 
@@ -24,6 +21,7 @@ export function SpaceInvitations({ space }: { space: Space }) {
   const { report } = useAction();
   const [withdrawing, setWithdrawing] = useState<SentInvitation>();
   const [rows] = useRememberedShape(`space-invitations-${space.id}`, pending.data && [pending.data.length], [0]);
+  if (pending.data?.length === 0 || (!pending.data && !pending.error && !rows)) return null;
 
   return (
     <Section title="Waiting for an answer">
@@ -31,16 +29,8 @@ export function SpaceInvitations({ space }: { space: Space }) {
         <LoadError compact error={pending.error} onRetry={pending.reload} />
       ) : !pending.data ? (
         <Placeholder label="Loading the invites waiting for an answer">
-          {rows ? (
-            <RowsSkeleton rows={rows} trail={<IconButtonSkeleton />} />
-          ) : (
-            <Empty loading title={emptyPending.title}>
-              {emptyPending.hint}
-            </Empty>
-          )}
+          <RowsSkeleton rows={rows} trail={<IconButtonSkeleton />} />
         </Placeholder>
-      ) : pending.data.length === 0 ? (
-        <Empty title={emptyPending.title}>{emptyPending.hint}</Empty>
       ) : (
         <ul className="panel-rows">
           {pending.data.map((invitation) => (

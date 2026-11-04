@@ -30,6 +30,13 @@ export class CreateListDto {
   title!: string;
 }
 
+export class TaskColumnDto {
+  @Trimmed()
+  @IsString()
+  @Length(1, 30, { message: 'Column names are 1 to 30 characters long.' })
+  name!: string;
+}
+
 export class TaskFieldsDto {
   @IsOptional()
   @ValidateIf((_input, value) => !nullable(value))
@@ -93,6 +100,11 @@ export class TaskFieldsDto {
   @IsString()
   @Length(1, 30, { message: 'Task types are 1 to 30 characters long.' })
   type?: string;
+
+  @IsOptional()
+  @ValidateIf((_input, value) => !nullable(value))
+  @IsUUID('all', { message: 'Choose a column from this space.' })
+  columnId?: string | null;
 
   @IsOptional()
   @ValidateIf((_input, value) => !nullable(value))

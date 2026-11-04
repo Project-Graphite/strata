@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ItemKind, Prisma, TaskStatus } from '@prisma/client';
 import { type Access, AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
@@ -10,13 +10,21 @@ import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { presentTag, tagFields } from '../tags/tags.service';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskColumnDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { uniqueViolation } from '../prisma/errors';
 import { builtInTaskTypes, taskType } from './task-type';
 import { positionBetween, positionGap } from './task-position';
 import { statusFields, statusOf } from './task-status';
 
 const pageSize = 100;
 const reminderKind = 'task.reminder';
+const maxColumns = 10;
+const columnFields = { id: true, spaceId: true, name: true, position: true } satisfies Prisma.TaskColumnSelect;
+
+function columnTaken(error: unknown): never {
+  if (uniqueViolation(error)) throw new ConflictException('This space already has a column with that name');
+  throw error;
+}
 
 const taskFields = {
   id: true,
@@ -41,6 +49,7 @@ const taskFields = {
       position: true,
       status: true,
       type: true,
+      columnId: true,
       completedAt: true,
       assignee: { select: { id: true, handle: true, displayName: true } },
     },
@@ -68,6 +77,7 @@ function present(row: TaskRow) {
     position: task.position,
     status: task.status.toLowerCase(),
     type: task.type,
+    columnId: task.columnId,
     labels: row.tags.map(({ tag }) => presentTag(tag)),
     subtaskCounts: { total: row.subtasks.length, done: row.subtasks.filter((subtask) => subtask.completedAt).length },
     assignee: task.assignee,
@@ -120,6 +130,47 @@ export class TasksService implements OnModuleInit {
     });
   }
 
+  async columns(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    return this.columnsIn({ spaceId });
+  }
+
+  myColumns(userId: string) {
+    return this.columnsIn({ space: this.access.spacesOf(userId) });
+  }
+
+  async createColumn(userId: string, spaceId: string, input: TaskColumnDto) {
+    await this.access.assertSpace(userId, spaceId, 'edit');
+    if ((await this.prisma.taskColumn.count({ where: { spaceId } })) >= maxColumns) throw new BadRequestException(`A space can have at most ${maxColumns} extra columns`);
+    const column = await this.prisma.taskColumn.create({ data: { spaceId, name: input.name, position: Date.now() }, select: columnFields }).catch(columnTaken);
+    this.changes.notify('tasks', { spaceId });
+    return column;
+  }
+
+  async renameColumn(userId: string, columnId: string, input: TaskColumnDto) {
+    const { spaceId } = await this.editableColumn(userId, columnId);
+    const column = await this.prisma.taskColumn.update({ where: { id: columnId }, data: { name: input.name }, select: columnFields }).catch(columnTaken);
+    this.changes.notify('tasks', { spaceId });
+    return column;
+  }
+
+  async removeColumn(userId: string, columnId: string) {
+    const { spaceId } = await this.editableColumn(userId, columnId);
+    await this.prisma.taskColumn.delete({ where: { id: columnId } });
+    this.changes.notify('tasks', { spaceId });
+  }
+
+  private async editableColumn(userId: string, columnId: string) {
+    const column = await this.prisma.taskColumn.findUnique({ where: { id: columnId }, select: { spaceId: true } });
+    if (!column) throw new NotFoundException('That column is already gone');
+    await this.access.assertSpace(userId, column.spaceId, 'edit');
+    return column;
+  }
+
+  private columnsIn(where: Prisma.TaskColumnWhereInput) {
+    return this.prisma.taskColumn.findMany({ where, orderBy: [{ position: 'asc' }, { id: 'asc' }], select: columnFields });
+  }
+
   async lists(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     return this.listsIn({ spaceId });
@@ -159,7 +210,7 @@ export class TasksService implements OnModuleInit {
           task: {
             create: {
               ...fields,
-              ...statusFields(input.status ? statusOf(input.status) : TaskStatus.OPEN, null),
+              ...statusFields(fields.columnId ? TaskStatus.IN_PROGRESS : input.status ? statusOf(input.status) : TaskStatus.OPEN, null),
               timeZone: fields.timeZone ?? user.timeZone,
               assigneeId: input.assigneeId === undefined ? userId : input.assigneeId,
               position: input.position ?? Date.now(),
@@ -316,7 +367,7 @@ export class TasksService implements OnModuleInit {
     await this.prisma.$transaction(async (transaction) => {
       await transaction.item.update({
         where: { id: itemId },
-        data: { title: input.title, updatedById: userId, task: { update: fields } },
+        data: { title: input.title, updatedById: userId, task: { update: { ...fields, ...(input.columnId === undefined && input.status ? { columnId: null } : {}) } } },
       });
       if (input.title !== undefined && input.title !== item.title) {
         await this.activity.record(transaction, {
@@ -327,7 +378,8 @@ export class TasksService implements OnModuleInit {
           data: { title: input.title, renamedFrom: item.title },
         });
       }
-      if (input.status) await this.changeStatus(transaction, userId, itemId, statusOf(input.status));
+      if (input.columnId) await this.changeStatus(transaction, userId, itemId, TaskStatus.IN_PROGRESS);
+      else if (input.status) await this.changeStatus(transaction, userId, itemId, statusOf(input.status));
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
     });
     this.changes.notify('tasks', { spaceId: item.spaceId });
@@ -365,7 +417,10 @@ export class TasksService implements OnModuleInit {
     const next = status === TaskStatus.DONE ? this.nextOccurrence(current) : null;
     await transaction.task.update({
       where: { itemId },
-      data: next ? { dueDate: dateValue(next.date), repeatRule: next.rule, ...statusFields(TaskStatus.OPEN, null) } : statusFields(status, current.completedAt),
+      data: {
+        ...(next ? { dueDate: dateValue(next.date), repeatRule: next.rule, ...statusFields(TaskStatus.OPEN, null) } : statusFields(status, current.completedAt)),
+        ...(status === TaskStatus.IN_PROGRESS ? {} : { columnId: null }),
+      },
     });
     await this.activity.record(transaction, {
       spaceId,
@@ -432,6 +487,9 @@ export class TasksService implements OnModuleInit {
         throw new BadRequestException('A task with sub-tasks cannot become a sub-task');
       }
     }
+    if (input.columnId && !(await this.prisma.taskColumn.count({ where: { id: input.columnId, spaceId } }))) {
+      throw new BadRequestException('Choose a column from this space');
+    }
     if (input.assigneeId) {
       const member = await this.prisma.spaceMember.count({ where: { spaceId, userId: input.assigneeId } });
       if (!member) throw new BadRequestException('Choose someone from this space');
@@ -449,6 +507,7 @@ export class TasksService implements OnModuleInit {
       repeatRule,
       reminderMinutes: input.reminderMinutes,
       assigneeId: input.assigneeId,
+      columnId: input.columnId,
       priority: input.priority,
       position: input.position,
       type: input.type === undefined ? undefined : await this.knownType(spaceId, taskType(input.type)),
