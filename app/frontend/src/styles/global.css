@@ -3763,6 +3763,14 @@ main.shell {
   color: var(--color-ink);
 }
 
+.mention-suggestions {
+  right: auto;
+  width: max-content;
+  min-width: 14rem;
+  max-width: min(20rem, 100%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
 .mention-token {
   border-radius: var(--radius-mark);
   background: color-mix(in srgb, var(--color-ink) 9%, transparent);

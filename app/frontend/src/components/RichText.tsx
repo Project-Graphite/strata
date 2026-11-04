@@ -174,7 +174,19 @@ export function RichTextEditor({
         <EditorContent editor={editor} />
       </div>
       {suggestions.length > 0 && (
-        <ul aria-label="People to mention" className="quick-suggestions mention-suggestions" role="listbox">
+        <ul
+          aria-label="People to mention"
+          className="quick-suggestions mention-suggestions"
+          ref={(list) => {
+            if (!list || !mention) return;
+            const caret = editor.view.coordsAtPos(mention.from);
+            const frame = list.parentElement!.getBoundingClientRect();
+            list.style.top = `${caret.bottom - frame.top + 6}px`;
+            list.style.left = `${Math.max(0, Math.min(caret.left - frame.left, frame.width - list.offsetWidth))}px`;
+            list.scrollIntoView({ block: 'nearest' });
+          }}
+          role="listbox"
+        >
           {suggestions.map((person, index) => (
             <li
               aria-selected={index === mention!.index}
