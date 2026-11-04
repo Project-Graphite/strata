@@ -9,7 +9,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import { messageYjsSyncStep1 } from 'y-protocols/sync';
 import * as Y from 'yjs';
-import { AccessService } from '../access/access.service';
+import { AccessService, audienceOf, homeOf } from '../access/access.service';
 import { refreshReuseGraceMs } from '../auth/auth.service';
 import { JwtStrategy, type AccessTokenPayload } from '../auth/jwt.strategy';
 import { ChangesService } from '../changes/changes.service';
@@ -233,7 +233,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
         });
         this.savedSnapshots.set(documentName, snapshot);
         this.sendSaved(document);
-        if (item.spaceId) this.changes.notify('pages', { spaceId: item.spaceId });
+        this.changes.notify('pages', audienceOf(homeOf(item)));
         if (lastContext?.userId) await this.syncLinks(documentName, document, lastContext.userId);
         await this.snapshot(documentName, state, lastContext?.userId ?? null, clientsCount === 0);
       },
@@ -452,7 +452,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
 
   private async reportEdits(itemId: string, editors: string[]) {
     const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { id: true, kind: true, spaceId: true, title: true } });
-    if (!item?.spaceId) return;
+    if (!item) return;
     const names = await Promise.all(editors.map((editor) => this.watchers.actorName(this.prisma, editor)));
     await this.watchers.watch(this.prisma, itemId, editors);
     await this.watchers.notify(this.prisma, itemId, null, { title: `${names.join(' and ')} edited “${item.title || 'Untitled'}”`, link: watchedLink(item) }, editors);

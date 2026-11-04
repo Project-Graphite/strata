@@ -9,7 +9,7 @@ describe('Home summary against Postgres', () => {
   it('adds up what is next, what is due and what needs the user in one call', async () => {
     const owner = await member('homebody');
     const host = await member('home-host');
-    const home = owner.personalSpaceId;
+    const home = owner.soloSpaceId;
     const today = localDate((await owner.call('GET', '/me')).body.timeZone);
     const day = (offset: number) => dateText(new Date(dateValue(today).getTime() + offset * dayMs));
     const quiet = { nextEvent: null, dueToday: 0, safeToSpend: null, toReview: 0, payments: { missed: 0, upcoming: 0 }, invitations: 0, unread: 0 };

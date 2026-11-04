@@ -107,9 +107,9 @@ describe('The file store against Postgres', () => {
   it('lets page recipients read only files attached to that page and stops access after revocation', async () => {
     const owner = await member('page-file-owner');
     const recipient = await member('page-file-reader');
-    const attached = await (await upload(owner, owner.personalSpaceId, 'attached.png', png('attached'))).json();
-    const privateFile = await (await upload(owner, owner.personalSpaceId, 'private.png', png('private'))).json();
-    const page = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/notes`, { title: 'Shared with image' })).body;
+    const attached = await (await upload(owner, owner.soloSpaceId, 'attached.png', png('attached'))).json();
+    const privateFile = await (await upload(owner, owner.soloSpaceId, 'private.png', png('private'))).json();
+    const page = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Shared with image' })).body;
     await owner.call('POST', `/items/${page.id}/links`, { targetId: attached.id, kind: 'attachment' });
     await owner.call('PUT', `/notes/${page.id}/people`, { email: recipient.email, role: 'view' });
     const read = (path: string) => fetch(`${strata.base}${path}`, { headers: { Authorization: `Bearer ${recipient.token}` } });
@@ -170,8 +170,8 @@ describe('The file store against Postgres', () => {
   it('keeps one copy of identical files and removes it once nothing uses it', async () => {
     const owner = await member('saver');
     const data = png('copy', `pixels ${owner.id}`);
-    const first = await (await upload(owner, owner.personalSpaceId, 'a.png', data)).json();
-    const second = await (await upload(owner, owner.personalSpaceId, 'b.png', data)).json();
+    const first = await (await upload(owner, owner.soloSpaceId, 'a.png', data)).json();
+    const second = await (await upload(owner, owner.soloSpaceId, 'b.png', data)).json();
     const { sha256 } = await strata.prisma.file.findUniqueOrThrow({ where: { itemId: first.id } });
     const blob = join(strata.filesRoot, sha256.slice(0, 2), sha256);
     expect(await strata.prisma.fileBlob.count({ where: { sha256 } })).toBe(1);
@@ -200,8 +200,8 @@ describe('The file store against Postgres', () => {
     const owner = await member('hoarder');
     expect((await manager.call('PATCH', '/admin/site', { fileQuotaMb: 1 })).body).toMatchObject({ fileQuotaMb: 1 });
 
-    expect((await upload(owner, owner.personalSpaceId, 'one.txt', Buffer.alloc(700 * 1024, 0x61))).status).toBe(201);
-    const refused = await upload(owner, owner.personalSpaceId, 'two.txt', Buffer.alloc(700 * 1024, 0x62));
+    expect((await upload(owner, owner.soloSpaceId, 'one.txt', Buffer.alloc(700 * 1024, 0x61))).status).toBe(201);
+    const refused = await upload(owner, owner.soloSpaceId, 'two.txt', Buffer.alloc(700 * 1024, 0x62));
     expect(refused.status).toBe(413);
     expect((await refused.json()).message).toContain('1 MB');
     await manager.call('PATCH', '/admin/site', { fileQuotaMb: 150 });
@@ -216,13 +216,13 @@ describe('The file store against Postgres', () => {
     const library = await (
       await fetch(`${strata.base}/me/files`, { method: 'POST', headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'image/png', 'X-File-Name': 'mine.png' }, body: new Uint8Array(png('mine', 'library')) })
     ).json();
-    const kept = await (await upload(owner, owner.personalSpaceId, 'kept.png', png('kept'))).json();
+    const kept = await (await upload(owner, owner.soloSpaceId, 'kept.png', png('kept'))).json();
     const binned = await (await upload(owner, shared.id, 'binned.png', png('binned', 'more pixels'))).json();
     const left = await (await upload(owner, club.id, 'left.png', png('left', 'club pixels'))).json();
-    await upload(other, other.personalSpaceId, 'theirs.png', png('theirs'));
+    await upload(other, other.soloSpaceId, 'theirs.png', png('theirs'));
     await owner.call('POST', `/items/${binned.id}/trash`);
     await strata.prisma.spaceMember.delete({ where: { spaceId_userId: { spaceId: club.id, userId: owner.id } } });
-    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Frame it' })).body;
+    const task = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title: 'Frame it' })).body;
     expect((await owner.call('PUT', `/tasks/${task.id}/attachments/${kept.id}`)).status).toBe(200);
 
     const storage = (await owner.call('GET', `/me/storage?spaceId=${shared.id}`)).body;
@@ -236,10 +236,10 @@ describe('The file store against Postgres', () => {
     });
     expect(storage.homes).toEqual([
       { spaceId: null, spaceName: null, count: 1, sizeBytes: size(library.id) },
-      { spaceId: owner.personalSpaceId, spaceName: expect.any(String), count: 1, sizeBytes: size(kept.id) },
+      { spaceId: owner.soloSpaceId, spaceName: expect.any(String), count: 1, sizeBytes: size(kept.id) },
     ]);
     expect(storage.files).toEqual([
-      expect.objectContaining({ id: kept.id, spaceId: owner.personalSpaceId, attachedTo: { id: task.id, kind: 'task', title: 'Frame it' }, name: 'kept.png', sizeBytes: size(kept.id) }),
+      expect.objectContaining({ id: kept.id, spaceId: owner.soloSpaceId, attachedTo: { id: task.id, kind: 'task', title: 'Frame it' }, name: 'kept.png', sizeBytes: size(kept.id) }),
       expect.objectContaining({ id: library.id, spaceId: null, spaceName: null, attachedTo: null, name: 'mine.png', mimeType: 'image/png' }),
     ]);
   });

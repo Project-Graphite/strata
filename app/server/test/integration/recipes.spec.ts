@@ -58,11 +58,11 @@ describe('Recipes and the meal plan against Postgres', () => {
     expect((await outsider.call('GET', `/me/meal-plan?from=${monday}`)).body).toEqual([]);
     expect((await cook.call('GET', `/me/meal-plan?from=2026-10-19`)).body).toEqual([]);
 
-    expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday, spaceId: outsider.personalSpaceId })).status).toBe(404);
+    expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday, spaceId: outsider.soloSpaceId })).status).toBe(404);
     const shopping = (await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday, spaceId: kitchen.id })).body;
     expect(shopping).toMatchObject({ spaceId: kitchen.id, added: 3, already: 0 });
     expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday, spaceId: kitchen.id })).body).toMatchObject({ listId: shopping.listId, added: 0, already: 3 });
-    expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday })).body).toMatchObject({ spaceId: cook.personalSpaceId, added: 3, already: 0 });
+    expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: monday })).body).toMatchObject({ spaceId: cook.soloSpaceId, added: 3, already: 0 });
     const tasks = (await cook.call('GET', `/spaces/${kitchen.id}/tasks?page=1&listId=${shopping.listId}`)).body.results.map((task: { title: string }) => task.title);
     expect(tasks.sort()).toEqual(['1 onion', '6 tomatoes', 'Bread']);
     expect((await cook.call('POST', '/me/meal-plan/shopping-list', { from: '2026-10-19' })).status).toBe(400);

@@ -18,7 +18,7 @@ export class TidyController {
   @Get('tidy/scan')
   @Scope('items:read')
   scan(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.tidy.scan(user.id, query.spaceId);
+    return this.tidy.scan(user.id, query);
   }
 
   @Post('tidy/preview')
@@ -61,6 +61,18 @@ export class TidyController {
     @Body() input: CreateTidyRuleDto,
   ) {
     return this.rules.create(user.id, spaceId, input);
+  }
+
+  @Get('me/tidy-rules')
+  @Scope('items:read')
+  listMyRules(@CurrentUser() user: AuthenticatedUser) {
+    return this.rules.list(user.id, null);
+  }
+
+  @Post('me/tidy-rules')
+  @Scope('items:write')
+  createMyRule(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateTidyRuleDto) {
+    return this.rules.create(user.id, null, input);
   }
 
   @Patch('tidy-rules/:id')

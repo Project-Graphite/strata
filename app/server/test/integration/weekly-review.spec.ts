@@ -11,7 +11,7 @@ describe('Weekly review against Postgres', () => {
 
   it('writes an account-owned review page from the past and coming week, listed in the journal', async () => {
     const owner = await member('reviewer-weekly');
-    const space = owner.personalSpaceId;
+    const space = owner.soloSpaceId;
     const done = (await owner.call('POST', `/spaces/${space}/tasks`, { title: 'File the taxes' })).body;
     await owner.call('POST', `/tasks/${done.id}/complete`);
     await owner.call('POST', `/spaces/${space}/tasks`, { title: 'Call the plumber', dueDate: utcDate(-2) });

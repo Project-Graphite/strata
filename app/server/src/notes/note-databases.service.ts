@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
+import { audienceOf, type Home, homeOf } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { propertyRules, propertyValue, valueMap, type Property } from './database';
@@ -38,7 +39,7 @@ export class NoteDatabasesService {
   }
 
   async save(userId: string, noteId: string, input: SaveDatabaseDto) {
-    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     if (found.quick) throw new BadRequestException('A note cannot be a database');
     if (!found.permissions.organize) throw new ForbiddenException('Space editing access is required to change the database schema');
@@ -57,7 +58,7 @@ export class NoteDatabasesService {
     if (input.dateBy && !properties.some((property) => property.id === input.dateBy && property.type === 'date')) {
       throw new BadRequestException('Lay out a calendar by a date property');
     }
-    const members = await this.members(found.spaceId);
+    const members = await this.members(homeOf(found));
     await this.prisma.$transaction(async (transaction) => {
       const before = await transaction.databaseSchema.findUnique({ where: { itemId: noteId }, select: { properties: true, updatedAt: true } });
       const previousTypes = new Map(((before?.properties ?? []) as unknown as Property[]).map((property) => [property.id, property.type]));
@@ -92,13 +93,13 @@ export class NoteDatabasesService {
         }
       }
     });
-    this.changes.notify('page-databases', { spaceId: found.spaceId, itemId: noteId });
-    this.changes.notify('page-details', { spaceId: found.spaceId, itemId: noteId });
+    this.changes.notify('page-databases', { ...audienceOf(homeOf(found)), itemId: noteId });
+    this.changes.notify('page-details', { ...audienceOf(homeOf(found)), itemId: noteId });
     return this.get(userId, noteId);
   }
 
   async remove(userId: string, noteId: string) {
-    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (!found.permissions.organize) throw new ForbiddenException('Space editing access is required to change the database schema');
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     await this.prisma.$transaction(async (transaction) => {
@@ -106,12 +107,12 @@ export class NoteDatabasesService {
       await transaction.noteProperty.deleteMany({ where: { item: { note: { parentId: noteId } } } });
       await transaction.databaseSchema.deleteMany({ where: { itemId: noteId } });
     });
-    this.changes.notify('page-databases', { spaceId: found.spaceId, itemId: noteId });
-    this.changes.notify('page-details', { spaceId: found.spaceId, itemId: noteId });
+    this.changes.notify('page-databases', { ...audienceOf(homeOf(found)), itemId: noteId });
+    this.changes.notify('page-details', { ...audienceOf(homeOf(found)), itemId: noteId });
   }
 
   async setValues(userId: string, noteId: string, input: SetPropertiesDto) {
-    const found = await this.notes.spaceNote(userId, noteId, 'edit', [ItemKind.NOTE]);
+    const found = await this.notes.note(userId, noteId, 'edit', [ItemKind.NOTE]);
     if (found.trashedAt) throw new BadRequestException('Restore this page from the trash before changing it');
     const parentId = await this.prisma.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT 1 FROM "items" WHERE "id" = ${noteId}::uuid FOR UPDATE`;
@@ -124,7 +125,7 @@ export class NoteDatabasesService {
       const properties = new Map((schema.properties as unknown as Property[]).map((property) => [property.id, property]));
       const entries = Object.entries(input.values);
       if (!found.permissions.spaceRole && entries.some(([id]) => properties.get(id)?.type === 'person')) throw new ForbiddenException('Space membership is required to assign people');
-      const members = entries.some(([id]) => properties.get(id)?.type === 'person') ? await this.members(found.spaceId) : new Set<string>();
+      const members = entries.some(([id]) => properties.get(id)?.type === 'person') ? await this.members(homeOf(found)) : new Set<string>();
       if (input.expectedValues) {
         const current = valueMap(await transaction.noteProperty.findMany({ where: { itemId: noteId } }));
         for (const [id] of entries) {
@@ -154,13 +155,14 @@ export class NoteDatabasesService {
       await transaction.item.update({ where: { id: noteId }, data: { updatedById: userId } });
       return note.parentId;
     });
-    this.changes.notify('page-databases', { spaceId: found.spaceId, itemId: parentId });
-    this.changes.notify('page-details', { spaceId: found.spaceId, itemId: noteId });
+    this.changes.notify('page-databases', { ...audienceOf(homeOf(found)), itemId: parentId });
+    this.changes.notify('page-details', { ...audienceOf(homeOf(found)), itemId: noteId });
     return { values: valueMap(await this.prisma.noteProperty.findMany({ where: { itemId: noteId } })) };
   }
 
-  private async members(spaceId: string) {
-    const rows = await this.prisma.spaceMember.findMany({ where: { spaceId }, select: { userId: true } });
+  private async members(home: Home) {
+    if (home.spaceId === null) return new Set([home.ownerId]);
+    const rows = await this.prisma.spaceMember.findMany({ where: { spaceId: home.spaceId }, select: { userId: true } });
     return new Set(rows.map((row) => row.userId));
   }
 }

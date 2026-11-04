@@ -27,7 +27,7 @@ describe('Webhooks against Postgres', () => {
 
     expect((await owner.call('POST', '/me/webhooks', { url: 'http://hooks.example/in', events: ['task.completed'] })).status).toBe(400);
     expect((await owner.call('POST', '/me/webhooks', { url: 'https://hooks.example/in', events: ['nothing.happened'] })).status).toBe(400);
-    expect((await owner.call('POST', '/me/webhooks', { url: 'https://hooks.example/in', events: ['task.completed'], spaceId: (await member('hook-elsewhere')).personalSpaceId })).status).toBe(404);
+    expect((await owner.call('POST', '/me/webhooks', { url: 'https://hooks.example/in', events: ['task.completed'], spaceId: (await member('hook-elsewhere')).soloSpaceId })).status).toBe(404);
     const created = await owner.call('POST', '/me/webhooks', { url: 'https://hooks.example/in?token=abc', events: ['task.completed', 'item.created'], spaceId: shared.id });
     expect(created.status).toBe(201);
     expect(created.body).toMatchObject({ host: 'hooks.example', events: ['task.completed', 'item.created'], active: true, spaceId: shared.id });
@@ -40,7 +40,7 @@ describe('Webhooks against Postgres', () => {
     await settle(20);
     const task = (await stranger.call('POST', `/spaces/${shared.id}/tasks`, { title: 'Water the beans' })).body;
     await stranger.call('POST', `/tasks/${task.id}/complete`);
-    await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Not in the shared space' });
+    await owner.call('POST', `/spaces/${owner.soloSpaceId}/tasks`, { title: 'Not in the shared space' });
     await strata.service(WebhooksService).scan();
     for (let attempt = 0; attempt < 40 && sent.length < 2; attempt += 1) await settle();
 

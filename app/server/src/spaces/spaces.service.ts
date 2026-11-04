@@ -1,17 +1,22 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { randomBytes } from 'node:crypto';
+import { isUUID } from 'class-validator';
+import { AccessService, reachable } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { auditEvent } from '../audit/audit.service';
 import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto } from './dto/spaces.dto';
+import { uniqueViolation } from '../prisma/errors';
+import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto, UpdateSpaceSettingsDto } from './dto/spaces.dto';
+import { mergedDefaults, spaceDefaults } from './space-defaults';
 
 const spaceFields = {
   id: true,
   name: true,
+  slug: true,
   color: true,
-  personalOwnerId: true,
+  description: true,
   createdAt: true,
 } satisfies Prisma.SpaceSelect;
 
@@ -24,12 +29,21 @@ const memberFields = {
 function presentSpace(space: Prisma.SpaceGetPayload<{ select: typeof spaceFields }>, role: SpaceRole) {
   return {
     id: space.id,
+    slug: space.slug,
     name: space.name,
     color: space.color,
-    kind: space.personalOwnerId ? 'personal' : 'shared',
+    description: space.description,
     role: role.toLowerCase(),
     createdAt: space.createdAt,
   };
+}
+
+const slugAlphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+const newSlug = () => Array.from(randomBytes(10), (byte) => slugAlphabet[byte % slugAlphabet.length]).join('');
+
+function presentSettings(space: { id: string; slug: string; name: string; color: string; description: string; defaults: Prisma.JsonValue }) {
+  return { id: space.id, slug: space.slug, name: space.name, color: space.color, description: space.description, defaults: spaceDefaults(space.defaults) };
 }
 
 function presentMember(member: Prisma.SpaceMemberGetPayload<{ select: typeof memberFields }>) {
@@ -58,26 +72,68 @@ export class SpacesService {
     });
     return memberships
       .map((membership) => presentSpace(membership.space, membership.role))
-      .sort((a, b) => Number(b.kind === 'personal') - Number(a.kind === 'personal') || a.name.localeCompare(b.name));
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async get(userId: string, spaceId: string) {
-    const role = await this.access.assertSpace(userId, spaceId, 'read');
-    const space = await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: spaceFields });
+  async get(userId: string, idOrSlug: string) {
+    const found = isUUID(idOrSlug) ? { id: idOrSlug } : await this.prisma.space.findUnique({ where: { slug: idOrSlug }, select: { id: true } });
+    if (!found) throw new NotFoundException('Space not found');
+    const role = await this.access.assertSpace(userId, found.id, 'read');
+    const space = await this.prisma.space.findUniqueOrThrow({ where: { id: found.id }, select: spaceFields });
     return presentSpace(space, role);
   }
 
   async create(userId: string, input: CreateSpaceDto) {
-    const space = await this.prisma.space.create({
-      data: {
-        name: input.name,
-        color: input.color,
-        createdById: userId,
-        members: { create: { userId, role: SpaceRole.OWNER } },
-      },
-      select: spaceFields,
-    });
-    return presentSpace(space, SpaceRole.OWNER);
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const space = await this.prisma.space.create({
+          data: {
+            name: input.name,
+            slug: newSlug(),
+            color: input.color,
+            createdById: userId,
+            members: { create: { userId, role: SpaceRole.OWNER } },
+          },
+          select: spaceFields,
+        });
+        return presentSpace(space, SpaceRole.OWNER);
+      } catch (error) {
+        if (!uniqueViolation(error) || attempt === 3) throw error;
+      }
+    }
+  }
+
+  async settings(userId: string, spaceId: string) {
+    await this.assertOwner(userId, spaceId);
+    return presentSettings(await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId } }));
+  }
+
+  async updateSettings(userId: string, spaceId: string, input: UpdateSpaceSettingsDto) {
+    await this.assertOwner(userId, spaceId);
+    const current = await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } });
+    const [space] = await this.prisma.$transaction([
+      this.prisma.space.update({
+        where: { id: spaceId },
+        data: {
+          name: input.name,
+          color: input.color,
+          description: input.description,
+          defaults: input.defaults ? { ...mergedDefaults(current.defaults, input.defaults) } : undefined,
+        },
+      }),
+      this.activity.record(this.prisma, {
+        spaceId,
+        actorId: userId,
+        verb: 'space.updated',
+        data: { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) },
+      }),
+    ]);
+    return presentSettings(space);
+  }
+
+  private async assertOwner(userId: string, spaceId: string) {
+    const member = await this.prisma.spaceMember.findUnique({ where: { spaceId_userId: { spaceId, userId } }, select: { role: true } });
+    if (member?.role !== SpaceRole.OWNER || !reachable(spaceId)) throw new NotFoundException('Space not found');
   }
 
   async update(userId: string, spaceId: string, input: UpdateSpaceDto) {
@@ -100,10 +156,7 @@ export class SpacesService {
 
   async remove(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'manage');
-    const deleted = await this.prisma.space.deleteMany({ where: { id: spaceId, personalOwnerId: null } });
-    if (deleted.count === 0) {
-      throw new BadRequestException('Your personal space cannot be deleted');
-    }
+    await this.prisma.space.deleteMany({ where: { id: spaceId } });
   }
 
   async members(userId: string, spaceId: string) {

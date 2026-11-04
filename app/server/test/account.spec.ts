@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { SpaceRole, TokenPurpose } from '@prisma/client';
+import { TokenPurpose } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
@@ -154,14 +154,7 @@ describe('Account email flows', () => {
         tokenHash: digest(sentToken(mail)),
       }),
     });
-    expect(prisma.space.create).toHaveBeenCalledWith({
-      data: {
-        name: 'Personal',
-        personalOwnerId: user.id,
-        createdById: user.id,
-        members: { create: { userId: user.id, role: SpaceRole.OWNER } },
-      },
-    });
+    expect(prisma.space.create).not.toHaveBeenCalled();
   });
 
   it('answers a sign-up for a registered email exactly like a new one and tells the owner instead', async () => {

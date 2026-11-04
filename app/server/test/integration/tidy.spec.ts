@@ -21,11 +21,11 @@ describe('Tidy against Postgres', () => {
     const club = (await host.call('POST', '/spaces', { name: 'Club' })).body;
     await strata.join(club.id, owner, SpaceRole.VIEWER);
     const copy = Buffer.from(`same words ${owner.id}`);
-    const first = await file(owner, owner.personalSpaceId, 'notes.txt', copy);
-    const second = await file(owner, owner.personalSpaceId, 'notes (1).txt', copy);
+    const first = await file(owner, owner.soloSpaceId, 'notes.txt', copy);
+    const second = await file(owner, owner.soloSpaceId, 'notes (1).txt', copy);
     await file(host, club.id, 'notes.txt', copy);
-    const big = await file(owner, owner.personalSpaceId, 'big.txt', Buffer.concat([Buffer.alloc(5 * 1024 * 1024, 0x61), Buffer.from(owner.id)]));
-    const dusty = await file(owner, owner.personalSpaceId, 'old.txt', Buffer.from(`old ${owner.id}`));
+    const big = await file(owner, owner.soloSpaceId, 'big.txt', Buffer.concat([Buffer.alloc(5 * 1024 * 1024, 0x61), Buffer.from(owner.id)]));
+    const dusty = await file(owner, owner.soloSpaceId, 'old.txt', Buffer.from(`old ${owner.id}`));
     await strata.prisma.item.update({ where: { id: dusty.id }, data: { updatedAt: new Date(Date.now() - 400 * dayMs) } });
 
     const stale = (await owner.call('POST', '/me/bookmarks', { url: 'https://stale.example/', fetch: false })).body.bookmark;
@@ -51,12 +51,12 @@ describe('Tidy against Postgres', () => {
     const host = await member('lender');
     const club = (await host.call('POST', '/spaces', { name: 'Club' })).body;
     await strata.join(club.id, owner, SpaceRole.VIEWER);
-    const keep = await strata.item(owner.personalSpaceId, 'Keep');
-    const binned = await strata.item(owner.personalSpaceId, 'Binned');
-    const already = await strata.item(owner.personalSpaceId, 'Already gone');
+    const keep = await strata.item(owner.soloSpaceId, 'Keep');
+    const binned = await strata.item(owner.soloSpaceId, 'Binned');
+    const already = await strata.item(owner.soloSpaceId, 'Already gone');
     await strata.prisma.item.update({ where: { id: already.id }, data: { trashedAt: new Date() } });
     const viewOnly = await strata.item(club.id, 'Not mine');
-    const hidden = await strata.item(host.personalSpaceId, 'Private');
+    const hidden = await strata.item(host.soloSpaceId, 'Private');
     const request = { action: 'trash', itemIds: [keep.id, binned.id, already.id, viewOnly.id, hidden.id] };
 
     expect((await owner.call('POST', '/tidy/apply', { action: 'trash', itemIds: [] })).status).toBe(400);
@@ -88,8 +88,8 @@ describe('Tidy against Postgres', () => {
   it('tags only inside the tag’s space', async () => {
     const owner = await member('tagger');
     const work = (await owner.call('POST', '/spaces', { name: 'Work' })).body;
-    const finance = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Finance' })).body;
-    const receipt = await strata.item(owner.personalSpaceId, 'Receipt');
+    const finance = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Finance' })).body;
+    const receipt = await strata.item(owner.soloSpaceId, 'Receipt');
     const elsewhere = await strata.item(work.id, 'Work receipt');
 
     expect((await owner.call('POST', '/tidy/preview', { action: 'tag', itemIds: [receipt.id] })).status).toBe(400);
@@ -108,7 +108,7 @@ describe('Tidy against Postgres', () => {
     const home = (await owner.call('POST', '/spaces', { name: 'Home' })).body;
     await strata.join(home.id, viewer, SpaceRole.VIEWER);
     const finance = (await owner.call('POST', `/spaces/${home.id}/tags`, { name: 'Finance' })).body;
-    const foreign = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Elsewhere' })).body;
+    const foreign = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Elsewhere' })).body;
     const before = await strata.item(home.id, 'March receipt');
     await strata.item(home.id, 'Receipt task', ItemKind.TASK);
 
@@ -140,22 +140,22 @@ describe('Tidy against Postgres', () => {
 
   it('matches rules by file type, with or without words in the title', async () => {
     const owner = await member('filer');
-    const papers = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tags`, { name: 'Papers' })).body;
-    const pdf = await file(owner, owner.personalSpaceId, 'lease.pdf', Buffer.from(`%PDF-1.4 lease ${owner.id}`));
-    await file(owner, owner.personalSpaceId, 'lease.txt', Buffer.from(`lease ${owner.id}`));
-    await strata.item(owner.personalSpaceId, 'lease notes');
+    const papers = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tags`, { name: 'Papers' })).body;
+    const pdf = await file(owner, owner.soloSpaceId, 'lease.pdf', Buffer.from(`%PDF-1.4 lease ${owner.id}`));
+    await file(owner, owner.soloSpaceId, 'lease.txt', Buffer.from(`lease ${owner.id}`));
+    await strata.item(owner.soloSpaceId, 'lease notes');
 
-    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { tagId: papers.id })).status).toBe(400);
-    expect((await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { fileType: 'video', tagId: papers.id })).status).toBe(400);
-    const rule = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { fileType: 'pdf', tagId: papers.id })).body;
+    expect((await owner.call('POST', `/spaces/${owner.soloSpaceId}/tidy-rules`, { tagId: papers.id })).status).toBe(400);
+    expect((await owner.call('POST', `/spaces/${owner.soloSpaceId}/tidy-rules`, { fileType: 'video', tagId: papers.id })).status).toBe(400);
+    const rule = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tidy-rules`, { fileType: 'pdf', tagId: papers.id })).body;
     expect(rule).toMatchObject({ titleContains: '', fileType: 'pdf', kind: null });
     expect(ids((await owner.call('GET', `/tidy-rules/${rule.id}/matches`)).body.results)).toEqual([pdf.id]);
 
-    const both = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tidy-rules`, { titleContains: 'invoice', fileType: 'pdf', tagId: papers.id })).body;
+    const both = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/tidy-rules`, { titleContains: 'invoice', fileType: 'pdf', tagId: papers.id })).body;
     expect((await owner.call('GET', `/tidy-rules/${both.id}/matches`)).body.total).toBe(0);
 
-    const later = await file(owner, owner.personalSpaceId, 'invoice.pdf', Buffer.from(`%PDF-1.4 invoice ${owner.id}`));
-    await file(owner, owner.personalSpaceId, 'invoice.txt', Buffer.from(`invoice ${owner.id}`));
+    const later = await file(owner, owner.soloSpaceId, 'invoice.pdf', Buffer.from(`%PDF-1.4 invoice ${owner.id}`));
+    await file(owner, owner.soloSpaceId, 'invoice.txt', Buffer.from(`invoice ${owner.id}`));
     await strata.service(TidyRulesService).applyRules(new Date(Date.now() + 2 * 60_000));
     const tagged = await strata.prisma.itemTag.findMany({ where: { tagId: papers.id }, select: { itemId: true } });
     expect(tagged.map((entry) => entry.itemId)).toEqual([later.id]);
@@ -178,8 +178,8 @@ describe('Tidy against Postgres', () => {
     expect(await strata.prisma.inboxNotification.count({ where: { userId: keen.id } })).toBe(0);
 
     const copy = Buffer.from(`weekly ${keen.id}`);
-    await file(keen, keen.personalSpaceId, 'a.txt', copy);
-    await file(keen, keen.personalSpaceId, 'b.txt', copy);
+    await file(keen, keen.soloSpaceId, 'a.txt', copy);
+    await file(keen, keen.soloSpaceId, 'b.txt', copy);
     await tidy.sendSummary(keen.id);
     const [entry] = await strata.prisma.inboxNotification.findMany({ where: { userId: keen.id } });
     expect(entry).toMatchObject({ kind: 'tidy_summary', title: `Tidy found 1 extra copy (1 KB)`, link: '/tidy' });

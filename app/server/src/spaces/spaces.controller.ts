@@ -4,7 +4,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto } from './dto/spaces.dto';
+import { CreateSpaceDto, UpdateMemberDto, UpdateSpaceDto, UpdateSpaceSettingsDto } from './dto/spaces.dto';
 import { SpacesService } from './spaces.service';
 
 @Controller('spaces')
@@ -26,8 +26,20 @@ export class SpacesController {
 
   @Get(':id')
   @Scope('spaces:read')
-  get(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
-    return this.spaces.get(user.id, id);
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') idOrSlug: string) {
+    return this.spaces.get(user.id, idOrSlug);
+  }
+
+  @Get(':id/settings')
+  @Scope('spaces:read')
+  settings(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    return this.spaces.settings(user.id, id);
+  }
+
+  @Patch(':id/settings')
+  @Scope('spaces:write')
+  updateSettings(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: UpdateSpaceSettingsDto) {
+    return this.spaces.updateSettings(user.id, id, input);
   }
 
   @Patch(':id')

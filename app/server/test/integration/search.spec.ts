@@ -11,13 +11,13 @@ describe('Search against Postgres', () => {
     const bob = await member('hider');
     const shared = (await bob.call('POST', '/spaces', { name: 'Flat' })).body;
     await strata.join(shared.id, alice, SpaceRole.VIEWER);
-    const list = await strata.item(alice.personalSpaceId, 'Shopping list');
+    const list = await strata.item(alice.soloSpaceId, 'Shopping list');
     const flatList = await strata.item(shared.id, 'Shopping rota');
-    await strata.item(bob.personalSpaceId, 'Shopping secrets');
-    const trashed = await strata.item(alice.personalSpaceId, 'Shopping receipts');
+    await strata.item(bob.soloSpaceId, 'Shopping secrets');
+    const trashed = await strata.item(alice.soloSpaceId, 'Shopping receipts');
     await strata.prisma.item.update({ where: { id: trashed.id }, data: { trashedAt: new Date() } });
-    await alice.call('POST', `/spaces/${alice.personalSpaceId}/tags`, { name: 'Shops' });
-    await bob.call('POST', `/spaces/${bob.personalSpaceId}/tags`, { name: 'Shopping spree' });
+    await alice.call('POST', `/spaces/${alice.soloSpaceId}/tags`, { name: 'Shops' });
+    await bob.call('POST', `/spaces/${bob.soloSpaceId}/tags`, { name: 'Shopping spree' });
     await alice.call('POST', '/me/tags', { name: 'Shopping tag' });
     const mine = (await alice.call('POST', '/me/bookmarks', { url: 'https://shop.example/', title: 'Shopping haul', fetch: false })).body.bookmark;
     await bob.call('POST', '/me/bookmarks', { url: 'https://shop.example/bob', title: 'Shopping stash', fetch: false });

@@ -119,13 +119,13 @@ describe('paginated page children', () => {
   it('returns one hundred siblings and a continuation independently of recent-page ordering', async () => {
     const rows = Array.from({ length: 101 }, (_, index) => ({ ...tree().pages.get('a')!, id: `page-${index}` }));
     const findMany = vi.fn(async () => rows);
-    const assertSpace = vi.fn(async () => undefined);
-    const notes = new NotesService({ item: { findMany }, note: { groupBy: async () => [] } } as never, { assertSpace } as never, {} as never, {} as never, {} as never, {} as never);
+    const assertHome = vi.fn(async () => ({ spaceId: 'space', ownerId: null }));
+    const notes = new NotesService({ item: { findMany }, note: { groupBy: async () => [] } } as never, { assertHome } as never, {} as never, {} as never, {} as never, {} as never);
     const first = await notes.children('member', 'space', {});
     expect(first.pages).toHaveLength(100);
     expect(first.nextCursor).toBe('page-99');
     expect(first.nextPage).toMatchObject({ id: 'page-100' });
-    expect(assertSpace).toHaveBeenCalledWith('member', 'space', 'read');
+    expect(assertHome).toHaveBeenCalledWith('member', 'space', 'read');
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ spaceId: 'space', NOT: draftWhere, note: { OR: [{ parentId: null }, { parent: { isNot: { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } } }], template: false, quick: false }, trashedAt: null, archivedAt: null }), take: 101, orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }] }));
     findMany.mockResolvedValueOnce([rows[100]!]);
     const second = await notes.children('member', 'space', { cursor: first.nextCursor! });
@@ -138,7 +138,7 @@ describe('paginated page children', () => {
     const base = tree().pages.get('a')!;
     const rows = [{ ...base, id: 'parent' }, { ...base, id: 'leaf' }];
     const groupBy = vi.fn(async () => [{ parentId: 'parent' }]);
-    const notes = new NotesService({ item: { findMany: async () => rows }, note: { groupBy } } as never, { assertSpace: async () => undefined } as never, {} as never, {} as never, {} as never, {} as never);
+    const notes = new NotesService({ item: { findMany: async () => rows }, note: { groupBy } } as never, { assertHome: async () => ({ spaceId: 'space', ownerId: null }) } as never, {} as never, {} as never, {} as never, {} as never);
     const listed = await notes.children('member', 'space', {});
     expect(listed.pages.map((page) => [page.id, page.hasChildren])).toEqual([['parent', true], ['leaf', false]]);
     expect(groupBy).toHaveBeenCalledWith({
@@ -160,7 +160,7 @@ describe('paginated page children', () => {
 
   it('does not list children of a private or invalid parent', async () => {
     const findMany = vi.fn();
-    const notes = new NotesService({ item: { findMany, findFirst: async () => null } } as never, { assertSpace: async () => undefined } as never, {} as never, {} as never, {} as never, {} as never);
+    const notes = new NotesService({ item: { findMany, findFirst: async () => null } } as never, { assertHome: async () => ({ spaceId: 'space', ownerId: null }) } as never, {} as never, {} as never, {} as never, {} as never);
     await expect(notes.children('member', 'space', { parentId: 'private' })).rejects.toThrow('from this space');
     expect(findMany).not.toHaveBeenCalled();
   });

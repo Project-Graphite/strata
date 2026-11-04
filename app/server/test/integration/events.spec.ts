@@ -86,7 +86,7 @@ describe('Events and the agenda against Postgres', () => {
       event: expect.objectContaining({ title: 'Party', startsOn: utcDate(10), startTime: '20:00' }),
       guest: { name: 'Sam', response: 'pending', note: null },
     });
-    expect(JSON.stringify(view)).not.toContain(owner.personalSpaceId);
+    expect(JSON.stringify(view)).not.toContain(owner.soloSpaceId);
     expect((await strata.anonymous('POST', `/rsvp/${personal}`, { response: 'yes', note: 'see www.example.com' })).status).toBe(400);
     expect((await strata.anonymous('POST', `/rsvp/${personal}`, { response: 'yes', note: 'Bringing cake' })).body.guest).toEqual({
       name: 'Sam',

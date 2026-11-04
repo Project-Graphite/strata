@@ -14,6 +14,6 @@ export class SearchController {
   @Scope('items:read')
   @RateLimit('search', 600, 3_600)
   find(@CurrentUser() user: AuthenticatedUser, @Query() query: SearchDto) {
-    return this.search.search(user.id, query.q, query.spaceId);
+    return this.search.search(user.id, query.q, query);
   }
 }

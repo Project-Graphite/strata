@@ -177,7 +177,10 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
       where: {
         createdAt: { gt: webhook.cursor },
         verb: { in: webhook.events },
-        space: { AND: [this.access.spacesOf(webhook.userId), ...(webhook.spaceId ? [{ id: webhook.spaceId }] : [])] },
+        OR: [
+          { space: { AND: [this.access.spacesOf(webhook.userId), ...(webhook.spaceId ? [{ id: webhook.spaceId }] : [])] } },
+          ...(webhook.spaceId ? [] : [{ ownerId: webhook.userId }]),
+        ],
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: batchSize,

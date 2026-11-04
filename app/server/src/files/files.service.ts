@@ -100,9 +100,7 @@ export class FilesService {
           },
           select: { id: true },
         });
-        if (spaceId) {
-          await this.activity.record(transaction, { spaceId, actorId: userId, itemId: created.id, verb: 'item.created', data: { title: name } });
-        }
+        await this.activity.record(transaction, { ...(spaceId ? { spaceId } : { ownerId: userId }), actorId: userId, itemId: created.id, verb: 'item.created', data: { title: name } });
         await this.store.write(sha256, file.data);
         return created;
       },

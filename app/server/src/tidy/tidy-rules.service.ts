@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ItemKind, Prisma, SpaceRole, TidyAction } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { AccessService, inHome, reachable } from '../access/access.service';
 import { MaintenanceScheduler } from '../jobs/maintenance.scheduler';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
@@ -33,9 +33,9 @@ function presentRule(rule: Prisma.TidyRuleGetPayload<{ select: typeof ruleFields
   };
 }
 
-function matching(rule: { spaceId: string; titleContains: string; kind: ItemKind | null; fileType: string | null; tagId: string }) {
+function matching(rule: { spaceId: string | null; createdById: string; titleContains: string; kind: ItemKind | null; fileType: string | null; tagId: string }) {
   return {
-    spaceId: rule.spaceId,
+    ...(rule.spaceId ? { spaceId: rule.spaceId } : { ownerId: rule.createdById }),
     trashedAt: null,
     kind: rule.kind ?? undefined,
     title: rule.titleContains ? { contains: rule.titleContains, mode: 'insensitive' } : undefined,
@@ -56,21 +56,21 @@ export class TidyRulesService implements OnModuleInit {
     this.maintenance.register((now) => this.applyRules(now));
   }
 
-  async list(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'read');
+  async list(userId: string, spaceId: string | null) {
+    await this.access.assertHome(userId, spaceId, 'read');
     const rules = await this.prisma.tidyRule.findMany({
-      where: { spaceId },
+      where: spaceId ? { spaceId } : { spaceId: null, createdById: userId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: ruleFields,
     });
     return rules.map(presentRule);
   }
 
-  async create(userId: string, spaceId: string, input: CreateTidyRuleDto) {
-    await this.access.assertSpace(userId, spaceId, 'edit');
+  async create(userId: string, spaceId: string | null, input: CreateTidyRuleDto) {
+    const home = await this.access.assertHome(userId, spaceId, 'edit');
     if (!input.titleContains && !input.fileType) throw new BadRequestException('Look for words in the title, a file type, or both');
-    if (!(await this.prisma.tag.count({ where: { id: input.tagId, spaceId } }))) {
-      throw new BadRequestException("Choose a tag from this rule's space");
+    if (!(await this.prisma.tag.count({ where: { id: input.tagId, ...inHome(home) } }))) {
+      throw new BadRequestException(spaceId ? "Choose a tag from this rule's space" : 'Choose one of your own tags');
     }
     const rule = await this.prisma.tidyRule.create({
       data: {
@@ -104,8 +104,8 @@ export class TidyRulesService implements OnModuleInit {
 
   async matches(userId: string, ruleId: string) {
     const rule = await this.prisma.tidyRule.findFirst({
-      where: { id: ruleId, space: this.access.spacesOf(userId) },
-      select: { spaceId: true, titleContains: true, kind: true, fileType: true, tagId: true },
+      where: { id: ruleId, OR: this.reachableRules(userId) },
+      select: { spaceId: true, createdById: true, titleContains: true, kind: true, fileType: true, tagId: true },
     });
     if (!rule) throw new NotFoundException('Rule not found');
     const [total, items] = await this.prisma.$transaction([
@@ -128,10 +128,9 @@ export class TidyRulesService implements OnModuleInit {
       take: 500,
     });
     for (const rule of rules) {
-      const member = await this.prisma.spaceMember.findUnique({
-        where: { spaceId_userId: { spaceId: rule.spaceId, userId: rule.createdById } },
-        select: { role: true },
-      });
+      const member = rule.spaceId
+        ? await this.prisma.spaceMember.findUnique({ where: { spaceId_userId: { spaceId: rule.spaceId, userId: rule.createdById } }, select: { role: true } })
+        : { role: SpaceRole.OWNER };
       const items =
         member && member.role !== SpaceRole.VIEWER
           ? await this.prisma.item.findMany({
@@ -160,10 +159,14 @@ export class TidyRulesService implements OnModuleInit {
 
   private async editable(userId: string, ruleId: string) {
     const rule = await this.prisma.tidyRule.findFirst({
-      where: { id: ruleId, space: this.access.spacesOf(userId) },
+      where: { id: ruleId, OR: this.reachableRules(userId) },
       select: { spaceId: true },
     });
     if (!rule) throw new NotFoundException('Rule not found');
-    await this.access.assertSpace(userId, rule.spaceId, 'edit');
+    await this.access.assertHome(userId, rule.spaceId, 'edit');
+  }
+
+  private reachableRules(userId: string): Prisma.TidyRuleWhereInput[] {
+    return [{ space: this.access.spacesOf(userId) }, ...(reachable(null) ? [{ spaceId: null, createdById: userId }] : [])];
   }
 }

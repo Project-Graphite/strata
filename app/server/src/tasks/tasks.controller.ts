@@ -9,7 +9,7 @@ import { UploadQueue } from '../files/upload-queue';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskColumnQueryDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { TaskCommentsService } from './task-comments.service';
 import { TasksService } from './tasks.service';
@@ -54,7 +54,19 @@ export class TasksController {
   @Get('me/lists')
   @Scope('items:read')
   myLists(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.tasks.myLists(user.id, query.spaceId);
+    return this.tasks.myLists(user.id, query);
+  }
+
+  @Post('me/lists')
+  @Scope('items:write')
+  createMyList(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateListDto) {
+    return this.tasks.createList(user.id, null, input);
+  }
+
+  @Post('me/tasks')
+  @Scope('items:write')
+  createMine(@CurrentUser() user: AuthenticatedUser, @Body() input: CreateTaskDto) {
+    return this.tasks.create(user.id, null, input);
   }
 
   @Get('me/tasks')
@@ -65,8 +77,8 @@ export class TasksController {
 
   @Get('spaces/:spaceId/task-columns')
   @Scope('items:read')
-  columns(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string) {
-    return this.tasks.columns(user.id, spaceId);
+  columns(@CurrentUser() user: AuthenticatedUser, @Param('spaceId', UuidPipe) spaceId: string, @Query() query: TaskColumnQueryDto) {
+    return this.tasks.columns(user.id, spaceId, query.listId);
   }
 
   @Post('spaces/:spaceId/task-columns')
@@ -77,8 +89,14 @@ export class TasksController {
 
   @Get('me/task-columns')
   @Scope('items:read')
-  myColumns(@CurrentUser() user: AuthenticatedUser) {
-    return this.tasks.myColumns(user.id);
+  myColumns(@CurrentUser() user: AuthenticatedUser, @Query() query: TaskColumnQueryDto) {
+    return this.tasks.myColumns(user.id, query);
+  }
+
+  @Post('me/task-columns')
+  @Scope('items:write')
+  createMyColumn(@CurrentUser() user: AuthenticatedUser, @Body() input: TaskColumnDto) {
+    return this.tasks.createColumn(user.id, null, input);
   }
 
   @Patch('task-columns/:id')
@@ -97,13 +115,13 @@ export class TasksController {
   @Get('me/task-filters')
   @Scope('items:read')
   taskFilters(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.tasks.filters(user.id, query.spaceId);
+    return this.tasks.filters(user.id, query);
   }
 
   @Get('tasks/today')
   @Scope('items:read')
   today(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
-    return this.tasks.today(user.id, query.spaceId);
+    return this.tasks.today(user.id, query);
   }
 
   @Get('tasks/:id')

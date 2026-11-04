@@ -60,13 +60,21 @@ describe('page-specific permissions', () => {
     expect(await page(SpaceRole.OWNER, null).access.assertPage('member', 'page', 'share')).toMatchObject({ role: SpaceRole.OWNER });
   });
 
-  it('gives the owner of an account page full editing without comments, sharing or organizing, and hides it from everyone else', async () => {
-    const owned = page(null, PageRole.MANAGE);
+  it('gives the owner of an account page full access, and hides it from everyone it is not shared with', async () => {
+    const owned = page(null, null);
     owned.item.spaceId = null;
     owned.item.ownerId = 'owner';
-    expect(await owned.access.assertPage('owner', 'page', 'edit')).toMatchObject({ spaceId: null, permissions: { edit: true, history: true, comment: false, share: false, organize: false } });
-    await expect(owned.access.assertPage('owner', 'page', 'comment')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await owned.access.assertPage('owner', 'page', 'edit')).toMatchObject({ spaceId: null, permissions: { edit: true, history: true, comment: true, share: true, organize: true } });
+    await expect(owned.access.assertPage('owner', 'page', 'comment')).resolves.toMatchObject({ role: SpaceRole.OWNER });
     await expect(owned.access.assertPage('member', 'page', 'read')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lets people an account page is shared with in at their granted level only', async () => {
+    const shared = page(null, PageRole.COMMENT);
+    shared.item.spaceId = null;
+    shared.item.ownerId = 'owner';
+    expect(await shared.access.assertPage('member', 'page', 'comment')).toMatchObject({ permissions: { comment: true, edit: false, share: false, organize: false } });
+    await expect(shared.access.assertPage('member', 'page', 'edit')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('keeps page-kind and grant requirements inside the authorization conjunction', () => {

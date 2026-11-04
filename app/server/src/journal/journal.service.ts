@@ -59,7 +59,7 @@ export class JournalService {
       }),
       this.events.agenda(userId, day, shiftDay(day, 1)),
       this.prisma.item.findMany({
-        where: { ...this.access.spaceItemsOf(userId), kind: ItemKind.TASK, trashedAt: null, task: { completedAt: { gte: start, lt: end } } },
+        where: { ...this.access.itemsOf(userId), kind: ItemKind.TASK, trashedAt: null, task: { completedAt: { gte: start, lt: end } } },
         orderBy: { task: { completedAt: 'asc' } },
         take: 50,
         select: { id: true, title: true, spaceId: true },

@@ -26,6 +26,16 @@ export function reachable(spaceId: string | null) {
 
 const nothing: Prisma.ItemWhereInput = { id: { in: [] } };
 
+export type Home = { spaceId: string; ownerId: null } | { spaceId: null; ownerId: string };
+
+export function homeOf(item: { spaceId: string | null; ownerId: string | null }): Home {
+  return item.spaceId ? { spaceId: item.spaceId, ownerId: null } : { spaceId: null, ownerId: item.ownerId! };
+}
+
+export const inHome = (home: Home) => (home.spaceId === null ? { ownerId: home.ownerId } : { spaceId: home.spaceId });
+
+export const audienceOf = (home: Home) => (home.spaceId === null ? { userId: home.ownerId } : { spaceId: home.spaceId });
+
 @Injectable()
 export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
@@ -59,6 +69,20 @@ export class AccessService {
     return member.role;
   }
 
+  async assertHome(userId: string, spaceId: string | null, access: Access): Promise<Home> {
+    if (spaceId) {
+      await this.assertSpace(userId, spaceId, access);
+      return { spaceId, ownerId: null };
+    }
+    if (!reachable(null)) throw new NotFoundException('Space not found');
+    return { spaceId: null, ownerId: userId };
+  }
+
+  scopeOf(userId: string, query: { spaceId?: string; home?: 'account' }): Prisma.ItemWhereInput {
+    if (query.home === 'account') return this.ownedBy(userId);
+    return query.spaceId ? { ...this.spaceItemsOf(userId), spaceId: query.spaceId } : this.itemsOf(userId);
+  }
+
   async isMember(userId: string, spaceId: string) {
     return reachable(spaceId) && (await this.prisma.spaceMember.count({ where: { spaceId, userId } })) > 0;
   }
@@ -81,12 +105,6 @@ export class AccessService {
     }
     this.assertRole(role, access);
     return { id: item.id, spaceId: item.spaceId, ownerId: item.ownerId, title: item.title, trashedAt: item.trashedAt, role };
-  }
-
-  async assertSpaceItem(userId: string, itemId: string, access: Access) {
-    const item = await this.assertItem(userId, itemId, access);
-    if (!item.spaceId) throw new NotFoundException('Item not found');
-    return { ...item, spaceId: item.spaceId };
   }
 
   private assertRole(role: SpaceRole, access: Access) {

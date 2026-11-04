@@ -113,7 +113,6 @@ model User {
   recoveryCodes        RecoveryCode[]
   knownDevices         KnownDevice[]
   signInChallenges     SignInChallenge[]
-  personalSpace        Space?                 @relation("PersonalSpace")
   createdSpaces        Space[]                @relation("CreatedSpaces")
   memberships          SpaceMember[]
   createdItems         Item[]                 @relation("CreatedItems")
@@ -132,7 +131,9 @@ model User {
   pageGrants           PageGrant[]            @relation("PageGrantRecipient")
   watching             ItemWatcher[]
   createdPageGrants    PageGrant[]            @relation("PageGrantCreator")
-  activity             ActivityEvent[]
+  activity             ActivityEvent[]        @relation("ActivityActor")
+  ownedActivity        ActivityEvent[]        @relation("OwnedActivity")
+  ownedTaskColumns     TaskColumn[]           @relation("OwnedTaskColumns")
   auditEvents          AuditEvent[]           @relation("AuditSubject")
   auditActions         AuditEvent[]           @relation("AuditActor")
   inbox                InboxNotification[]
@@ -251,11 +252,12 @@ model Space {
   id              String           @id @default(uuid()) @db.Uuid
   name            String
   color           String           @default("gray")
-  personalOwnerId String?          @unique @map("personal_owner_id") @db.Uuid
+  slug            String           @unique
+  description     String           @default("")
+  defaults        Json             @default("{}")
   createdById     String?          @map("created_by") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
-  personalOwner   User?            @relation("PersonalSpace", fields: [personalOwnerId], references: [id], onDelete: Cascade)
   createdBy       User?            @relation("CreatedSpaces", fields: [createdById], references: [id], onDelete: SetNull)
   members         SpaceMember[]
   items           Item[]
@@ -314,6 +316,7 @@ model Item {
   searchDocument SearchDocument?
   task           Task?             @relation("TaskItem")
   listTasks      Task[]            @relation("TaskList")
+  listColumns    TaskColumn[]      @relation("ListColumns")
   subtasks       Task[]            @relation("TaskParent")
   event          Event?
   guests         EventGuest[]
@@ -482,17 +485,20 @@ model PageGrant {
 
 model ActivityEvent {
   id        String   @id @default(uuid()) @db.Uuid
-  spaceId   String   @map("space_id") @db.Uuid
+  spaceId   String?  @map("space_id") @db.Uuid
+  ownerId   String?  @map("owner_id") @db.Uuid
   actorId   String?  @map("actor_id") @db.Uuid
   itemId    String?  @map("item_id") @db.Uuid
   verb      String
   data      Json     @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  space     Space?   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  owner     User?    @relation("OwnedActivity", fields: [ownerId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
   item      Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
 
   @@index([spaceId, createdAt])
+  @@index([ownerId, createdAt])
   @@index([itemId])
   @@map("activity_events")
 }
@@ -640,14 +646,20 @@ model Task {
 
 model TaskColumn {
   id        String   @id @default(uuid()) @db.Uuid
-  spaceId   String   @map("space_id") @db.Uuid
+  spaceId   String?  @map("space_id") @db.Uuid
+  ownerId   String?  @map("owner_id") @db.Uuid
+  listId    String?  @map("list_id") @db.Uuid
   name      String
   position  Float    @default(0)
   createdAt DateTime @default(now()) @map("created_at")
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space     Space?   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  owner     User?    @relation("OwnedTaskColumns", fields: [ownerId], references: [id], onDelete: Cascade)
+  list      Item?    @relation("ListColumns", fields: [listId], references: [id], onDelete: Cascade)
   tasks     Task[]
 
-  @@unique([spaceId, name])
+  @@index([spaceId])
+  @@index([ownerId])
+  @@index([listId])
   @@map("task_columns")
 }
 
@@ -804,7 +816,7 @@ model TidyChange {
 
 model TidyRule {
   id            String      @id @default(uuid()) @db.Uuid
-  spaceId       String      @map("space_id") @db.Uuid
+  spaceId       String?     @map("space_id") @db.Uuid
   createdById   String      @map("created_by") @db.Uuid
   titleContains String      @default("") @map("title_contains")
   kind          ItemKind?
@@ -813,7 +825,7 @@ model TidyRule {
   enabled       Boolean     @default(true)
   checkedUntil  DateTime    @map("checked_until")
   createdAt     DateTime    @default(now()) @map("created_at")
-  space         Space       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  space         Space?      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   createdBy     User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
   tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
   batches       TidyBatch[]

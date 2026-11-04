@@ -10,6 +10,7 @@ import { dateValue, dayMs, localDate } from '../recurrence/dates';
 import { zonedInstant } from '../recurrence/occurrences';
 import { presentTag, tagFields } from '../tags/tags.service';
 import { TidyActionDto, type TidyActionName } from './dto/tidy.dto';
+import { SpaceQueryDto } from '../validation/space-query.dto';
 
 const largeFileBytes = 5 * 1024 * 1024;
 const summaryKind = 'tidy.summary';
@@ -174,8 +175,10 @@ export class TidyService implements OnModuleInit {
     await this.inbox.notify(this.prisma, [{ userId, kind: 'tidy_summary', title: `Tidy found ${listed}`, link: '/tidy' }]);
   }
 
-  async scan(userId: string, spaceId?: string) {
-    const editable = { space: this.access.spacesOf(userId, 'edit'), ...(spaceId ? { spaceId } : {}), trashedAt: null } satisfies Prisma.ItemWhereInput;
+  async scan(userId: string, query: SpaceQueryDto = {}) {
+    const spaces = { space: this.access.spacesOf(userId, 'edit') } satisfies Prisma.ItemWhereInput;
+    const scope = query.home === 'account' ? this.access.ownedBy(userId) : query.spaceId ? { ...spaces, spaceId: query.spaceId } : { OR: [spaces, this.access.ownedBy(userId)] };
+    const editable = { AND: [scope], trashedAt: null } satisfies Prisma.ItemWhereInput;
     const mine = { ...this.access.ownedBy(userId), trashedAt: null, archivedAt: null } satisfies Prisma.ItemWhereInput;
     const today = localDate((await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } })).timeZone);
     const groups = await this.prisma.file.groupBy({

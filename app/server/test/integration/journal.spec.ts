@@ -22,7 +22,7 @@ describe('Journal against Postgres', () => {
     const page = (await writer.call('GET', `/notes/${first.body.noteId}`)).body;
     expect(page).toMatchObject({ spaceId: null, parentId: null, permissions: { edit: true, history: true, comment: false, share: false, organize: false } });
     expect(await strata.prisma.item.count({ where: { ownerId: writer.id, kind: 'NOTE' } })).toBe(2);
-    expect(await strata.prisma.item.count({ where: { spaceId: writer.personalSpaceId, kind: 'NOTE' } })).toBe(0);
+    expect(await strata.prisma.item.count({ where: { spaceId: writer.soloSpaceId, kind: 'NOTE' } })).toBe(0);
     expect((await writer.call('GET', '/me/notes?kind=note')).body).toEqual([]);
     expect((await writer.call('PATCH', `/notes/${page.id}`, { title: 'A long day', narrow: true })).body).toMatchObject({ title: 'A long day', narrow: true });
     expect((await writer.call('PATCH', `/notes/${page.id}`, { pinned: true })).status).toBe(403);
@@ -54,9 +54,9 @@ describe('Journal against Postgres', () => {
     const writer = await member('day-reader');
     const other = await member('day-stranger');
     const today = localDate('Etc/UTC');
-    const task = (await writer.call('POST', `/spaces/${writer.personalSpaceId}/tasks`, { title: 'Post the letters' })).body;
+    const task = (await writer.call('POST', `/spaces/${writer.soloSpaceId}/tasks`, { title: 'Post the letters' })).body;
     await writer.call('POST', `/tasks/${task.id}/complete`);
-    await writer.call('POST', `/spaces/${writer.personalSpaceId}/tasks`, { title: 'Still open' });
+    await writer.call('POST', `/spaces/${writer.soloSpaceId}/tasks`, { title: 'Still open' });
     const habit = (await writer.call('POST', '/me/habits', { name: 'Read' })).body;
     await writer.call('PUT', `/habits/${habit.id}/check-ins/${today}`);
     await writer.call('PUT', `/me/journal/${today}/mood`, { mood: 5 });

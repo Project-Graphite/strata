@@ -16,7 +16,7 @@ describe('Access tokens against Postgres', () => {
   it('acts only within its scopes, never on the account, and stops when revoked', async () => {
     const owner = await member('scripter');
     const other = await member('bystander');
-    const note = await strata.item(owner.personalSpaceId, 'Readable');
+    const note = await strata.item(owner.soloSpaceId, 'Readable');
 
     expect((await owner.call('POST', '/me/tokens', { name: 'Backup', scopes: ['items:read'], password: 'wrong' })).status).toBe(403);
     expect((await owner.call('POST', '/me/tokens', { name: 'Backup', scopes: ['admin'], password })).status).toBe(400);
@@ -37,7 +37,7 @@ describe('Access tokens against Postgres', () => {
     expect((await withToken(token, 'GET', '/me')).status).toBe(403);
     expect((await withToken(token, 'GET', '/me/tokens')).status).toBe(403);
     expect((await withToken(token, 'POST', '/me/tokens', { name: 'More', scopes: ['items:write'], password })).status).toBe(403);
-    expect((await withToken(token, 'GET', `/items/${(await strata.item(other.personalSpaceId, 'Theirs')).id}`)).status).toBe(404);
+    expect((await withToken(token, 'GET', `/items/${(await strata.item(other.soloSpaceId, 'Theirs')).id}`)).status).toBe(404);
 
     const [listed] = (await owner.call('GET', '/me/tokens')).body;
     expect(listed).toMatchObject({ name: 'Backup', scopes: ['spaces:read', 'items:read'], lastUsedAt: expect.any(String) });
@@ -116,8 +116,8 @@ describe('Access tokens against Postgres', () => {
     const owner = await member('pinned-scripter');
     const stranger = await member('pinned-stranger');
     const club = (await owner.call('POST', '/spaces', { name: 'Club' })).body;
-    const home = owner.personalSpaceId;
-    expect((await owner.call('POST', '/me/tokens', { name: 'Elsewhere', scopes: ['items:read'], spaceId: stranger.personalSpaceId, password })).status).toBe(404);
+    const home = owner.soloSpaceId;
+    expect((await owner.call('POST', '/me/tokens', { name: 'Elsewhere', scopes: ['items:read'], spaceId: stranger.soloSpaceId, password })).status).toBe(404);
     const pinned = (await owner.call('POST', '/me/tokens', { name: 'Club only', scopes: ['spaces:read', 'items:read', 'items:write'], spaceId: club.id, password })).body;
     expect(pinned.spaceId).toBe(club.id);
     expect((await owner.call('GET', '/me/tokens')).body.map((token: { spaceId: string | null }) => token.spaceId)).toEqual([club.id]);

@@ -13,6 +13,7 @@ const messages = async (type: new () => object, value: object) =>
 function setup(quick: boolean) {
   const transaction = {
     $queryRaw: async () => [],
+    space: { findUniqueOrThrow: vi.fn().mockResolvedValue({ defaults: {} }) },
     item: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null),
@@ -22,6 +23,7 @@ function setup(quick: boolean) {
   const prisma = { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) };
   const access = {
     assertSpace: vi.fn(),
+    assertHome: vi.fn(async (_userId: string, spaceId: string | null) => ({ spaceId, ownerId: null })),
     assertItem: vi.fn().mockResolvedValue({ id: 'jot', spaceId: 'home', title: 'Jot', trashedAt: null, role: 'EDITOR' }),
     spacesOf: vi.fn().mockReturnValue({ members: { some: { userId: 'me' } } }),
   };

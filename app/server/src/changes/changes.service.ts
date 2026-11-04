@@ -85,7 +85,7 @@ export class ChangesService implements OnApplicationBootstrap {
     try {
       for (const key of new Set(nudges.map((nudge) => JSON.stringify(nudge)))) {
         const nudge = JSON.parse(key) as Nudge;
-        if ('spaceId' in nudge && nudge.itemId && ['page-details', 'page-comments', 'page-databases', 'pages'].includes(nudge.topic)) {
+        if (nudge.itemId && ['page-details', 'page-comments', 'page-databases', 'pages'].includes(nudge.topic)) {
           const recipients = await this.prisma.pageGrant.findMany({ where: { itemId: nudge.itemId, item: { kind: { in: ['NOTE', 'BOARD'] }, trashedAt: null, archivedAt: null } }, select: { userId: true } });
           const message = JSON.stringify({ userIds: recipients.map((recipient) => recipient.userId), change: { topic: nudge.topic, itemId: nudge.itemId } });
           const published = await this.redis.run((client) => client.publish(changesChannel, message));

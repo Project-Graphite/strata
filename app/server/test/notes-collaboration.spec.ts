@@ -63,7 +63,7 @@ function database() {
   };
   const databases = new NoteDatabasesService(
     { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) } as never,
-    { spaceNote: async () => ({ spaceId: 'space', trashedAt: null, quick: false, permissions: { organize: true, spaceRole: 'owner' } }), note: async () => ({}) } as never,
+    { note: async () => ({ spaceId: 'space', trashedAt: null, quick: false, permissions: { organize: true, spaceRole: 'owner' } }) } as never,
     { notify: changed } as never,
     { assertPage: async () => ({}), pagesOf: () => ({}) } as never,
   );
@@ -169,7 +169,7 @@ describe('live comment changes', () => {
     };
     const comments = new NoteCommentsService(
       { ...transaction, $transaction: async (work: (client: typeof transaction) => Promise<unknown>) => work(transaction) } as never,
-      { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }), spaceNote: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
+      { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
       { notify: async () => undefined } as never,
       { notify: changed } as never,
       { watch: async () => undefined } as never,

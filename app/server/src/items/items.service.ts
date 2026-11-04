@@ -1,8 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
-import { AccessService } from '../access/access.service';
+import { AccessService, homeOf, inHome } from '../access/access.service';
 import { ActivityService, type ActivityVerb } from '../activity/activity.service';
-import { ChangesService } from '../changes/changes.service';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
@@ -69,7 +68,6 @@ export class ItemsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly activity: ActivityService,
-    private readonly changes: ChangesService,
     private readonly pages: PageAccessService,
     private readonly watchers: WatchersService,
   ) {}
@@ -115,25 +113,20 @@ export class ItemsService {
         },
         select: itemFields,
       }),
-      ...(found.spaceId
-        ? [
-            this.activity.record(this.prisma, {
-              spaceId: found.spaceId,
-              actorId: userId,
-              itemId,
-              verb: 'item.updated',
-              data: {
-                title: input.title ?? found.title,
-                ...(input.title !== undefined && input.title !== found.title ? { renamedFrom: found.title } : {}),
-                ...(input.archived === undefined ? {} : { archived: input.archived }),
-              },
-            }),
-          ]
-        : []),
+      this.activity.record(this.prisma, {
+        ...inHome(homeOf(found)),
+        actorId: userId,
+        itemId,
+        verb: 'item.updated',
+        data: {
+          title: input.title ?? found.title,
+          ...(input.title !== undefined && input.title !== found.title ? { renamedFrom: found.title } : {}),
+          ...(input.archived === undefined ? {} : { archived: input.archived }),
+        },
+      }),
     ]);
-    if (!found.spaceId) this.changes.notify('items', { userId });
     const renamed = input.title !== undefined && input.title !== found.title;
-    if (found.spaceId && (renamed || input.archived !== undefined)) {
+    if (renamed || input.archived !== undefined) {
       const actor = await this.watchers.actorName(this.prisma, userId);
       await this.watchers.watch(this.prisma, itemId, [userId]);
       await this.watchers.notify(this.prisma, itemId, userId, {
@@ -257,10 +250,9 @@ export class ItemsService {
     const item = await this.access.assertItem(userId, itemId, 'edit');
     return this.prisma.$transaction(async (transaction) => {
       const { count } = await change(transaction);
-      if (count === 1 && !item.spaceId) this.changes.notify('items', { userId });
-      if (count === 1 && item.spaceId) {
+      if (count === 1) {
         await this.activity.record(transaction, {
-          spaceId: item.spaceId,
+          ...inHome(homeOf(item)),
           actorId: userId,
           itemId: verb === 'item.deleted' ? undefined : itemId,
           verb,
