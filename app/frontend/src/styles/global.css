@@ -3763,6 +3763,37 @@ main.shell {
   color: var(--color-ink);
 }
 
+.mention-token {
+  border-radius: var(--radius-mark);
+  background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+  padding: 0 0.15em;
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mention-suggestions {
+    animation: rise-in 160ms var(--ease-settle);
+  }
+
+  .mention-suggestions .quick-suggestion {
+    transition: background-color 120ms ease;
+  }
+
+  .rich-editor[data-compact] {
+    animation: fade-in 180ms ease-out;
+  }
+
+  .shared-task-properties > div {
+    animation: rise-in 240ms var(--ease-settle) backwards;
+    animation-delay: calc(var(--order, 0) * 40ms);
+  }
+
+  .shared-task-section {
+    animation: rise-in 240ms var(--ease-settle) 200ms backwards;
+  }
+}
+
 .watch-menu-person {
   display: flex;
   align-items: center;

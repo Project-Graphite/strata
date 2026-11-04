@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { Icon } from '@project-graphite/ui';
 import { fileSize, saveBlob } from '../files';
 import { priorityNames } from '../quick-add';
@@ -38,19 +38,19 @@ export function SharedTask({ code, task, title }: { code: string; task: SharedTa
       <FileSourceContext.Provider value={load}>
         <div className="mt-6 grid gap-6">
           <dl className="shared-task-properties">
-            {properties.map(([label, value]) => (
-              <div key={label}>
+            {properties.map(([label, value], index) => (
+              <div key={label} style={{ '--order': index } as CSSProperties}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
             ))}
           </dl>
-          <section className="grid gap-2">
+          <section className="shared-task-section grid gap-2">
             <h2 className="m-0 text-small font-semibold text-muted">Description</h2>
             {task.description ? <RichTextView value={task.description} /> : <p className="m-0 text-muted">No description</p>}
           </section>
           {task.attachments.length > 0 && (
-            <section className="grid gap-2">
+            <section className="shared-task-section grid gap-2">
               <h2 className="m-0 text-small font-semibold text-muted">Attachments</h2>
               <ul className="panel-rows">
                 {task.attachments.map((file) => (

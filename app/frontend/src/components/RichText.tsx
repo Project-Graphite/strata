@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FloatingToolbar, LinesSkeleton, ToolbarButton, ToolbarSeparator, type IconName } from '@project-graphite/ui';
+import { Extension } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
+import { Plugin } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
@@ -17,11 +20,35 @@ interface Mention {
   index: number;
 }
 
+const mentionToken = /(^|[^\w@])(@[a-z0-9][a-z0-9_-]*)/gi;
+
+const MentionTokens = Extension.create({
+  name: 'mentionTokens',
+  addProseMirrorPlugins: () => [
+    new Plugin({
+      props: {
+        decorations: (state) => {
+          const tokens: Decoration[] = [];
+          state.doc.descendants((node, pos) => {
+            if (!node.isText || node.marks.some((mark) => mark.type.name === 'code')) return;
+            for (const match of node.text!.matchAll(mentionToken)) {
+              const from = pos + match.index + match[1]!.length;
+              tokens.push(Decoration.inline(from, from + match[2]!.length, { class: 'mention-token' }));
+            }
+          });
+          return DecorationSet.create(state.doc, tokens);
+        },
+      },
+    }),
+  ],
+});
+
 const extensions = (placeholder: string) => [
   StarterKit.configure({ link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Highlight,
+  MentionTokens,
   Placeholder.configure({ placeholder }),
 ];
 
@@ -147,7 +174,7 @@ export function RichTextEditor({
         <EditorContent editor={editor} />
       </div>
       {suggestions.length > 0 && (
-        <ul aria-label="People to mention" className="quick-suggestions" role="listbox">
+        <ul aria-label="People to mention" className="quick-suggestions mention-suggestions" role="listbox">
           {suggestions.map((person, index) => (
             <li
               aria-selected={index === mention!.index}
