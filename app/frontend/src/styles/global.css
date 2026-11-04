@@ -3693,6 +3693,10 @@ main.shell {
   padding-block: var(--space-3);
 }
 
+.sheet-head > :first-child {
+  flex: 1 1 auto;
+}
+
 .sheet-title-input {
   width: 100%;
   min-width: 0;
