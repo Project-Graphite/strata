@@ -21,6 +21,7 @@ const BookmarksPage = lazy(() => import('./pages/BookmarksPage').then((module) =
 const CalendarsPage = lazy(() => import('./pages/CalendarsPage').then((module) => ({ default: module.CalendarsPage })));
 const EventPage = lazy(() => import('./pages/EventPage').then((module) => ({ default: module.EventPage })));
 const FilesPage = lazy(() => import('./pages/FilesPage').then((module) => ({ default: module.FilesPage })));
+const DrivePage = lazy(() => import('./pages/DrivePage').then((module) => ({ default: module.DrivePage })));
 const GoalPage = lazy(() => import('./pages/GoalPage').then((module) => ({ default: module.GoalPage })));
 const GoalsPage = lazy(() => import('./pages/GoalsPage').then((module) => ({ default: module.GoalsPage })));
 const InboxPage = lazy(() => import('./pages/InboxPage').then((module) => ({ default: module.InboxPage })));
@@ -219,8 +220,7 @@ export function App() {
                 <Route path="journal/:id" element={<NotePage />} />
               </Route>
               <Route element={<AppRoute app="files" />}>
-                <Route path="files" element={<FilesPage key="files" tab="files" />} />
-                <Route path="files/public" element={<FilesPage key="public" tab="public" />} />
+                <Route path="files" element={<DrivePage />} />
                 <Route path="files/spaces" element={<FilesPage key="spaces" tab="spaces" />} />
                 <Route path="files/storage" element={<FilesPage key="storage" tab="storage" />} />
               </Route>

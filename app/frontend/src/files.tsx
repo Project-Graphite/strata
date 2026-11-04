@@ -27,18 +27,42 @@ export async function preparedUpload(file: File): Promise<Blob> {
   return encoded && encoded.size < file.size ? encoded : file;
 }
 
-export async function uploadFile(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, file: File) {
-  return request<Item>(spaceId ? `/spaces/${spaceId}/files` : '/me/files', {
+export interface DriveEntry {
+  id: string;
+  kind: 'folder' | 'file';
+  name: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
+  updatedAt: string;
+  shared?: boolean;
+}
+
+export interface DriveListing {
+  path: { id: string; name: string }[];
+  entries: DriveEntry[];
+}
+
+export type FilesTab = 'files' | 'spaces' | 'storage';
+
+export const filesTabs = (active: FilesTab) => [
+  { active: active === 'files', href: '/files', label: 'Files' },
+  { active: active === 'spaces', href: '/files/spaces', label: 'In spaces' },
+  { active: active === 'storage', href: '/files/storage', label: 'Storage' },
+];
+
+export async function uploadFile(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, file: File, folderId?: string | null) {
+  return request<Item>(spaceId ? `/spaces/${spaceId}/files` : `/me/files${folderId ? `?folderId=${folderId}` : ''}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
     body: await preparedUpload(file),
   });
 }
 
-export async function uploadFiles(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, files: File[]) {
+export async function uploadFiles(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, files: File[], folderId?: string | null) {
   const accepted = files.filter((file) => file.size <= maxUploadBytes);
   const refused = files.filter((file) => file.size > maxUploadBytes);
-  for (const file of accepted) await uploadFile(request, spaceId, file);
+  for (const file of accepted) await uploadFile(request, spaceId, file, folderId);
   return [
     accepted.length === 1 ? `Added ${accepted[0]!.name}.` : accepted.length ? `Added ${accepted.length} files.` : '',
     refused.length ? `${refused.map((file) => file.name).join(', ')} ${refused.length === 1 ? 'is' : 'are'} over 25 MB.` : '',

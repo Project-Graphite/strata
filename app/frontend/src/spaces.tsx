@@ -126,6 +126,7 @@ export function itemHref(item: { id: string; kind: string }) {
   if (item.kind === 'recipe') return `/recipes/${item.id}`;
   if (item.kind === 'task') return `/tasks?task=${item.id}`;
   if (item.kind === 'list') return `/tasks?list=${item.id}`;
+  if (item.kind === 'folder') return `/files?folder=${item.id}`;
   return null;
 }
 
