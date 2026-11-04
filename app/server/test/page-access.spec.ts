@@ -8,6 +8,7 @@ function page(spaceRole: SpaceRole | null, pageRole: PageRole | null, kind: Item
   const item = {
     id: 'page', spaceId: 'private-space' as string | null, ownerId: null as string | null, kind, title: 'Shared page', trashedAt: null as Date | null, archivedAt: null as Date | null,
     note: { quick: false }, pageGrants: pageRole ? [{ role: pageRole }] : [], space: { members: spaceRole ? [{ role: spaceRole }] : [] },
+    _count: { journalEntries: 0 }, weeklyReview: null as { noteId: string } | null,
   };
   const findUnique = vi.fn(async () => item);
   return { item, findUnique, access: new PageAccessService({ item: { findUnique } } as never, { spacesOf: (userId: string, access: string) => ({ members: { some: { userId, access } } }), ownedBy: (userId: string) => ({ ownerId: userId }) } as never) };
@@ -67,6 +68,16 @@ describe('page-specific permissions', () => {
     expect(await owned.access.assertPage('owner', 'page', 'edit')).toMatchObject({ spaceId: null, permissions: { edit: true, history: true, comment: true, share: true, organize: true } });
     await expect(owned.access.assertPage('owner', 'page', 'comment')).resolves.toMatchObject({ role: SpaceRole.OWNER });
     await expect(owned.access.assertPage('member', 'page', 'read')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('keeps journal and weekly review pages editable by their owner only, without comments, sharing or organizing', async () => {
+    for (const marked of [{ _count: { journalEntries: 1 }, weeklyReview: null }, { _count: { journalEntries: 0 }, weeklyReview: { noteId: 'page' } }]) {
+      const journal = page(null, PageRole.MANAGE);
+      Object.assign(journal.item, { spaceId: null, ownerId: 'owner' }, marked);
+      expect(await journal.access.assertPage('owner', 'page', 'edit')).toMatchObject({ role: SpaceRole.OWNER, permissions: { edit: true, history: true, comment: false, share: false, organize: false } });
+      await expect(journal.access.assertPage('owner', 'page', 'share')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(journal.access.assertPage('member', 'page', 'read')).rejects.toBeInstanceOf(NotFoundException);
+    }
   });
 
   it('lets people an account page is shared with in at their granted level only', async () => {
