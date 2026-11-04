@@ -35,7 +35,7 @@ export function TaskPanel({
   view,
   where,
 }: {
-  addTo?: { spaceId: string; listId?: string };
+  addTo?: { spaceId: string | null; listId?: string };
   columnActions?: (column: TaskColumn) => NestedMenuItem[];
   columns: TaskColumn[];
   completed: boolean;

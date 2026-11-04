@@ -6,11 +6,10 @@ import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { batchSummary, TidyPreview, type TidyRequest } from '../../components/TidyPreview';
 import { fileTypeNames } from '../../files';
-import type { Tag } from '../../spaces';
+import { homePath, type Tag } from '../../spaces';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
-import { useSpace } from './SpaceLayout';
 import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
@@ -45,10 +44,9 @@ function ruleText(rule: Rule) {
   return `Title contains “${rule.titleContains}”${rule.kind ? `, ${kindNames[rule.kind]} only` : ''}`;
 }
 
-export function TidyRules({ tags }: { tags?: Tag[] }) {
+export function TidyRules({ editable, spaceId, tags }: { editable: boolean; spaceId: string | null; tags?: Tag[] }) {
   const auth = useAuth();
-  const space = useSpace();
-  const rules = useResource<Rule[]>(`/spaces/${space.id}/tidy-rules`, true);
+  const rules = useResource<Rule[]>(homePath(spaceId, 'tidy-rules'), true);
   const creating = useAction();
   const changing = useAction();
   const { report } = changing;
@@ -56,9 +54,8 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
   const [deleting, setDeleting] = useState<Rule>();
   const [request, setRequest] = useState<TidyRequest>();
   const [adding, setAdding] = useState(false);
-  const editable = space.role !== 'viewer';
-  const [ruleRows] = useRememberedShape(`tidy-rules-${space.id}`, rules.data && [rules.data.length], [0]);
-  const emptyRulesHint = editable && tags?.length === 0 ? 'Add a tag first, then make a rule for it.' : 'Rules tag new items in this space as they are added.';
+  const [ruleRows] = useRememberedShape(`tidy-rules-${spaceId ?? 'account'}`, rules.data && [rules.data.length], [0]);
+  const emptyRulesHint = editable && tags?.length === 0 ? 'Add a tag first, then make a rule for it.' : `Rules tag new items ${spaceId ? 'in this space' : 'of your own'} as they are added.`;
 
   function findMatches(rule: Rule) {
     void changing.run(async () => {
@@ -80,7 +77,7 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
   return (
     <Section
       action={editable && (tags ? tags.length > 0 && <AddButton label="New rule" onClick={() => setAdding(true)} /> : <AddButtonSkeleton />)}
-      description="Tag new items in this space by words in their title, by file type, or both."
+      description={`Tag new items ${spaceId ? 'in this space' : 'of your own'} by words in their title, by file type, or both.`}
       title="Tagging rules"
     >
       {rules.error ? (
@@ -137,7 +134,7 @@ export function TidyRules({ tags }: { tags?: Tag[] }) {
             if (!form.check(target, { titleContains: fileType ? [limit] : [required('Enter words to look for, or choose a file type.'), limit] })) return;
             void creating
               .run(async () => {
-                const created = await auth.request<Rule>(`/spaces/${space.id}/tidy-rules`, {
+                const created = await auth.request<Rule>(homePath(spaceId, 'tidy-rules'), {
                   method: 'POST',
                   body: JSON.stringify({
                     titleContains: String(values.get('titleContains')).trim(),

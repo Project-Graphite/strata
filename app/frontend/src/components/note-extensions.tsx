@@ -197,7 +197,7 @@ export function mentionExtension(request: Request | undefined, noteId: string, p
       .map((item) => ({
         id: item.id,
         label: item.title || 'Untitled',
-        href: itemHref(item) ?? `/spaces/${item.spaceId}`,
+        href: itemHref(item) ?? (item.spaceId ? `/spaces/${item.spaceId}/items` : '/files'),
         hint: pagesOnly ? (item.spaceName ?? 'Yours') : `${itemKindName(item)} · ${item.spaceName ?? 'Yours'}`,
         group: pagesOnly ? undefined : 'Pages and items',
       }));

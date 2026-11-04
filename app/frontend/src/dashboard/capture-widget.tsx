@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Placeholder, TextAreaField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import type { Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { homePath, useChosenSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button } from '../components/Button';
@@ -11,33 +11,31 @@ import { PageLinks, PageLinksSkeleton, WidgetEmpty } from './widget-parts';
 
 export function Capture() {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const { spaceId: target = null, editable } = useChosenSpace();
   const notes = useResource<Note[]>('/me/notes?kind=quick', true, { live: ['items', 'pages'] });
   const saving = useAction();
   const [text, setText] = useState('');
-  const editable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const target = editable[0]?.id;
 
-  if (spaces.data && editable.length === 0) {
+  if (!editable) {
     return (
-      <WidgetEmpty icon="lock" title="Nowhere to save, you can only view your spaces" />
+      <WidgetEmpty icon="lock" title="Nowhere to save, you can only view this space" />
     );
   }
 
   function save(kind: 'note' | 'task') {
     const content = text.trim();
-    if (!content || !target) return;
+    if (!content) return;
     void saving.run(async () => {
       const [first, ...rest] = content.split(/\r?\n/);
       if (kind === 'note') {
         const body = rest.join('\n').trim();
-        await auth.request(`/spaces/${target}/notes`, {
+        await auth.request(homePath(target, 'notes'), {
           method: 'POST',
           body: JSON.stringify({ title: first!.trim().slice(0, 200), quick: true, ...(body ? { text: body } : {}) }),
         });
         notes.reload();
       } else {
-        await auth.request(`/spaces/${target}/tasks`, { method: 'POST', body: JSON.stringify({ title: first!.slice(0, 200) }) });
+        await auth.request(homePath(target, 'tasks'), { method: 'POST', body: JSON.stringify({ title: first!.slice(0, 200) }) });
       }
       setText('');
       return kind === 'note' ? 'Saved as a note.' : 'Saved as a task.';

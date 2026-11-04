@@ -161,6 +161,6 @@ export async function draftRecoveryParts(file: File): Promise<DraftPart[]> {
   }
 }
 
-export function recoverDraftPart(request: ReturnType<typeof useAuth>['request'], spaceId: string, part: DraftPart) {
-  return request<{ id: string }>(`/spaces/${spaceId}/page-drafts`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Recovery-Id': part.id }, body: part.body });
+export function recoverDraftPart(request: ReturnType<typeof useAuth>['request'], spaceId: string | null, part: DraftPart) {
+  return request<{ id: string }>(`${spaceId ? `/spaces/${spaceId}` : '/me'}/page-drafts`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Recovery-Id': part.id }, body: part.body });
 }

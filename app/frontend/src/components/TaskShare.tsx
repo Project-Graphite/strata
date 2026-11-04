@@ -62,7 +62,7 @@ function SendDialog({ onClose, spaceId, taskId, title }: { onClose: () => void; 
   );
 }
 
-export function TaskShare({ editable, shared, spaceId, taskId, title }: { editable: boolean; shared: boolean; spaceId: string; taskId: string; title: string }) {
+export function TaskShare({ editable, spaceId, taskId, title }: { editable: boolean; spaceId: string | null; taskId: string; title: string }) {
   const show = useSnackbar();
   const [open, setOpen] = useState<'send' | 'links'>();
   return (
@@ -77,14 +77,14 @@ export function TaskShare({ editable, shared, spaceId, taskId, title }: { editab
                 .then(() => show({ message: 'Copied the link. People in this space can open it.' }))
                 .catch(() => show({ message: 'Could not copy the link', tone: 'error' })),
           },
-          ...(shared ? [{ label: 'Send to people…', onSelect: () => setOpen('send') }] : []),
+          ...(spaceId ? [{ label: 'Send to people…', onSelect: () => setOpen('send') }] : []),
           ...(editable ? [{ label: 'Share by link…', onSelect: () => setOpen('links') }] : []),
         ]}
         label="Share options"
         trigger={<Icon name="link" size={18} />}
         triggerLabel="Share"
       />
-      {open === 'send' && <SendDialog onClose={() => setOpen(undefined)} spaceId={spaceId} taskId={taskId} title={title} />}
+      {open === 'send' && spaceId && <SendDialog onClose={() => setOpen(undefined)} spaceId={spaceId} taskId={taskId} title={title} />}
       {open === 'links' && <ShareLinks editLinks={false} itemId={taskId} noun="task" onClose={() => setOpen(undefined)} />}
     </>
   );

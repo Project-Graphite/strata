@@ -2,6 +2,7 @@ import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useState } from 'react';
 import { Icon } from '@project-graphite/ui';
+import { useAuth } from '../auth';
 import type { Member } from '../spaces';
 import type { Task } from '../tasks';
 import { useResource } from '../useResource';
@@ -9,7 +10,9 @@ import { UserAvatar } from './UserAvatar';
 
 export function AssigneeButton({ onAssign, task }: { onAssign?: (assignee: Task['assignee']) => void; task: Task }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const members = useResource<Member[]>(anchor ? `/spaces/${task.spaceId}/members` : null, true);
+  const { user } = useAuth();
+  const spaceMembers = useResource<Member[]>(anchor && task.spaceId ? `/spaces/${task.spaceId}/members` : null, true);
+  const members = task.spaceId || !user ? spaceMembers : { ...spaceMembers, data: [{ userId: user.id, handle: user.handle, displayName: user.displayName }] };
   const label = task.assignee ? `Assignee: ${task.assignee.displayName}` : 'Unassigned';
   const mark = task.assignee ? (
     <UserAvatar name={task.assignee.displayName} size="sm" userId={task.assignee.id} />

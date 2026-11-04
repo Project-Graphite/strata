@@ -14,7 +14,7 @@ import { cachedData, cachedRequest, resourceKey, useLiveRefresh, useResource } f
 
 export interface Task {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   title: string;
   listId: string | null;
   parentId: string | null;
@@ -37,7 +37,8 @@ export interface Task {
 
 export interface TaskColumn {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
+  listId: string | null;
   name: string;
   position: number;
 }
@@ -55,7 +56,7 @@ export const taskStatuses = [
 
 export interface TaskList {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   title: string;
   openTasks: number;
 }

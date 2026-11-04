@@ -10,7 +10,7 @@ import { Button, TextButton } from './Button';
 import { DialogActions } from './DialogActions';
 import { Hint } from './Hint';
 
-export default function MarkdownImportDialog({ plan, spaceId, onClose, onDone }: { plan: PageImportPlan; spaceId: string; onClose: () => void; onDone: () => void }) {
+export default function MarkdownImportDialog({ plan, spaceId, onClose, onDone }: { plan: PageImportPlan; spaceId: string | null; onClose: () => void; onDone: () => void }) {
   const auth = useAuth();
   const action = useAction();
   const [, refresh] = useReducer((value: number) => value + 1, 0);
@@ -37,7 +37,7 @@ export default function MarkdownImportDialog({ plan, spaceId, onClose, onDone }:
         {plan.uploaded.size > 0 && <Hint>Uploaded files stay in the selected space if a later step fails. Review them in Files before removing any.</Hint>}
         <DialogActions start={<div className="flex flex-wrap gap-2">
           <TextButton disabled={action.busy} label="Save import progress" onClick={() => void action.run(async () => {
-            saveBlob(await saveImportProgress(plan, auth.user!.id, spaceId), 'strata-import.strata-import');
+            saveBlob(await saveImportProgress(plan, auth.user!.id, spaceId ?? 'account'), 'strata-import.strata-import');
             return 'Saved import progress. Keep the original source files to resume.';
           }, 'Could not save import progress')} />
           <TextButton disabled={action.busy} label="Download import report" onClick={() => saveBlob(new Blob([JSON.stringify({ pages: plan.pages.map(({ id, path, title, blocked, created, nested, indexed, issues, error }) => ({ id, path, title, blocked, created, nested, indexed, issues, error })), uploadedImages: [...plan.uploaded].map(([path, id]) => ({ path, id })), omittedImages: [...plan.omitted].map(([path, reason]) => ({ path, reason })) }, null, 2)], { type: 'application/json' }), 'strata-import-report.json')} />

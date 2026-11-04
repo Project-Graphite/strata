@@ -10,7 +10,7 @@ import { Section } from './Page';
 interface Linked {
   id: string;
   kind: string;
-  item: { id: string; spaceId: string; kind: string; title: string };
+  item: { id: string; spaceId: string | null; kind: string; title: string };
 }
 
 export function useItemBoards(itemId: string) {
@@ -21,9 +21,9 @@ export function useItemBoards(itemId: string) {
     boards: (links.data?.outgoing ?? []).filter((link) => link.kind === 'reference' && link.item.kind === 'board'),
     loaded: Boolean(links.data),
     busy: adding.busy,
-    add: (spaceId: string, title: string) =>
+    add: (title: string) =>
       void adding.run(async () => {
-        const board = await auth.request<{ id: string }>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
+        const board = await auth.request<{ id: string }>('/me/notes', { method: 'POST', body: JSON.stringify({ board: true, title: `${title} board` }) });
         await auth.request(`/items/${itemId}/links`, { method: 'POST', body: JSON.stringify({ targetId: board.id, kind: 'reference' }) });
         links.reload();
         return `Added ${title} board.`;
@@ -31,9 +31,9 @@ export function useItemBoards(itemId: string) {
   };
 }
 
-export function ItemBoards({ boards, editable, spaceId, title }: { boards: ReturnType<typeof useItemBoards>; editable: boolean; spaceId: string; title: string }) {
+export function ItemBoards({ boards, editable, title }: { boards: ReturnType<typeof useItemBoards>; editable: boolean; title: string }) {
   return (
-    <Section action={editable && <AddButton disabled={boards.busy} label="New board" onClick={() => boards.add(spaceId, title)} />} title="Boards">
+    <Section action={editable && <AddButton disabled={boards.busy} label="New board" onClick={() => boards.add(title)} />} title="Boards">
       {boards.boards.map(({ id, item }) => (
         <div className="grid gap-1.5" key={id}>
           <BoardPreview boardId={item.id} label={`Preview of ${noteTitle(item)}`} />

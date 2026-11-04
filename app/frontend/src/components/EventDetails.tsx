@@ -2,7 +2,6 @@ import { lazy, Suspense, useState } from 'react';
 import { ConfirmDialog, ListRow, Sheet, TextField } from '@project-graphite/ui';
 import { eventWhen, type EventDetails, type Guest } from '../agenda';
 import { useAuth } from '../auth';
-import { useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { emailAddress, required, useFormErrors } from '../validation';
@@ -126,7 +125,6 @@ export function EventSections({
 }) {
   const auth = useAuth();
   const boards = useItemBoards(details.id);
-  const personal = useAllSpaces().data?.find((space) => space.kind === 'personal');
   const action = useAction();
   const inviting = useAction();
   const sharing = useAction();
@@ -185,7 +183,7 @@ export function EventSections({
         </Section>
       )}
 
-      {boards.boards.length > 0 && personal && <ItemBoards boards={boards} editable={editable} spaceId={personal.id} title={details.title} />}
+      {boards.boards.length > 0 && <ItemBoards boards={boards} editable={editable} title={details.title} />}
 
       {guestsShown && (
         <Section description={`${details.headcount.yes} coming · ${details.headcount.maybe} maybe · ${details.headcount.no} not coming · ${details.headcount.pending} waiting`} title="Guests">
@@ -268,7 +266,7 @@ export function EventSections({
         <div className="flex flex-wrap gap-2">
           {!guestsShown && <Button icon="users" label="Invite" onClick={() => setInvitingOpen(true)} />}
           {canOfferDates && <Button icon="calendar" label="Offer dates" onClick={() => setPlanning(true)} />}
-          {canAddBoard && personal && <Button disabled={boards.busy} icon="board" label="Add a board" onClick={() => boards.add(personal.id, details.title)} />}
+          {canAddBoard && <Button disabled={boards.busy} icon="board" label="Add a board" onClick={() => boards.add(details.title)} />}
         </div>
       )}
 

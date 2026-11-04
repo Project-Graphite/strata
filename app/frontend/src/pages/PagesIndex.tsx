@@ -16,7 +16,7 @@ import { RowText } from '../components/RowText';
 import { SearchField } from '../components/SearchField';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, childPagesPath, nestedUnder, noteEdited, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
-import { useSpaces } from '../spaces';
+import { homePath, useChosenSpace } from '../spaces';
 import { Reveal } from '../motion';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -34,8 +34,8 @@ interface PagesTreeControls {
 
 const PagesTreeContext = createContext<PagesTreeControls>(null!);
 
-function CreateButton({ busy, label, large = false, onCreate, spaceId }: { busy: boolean; label: string; large?: boolean; onCreate: (spaceId: string) => void; spaceId: string }) {
-  return large ? <AddButton disabled={busy} label={label} large onClick={() => onCreate(spaceId)} primary /> : <Button disabled={busy} icon="plus" label={label} onClick={() => onCreate(spaceId)} primary />;
+function CreateButton({ busy, label, large = false, onCreate }: { busy: boolean; label: string; large?: boolean; onCreate: () => void }) {
+  return large ? <AddButton disabled={busy} label={label} large onClick={onCreate} primary /> : <Button disabled={busy} icon="plus" label={label} onClick={onCreate} primary />;
 }
 
 function TreeNote({ children, depth }: { children: ReactNode; depth: number }) {
@@ -46,11 +46,11 @@ function TreeNote({ children, depth }: { children: ReactNode; depth: number }) {
   );
 }
 
-function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: string; depth: number; parentId: string | null; spaceId: string; writable: boolean }) {
+function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: string; depth: number; parentId: string | null; spaceId: string | null; writable: boolean }) {
   const tree = useContext(PagesTreeContext);
   const RowLink = useLink();
   const [more, setMore] = useState(false);
-  const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId });
+  const listed = useResource<ChildPages>(childPagesPath(spaceId, parentId, cursor), true, { live: ['page-details', 'items', 'spaces'], spaceId: spaceId ?? undefined });
   const reload = listed.reload;
   useEffect(() => onPagesChanged(reload), [reload]);
   const pages = listed.data?.pages.filter((page) => page.kind === 'note') ?? [];
@@ -110,7 +110,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
 }
 
 function PagesTree({ firstRun }: { firstRun: ReactNode }) {
-  const spaces = useSpaces();
+  const { spaceId = null, editable } = useChosenSpace();
   const notes = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const navigate = useNavigate();
   const [open, setOpen] = useState(() => new Set<string>());
@@ -158,7 +158,7 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
     }
   }
 
-  if (!spaces.data || (!notes.data && !notes.error)) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
+  if (!notes.data && !notes.error) return <RowsSkeleton lead={<IconSkeleton />} rows={4} />;
   if (notes.data?.length === 0) {
     return (
       <Empty action={firstRun} icon={emptyStates.pages.icon} title={emptyStates.pages.title} variant="page">
@@ -184,18 +184,14 @@ function PagesTree({ firstRun }: { firstRun: ReactNode }) {
         role="tree"
         tabIndex={inside ? -1 : 0}
       >
-        {spaces.data.map((space) => (
-          <TreeLevel depth={0} key={space.id} parentId={null} spaceId={space.id} writable={space.role !== 'viewer'} />
-        ))}
+        <TreeLevel depth={0} key={spaceId ?? 'account'} parentId={null} spaceId={spaceId} writable={editable} />
       </ul>
     </PagesTreeContext>
   );
 }
 
 function PageSearch({ query }: { query: string }) {
-  const spaces = useSpaces();
   const listed = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
-  const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
   const text = query.trim().toLocaleLowerCase();
   const found = listed.data?.filter((note) => noteTitle(note).toLocaleLowerCase().includes(text)) ?? [];
   if (listed.error) return <LoadError error={listed.error} onRetry={listed.reload} />;
@@ -208,7 +204,7 @@ function PageSearch({ query }: { query: string }) {
           href={noteHref(note)}
           key={note.id}
           lead={<NoteMark note={note} />}
-          meta={[note.spaceId && spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+          meta={noteEdited(note)}
           title={noteTitle(note)}
         />
       ))}
@@ -217,10 +213,8 @@ function PageSearch({ query }: { query: string }) {
 }
 
 function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-notes' }) {
-  const spaces = useSpaces();
+  const { editable } = useChosenSpace();
   const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const spaceNames = new Map(spaces.data?.map((space) => [space.id, space.name]));
   const pages = listed.data ?? [];
   const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
   const empty = emptyStates[section];
@@ -234,11 +228,9 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-
         href={noteHref(note)}
         key={note.id}
         lead={<NoteMark note={note} />}
-        meta={[note.spaceId && spaceNames.get(note.spaceId), noteEdited(note)].filter(Boolean).join(' · ')}
+        meta={noteEdited(note)}
         title={noteTitle(note)}
-        trail={
-          <PageActionsMenu note={note} onTrash={writable.some((space) => space.id === note.spaceId) ? () => moveToTrash(note, nestedUnder(pages, note.id).length) : undefined} />
-        }
+        trail={<PageActionsMenu note={note} onTrash={editable ? () => moveToTrash(note, nestedUnder(pages, note.id).length) : undefined} />}
       />,
       ...rows(note.id, depth + 1),
     ]);
@@ -271,31 +263,30 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-
 export function PagesIndex({ section }: { section: PagesSection }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const spaces = useSpaces();
+  const { spaceId = null, editable } = useChosenSpace();
   const creating = useAction();
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
-  const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
 
-  function create(spaceId: string, body: { quick?: true }, noun: string) {
+  function create(body: { quick?: true }, noun: string) {
     void creating.run(async () => {
-      const created = await auth.request<Note>(`/spaces/${spaceId}/notes`, { method: 'POST', body: JSON.stringify(body) });
+      const created = await auth.request<Note>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify(body) });
       navigate(noteHref(created));
       return '';
     }, `Could not create the ${noun}`);
   }
 
   function primary(large: boolean) {
-    if (section === 'quick-notes') return <CreateButton busy={creating.busy} label="New quick note" large={large} onCreate={(spaceId) => create(spaceId, { quick: true }, 'quick note')} spaceId={writable[0]!.id} />;
-    return <CreateButton busy={creating.busy} label="New page" large={large} onCreate={(spaceId) => create(spaceId, {}, 'page')} spaceId={writable[0]!.id} />;
+    if (section === 'quick-notes') return <CreateButton busy={creating.busy} label="New quick note" large={large} onCreate={() => create({ quick: true }, 'quick note')} />;
+    return <CreateButton busy={creating.busy} label="New page" large={large} onCreate={() => create({}, 'page')} />;
   }
 
-  const firstRun = writable.length > 0 && primary(false);
+  const firstRun = editable && primary(false);
 
   return (
     <Page
       actions={
-        writable.length > 0 && (
+        editable && (
           <>
             <ActionsMenu items={[{ label: 'Import pages', onSelect: () => setImporting(true) }]} name="pages" />
             {primary(true)}
@@ -310,7 +301,7 @@ export function PagesIndex({ section }: { section: PagesSection }) {
         )
       }
     >
-      {importing && <ImportPages onClose={() => setImporting(false)} onDone={announcePagesChanged} spaces={writable} />}
+      {importing && <ImportPages onClose={() => setImporting(false)} onDone={announcePagesChanged} spaceId={spaceId} />}
       {section === 'drafts' ? <Drafts kind="note" /> : section === 'quick-notes' ? <NoteList firstRun={firstRun} section={section} /> : query.trim() ? <PageSearch query={query} /> : <PagesTree firstRun={firstRun} />}
     </Page>
   );

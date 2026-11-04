@@ -2,7 +2,7 @@ export type TaskGroupKey = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' |
 
 interface Placed {
   id: string;
-  spaceId: string;
+  spaceId: string | null;
   dueDate: string | null;
   position: number;
 }

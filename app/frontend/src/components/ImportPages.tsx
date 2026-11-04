@@ -2,7 +2,6 @@ import { lazy, Suspense, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Banner, Dialog, LinesSkeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
-import type { Space } from '../spaces';
 import { useAction } from '../useAction';
 import { Hint } from './Hint';
 import { FileButton } from './FileButton';
@@ -16,11 +15,10 @@ import { pageHref } from '../notes';
 
 const MarkdownImportDialog = lazy(() => import('./MarkdownImportDialog'));
 
-export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; onDone: () => void; spaces: Space[] }) {
+export function ImportPages({ onClose, onDone, spaceId }: { onClose: () => void; onDone: () => void; spaceId: string | null }) {
   const auth = useAuth();
   const importing = useAction();
   const navigate = useNavigate();
-  const spaceId = spaces[0]!.id;
   const [recovery, setRecovery] = useState<DraftPart[]>();
   const [pageImport, setPageImport] = useState<PageImportPlan>();
   const [progress, setProgress] = useState<ImportProgress>();
@@ -52,7 +50,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
   function start(chosen: File[]) {
     void importing.run(async () => {
       const { preparePageImport } = await import('../page-import');
-      if (progress) await verifyImportSources(chosen, progress, auth.user!.id, spaceId);
+      if (progress) await verifyImportSources(chosen, progress, auth.user!.id, spaceId ?? 'account');
       setPageImport(await preparePageImport(chosen, progress));
       return '';
     }, 'Could not import the pages');
@@ -80,7 +78,7 @@ export function ImportPages({ onClose, onDone, spaces }: { onClose: () => void; 
           <FileButton accept=".strata-import" busy={importing.busy} label="Load import progress" onFiles={([file]) => void importing.run(async () => {
             const saved = await readImportProgress(file!);
             if (saved.userId !== auth.user!.id) throw new Error('Resume this import with the original account');
-            if (spaceId !== saved.spaceId) throw new Error('Switch to the original space before resuming this import');
+            if ((spaceId ?? 'account') !== saved.spaceId) throw new Error('Switch to the original space before resuming this import');
             setProgress(saved);
             return 'Choose the original source folder or Markdown files.';
           }, 'Could not load import progress')} />

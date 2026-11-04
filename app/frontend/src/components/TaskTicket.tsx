@@ -5,7 +5,7 @@ import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedCo
 import { describeActivity, type ActivityEvent } from '../activity';
 import { readBlob, type Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
-import type { Member } from '../spaces';
+import { homePath, type Member } from '../spaces';
 import { fileSize, maxUploadBytes, preparedUpload, saveBlob } from '../files';
 import { completeTask, type Task, type TaskDetail } from '../tasks';
 import { Reveal, useHeightMorph } from '../motion';
@@ -188,7 +188,7 @@ export function Subtasks({
             const text = title.trim();
             if (!text) return;
             void action.run(async () => {
-              const added = await auth.request<Task>(`/spaces/${task.spaceId}/tasks`, {
+              const added = await auth.request<Task>(homePath(task.spaceId, 'tasks'), {
                 method: 'POST',
                 body: JSON.stringify({ title: text.slice(0, 200), parentId: task.id, listId: task.listId }),
               });

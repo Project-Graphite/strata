@@ -12,6 +12,7 @@ import { FormDialog } from '../../components/FormDialog';
 import { LoadError } from '../../components/LoadError';
 import { Section } from '../../components/Page';
 import { IconButtonSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { TidyRules } from '../spaces/TidyRules';
 
 const tagNameChecks = [required('Enter a tag name.'), atMost(40, 'Use at most 40 characters.')];
 const empty = { title: 'No tags yet', hint: 'Tags you make here go on your own items, such as bookmarks, recipes and files.' };
@@ -29,7 +30,8 @@ export function TagsSettings() {
   const [rows] = useRememberedShape('settings-tags', tags.data && [tags.data.length], [3]);
 
   return (
-    <Section action={<AddButton label="New tag" onClick={() => setEditing('new')} />} description="Labels you put on your own bookmarks, events, goals, people, recipes and files, so you can filter and find them later. Each space keeps its own tags for its pages, tasks and boards." title="Your tags">
+    <>
+    <Section action={<AddButton label="New tag" onClick={() => setEditing('new')} />} description="Labels you put on your own pages, tasks, boards, bookmarks, events, goals, people, recipes and files, so you can filter and find them later. Each space keeps its own tags." title="Your tags">
       {tags.error ? (
         <LoadError error={tags.error} onRetry={tags.reload} />
       ) : !tags.data ? (
@@ -114,5 +116,7 @@ export function TagsSettings() {
         </ConfirmDialog>
       )}
     </Section>
+    {!tags.error && auth.user?.features.includes('tidy') && <TidyRules editable spaceId={null} tags={tags.data} />}
+    </>
   );
 }
