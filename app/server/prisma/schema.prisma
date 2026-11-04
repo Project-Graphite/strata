@@ -100,6 +100,7 @@ model User {
   monthStartDay        Int                    @default(1) @map("month_start_day")
   budgetsEnabled       Boolean                @default(true) @map("budgets_enabled")
   features             String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
+  emailKinds           String[]               @default([]) @map("email_kinds")
   calendarFeedHash     String?                @unique @map("calendar_feed_hash")
   avatarId             String?                @unique @map("avatar_id") @db.Uuid
   avatar               Item?                  @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
@@ -526,6 +527,7 @@ model InboxNotification {
   body      String?
   link      String?
   readAt    DateTime? @map("read_at")
+  emailedAt DateTime? @map("emailed_at")
   createdAt DateTime  @default(now()) @map("created_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 

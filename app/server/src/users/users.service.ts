@@ -24,6 +24,7 @@ export class UsersService {
       monthStartDay: user.monthStartDay,
       budgetsEnabled: user.budgetsEnabled,
       features: user.features,
+      emailKinds: user.emailKinds,
       role: user.role.toLowerCase(),
     };
   }
@@ -43,6 +44,7 @@ export class UsersService {
         monthStartDay: input.monthStartDay,
         budgetsEnabled: input.budgetsEnabled,
         features: input.features,
+        emailKinds: input.emailKinds,
       },
     });
     return this.me(userId);

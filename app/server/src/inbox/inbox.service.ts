@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { InboxEntry } from './inbox-kinds';
+import { NotificationMailService } from './notification-mail.service';
 import { PushService } from './push.service';
 
 const pageSize = 20;
@@ -35,11 +36,13 @@ export class InboxService {
     private readonly prisma: PrismaService,
     private readonly push: PushService,
     private readonly changes: ChangesService,
+    private readonly mail: NotificationMailService,
   ) {}
 
   async notify(client: Prisma.TransactionClient, entries: InboxEntry[]) {
     await client.inboxNotification.createMany({ data: entries });
     await this.push.queue(client, entries);
+    await this.mail.queue(client, entries);
     for (const userId of new Set(entries.map((entry) => entry.userId))) this.changes.notify('inbox', { userId });
   }
 
