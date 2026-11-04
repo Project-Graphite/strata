@@ -17,6 +17,7 @@ import { requestContext } from '../http/request-context';
 import { InvitationsService } from '../invitations/invitations.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
+import { emailChangeRequestedEmail, existingAccountEmail, newDeviceEmail, passwordChangedEmail, passwordResetEmail, sessionReusedEmail, verifyEmail } from '../mail/templates';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { SiteSettingsService } from '../site/site-settings.service';
@@ -98,19 +99,7 @@ export class AuthService implements OnModuleInit {
     }
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
-      await this.mail.trySend({
-        to: existing.email,
-        subject: 'Someone tried to create a Strata account with your email',
-        text: [
-          `Hi ${existing.displayName},`,
-          '',
-          'Someone tried to create a new Strata account with this email address, which already has one. Nothing was changed.',
-          '',
-          'If it was you, sign in instead, or reset your password if you have forgotten it:',
-          '',
-          this.mail.link('/forgot-password'),
-        ].join('\n'),
-      });
+      await this.mail.trySend({ to: existing.email, ...existingAccountEmail(this.mail.link, { name: existing.displayName }) });
       return { registered: true };
     }
     if (await this.prisma.user.findUnique({ where: { handle: input.handle }, select: { id: true } })) {
@@ -325,19 +314,7 @@ export class AuthService implements OnModuleInit {
       return;
     }
     const token = await this.createToken(this.prisma, user.id, TokenPurpose.RESET_PASSWORD);
-    await this.mail.trySend({
-      to: user.email,
-      subject: 'Reset your Strata password',
-      text: [
-        `Hi ${user.displayName},`,
-        '',
-        'Someone asked to reset the password of your Strata account. Choose a new one with this link within the next hour:',
-        '',
-        this.mail.link(`/reset-password?token=${token}`),
-        '',
-        'If that was not you, ignore this email and your password stays the same.',
-      ].join('\n'),
-    });
+    await this.mail.trySend({ to: user.email, ...passwordResetEmail(this.mail.link, { name: user.displayName, token }) });
   }
 
   async resetPassword(token: string, password: string) {
@@ -405,19 +382,7 @@ export class AuthService implements OnModuleInit {
       throw emailUnavailable();
     }
     await this.audit.record(userId, 'email_change_requested');
-    await this.mail.trySend({
-      to: user.email,
-      subject: 'Your Strata email is being changed',
-      text: [
-        `Hi ${user.displayName},`,
-        '',
-        'Someone asked to move your Strata account to another email address. Nothing changes until that address is confirmed.',
-        '',
-        'If this was not you, reset your password now. That cancels the change:',
-        '',
-        this.mail.link('/forgot-password'),
-      ].join('\n'),
-    });
+    await this.mail.trySend({ to: user.email, ...emailChangeRequestedEmail(this.mail.link, { name: user.displayName }) });
   }
 
   async deleteAccount(userId: string, proof: Proof) {
@@ -490,20 +455,7 @@ export class AuthService implements OnModuleInit {
     });
     const emailed =
       alerted === 0 &&
-      (await this.mail.trySend({
-        to: session.user.email,
-        subject: 'Someone may have your session',
-        text: [
-          `Hi ${session.user.displayName},`,
-          '',
-          `A sign-in to your Strata account on ${session.deviceLabel} was used again after it had already been renewed, at ${now.toUTCString()}. That usually means someone else has a copy of it, so every device was signed out.`,
-          '',
-          'If you do not recognise this, reset your password now and check your security log:',
-          '',
-          this.mail.link('/forgot-password'),
-          this.mail.link('/settings/security'),
-        ].join('\n'),
-      }));
+      (await this.mail.trySend({ to: session.user.email, ...sessionReusedEmail(this.mail.link, { name: session.user.displayName, device: session.deviceLabel, at: now }) }));
     await this.audit.record(session.userId, 'refresh_token_reused', { device: session.deviceLabel, emailed });
   }
 
@@ -559,37 +511,12 @@ export class AuthService implements OnModuleInit {
       skipDuplicates: true,
     });
     if (added.count === 1 && known > 0) {
-      await this.mail.trySend({
-        to: user.email,
-        subject: 'New sign-in to your Strata account',
-        text: [
-          `Hi ${user.displayName},`,
-          '',
-          `Your Strata account was just signed in to from a new device: ${label}, at ${new Date().toUTCString()}.`,
-          '',
-          'If this was you, there is nothing to do. If not, reset your password now, then sign out the devices you do not recognise:',
-          '',
-          this.mail.link('/forgot-password'),
-          this.mail.link('/settings/security'),
-        ].join('\n'),
-      });
+      await this.mail.trySend({ to: user.email, ...newDeviceEmail(this.mail.link, { name: user.displayName, device: label, at: new Date() }) });
     }
   }
 
   private passwordChangedNotice(user: { email: string; displayName: string }) {
-    return this.mail.trySend({
-      to: user.email,
-      subject: 'Your Strata password was changed',
-      text: [
-        `Hi ${user.displayName},`,
-        '',
-        'The password of your Strata account was just changed. Every device was signed out and your access tokens were revoked.',
-        '',
-        'If this was not you, reset it again now:',
-        '',
-        this.mail.link('/forgot-password'),
-      ].join('\n'),
-    });
+    return this.mail.trySend({ to: user.email, ...passwordChangedEmail(this.mail.link, { name: user.displayName }) });
   }
 
   private async sendVerification(
@@ -600,23 +527,7 @@ export class AuthService implements OnModuleInit {
   ) {
     const changing = purpose === TokenPurpose.CHANGE_EMAIL;
     const token = await this.createToken(client, user.id, purpose, changing ? to : null);
-    return this.mail.trySend({
-      to,
-      subject: changing
-        ? 'Confirm your new Strata email'
-        : 'Verify your Strata email',
-      text: [
-        `Hi ${user.displayName},`,
-        '',
-        changing
-          ? 'Confirm this address to use it for your Strata account:'
-          : 'Confirm this address to finish creating your Strata account:',
-        '',
-        this.mail.link(`/verify?token=${token}`),
-        '',
-        'The link works for 24 hours. If you did not ask for this, ignore this email.',
-      ].join('\n'),
-    });
+    return this.mail.trySend({ to, ...verifyEmail(this.mail.link, { name: user.displayName, token, changing }) });
   }
 
   private async createToken(

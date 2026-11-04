@@ -6,6 +6,7 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  html?: string;
   headers?: Record<string, string>;
 }
 
@@ -40,9 +41,7 @@ export class MailService {
     return Boolean(this.config.get<string>('EMAIL_HOST'));
   }
 
-  link(path: string) {
-    return new URL(path, this.config.getOrThrow<string>('APP_URL')).toString();
-  }
+  link = (path: string) => new URL(path, this.config.getOrThrow<string>('APP_URL')).toString();
 
   async send(message: MailMessage) {
     if (!this.configured) {

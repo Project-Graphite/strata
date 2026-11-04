@@ -11,6 +11,7 @@ import { ActivityService } from '../activity/activity.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { InboxService } from '../inbox/inbox.service';
 import { MailService } from '../mail/mail.service';
+import { spaceInviteEmail, strataInviteEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
 import { InviteToSpaceDto, InviteToStrataDto } from './dto/invitations.dto';
 
@@ -115,22 +116,7 @@ export class InvitationsService {
     const link = this.mail.link(`/invite/${token}`);
     const emailed =
       input.email !== undefined &&
-      (await this.mail.trySend({
-        to: input.email,
-        subject: 'You are invited to Strata',
-        text: [
-          'Hi,',
-          '',
-          `${inviter.displayName} invited you to Strata, a private workspace for your notes, agenda, subscriptions and files.`,
-          ...this.noteLines(input.note),
-          '',
-          'Create your account with this link within 14 days:',
-          '',
-          link,
-          '',
-          'If you already have a Strata account, sign in instead. If you did not expect this, ignore this email.',
-        ].join('\n'),
-      }));
+      (await this.mail.trySend({ to: input.email, ...strataInviteEmail(this.mail.link, { inviter: inviter.displayName, note: input.note || undefined, token }) }));
     return { invitation: presentSent(invitation), link, emailed };
   }
 
@@ -201,22 +187,16 @@ export class InvitationsService {
       }
       return created;
     });
-    const link = this.mail.link(invitee ? '/spaces/invitations' : `/invite/${token}`);
     const emailed = await this.mail.trySend({
       to: invitee?.email ?? input.email!,
-      subject: 'You are invited to a space on Strata',
-      text: [
-        invitee ? `Hi ${invitee.displayName},` : 'Hi,',
-        '',
-        `${inviter.displayName} invited you to join the space "${space.name}" on Strata as ${input.role === 'viewer' ? 'a viewer' : `an ${input.role}`}.`,
-        ...this.noteLines(input.note),
-        '',
-        invitee ? 'Accept or decline it from your invitations:' : 'Join within 14 days with this link:',
-        '',
-        link,
-        '',
-        'If you did not expect this, ignore this email.',
-      ].join('\n'),
+      ...spaceInviteEmail(this.mail.link, {
+        name: invitee?.displayName,
+        inviter: inviter.displayName,
+        space: space.name,
+        role: input.role,
+        note: input.note || undefined,
+        token: invitee ? undefined : token,
+      }),
     });
     return { invitation: presentSent(invitation), emailed };
   }
@@ -391,9 +371,5 @@ export class InvitationsService {
 
   private invitee(userId: string) {
     return this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true } });
-  }
-
-  private noteLines(note?: string) {
-    return note ? ['', 'Their note:', '', note] : [];
   }
 }
