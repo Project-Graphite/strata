@@ -1650,8 +1650,30 @@ button.habit-day::before {
 }
 
 @media (min-width: 64rem) {
+  .sheet-body:has(> .task-sheet-layout) {
+    display: flex;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .task-sheet-layout {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
   .task-sheet {
+    min-height: 0;
+    flex: 1;
     grid-template-columns: minmax(0, 1fr) 15rem;
+  }
+
+  .task-sheet > * {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: var(--space-6);
   }
 
   .task-properties {

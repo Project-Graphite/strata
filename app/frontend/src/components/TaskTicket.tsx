@@ -41,10 +41,10 @@ function DescriptionToolbar({ editor }: { editor: Editor }) {
   );
 }
 
-export function DescriptionEditor({ editable, onSave, value }: { editable: boolean; onSave: (description: Description) => void; value: Description }) {
-  const timer = useRef<number>(undefined);
+export function DescriptionEditor({ editable, onDirty, onSave, staged, value }: { editable: boolean; onDirty?: (dirty: boolean) => void; onSave: (description: Description) => void; staged: boolean; value: Description }) {
   const latest = useRef(onSave);
   latest.current = onSave;
+  const [dirty, setDirty] = useState(false);
   const editor = useEditor({
     content: value ?? undefined,
     editable,
@@ -58,11 +58,8 @@ export function DescriptionEditor({ editable, onSave, value }: { editable: boole
     ],
     editorProps: { attributes: { 'aria-label': 'Description', class: 'note-content task-description' } },
     onUpdate: ({ editor: current }) => {
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => {
-        timer.current = undefined;
-        latest.current(current.isEmpty ? null : current.getJSON());
-      }, 800);
+      if (staged) setDirty(true);
+      else latest.current(current.isEmpty ? null : current.getJSON());
     },
   });
 
@@ -70,20 +67,35 @@ export function DescriptionEditor({ editable, onSave, value }: { editable: boole
     editor?.setEditable(editable);
   }, [editor, editable]);
 
-  useEffect(
-    () => () => {
-      if (timer.current === undefined || !editor) return;
-      window.clearTimeout(timer.current);
-      latest.current(editor.isEmpty ? null : editor.getJSON());
-    },
-    [editor],
-  );
+  useEffect(() => {
+    onDirty?.(dirty);
+    return () => onDirty?.(false);
+  }, [dirty, onDirty]);
 
   if (!editor) return <LinesSkeleton label="Loading the description" lines={3} />;
   return (
     <div className="grid gap-2">
       {editable && <DescriptionToolbar editor={editor} />}
       <EditorContent editor={editor} />
+      {dirty && (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            label="Cancel"
+            onClick={() => {
+              editor.commands.setContent(value ?? '', { emitUpdate: false });
+              setDirty(false);
+            }}
+          />
+          <Button
+            label="Save"
+            onClick={() => {
+              onSave(editor.isEmpty ? null : editor.getJSON());
+              setDirty(false);
+            }}
+            primary
+          />
+        </div>
+      )}
     </div>
   );
 }

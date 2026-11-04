@@ -202,7 +202,7 @@ export class TasksService implements OnModuleInit {
         ...tasks,
         ...(query.listId ? { listId: query.listId } : {}),
         ...(query.assignee && query.assignee !== 'any' ? { assigneeId: query.assignee === 'me' ? userId : query.assignee === 'none' ? null : query.assignee } : {}),
-        ...(query.type ? { type: taskType(query.type) } : {}),
+        ...(query.type ? { type: { equals: taskType(query.type), mode: 'insensitive' as const } } : {}),
         completedAt: query.completed ? { not: null } : null,
       },
     };
