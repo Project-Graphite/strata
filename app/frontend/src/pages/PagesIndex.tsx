@@ -19,7 +19,7 @@ import { useSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
-const emptyStates: Record<PagesSection, { title: string; hint: string; icon: IconName }> = {
+const emptyStates: Record<Exclude<PagesSection, 'drafts'>, { title: string; hint: string; icon: IconName }> = {
   pages: { title: 'No pages yet', hint: 'Pages hold notes, checklists, tables and anything else you write.', icon: 'file' },
   'quick-notes': { title: 'No quick notes yet', hint: 'Quick notes are for one-off jots. Write one here or from Home.', icon: 'file' },
 };
@@ -206,7 +206,7 @@ function PageSearch({ query }: { query: string }) {
   );
 }
 
-function NoteList({ firstRun, section }: { firstRun: ReactNode; section: Exclude<PagesSection, 'pages'> }) {
+function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-notes' }) {
   const spaces = useSpaces();
   const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const writable = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
@@ -303,8 +303,7 @@ export function PagesIndex({ section }: { section: PagesSection }) {
       }
     >
       {importing && <ImportPages onClose={() => setImporting(false)} onDone={announcePagesChanged} spaces={writable} />}
-      {section !== 'pages' ? <NoteList firstRun={firstRun} section={section} /> : query.trim() ? <PageSearch query={query} /> : <PagesTree firstRun={firstRun} />}
-      {section === 'pages' && !query.trim() && <Drafts kind="note" />}
+      {section === 'drafts' ? <Drafts kind="note" /> : section === 'quick-notes' ? <NoteList firstRun={firstRun} section={section} /> : query.trim() ? <PageSearch query={query} /> : <PagesTree firstRun={firstRun} />}
     </Page>
   );
 }

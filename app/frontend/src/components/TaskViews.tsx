@@ -219,8 +219,28 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
   const [dragging, setDragging] = useState<Task>();
   const [over, setOver] = useState<Task['status']>();
   const statusOf = (task: Task) => (task.completedAt ? 'done' : task.status === 'done' ? 'open' : task.status);
+  const board = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = board.current!;
+    const content = element.closest('#content');
+    const fit = () => {
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      const below = content ? parseFloat(getComputedStyle(content).paddingBottom) : 0;
+      element.style.setProperty('--board-height', `${Math.max(window.innerHeight - top - below, 320)}px`);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(document.body);
+    window.addEventListener('resize', fit);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', fit);
+    };
+  }, []);
+
   return (
-    <div className="task-board">
+    <div className="task-board" ref={board}>
       {taskStatuses.map((column) => {
         const shown = tasks.filter((task) => statusOf(task) === column.value);
         return (
@@ -258,7 +278,7 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
             {shown.length === 0 ? (
               <p className="task-column-empty">{dragging ? `Drop here to mark it ${column.label.toLowerCase()}` : 'No tasks'}</p>
             ) : (
-              <ul className="m-0 grid list-none content-start gap-2 p-0">
+              <ul className="task-column-cards m-0 grid list-none content-start gap-2 p-0">
                 {shown.map((task) => {
                   const details = taskDetails(task, where?.(task));
                   const done = Boolean(task.completedAt);

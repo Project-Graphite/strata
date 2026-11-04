@@ -8,7 +8,8 @@ import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
-import { FilterChips, Page } from '../components/Page';
+import { FilterMenu } from '../components/FilterMenu';
+import { Page } from '../components/Page';
 import { RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -54,9 +55,9 @@ export function BookmarksPage() {
       actions={<AddButton label="New bookmark" large onClick={() => setAdding(true)} primary />}
       title="Bookmarks"
       toolbar={
-        <FilterChips
-          items={filters.map((filter) => ({ active: status.value === filter.value, href: `/bookmarks?status=${filter.value}`, label: filter.label }))}
-          label="Show"
+        <FilterMenu
+          groups={[{ label: 'Show', options: filters.map((filter) => ({ active: status.value === filter.value, href: `/bookmarks?status=${filter.value}`, label: filter.label })) }]}
+          label="Filter bookmarks"
         />
       }
     >

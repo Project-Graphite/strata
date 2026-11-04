@@ -5,7 +5,8 @@ import { AddButton, Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { GoalEditor } from '../components/GoalEditor';
 import { LoadError } from '../components/LoadError';
-import { FilterChips, Page, Section } from '../components/Page';
+import { FilterMenu } from '../components/FilterMenu';
+import { Page, Section } from '../components/Page';
 import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
 import { periodLabel, progressText, statusLabels, type Goal } from '../goals';
 import { useResource } from '../useResource';
@@ -41,12 +42,17 @@ export function GoalsPage() {
       actions={<AddButton label="New goal" large onClick={() => setAdding(true)} primary />}
       title="Goals"
       toolbar={
-        <FilterChips
-          items={[
-            { active: !finished, href: '/goals', label: 'Active' },
-            { active: finished, href: '/goals?status=finished', label: 'Done or dropped' },
+        <FilterMenu
+          groups={[
+            {
+              label: 'Status',
+              options: [
+                { active: !finished, href: '/goals', label: 'Active' },
+                { active: finished, href: '/goals?status=finished', label: 'Done or dropped' },
+              ],
+            },
           ]}
-          label="Goal status"
+          label="Filter goals"
         />
       }
     >

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { FilterChip, Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
+import { Icon, PageActionsRow, PageHeader, Placeholder, SectionHeading, Tabs, type TabItem } from '@project-graphite/ui';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { ButtonSkeleton, IconButtonSkeleton, SkeletonLine } from './Skeletons';
@@ -331,17 +331,6 @@ export function Toolbar({ actions, children }: { actions?: ReactNode; children?:
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 max-sm:basis-full">{children}</div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
-  );
-}
-
-export function FilterChips({ children, items, label }: { children?: ReactNode; items: { active: boolean; count?: number; href: string; label: string }[]; label: string }) {
-  return (
-    <nav aria-label={label} className="chip-row">
-      {items.map((item) => (
-        <FilterChip active={item.active} count={item.count} href={item.href} key={item.href} label={item.label} />
-      ))}
-      {children}
-    </nav>
   );
 }
 

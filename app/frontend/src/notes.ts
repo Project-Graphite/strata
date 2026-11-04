@@ -35,11 +35,17 @@ export function nestedUnder(pages: Note[], parentId: string | null) {
   return pages.filter((page) => (page.parentId && known.has(page.parentId) ? page.parentId : null) === parentId);
 }
 
-export type PagesSection = 'pages' | 'quick-notes';
+export type PagesSection = 'pages' | 'quick-notes' | 'drafts';
 
 export const pagesTabs = (active: PagesSection) => [
   { active: active === 'pages', href: '/pages', label: 'Pages' },
   { active: active === 'quick-notes', href: '/pages/quick-notes', label: 'Quick notes' },
+  { active: active === 'drafts', href: '/pages/drafts', label: 'Drafts' },
+];
+
+export const boardsTabs = (active: 'boards' | 'drafts') => [
+  { active: active === 'boards', href: '/boards', label: 'Boards' },
+  { active: active === 'drafts', href: '/boards/drafts', label: 'Drafts' },
 ];
 
 export const pageIndent = (depth: number) => ({ paddingInlineStart: `${1 + depth * 1.25}rem` });

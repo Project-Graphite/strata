@@ -13,7 +13,8 @@ import { ActionsMenu } from '../../components/ActionsMenu';
 import { Empty } from '../../components/Empty';
 import { FileButton } from '../../components/FileButton';
 import { LoadError } from '../../components/LoadError';
-import { FilterChips, Toolbar, usePagePrimary } from '../../components/Page';
+import { FilterMenu } from '../../components/FilterMenu';
+import { Toolbar, usePagePrimary } from '../../components/Page';
 import { useRememberedShape } from '../../components/Skeletons';
 
 export function SpaceItems() {
@@ -96,15 +97,20 @@ export function SpaceItems() {
   return (
     <>
       <Toolbar>
-        <FilterChips
-          items={[
-            { active: !archived, href: link({ archived: false }), label: 'Current' },
-            { active: archived, href: link({ archived: true }), label: 'Archived' },
+        <FilterMenu
+          groups={[
+            {
+              label: 'Show',
+              options: [
+                { active: !archived, href: link({ archived: false }), label: 'Current' },
+                { active: archived, href: link({ archived: true }), label: 'Archived' },
+              ],
+            },
           ]}
-          label="Items"
+          label="Filter items"
         >
           {tag && <TagChip href={link({ tag: null })} label={tagName} onRemove={() => navigate(link({ tag: null }))} />}
-        </FilterChips>
+        </FilterMenu>
       </Toolbar>
       {items.error ? (
         <LoadError error={items.error} onRetry={items.reload} />

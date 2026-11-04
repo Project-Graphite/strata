@@ -5,10 +5,11 @@ import { useAuth } from '../auth';
 import { AddButton } from '../components/Button';
 import { FormDialog } from '../components/FormDialog';
 import { Page } from '../components/Page';
-import { ChipsSkeleton, useRememberedShape } from '../components/Skeletons';
+import { FilterMenu } from '../components/FilterMenu';
+import { ButtonSkeleton } from '../components/Skeletons';
 import { TaskPanel } from '../components/TaskPanel';
 import { useSpaces } from '../spaces';
-import { TaskListChips, taskLink, TaskStatusChips, taskViews, type Task, type TaskList, type TaskView } from '../tasks';
+import { taskFilters, taskLink, taskViews, type Task, type TaskList, type TaskView } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -44,7 +45,6 @@ export function TasksPage() {
   const link = taskLink('/tasks', listId, completed, view);
   const shownList = lists.data?.find((list) => list.id === listId);
   const addTo = shownList ? spaceOf(shownList.spaceId) : personal;
-  const [listCount] = useRememberedShape('task-lists', lists.data && [lists.data.length], [1]);
   const whereOf = (task: Task) =>
     [(spaces.data?.length ?? 0) > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ') || undefined;
 
@@ -60,14 +60,13 @@ export function TasksPage() {
       }
       title="Tasks"
       toolbar={
-        <div className="chip-row [&>nav]:contents">
-          {lists.data ? (
-            <TaskListChips link={link} listId={listId} lists={lists.data} onNewList={editableSpaces.length > 0 ? () => setCreatingList(true) : undefined} />
-          ) : (
-            !lists.error && <ChipsSkeleton count={listCount + 2} />
-          )}
-          {view === 'list' && <TaskStatusChips completed={completed} link={link} />}
-        </div>
+        lists.data ? (
+          <FilterMenu groups={taskFilters({ completed, link, listId, lists: lists.data, view })} label="Filter tasks">
+            {editableSpaces.length > 0 && <AddButton label="New list" onClick={() => setCreatingList(true)} />}
+          </FilterMenu>
+        ) : (
+          !lists.error && <ButtonSkeleton width="w-28" />
+        )
       }
       toolbarEnd={<SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />}
     >

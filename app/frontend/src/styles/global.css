@@ -1624,7 +1624,22 @@ button.habit-day::before {
   }
 
   .task-board {
+    height: var(--board-height, auto);
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .task-column {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .task-column-cards {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
   }
 }
 
@@ -2706,6 +2721,10 @@ header.backdrop-blur-md {
   min-height: calc(0.9rem * 1.55 + 0.9rem);
   justify-content: flex-start;
   padding-inline: 0.8125rem;
+}
+
+.sidebar .sidebar-item > .MuiTouchRipple-root {
+  display: none;
 }
 
 .sidebar[data-collapsed='true'] .sidebar-section-label {

@@ -195,10 +195,12 @@ export function App() {
                 <Route path="pages">
                   <Route index element={<PagesIndex key="pages" section="pages" />} />
                   <Route path="quick-notes" element={<PagesIndex key="quick-notes" section="quick-notes" />} />
+                  <Route path="drafts" element={<PagesIndex key="drafts" section="drafts" />} />
                 </Route>
               </Route>
               <Route element={<AppRoute app="boards" />}>
-                <Route path="boards" element={<BoardsIndex />} />
+                <Route path="boards" element={<BoardsIndex key="boards" section="boards" />} />
+                <Route path="boards/drafts" element={<BoardsIndex key="drafts" section="drafts" />} />
               </Route>
               <Route path="pages/:id" element={<NotePage />} />
               <Route path="notes/:id" element={<MovedPage />} />
@@ -212,7 +214,10 @@ export function App() {
                 <Route path="journal/:id" element={<NotePage />} />
               </Route>
               <Route element={<AppRoute app="files" />}>
-                <Route path="files" element={<FilesPage />} />
+                <Route path="files" element={<FilesPage key="files" tab="files" />} />
+                <Route path="files/public" element={<FilesPage key="public" tab="public" />} />
+                <Route path="files/spaces" element={<FilesPage key="spaces" tab="spaces" />} />
+                <Route path="files/storage" element={<FilesPage key="storage" tab="storage" />} />
               </Route>
               <Route element={<AppRoute app="spending" />}>
                 <Route path="spending">

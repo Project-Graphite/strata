@@ -1,7 +1,8 @@
 import { useSearchParams } from 'react-router';
-import { formatDay, ListRow, Placeholder, SegmentedControl, Skeleton, Stat, StatGrid, TextLink } from '@project-graphite/ui';
+import { formatDay, ListRow, Placeholder, Skeleton, Stat, StatGrid, TextLink } from '@project-graphite/ui';
 import { Amount } from '../components/Amount';
 import { Empty } from '../components/Empty';
+import { FilterMenu } from '../components/FilterMenu';
 import { LoadError } from '../components/LoadError';
 import { Section } from '../components/Page';
 import { rowsOf, RowsSkeleton, SkeletonLine, useRememberedShape } from '../components/Skeletons';
@@ -46,18 +47,23 @@ export function SpendingInsightsPage() {
       onChanged={insights.reload}
       tab="insights"
       toolbar={
-        <SegmentedControl
-          label="Look back over"
-          onChange={(value) =>
-            setParams((current) => {
-              const next = new URLSearchParams(current);
-              next.set('months', value);
-              return next;
-            })
-          }
-          options={spans.map((value) => ({ value, label: `${value} months` }))}
-          size="small"
-          value={span}
+        <FilterMenu
+          groups={[
+            {
+              label: 'Look back over',
+              options: spans.map((value) => ({
+                active: value === span,
+                label: `${value} months`,
+                onSelect: () =>
+                  setParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.set('months', value);
+                    return next;
+                  }),
+              })),
+            },
+          ]}
+          label="Filter insights"
         />
       }
     >
