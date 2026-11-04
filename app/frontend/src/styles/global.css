@@ -3834,13 +3834,15 @@ main.shell {
 }
 
 .drive-bar {
-  position: sticky;
-  top: var(--header-height);
   z-index: 5;
   display: flex;
   min-height: 3rem;
   align-items: center;
-  background: var(--color-paper);
+}
+
+.drive-bar:has(.drive-selection) {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-2));
 }
 
 .drive-selection {
@@ -3852,6 +3854,13 @@ main.shell {
   background: var(--color-raised);
   padding: 0 var(--space-2) 0 var(--space-1);
   color: var(--color-ink);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .drive-selection {
+    animation: rise-in 180ms var(--ease-settle);
+  }
 }
 
 .drive-count {
@@ -3908,7 +3917,7 @@ main.shell {
 }
 
 .drive-row:focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-muted);
   outline-offset: -2px;
 }
 
