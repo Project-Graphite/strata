@@ -6,6 +6,7 @@ import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
+import { eventInviteEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
 import { dateText, dateValue, dayMs, localDate, readableDay } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
@@ -333,21 +334,10 @@ export class EventsService implements OnModuleInit {
     const { token, tokenHash } = newLinkToken();
     const guest = await this.prisma.eventGuest.create({ data: { itemId, name: input.name, email: input.email ?? null, tokenHash } });
     const link = this.mail.link(`/rsvp/${token}`);
+    const when = `${readableDay(dateText(current.event.startsOn))}${current.event.startTime ? ` at ${current.event.startTime} (${current.event.timeZone})` : ''}`;
     const emailed =
       input.email !== undefined &&
-      (await this.mail.trySend({
-        to: input.email,
-        subject: 'You are invited to an event',
-        text: [
-          `Hi ${input.name},`,
-          '',
-          `You are invited to "${current.title}" on ${readableDay(dateText(current.event.startsOn))}${current.event.startTime ? ` at ${current.event.startTime} (${current.event.timeZone})` : ''}.`,
-          '',
-          'Say whether you can come, with no account needed:',
-          '',
-          link,
-        ].join('\n'),
-      }));
+      (await this.mail.trySend({ to: input.email, ...eventInviteEmail(this.mail.link, { name: input.name, title: current.title, when, token }) }));
     return { guest: presentGuest(guest), link, emailed };
   }
 

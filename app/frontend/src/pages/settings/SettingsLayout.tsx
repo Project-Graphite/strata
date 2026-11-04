@@ -20,6 +20,7 @@ export interface Me {
   weekendDays: number[];
   monthStartDay: number;
   budgetsEnabled: boolean;
+  emailKinds: string[];
   role: string;
 }
 

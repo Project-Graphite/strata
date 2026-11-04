@@ -3,6 +3,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { SecretBox } from '../crypto/secret-box.service';
 import { MailService } from '../mail/mail.service';
+import { twoStepEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
 import { matchingStep, newTotpSecret, otpauthUri } from './totp';
 
@@ -84,9 +85,7 @@ export class TwoStepService {
       return transaction.user.findUniqueOrThrow({ where: { id: userId } });
     });
     await this.audit.record(userId, 'two_step_enabled');
-    await this.alert(user, 'Two-step sign-in is on for your Strata account', [
-      'Signing in to Strata now also needs a code from your authenticator app or one of your recovery codes.',
-    ]);
+    await this.alert(user, true);
     return { recoveryCodes: codes };
   }
 
@@ -97,9 +96,7 @@ export class TwoStepService {
       return transaction.user.findUniqueOrThrow({ where: { id: userId } });
     });
     await this.audit.record(userId, 'two_step_disabled');
-    await this.alert(user, 'Two-step sign-in is off for your Strata account', [
-      'Signing in to Strata now needs only your password.',
-    ]);
+    await this.alert(user, false);
   }
 
   async regenerateRecoveryCodes(userId: string) {
@@ -139,19 +136,7 @@ export class TwoStepService {
     return used.count === 1;
   }
 
-  private alert(user: { email: string; displayName: string }, subject: string, lines: string[]) {
-    return this.mail.trySend({
-      to: user.email,
-      subject,
-      text: [
-        `Hi ${user.displayName},`,
-        '',
-        ...lines,
-        '',
-        'If this was not you, reset your password now and sign out your other devices:',
-        '',
-        this.mail.link('/forgot-password'),
-      ].join('\n'),
-    });
+  private alert(user: { email: string; displayName: string }, on: boolean) {
+    return this.mail.trySend({ to: user.email, ...twoStepEmail(this.mail.link, { name: user.displayName, on }) });
   }
 }

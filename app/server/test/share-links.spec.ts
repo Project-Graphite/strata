@@ -117,3 +117,59 @@ describe('page share links', () => {
     }
   });
 });
+
+describe('changing a share link', () => {
+  function changing(kind: ItemKind, current: { access: 'VIEW' | 'EDIT' } | null = { access: 'VIEW' }) {
+    const updateMany = vi.fn(async ({ data }: { data: { access?: string } }) => {
+      if (current && data.access) current.access = data.access as 'VIEW' | 'EDIT';
+      return { count: current ? 1 : 0 };
+    });
+    const closeShareLink = vi.fn();
+    const audit = { record: vi.fn() };
+    const links = new ShareLinksService(
+      {
+        item: { findUnique: async () => ({ kind }), findUniqueOrThrow: async () => ({ kind }) },
+        shareLink: {
+          findFirst: async () => current && { ...current },
+          updateMany,
+          findUniqueOrThrow: async () => ({ id: 'link', access: current!.access, tokenHash: 'hash', slug: 'team-notes', expiresAt: null, createdAt: new Date() }),
+        },
+      } as never,
+      { assertItem: async () => ({ trashedAt: null }) } as never,
+      { link: (path: string) => `https://example.com${path}` } as never,
+      {} as never,
+      { linkToken: (id: string) => id } as never,
+      { closeShareLink } as never,
+      { assertPage: async () => ({ trashedAt: null }) } as never,
+      audit as never,
+      {} as never,
+    );
+    return { links, updateMany, closeShareLink, audit };
+  }
+
+  it.each([ItemKind.NOTE, ItemKind.BOARD])('switches a %s link between view and edit, logs it and reconnects its guests', async (kind) => {
+    const shared = changing(kind);
+    expect(await shared.links.update('member', 'page', 'link', { access: 'edit' })).toMatchObject({ access: 'edit', slug: 'team-notes' });
+    expect(shared.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'link', itemId: 'page' }), data: { slug: undefined, access: 'EDIT' } }));
+    expect(shared.audit.record).toHaveBeenCalledWith('member', 'share_link_access_changed', { itemId: 'page', linkId: 'link', access: 'edit' });
+    expect(shared.closeShareLink).toHaveBeenCalledWith('link');
+
+    expect(await shared.links.update('member', 'page', 'link', { access: 'view' })).toMatchObject({ access: 'view' });
+    expect(shared.closeShareLink).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves guests connected when the access stays the same or only the name changes', async () => {
+    const shared = changing(ItemKind.NOTE, { access: 'EDIT' });
+    await shared.links.update('member', 'page', 'link', { access: 'edit' });
+    await shared.links.update('member', 'page', 'link', { slug: 'team-notes' });
+    expect(shared.audit.record).not.toHaveBeenCalled();
+    expect(shared.closeShareLink).not.toHaveBeenCalled();
+  });
+
+  it('refuses edit access for anything but pages and boards, and links that are turned off', async () => {
+    const file = changing(ItemKind.FILE);
+    await expect(file.links.update('member', 'file', 'link', { access: 'edit' })).rejects.toThrow('Only pages and boards can be shared for editing');
+    expect(file.updateMany).not.toHaveBeenCalled();
+    await expect(changing(ItemKind.NOTE, null).links.update('member', 'page', 'link', { access: 'view' })).rejects.toThrow('That link is already turned off');
+  });
+});

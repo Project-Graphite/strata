@@ -272,6 +272,20 @@ describe('AuthService with two-step sign-in', () => {
     await expect(service.login(unknown, device)).rejects.toThrow('Too many failed sign-ins for this account');
   });
 
+  it('signs in with a handle, and counts failures by handle and by email against the same account', async () => {
+    const { prisma, service } = await setup({ enabled: false });
+    expect(await service.login({ login: user.handle, password: 'correct horse battery' }, device)).toHaveProperty('session');
+    expect(prisma.user.findUnique).toHaveBeenLastCalledWith({ where: { handle: user.handle } });
+    expect(await service.login({ login: user.email, password: 'correct horse battery' }, device)).toHaveProperty('session');
+    expect(prisma.user.findUnique).toHaveBeenLastCalledWith({ where: { email: user.email } });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(service.login({ login: user.handle, password: 'not the password' }, device)).rejects.toThrow('Email or password is incorrect');
+      await expect(service.login({ email: user.email, password: 'not the password' }, device)).rejects.toThrow('Email or password is incorrect');
+    }
+    await expect(service.login({ login: user.handle, password: 'correct horse battery' }, device)).rejects.toThrow('Too many failed sign-ins for this account');
+  });
+
   it('counts wrong two-step codes against the account', async () => {
     const { prisma, service } = await setup({ enabled: true, verifies: false });
     prisma.signInChallenge.findUnique.mockResolvedValue({

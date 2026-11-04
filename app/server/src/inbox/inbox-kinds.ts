@@ -18,6 +18,8 @@ export const inboxKinds = [
 
 export type InboxKind = (typeof inboxKinds)[number];
 
+export const emailableKinds = inboxKinds.filter((kind) => kind !== 'invitation');
+
 export interface InboxEntry {
   userId: string;
   kind: InboxKind;

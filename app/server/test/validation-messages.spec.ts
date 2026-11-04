@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { describe, expect, it } from 'vitest';
+import { LoginDto } from '../src/auth/dto/login.dto';
 import { RegisterDto } from '../src/auth/dto/register.dto';
 import { UuidPipe } from '../src/validation/uuid.pipe';
 
@@ -21,6 +22,13 @@ describe('Validation messages', () => {
       'Handles use letters, numbers, - and _, and start and end with a letter or number.',
       'Passwords are 12 to 128 characters long.',
     ]);
+  });
+
+  it('signs in with an email or a handle, written with or without @, and still accepts the old email field', async () => {
+    expect(plainToInstance(LoginDto, { login: ' @Amr ', password: 'x' }).login).toBe('amr');
+    expect(plainToInstance(LoginDto, { login: ' Amr@Example.com ', password: 'x' }).login).toBe('amr@example.com');
+    await expect(messages(LoginDto, { email: 'amr@example.com', password: 'x' })).resolves.toEqual([]);
+    await expect(messages(LoginDto, { password: 'x' })).resolves.toEqual(['Enter your email or handle.']);
   });
 
   it('answers a malformed identifier as a missing page', async () => {

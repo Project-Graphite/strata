@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsString, IsTimeZone, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
+import { emailableKinds } from '../../inbox/inbox-kinds';
 import { featureKeys } from '../features';
 
 export const timeFormats = ['auto', '12h', '24h'] as const;
@@ -64,4 +65,10 @@ export class UpdateProfileDto {
   @ArrayUnique()
   @IsIn(featureKeys, { each: true, message: 'Choose apps from the list.' })
   features?: string[];
+
+  @IsOptionalNotNull()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(emailableKinds, { each: true, message: 'Choose notifications from the list.' })
+  emailKinds?: string[];
 }
