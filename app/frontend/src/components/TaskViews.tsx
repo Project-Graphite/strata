@@ -287,9 +287,9 @@ export function TaskBoard({
   };
   const moveTo = (task: Task, column: BoardColumn) => {
     if (column.custom.length === 0) return changes.setStatus(task, column.status);
-    const target = column.custom.find((candidate) => candidate.spaceId === task.spaceId);
+    const target = column.custom.find((candidate) => candidate.spaceId === task.spaceId && candidate.listId === task.listId);
     if (target) changes.setColumn(task, target.id);
-    else show({ message: `The space of ${task.title} has no ${column.label} column.`, tone: 'error' });
+    else show({ message: `The epic of ${task.title} has no ${column.label} column.`, tone: 'error' });
   };
   const board = useRef<HTMLDivElement>(null);
 

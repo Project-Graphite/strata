@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ConfirmDialog, SegmentedControl, TextField } from '@project-graphite/ui';
+import { SegmentedControl, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { AddButton } from '../../components/Button';
 import { FormDialog } from '../../components/FormDialog';
 import { Toolbar, usePagePrimary } from '../../components/Page';
 import { ButtonSkeleton, IconButtonSkeleton } from '../../components/Skeletons';
+import { useTaskColumns } from '../../components/TaskColumns';
 import { TaskPanel } from '../../components/TaskPanel';
 import { FilterMenu } from '../../components/FilterMenu';
-import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type TaskColumn, type TaskFilterChoices, type TaskList } from '../../tasks';
+import { spaceHref } from '../../spaces';
+import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type TaskFilterChoices, type TaskList } from '../../tasks';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
 import { atMost, required, useFormErrors } from '../../validation';
@@ -24,17 +26,14 @@ export function SpaceTasks() {
   const { completed, listId, view } = state;
   const page = Number(params.get('page')) || 1;
   const lists = useResource<TaskList[]>(`/spaces/${space.id}/lists`, true);
-  const columns = useResource<TaskColumn[]>(`/spaces/${space.id}/task-columns`, true, { live: ['tasks'] });
-  const [columnDialog, setColumnDialog] = useState<{ column?: TaskColumn }>();
-  const [removingColumn, setRemovingColumn] = useState<TaskColumn>();
-  const columnForm = useFormErrors();
+  const columns = useTaskColumns(space.id, listId, space.role !== 'viewer');
   const choices = useResource<TaskFilterChoices>(`/me/task-filters?spaceId=${space.id}`, true, { live: ['tasks'] });
   const action = useAction();
   const listForm = useFormErrors();
   const [creating, setCreating] = useState(false);
   const [listDialog, setListDialog] = useState<'new' | 'rename'>();
   const editable = space.role !== 'viewer';
-  const link = taskLink(`/spaces/${space.id}/tasks`, state);
+  const link = taskLink(spaceHref(space, 'tasks'), state);
   const shownList = lists.data?.find((list) => list.id === listId);
   usePagePrimary(
     editable && (
@@ -49,7 +48,7 @@ export function SpaceTasks() {
       <Toolbar
         actions={
           <>
-            {editable && view === 'board' && <AddButton label="Add column" onClick={() => setColumnDialog({})} />}
+            {columns.add && view === 'board' && <AddButton label="Add column" onClick={columns.add} />}
             <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
           </>
         }
@@ -98,15 +97,8 @@ export function SpaceTasks() {
 
       <TaskPanel
         addTo={editable ? { spaceId: space.id, listId: shownList?.id } : undefined}
-        columnActions={
-          editable
-            ? (column) => [
-                { label: 'Rename column', onSelect: () => setColumnDialog({ column }) },
-                { label: 'Remove column', separated: true, onSelect: () => setRemovingColumn(column) },
-              ]
-            : undefined
-        }
-        columns={columns.data ?? []}
+        columnActions={columns.actions}
+        columns={columns.columns}
         completed={completed}
         creating={creating}
         editable={() => editable}
@@ -155,52 +147,7 @@ export function SpaceTasks() {
           <TextField autoFocus defaultValue={listDialog === 'rename' ? shownList?.title : ''} label="Name" maxLength={100} {...listForm.field('title')} />
         </FormDialog>
       )}
-      {columnDialog && (
-        <FormDialog
-          busy={action.busy}
-          busyLabel={columnDialog.column ? 'Saving…' : 'Adding…'}
-          onClose={() => setColumnDialog(undefined)}
-          onSubmit={(target) => {
-            if (!columnForm.check(target, { name: [required('Name the column.'), atMost(30, 'Use at most 30 characters.')] })) return;
-            const name = String(new FormData(target).get('name')).trim();
-            const { column } = columnDialog;
-            void action
-              .run(
-                async () => {
-                  const saved = await auth.request<TaskColumn>(column ? `/task-columns/${column.id}` : `/spaces/${space.id}/task-columns`, {
-                    method: column ? 'PATCH' : 'POST',
-                    body: JSON.stringify({ name }),
-                  });
-                  columns.mutate((current) => (column ? current.map((shown) => (shown.id === saved.id ? saved : shown)) : [...current, saved]));
-                  return column ? `Renamed the column to ${saved.name}.` : `Added the ${saved.name} column.`;
-                },
-                column ? 'Could not rename the column' : 'Could not add the column',
-              )
-              .then((saved) => saved && setColumnDialog(undefined));
-          }}
-          submitLabel={columnDialog.column ? 'Save changes' : 'Add column'}
-          title={columnDialog.column ? 'Rename column' : 'New column'}
-        >
-          <TextField autoFocus defaultValue={columnDialog.column?.name ?? ''} hint="Columns sit between In progress and Done, like QA or Review." label="Name" maxLength={30} {...columnForm.field('name')} />
-        </FormDialog>
-      )}
-      {removingColumn && (
-        <ConfirmDialog
-          busyLabel="Removing…"
-          confirmLabel="Remove column"
-          errorFallback="Could not remove the column"
-          onClose={() => setRemovingColumn(undefined)}
-          onConfirm={async () => {
-            await auth.request(`/task-columns/${removingColumn.id}`, { method: 'DELETE' });
-            columns.mutate((current) => current.filter((shown) => shown.id !== removingColumn.id));
-            action.report(`Removed the ${removingColumn.name} column.`);
-          }}
-          title={`Remove the ${removingColumn.name} column?`}
-          tone="danger"
-        >
-          Its tasks move back to In progress.
-        </ConfirmDialog>
-      )}
+      {columns.dialogs}
     </>
   );
 }

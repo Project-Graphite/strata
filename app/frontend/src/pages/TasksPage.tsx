@@ -7,9 +7,10 @@ import { FormDialog } from '../components/FormDialog';
 import { Page } from '../components/Page';
 import { FilterMenu } from '../components/FilterMenu';
 import { ButtonSkeleton } from '../components/Skeletons';
+import { useTaskColumns } from '../components/TaskColumns';
 import { TaskPanel } from '../components/TaskPanel';
-import { useSpaces } from '../spaces';
-import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type Task, type TaskColumn, type TaskFilterChoices, type TaskList } from '../tasks';
+import { homePath, useChosenSpace, useSpaces } from '../spaces';
+import { noFilterChoices, taskFilterQuery, taskFilters, taskFilterState, taskLink, taskViews, type Task, type TaskFilterChoices, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { atMost, required, useFormErrors } from '../validation';
@@ -18,13 +19,14 @@ export function TasksPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const spaces = useSpaces();
+  const { spaceId: home = null, editable } = useChosenSpace();
   const [params, setParams] = useSearchParams();
   const state = taskFilterState(params);
   const { completed, listId, view } = state;
   const page = Number(params.get('page')) || 1;
   const lists = useResource<TaskList[]>('/me/lists', true);
-  const choices = useResource<TaskFilterChoices>('/me/task-filters', true, { live: ['tasks'] });
-  const columns = useResource<TaskColumn[]>('/me/task-columns', true, { live: ['tasks'] });
+  const choices = useResource<TaskFilterChoices>(`/me/task-filters?${home ? `spaceId=${home}` : 'home=account'}`, true, { live: ['tasks'] });
+  const columns = useTaskColumns(home, listId, editable);
   const action = useAction();
   const listForm = useFormErrors();
   const [creatingList, setCreatingList] = useState(false);
@@ -40,20 +42,15 @@ export function TasksPage() {
       ),
     [setParams],
   );
-  const spaceOf = (id: string) => spaces.data?.find((space) => space.id === id);
-  const editableSpaces = (spaces.data ?? []).filter((space) => space.role !== 'viewer');
-  const personal = spaces.data?.[0];
+  const spaceOf = (id: string | null) => spaces.data?.find((space) => space.id === id);
   const link = taskLink('/tasks', state);
   const shownList = lists.data?.find((list) => list.id === listId);
-  const addTo = shownList ? spaceOf(shownList.spaceId) : personal;
-  const whereOf = (task: Task) =>
-    [(spaces.data?.length ?? 0) > 1 && spaceOf(task.spaceId)?.name, !shownList && lists.data?.find((list) => list.id === task.listId)?.title].filter(Boolean).join(' · ') || undefined;
+  const whereOf = (task: Task) => (!shownList && lists.data?.find((list) => list.id === task.listId)?.title) || undefined;
 
   return (
     <Page
       actions={
-        addTo &&
-        addTo.role !== 'viewer' && (
+        editable && (
           <span className="page-primary-action">
             <AddButton label="New task" large onClick={() => setCreating(true)} primary />
           </span>
@@ -63,17 +60,23 @@ export function TasksPage() {
       toolbar={
         lists.data ? (
           <FilterMenu groups={taskFilters({ choices: choices.data ?? noFilterChoices, defaultAssignee: listId ? 'Anyone' : 'Me or unassigned', link, lists: lists.data, state })} label="Filter tasks">
-            {editableSpaces.length > 0 && <AddButton label="New epic" onClick={() => setCreatingList(true)} />}
+            {editable && <AddButton label="New epic" onClick={() => setCreatingList(true)} />}
           </FilterMenu>
         ) : (
           !lists.error && <ButtonSkeleton width="w-28" />
         )
       }
-      toolbarEnd={<SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />}
+      toolbarEnd={
+        <>
+          {columns.add && view === 'board' && <AddButton label="Add column" onClick={columns.add} />}
+          <SegmentedControl label="View" onChange={(next) => navigate(link({ view: next, completed: false, page: 1 }))} options={taskViews} value={view} />
+        </>
+      }
     >
       <TaskPanel
-        addTo={addTo && addTo.role !== 'viewer' ? { spaceId: addTo.id, listId: shownList?.id } : undefined}
-        columns={columns.data ?? []}
+        addTo={editable ? { spaceId: home, listId: shownList?.id } : undefined}
+        columnActions={columns.actions}
+        columns={columns.columns}
         completed={completed}
         creating={creating}
         editable={(task) => spaceOf(task.spaceId)?.role !== 'viewer'}
@@ -103,7 +106,7 @@ export function TasksPage() {
             const values = new FormData(target);
             void action
               .run(async () => {
-                const created = await auth.request<TaskList>(`/spaces/${String(values.get('spaceId'))}/lists`, {
+                const created = await auth.request<TaskList>(homePath(home, 'lists'), {
                   method: 'POST',
                   body: JSON.stringify({ title: String(values.get('title')).trim() }),
                 });
@@ -117,9 +120,9 @@ export function TasksPage() {
           title="New epic"
         >
           <TextField autoFocus label="Name" maxLength={100} {...listForm.field('title')} />
-          <input name="spaceId" type="hidden" value={editableSpaces[0]!.id} />
         </FormDialog>
       )}
+      {columns.dialogs}
     </Page>
   );
 }
