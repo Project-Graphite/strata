@@ -102,7 +102,7 @@ export class DriveService {
   }
 
   async setTrashed(userId: string, itemIds: string[], trashed: boolean) {
-    await this.ownedEntries(userId, itemIds, trashed ? false : undefined);
+    await this.ownedEntries(userId, itemIds, trashed ? 'live' : 'any');
     await this.prisma.item.updateMany({ where: { id: { in: itemIds } }, data: { trashedAt: trashed ? new Date() : null } });
     this.changes.notify('items', { userId });
   }
@@ -113,9 +113,9 @@ export class DriveService {
     return folder;
   }
 
-  private async ownedEntries(userId: string, itemIds: string[], trashed: boolean | undefined = false) {
+  private async ownedEntries(userId: string, itemIds: string[], state: 'live' | 'any' = 'live') {
     const entries = await this.prisma.item.findMany({
-      where: { id: { in: itemIds }, ownerId: userId, kind: { in: driveKinds }, ...(trashed === undefined ? {} : { trashedAt: trashed ? { not: null } : null }) },
+      where: { id: { in: itemIds }, ownerId: userId, kind: { in: driveKinds }, ...(state === 'live' ? { trashedAt: null } : {}) },
       select: { id: true, kind: true },
     });
     if (entries.length !== new Set(itemIds).size) throw new NotFoundException('Some of those are not in your files');
