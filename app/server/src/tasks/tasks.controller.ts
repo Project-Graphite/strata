@@ -153,7 +153,7 @@ export class TasksController {
   @Scope('items:write')
   @RateLimit('comment', 120, 3_600)
   comment(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: TaskCommentDto) {
-    return this.taskComments.create(user.id, id, input.body);
+    return this.taskComments.create(user.id, id, input);
   }
 
   @Patch('tasks/:id/comments/:commentId')
@@ -164,7 +164,7 @@ export class TasksController {
     @Param('commentId', UuidPipe) commentId: string,
     @Body() input: TaskCommentDto,
   ) {
-    return this.taskComments.update(user.id, id, commentId, input.body);
+    return this.taskComments.update(user.id, id, commentId, input);
   }
 
   @Delete('tasks/:id/comments/:commentId')

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ConfirmDialog, DatePicker, LinesSkeleton, Select, Sheet, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, LinesSkeleton, Select, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
 import { useAllSpaces, type Member, type Tag } from '../spaces';
@@ -10,7 +10,9 @@ import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
 import type { OpenTaskProps } from './OpenTask';
-import { Activity, Attachments, Comments, DescriptionEditor, Relations, Subtasks } from './TaskTicket';
+import { RichTextEditor } from './RichText';
+import { TaskFrame } from './TaskFrame';
+import { Attachments, Relations, Subtasks, TaskActivity, TaskDescription } from './TaskTicket';
 
 interface Fields {
   title: string;
@@ -60,9 +62,6 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const weekStart = useWeekStart();
   const [id, setId] = useState(given?.id ?? taskId);
   const [title, setTitle] = useState<string>();
-  const [descriptionChanged, setDescriptionChanged] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [activityOpen, setActivityOpen] = useState(false);
   const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
     title: '',
     status: status ?? 'open',
@@ -153,211 +152,195 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   }
 
   return (
-    <>
-      <Sheet
-        actions={
-          task && (
-            <>
-              {editable && (
-            <ActionsMenu
-              items={[
-                {
-                  label: 'Move to trash',
-                  separated: true,
-                  onSelect: () =>
-                    void action
-                      .run(async () => {
-                        await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
-                        onChanged();
-                        return {
-                          message: `Moved ${task.title} to the trash.`,
-                          undo: async () => {
-                            await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
-                            onChanged();
-                            return '';
-                          },
-                        };
-                      }, 'Could not move the task to the trash')
-                      .then((trashed) => trashed && onClose()),
-                },
-              ]}
-              name={task.title}
-            />
-              )}
-            </>
-          )
-        }
-        eyebrow={task?.parentId && <TextButton icon="chevron-left" label="Parent task" onClick={() => setId(task.parentId!)} />}
-        footer={
-          !id && (
-            <>
-              <Button label="Cancel" large onClick={onClose} />
-              <Button disabled={!draft.title.trim() || !editable || action.busy} label={action.busy ? 'Adding…' : 'Add task'} large onClick={create} primary />
-            </>
-          )
-        }
-        onClose={descriptionChanged ? () => setLeaving(true) : onClose}
-        title={id ? (heading?.title ?? 'Task') : 'New task'}
-        width="56rem"
-      >
-        {id && !task ? (
-          <LinesSkeleton label="Loading the task" lines={6} />
-        ) : (
-          <div className="task-sheet-layout grid gap-6">
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!task) return create();
-                (event.currentTarget.elements.namedItem('title') as HTMLInputElement | null)?.blur();
+    <TaskFrame
+      actions={
+        task && (
+          <>
+            {editable && (
+          <ActionsMenu
+            items={[
+              {
+                label: 'Move to trash',
+                separated: true,
+                onSelect: () =>
+                  void action
+                    .run(async () => {
+                      await auth.request(`/items/${task.id}/trash`, { method: 'POST' });
+                      onChanged();
+                      return {
+                        message: `Moved ${task.title} to the trash.`,
+                        undo: async () => {
+                          await auth.request(`/items/${task.id}/restore`, { method: 'POST' });
+                          onChanged();
+                          return '';
+                        },
+                      };
+                    }, 'Could not move the task to the trash')
+                    .then((trashed) => trashed && onClose()),
+              },
+            ]}
+            name={task.title}
+          />
+            )}
+          </>
+        )
+      }
+      eyebrow={task?.parentId && <TextButton icon="chevron-left" label="Parent task" onClick={() => setId(task.parentId!)} />}
+      footer={
+        !id && (
+          <>
+            <Button label="Cancel" large onClick={onClose} />
+            <Button disabled={!draft.title.trim() || !editable || action.busy} label={action.busy ? 'Adding…' : 'Add task'} large onClick={create} primary />
+          </>
+        )
+      }
+      onClose={onClose}
+      title={id ? (heading?.title ?? 'Task') : 'New task'}
+    >
+      {id && !task ? (
+        <LinesSkeleton label="Loading the task" lines={6} />
+      ) : (
+        <div className="task-sheet-layout grid gap-6">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!task) return create();
+              (event.currentTarget.elements.namedItem('title') as HTMLInputElement | null)?.blur();
+            }}
+          >
+            <TextField
+              autoFocus={!id}
+              disabled={!editable}
+              label="Title"
+              maxLength={200}
+              name="title"
+              onBlur={() => {
+                if (!task || title === undefined) return;
+                if (title.trim() && title.trim() !== task.title) save({ title: title.trim() });
+                setTitle(undefined);
               }}
-            >
-              <TextField
-                autoFocus={!id}
+              onChange={(event) => (task ? setTitle(event.currentTarget.value) : save({ title: event.currentTarget.value }))}
+              value={title ?? values.title}
+            />
+          </form>
+          <div className="task-sheet">
+            <div className="grid min-w-0 content-start gap-8">
+              {task ? (
+                <TaskDescription editable={editable} key={task.id} onSave={(description) => save({ description })} taskId={task.id} value={values.description} />
+              ) : (
+                <RichTextEditor label="Description" onChange={(description) => save({ description })} placeholder="Add a description…" value={values.description} />
+              )}
+              {task && (
+                <>
+                  {!task.parentId && (
+                    <Subtasks
+                      editable={editable}
+                      onChanged={() => onChanged()}
+                      onOpen={(subtask) => {
+                        setTitle(undefined);
+                        setId(subtask.id);
+                      }}
+                      task={task}
+                      update={(change) => detail.mutate(change)}
+                    />
+                  )}
+                  <Relations editable={editable} onOpen={setId} taskId={task.id} />
+                  <Attachments editable={editable} taskId={task.id} />
+                  <TaskActivity editable={editable} key={task.id} owner={space?.role === 'owner'} taskId={task.id} />
+                </>
+              )}
+            </div>
+            <aside aria-label="Properties" className="task-properties">
+              <Select disabled={!editable} label="Status" onChange={(status) => save({ status })} options={[...taskStatuses]} value={values.status} />
+              {namingType ? (
+                <TextField
+                  autoFocus
+                  label="New type"
+                  maxLength={30}
+                  onBlur={(event) => {
+                    const name = event.currentTarget.value.trim();
+                    if (name) save({ type: name });
+                    setNamingType(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') event.currentTarget.value = '';
+                    if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
+                  }}
+                />
+              ) : (
+                <Select
+                  disabled={!editable}
+                  label="Type"
+                  onChange={(chosen) => (chosen ? save({ type: chosen }) : setNamingType(true))}
+                  options={[
+                    ...[...new Set([...builtInTaskTypes, ...(choices.data?.types ?? []), values.type])].map((type) => ({ value: type, label: taskTypeLabel(type) })),
+                    { value: '', label: 'New type…' },
+                  ]}
+                  value={values.type}
+                />
+              )}
+              <DatePicker
                 disabled={!editable}
-                label="Title"
-                maxLength={200}
-                name="title"
-                onBlur={() => {
-                  if (!task || title === undefined) return;
-                  if (title.trim() && title.trim() !== task.title) save({ title: title.trim() });
-                  setTitle(undefined);
-                }}
-                onChange={(event) => (task ? setTitle(event.currentTarget.value) : save({ title: event.currentTarget.value }))}
-                value={title ?? values.title}
+                label="Due date"
+                onChange={(dueDate) => save(dueDate ? { dueDate } : { dueDate: null, dueTime: null, repeatRule: null })}
+                value={values.dueDate ?? ''}
+                weekStartsOn={weekStart ?? 0}
               />
-            </form>
-            <div className="task-sheet">
-              <div className="grid min-w-0 content-start gap-8">
-                <DescriptionEditor editable={editable} key={id ?? 'new'} onDirty={setDescriptionChanged} onSave={(description) => save({ description })} staged={Boolean(task)} value={values.description} />
-                {task && (
-                  <>
-                    {!task.parentId && (
-                      <Subtasks
-                        editable={editable}
-                        onChanged={() => onChanged()}
-                        onOpen={(subtask) => {
-                          setTitle(undefined);
-                          setId(subtask.id);
-                        }}
-                        task={task}
-                        update={(change) => detail.mutate(change)}
-                      />
-                    )}
-                    <Relations editable={editable} onOpen={setId} taskId={task.id} />
-                    <Attachments editable={editable} taskId={task.id} />
-                    <Comments editable={editable} key={task.id} owner={space?.role === 'owner'} taskId={task.id} />
-                    <details className="task-activity" onToggle={(event) => setActivityOpen(event.currentTarget.open)}>
-                      <summary className="text-h3 text-ink">Activity</summary>
-                      {activityOpen && <Activity taskId={task.id} />}
-                    </details>
-                  </>
+              <TimeField disabled={!editable || !values.dueDate} label="Time" onChange={(dueTime) => save({ dueTime: dueTime || null })} value={values.dueTime ?? ''} />
+              <Select disabled={!editable} label="Priority" onChange={(priority) => save({ priority: Number(priority) })} options={priorityOptions} value={String(values.priority)} />
+              <Select
+                disabled={!editable}
+                label="List"
+                onChange={(chosen) => save({ listId: chosen || null })}
+                options={[{ value: '', label: 'No list' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
+                value={values.listId ?? ''}
+              />
+              <Select
+                disabled={!editable}
+                label="Assigned to"
+                onChange={(chosen) => save({ assigneeId: chosen || null })}
+                options={[{ value: '', label: 'Nobody' }, ...(members.data ?? []).map((member) => ({ value: member.userId, label: member.displayName }))]}
+                value={values.assigneeId ?? ''}
+              />
+              <Select
+                disabled={!editable || !values.dueDate}
+                label="Repeats"
+                onChange={(rule) => save({ repeatRule: rule || null })}
+                options={repeatOptions(values.repeatRule)}
+                value={values.repeatRule ?? ''}
+              />
+              <Select
+                disabled={!editable}
+                label="Reminder"
+                onChange={(minutes) => save({ reminderMinutes: minutes === '' ? null : Number(minutes) })}
+                options={reminderOptions(values.reminderMinutes)}
+                value={values.reminderMinutes == null ? '' : String(values.reminderMinutes)}
+              />
+              <div className="task-labels">
+                <Select
+                  disabled={!editable || !tags.data?.some((tag) => !labels.some((label) => label.id === tag.id))}
+                  label="Labels"
+                  onChange={(tagId) => {
+                    const tag = tags.data?.find((candidate) => candidate.id === tagId);
+                    if (tag) saveLabels([...labels, tag]);
+                  }}
+                  options={(tags.data ?? []).filter((tag) => !labels.some((label) => label.id === tag.id)).map((tag) => ({ value: tag.id, label: tag.name }))}
+                  placeholder={tags.data?.length ? 'Add a label' : 'No labels in this space'}
+                  value=""
+                />
+                {labels.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {labels.map((label) => (
+                      <TagChip color={label.color} key={label.id} label={label.name} onRemove={editable ? () => saveLabels(labels.filter((kept) => kept.id !== label.id)) : undefined} />
+                    ))}
+                  </div>
                 )}
               </div>
-              <aside aria-label="Properties" className="task-properties">
-                <Select disabled={!editable} label="Status" onChange={(status) => save({ status })} options={[...taskStatuses]} value={values.status} />
-                {namingType ? (
-                  <TextField
-                    autoFocus
-                    label="New type"
-                    maxLength={30}
-                    onBlur={(event) => {
-                      const name = event.currentTarget.value.trim();
-                      if (name) save({ type: name });
-                      setNamingType(false);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') event.currentTarget.value = '';
-                      if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
-                    }}
-                  />
-                ) : (
-                  <Select
-                    disabled={!editable}
-                    label="Type"
-                    onChange={(chosen) => (chosen ? save({ type: chosen }) : setNamingType(true))}
-                    options={[
-                      ...[...new Set([...builtInTaskTypes, ...(choices.data?.types ?? []), values.type])].map((type) => ({ value: type, label: taskTypeLabel(type) })),
-                      { value: '', label: 'New type…' },
-                    ]}
-                    value={values.type}
-                  />
-                )}
-                <DatePicker
-                  disabled={!editable}
-                  label="Due date"
-                  onChange={(dueDate) => save(dueDate ? { dueDate } : { dueDate: null, dueTime: null, repeatRule: null })}
-                  value={values.dueDate ?? ''}
-                  weekStartsOn={weekStart ?? 0}
-                />
-                <TimeField disabled={!editable || !values.dueDate} label="Time" onChange={(dueTime) => save({ dueTime: dueTime || null })} value={values.dueTime ?? ''} />
-                <Select disabled={!editable} label="Priority" onChange={(priority) => save({ priority: Number(priority) })} options={priorityOptions} value={String(values.priority)} />
-                <Select
-                  disabled={!editable}
-                  label="List"
-                  onChange={(chosen) => save({ listId: chosen || null })}
-                  options={[{ value: '', label: 'No list' }, ...(lists.data ?? []).map((list) => ({ value: list.id, label: list.title }))]}
-                  value={values.listId ?? ''}
-                />
-                <Select
-                  disabled={!editable}
-                  label="Assigned to"
-                  onChange={(chosen) => save({ assigneeId: chosen || null })}
-                  options={[{ value: '', label: 'Nobody' }, ...(members.data ?? []).map((member) => ({ value: member.userId, label: member.displayName }))]}
-                  value={values.assigneeId ?? ''}
-                />
-                <Select
-                  disabled={!editable || !values.dueDate}
-                  label="Repeats"
-                  onChange={(rule) => save({ repeatRule: rule || null })}
-                  options={repeatOptions(values.repeatRule)}
-                  value={values.repeatRule ?? ''}
-                />
-                <Select
-                  disabled={!editable}
-                  label="Reminder"
-                  onChange={(minutes) => save({ reminderMinutes: minutes === '' ? null : Number(minutes) })}
-                  options={reminderOptions(values.reminderMinutes)}
-                  value={values.reminderMinutes == null ? '' : String(values.reminderMinutes)}
-                />
-                <div className="task-labels">
-                  <Select
-                    disabled={!editable || !tags.data?.some((tag) => !labels.some((label) => label.id === tag.id))}
-                    label="Labels"
-                    onChange={(tagId) => {
-                      const tag = tags.data?.find((candidate) => candidate.id === tagId);
-                      if (tag) saveLabels([...labels, tag]);
-                    }}
-                    options={(tags.data ?? []).filter((tag) => !labels.some((label) => label.id === tag.id)).map((tag) => ({ value: tag.id, label: tag.name }))}
-                    placeholder={tags.data?.length ? 'Add a label' : 'No labels in this space'}
-                    value=""
-                  />
-                  {labels.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {labels.map((label) => (
-                        <TagChip color={label.color} key={label.id} label={label.name} onRemove={editable ? () => saveLabels(labels.filter((kept) => kept.id !== label.id)) : undefined} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {zone && <p className="task-labels m-0 text-small text-muted">Times are in {zone}.</p>}
-              </aside>
-            </div>
+              {zone && <p className="task-labels m-0 text-small text-muted">Times are in {zone}.</p>}
+            </aside>
           </div>
-        )}
-      </Sheet>
-      {leaving && (
-        <ConfirmDialog
-          busyLabel="Closing…"
-          confirmLabel="Close without saving"
-          errorFallback="Could not close the task"
-          onClose={() => setLeaving(false)}
-          onConfirm={async () => onClose()}
-          title="Close without saving the description?"
-          tone="danger"
-        >
-          Your changes to the description will be lost.
-        </ConfirmDialog>
+        </div>
       )}
-    </>
+    </TaskFrame>
   );
 }

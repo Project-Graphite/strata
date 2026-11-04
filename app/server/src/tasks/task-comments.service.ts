@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { Prisma, SpaceRole } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { TaskCommentDto } from './dto/tasks.dto';
 import { TasksService } from './tasks.service';
 
 const maxComments = 500;
@@ -9,6 +10,7 @@ const maxComments = 500;
 const commentFields = {
   id: true,
   body: true,
+  document: true,
   editedAt: true,
   createdAt: true,
   author: { select: { id: true, displayName: true } },
@@ -27,20 +29,20 @@ export class TaskCommentsService {
     return this.prisma.noteComment.findMany({ where: { itemId: taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: commentFields });
   }
 
-  async create(userId: string, taskId: string, body: string) {
+  async create(userId: string, taskId: string, { body, document }: TaskCommentDto) {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
     if ((await this.prisma.noteComment.count({ where: { itemId: taskId } })) >= maxComments) {
       throw new ConflictException(`A task can hold ${maxComments} comments. Delete some old ones first.`);
     }
-    const created = await this.prisma.noteComment.create({ data: { itemId: taskId, authorId: userId, body }, select: commentFields });
+    const created = await this.prisma.noteComment.create({ data: { itemId: taskId, authorId: userId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
     return created;
   }
 
-  async update(userId: string, taskId: string, commentId: string, body: string) {
+  async update(userId: string, taskId: string, commentId: string, { body, document }: TaskCommentDto) {
     const { comment, task } = await this.comment(userId, taskId, commentId);
     if (comment.authorId !== userId) throw new ForbiddenException('Only the person who wrote a comment can change it');
-    const updated = await this.prisma.noteComment.update({ where: { id: commentId }, data: { body, editedAt: new Date() }, select: commentFields });
+    const updated = await this.prisma.noteComment.update({ where: { id: commentId }, data: { body, document: document ? (document as Prisma.InputJsonObject) : Prisma.DbNull, editedAt: new Date() }, select: commentFields });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
     return updated;
   }

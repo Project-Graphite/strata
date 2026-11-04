@@ -936,6 +936,7 @@ model NoteComment {
   authorId     String?       @map("author_id") @db.Uuid
   blockId      String?       @map("block_id")
   body         String
+  document     Json?
   resolvedAt   DateTime?     @map("resolved_at")
   resolvedById String?       @map("resolved_by_id") @db.Uuid
   editedAt     DateTime?     @map("edited_at")

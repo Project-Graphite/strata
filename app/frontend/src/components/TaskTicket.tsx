@@ -1,10 +1,5 @@
-import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Checkbox, FloatingToolbar, IconButton, LinesSkeleton, SectionHeading, Select, TextAreaField, TextField, ToolbarButton, ToolbarSeparator, useSnackbar, type IconName } from '@project-graphite/ui';
-import { TaskItem, TaskList } from '@tiptap/extension-list';
-import Highlight from '@tiptap/extension-highlight';
-import { Placeholder } from '@tiptap/extensions';
-import StarterKit from '@tiptap/starter-kit';
-import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
+import { useDeferredValue, useState } from 'react';
+import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedControl, Select, TextField, useSnackbar } from '@project-graphite/ui';
 import { describeActivity, type ActivityEvent } from '../activity';
 import { readBlob, type Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
@@ -16,112 +11,86 @@ import { useResource } from '../useResource';
 import { Button, TextButton } from './Button';
 import { FileButton } from './FileButton';
 import { LoadError } from './LoadError';
-import { cspNonce } from '../csp-nonce';
+import { RichTextEditor, RichTextView, type RichDocument } from './RichText';
 
-type Description = Record<string, unknown> | null;
+const sameDocument = (first: RichDocument, second: RichDocument) => JSON.stringify(first) === JSON.stringify(second);
 
-interface Format {
-  label: string;
-  icon?: IconName;
-  glyph?: ReactNode;
-  isActive?: (editor: Editor) => boolean;
-  run: (editor: Editor) => void;
-  separated?: boolean;
+function readDraft(key: string): RichDocument | undefined {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? undefined : (JSON.parse(raw) as RichDocument);
+  } catch {
+    return undefined;
+  }
 }
 
-const formatting: Format[] = [
-  { label: 'Undo', icon: 'undo', run: (editor) => editor.chain().focus().undo().run() },
-  { label: 'Redo', icon: 'redo', run: (editor) => editor.chain().focus().redo().run() },
-  { label: 'Heading', icon: 'heading-1', separated: true, isActive: (editor) => editor.isActive('heading', { level: 2 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run() },
-  { label: 'Subheading', icon: 'heading-2', isActive: (editor) => editor.isActive('heading', { level: 3 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run() },
-  { label: 'Bold', icon: 'bold', separated: true, isActive: (editor) => editor.isActive('bold'), run: (editor) => editor.chain().focus().toggleBold().run() },
-  { label: 'Italic', icon: 'italic', isActive: (editor) => editor.isActive('italic'), run: (editor) => editor.chain().focus().toggleItalic().run() },
-  { label: 'Underline', glyph: <span className="underline">U</span>, isActive: (editor) => editor.isActive('underline'), run: (editor) => editor.chain().focus().toggleUnderline().run() },
-  { label: 'Strikethrough', glyph: <span className="line-through">S</span>, isActive: (editor) => editor.isActive('strike'), run: (editor) => editor.chain().focus().toggleStrike().run() },
-  { label: 'Inline code', glyph: <span className="font-mono">{'</>'}</span>, isActive: (editor) => editor.isActive('code'), run: (editor) => editor.chain().focus().toggleCode().run() },
-  { label: 'Highlight', icon: 'highlight', isActive: (editor) => editor.isActive('highlight'), run: (editor) => editor.chain().focus().toggleHighlight().run() },
-  { label: 'Bulleted list', icon: 'list', separated: true, isActive: (editor) => editor.isActive('bulletList'), run: (editor) => editor.chain().focus().toggleBulletList().run() },
-  { label: 'Numbered list', icon: 'list-ordered', isActive: (editor) => editor.isActive('orderedList'), run: (editor) => editor.chain().focus().toggleOrderedList().run() },
-  { label: 'Checklist', icon: 'checklist', isActive: (editor) => editor.isActive('taskList'), run: (editor) => editor.chain().focus().toggleTaskList().run() },
-  { label: 'Quote', icon: 'quote', isActive: (editor) => editor.isActive('blockquote'), run: (editor) => editor.chain().focus().toggleBlockquote().run() },
-  { label: 'Code block', icon: 'code', isActive: (editor) => editor.isActive('codeBlock'), run: (editor) => editor.chain().focus().toggleCodeBlock().run() },
-  { label: 'Divider', glyph: <span aria-hidden="true">—</span>, run: (editor) => editor.chain().focus().setHorizontalRule().run() },
-];
-
-function DescriptionToolbar({ editor }: { editor: Editor }) {
-  const active = useEditorState({ editor, selector: ({ editor: current }) => formatting.map((format) => Boolean(format.isActive?.(current))) });
-  return (
-    <FloatingToolbar className="task-description-toolbar" label="Formatting">
-      {formatting.map((format, index) => [
-        format.separated && <ToolbarSeparator key={`${format.label}-separator`} />,
-        format.icon ? (
-          <ToolbarButton active={active[index]} icon={format.icon} key={format.label} label={format.label} onClick={() => format.run(editor)} />
-        ) : (
-          <ToolbarButton active={active[index]} key={format.label} label={format.label} onClick={() => format.run(editor)}>
-            {format.glyph}
-          </ToolbarButton>
-        ),
-      ])}
-    </FloatingToolbar>
-  );
+function writeDraft(key: string, value: RichDocument | undefined) {
+  try {
+    if (value === undefined) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    return;
+  }
 }
 
-export function DescriptionEditor({ editable, onDirty, onSave, staged, value }: { editable: boolean; onDirty?: (dirty: boolean) => void; onSave: (description: Description) => void; staged: boolean; value: Description }) {
-  const latest = useRef(onSave);
-  latest.current = onSave;
-  const [dirty, setDirty] = useState(false);
-  const editor = useEditor({
-    content: value ?? undefined,
-    editable,
-    injectNonce: cspNonce(),
-    extensions: [
-      StarterKit.configure({ link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Highlight,
-      Placeholder.configure({ placeholder: editable ? 'Add a description…' : '' }),
-    ],
-    editorProps: { attributes: { 'aria-label': 'Description', class: 'note-content task-description' } },
-    onUpdate: ({ editor: current }) => {
-      if (staged) setDirty(true);
-      else latest.current(current.isEmpty ? null : current.getJSON());
-    },
-  });
+export function TaskDescription({ editable, onSave, taskId, value }: { editable: boolean; onSave: (description: RichDocument) => void; taskId: string; value: RichDocument }) {
+  const key = `strata-task-description:${useAuth().user?.id}:${taskId}`;
+  const [draft, setDraft] = useState(() => readDraft(key));
+  const [editing, setEditing] = useState(false);
+  const change = (next: RichDocument) => {
+    const kept = sameDocument(next, value) ? undefined : next;
+    writeDraft(key, kept);
+    setDraft(kept);
+  };
+  const discard = () => {
+    writeDraft(key, undefined);
+    setDraft(undefined);
+    setEditing(false);
+  };
 
-  useEffect(() => {
-    editor?.setEditable(editable);
-  }, [editor, editable]);
-
-  useEffect(() => {
-    onDirty?.(dirty);
-    return () => onDirty?.(false);
-  }, [dirty, onDirty]);
-
-  if (!editor) return <LinesSkeleton label="Loading the description" lines={3} />;
   return (
-    <div className="grid gap-2">
-      {editable && <DescriptionToolbar editor={editor} />}
-      <EditorContent editor={editor} />
-      {dirty && (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            label="Cancel"
-            onClick={() => {
-              editor.commands.setContent(value ?? '', { emitUpdate: false });
-              setDirty(false);
-            }}
-          />
-          <Button
-            label="Save"
-            onClick={() => {
-              onSave(editor.isEmpty ? null : editor.getJSON());
-              setDirty(false);
-            }}
-            primary
-          />
+    <section aria-label="Description" className="grid gap-2">
+      <SectionHeading
+        action={
+          editable &&
+          !editing && (
+            <span className="flex flex-wrap items-center gap-2">
+              {draft !== undefined && <Badge tone="wip">Unsaved changes</Badge>}
+              {draft !== undefined && <TextButton danger label="Discard" onClick={discard} />}
+              <TextButton label={draft === undefined ? 'Edit' : 'Continue editing'} onClick={() => setEditing(true)} />
+            </span>
+          )
+        }
+        level={3}
+        title="Description"
+      />
+      {editing ? (
+        <>
+          <RichTextEditor autoFocus label="Description" onChange={change} placeholder="Add a description…" value={draft === undefined ? value : draft} />
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button label="Cancel" onClick={discard} />
+            <Button
+              label="Save"
+              onClick={() => {
+                if (draft !== undefined) onSave(draft);
+                discard();
+              }}
+              primary
+            />
+          </div>
+        </>
+      ) : (
+        <div
+          className="task-description-view"
+          data-editable={editable || undefined}
+          onClick={(event) => {
+            if (editable && !(event.target as HTMLElement).closest('a, input')) setEditing(true);
+          }}
+        >
+          {value ? <RichTextView value={value} /> : <p className="m-0 text-muted">{editable ? 'Add a description…' : 'No description'}</p>}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -228,64 +197,147 @@ export function Subtasks({
 interface Comment {
   id: string;
   body: string;
+  document: RichDocument;
   editedAt: string | null;
   createdAt: string;
   author: { id: string; displayName: string } | null;
 }
 
-export function Comments({ editable, owner, taskId }: { editable: boolean; owner: boolean; taskId: string }) {
+type ActivityTab = 'all' | 'comments' | 'history';
+
+const activityTabs: { value: ActivityTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'comments', label: 'Comments' },
+  { value: 'history', label: 'History' },
+];
+
+const paragraphOf = (text: string): RichDocument => ({ type: 'doc', content: text.split('\n').map((line) => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
+
+function CommentEditor({ initial, label, onCancel, onSave, saveLabel }: { initial: RichDocument; label: string; onCancel: () => void; onSave: (document: RichDocument, body: string) => Promise<unknown>; saveLabel: string }) {
+  const [document, setDocument] = useState(initial);
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="grid gap-2">
+      <RichTextEditor
+        autoFocus
+        compact
+        label={label}
+        onChange={(next, text) => {
+          setDocument(next);
+          setBody(text);
+        }}
+        placeholder="Write a comment…"
+        value={initial}
+      />
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button label="Cancel" onClick={onCancel} />
+        <Button
+          disabled={busy || !body || body.length > 2000}
+          label={saveLabel}
+          onClick={() => {
+            setBusy(true);
+            void onSave(document, body).finally(() => setBusy(false));
+          }}
+          primary
+        />
+      </div>
+    </div>
+  );
+}
+
+export function TaskActivity({ editable, owner, taskId }: { editable: boolean; owner: boolean; taskId: string }) {
   const auth = useAuth();
   const action = useAction();
+  const [tab, setTab] = useState<ActivityTab>('all');
+  const [writing, setWriting] = useState(false);
+  const [editing, setEditing] = useState<string>();
   const comments = useResource<Comment[]>(`/tasks/${taskId}/comments`, true, { live: ['task-details'], itemIds: [taskId] });
-  const [draft, setDraft] = useState('');
-  const [editing, setEditing] = useState<{ id: string; body: string }>();
-  const count = comments.data?.length ?? 0;
+  const history = useResource<ResultPage<ActivityEvent>>(tab === 'comments' ? null : `/tasks/${taskId}/activity?page=1`, true, { live: ['tasks'], itemIds: [taskId] });
+  const failed = [comments, ...(tab === 'comments' ? [] : [history])].find((resource) => resource.error);
+  const loaded = comments.data && (tab === 'comments' || history.data);
+  const entries = [
+    ...(tab === 'history' ? [] : (comments.data ?? []).map((comment) => ({ kind: 'comment' as const, at: comment.createdAt, comment }))),
+    ...(tab === 'comments' ? [] : (history.data?.results ?? []).map((event) => ({ kind: 'event' as const, at: event.createdAt, event }))),
+  ].sort((first, second) => first.at.localeCompare(second.at));
+
+  const save = (path: string, method: 'POST' | 'PATCH', document: RichDocument, body: string, done: (saved: Comment) => void) =>
+    action.run(async () => {
+      const saved = await auth.request<Comment>(path, { method, body: JSON.stringify({ body, ...(document ? { document } : {}) }) });
+      done(saved);
+      return '';
+    }, 'Could not save the comment');
 
   return (
-    <section className="grid gap-3">
-      <SectionHeading action={count > 0 && <span className="text-small text-muted tabular-nums">{count}</span>} level={3} title="Comments" />
-      {comments.error ? (
-        <LoadError compact error={comments.error} onRetry={comments.reload} />
-      ) : !comments.data ? (
-        <LinesSkeleton label="Loading the comments" lines={2} />
-      ) : (
-        comments.data.length > 0 && (
-          <ul className="m-0 grid list-none gap-4 p-0">
-            {comments.data.map((comment) => {
+    <details className="task-activity" open>
+      <summary className="text-h3 text-ink">Activity</summary>
+      <div className="grid gap-4 pt-3">
+        <SegmentedControl label="Show" onChange={setTab} options={activityTabs} size="small" value={tab} />
+        {editable && tab !== 'history' &&
+          (writing ? (
+            <CommentEditor
+              initial={null}
+              label="New comment"
+              onCancel={() => setWriting(false)}
+              onSave={(document, body) =>
+                save(`/tasks/${taskId}/comments`, 'POST', document, body, (added) => {
+                  comments.mutate((current) => [...current, added]);
+                  setWriting(false);
+                })
+              }
+              saveLabel="Comment"
+            />
+          ) : (
+            <button className="task-comment-prompt" onClick={() => setWriting(true)} type="button">
+              Add a comment…
+            </button>
+          ))}
+        {failed ? (
+          <LoadError compact error={failed.error} onRetry={failed.reload} />
+        ) : !loaded ? (
+          <LinesSkeleton label="Loading the activity" lines={2} />
+        ) : entries.length === 0 ? (
+          <p className="m-0 text-small text-muted">{tab === 'comments' ? 'No comments yet' : 'Nothing has happened yet'}</p>
+        ) : (
+          <ol className="m-0 grid list-none gap-4 p-0">
+            {entries.map((entry) => {
+              if (entry.kind === 'event') {
+                return (
+                  <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
+                    <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
+                    <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
+                  </li>
+                );
+              }
+              const { comment } = entry;
               const mine = comment.author?.id === auth.user?.id;
               return (
-                <li className="grid gap-1" key={comment.id}>
+                <li className="grid gap-1" key={`comment-${comment.id}`}>
                   <p className="m-0 text-small text-muted">
                     <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
                     {comment.editedAt && ' · edited'}
                   </p>
-                  {editing?.id === comment.id ? (
-                    <form
-                      className="grid gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        if (!editing.body.trim()) return;
-                        void action
-                          .run(async () => {
-                            const saved = await auth.request<Comment>(`/tasks/${taskId}/comments/${comment.id}`, { method: 'PATCH', body: JSON.stringify({ body: editing.body.trim() }) });
-                            comments.mutate((current) => current.map((shown) => (shown.id === saved.id ? saved : shown)));
-                            return '';
-                          }, 'Could not save the comment')
-                          .then((saved) => saved && setEditing(undefined));
-                      }}
-                    >
-                      <TextAreaField autoFocus label="Comment" maxLength={2000} onChange={(event) => setEditing({ id: comment.id, body: event.currentTarget.value })} rows={2} value={editing.body} />
-                      <div className="flex gap-2">
-                        <TextButton label="Cancel" onClick={() => setEditing(undefined)} />
-                        <Button disabled={action.busy} label="Save" submit />
-                      </div>
-                    </form>
+                  {editing === comment.id ? (
+                    <CommentEditor
+                      initial={comment.document ?? paragraphOf(comment.body)}
+                      label="Edit comment"
+                      onCancel={() => setEditing(undefined)}
+                      onSave={(document, body) =>
+                        save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', document, body, (saved) => {
+                          comments.mutate((current) => current.map((shown) => (shown.id === saved.id ? saved : shown)));
+                          setEditing(undefined);
+                        })
+                      }
+                      saveLabel="Save"
+                    />
+                  ) : comment.document ? (
+                    <RichTextView value={comment.document} />
                   ) : (
                     <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
                   )}
-                  {editable && (mine || owner) && editing?.id !== comment.id && (
+                  {editable && (mine || owner) && editing !== comment.id && (
                     <div className="flex gap-1">
-                      {mine && <TextButton label="Edit" onClick={() => setEditing({ id: comment.id, body: comment.body })} />}
+                      {mine && <TextButton label="Edit" onClick={() => setEditing(comment.id)} />}
                       <TextButton
                         danger
                         disabled={action.busy}
@@ -303,30 +355,10 @@ export function Comments({ editable, owner, taskId }: { editable: boolean; owner
                 </li>
               );
             })}
-          </ul>
-        )
-      )}
-      {editable && (
-        <form
-          className="grid gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!draft.trim()) return;
-            void action.run(async () => {
-              const added = await auth.request<Comment>(`/tasks/${taskId}/comments`, { method: 'POST', body: JSON.stringify({ body: draft.trim() }) });
-              comments.mutate((current) => [...current, added]);
-              setDraft('');
-              return '';
-            }, 'Could not add the comment');
-          }}
-        >
-          <TextAreaField label="Write a comment" maxLength={2000} onChange={(event) => setDraft(event.currentTarget.value)} rows={2} value={draft} />
-          <div className="flex justify-end">
-            <Button disabled={!draft.trim() || action.busy} label="Comment" submit />
-          </div>
-        </form>
-      )}
-    </section>
+          </ol>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -530,21 +562,5 @@ export function Relations({ editable, onOpen, taskId }: { editable: boolean; onO
         </div>
       )}
     </section>
-  );
-}
-
-export function Activity({ taskId }: { taskId: string }) {
-  const activity = useResource<ResultPage<ActivityEvent>>(`/tasks/${taskId}/activity?page=1`, true, { live: ['tasks'], itemIds: [taskId] });
-  if (activity.error) return <LoadError compact error={activity.error} onRetry={activity.reload} />;
-  if (!activity.data) return <LinesSkeleton label="Loading the activity" lines={2} />;
-  return (
-    <ol className="m-0 grid list-none gap-2 p-0">
-      {activity.data.results.map((event) => (
-        <li className="flex items-baseline justify-between gap-4 text-small" key={event.id}>
-          <span className="min-w-0 text-ink">{describeActivity(event)}</span>
-          <span className="shrink-0 text-muted">{formatMoment(event.createdAt)}</span>
-        </li>
-      ))}
-    </ol>
   );
 }

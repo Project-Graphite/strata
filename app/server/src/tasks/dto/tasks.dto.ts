@@ -162,4 +162,8 @@ export class TaskCommentDto {
   @IsString()
   @Length(1, 2_000, { message: 'Comments are between 1 and 2,000 characters long.' })
   body!: string;
+
+  @IsOptional()
+  @IsRichText()
+  document?: Record<string, unknown>;
 }

@@ -199,6 +199,16 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('GET', `/tasks/${task.id}`)).body).toMatchObject({ status: 'in_progress', columnId: null });
   });
 
+  it('keeps a formatted copy of a comment beside its plain text', async () => {
+    const owner = await member('formatter');
+    const task = (await owner.call('POST', `/spaces/${owner.personalSpaceId}/tasks`, { title: 'Write notes' })).body;
+    const document = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Looks good', marks: [{ type: 'bold' }] }] }] };
+    const added = await owner.call('POST', `/tasks/${task.id}/comments`, { body: 'Looks good', document });
+    expect(added.body).toMatchObject({ body: 'Looks good', document });
+    expect((await owner.call('POST', `/tasks/${task.id}/comments`, { body: 'Bad', document: { type: 'script' } })).status).toBe(400);
+    expect((await owner.call('PATCH', `/tasks/${task.id}/comments/${added.body.id}`, { body: 'Plain now' })).body).toMatchObject({ body: 'Plain now', document: null });
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);
