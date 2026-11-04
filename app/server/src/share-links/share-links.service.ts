@@ -13,7 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { dateText } from '../recurrence/dates';
 import { RealtimeService } from '../realtime/realtime.service';
 import { documentLinks, pageKinds } from '../notes/document-text';
-import { CreateShareLinkDto, RenameShareLinkDto } from './dto/share-links.dto';
+import { CreateShareLinkDto, UpdateShareLinkDto } from './dto/share-links.dto';
 import { PageAccessService } from '../notes/page-access.service';
 import { uniqueViolation } from '../prisma/errors';
 import { liveShareLink, unexpiredLink } from './live-share-link';
@@ -90,12 +90,21 @@ export class ShareLinksService {
     return links.map((link) => this.present(link));
   }
 
-  async rename(userId: string, itemId: string, linkId: string, input: RenameShareLinkDto) {
+  async update(userId: string, itemId: string, linkId: string, input: UpdateShareLinkDto) {
     await this.assertSharing(userId, itemId);
-    await this.releaseSlug(input.slug);
-    const renamed = await this.prisma.shareLink.updateMany({ where: { id: linkId, itemId, ...unexpiredLink() }, data: { slug: input.slug } }).catch(slugTaken);
-    if (renamed.count === 0) {
+    if (input.access === 'edit' && !pageKinds.includes((await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } })).kind)) {
+      throw new BadRequestException('Only pages and boards can be shared for editing');
+    }
+    if (input.slug) await this.releaseSlug(input.slug);
+    const current = await this.prisma.shareLink.findFirst({ where: { id: linkId, itemId, ...unexpiredLink() }, select: { access: true } });
+    const access = input.access?.toUpperCase() as ShareAccess | undefined;
+    const updated = await this.prisma.shareLink.updateMany({ where: { id: linkId, itemId, ...unexpiredLink() }, data: { slug: input.slug, access } }).catch(slugTaken);
+    if (!current || updated.count === 0) {
       throw new NotFoundException('That link is already turned off');
+    }
+    if (access && access !== current.access) {
+      await this.audit.record(userId, 'share_link_access_changed', { itemId, linkId, access: input.access });
+      this.realtime.closeShareLink(linkId);
     }
     return this.present(await this.prisma.shareLink.findUniqueOrThrow({ where: { id: linkId }, select: linkFields }));
   }

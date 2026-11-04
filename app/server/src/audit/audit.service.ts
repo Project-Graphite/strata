@@ -31,6 +31,7 @@ export type AuditAction =
   | 'calendar_feed_reset'
   | 'calendar_feed_disabled'
   | 'share_link_created'
+  | 'share_link_access_changed'
   | 'share_link_revoked'
   | 'page_grant_saved'
   | 'page_grant_removed'

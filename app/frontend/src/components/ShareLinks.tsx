@@ -47,6 +47,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
   const links = useResource<ShareLink[]>(`/items/${itemId}/share-links`, true);
   const action = useAction();
   const renaming = useAction();
+  const changing = useAction();
   const [access, setAccess] = useState<Access>('view');
   const [minutes, setMinutes] = useState('43200');
   const [slug, setSlug] = useState('');
@@ -137,7 +138,25 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
                 <ListRow
                   key={link.id}
                   meta={[link.slug && `/s/${link.slug}`, link.expiresAt ? `Expires ${formatMoment(link.expiresAt)}` : 'Never expires'].filter(Boolean).join(' · ')}
-                  title={link.access === 'edit' ? 'Can edit' : 'Can view'}
+                  title={
+                    editLinks ? (
+                      <Select
+                        aria-label="Access for this link"
+                        disabled={changing.busy}
+                        onChange={(next) =>
+                          void changing.run(async () => {
+                            const saved = await auth.request<ShareLink>(`/items/${itemId}/share-links/${link.id}`, { method: 'PATCH', body: JSON.stringify({ access: next }) });
+                            links.mutate((current) => current.map((shown) => (shown.id === saved.id ? saved : shown)));
+                            return saved.access === 'edit' ? 'Anyone with this link can now edit.' : 'Anyone with this link can now only view.';
+                          }, 'Could not change the link')
+                        }
+                        options={accessOptions}
+                        quiet
+                        size="small"
+                        value={link.access}
+                      />
+                    ) : link.access === 'edit' ? 'Can edit' : 'Can view'
+                  }
                   trail={
                     <>
                       {link.shortLink ? <Copyable compact value={link.shortLink} /> : link.link ? <Copyable compact value={link.link} /> : <Hint>Link unavailable</Hint>}

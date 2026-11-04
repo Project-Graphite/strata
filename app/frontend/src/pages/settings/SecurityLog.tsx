@@ -35,6 +35,7 @@ const actions: Record<string, string> = {
   calendar_feed_disabled: 'Calendar link turned off',
   refresh_token_reused: 'An old sign-in was reused, so every device was signed out',
   share_link_created: 'Share link created',
+  share_link_access_changed: 'Share link access changed',
   share_link_revoked: 'Share link turned off',
   page_grant_saved: 'Page shared with someone',
   page_grant_removed: 'Page access removed',

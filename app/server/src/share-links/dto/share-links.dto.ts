@@ -25,9 +25,14 @@ export class CreateShareLinkDto {
   slug?: string;
 }
 
-export class RenameShareLinkDto {
+export class UpdateShareLinkDto {
+  @IsOptional()
   @Matches(slugPattern, { message: slugMessage })
-  slug!: string;
+  slug?: string;
+
+  @IsOptional()
+  @IsIn(['view', 'edit'], { message: 'Choose view or edit.' })
+  access?: 'view' | 'edit';
 }
 
 export class SharedFileParamsDto extends ShareCodeDto {

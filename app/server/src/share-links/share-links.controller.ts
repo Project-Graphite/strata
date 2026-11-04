@@ -8,7 +8,7 @@ import { fileHeaders } from '../files/files.service';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { ShareCodeDto } from '../validation/link-code.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateShareLinkDto, RenameShareLinkDto, SharedFileParamsDto } from './dto/share-links.dto';
+import { CreateShareLinkDto, SharedFileParamsDto, UpdateShareLinkDto } from './dto/share-links.dto';
 import { ShareLinksService } from './share-links.service';
 import { Public } from '../auth/public.decorator';
 
@@ -31,13 +31,13 @@ export class ShareLinksController {
 
   @Patch('items/:id/share-links/:linkId')
   @Scope('items:write')
-  rename(
+  update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', UuidPipe) id: string,
     @Param('linkId', UuidPipe) linkId: string,
-    @Body() input: RenameShareLinkDto,
+    @Body() input: UpdateShareLinkDto,
   ) {
-    return this.shareLinks.rename(user.id, id, linkId, input);
+    return this.shareLinks.update(user.id, id, linkId, input);
   }
 
   @Delete('items/:id/share-links/:linkId')
