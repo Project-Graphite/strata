@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FloatingToolbar, LinesSkeleton, ToolbarButton, ToolbarSeparator, type IconName } from '@project-graphite/ui';
 import Highlight from '@tiptap/extension-highlight';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
@@ -6,8 +6,16 @@ import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { cspNonce } from '../csp-nonce';
+import type { Member } from '../spaces';
 
 export type RichDocument = Record<string, unknown> | null;
+
+interface Mention {
+  from: number;
+  to: number;
+  query: string;
+  index: number;
+}
 
 const extensions = (placeholder: string) => [
   StarterKit.configure({ link: { openOnClick: true, autolink: true, protocols: ['https', 'http', 'mailto'] } }),
@@ -24,11 +32,12 @@ interface Format {
   isActive?: (editor: Editor) => boolean;
   run: (editor: Editor) => void;
   separated?: boolean;
+  history?: boolean;
 }
 
 const formatting: Format[] = [
-  { label: 'Undo', icon: 'undo', run: (editor) => editor.chain().focus().undo().run() },
-  { label: 'Redo', icon: 'redo', run: (editor) => editor.chain().focus().redo().run() },
+  { label: 'Undo', icon: 'undo', history: true, run: (editor) => editor.chain().focus().undo().run() },
+  { label: 'Redo', icon: 'redo', history: true, run: (editor) => editor.chain().focus().redo().run() },
   { label: 'Heading', icon: 'heading-1', separated: true, isActive: (editor) => editor.isActive('heading', { level: 2 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run() },
   { label: 'Subheading', icon: 'heading-2', isActive: (editor) => editor.isActive('heading', { level: 3 }), run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run() },
   { label: 'Bold', icon: 'bold', separated: true, isActive: (editor) => editor.isActive('bold'), run: (editor) => editor.chain().focus().toggleBold().run() },
@@ -45,12 +54,13 @@ const formatting: Format[] = [
   { label: 'Divider', glyph: <span aria-hidden="true">—</span>, run: (editor) => editor.chain().focus().setHorizontalRule().run() },
 ];
 
-function Toolbar({ editor }: { editor: Editor }) {
-  const active = useEditorState({ editor, selector: ({ editor: current }) => formatting.map((format) => Boolean(format.isActive?.(current))) });
+function Toolbar({ compact, editor }: { compact: boolean; editor: Editor }) {
+  const formats = compact ? formatting.filter((format) => !format.history) : formatting;
+  const active = useEditorState({ editor, selector: ({ editor: current }) => formats.map((format) => Boolean(format.isActive?.(current))) });
   return (
     <FloatingToolbar className="rich-editor-toolbar" label="Formatting">
-      {formatting.map((format, index) => [
-        format.separated && <ToolbarSeparator key={`${format.label}-separator`} />,
+      {formats.map((format, index) => [
+        format.separated && index > 0 && <ToolbarSeparator key={`${format.label}-separator`} />,
         format.icon ? (
           <ToolbarButton active={active[index]} icon={format.icon} key={format.label} label={format.label} onClick={() => format.run(editor)} />
         ) : (
@@ -67,6 +77,7 @@ export function RichTextEditor({
   autoFocus = false,
   compact = false,
   label,
+  mentions,
   onChange,
   placeholder,
   value,
@@ -74,25 +85,86 @@ export function RichTextEditor({
   autoFocus?: boolean;
   compact?: boolean;
   label: string;
+  mentions?: Member[];
   onChange: (document: RichDocument, text: string) => void;
   placeholder: string;
   value: RichDocument;
 }) {
   const latest = useRef(onChange);
   latest.current = onChange;
+  const [mention, setMention] = useState<Mention>();
+  const suggestions = mention
+    ? (mentions ?? []).filter((person) => person.handle.startsWith(mention.query) || person.displayName.toLowerCase().includes(mention.query)).slice(0, 6)
+    : [];
+  const live = useRef<{ mention?: Mention; suggestions: Member[]; mentions?: Member[]; insert?: (person: Member) => void }>({ suggestions });
+  live.current.mention = mention;
+  live.current.suggestions = suggestions;
+  live.current.mentions = mentions;
+
+  const track = (current: Editor) => {
+    const { from, empty } = current.state.selection;
+    const match = live.current.mentions?.length && empty ? /(?:^|[^\w@])@([a-z0-9_-]{0,30})$/i.exec(current.state.doc.textBetween(Math.max(0, from - 40), from, '\n', '\0')) : null;
+    setMention(match ? { from: from - match[1]!.length - 1, to: from, query: match[1]!.toLowerCase(), index: 0 } : undefined);
+  };
+
   const editor = useEditor({
     content: value ?? undefined,
     autofocus: autoFocus ? 'end' : false,
     injectNonce: cspNonce(),
     extensions: extensions(placeholder),
-    editorProps: { attributes: { 'aria-label': label, class: 'note-content rich-editor-content' } },
-    onUpdate: ({ editor: current }) => latest.current(current.isEmpty ? null : (current.getJSON() as RichDocument), current.getText({ blockSeparator: '\n' }).trim()),
+    editorProps: {
+      attributes: { 'aria-label': label, class: 'note-content rich-editor-content' },
+      handleKeyDown: (_view, event) => {
+        const { mention: open, suggestions: shown, insert } = live.current;
+        if (!open || shown.length === 0) return false;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          setMention({ ...open, index: (open.index + (event.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length });
+        } else if (event.key === 'Enter' || event.key === 'Tab') {
+          insert?.(shown[open.index]!);
+        } else if (event.key === 'Escape') {
+          event.stopPropagation();
+          setMention(undefined);
+        } else return false;
+        return true;
+      },
+    },
+    onSelectionUpdate: ({ editor: current }) => track(current),
+    onUpdate: ({ editor: current }) => {
+      track(current);
+      latest.current(current.isEmpty ? null : (current.getJSON() as RichDocument), current.getText({ blockSeparator: '\n' }).trim());
+    },
   });
+  live.current.insert = (person: Member) => {
+    if (!editor || !mention) return;
+    editor.chain().focus().insertContentAt({ from: mention.from, to: mention.to }, `@${person.handle} `).run();
+    setMention(undefined);
+  };
   if (!editor) return <LinesSkeleton label={`Loading the ${label.toLowerCase()}`} lines={3} />;
   return (
-    <div className="rich-editor" data-compact={compact || undefined}>
-      <Toolbar editor={editor} />
-      <EditorContent editor={editor} />
+    <div className="relative">
+      <div className="rich-editor" data-compact={compact || undefined}>
+        <Toolbar compact={compact} editor={editor} />
+        <EditorContent editor={editor} />
+      </div>
+      {suggestions.length > 0 && (
+        <ul aria-label="People to mention" className="quick-suggestions" role="listbox">
+          {suggestions.map((person, index) => (
+            <li
+              aria-selected={index === mention!.index}
+              className="quick-suggestion"
+              key={person.userId}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                live.current.insert?.(person);
+              }}
+              role="option"
+            >
+              <span className="min-w-0 truncate text-ink">{person.displayName}</span>
+              <span className="shrink-0 text-small text-muted">@{person.handle}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

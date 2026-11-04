@@ -10,7 +10,7 @@ import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { presentTag, tagFields } from '../tags/tags.service';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskColumnDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
 import { uniqueViolation } from '../prisma/errors';
 import { builtInTaskTypes, taskType } from './task-type';
 import { WatchersService } from '../watchers/watchers.service';
@@ -338,6 +338,22 @@ export class TasksService implements OnModuleInit {
     if (!(await this.prisma.task.count({ where: { itemId } }))) throw new NotFoundException('That item is not a task');
     if (access !== 'read' && found.trashedAt) throw new BadRequestException('Restore this task from the trash before changing it');
     return found;
+  }
+
+  async share(userId: string, itemId: string, { userIds, message }: ShareTaskDto) {
+    const { spaceId } = await this.assertTask(userId, itemId, 'read');
+    const recipients = [...new Set(userIds)].filter((recipient) => recipient !== userId);
+    const members = await this.prisma.spaceMember.count({ where: { spaceId, userId: { in: recipients }, user: { isActive: true } } });
+    if (recipients.length === 0 || members !== recipients.length) throw new BadRequestException('Choose people from this space.');
+    await this.prisma.$transaction(async (transaction) => {
+      const { title } = await transaction.item.findUniqueOrThrow({ where: { id: itemId }, select: { title: true } });
+      const sharer = await this.watchers.actorName(transaction, userId);
+      await this.watchers.watch(transaction, itemId, recipients);
+      await this.inbox.notify(
+        transaction,
+        recipients.map((recipient) => ({ userId: recipient, kind: 'watching' as const, title: `${sharer} shared “${title}” with you`, body: message || undefined, link: `/tasks?task=${itemId}` })),
+      );
+    });
   }
 
   async activityOf(userId: string, itemId: string, page: number) {

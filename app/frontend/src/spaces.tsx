@@ -20,6 +20,7 @@ export interface Space {
 
 export interface Member {
   userId: string;
+  handle: string;
   displayName: string;
 }
 

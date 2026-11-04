@@ -9,7 +9,7 @@ import { UploadQueue } from '../files/upload-queue';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, TaskColumnDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { TaskCommentsService } from './task-comments.service';
 import { TasksService } from './tasks.service';
@@ -141,6 +141,14 @@ export class TasksController {
   @Scope('items:read')
   activity(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Query() query: PageDto) {
     return this.tasks.activityOf(user.id, id, query.page);
+  }
+
+  @Post('tasks/:id/share')
+  @HttpCode(204)
+  @Scope('items:write')
+  @RateLimit('task-share', 200, 86_400)
+  async share(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: ShareTaskDto) {
+    await this.tasks.share(user.id, id, input);
   }
 
   @Get('tasks/:id/comments')

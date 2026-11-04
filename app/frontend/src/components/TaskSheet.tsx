@@ -12,6 +12,7 @@ import { Button, TextButton } from './Button';
 import type { OpenTaskProps } from './OpenTask';
 import { RichTextEditor } from './RichText';
 import { TaskFrame } from './TaskFrame';
+import { TaskShare } from './TaskShare';
 import { WatchButton } from './WatchButton';
 import { Attachments, Relations, Subtasks, TaskActivity, TaskDescription } from './TaskTicket';
 
@@ -157,6 +158,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
       actions={
         task && (
           <>
+            <TaskShare editable={editable} shared={space?.kind !== 'personal'} spaceId={task.spaceId} taskId={task.id} title={task.title} />
             {space?.kind !== 'personal' && <WatchButton itemId={task.id} manage={editable} spaceId={task.spaceId} />}
             {editable && (
           <ActionsMenu
@@ -255,7 +257,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                   )}
                   <Relations editable={editable} onOpen={setId} taskId={task.id} />
                   <Attachments editable={editable} taskId={task.id} />
-                  <TaskActivity editable={editable} key={task.id} owner={space?.role === 'owner'} taskId={task.id} />
+                  <TaskActivity editable={editable} key={task.id} members={members.data?.filter((member) => member.userId !== auth.user?.id)} owner={space?.role === 'owner'} taskId={task.id} />
                 </>
               )}
             </div>

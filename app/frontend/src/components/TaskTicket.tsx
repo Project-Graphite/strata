@@ -3,6 +3,7 @@ import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedCo
 import { describeActivity, type ActivityEvent } from '../activity';
 import { readBlob, type Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
+import type { Member } from '../spaces';
 import { fileSize, maxUploadBytes, preparedUpload, saveBlob } from '../files';
 import { completeTask, type Task, type TaskDetail } from '../tasks';
 import { formatMoment } from '../time';
@@ -213,7 +214,7 @@ const activityTabs: { value: ActivityTab; label: string }[] = [
 
 const paragraphOf = (text: string): RichDocument => ({ type: 'doc', content: text.split('\n').map((line) => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
 
-function CommentEditor({ initial, label, onCancel, onSave, saveLabel }: { initial: RichDocument; label: string; onCancel: () => void; onSave: (document: RichDocument, body: string) => Promise<unknown>; saveLabel: string }) {
+function CommentEditor({ initial, label, members, onCancel, onSave, saveLabel }: { initial: RichDocument; label: string; members?: Member[]; onCancel: () => void; onSave: (document: RichDocument, body: string) => Promise<unknown>; saveLabel: string }) {
   const [document, setDocument] = useState(initial);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -223,11 +224,12 @@ function CommentEditor({ initial, label, onCancel, onSave, saveLabel }: { initia
         autoFocus
         compact
         label={label}
+        mentions={members}
         onChange={(next, text) => {
           setDocument(next);
           setBody(text);
         }}
-        placeholder="Write a comment…"
+        placeholder="Write a comment… Type @ to mention someone."
         value={initial}
       />
       <div className="flex flex-wrap justify-end gap-2">
@@ -246,7 +248,7 @@ function CommentEditor({ initial, label, onCancel, onSave, saveLabel }: { initia
   );
 }
 
-export function TaskActivity({ editable, owner, taskId }: { editable: boolean; owner: boolean; taskId: string }) {
+export function TaskActivity({ editable, members, owner, taskId }: { editable: boolean; members?: Member[]; owner: boolean; taskId: string }) {
   const auth = useAuth();
   const action = useAction();
   const [tab, setTab] = useState<ActivityTab>('all');
@@ -278,6 +280,7 @@ export function TaskActivity({ editable, owner, taskId }: { editable: boolean; o
             <CommentEditor
               initial={null}
               label="New comment"
+              members={members}
               onCancel={() => setWriting(false)}
               onSave={(document, body) =>
                 save(`/tasks/${taskId}/comments`, 'POST', document, body, (added) => {
@@ -321,6 +324,7 @@ export function TaskActivity({ editable, owner, taskId }: { editable: boolean; o
                     <CommentEditor
                       initial={comment.document ?? paragraphOf(comment.body)}
                       label="Edit comment"
+                      members={members}
                       onCancel={() => setEditing(undefined)}
                       onSave={(document, body) =>
                         save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', document, body, (saved) => {

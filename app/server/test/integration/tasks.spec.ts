@@ -251,6 +251,50 @@ describe('Tasks against Postgres', () => {
     expect(ids(await editor.call('DELETE', `/items/${task.id}/watchers/${viewer.id}`))).toEqual([owner.id]);
   });
 
+  it('shares a task with people in its space, who start watching it, and with anyone by a view-only link', async () => {
+    const owner = await member('share-lead');
+    const teammate = await member('share-mate');
+    const outsider = await member('share-stranger');
+    const team = (await owner.call('POST', '/spaces', { name: 'Sharing' })).body;
+    await strata.join(team.id, teammate, SpaceRole.VIEWER);
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Plan launch', priority: 3 })).body;
+
+    expect((await owner.call('POST', `/tasks/${task.id}/share`, { userIds: [outsider.id] })).status).toBe(400);
+    expect((await outsider.call('POST', `/tasks/${task.id}/share`, { userIds: [teammate.id] })).status).toBe(404);
+    expect((await owner.call('POST', `/tasks/${task.id}/share`, { userIds: [teammate.id], message: 'Have a look' })).status).toBe(204);
+    expect((await teammate.call('GET', '/me/inbox')).body.results).toEqual([
+      expect.objectContaining({ kind: 'watching', title: 'share-lead shared “Plan launch” with you', body: 'Have a look', link: `/tasks?task=${task.id}` }),
+    ]);
+    expect((await teammate.call('GET', `/items/${task.id}/watchers`)).body.watching).toBe(true);
+
+    expect((await teammate.call('POST', `/items/${task.id}/share-links`, { access: 'view' })).status).toBe(403);
+    expect((await owner.call('POST', `/items/${task.id}/share-links`, { access: 'edit' })).status).toBe(400);
+    const code = (await owner.call('POST', `/items/${task.id}/share-links`, { access: 'view' })).body.link.split('/share/')[1];
+    expect((await strata.anonymous('GET', `/share/${code}`)).body).toMatchObject({
+      access: 'view',
+      item: { kind: 'task', title: 'Plan launch' },
+      content: { kind: 'task', id: task.id, status: 'open', type: 'task', priority: 3, assignee: 'share-lead', attachments: [] },
+    });
+  });
+
+  it('tells people mentioned by handle in a comment, once, and only if they are in the space', async () => {
+    const owner = await member('mention-lead');
+    const teammate = await member('mention-mate');
+    const outsider = await member('mention-stranger');
+    const team = (await owner.call('POST', '/spaces', { name: 'Mentions' })).body;
+    await strata.join(team.id, teammate, SpaceRole.EDITOR);
+    const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Fix login', assigneeId: null })).body;
+    const notices = async (person: typeof owner) => (await person.call('GET', '/me/inbox')).body.results.map((notice: { kind: string; title: string }) => `${notice.kind}: ${notice.title}`);
+
+    const comment = (await owner.call('POST', `/tasks/${task.id}/comments`, { body: `Can you check, @${teammate.handle}? cc @${outsider.handle}` })).body;
+    expect(await notices(teammate)).toEqual(['comment: mention-lead mentioned you on “Fix login”']);
+    expect(await notices(outsider)).toEqual([]);
+    expect((await teammate.call('GET', `/items/${task.id}/watchers`)).body.watching).toBe(true);
+
+    await owner.call('PATCH', `/tasks/${task.id}/comments/${comment.id}`, { body: `Still waiting, @${teammate.handle}` });
+    expect(await notices(teammate)).toHaveLength(1);
+  });
+
   it('reminds the right person once, and replaces the reminder when the task changes', async () => {
     const owner = await member('forgetful');
     const jobs = strata.service(JobsService);

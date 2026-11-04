@@ -1,12 +1,14 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SpaceRole } from '@prisma/client';
 import { ChangesService } from '../changes/changes.service';
+import { InboxService } from '../inbox/inbox.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TaskCommentDto } from './dto/tasks.dto';
 import { TasksService } from './tasks.service';
 import { WatchersService } from '../watchers/watchers.service';
 
 const maxComments = 500;
+const mentionPattern = /(?:^|[^\w@])@([a-z0-9][a-z0-9_-]*)/gi;
 
 const commentFields = {
   id: true,
@@ -17,6 +19,8 @@ const commentFields = {
   author: { select: { id: true, displayName: true } },
 } satisfies Prisma.NoteCommentSelect;
 
+const handlesIn = (text: string) => new Set([...text.matchAll(mentionPattern)].map((match) => match[1]!.toLowerCase()));
+
 @Injectable()
 export class TaskCommentsService {
   constructor(
@@ -24,6 +28,7 @@ export class TaskCommentsService {
     private readonly tasks: TasksService,
     private readonly changes: ChangesService,
     private readonly watchers: WatchersService,
+    private readonly inbox: InboxService,
   ) {}
 
   async list(userId: string, taskId: string) {
@@ -39,8 +44,9 @@ export class TaskCommentsService {
     const created = await this.prisma.$transaction(async (transaction) => {
       const created = await transaction.noteComment.create({ data: { itemId: taskId, authorId: userId, body, document: document as Prisma.InputJsonObject | undefined }, select: commentFields });
       const { title } = await transaction.item.findUniqueOrThrow({ where: { id: taskId }, select: { title: true } });
+      const mentioned = await this.mention(transaction, { spaceId: task.spaceId, taskId, title, authorId: userId, body });
       await this.watchers.watch(transaction, taskId, [userId]);
-      await this.watchers.notify(transaction, taskId, userId, { title: `${created.author?.displayName ?? 'Someone'} commented on “${title}”`, body: body.slice(0, 200), link: `/tasks?task=${taskId}` });
+      await this.watchers.notify(transaction, taskId, userId, { title: `${created.author?.displayName ?? 'Someone'} commented on “${title}”`, body: body.slice(0, 200), link: `/tasks?task=${taskId}` }, mentioned);
       return created;
     });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
@@ -50,7 +56,12 @@ export class TaskCommentsService {
   async update(userId: string, taskId: string, commentId: string, { body, document }: TaskCommentDto) {
     const { comment, task } = await this.comment(userId, taskId, commentId);
     if (comment.authorId !== userId) throw new ForbiddenException('Only the person who wrote a comment can change it');
-    const updated = await this.prisma.noteComment.update({ where: { id: commentId }, data: { body, document: document ? (document as Prisma.InputJsonObject) : Prisma.DbNull, editedAt: new Date() }, select: commentFields });
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const updated = await transaction.noteComment.update({ where: { id: commentId }, data: { body, document: document ? (document as Prisma.InputJsonObject) : Prisma.DbNull, editedAt: new Date() }, select: commentFields });
+      const { title } = await transaction.item.findUniqueOrThrow({ where: { id: taskId }, select: { title: true } });
+      await this.mention(transaction, { spaceId: task.spaceId, taskId, title, authorId: userId, body, before: comment.body });
+      return updated;
+    });
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
     return updated;
   }
@@ -64,9 +75,29 @@ export class TaskCommentsService {
     this.changes.notify('task-details', { spaceId: task.spaceId, itemId: taskId });
   }
 
+  private async mention(
+    transaction: Prisma.TransactionClient,
+    { spaceId, taskId, title, authorId, body, before = '' }: { spaceId: string; taskId: string; title: string; authorId: string; body: string; before?: string },
+  ) {
+    const already = handlesIn(before);
+    const handles = [...handlesIn(body)].filter((handle) => !already.has(handle));
+    if (handles.length === 0) return [];
+    const mentioned = (
+      await transaction.spaceMember.findMany({ where: { spaceId, userId: { not: authorId }, user: { handle: { in: handles }, isActive: true } }, select: { userId: true } })
+    ).map((member) => member.userId);
+    if (mentioned.length === 0) return [];
+    const author = await this.watchers.actorName(transaction, authorId);
+    await this.watchers.watch(transaction, taskId, mentioned);
+    await this.inbox.notify(
+      transaction,
+      mentioned.map((userId) => ({ userId, kind: 'comment' as const, title: `${author} mentioned you on “${title}”`, body: body.slice(0, 200), link: `/tasks?task=${taskId}` })),
+    );
+    return mentioned;
+  }
+
   private async comment(userId: string, taskId: string, commentId: string) {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
-    const comment = await this.prisma.noteComment.findFirst({ where: { id: commentId, itemId: taskId }, select: { authorId: true } });
+    const comment = await this.prisma.noteComment.findFirst({ where: { id: commentId, itemId: taskId }, select: { authorId: true, body: true } });
     if (!comment) throw new NotFoundException('Comment not found');
     return { comment, task };
   }

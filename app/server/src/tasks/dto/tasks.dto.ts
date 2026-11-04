@@ -1,5 +1,8 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -166,4 +169,18 @@ export class TaskCommentDto {
   @IsOptional()
   @IsRichText()
   document?: Record<string, unknown>;
+}
+
+export class ShareTaskDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Choose who to share the task with.' })
+  @ArrayMaxSize(50, { message: 'Share with up to 50 people at once.' })
+  @IsUUID('all', { each: true, message: 'Choose people from this space.' })
+  userIds!: string[];
+
+  @IsOptional()
+  @Trimmed()
+  @IsString()
+  @MaxLength(500, { message: 'Keep the note under 500 characters.' })
+  message?: string;
 }

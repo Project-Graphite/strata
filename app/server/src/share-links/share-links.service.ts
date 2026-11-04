@@ -10,6 +10,7 @@ import { DriveService } from '../files/drive.service';
 import { FilesService } from '../files/files.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { dateText } from '../recurrence/dates';
 import { RealtimeService } from '../realtime/realtime.service';
 import { documentLinks, pageKinds } from '../notes/document-text';
 import { CreateShareLinkDto, RenameShareLinkDto } from './dto/share-links.dto';
@@ -137,9 +138,38 @@ export class ShareLinksService {
             ? { kind: 'board', id: item.id }
             : item.kind === ItemKind.FOLDER
               ? { kind: 'folder', id: item.id, name: item.title }
-              : item.file
-                ? { kind: 'file', id: item.id, name: item.file.originalName, mimeType: item.file.mimeType, sizeBytes: item.file.sizeBytes }
-                : null,
+              : item.kind === ItemKind.TASK
+                ? await this.task(item.id)
+                : item.file
+                  ? { kind: 'file', id: item.id, name: item.file.originalName, mimeType: item.file.mimeType, sizeBytes: item.file.sizeBytes }
+                  : null,
+    };
+  }
+
+  private async task(itemId: string) {
+    const [task, attachments] = await Promise.all([
+      this.prisma.task.findUniqueOrThrow({
+        where: { itemId },
+        select: { status: true, type: true, priority: true, dueDate: true, dueTime: true, description: true, column: { select: { name: true } }, assignee: { select: { displayName: true } } },
+      }),
+      this.prisma.itemLink.findMany({
+        where: { sourceItemId: itemId, kind: LinkKind.ATTACHMENT, target: { kind: ItemKind.FILE, trashedAt: null } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { target: { select: { id: true, file: { select: { originalName: true, mimeType: true, sizeBytes: true } } } } },
+      }),
+    ]);
+    return {
+      kind: 'task',
+      id: itemId,
+      status: task.status.toLowerCase(),
+      column: task.column?.name ?? null,
+      type: task.type,
+      priority: task.priority,
+      dueDate: dateText(task.dueDate),
+      dueTime: task.dueTime,
+      assignee: task.assignee?.displayName ?? null,
+      description: task.description,
+      attachments: attachments.flatMap(({ target }) => (target.file ? [{ id: target.id, name: target.file.originalName, mimeType: target.file.mimeType, sizeBytes: target.file.sizeBytes }] : [])),
     };
   }
 
