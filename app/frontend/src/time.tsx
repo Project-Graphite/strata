@@ -3,10 +3,20 @@ import { Dialog, formatDay, IconButton, PickerField, Button as UiButton } from '
 import { Button, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 
-let profileZone: string | undefined;
+export type TimeFormat = 'auto' | '12h' | '24h';
 
-export function applyTimeZone(zone: string | undefined) {
+export const timeFormatOptions: { value: TimeFormat; label: string }[] = [
+  { value: 'auto', label: 'Same as this device' },
+  { value: '12h', label: '12-hour (2:30 PM)' },
+  { value: '24h', label: '24-hour (14:30)' },
+];
+
+let profileZone: string | undefined;
+let hour12: boolean | undefined;
+
+export function applyTimePreferences(zone: string | undefined, format: TimeFormat | undefined) {
   profileZone = zone;
+  hour12 = format === '12h' ? true : format === '24h' ? false : undefined;
 }
 
 export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? '' : zone.replaceAll('_', ' '));
@@ -72,11 +82,22 @@ export const formatMonth = (day: string) => monthFormat.format(new Date(`${day.s
 
 export const count = (value: number) => value.toLocaleString('en-EG');
 
-export const usesTwelveHours = () => Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
+export const usesTwelveHours = () => hour12 ?? Boolean(new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12);
+
+const clockFormats = new Map<string, Intl.DateTimeFormat>();
+
+export function clockFormat(timeZone?: string) {
+  const key = `${hour12}/${timeZone}`;
+  let format = clockFormats.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone, ...(hour12 === undefined ? {} : { hour12 }) });
+    clockFormats.set(key, format);
+  }
+  return format;
+}
 
 export function clockTime(time: string | Date, timeZone?: string) {
-  const at = typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time;
-  return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone });
+  return clockFormat(timeZone).format(typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time);
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');

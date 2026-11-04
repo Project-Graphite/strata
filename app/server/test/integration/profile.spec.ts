@@ -5,10 +5,14 @@ describe('Profile preferences against Postgres', () => {
   const strata = integrationApp();
   const { member } = strata;
 
-  it('has no clock setting, so times follow the device', async () => {
+  it('keeps a 12- or 24-hour clock, following the device until one is chosen', async () => {
     const person = await member('clock-reader');
-    expect((await person.call('GET', '/me')).body).not.toHaveProperty('timeFormat');
-    expect((await person.call('PATCH', '/me', { timeFormat: '12h' })).status).toBe(400);
+    expect((await person.call('GET', '/me')).body.timeFormat).toBe('auto');
+    expect((await person.call('PATCH', '/me', { timeFormat: '13h' })).status).toBe(400);
+    expect((await person.call('PATCH', '/me', { timeFormat: null })).status).toBe(400);
+    expect((await person.call('PATCH', '/me', { timeFormat: '12h' })).body.timeFormat).toBe('12h');
+    expect((await person.call('GET', '/me')).body.timeFormat).toBe('12h');
+    expect((await person.call('PATCH', '/me', { timeFormat: '24h' })).body.timeFormat).toBe('24h');
   });
 
   it('starts the week on Sunday with a Friday and Saturday weekend until another week is chosen', async () => {

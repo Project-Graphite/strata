@@ -4,7 +4,7 @@ import { apiRequest } from './api';
 import { initialSession } from './auth';
 import { routePage } from './route-pages';
 import { storedSpace } from './spaces';
-import { applyTimeZone, profileDay } from './time';
+import { applyTimePreferences, profileDay } from './time';
 import { cachedRequest } from './useResource';
 
 type Request = <T>(path: string) => Promise<T>;
@@ -60,6 +60,6 @@ void initialSession.then((session) => {
   if (!session) return;
   const request: Request = (path) => apiRequest(path, {}, session.accessToken);
   for (const path of ['/me/dashboards', '/me/inbox/summary']) cachedRequest(request, session.user.id, path, undefined)?.catch(() => undefined);
-  applyTimeZone(session.user.timeZone);
+  applyTimePreferences(session.user.timeZone, session.user.timeFormat);
   if (!window.location.search) prefetchData(window.location.pathname, session.user.id, request);
 }, () => undefined);

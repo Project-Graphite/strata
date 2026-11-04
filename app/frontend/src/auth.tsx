@@ -13,7 +13,7 @@ import { errorMessage } from '@project-graphite/ui';
 import { ApiError, apiRequest } from './api';
 import { announceChange } from './changes';
 import { wipeLocalData } from './local-data';
-import { applyTimeZone } from './time';
+import { applyTimePreferences, type TimeFormat } from './time';
 import { refreshSession } from './session-refresh';
 
 export type UserRole = 'member' | 'admin' | 'system_manager';
@@ -25,6 +25,7 @@ interface User {
   displayName: string;
   role: UserRole;
   timeZone: string;
+  timeFormat?: TimeFormat;
   features: string[];
 }
 
@@ -58,7 +59,7 @@ interface AuthContextValue {
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
-  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone'>>): void;
+  updateUser(changes: Partial<Pick<User, 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
   accessToken(): Promise<string>;
 }
 
@@ -217,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession, ready, request, restoreError, session],
   );
 
-  applyTimeZone(session?.user.timeZone);
+  applyTimePreferences(session?.user.timeZone, session?.user.timeFormat);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

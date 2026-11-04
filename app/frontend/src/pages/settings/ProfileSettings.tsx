@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Fieldset, FilterChip, Placeholder, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
 import { timeZoneOptions } from '../../choices';
+import { timeFormatOptions, type TimeFormat } from '../../time';
 import { DevicePush, DevicePushSkeleton } from '../../components/DevicePush';
 import { FormDialog } from '../../components/FormDialog';
 import { Hint } from '../../components/Hint';
@@ -94,6 +95,7 @@ export function ProfileSettings() {
               body: JSON.stringify({
                 displayName: String(values.get('displayName')).trim(),
                 timeZone: String(values.get('timeZone')),
+                timeFormat: String(values.get('timeFormat')),
                 homeCurrency: String(values.get('homeCurrency')) || null,
                 weekStart: Number(values.get('weekStart')),
                 weekendDays,
@@ -102,7 +104,7 @@ export function ProfileSettings() {
               }),
             });
             me.mutate(() => next);
-            auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone });
+            auth.updateUser({ displayName: next.displayName, timeZone: next.timeZone, timeFormat: next.timeFormat });
             return 'Saved your profile.';
           }, 'Could not save your profile');
         }}
@@ -120,6 +122,7 @@ export function ProfileSettings() {
               placeholder="Choose a time zone"
               searchable
             />
+            <Select<TimeFormat> defaultValue={current.timeFormat} label="Time format" name="timeFormat" options={timeFormatOptions} />
             <Select defaultValue={String(current.weekStart)} label="Week starts on" name="weekStart" options={weekDays.map((label, day) => ({ value: String(day), label }))} />
             <Fieldset legend="Weekend days">
               <div className="flex flex-wrap gap-2">

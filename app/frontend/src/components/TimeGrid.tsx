@@ -3,12 +3,11 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSPr
 import { Link } from 'react-router';
 import { entryClock, entryKey, entryTime, type AgendaEntry } from '../agenda';
 import { pageScroller } from '../page-scroll';
-import { clockTime, daysBetween, profileDay, profileMinutes } from '../time';
+import { clockFormat, clockTime, daysBetween, profileDay, profileMinutes } from '../time';
 
 const dayMinutes = 24 * 60;
 const step = 15;
 const minuteMs = 60_000;
-const hourFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
 export interface Slot {
   day: string;
@@ -349,7 +348,7 @@ export function TimeGrid({
         <div className="relative">
           {Array.from({ length: 23 }, (_, index) => index + 1).map((hour) => (
             <span className="mono-sm absolute right-1.5 -translate-y-1/2 whitespace-nowrap text-faint" key={hour} style={{ top: percent(hour * 60) }}>
-              {hourFormat.formatToParts(new Date(2000, 0, 1, hour)).map((part, index, parts) => (
+              {clockFormat().formatToParts(new Date(2000, 0, 1, hour)).map((part, index, parts) => (
                 <span className={part.type === 'minute' || parts[index + 1]?.type === 'minute' ? 'max-md:hidden' : undefined} key={index}>
                   {part.value}
                 </span>

@@ -3525,6 +3525,15 @@ div:has(> #content) {
   margin-inline-start: auto;
 }
 
+.section-heading:has(> .section-heading-text > .section-heading-description) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.section-heading:has(> .section-heading-text > .section-heading-description) > .section-heading-text {
+  flex: 1 1 auto;
+}
+
 .files-group {
   display: grid;
   gap: var(--space-2);

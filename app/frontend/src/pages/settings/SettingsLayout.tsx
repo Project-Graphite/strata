@@ -1,3 +1,4 @@
+import type { TimeFormat } from '../../time';
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { ListRow } from '@project-graphite/ui';
@@ -10,6 +11,7 @@ export interface Me {
   handle: string;
   displayName: string;
   timeZone: string;
+  timeFormat: TimeFormat;
   tidySummary: boolean;
   weeklyReview: boolean;
   homeCurrency: string | null;
