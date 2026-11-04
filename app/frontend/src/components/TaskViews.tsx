@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
 import { Link } from 'react-router';
-import { Avatar, Badge, Card, Checkbox, Icon, IconButton, SectionHeading } from '@project-graphite/ui';
+import { Badge, Card, Checkbox, Icon, IconButton, SectionHeading } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';
@@ -9,6 +9,7 @@ import { completeTask, isOverdue, taskDetails, TaskRow, taskStatuses, type Task 
 import { profileDay } from '../time';
 import { useAction } from '../useAction';
 import { ActionsMenu } from './ActionsMenu';
+import { AssigneeButton } from './AssigneeButton';
 
 type Update = (change: (tasks: Task[]) => Task[]) => void;
 
@@ -76,7 +77,18 @@ export function useTaskChanges(update: Update, finished?: Update) {
       'Could not move the task',
     );
 
-  return { pending, toggle, setStatus, move };
+  const assign = (task: Task, assignee: Task['assignee']) =>
+    run(
+      task,
+      { ...task, assignee },
+      async () => {
+        replace(await auth.request<Task>(`/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ assigneeId: assignee?.id ?? null }) }));
+        return assignee ? `Assigned ${task.title} to ${assignee.displayName}.` : `Unassigned ${task.title}.`;
+      },
+      'Could not change the assignee',
+    );
+
+  return { pending, toggle, setStatus, move, assign };
 }
 
 interface ViewProps {
@@ -121,6 +133,7 @@ function GroupRows({
     return (
       <TaskRow
         disabled={!editable(task) || changes.pending.includes(task.id)}
+        onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined}
         handle={
           editable(task) && (
             <button
@@ -319,7 +332,7 @@ export function TaskBoard({ changes, editable, finished, onAdd, onOpen, tasks, w
                             </span>
                           )}
                         </button>
-                        {task.assignee && <Avatar name={task.assignee.displayName} size="sm" />}
+                        <AssigneeButton onAssign={editable(task) ? (assignee) => changes.assign(task, assignee) : undefined} task={task} />
                         {editable(task) && (
                           <ActionsMenu
                             items={taskStatuses
