@@ -21,6 +21,15 @@ interface Flow {
   expiresAt: number;
 }
 
+interface Pending {
+  subject: string;
+  email: string;
+  name: string | null;
+  invite?: string;
+  reason: 'email' | 'browser';
+  expiresAt: number;
+}
+
 const flowLifetimeMs = 10 * 60 * 1000;
 const expired = 'This Google sign-in expired. Start again.';
 const purposeScopes: Record<GooglePurpose, readonly string[]> = {
@@ -77,7 +86,7 @@ export class GoogleAuthService {
   }
 
   async finish(sealed: string | undefined, input: { code: string; state: string }, device: Device) {
-    const flow = sealed ? this.readFlow(sealed) : undefined;
+    const flow = sealed ? this.unseal<Flow>(sealed) : undefined;
     if (!flow || flow.state !== input.state || flow.expiresAt < Date.now()) throw new UnauthorizedException(expired);
     const grant = await this.google.exchange(input.code, flow.verifier).catch((error: Error) => {
       this.logger.warn(`Google sign-in could not be confirmed: ${error.message}`);
@@ -127,12 +136,52 @@ export class GoogleAuthService {
       return this.auth.signInWithGoogle(linked.userId, device);
     }
     if (!identity.emailVerified) throw new ForbiddenException('Google has not verified this email address, so it cannot be used to sign in.');
-    if (await this.prisma.user.count({ where: { email: identity.email } })) {
-      throw new ConflictException('A Strata account already uses this email. Sign in with your password, then link Google in Settings → Security.');
+    const taken = (await this.prisma.user.count({ where: { email: identity.email } })) > 0;
+    if (taken || (await this.prisma.knownDevice.count({ where: { deviceHash: device.hash } })) > 0) {
+      const reason = taken ? 'email' : 'browser';
+      const pending: Pending = { subject: identity.subject, email: identity.email, name: identity.name, invite, reason, expiresAt: Date.now() + flowLifetimeMs };
+      return { pending: this.box.seal(JSON.stringify(pending)), reason, email: identity.email };
     }
-    const user = await this.auth.registerWithGoogle({ email: identity.email, displayName: identity.name ?? identity.email.split('@')[0]!, subject: identity.subject, invite });
+    return this.create({ subject: identity.subject, email: identity.email, name: identity.name, invite }, device);
+  }
+
+  async linkExisting(sealed: string | undefined, input: { login: string; password: string; code?: string }, device: Device) {
+    const pending = this.readPending(sealed);
+    const signedIn = await this.auth.login({ login: input.login, password: input.password }, device);
+    if (signedIn.challenge && !input.code) return { twoStep: true as const };
+    const session = signedIn.challenge ? await this.auth.completeTwoStep(signedIn.challenge, input.code!, device) : signedIn.session!;
+    const current = await this.linkable(session.user.id, pending.subject);
+    if (!current) {
+      await this.prisma.googleAccount.create({ data: { userId: session.user.id, subject: pending.subject, email: pending.email } });
+      await this.audit.record(session.user.id, 'google_linked', { email: pending.email });
+    }
+    return { session };
+  }
+
+  async createFromPending(sealed: string | undefined, device: Device) {
+    const pending = this.readPending(sealed);
+    if (pending.reason === 'email') throw new ConflictException('A Strata account already uses this email. Sign in to it to link Google.');
+    return this.create(pending, device);
+  }
+
+  private async create(identity: { subject: string; email: string; name: string | null; invite?: string }, device: Device) {
+    const user = await this.auth.registerWithGoogle({ email: identity.email, displayName: identity.name ?? identity.email.split('@')[0]!, subject: identity.subject, invite: identity.invite });
     await this.audit.record(user.id, 'google_linked', { email: identity.email });
     return this.auth.signInWithGoogle(user.id, device);
+  }
+
+  private async linkable(userId: string, subject: string) {
+    const owner = await this.prisma.googleAccount.findUnique({ where: { subject }, select: { userId: true } });
+    if (owner && owner.userId !== userId) throw new ConflictException('This Google account is linked to another Strata account.');
+    const current = await this.prisma.googleAccount.findUnique({ where: { userId }, select: { subject: true, email: true } });
+    if (current && current.subject !== subject) throw new ConflictException(`This Strata account is linked to another Google account, ${current.email}.`);
+    return current;
+  }
+
+  private readPending(sealed: string | undefined) {
+    const pending = sealed ? this.unseal<Pending>(sealed) : undefined;
+    if (!pending?.subject || pending.expiresAt < Date.now()) throw new UnauthorizedException(expired);
+    return pending;
   }
 
   private async link(userId: string, purpose: Exclude<GooglePurpose, 'sign-in'>, grant: GoogleGrant) {
@@ -140,10 +189,7 @@ export class GoogleAuthService {
     if (purposeScopes[purpose].some((scope) => !grant.scopes.includes(scope))) {
       throw new ForbiddenException(purpose === 'calendar' ? 'Allow Strata to see and edit your Google calendars to sync them.' : 'Allow Strata to open the Drive files you pick to import them.');
     }
-    const owner = await this.prisma.googleAccount.findUnique({ where: { subject: identity.subject }, select: { userId: true } });
-    if (owner && owner.userId !== userId) throw new ConflictException('This Google account is linked to another Strata account.');
-    const current = await this.prisma.googleAccount.findUnique({ where: { userId }, select: { subject: true, email: true } });
-    if (current && current.subject !== identity.subject) throw new ConflictException(`Choose the Google account you linked, ${current.email}.`);
+    const current = await this.linkable(userId, identity.subject);
     const refreshTokenSealed = grant.refreshToken ? this.box.seal(grant.refreshToken) : undefined;
     await this.prisma.googleAccount.upsert({
       where: { userId },
@@ -154,9 +200,9 @@ export class GoogleAuthService {
     if (!current) await this.audit.record(userId, 'google_linked', { email: identity.email });
   }
 
-  private readFlow(sealed: string) {
+  private unseal<T>(sealed: string) {
     try {
-      return JSON.parse(this.box.open(sealed)) as Flow;
+      return JSON.parse(this.box.open(sealed)) as T;
     } catch {
       return undefined;
     }

@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { Dialog, formatDay, IconButton, PickerField, Button as UiButton } from '@project-graphite/ui';
+import { Dialog, formatDay, PickerField, Button as UiButton } from '@project-graphite/ui';
+import { IconButton } from './components/IconButton';
 import { Button, TextButton } from './components/Button';
 import { DialogActions } from './components/DialogActions';
 

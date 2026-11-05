@@ -1,6 +1,7 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
-import { ConfirmDialog, Icon, IconButton, LinesSkeleton, Skeleton } from '@project-graphite/ui';
+import { ConfirmDialog, Icon, LinesSkeleton, Skeleton } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { useAuth } from '../auth';
 import { saveBlob, uploadFile } from '../files';
 import { readBlob } from '../api';
@@ -308,7 +309,7 @@ export function NotePage() {
       <header className="page-header note-header">
         <div className="page-header-actions">
           <div className="note-status" ref={setStatusSlot} />
-          {details.spaceId && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
+          {details.spaceId && <WatchButton itemId={details.id} />}
           {pageOnly && (!owned || details.permissions.comment) && <CommentsButton count={threads} onClick={() => setPanelOpen(!panelOpen)} open={panelOpen} />}
           {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
           {menu.length > 0 && <NestedMenu items={menu} label={`${noteTitle(details)} actions`} trigger={<Icon name="more" size={18} />} triggerClassName="toolbar-button page-menu-button" triggerLabel={`Actions for ${noteTitle(details)}`} />}

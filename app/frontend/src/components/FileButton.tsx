@@ -1,5 +1,7 @@
 import { useRef } from 'react';
-import { Button, IconButton } from '@project-graphite/ui';
+import { Button } from '@project-graphite/ui';
+import { AddButton } from './Button';
+import { IconButton } from './IconButton';
 
 export function FileButton({
   accept,
@@ -28,7 +30,11 @@ export function FileButton({
   return (
     <>
       {iconOnly ? (
-        <IconButton disabled={busy} icon="upload" label={label} onClick={() => input.current?.click()} size="small" />
+        primary ? (
+          <AddButton disabled={busy} icon="upload" label={label} large={large} onClick={() => input.current?.click()} primary />
+        ) : (
+          <IconButton disabled={busy} icon="upload" label={label} onClick={() => input.current?.click()} size="small" />
+        )
       ) : (
         <Button className="w-fit shrink-0" disabled={busy} icon="upload" onClick={() => input.current?.click()} size={large ? 'medium' : 'small'} variant={primary ? 'primary' : 'secondary'}>
           {label}

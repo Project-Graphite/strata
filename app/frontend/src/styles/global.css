@@ -1637,7 +1637,19 @@ button.habit-day::before {
 
 .task-comment {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-3);
+}
+
+.task-comment-main {
+  display: grid;
+  min-width: 0;
   gap: var(--space-2);
+}
+
+.comment-thread-replies {
+  margin-inline-start: calc(1.75rem + var(--space-3));
 }
 
 .comment-head {
@@ -4057,14 +4069,59 @@ main.shell {
   font-variant-numeric: tabular-nums;
 }
 
-.profile-picture {
-  display: flex;
+.profile-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-6);
 }
 
-.profile-picture > :first-child {
-  margin-inline-end: var(--space-2);
+@media (max-width: 480px) {
+  .profile-identity {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+}
+
+.profile-picture {
+  position: relative;
+  border-radius: 9999px;
+}
+
+.profile-picture .avatar.avatar-lg {
+  width: 7.5rem;
+  height: 7.5rem;
+  font-size: 2.75rem;
+}
+
+.profile-picture-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border-radius: inherit;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.profile-picture-actions .MuiIconButton-root {
+  color: inherit;
+}
+
+.profile-picture:hover .profile-picture-actions,
+.profile-picture:focus-within .profile-picture-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .profile-picture-actions {
+    opacity: 1;
+    background: color-mix(in srgb, #000 35%, transparent);
+  }
 }
 
 .avatar-button-picture {
@@ -4382,6 +4439,7 @@ main.shell {
 
 .reveal {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 0fr;
   visibility: hidden;
 }
@@ -4529,11 +4587,24 @@ main.shell {
   gap: var(--space-5, 1.25rem);
 }
 
-.settings-form-foot {
+.save-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-3);
+}
+
+.save-bar-button {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    visibility 160ms;
+}
+
+.save-bar:not([data-dirty]) .save-bar-button {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(0.25rem);
 }
 
 .settings-grid {

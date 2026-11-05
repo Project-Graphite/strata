@@ -150,7 +150,7 @@ export default function TaskSheet({ composer, draft: controlledDraft, onChanged,
         task && (
           <>
             <TaskShare editable={editable} spaceId={task.spaceId} taskId={task.id} title={task.title} />
-            {task.spaceId && <WatchButton itemId={task.id} manage={editable} spaceId={task.spaceId} />}
+            {task.spaceId && <WatchButton itemId={task.id} />}
             {editable && (
           <ActionsMenu
             items={[

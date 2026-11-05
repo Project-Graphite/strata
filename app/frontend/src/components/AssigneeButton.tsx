@@ -7,6 +7,7 @@ import type { Member } from '../spaces';
 import type { Task } from '../tasks';
 import { useResource } from '../useResource';
 import { UserAvatar } from './UserAvatar';
+import { Tip } from './Tip';
 
 export function AssigneeButton({ onAssign, task }: { onAssign?: (assignee: Task['assignee']) => void; task: Task }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -21,7 +22,14 @@ export function AssigneeButton({ onAssign, task }: { onAssign?: (assignee: Task[
       <Icon name="user" size={14} />
     </span>
   );
-  if (!onAssign) return task.assignee && <span title={label}>{mark}</span>;
+  if (!onAssign)
+    return (
+      task.assignee && (
+        <Tip title={label}>
+          <span>{mark}</span>
+        </Tip>
+      )
+    );
   const choose = (assignee: Task['assignee']) => {
     setAnchor(null);
     if (assignee?.id !== task.assignee?.id) onAssign(assignee);

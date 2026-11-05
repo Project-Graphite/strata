@@ -1,4 +1,5 @@
 import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { LoginDto } from './login.dto';
 
 export class GoogleStartDto {
   @IsOptional()
@@ -24,4 +25,11 @@ export class GoogleFinishDto {
   @IsString()
   @Length(1, 100)
   state!: string;
+}
+
+export class GoogleExistingDto extends LoginDto {
+  @IsOptional()
+  @IsString()
+  @Length(6, 20, { message: 'Enter the six-digit code or a recovery code.' })
+  code?: string;
 }

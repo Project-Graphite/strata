@@ -3,9 +3,11 @@ import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { IconButton, useSnackbar } from '@project-graphite/ui';
+import { useSnackbar } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import type { Editor } from '@tiptap/core';
 import { ContextMenu } from './NestedMenu';
+import { Tip } from './Tip';
 
 interface OpenLink {
   anchor: HTMLAnchorElement;
@@ -123,9 +125,11 @@ export function LinkActions({ editor }: { editor: Editor }) {
               type="url"
             />
           ) : (
-            <a className="link-actions-address" href={link.href} onClick={(event) => { event.preventDefault(); open(); }} title={link.href}>
-              {link.href}
-            </a>
+            <Tip title={link.href}>
+              <a className="link-actions-address" href={link.href} onClick={(event) => { event.preventDefault(); open(); }}>
+                {link.href}
+              </a>
+            </Tip>
           )}
           <IconButton icon="external" label="Open link" onClick={open} size="small" />
           <IconButton icon="link" label="Copy link" onClick={copy} size="small" />

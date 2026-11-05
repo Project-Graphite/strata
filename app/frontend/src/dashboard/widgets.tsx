@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Avatar, DatePicker, formatDay, Icon, IconButton, Meter, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type IconName, type TagColor } from '@project-graphite/ui';
+import { Avatar, DatePicker, formatDay, Icon, Meter, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type IconName, type TagColor } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';

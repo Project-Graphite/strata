@@ -99,8 +99,10 @@ export class TaskCommentsService {
     if (!commentReactions.includes(emoji)) throw new BadRequestException('Choose one of the offered reactions.');
     const task = await this.tasks.assertTask(userId, taskId, 'read');
     if (!(await this.prisma.noteComment.count({ where: { id: commentId, itemId: taskId } }))) throw new NotFoundException('Comment not found');
-    if (reacting) await this.prisma.commentReaction.createMany({ data: [{ commentId, userId, emoji }], skipDuplicates: true });
-    else await this.prisma.commentReaction.deleteMany({ where: { commentId, userId, emoji } });
+    if (reacting) {
+      await this.prisma.commentReaction.createMany({ data: [{ commentId, userId, emoji }], skipDuplicates: true });
+      await this.watchers.watch(this.prisma, taskId, [userId]);
+    } else await this.prisma.commentReaction.deleteMany({ where: { commentId, userId, emoji } });
     this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(await this.prisma.noteComment.findUniqueOrThrow({ where: { id: commentId }, select: commentFields }), userId);
   }

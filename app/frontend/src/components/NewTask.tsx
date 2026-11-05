@@ -2,7 +2,8 @@ import MuiDialog from '@mui/material/Dialog';
 import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
-import { Badge, Checkbox, ConfirmDialog, formatDay, Icon, IconButton, TagChip, type IconName } from '@project-graphite/ui';
+import { Badge, Checkbox, ConfirmDialog, formatDay, Icon, TagChip, type IconName } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAuth } from '../auth';
 import { priorityNames, quickSuggestions, withSuggestion } from '../quick-add';
 import { homePath, useAllSpaces, type Member, type Tag } from '../spaces';
@@ -15,6 +16,7 @@ import { ExpandGlyph } from './glyphs';
 import type { OpenTaskProps } from './OpenTask';
 import { Button } from './Button';
 import { UserAvatar } from './UserAvatar';
+import { Tip } from './Tip';
 
 const TaskSheet = lazy(() => import('./TaskSheet'));
 
@@ -31,20 +33,20 @@ export function ComposerMenu({ onChoose, value }: { onChoose: (composer: TaskCom
       <IconButton aria-expanded={Boolean(anchor)} aria-haspopup="menu" icon="monitor" label="How to show a new task" onClick={(event) => setAnchor(event.currentTarget)} />
       <MuiMenu anchorEl={anchor} onClose={() => setAnchor(null)} open={Boolean(anchor)} slotProps={{ list: { 'aria-label': 'How to show a new task', className: 'composer-menu' } }}>
         {composers.map((composer) => (
-          <MenuItem
-            aria-checked={composer.value === value}
-            aria-label={composer.label}
-            key={composer.value}
-            onClick={() => {
-              setAnchor(null);
-              onChoose(composer.value);
-            }}
-            role="menuitemradio"
-            selected={composer.value === value}
-            title={composer.label}
-          >
-            {composer.icon}
-          </MenuItem>
+          <Tip key={composer.value} placement="right" title={composer.label}>
+            <MenuItem
+              aria-checked={composer.value === value}
+              aria-label={composer.label}
+              onClick={() => {
+                setAnchor(null);
+                onChoose(composer.value);
+              }}
+              role="menuitemradio"
+              selected={composer.value === value}
+            >
+              {composer.icon}
+            </MenuItem>
+          </Tip>
         ))}
       </MuiMenu>
     </>

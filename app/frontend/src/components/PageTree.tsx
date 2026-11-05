@@ -13,6 +13,7 @@ import { TextButton } from './Button';
 import { CrashBoundary } from './CrashBoundary';
 import { NoteMark, NoteTitle } from './NoteMark';
 import { SidebarResize } from './SidebarResize';
+import { Tip } from './Tip';
 
 type Place = 'before' | 'inside' | 'after';
 type Move = { parentId: string | null } | { relativeTo: string; placement: 'before' | 'after' };
@@ -181,9 +182,11 @@ function GroupRow({ add, branch, children, depth, href, icon, label }: { add?: {
           <TreeLabel>{label}</TreeLabel>
         </RowLink>
         {add && (
-          <button aria-label={add.label} className="page-tree-add enabled:cursor-pointer" disabled={tree.busy} onClick={add.onAdd} title={add.label} type="button">
-            <Icon name="plus" size={16} />
-          </button>
+          <Tip title={add.label}>
+            <button aria-label={add.label} className="page-tree-add enabled:cursor-pointer" disabled={tree.busy} onClick={add.onAdd} type="button">
+              <Icon name="plus" size={16} />
+            </button>
+          </Tip>
         )}
       </div>
       {branch && <Reveal open={expanded}>{children}</Reveal>}
@@ -333,9 +336,11 @@ function SidebarTrees() {
         <section aria-label="Spaces" className="page-tree">
           <div className="page-tree-head">
             <p className="sidebar-section-label">Spaces</p>
-            <RowLink aria-current={pathname === '/spaces' ? 'page' : undefined} aria-label="All spaces" className="page-tree-add" href="/spaces" title="All spaces">
-              <Icon name="folder" size={16} />
-            </RowLink>
+            <Tip title="All spaces">
+              <RowLink aria-current={pathname === '/spaces' ? 'page' : undefined} aria-label="All spaces" className="page-tree-add" href="/spaces">
+                <Icon name="folder" size={16} />
+              </RowLink>
+            </Tip>
           </div>
           {shown && spaces.data?.filter((space) => !space.archived).map((space) => <SpaceBranch key={space.id} space={space} />)}
         </section>
@@ -358,9 +363,11 @@ function SidebarTrees() {
               }}
             >
               <p className="sidebar-section-label">Pages</p>
-              <button aria-label="Add a page" className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.create(null, 'note')} title="Add a page" type="button">
-                <Icon name="plus" size={16} />
-              </button>
+              <Tip title="Add a page">
+                <button aria-label="Add a page" className="page-tree-add enabled:cursor-pointer" disabled={action.busy} onClick={() => tree.create(null, 'note')} type="button">
+                  <Icon name="plus" size={16} />
+                </button>
+              </Tip>
             </div>
             {shown && <TreeBranch depth={0} parentId={null} spaceId={null} writable />}
           </section>

@@ -17,7 +17,7 @@ import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { deviceHash, deviceLabel, newDeviceId, type Device } from './device';
 import { ChangePasswordDto, CompleteSignInDto, EmailDto, ResetPasswordDto } from './dto/account.dto';
-import { GoogleConnectDto, GoogleFinishDto, GoogleStartDto } from './dto/google.dto';
+import { GoogleConnectDto, GoogleExistingDto, GoogleFinishDto, GoogleStartDto } from './dto/google.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -182,17 +182,50 @@ export class AuthController {
   @RateLimit('google-finish', 30, 900)
   async finishGoogle(@Body() input: GoogleFinishDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     this.assertNotCrossSite(request);
+    const result = await this.withGoogleCookie(request, response, (sealed) => this.google.finish(sealed, input, this.device(request, response)));
+    if ('pending' in result) {
+      this.setGoogleCookie(response, result.pending);
+      return { choose: result.reason, email: result.email };
+    }
+    return this.googleSession(response, result);
+  }
+
+  @Public()
+  @Post('google/existing')
+  @RateLimit('login', 10, 900)
+  async linkGoogleToExisting(@Body() input: GoogleExistingDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    this.assertNotCrossSite(request);
+    const sealed = request.cookies[googleCookie] as string | undefined;
+    const result = await this.google.linkExisting(sealed, { login: input.login ?? input.email!, password: input.password, code: input.code }, this.device(request, response));
+    if ('twoStep' in result) return result;
+    response.clearCookie(googleCookie, { path: '/api/v1/auth' });
+    return this.googleSession(response, result);
+  }
+
+  @Public()
+  @Post('google/new')
+  @RateLimit('register', 5, 3_600)
+  async createFromGoogle(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    this.assertNotCrossSite(request);
+    const result = await this.withGoogleCookie(request, response, (sealed) => this.google.createFromPending(sealed, this.device(request, response)));
+    return this.googleSession(response, result);
+  }
+
+  private async withGoogleCookie<T>(request: Request, response: Response, work: (sealed: string | undefined) => Promise<T>) {
     try {
-      const result = await this.google.finish(request.cookies[googleCookie] as string | undefined, input, this.device(request, response));
-      if ('challenge' in result) return { twoStep: true, challenge: result.challenge };
-      if ('session' in result) {
-        this.setRefreshCookie(response, result.session.refreshToken);
-        return { accessToken: result.session.accessToken, user: result.session.user };
-      }
-      return result;
+      return await work(request.cookies[googleCookie] as string | undefined);
     } finally {
       response.clearCookie(googleCookie, { path: '/api/v1/auth' });
     }
+  }
+
+  private googleSession<T extends object>(response: Response, result: T | { challenge: string } | { session: { accessToken: string; refreshToken: string; user: unknown } }) {
+    if ('challenge' in result) return { twoStep: true, challenge: result.challenge };
+    if ('session' in result) {
+      this.setRefreshCookie(response, result.session.refreshToken);
+      return { accessToken: result.session.accessToken, user: result.session.user };
+    }
+    return result;
   }
 
   private setGoogleCookie(response: Response, flow: string) {

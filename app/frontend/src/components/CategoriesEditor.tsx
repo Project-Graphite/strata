@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Banner, ConfirmDialog, IconButton, Select, type TagColor, tagColors, TextField } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, Select, type TagColor, tagColors, TextField } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAuth } from '../auth';
 import { categoryName, type SpendingCategory } from '../spending';
 import { useAction } from '../useAction';

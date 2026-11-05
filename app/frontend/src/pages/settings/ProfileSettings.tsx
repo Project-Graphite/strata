@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { IconButton, Placeholder, TextField } from '@project-graphite/ui';
+import { Placeholder, TextField } from '@project-graphite/ui';
+import { IconButton } from '../../components/IconButton';
 import { useAuth } from '../../auth';
 import { FileButton } from '../../components/FileButton';
 import { FormDialog } from '../../components/FormDialog';
@@ -9,11 +10,11 @@ import { ProofFields, proofFrom } from '../../components/ProofFields';
 import { forgetAvatar, UserAvatar } from '../../components/UserAvatar';
 import { useAction } from '../../useAction';
 import { useResource } from '../../useResource';
-import { atMost, emailAddress, required, useFormErrors } from '../../validation';
+import { emailAddress, required, useFormErrors } from '../../validation';
 import { Section } from '../../components/Page';
 import { ButtonSkeleton, FieldSkeleton } from '../../components/Skeletons';
+import { SavedForm } from '../../components/SavedForm';
 import { SettingsRow, SettingsRowSkeleton, SettingsRows, type Me, type TwoStepStatus } from './SettingsLayout';
-import { Button } from '../../components/Button';
 
 const pictureSide = 256;
 
@@ -31,12 +32,11 @@ export function ProfileSettings() {
   const auth = useAuth();
   const me = useResource<Me>('/me', true);
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
-  const profile = useAction();
   const picture = useAction();
   const email = useAction();
-  const profileForm = useFormErrors();
   const emailForm = useFormErrors();
   const [changingEmail, setChangingEmail] = useState(false);
+  const [displayName, setDisplayName] = useState<string>();
 
   if (me.error) return <LoadError error={me.error} onRetry={me.reload} />;
   if (twoStep.error) return <LoadError error={twoStep.error} onRetry={twoStep.reload} />;
@@ -59,6 +59,8 @@ export function ProfileSettings() {
     );
   }
   const current = me.data;
+  const shownName = displayName ?? current.displayName;
+  const nameProblem = shownName.trim() ? undefined : 'Enter a display name.';
   const changePicture = (avatarId: string | null) => {
     forgetAvatar(current.id);
     me.mutate((shown) => ({ ...shown, avatarId }));
@@ -68,63 +70,59 @@ export function ProfileSettings() {
   return (
     <>
       <Section title="Profile">
-        <div className="grid gap-6">
+        <div className="profile-identity">
           <div className="profile-picture">
             <UserAvatar name={current.displayName} size="lg" userId={current.avatarId ? current.id : undefined} />
-            <FileButton
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              busy={picture.busy}
-              iconOnly
-              label="Upload a profile picture"
-              onFiles={([file]) =>
-                void picture.run(async () => {
-                  const { avatarId } = await auth.request<{ avatarId: string }>('/me/avatar', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': 'profile.png' },
-                    body: await squared(file!),
-                  });
-                  changePicture(avatarId);
-                  return 'Updated your profile picture.';
-                }, 'Could not update your profile picture')
-              }
-            />
-            {current.avatarId && (
-              <IconButton
-                disabled={picture.busy}
-                icon="trash"
-                label="Remove your profile picture"
-                onClick={() =>
+            <div className="profile-picture-actions">
+              <FileButton
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                busy={picture.busy}
+                iconOnly
+                label={current.avatarId ? 'Change your profile picture' : 'Upload a profile picture'}
+                onFiles={([file]) =>
                   void picture.run(async () => {
-                    await auth.request('/me/avatar', { method: 'DELETE' });
-                    changePicture(null);
-                    return 'Removed your profile picture.';
-                  }, 'Could not remove your profile picture')
+                    const { avatarId } = await auth.request<{ avatarId: string }>('/me/avatar', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': 'profile.png' },
+                      body: await squared(file!),
+                    });
+                    changePicture(avatarId);
+                    return 'Updated your profile picture.';
+                  }, 'Could not update your profile picture')
                 }
-                size="small"
               />
-            )}
-          </div>
-          <form
-            className="grid gap-4"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              const target = event.currentTarget;
-              if (!profileForm.check(target, { displayName: [required('Enter a display name.'), atMost(80, 'Use at most 80 characters.')] })) return;
-              const displayName = String(new FormData(target).get('displayName')).trim();
-              void profile.run(async () => {
-                const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ displayName }) });
-                me.mutate(() => next);
-                auth.updateUser({ displayName: next.displayName });
-                return 'Saved your name.';
-              }, 'Could not save your name');
-            }}
-          >
-            <TextField autoComplete="name" defaultValue={current.displayName} label="Display name" maxLength={80} {...profileForm.field('displayName')} />
-            <div>
-              <Button disabled={profile.busy} label={profile.busy ? 'Saving…' : 'Save'} primary submit />
+              {current.avatarId && (
+                <IconButton
+                  disabled={picture.busy}
+                  icon="trash"
+                  label="Remove your profile picture"
+                  onClick={() =>
+                    void picture.run(async () => {
+                      await auth.request('/me/avatar', { method: 'DELETE' });
+                      changePicture(null);
+                      return 'Removed your profile picture.';
+                    }, 'Could not remove your profile picture')
+                  }
+                  size="small"
+                />
+              )}
             </div>
-          </form>
+          </div>
+          <SavedForm
+            className="grid gap-2"
+            initial={current.displayName}
+            invalid={Boolean(nameProblem)}
+            label="Profile"
+            onSave={async () => {
+              const next = await auth.request<Me>('/me', { method: 'PATCH', body: JSON.stringify({ displayName: shownName.trim() }) });
+              me.mutate(() => next);
+              auth.updateUser({ displayName: next.displayName });
+              setDisplayName(undefined);
+            }}
+            values={shownName}
+          >
+            <TextField autoComplete="name" error={nameProblem} label="Display name" maxLength={80} onChange={(event) => setDisplayName(event.currentTarget.value)} value={shownName} />
+          </SavedForm>
         </div>
       </Section>
 

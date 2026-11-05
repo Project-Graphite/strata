@@ -451,6 +451,18 @@ describe('Account email flows', () => {
     expect(warning.text).not.toMatch(/token=/);
   });
 
+  it('threads the confirmation and the warning as one conversation', async () => {
+    const { mail, service } = setup();
+
+    await service.requestEmailChange(user.id, 'new@example.com', { password: 'correct horse battery' });
+    const sent = mail.send.mock.calls.map(([message]) => message as { to: string; subject: string; headers?: Record<string, string> });
+    const [confirmation, warning] = ['new@example.com', user.email].map((to) => sent.find((message) => message.to === to)!);
+    expect(confirmation.subject).toBe(warning.subject);
+    expect(confirmation.headers?.References).toMatch(/^<email-change-[0-9a-f]{24}@strata\.example>$/);
+    expect(warning.headers).toEqual(confirmation.headers);
+    expect(confirmation.headers?.['In-Reply-To']).toBe(confirmation.headers?.References);
+  });
+
   it('refuses an email change when the confirmation cannot be sent', async () => {
     const { mail, service } = setup();
     const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);

@@ -1,11 +1,12 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Icon, IconButton, ListRow, Placeholder, SectionHeading, SegmentedControl, Select, TagChip, TextAreaField, TextField } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Icon, ListRow, Placeholder, SectionHeading, SegmentedControl, Select, TagChip, TextAreaField, TextField } from '@project-graphite/ui';
+import { IconButton } from '../../components/IconButton';
 import { useAuth } from '../../auth';
 import { boardTemplates } from '../../components/board-templates';
-import { Button } from '../../components/Button';
 import { IconPicker } from '../../components/IconPicker';
 import { LoadError } from '../../components/LoadError';
+import { SavedForm } from '../../components/SavedForm';
 import { ButtonSkeleton, FieldSkeleton, RowsSkeleton } from '../../components/Skeletons';
 import { useTaskColumns } from '../../components/TaskColumns';
 import { Toggle } from '../../components/Toggle';
@@ -47,8 +48,6 @@ const linkLengths = [
   { value: 'never', label: 'Never expire' },
 ];
 
-const same = (first: unknown, second: unknown) => JSON.stringify(first) === JSON.stringify(second);
-
 function Panel({ children, description, id, title }: { children: ReactNode; description?: ReactNode; id: (typeof groups)[number][0]; title: string }) {
   return (
     <section aria-labelledby={`${id}-heading`} className="settings-panel" id={id}>
@@ -57,41 +56,6 @@ function Panel({ children, description, id, title }: { children: ReactNode; desc
       </div>
       {children}
     </section>
-  );
-}
-
-function SavedForm<T>({ children, initial, invalid = false, label, onSave, values }: { children: ReactNode; initial: T; invalid?: boolean; label: string; onSave: () => Promise<unknown>; values: T }) {
-  const saving = useAction();
-  const [saved, setSaved] = useState(false);
-  const dirty = !same(initial, values);
-  return (
-    <form
-      aria-label={label}
-      className="settings-form"
-      noValidate
-      onChange={() => setSaved(false)}
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        if (!dirty || invalid) return;
-        void saving.run(async () => {
-          await onSave();
-          setSaved(true);
-          return '';
-        }, `Could not save ${label.toLowerCase()}`);
-      }}
-    >
-      {children}
-      <div className="settings-form-foot">
-        <Button disabled={!dirty || invalid || saving.busy} label={saving.busy ? 'Saving…' : 'Save changes'} primary submit />
-        <span aria-live="polite" className="text-small text-muted">
-          {dirty ? 'Unsaved changes' : saved ? (
-            <span className="inline-flex items-center gap-1">
-              <Icon name="check" size={14} /> Saved
-            </span>
-          ) : null}
-        </span>
-      </div>
-    </form>
   );
 }
 

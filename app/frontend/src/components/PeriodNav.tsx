@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { IconButton } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 
 export function PeriodNav({
   disabled,

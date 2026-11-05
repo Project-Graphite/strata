@@ -4,7 +4,8 @@ import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw, exportToB
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile';
 import type { ExcalidrawElement, ExcalidrawTextElement, FileId } from '@excalidraw/excalidraw/element/types';
 import type { AppState, Collaborator, ExcalidrawImperativeAPI, ExcalidrawProps, SocketId } from '@excalidraw/excalidraw/types';
-import { Banner, FloatingToolbar, IconButton, LinesSkeleton, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { Banner, FloatingToolbar, LinesSkeleton, ToolbarButton, ToolbarSeparator, useSnackbar, type MenuItem } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import type * as Y from 'yjs';
 import { useAuth } from '../auth';
 import { fileSize, uploadFile } from '../files';

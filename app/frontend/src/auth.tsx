@@ -44,7 +44,9 @@ export interface Proof {
   code?: string;
 }
 
-export type GoogleFinish = { signedIn: true } | { challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string };
+export type GoogleChoice = { choose: 'email' | 'browser'; email: string };
+
+export type GoogleFinish = { signedIn: true } | { challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string } | GoogleChoice;
 
 interface AuthContextValue {
   user?: User;
@@ -62,6 +64,8 @@ interface AuthContextValue {
   login(login: string, password: string): Promise<{ challenge: string } | undefined>;
   completeTwoStep(challenge: string, code: string): Promise<void>;
   finishGoogle(code: string, state: string): Promise<GoogleFinish>;
+  linkGoogleToExisting(login: string, password: string, code?: string): Promise<{ twoStep: true } | undefined>;
+  createFromGoogle(): Promise<void>;
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
@@ -187,14 +191,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       },
       finishGoogle: async (code, state) => {
-        const result = await apiRequest<Session | { twoStep: true; challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string }>('/auth/google/finish', {
+        const result = await apiRequest<Session | { twoStep: true; challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string } | GoogleChoice>('/auth/google/finish', {
           method: 'POST',
           body: JSON.stringify({ code, state }),
         });
         if ('challenge' in result) return { challenge: result.challenge };
-        if ('connected' in result) return result;
+        if ('connected' in result || 'choose' in result) return result;
         applySession(result);
         return { signedIn: true };
+      },
+      linkGoogleToExisting: async (login, password, code) => {
+        const result = await apiRequest<Session | { twoStep: true }>('/auth/google/existing', {
+          method: 'POST',
+          body: JSON.stringify({ login, password, ...(code ? { code } : {}) }),
+        });
+        if ('twoStep' in result) return result;
+        applySession(result);
+        return undefined;
+      },
+      createFromGoogle: async () => {
+        applySession(await apiRequest<Session>('/auth/google/new', { method: 'POST' }));
       },
       logout: async () => {
         await apiRequest('/auth/logout', { method: 'POST' });

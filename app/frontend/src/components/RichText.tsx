@@ -12,6 +12,7 @@ import { cspNonce } from '../csp-nonce';
 import type { Member } from '../spaces';
 import { LinkActions } from './LinkActions';
 import { UserAvatar } from './UserAvatar';
+import { withoutTrailingLines } from '../rich-document';
 
 export type RichDocument = Record<string, unknown> | null;
 
@@ -156,7 +157,7 @@ export function RichTextEditor({
     onSelectionUpdate: ({ editor: current }) => track(current),
     onUpdate: ({ editor: current }) => {
       track(current);
-      latest.current(current.isEmpty ? null : (current.getJSON() as RichDocument), current.getText({ blockSeparator: '\n' }).trim());
+      latest.current(current.isEmpty ? null : withoutTrailingLines(current.getJSON()), current.getText({ blockSeparator: '\n' }).trim());
     },
   });
   live.current.insert = (person: Member) => {

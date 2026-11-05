@@ -1,9 +1,17 @@
+import { Navigate, useSearchParams } from 'react-router';
 import { Page } from '../components/Page';
 import { TaskWorkspace } from '../components/TaskWorkspace';
-import { useAllSpaces } from '../spaces';
+import { findSpace, spaceHref, useAllSpaces } from '../spaces';
+import type { TaskDetail } from '../tasks';
+import { useResource } from '../useResource';
 
 export function TasksPage() {
   const spaces = useAllSpaces();
+  const [params] = useSearchParams();
+  const linkedId = params.get('task');
+  const linked = useResource<TaskDetail>(linkedId ? `/tasks/${linkedId}` : null, true);
+  const home = linked.data?.spaceId ? findSpace(spaces.data, linked.data.spaceId) : undefined;
+  if (home) return <Navigate replace to={`${spaceHref(home, 'tasks')}?${params.toString()}`} />;
   return (
     <Page title="Tasks">
       <TaskWorkspace

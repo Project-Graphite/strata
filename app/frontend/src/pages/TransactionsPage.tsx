@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, IconButton, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
+import { Checkbox, EmptyState, errorMessage, Button as UiButton, FilterChip, Placeholder, Select, Sheet, TextField } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { useAuth } from '../auth';
 import { Amount } from '../components/Amount';
 import { Button, TextButton } from '../components/Button';

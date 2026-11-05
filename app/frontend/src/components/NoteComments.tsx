@@ -210,21 +210,23 @@ export function NoteComments({
           ]
         : changes;
     return (
-      <div className="comment-entry grid gap-1" data-posted={posted === comment.id || undefined} key={comment.id}>
-        <p className="comment-head m-0 text-small text-muted">
-          <UserAvatar name={author} size="sm" userId={comment.author?.id} />
-          <span className="text-ink">{author}</span> · {formatMoment(comment.createdAt)}
-          {comment.editedAt ? ' · edited' : ''}
-        </p>
-        {comment.blockId && (
-          <button className="comment-block-quote cursor-pointer text-left" onClick={() => anchors.show(comment.blockId!)} type="button">
-            <AnchorLabel anchors={anchors} id={comment.blockId} />
-          </button>
-        )}
-        <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          {commentable && !comment.parentId && !comment.resolvedAt && <TextButton label="Reply" onClick={() => setReplying(comment.id)} />}
-          {actions.length > 0 && <ActionsMenu items={actions} name={`comment by ${author}`} />}
+      <div className="task-comment comment-entry" data-posted={posted === comment.id || undefined} key={comment.id}>
+        <UserAvatar name={author} size="sm" userId={comment.author?.id} />
+        <div className="task-comment-main">
+          <p className="comment-head m-0 text-small text-muted">
+            <span className="text-ink">{author}</span> · {formatMoment(comment.createdAt)}
+            {comment.editedAt ? ' · edited' : ''}
+          </p>
+          {comment.blockId && (
+            <button className="comment-block-quote cursor-pointer text-left" onClick={() => anchors.show(comment.blockId!)} type="button">
+              <AnchorLabel anchors={anchors} id={comment.blockId} />
+            </button>
+          )}
+          <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            {commentable && !comment.parentId && !comment.resolvedAt && <TextButton label="Reply" onClick={() => setReplying(comment.id)} />}
+            {actions.length > 0 && <ActionsMenu items={actions} name={`comment by ${author}`} />}
+          </div>
         </div>
       </div>
     );
@@ -238,7 +240,7 @@ export function NoteComments({
         {shown.map((thread) => (
           <article className={`grid gap-3 ${thread.resolvedAt ? 'opacity-60' : ''}`} data-block-id={thread.blockId ?? undefined} key={thread.id}>
             {renderComment(thread)}
-            <div className="grid gap-3 border-l border-line pl-4">
+            <div className="comment-thread-replies grid gap-3 border-l border-line pl-4">
               {all.filter((comment) => comment.parentId === thread.id).map(renderComment)}
               {replying === thread.id && <CommentForm label="Reply" onCancel={() => setReplying(undefined)} onSave={(body) => add(body, thread.id)} people={people} />}
             </div>

@@ -1,13 +1,16 @@
-import { Icon, Button as UiButton, IconButton, type IconName } from '@project-graphite/ui';
+import { Icon, Button as UiButton, type IconName } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
+import { Tip } from './Tip';
 
 const look = (large: boolean, primary: boolean) => ({ size: large ? 'medium' : 'small', variant: primary ? 'primary' : 'secondary' }) as const;
 
-export function AddButton({ disabled, label, large = false, onClick, primary = false }: { disabled?: boolean; label: string; large?: boolean; onClick?: () => void; primary?: boolean }) {
-  return (
-    <UiButton {...look(large, primary)} aria-label={label} className="add-button" disabled={disabled} onClick={onClick} title={label} type="button">
-      <Icon name="plus" size={18} />
+export function AddButton({ disabled, icon = 'plus', label, large = false, onClick, primary = false }: { disabled?: boolean; icon?: IconName; label: string; large?: boolean; onClick?: () => void; primary?: boolean }) {
+  const button = (
+    <UiButton {...look(large, primary)} aria-label={label} className="add-button" disabled={disabled} onClick={onClick} type="button">
+      <Icon name={icon} size={18} />
     </UiButton>
   );
+  return <Tip title={label}>{disabled ? <span className="inline-flex">{button}</span> : button}</Tip>;
 }
 
 export function Button({

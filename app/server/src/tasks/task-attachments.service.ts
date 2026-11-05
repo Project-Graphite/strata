@@ -4,6 +4,7 @@ import { audienceOf, inHome } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { FilesService } from '../files/files.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { WatchersService } from '../watchers/watchers.service';
 import { TasksService } from './tasks.service';
 
 const attachmentFields = {
@@ -23,6 +24,7 @@ export class TaskAttachmentsService {
     private readonly tasks: TasksService,
     private readonly files: FilesService,
     private readonly changes: ChangesService,
+    private readonly watchers: WatchersService,
   ) {}
 
   async list(userId: string, taskId: string) {
@@ -46,6 +48,7 @@ export class TaskAttachmentsService {
       update: {},
       select: attachmentFields,
     });
+    await this.watchers.watch(this.prisma, taskId, [userId]);
     this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
     return present(link);
   }
@@ -60,6 +63,7 @@ export class TaskAttachmentsService {
     const task = await this.tasks.assertTask(userId, taskId, 'edit');
     const { count } = await this.prisma.itemLink.deleteMany({ where: { sourceItemId: taskId, targetItemId: fileId, kind: LinkKind.ATTACHMENT } });
     if (count === 0) throw new NotFoundException('That file is not attached to this task');
+    await this.watchers.watch(this.prisma, taskId, [userId]);
     this.changes.notify('task-details', { ...audienceOf(task.home), itemId: taskId });
   }
 }

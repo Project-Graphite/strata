@@ -7,6 +7,7 @@ import { HeaderTitleContext } from '../header-title';
 import { noteAddress, noteHref, noteTitle, pageHref } from '../notes';
 import { usePageNavigation } from '../page-navigation';
 import { findSpace, spaceHref, useAllSpaces, useCurrentSpace } from '../spaces';
+import { Tip } from './Tip';
 
 const areaNames: Record<string, string> = { '/': 'Home', '/spaces': 'Spaces', '/inbox': 'Inbox', '/settings': 'Settings', '/admin': 'Admin', '/save': 'Save', '/more': 'More' };
 
@@ -40,11 +41,11 @@ export function SpaceNavigation({ active }: { active: string | null }) {
             <li className={crumb === currentCrumb ? 'flex min-w-0 items-center gap-2' : 'hidden min-w-0 max-w-40 shrink-[2] items-center gap-2 md:flex'}>
               {index > 0 && <span aria-hidden="true" className="hidden shrink-0 md:inline-flex"><Icon name="chevron-right" size={16} /></span>}
               {crumb === currentCrumb ? (
-                <span aria-current="page" className="truncate text-ink" title={crumb.label}>{crumb.label}</span>
+                <Tip title={crumb.label}><span aria-current="page" className="truncate text-ink">{crumb.label}</span></Tip>
               ) : crumb.href ? (
-                <CrumbLink className="truncate text-muted no-underline hover:underline" href={crumb.href} title={crumb.label}>{crumb.label}</CrumbLink>
+                <Tip title={crumb.label}><CrumbLink className="truncate text-muted no-underline hover:underline" href={crumb.href}>{crumb.label}</CrumbLink></Tip>
               ) : (
-                <span className="truncate" title={crumb.label}>{crumb.label}</span>
+                <Tip title={crumb.label}><span className="truncate">{crumb.label}</span></Tip>
               )}
             </li>
           </Fragment>

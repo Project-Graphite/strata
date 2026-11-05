@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { formatDay, IconButton, ListRow, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
+import { formatDay, ListRow, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
+import { IconButton } from '../IconButton';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
 import { databaseViews, noteHref, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';

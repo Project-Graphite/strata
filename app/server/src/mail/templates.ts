@@ -132,9 +132,11 @@ export const existingAccountEmail = (link: Link, { name }: { name: string }) =>
     actions: [resetPassword(link)],
   });
 
+export const emailChangeSubject = 'Changing your Strata email';
+
 export const verifyEmail = (link: Link, { name, token, changing }: { name: string; token: string; changing: boolean }) =>
   compose(link, {
-    subject: changing ? 'Confirm your new Strata email' : 'Verify your Strata email',
+    subject: changing ? emailChangeSubject : 'Verify your Strata email',
     preheader: 'The link works for 24 hours.',
     greeting: hi(name),
     prompt: changing ? 'Confirm this address to use it for your Strata account:' : 'Confirm this address to finish creating your Strata account:',
@@ -164,11 +166,11 @@ export const passwordChangedEmail = (link: Link, { name }: { name: string }) =>
 
 export const emailChangeRequestedEmail = (link: Link, { name }: { name: string }) =>
   compose(link, {
-    subject: 'Your Strata email is being changed',
+    subject: emailChangeSubject,
     preheader: 'Nothing changes until the new address is confirmed.',
     greeting: hi(name),
-    lines: ['Someone asked to move your Strata account to another email address. Nothing changes until that address is confirmed.'],
-    prompt: 'If this was not you, reset your password now. That cancels the change:',
+    lines: ['Your Strata account is moving to a new email address. We sent a link there to confirm it, and nothing changes until it is confirmed.'],
+    prompt: 'If you did not ask for this, reset your password now. That cancels the change:',
     actions: [resetPassword(link)],
   });
 

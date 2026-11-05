@@ -174,7 +174,7 @@ export function SpaceLayout() {
         <ActionsMenu
           items={[
             ...sections.map(([href, label]) => ({ label, onSelect: () => navigate(href) })),
-            ...[...menu, ...actions.items(space)].map((item, index) => (index === 0 ? { ...item, separated: true } : item)),
+            ...[menu, actions.items(space)].flatMap((group) => group.map((item, index) => (index === 0 ? { ...item, separated: true } : item))),
           ]}
           name={space.name}
         />

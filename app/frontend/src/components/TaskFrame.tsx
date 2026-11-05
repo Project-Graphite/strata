@@ -2,8 +2,10 @@ import MuiDialog from '@mui/material/Dialog';
 import MuiIconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { Icon, IconButton, Sheet } from '@project-graphite/ui';
+import { Icon, Sheet } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { ExpandGlyph } from './glyphs';
+import { Tip } from './Tip';
 
 type FrameView = 'panel' | 'modal';
 
@@ -58,17 +60,18 @@ export function TaskFrame({
   const titleId = useId();
   const toggleLabel = view === 'modal' ? 'Open in the side panel' : 'Open in the middle of the screen';
   const toggle = viewMenu ?? (!phone && (
-    <MuiIconButton
-      aria-label={toggleLabel}
-      onClick={() => {
-        const next = view === 'modal' ? 'panel' : 'modal';
-        storeView(next);
-        setView(next);
-      }}
-      title={toggleLabel}
-    >
-      {view === 'modal' ? <Icon name="panel" size={18} /> : <ExpandGlyph />}
-    </MuiIconButton>
+    <Tip title={toggleLabel}>
+      <MuiIconButton
+        aria-label={toggleLabel}
+        onClick={() => {
+          const next = view === 'modal' ? 'panel' : 'modal';
+          storeView(next);
+          setView(next);
+        }}
+      >
+        {view === 'modal' ? <Icon name="panel" size={18} /> : <ExpandGlyph />}
+      </MuiIconButton>
+    </Tip>
   ));
 
   if (phone || view === 'panel') {

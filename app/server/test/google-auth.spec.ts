@@ -10,7 +10,8 @@ const box = new SecretBox(new ConfigService({ DATA_ENCRYPTION_KEY: Buffer.alloc(
 
 function setup() {
   const prisma = {
-    googleAccount: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn(), upsert: vi.fn(), delete: vi.fn() },
+    googleAccount: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn(), upsert: vi.fn(), delete: vi.fn(), create: vi.fn() },
+    knownDevice: { count: vi.fn().mockResolvedValue(0) },
     googleCalendar: { deleteMany: vi.fn() },
     item: { updateMany: vi.fn() },
     user: { count: vi.fn().mockResolvedValue(0), findUniqueOrThrow: vi.fn() },
@@ -24,6 +25,8 @@ function setup() {
     revoke: vi.fn(),
   };
   const auth = {
+    login: vi.fn(),
+    completeTwoStep: vi.fn(),
     signInWithGoogle: vi.fn().mockResolvedValue({ session: { accessToken: 'access', refreshToken: 'refresh', user: {} } }),
     registerWithGoogle: vi.fn().mockResolvedValue({ id: 'new-user', email: 'sam@example.com' }),
   };
@@ -79,14 +82,50 @@ describe('GoogleAuthService', () => {
     expect(context.auth.registerWithGoogle).not.toHaveBeenCalled();
   });
 
-  it('never links a Google account to an existing Strata account by email alone', async () => {
+  it('never links a Google account to an existing Strata account by email alone, and asks for its password instead', async () => {
     const { flow, state, nonce } = started(context, 'sign-in');
     context.google.exchange.mockResolvedValue(grant({ nonce }));
     context.prisma.user.count.mockResolvedValue(1);
 
-    await expect(context.service.finish(flow, { code: 'code', state }, device)).rejects.toBeInstanceOf(ConflictException);
+    const result = await context.service.finish(flow, { code: 'code', state }, device);
+    expect(result).toMatchObject({ reason: 'email', email: 'sam@example.com', pending: expect.any(String) });
     expect(context.auth.registerWithGoogle).not.toHaveBeenCalled();
     expect(context.auth.signInWithGoogle).not.toHaveBeenCalled();
+    await expect(context.service.createFromPending((result as { pending: string }).pending, device)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('asks before creating an account on a browser that already signed in to Strata, and creates it when told to', async () => {
+    const { flow, state, nonce } = started(context, 'sign-in');
+    context.google.exchange.mockResolvedValue(grant({ nonce, email: 'renamed@example.com' }));
+    context.prisma.knownDevice.count.mockResolvedValue(1);
+
+    const result = (await context.service.finish(flow, { code: 'code', state }, device)) as { pending: string; reason: string };
+    expect(result.reason).toBe('browser');
+    expect(context.auth.registerWithGoogle).not.toHaveBeenCalled();
+    expect(context.prisma.knownDevice.count).toHaveBeenCalledWith({ where: { deviceHash: device.hash } });
+
+    await context.service.createFromPending(result.pending, device);
+    expect(context.auth.registerWithGoogle).toHaveBeenCalledWith(expect.objectContaining({ email: 'renamed@example.com', subject: 'google-sub' }));
+    expect(context.auth.signInWithGoogle).toHaveBeenCalledWith('new-user', device);
+  });
+
+  it('links the waiting Google account to the account whose password is entered, asking for the two-step code when needed', async () => {
+    const { flow, state, nonce } = started(context, 'sign-in');
+    context.google.exchange.mockResolvedValue(grant({ nonce, email: 'renamed@example.com' }));
+    context.prisma.knownDevice.count.mockResolvedValue(1);
+    const { pending } = (await context.service.finish(flow, { code: 'code', state }, device)) as { pending: string };
+    const session = { accessToken: 'access', refreshToken: 'refresh', user: { id: 'user-1' } };
+    context.auth.login.mockResolvedValue({ challenge: 'challenge' });
+    context.auth.completeTwoStep.mockResolvedValue(session);
+
+    await expect(context.service.linkExisting(pending, { login: 'sam', password: 'correct horse battery' }, device)).resolves.toEqual({ twoStep: true });
+    expect(context.prisma.googleAccount.create).not.toHaveBeenCalled();
+
+    await expect(context.service.linkExisting(pending, { login: 'sam', password: 'correct horse battery', code: '123456' }, device)).resolves.toEqual({ session });
+    expect(context.auth.completeTwoStep).toHaveBeenCalledWith('challenge', '123456', device);
+    expect(context.prisma.googleAccount.create).toHaveBeenCalledWith({ data: { userId: 'user-1', subject: 'google-sub', email: 'renamed@example.com' } });
+    expect(context.audit.record).toHaveBeenCalledWith('user-1', 'google_linked', { email: 'renamed@example.com' });
+    await expect(context.service.linkExisting(flow, { login: 'sam', password: 'x' }, device)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('creates an account for a new verified Google address, redeeming the invite it came with', async () => {
