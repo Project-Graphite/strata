@@ -156,16 +156,17 @@ interface GoogleCalendarRow {
 
 interface GoogleCalendars {
   connected: boolean;
+  twoWay: boolean;
   error: string | null;
   calendars: GoogleCalendarRow[];
 }
 
-function googleMeta(calendar: GoogleCalendarRow) {
+function googleMeta(calendar: GoogleCalendarRow, twoWay: boolean) {
   if (!calendar.synced) return calendar.writable ? 'Not synced' : 'Not synced · view only';
   return [
     `${calendar.events} event${calendar.events === 1 ? '' : 's'}`,
     calendar.lastSyncedAt ? `synced ${timeAgo(calendar.lastSyncedAt)}` : 'waiting for the first sync',
-    calendar.isDefault ? 'new Strata events go here' : !calendar.writable && 'view only',
+    twoWay && calendar.isDefault ? 'new Strata events go here' : twoWay && !calendar.writable && 'view only',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -200,7 +201,11 @@ function GoogleCalendarsSection() {
           <IconButton disabled={action.busy} icon="link" label="Connect Google Calendar" onClick={connect} />
         )
       }
-      description="Events from the Google calendars you sync appear in your Agenda, and events you add or change in Strata go to your default Google calendar. Changes on either side arrive within a few minutes."
+      description={
+        calendars.data?.twoWay
+          ? 'Events from the Google calendars you sync appear in your Agenda, and events you add or change in Strata go to your default Google calendar. Changes on either side arrive within a few minutes.'
+          : 'Events from the Google calendars you sync appear in your Agenda within a few minutes. Strata only reads them: changes made in Strata stay in Strata, and the next change in Google replaces them.'
+      }
       title="Google Calendar"
     >
       {!status.data.account?.calendar ? (
@@ -218,13 +223,13 @@ function GoogleCalendarsSection() {
             {calendars.data.calendars.map((calendar) => (
               <ListRow
                 key={calendar.calendarId}
-                meta={googleMeta(calendar)}
+                meta={googleMeta(calendar, calendars.data!.twoWay)}
                 title={calendar.name}
                 trail={
                   calendar.id ? (
                     <ActionsMenu
                       items={[
-                        ...(calendar.writable && !calendar.isDefault
+                        ...(calendars.data!.twoWay && calendar.writable && !calendar.isDefault
                           ? [{ label: 'Send new Strata events here', onSelect: () => save(`/me/google/calendars/${calendar.id}/default`, 'POST', null, `New Strata events now go to ${calendar.name}.`) }]
                           : []),
                         { label: 'Stop syncing', separated: true, onSelect: () => setStopping(calendar) },
@@ -261,7 +266,7 @@ function GoogleCalendarsSection() {
           title={`Stop syncing ${stopping.name}?`}
           tone="danger"
         >
-          Events Strata brought in from it move to the trash. Events you made in Strata stay, and stay in Google.
+          Events Strata brought in from it move to the trash. Events you made in Strata stay.
         </ConfirmDialog>
       )}
     </Section>
