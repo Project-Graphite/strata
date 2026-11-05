@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DatePicker, formatDay } from '@project-graphite/ui';
+import { DatePicker, formatDay, IconButton } from '@project-graphite/ui';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';
@@ -100,7 +100,7 @@ export function PollEditor({
             onChange={(startTime) => update(index, { startTime: startTime || null })}
             value={row.startTime ?? ''}
           />
-          {rows.length > 2 && <TextButton label="Remove" onClick={() => setRows(rows.filter((_, at) => at !== index))} />}
+          {rows.length > 2 && <IconButton icon="trash" label="Remove this date" onClick={() => setRows(rows.filter((_, at) => at !== index))} />}
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-2">

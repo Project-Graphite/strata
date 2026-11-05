@@ -1,5 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SpaceRole } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ItemKind, Prisma, SpaceRole } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { isUUID } from 'class-validator';
 import { AccessService, reachable } from '../access/access.service';
@@ -17,6 +17,8 @@ const spaceFields = {
   slug: true,
   color: true,
   description: true,
+  defaults: true,
+  archivedAt: true,
   createdAt: true,
 } satisfies Prisma.SpaceSelect;
 
@@ -33,6 +35,8 @@ function presentSpace(space: Prisma.SpaceGetPayload<{ select: typeof spaceFields
     name: space.name,
     color: space.color,
     description: space.description,
+    defaults: spaceDefaults(space.defaults),
+    archived: space.archivedAt !== null,
     role: role.toLowerCase(),
     createdAt: space.createdAt,
   };
@@ -111,6 +115,8 @@ export class SpacesService {
   async updateSettings(userId: string, spaceId: string, input: UpdateSpaceSettingsDto) {
     await this.assertOwner(userId, spaceId);
     const current = await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } });
+    const epic = input.defaults?.task?.listId;
+    if (epic && (await this.prisma.item.count({ where: { id: epic, spaceId, kind: ItemKind.LIST, trashedAt: null } })) === 0) throw new BadRequestException('Choose an epic from this space.');
     const [space] = await this.prisma.$transaction([
       this.prisma.space.update({
         where: { id: spaceId },
@@ -152,6 +158,25 @@ export class SpacesService {
       }),
     ]);
     return presentSpace(space, role);
+  }
+
+  async archive(userId: string, spaceId: string, archived: boolean) {
+    const role = await this.access.assertSpace(userId, spaceId, 'manage');
+    return presentSpace(await this.prisma.space.update({ where: { id: spaceId }, data: { archivedAt: archived ? new Date() : null }, select: spaceFields }), role);
+  }
+
+  async transfer(userId: string, spaceId: string, newOwnerId: string) {
+    if (newOwnerId === userId) throw new BadRequestException('Choose someone else to hand the space to');
+    await this.access.assertSpace(userId, spaceId, 'manage');
+    const owner = await this.changeRole(userId, spaceId, newOwnerId, { role: 'owner' });
+    await this.changeRole(userId, spaceId, userId, { role: 'editor' });
+    return owner;
+  }
+
+  async storage(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    const files = await this.prisma.file.aggregate({ where: { item: { spaceId, trashedAt: null } }, _count: true, _sum: { sizeBytes: true } });
+    return { files: files._count, sizeBytes: files._sum.sizeBytes ?? 0 };
   }
 
   async remove(userId: string, spaceId: string) {

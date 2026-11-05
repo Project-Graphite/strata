@@ -24,6 +24,14 @@ export function isPushEndpoint(endpoint: string) {
   );
 }
 
+export function pushBrowser(endpoint: string) {
+  const host = new URL(endpoint).hostname;
+  if (host === 'web.push.apple.com') return 'Safari';
+  if (host.endsWith('.push.services.mozilla.com')) return 'Firefox';
+  if (host.endsWith('.notify.windows.com')) return 'Edge on Windows';
+  return 'Chrome or Android';
+}
+
 @Injectable()
 export class PushService implements OnModuleInit {
   private readonly logger = new Logger(PushService.name);
@@ -69,6 +77,16 @@ export class PushService implements OnModuleInit {
 
   async remove(userId: string, endpoint: string) {
     await this.prisma.pushSubscription.deleteMany({ where: { userId, endpoint } });
+  }
+
+  async devices(userId: string) {
+    const devices = await this.prisma.pushSubscription.findMany({ where: { userId }, orderBy: { lastUsedAt: 'desc' }, select: { id: true, endpoint: true, kinds: true, createdAt: true, lastUsedAt: true } });
+    return devices.map(({ endpoint, ...device }) => ({ ...device, browser: pushBrowser(endpoint) }));
+  }
+
+  async removeDevice(userId: string, id: string) {
+    const { count } = await this.prisma.pushSubscription.deleteMany({ where: { id, userId } });
+    if (count === 0) throw new NotFoundException('That device no longer gets notifications');
   }
 
   async queue(client: Prisma.TransactionClient, entries: InboxEntry[]) {

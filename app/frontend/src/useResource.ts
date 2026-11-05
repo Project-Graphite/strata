@@ -109,7 +109,7 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const active = useContext(ActiveSpaceContext);
   const { request } = auth;
   const userId = auth.user?.id;
-  const resolved = resolveResource(path, authenticated, userId, active?.space?.id);
+  const resolved = resolveResource(path, authenticated, userId, active?.id);
   const { key, spaceId } = resolved;
   path = resolved.path;
   const [state, setState] = useState<ResourceState<T>>({ key: null, error: '' });
@@ -173,9 +173,6 @@ export function useResource<T>(path: string | null, authenticated = false, live?
   const cached = cachedData<T>(key);
   const settled = useSettled(key ? (current ? current.data : (cached ?? (sameViewer ? state.data : undefined))) : null);
   const data = key ? (settled as T | undefined) : undefined;
-  useEffect(() => {
-    if (path && /^\/(notes|tasks)\/[^/?]+$/.test(path) && data && typeof data === 'object' && 'spaceId' in data && (typeof data.spaceId === 'string' || data.spaceId === null) && data.spaceId !== (active?.space?.id ?? null)) active?.choose(data.spaceId);
-  }, [path, data, active]);
   return {
     data,
     error: current?.data === undefined ? current?.error ?? '' : '',

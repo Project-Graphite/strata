@@ -24,7 +24,11 @@ export class UsersService {
       monthStartDay: user.monthStartDay,
       budgetsEnabled: user.budgetsEnabled,
       features: user.features,
+      appOrder: user.appOrder,
+      taskComposer: user.taskComposer,
       emailKinds: user.emailKinds,
+      inboxMuted: user.inboxMuted,
+      journalReminder: user.journalReminder,
       role: user.role.toLowerCase(),
     };
   }
@@ -44,7 +48,11 @@ export class UsersService {
         monthStartDay: input.monthStartDay,
         budgetsEnabled: input.budgetsEnabled,
         features: input.features,
+        appOrder: input.appOrder,
+        taskComposer: input.taskComposer,
         emailKinds: input.emailKinds,
+        inboxMuted: input.inboxMuted,
+        journalReminder: input.journalReminder,
       },
     });
     return this.me(userId);

@@ -8,7 +8,8 @@ import { useResource } from '../../useResource';
 import { useSpace } from './SpaceLayout';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
-import { RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
+import { UserAvatar } from '../../components/UserAvatar';
+import { AvatarSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
 
 const empty = { title: 'No activity yet', hint: 'What people add, change and finish in this space shows up here.' };
 
@@ -24,7 +25,7 @@ export function SpaceActivity() {
     return (
       <Placeholder label="Loading what happened in this space">
         {rows ? (
-          <RowsSkeleton rows={rows} />
+          <RowsSkeleton lead={<AvatarSkeleton />} rows={rows} />
         ) : (
           <Empty loading title={empty.title}>
             {empty.hint}
@@ -39,7 +40,7 @@ export function SpaceActivity() {
     <>
       <ol className="panel-rows">
         {activity.data.results.map((event) => (
-          <ListRow key={event.id} meta={capitalised(formatMoment(event.createdAt))} title={describeActivity(event)} />
+          <ListRow key={event.id} lead={<UserAvatar name={event.actor?.displayName ?? 'Someone'} userId={event.actor?.id} />} meta={capitalised(formatMoment(event.createdAt))} title={describeActivity(event)} />
         ))}
       </ol>
       <Pagination

@@ -21,9 +21,14 @@ export function applyTimePreferences(zone: string | undefined, format: TimeForma
 
 export const zoneLabel = (zone: string) => (zone === (profileZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? '' : zone.replaceAll('_', ' '));
 
+export const noDate = '—';
+
+export const readableDate = (at: Date | string | null | undefined): at is Date | string => Boolean(at) && !Number.isNaN(new Date(at!).getTime());
+
 const dayFormats = new Map<string | undefined, Intl.DateTimeFormat>();
 
-export function profileDay(at: Date | string = new Date()) {
+export function profileDay(at: Date | string | null = new Date()) {
+  if (!readableDate(at)) return '';
   let format = dayFormats.get(profileZone);
   if (!format) {
     format = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: profileZone });
@@ -39,6 +44,7 @@ const daysAway = (day: string) => daysBetween(profileDay(), day);
 const minuteFormats = new Map<string | undefined, Intl.DateTimeFormat>();
 
 export function profileMinutes(at: Date | string) {
+  if (!readableDate(at)) return 0;
   let format = minuteFormats.get(profileZone);
   if (!format) {
     format = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: profileZone });
@@ -48,9 +54,12 @@ export function profileMinutes(at: Date | string) {
   return hours * 60 + minutes;
 }
 
-export const profileClock = (at: Date | string) => clockTime(new Date(at), profileZone);
+export const profileClock = (at: Date | string | null) => (readableDate(at) ? clockTime(new Date(at), profileZone) : noDate);
 
-export function formatDate(day: string, time?: string | null) {
+const calendarDay = (day: string | null | undefined): day is string => Boolean(day) && /^\d{4}-\d{2}-\d{2}/.test(day!) && readableDate(`${day!.slice(0, 10)}T00:00:00Z`);
+
+export function formatDate(day: string | null | undefined, time?: string | null) {
+  if (!calendarDay(day)) return noDate;
   const away = daysAway(day);
   const label =
     away === 0
@@ -65,7 +74,8 @@ export function formatDate(day: string, time?: string | null) {
   return time ? `${label} ${clockTime(time)}` : label;
 }
 
-export function formatMoment(at: string) {
+export function formatMoment(at: string | null | undefined) {
+  if (!readableDate(at)) return noDate;
   const day = profileDay(at);
   return Math.abs(daysAway(day)) < 7 ? `${formatDate(day)} ${profileClock(at)}` : formatDate(day);
 }
@@ -74,11 +84,11 @@ export const capitalised = (text: string) => text.charAt(0).toUpperCase() + text
 
 const rangeFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
-export const formatRange = (from: string, to: string) => rangeFormat.formatRange(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`));
+export const formatRange = (from: string, to: string) => (calendarDay(from) && calendarDay(to) ? rangeFormat.formatRange(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`)) : noDate);
 
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-export const formatMonth = (day: string) => monthFormat.format(new Date(`${day.slice(0, 7)}-01T00:00:00Z`));
+export const formatMonth = (day: string) => (calendarDay(`${day.slice(0, 7)}-01`) ? monthFormat.format(new Date(`${day.slice(0, 7)}-01T00:00:00Z`)) : noDate);
 
 export const count = (value: number) => value.toLocaleString('en-EG');
 
@@ -97,7 +107,8 @@ export function clockFormat(timeZone?: string) {
 }
 
 export function clockTime(time: string | Date, timeZone?: string) {
-  return clockFormat(timeZone).format(typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time);
+  const at = typeof time === 'string' ? new Date(`2000-01-01T${time}`) : time;
+  return readableDate(at) ? clockFormat(timeZone).format(at) : noDate;
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');

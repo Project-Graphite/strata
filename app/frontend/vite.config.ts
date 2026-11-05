@@ -8,6 +8,7 @@ import { dirname, join, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { brotliCompress, constants } from 'node:zlib';
 import { defineConfig, type Plugin } from 'vite';
+import { outageCopy, outagePage, outageScript, type OutageCondition } from './src/outage.ts';
 import { routePages } from './src/route-pages.ts';
 
 const compress = promisify(brotliCompress);
@@ -28,6 +29,18 @@ function excalidrawFonts(): Plugin {
     },
     async writeBundle({ dir }) {
       await cp(fonts, join(dir!, 'excalidraw', 'fonts'), { recursive: true });
+    },
+  };
+}
+
+function outagePages(): Plugin {
+  return {
+    name: 'strata-outage-pages',
+    apply: 'build',
+    async generateBundle() {
+      for (const condition of Object.keys(outageCopy) as OutageCondition[]) this.emitFile({ type: 'asset', fileName: outageCopy[condition].page, source: outagePage(condition) });
+      this.emitFile({ type: 'asset', fileName: 'outage.css', source: await readFile(new URL('./src/outage.css', import.meta.url), 'utf8') });
+      this.emitFile({ type: 'asset', fileName: 'outage.js', source: outageScript });
     },
   };
 }
@@ -72,7 +85,8 @@ function serviceWorker(): Plugin {
         fileName: 'sw.js',
         source: template
           .replace('__VERSION__', createHash('sha256').update(assets.join(' ')).digest('hex').slice(0, 12))
-          .replace('__ASSETS__', JSON.stringify(assets)),
+          .replace('__ASSETS__', JSON.stringify(assets))
+          .replace('__OUTAGE_PAGES__', JSON.stringify(Object.fromEntries(Object.entries(outageCopy).map(([condition, copy]) => [condition, `/${copy.page}`])))),
       });
     },
   };
@@ -120,7 +134,7 @@ function routePreload(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorker(), excalidrawFonts(), routePreload(), brotliAssets()],
+  plugins: [react(), tailwindcss(), serviceWorker(), outagePages(), excalidrawFonts(), routePreload(), brotliAssets()],
   resolve: {
     alias: { '@excalidraw/mermaid-to-excalidraw': join(import.meta.dirname, 'src/stubs/mermaid-to-excalidraw.ts') },
   },

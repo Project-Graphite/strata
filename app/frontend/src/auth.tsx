@@ -28,6 +28,8 @@ interface User {
   timeZone: string;
   timeFormat?: TimeFormat;
   features: string[];
+  appOrder?: string[];
+  taskComposer?: string;
 }
 
 export const isAdmin = (user: User | undefined) => user?.role === 'admin' || user?.role === 'system_manager';
@@ -60,7 +62,7 @@ interface AuthContextValue {
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
-  updateUser(changes: Partial<Pick<User, 'avatarId' | 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
+  updateUser(changes: Partial<Pick<User, 'appOrder' | 'avatarId' | 'taskComposer' | 'displayName' | 'features' | 'timeZone' | 'timeFormat'>>): void;
   accessToken(): Promise<string>;
 }
 

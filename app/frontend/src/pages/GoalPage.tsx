@@ -16,7 +16,7 @@ import { OpenTask } from '../components/OpenTask';
 import type { Page as ResultPage } from '../api';
 import { periodLabel, progressText, statusLabels, type GoalDetail, type GoalStatus } from '../goals';
 import { HabitRow, type Habit } from '../habits';
-import { useChosenSpace } from '../spaces';
+import { useCurrentSpace } from '../spaces';
 import { dueLabel, taskDetails, TaskRow, type Task } from '../tasks';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -31,7 +31,7 @@ export function GoalPage() {
   const { id = '' } = useParams();
   const auth = useAuth();
   const navigate = useNavigate();
-  const { spaceId, space } = useChosenSpace();
+  const { spaceId, space } = useCurrentSpace();
   const goal = useResource<GoalDetail>(`/goals/${id}`, true);
   const action = useAction();
   const progressForm = useFormErrors();

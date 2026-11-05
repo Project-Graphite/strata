@@ -451,7 +451,7 @@ export class RealtimeService implements OnApplicationBootstrap, OnModuleDestroy 
   }
 
   private async reportEdits(itemId: string, editors: string[]) {
-    const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { id: true, kind: true, spaceId: true, title: true } });
+    const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { id: true, kind: true, spaceId: true, title: true, note: { select: { slug: true } } } });
     if (!item) return;
     const names = await Promise.all(editors.map((editor) => this.watchers.actorName(this.prisma, editor)));
     await this.watchers.watch(this.prisma, itemId, editors);

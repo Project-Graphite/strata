@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { useLocation, useSearchParams } from 'react-router';
+import { createContext, useContext, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { ColorSwatches, tagColors, TextField, type SelectOption, type TagColor } from '@project-graphite/ui';
 import { ActiveSpaceContext } from './active-space';
-import { useAuth } from './auth';
 import { noteHref } from './notes';
 import type { Resource } from './useResource';
 import { atMost, required, type Check } from './validation';
@@ -15,8 +14,17 @@ export interface Space {
   name: string;
   color: TagColor;
   description: string;
+  defaults?: SpaceDefaults;
+  archived?: boolean;
   role: SpaceRole;
   createdAt: string;
+}
+
+export interface SpaceDefaults {
+  page: { icon: string | null; narrow: boolean; template: string | null };
+  board: { icon: string | null; template: string | null };
+  access: { inviteRole: 'editor' | 'viewer'; inviters: 'owners' | 'editors'; sharers: 'owners' | 'editors'; linkDays: number | null };
+  task: { type: string; priority: number; assignee: 'creator' | 'none'; status: 'open' | 'in_progress'; listId: string | null; view: 'list' | 'board' };
 }
 
 export const spaceHref = (space: Pick<Space, 'slug'>, tab?: string) => `/spaces/${space.slug}${tab ? `/${tab}` : ''}`;
@@ -62,60 +70,11 @@ export function useAllSpaces() {
   return context;
 }
 
-export function useSpaces() {
-  const spaces = useAllSpaces();
-  const active = useContext(ActiveSpaceContext);
-  return active ? { ...spaces, data: spaces.data?.filter((space) => space.id === active.space?.id) } : spaces;
-}
-
-const spaceKey = (userId: string) => `strata-active-space:${userId}`;
-
-export function storedSpace(userId: string) {
-  try {
-    return localStorage.getItem(spaceKey(userId)) ?? undefined;
-  } catch (reason) {
-    if (!(reason instanceof DOMException)) throw reason;
-    return undefined;
-  }
-}
-
-function storeSpace(userId: string, spaceId: string | undefined) {
-  try {
-    if (spaceId) localStorage.setItem(spaceKey(userId), spaceId);
-    else localStorage.removeItem(spaceKey(userId));
-  } catch (reason) {
-    if (!(reason instanceof DOMException)) throw reason;
-  }
-}
-
 export function ActiveSpaceProvider({ children }: { children: ReactNode }) {
   const spaces = useAllSpaces();
-  const { user } = useAuth();
   const { pathname } = useLocation();
-  const [params, setParams] = useSearchParams();
-  const userId = user?.id;
-  const [chosen, setChosen] = useState(() => (userId ? storedSpace(userId) : undefined));
-  const routed = findSpace(spaces.data, /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1]);
-  const wanted = routed?.id ?? params.get('space') ?? chosen;
-  const space = spaces.data?.find((space) => space.id === wanted);
-  const choose = useCallback((spaceId: string | null) => {
-    if (!spaceId || spaces.data?.some((space) => space.id === spaceId)) setChosen(spaceId ?? undefined);
-  }, [spaces.data]);
-
-  useEffect(() => {
-    if (!userId || !spaces.data) return;
-    storeSpace(userId, space?.id);
-    if (space && wanted !== chosen) setChosen(space.id);
-    if (params.has('space') && spaces.data) {
-      setParams((current) => {
-        const next = new URLSearchParams(current);
-        next.delete('space');
-        return next;
-      }, { replace: true });
-    }
-  }, [userId, space, wanted, chosen, params, setParams, spaces.data]);
-
-  return <ActiveSpaceContext.Provider value={{ space, choose }}>{children}</ActiveSpaceContext.Provider>;
+  const space = findSpace(spaces.data, /^\/spaces\/(?!invitations(?:\/|$))([^/]+)/.exec(pathname)?.[1]);
+  return <ActiveSpaceContext.Provider value={space}>{children}</ActiveSpaceContext.Provider>;
 }
 
 export async function addJoinedSpace(
@@ -196,13 +155,7 @@ export function NameAndColorFields({
   );
 }
 
-export function useChosenSpace() {
-  const active = useContext(ActiveSpaceContext);
-  if (!active) throw new Error('useChosenSpace must be used inside ActiveSpaceProvider');
-  return {
-    spaceId: active.space?.id,
-    space: active.space,
-    editable: active.space?.role !== 'viewer',
-    choose: active.choose,
-  };
+export function useCurrentSpace() {
+  const space = useContext(ActiveSpaceContext);
+  return { spaceId: space?.id, space, editable: space?.role !== 'viewer' };
 }

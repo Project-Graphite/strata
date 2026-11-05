@@ -58,6 +58,7 @@ export interface TaskList {
   id: string;
   spaceId: string | null;
   title: string;
+  view: TaskView | null;
   openTasks: number;
 }
 
@@ -107,15 +108,14 @@ export function repeatLabel(rule: string | null) {
   return repeatPresets.find(([value]) => value === rule)?.[1].toLowerCase() ?? 'repeats';
 }
 
-export async function completeTask(request: ReturnType<typeof useAuth>['request'], task: Task, onChange: (completed?: Task) => void) {
+export async function completeTask(request: ReturnType<typeof useAuth>['request'], task: Task, onChange: (changed: Task) => void) {
   const updated = await request<Task>(`/tasks/${task.id}/complete`, { method: 'POST' });
   onChange(updated);
   return updated.completedAt
     ? {
         message: `Completed ${task.title}.`,
         undo: async () => {
-          await request(`/tasks/${task.id}/reopen`, { method: 'POST' });
-          onChange();
+          onChange(await request<Task>(`/tasks/${task.id}/reopen`, { method: 'POST' }));
           return '';
         },
       }
@@ -211,19 +211,22 @@ export const taskViews: { value: TaskView; label: string }[] = [
 export interface TaskFilterState {
   listId: string | null;
   completed: boolean;
-  view: TaskView;
+  view: TaskView | null;
   assignee: string | null;
   type: string | null;
 }
 
+const viewOf = (value: string | null): TaskView | null => taskViews.find((view) => view.value === value)?.value ?? null;
+
 export function taskFilterState(params: URLSearchParams): TaskFilterState {
-  const view = params.get('view') === 'list' ? 'list' : 'board';
-  return { listId: params.get('list'), view, completed: view === 'list' && params.get('completed') === 'true', assignee: params.get('assignee'), type: params.get('type') };
+  return { listId: params.get('list'), view: viewOf(params.get('view')), completed: params.get('completed') === 'true', assignee: params.get('assignee'), type: params.get('type') };
 }
+
+export const shownTaskView = (state: TaskFilterState, list: TaskList | undefined, spaceView: TaskView = 'board'): TaskView => state.view ?? list?.view ?? spaceView;
 
 export const noFilterChoices: TaskFilterChoices = { types: [], assignees: [] };
 
-export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number; view?: TaskView; assignee?: string | null; type?: string | null }) => string;
+export type TaskLink = (next: { list?: string | null; completed?: boolean; page?: number; view?: TaskView | null; assignee?: string | null; type?: string | null }) => string;
 
 export function taskLink(base: string, state: TaskFilterState): TaskLink {
   return (next) => {
@@ -234,10 +237,9 @@ export function taskLink(base: string, state: TaskFilterState): TaskLink {
     if (list) query.set('list', list);
     if (assignee) query.set('assignee', assignee);
     if (type) query.set('type', type);
-    if ((next.view ?? state.view) === 'list') {
-      query.set('view', 'list');
-      if (next.completed ?? state.completed) query.set('completed', 'true');
-    }
+    const view = next.view === undefined ? state.view : next.view;
+    if (view) query.set('view', view);
+    if (next.completed ?? state.completed) query.set('completed', 'true');
     if (next.page && next.page > 1) query.set('page', String(next.page));
     return `${base}${query.size ? `?${query}` : ''}`;
   };
@@ -262,14 +264,16 @@ export function taskFilters({
   link,
   lists,
   state,
+  view,
 }: {
   choices: TaskFilterChoices;
   defaultAssignee: string;
   link: TaskLink;
   lists: TaskList[];
   state: TaskFilterState;
+  view: TaskView;
 }): FilterGroup[] {
-  const { assignee, completed, listId, type, view } = state;
+  const { assignee, completed, listId, type } = state;
   return [
     {
       label: 'Epic',
@@ -332,7 +336,7 @@ const maxTaskPages = 10;
 
 export function useAllTasks(path: string | null) {
   const { request, user } = useAuth();
-  const spaceId = useContext(ActiveSpaceContext)?.space?.id;
+  const spaceId = useContext(ActiveSpaceContext)?.id;
   const userId = user?.id;
   const pageKey = (number: number) => (path && userId ? resourceKey(taskPage(path, number), userId, spaceId) : null);
   const firstKey = pageKey(1);

@@ -8,6 +8,7 @@ import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
 import { NestedMenu } from './NestedMenu';
 import { ShareLinks } from './ShareLinks';
+import { UserAvatar } from './UserAvatar';
 
 function SendDialog({ onClose, spaceId, taskId, title }: { onClose: () => void; spaceId: string; taskId: string; title: string }) {
   const auth = useAuth();
@@ -43,7 +44,12 @@ function SendDialog({ onClose, spaceId, taskId, title }: { onClose: () => void; 
               <Checkbox
                 checked={chosen.has(member.userId)}
                 key={member.userId}
-                label={member.displayName}
+                label={
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <UserAvatar name={member.displayName} size="sm" userId={member.userId} />
+                    <span className="min-w-0 truncate">{member.displayName}</span>
+                  </span>
+                }
                 onChange={() =>
                   setChosen((current) => {
                     const next = new Set(current);

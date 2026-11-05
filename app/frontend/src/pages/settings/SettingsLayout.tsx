@@ -2,6 +2,7 @@ import type { TimeFormat } from '../../time';
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { ListRow } from '@project-graphite/ui';
+import { CrashBoundary } from '../../components/CrashBoundary';
 import { Page } from '../../components/Page';
 import { SkeletonLine } from '../../components/Skeletons';
 
@@ -21,6 +22,8 @@ export interface Me {
   monthStartDay: number;
   budgetsEnabled: boolean;
   emailKinds: string[];
+  inboxMuted: string[];
+  journalReminder: boolean;
   role: string;
 }
 
@@ -68,8 +71,10 @@ export function SettingsLayout() {
       tabs={tabs.map(([href, label]) => ({ active: pathname === href || (href === '/settings/legal' && pathname.startsWith(`${href}/`)), href, label }))}
       title="Settings"
     >
-      <div className="grid max-w-narrow gap-8">
-        <Outlet />
+      <div className="settings-tab">
+        <CrashBoundary label={tabs.find(([href]) => href === pathname)?.[1]} resetKey={pathname}>
+          <Outlet />
+        </CrashBoundary>
       </div>
     </Page>
   );

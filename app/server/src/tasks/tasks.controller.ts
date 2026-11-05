@@ -9,7 +9,7 @@ import { UploadQueue } from '../files/upload-queue';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { PageDto } from '../validation/page.dto';
 import { UuidPipe } from '../validation/uuid.pipe';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskColumnQueryDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, ListViewDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskColumnQueryDto, TaskCommentDto, UpdateTaskDto } from './dto/tasks.dto';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { TaskCommentsService } from './task-comments.service';
 import { TasksService } from './tasks.service';
@@ -55,6 +55,12 @@ export class TasksController {
   @Scope('items:read')
   myLists(@CurrentUser() user: AuthenticatedUser, @Query() query: SpaceQueryDto) {
     return this.tasks.myLists(user.id, query);
+  }
+
+  @Put('lists/:id/view')
+  @Scope('items:write')
+  setListView(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string, @Body() input: ListViewDto) {
+    return this.tasks.setListView(user.id, id, input.view);
   }
 
   @Post('me/lists')

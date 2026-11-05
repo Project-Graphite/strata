@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from 'react-router';
-import { Pagination, Placeholder } from '@project-graphite/ui';
+import { Icon, Pagination, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
 import { useInbox, type InboxNotification } from '../inbox';
+import { notificationIcon } from '../notifications';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -83,10 +84,13 @@ export function InboxPage() {
             {notifications.data.results.map((notification) => {
               const content = (
                 <>
-                  <span className="list-row-lead">
-                    <span aria-hidden={notification.read} className={notification.read ? 'size-2' : 'unread-dot'}>
-                      {!notification.read && <span className="sr-only">Unread: </span>}
-                    </span>
+                  <span className="list-row-lead inbox-lead">
+                    <Icon name={notificationIcon(notification.kind)} size={18} />
+                    {!notification.read && (
+                      <span className="unread-dot inbox-unread">
+                        <span className="sr-only">Unread: </span>
+                      </span>
+                    )}
                   </span>
                   <span className="list-row-text">
                     <span className="list-row-title">

@@ -45,7 +45,7 @@ export class SearchService {
     ]);
     const items = await this.prisma.item.findMany({
       where: { id: { in: matches.map((match) => match.id) } },
-      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true, members: { where: { userId }, select: { userId: true } } } }, note: { select: { quick: true } } },
+      select: { id: true, spaceId: true, kind: true, title: true, archivedAt: true, space: { select: { name: true, members: { where: { userId }, select: { userId: true } } } }, note: { select: { quick: true, slug: true } }, _count: { select: { journalEntries: true } }, weeklyReview: { select: { noteId: true } } },
     });
     const byId = new Map(items.map((item) => [item.id, item]));
     return {
@@ -59,6 +59,8 @@ export class SearchService {
                 spaceName: item.space ? (item.space.members.length ? item.space.name : 'Shared page') : null,
                 kind: item.kind.toLowerCase(),
                 quick: item.note?.quick ?? false,
+                slug: item.note?.slug ?? null,
+                journal: item._count.journalEntries > 0 || Boolean(item.weeklyReview),
                 title: item.title,
                 archived: item.archivedAt !== null,
               },

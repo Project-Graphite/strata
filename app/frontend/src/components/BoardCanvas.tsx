@@ -121,7 +121,7 @@ export interface BoardBar {
   menu?: MenuItem[];
 }
 
-export function LiveBoard({ bar, boardId, connection, editable, member }: { bar: BoardBar; boardId: string; connection: Connection; editable: boolean; member?: BoardMember }) {
+export function LiveBoard({ bar, boardId, connection, editable, member, startTemplate }: { bar: BoardBar; boardId: string; connection: Connection; editable: boolean; member?: BoardMember; startTemplate?: string | null }) {
   const auth = useAuth();
   const show = useSnackbar();
   const status = useLiveStatus(connection, editable);
@@ -419,6 +419,23 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
     [auth.request, homed, show, spaceId],
   );
 
+  useEffect(() => {
+    const template = boardTemplates.find((candidate) => candidate.id === startTemplate);
+    if (!api || !template || !editable) return;
+    const { provider } = connection;
+    const start = () => {
+      if (api.getSceneElements().length === 0) addElements(template.build());
+    };
+    if (provider.isSynced) {
+      start();
+      return;
+    }
+    provider.on('synced', start);
+    return () => {
+      provider.off('synced', start);
+    };
+  }, [api, connection, editable, startTemplate]);
+
   function addElements(skeletons: Parameters<typeof convertToExcalidrawElements>[0]) {
     if (!api) return;
     const added = convertToExcalidrawElements(skeletons, { regenerateIds: true });
@@ -604,8 +621,8 @@ export function LiveBoard({ bar, boardId, connection, editable, member }: { bar:
   );
 }
 
-export default function BoardCanvas({ bar, editable, noteId, spaceId, ...comments }: { bar: BoardBar; editable: boolean; noteId: string; spaceId: string | null } & BoardComments) {
+export default function BoardCanvas({ bar, editable, noteId, spaceId, startTemplate, ...comments }: { bar: BoardBar; editable: boolean; noteId: string; spaceId: string | null; startTemplate?: string | null } & BoardComments) {
   const connection = useLiveDocument(noteId, { localDrafts: editable });
   if (!connection) return <LinesSkeleton label="Loading the board" lines={6} />;
-  return <LiveBoard bar={bar} boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} />;
+  return <LiveBoard bar={bar} boardId={noteId} connection={connection} editable={editable} member={{ comments, spaceId }} startTemplate={startTemplate} />;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, ListRow, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, IconButton, ListRow, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
@@ -8,7 +8,7 @@ import { Copyable } from './Copyable';
 import { FormDialog } from './FormDialog';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
-import { Button, TextButton } from './Button';
+import { Button } from './Button';
 import { PagePeople } from './PagePeople';
 import { ButtonSkeleton, HintSkeleton, RowsSkeleton, useRememberedShape } from './Skeletons';
 
@@ -42,7 +42,7 @@ const durationOptions = [
 
 const slugHint = 'Lowercase letters, numbers and dashes. Leave empty for a short random name.';
 
-export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void; page?: boolean }) {
+export function ShareLinks({ editLinks, itemId, noun, onClose, page }: { editLinks: boolean; itemId: string; noun: string; onClose: () => void; page?: string }) {
   const auth = useAuth();
   const links = useResource<ShareLink[]>(`/items/${itemId}/share-links`, true);
   const action = useAction();
@@ -103,7 +103,7 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
   return (
     <Dialog onClose={onClose} title={`Share ${noun}`}>
       <div className="mt-5 grid gap-5">
-        {page && <PagePeople itemId={itemId} />}
+        {page && <PagePeople href={page} itemId={itemId} />}
         <section aria-label="Anyone with the link" className={`grid gap-3 ${page ? 'border-t border-line pt-5' : ''}`}>
           <SectionHeading action={page && <Hint>This page only</Hint>} level={3} title="Anyone with the link" />
           <div className={`grid grid-cols-1 items-stretch gap-3 ${editLinks ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_auto]'}`}>
@@ -160,8 +160,8 @@ export function ShareLinks({ editLinks, itemId, noun, onClose, page = false }: {
                   trail={
                     <>
                       {link.shortLink ? <Copyable compact value={link.shortLink} /> : link.link ? <Copyable compact value={link.link} /> : <Hint>Link unavailable</Hint>}
-                      <TextButton label="Rename" onClick={() => setRenamed(link)} />
-                      <TextButton label="Turn off" onClick={() => setTurningOff(link)} />
+                      <IconButton icon="pencil" label="Rename the link" onClick={() => setRenamed(link)} />
+                      <IconButton icon="x" label="Turn off the link" onClick={() => setTurningOff(link)} />
                     </>
                   }
                 />

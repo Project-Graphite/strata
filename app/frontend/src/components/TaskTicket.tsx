@@ -11,6 +11,7 @@ import { completeTask, type Task, type TaskDetail } from '../tasks';
 import { Reveal, useHeightMorph } from '../motion';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';
+import { paragraphOf } from '../task-draft';
 import { useResource } from '../useResource';
 import { Button } from './Button';
 import { FileButton } from './FileButton';
@@ -141,7 +142,7 @@ export function Subtasks({
             return '';
           }
           return await completeTask(auth.request, subtask, (updated) => {
-            if (updated) replace(updated);
+            replace(updated);
             onChanged();
           });
         } catch (reason) {
@@ -227,7 +228,6 @@ const activityTabs: { value: ActivityTab; label: string }[] = [
 
 const reactionChoices = ['👍', '❤️', '🎉', '😄', '👀', '🚀'];
 
-const paragraphOf = (text: string): RichDocument => ({ type: 'doc', content: text.split('\n').map((line) => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
 
 function CommentEditor({ initial, label, members, onCancel, onSave, saveLabel }: { initial: RichDocument; label: string; members?: Member[]; onCancel: () => void; onSave: (document: RichDocument, body: string) => Promise<unknown>; saveLabel: string }) {
   const [document, setDocument] = useState(initial);
@@ -341,7 +341,7 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
     const replies = reply ? [] : (comments.data ?? []).filter((shown) => shown.parentId === comment.id);
     return (
       <li className="task-comment comment-entry" data-posted={posted === comment.id || undefined} key={comment.id}>
-        <p className="task-comment-head m-0 text-small text-muted">
+        <p className="comment-head m-0 text-small text-muted">
           <UserAvatar name={comment.author?.displayName ?? 'Someone'} size="sm" userId={comment.author?.id} />
           <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
           {comment.editedAt && ' · edited'}
@@ -445,8 +445,11 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
               <ol className="task-activity-list m-0 grid list-none gap-5 p-0">
                 {entries.map((entry) =>
                   entry.kind === 'event' ? (
-                    <li className="flex items-baseline justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
-                      <span className="min-w-0 text-ink">{describeActivity(entry.event)}</span>
+                    <li className="flex items-center justify-between gap-4 text-small" key={`event-${entry.event.id}`}>
+                      <span className="flex min-w-0 items-center gap-2 text-ink">
+                        <UserAvatar name={entry.event.actor?.displayName ?? 'Someone'} size="sm" userId={entry.event.actor?.id} />
+                        <span className="min-w-0">{describeActivity(entry.event)}</span>
+                      </span>
                       <span className="shrink-0 text-muted">{formatMoment(entry.event.createdAt)}</span>
                     </li>
                   ) : (

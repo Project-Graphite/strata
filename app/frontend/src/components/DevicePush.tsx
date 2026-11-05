@@ -4,7 +4,7 @@ import { ApiError } from '../api';
 import { useAuth } from '../auth';
 import { LoadError } from './LoadError';
 import { RowSkeleton, ToggleSkeleton, useRememberedShape } from './Skeletons';
-import { allPushKinds, pushRegistration, turnOffPush, turnOnPush } from '../push';
+import { allPushKinds, pushRegistration, savePush, turnOffPush, turnOnPush } from '../push';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Toggle } from './Toggle';
@@ -30,7 +30,7 @@ export function DevicePushSkeleton() {
   );
 }
 
-export function DevicePush() {
+export function useDevicePush() {
   const { request } = useAuth();
   const key = useResource<{ publicKey: string | null }>('/push/key', true);
   const acting = useAction();
@@ -57,59 +57,67 @@ export function DevicePush() {
     })().catch((reason: unknown) => setCheckError(errorMessage(reason, 'Could not check this device')));
   }, [request, checks]);
 
+  const error = key.error || checkError;
+  const retry = key.error
+    ? key.reload
+    : () => {
+        setCheckError('');
+        setChecks((current) => current + 1);
+      };
+  const ready = Boolean(device && key.data?.publicKey);
+  const kinds = device?.kinds ?? null;
+
+  function turn(on: boolean) {
+    if (!device || !key.data?.publicKey) return;
+    const { registration, subscription } = device;
+    const publicKey = key.data.publicKey;
+    void acting.run(async () => {
+      if (on) {
+        const saved = await turnOnPush(request, registration, publicKey, allPushKinds);
+        setDevice({ registration, subscription: await registration.pushManager.getSubscription(), kinds: saved.kinds });
+        return 'Notifications are on for this device.';
+      }
+      if (subscription) await turnOffPush(request, subscription);
+      setDevice({ registration, subscription: null, kinds: null });
+      return 'Notifications are off for this device.';
+    }, 'Could not change the notifications');
+  }
+
+  async function saveKinds(next: string[]) {
+    if (!device?.subscription) return;
+    const before = device;
+    setDevice({ ...device, kinds: next });
+    try {
+      const saved = await savePush(request, device.subscription, next);
+      setDevice({ ...before, kinds: saved.kinds });
+    } catch (reason) {
+      setDevice(before);
+      throw reason;
+    }
+  }
+
+  return { busy: acting.busy, checking: !error && (device === undefined || !key.data), device, error, kinds, ready, retry, saveKinds, supported: device !== null, configured: key.data?.publicKey !== null, turn };
+}
+
+export function DevicePush({ push }: { push: ReturnType<typeof useDevicePush> }) {
   const note = (text: string) => (
     <ul className="panel-rows">
       <ListRow meta={text} title="Notifications on this device" />
     </ul>
   );
-  if (key.error || checkError) {
-    return (
-      <LoadError
-        compact
-        error={key.error || checkError}
-        onRetry={
-          key.error
-            ? key.reload
-            : () => {
-                setCheckError('');
-                setChecks((current) => current + 1);
-              }
-        }
-      />
-    );
-  }
-  if (device === undefined || !key.data) {
+  if (push.error) return <LoadError compact error={push.error} onRetry={push.retry} />;
+  if (push.checking) {
     return (
       <Placeholder label="Checking notifications on this device">
         <DevicePushSkeleton />
       </Placeholder>
     );
   }
-  if (key.data.publicKey === null) return note('Not set up on this server yet.');
-  if (device === null) return note('This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.');
-  const { registration, subscription, kinds } = device;
-  const publicKey = key.data.publicKey;
-
+  if (!push.configured) return note('Not set up on this server yet.');
+  if (!push.supported) return note('This browser cannot show notifications from Strata. Install Strata as an app, or use a recent Chrome, Edge, Firefox or Safari.');
   return (
     <div className="panel-rows">
-      <Toggle
-        checked={kinds !== null}
-        description="Shows inbox notices on this device, even when Strata is closed."
-        disabled={acting.busy}
-        label="Notifications on this device"
-        onChange={(on) =>
-          void acting.run(async () => {
-            if (on) {
-              const saved = await turnOnPush(request, registration, publicKey, allPushKinds);
-              setDevice({ registration, subscription: await registration.pushManager.getSubscription(), kinds: saved.kinds });
-              return 'Notifications are on for this device.';
-            }
-            if (subscription) await turnOffPush(request, subscription);
-            setDevice({ registration, subscription: null, kinds: null });
-            return 'Notifications are off for this device.';
-          }, 'Could not change the notifications')
-        }
-      />
+      <Toggle checked={push.kinds !== null} description="Shows notifications on this device, even when Strata is closed." disabled={push.busy} label="Notifications on this device" onChange={push.turn} />
     </div>
   );
 }

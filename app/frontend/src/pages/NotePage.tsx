@@ -7,10 +7,10 @@ import { readBlob } from '../api';
 import { FileSourceContext } from '../components/file-source';
 import { NestedMenu, type NestedMenuItem } from '../components/NestedMenu';
 import { AltTextDialog } from '../components/AltTextDialog';
-import { TextButton } from '../components/Button';
 import { WatchButton } from '../components/WatchButton';
 import { CommentsButton, CommentsPanel } from '../components/CommentsPanel';
 import { CommitInput } from '../components/CommitInput';
+import { CrashBoundary } from '../components/CrashBoundary';
 import { DatabaseView } from '../components/database/DatabaseView';
 import { PropertyField } from '../components/database/PropertyField';
 import { IconPicker } from '../components/IconPicker';
@@ -25,8 +25,8 @@ import { ShareLinks } from '../components/ShareLinks';
 import { IconButtonSkeleton, rowsOf, SkeletonLine } from '../components/Skeletons';
 import { useInArea } from '../navigation';
 import { usePageNavigation } from '../page-navigation';
-import { announcePagesChanged, childPagesPath, noteArea, noteHref, noteParent, noteTitle, pageHref, pageNoun, type ChildPages, type Note, type NoteDetails, type PropertyValues } from '../notes';
-import { useSpaces, type Member } from '../spaces';
+import { addressOf, announcePagesChanged, childPagesPath, noteAddress, noteArea, noteHref, noteParent, noteTitle, pageHref, pageNoun, type ChildPages, type Note, type NoteDetails, type PropertyValues } from '../notes';
+import { useAllSpaces, type Member } from '../spaces';
 import { useAction } from '../useAction';
 import { useLiveRefresh, useResource } from '../useResource';
 
@@ -89,14 +89,17 @@ function TitleField({ children }: { children: ReactNode }) {
 }
 
 export function NotePage() {
-  const { id = '' } = useParams();
+  const { id: address = '' } = useParams();
   const [, setCurrentPage] = usePageNavigation();
   const auth = useAuth();
-  const loadFile = useCallback((fileId: string) => auth.request<Blob>(`/notes/${id}/files/${fileId}`, {}, readBlob), [auth.request, id]);
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const navigate = useNavigate();
   const location = useLocation();
-  const note = useResource<NoteDetails>(`/notes/${id}`, true, { live: ['page-details', 'items', 'spaces'], itemIds: [id] });
+  const note = useResource<NoteDetails>(`/notes/${address}`, true);
+  const loaded = note.data && addressOf(note.data, address) ? note.data : undefined;
+  const id = loaded?.id ?? address;
+  const loadFile = useCallback((fileId: string) => auth.request<Blob>(`/notes/${id}/files/${fileId}`, {}, readBlob), [auth.request, id]);
+  useLiveRefresh(note.reload, { live: ['page-details', 'items', 'spaces'], itemIds: [id] });
   useLiveRefresh(note.reload, { live: ['page-databases'], itemIds: [id, ...(note.data?.parentId ? [note.data.parentId] : [])], spaceId: note.data?.spaceId ?? undefined });
   const [quoting, setQuoting] = useState<QuotedBlock & { noteId: string }>();
   const [commenting, setCommenting] = useState<string>();
@@ -121,20 +124,20 @@ export function NotePage() {
   const [open, setOpen] = useState<'share' | 'history' | 'unconvert'>();
   const parent = note.data?.path.at(-1);
   useEffect(() => {
-    if (note.data?.id !== id) return;
-    setCurrentPage(note.data);
-    return () => setCurrentPage((current) => current?.id === id ? undefined : current);
-  }, [id, note.data, setCurrentPage]);
-  const back = !note.data ? (location.pathname.startsWith('/journal/') ? { to: '/journal', label: 'Journal' } : { to: '/pages', label: 'Pages' }) : parent ? { to: pageHref(parent.id), label: noteTitle(parent) } : noteParent(note.data);
+    if (!loaded) return;
+    setCurrentPage(loaded);
+    return () => setCurrentPage((current) => current?.id === loaded.id ? undefined : current);
+  }, [loaded, setCurrentPage]);
+  const back = !note.data ? (location.pathname.startsWith('/journal/') ? { to: '/journal', label: 'Journal' } : { to: '/pages', label: 'Pages' }) : parent ? { to: pageHref(noteAddress(parent)), label: noteTitle(parent) } : noteParent(note.data);
   const moveToTrash = useMovePageToTrash(
     () => navigate(back.to),
-    (restored) => navigate(pageHref(restored.id)),
+    (restored) => navigate(noteHref(restored)),
   );
   useInArea(note.data ? noteArea(note.data) : null);
   useDocumentTitle(note.data && noteTitle(note.data));
 
   if (note.error) return <DetailState back={back} resource={note} thing="Page" />;
-  if (!note.data || note.data.id !== id) {
+  if (!loaded) {
     return (
       <article className="page-enter grid max-w-none gap-8">
         <header className="page-header note-header">
@@ -152,7 +155,7 @@ export function NotePage() {
       </article>
     );
   }
-  const details = note.data;
+  const details = loaded;
   if (noteHref(details) !== location.pathname) return <Navigate replace to={`${noteHref(details)}${location.search}${location.hash}`} />;
   const space = spaces.data?.find((candidate) => candidate.id === details.spaceId);
   const children = inside.data?.pages ?? [];
@@ -292,9 +295,9 @@ export function NotePage() {
           actions={
             decorate && (
               <>
-                <TextButton label="Change cover" onClick={() => coverInput.current?.click()} />
-                <TextButton label="Describe" onClick={() => setDescribingCover(details.cover!.alt)} />
-                <TextButton label="Remove" onClick={() => save({ cover: null }, () => '', 'Could not remove the cover image')} />
+                <IconButton icon="upload" label="Change the cover" onClick={() => coverInput.current?.click()} />
+                <IconButton icon="pencil" label="Describe the cover" onClick={() => setDescribingCover(details.cover!.alt)} />
+                <IconButton icon="trash" label="Remove the cover" onClick={() => save({ cover: null }, () => '', 'Could not remove the cover image')} />
               </>
             )
           }
@@ -371,7 +374,7 @@ export function NotePage() {
         </dl>
       )}
       <div className="note-body">
-        <FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
+        <CrashBoundary label="The editor"><FileSourceContext value={loadFile}><Suspense fallback={<LinesSkeleton label="Loading the editor" lines={6} />}>
           <NoteEditor
             commentedBlocks={commentedBlocks}
             editable={details.editable}
@@ -385,9 +388,10 @@ export function NotePage() {
             spaceId={owned ? null : details.permissions.organize ? details.spaceId : ''}
             statusSlot={statusSlot ?? undefined}
           />
-        </Suspense></FileSourceContext>
+        </Suspense></FileSourceContext></CrashBoundary>
         {!details.quick && (!owned || details.permissions.comment) && (
           <CommentsPanel docked onClose={() => setPanelOpen(false)} open={panelOpen}>
+            <CrashBoundary compact label="Comments">
             <NoteComments
               commentable={details.permissions.comment}
               composing={commenting === details.id}
@@ -403,10 +407,11 @@ export function NotePage() {
               people={members.data}
               quoting={quoting?.noteId === details.id ? quoting : undefined}
             />
+            </CrashBoundary>
           </CommentsPanel>
         )}
       </div>
-      {details.database && <DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} />}
+      {details.database && <CrashBoundary compact label="The database"><DatabaseView editable={details.permissions.organize} key={details.id} noteId={details.id} spaceId={details.spaceId} /></CrashBoundary>}
       {describingCover !== undefined && details.cover && (
         <AltTextDialog initial={describingCover} onClose={() => setDescribingCover(undefined)} onSave={(alt) => void save({ coverAlt: alt }, () => '', 'Could not describe the cover image')} />
       )}
@@ -427,8 +432,8 @@ export function NotePage() {
           The pages inside stay, but the values of their properties are deleted.
         </ConfirmDialog>
       )}
-      {open === 'share' && <ShareLinks editLinks itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} page />}
-      {open === 'history' && <NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} />}
+      {open === 'share' && <ShareLinks editLinks itemId={details.id} noun={pageNoun(details)} onClose={() => setOpen(undefined)} page={noteHref(details)} />}
+      {open === 'history' && <CrashBoundary compact label="History"><NoteHistory editable={details.editable} noteId={details.id} onClose={() => setOpen(undefined)} /></CrashBoundary>}
     </article>
   );
 }

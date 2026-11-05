@@ -1,0 +1,99 @@
+.outage {
+  --outage-paper: var(--color-paper, #0c0c0e);
+  --outage-ink: var(--color-ink, #e8e8ea);
+  --outage-muted: var(--color-muted, #8b8b95);
+  --outage-faint: var(--color-faint, #7d7d87);
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: 2.5rem 1rem;
+  color: var(--outage-ink);
+  text-align: center;
+}
+
+.outage-eyebrow {
+  margin: 1.5rem 0 0;
+  color: var(--outage-faint);
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+.outage-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.outage-body {
+  margin: 0 0 1rem;
+  color: var(--outage-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.outage-actions {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+}
+
+.outage-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--outage-ink);
+  padding: 0 1.25rem;
+  color: var(--outage-paper);
+  font: inherit;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.outage-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.outage-button:focus-visible {
+  outline: 2px solid var(--outage-ink);
+  outline-offset: 2px;
+}
+
+.outage-next {
+  min-height: 1.25rem;
+  color: var(--outage-faint);
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.outage-page {
+  display: grid;
+  min-height: 100vh;
+  margin: 0;
+  place-items: center;
+  background: radial-gradient(circle at 50% 0%, #1c1c21, #0c0c0e 60%);
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: light) {
+  .outage-page {
+    background: radial-gradient(circle at 50% 0%, #ffffff, #f4f4f5 60%);
+    color-scheme: light;
+  }
+
+  .outage-page .outage {
+    --outage-paper: #ffffff;
+    --outage-ink: #18181b;
+    --outage-muted: #52525b;
+    --outage-faint: #71717a;
+  }
+}

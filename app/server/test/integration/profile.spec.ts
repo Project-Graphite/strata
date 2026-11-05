@@ -26,4 +26,13 @@ describe('Profile preferences against Postgres', () => {
     expect((await person.call('GET', '/me')).body).toMatchObject({ weekStart: 1, weekendDays: [0, 6] });
     expect((await person.call('PATCH', '/me', { weekendDays: [] })).body.weekendDays).toEqual([]);
   });
+
+  it('keeps the order apps were arranged in, for apps that are off too', async () => {
+    const person = await member('app-arranger');
+    expect((await person.call('GET', '/me')).body.appOrder).toEqual([]);
+    expect((await person.call('PATCH', '/me', { appOrder: ['spending', 'tidy', 'tasks'] })).body.appOrder).toEqual(['spending', 'tidy', 'tasks']);
+    expect((await person.call('GET', '/me')).body).toMatchObject({ appOrder: ['spending', 'tidy', 'tasks'] });
+    expect((await person.call('PATCH', '/me', { appOrder: ['spending', 'spending'] })).status).toBe(400);
+    expect((await person.call('PATCH', '/me', { appOrder: null })).status).toBe(400);
+  });
 });

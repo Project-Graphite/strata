@@ -76,7 +76,7 @@ describe('live shared documents', () => {
         },
         searchDocument: { updateMany: async () => ({ count: 1 }) },
         item: {
-          findUnique: async () => ({ id: 'page', kind: ItemKind.NOTE, spaceId: 'space', title: 'Shared page', updatedAt: new Date() }),
+          findUnique: async () => ({ id: 'page', kind: ItemKind.NOTE, spaceId: 'space', title: 'Shared page', updatedAt: new Date(), note: { slug: '0123456789' } }),
           findUniqueOrThrow: async ({ where }: { where: { id: string } }) => ({ kind: where.id === 'board' ? ItemKind.BOARD : ItemKind.NOTE }),
           update: async ({ data }: { data: { updatedById: string | null } }) => {
             lastEditor = data.updatedById;
@@ -293,7 +293,7 @@ describe('live shared documents', () => {
     }
     await vi.waitFor(() => expect(watchers.notify).toHaveBeenCalledTimes(1));
     expect(watchers.watch).toHaveBeenCalledWith(expect.anything(), 'page', ['member']);
-    expect(watchers.notify).toHaveBeenCalledWith(expect.anything(), 'page', null, { title: 'Member edited “Shared page”', link: '/pages/page' }, ['member']);
+    expect(watchers.notify).toHaveBeenCalledWith(expect.anything(), 'page', null, { title: 'Member edited “Shared page”', link: '/pages/0123456789' }, ['member']);
   });
 
   it('sends a burst of collaborator pointer moves to each connection as a few batched frames', async () => {

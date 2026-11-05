@@ -4,10 +4,10 @@ import { InboxService } from '../inbox/inbox.service';
 import { PageAccessService } from '../notes/page-access.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-export function watchedLink(item: { id: string; kind: ItemKind; spaceId: string | null }) {
+export function watchedLink(item: { id: string; kind: ItemKind; spaceId: string | null; note: { slug: string } | null }) {
   if (item.kind === ItemKind.TASK) return `/tasks?task=${item.id}`;
-  if (item.kind === ItemKind.NOTE) return `/pages/${item.id}`;
-  if (item.kind === ItemKind.BOARD) return `/boards/${item.id}`;
+  if (item.kind === ItemKind.NOTE) return `/pages/${item.note?.slug ?? item.id}`;
+  if (item.kind === ItemKind.BOARD) return `/boards/${item.note?.slug ?? item.id}`;
   return item.spaceId ? `/spaces/${item.spaceId}/items` : '/';
 }
 
@@ -24,6 +24,10 @@ export class WatchersService {
     private readonly inbox: InboxService,
     private readonly pages: PageAccessService,
   ) {}
+
+  async linkTo(client: Prisma.TransactionClient, itemId: string) {
+    return watchedLink(await client.item.findUniqueOrThrow({ where: { id: itemId }, select: { id: true, kind: true, spaceId: true, note: { select: { slug: true } } } }));
+  }
 
   async watch(client: Prisma.TransactionClient, itemId: string, userIds: (string | null | undefined)[]) {
     const data = [...new Set(userIds.filter((userId): userId is string => Boolean(userId)))].map((userId) => ({ itemId, userId }));

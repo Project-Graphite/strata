@@ -104,7 +104,7 @@ export function InviteToSpaceDialog({ onClose, onInvited, space }: { onClose: ()
         spellCheck={false}
         {...form.field('who')}
       />
-      <Select defaultValue="editor" label="Role" name="role" options={roleOptions} />
+      <Select defaultValue={space.defaults?.access.inviteRole ?? 'editor'} label="Role" name="role" options={roleOptions} />
       <TextAreaField label="Note (optional)" maxLength={280} rows={2} {...form.field('note')} />
     </FormDialog>
   );

@@ -59,6 +59,8 @@ interface SessionUser {
   timeZone: string;
   timeFormat: string;
   features: string[];
+  appOrder: string[];
+  taskComposer: string;
 }
 
 function handleTaken() {
@@ -500,6 +502,8 @@ export class AuthService implements OnModuleInit {
         timeZone: user.timeZone,
         timeFormat: user.timeFormat,
         features: user.features,
+        appOrder: user.appOrder,
+        taskComposer: user.taskComposer,
       },
     };
   }

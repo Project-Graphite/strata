@@ -10,6 +10,7 @@ import { AccessService } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
 import { InboxService } from '../inbox/inbox.service';
+import { spaceDefaults } from '../spaces/space-defaults';
 import { MailService } from '../mail/mail.service';
 import { spaceInviteEmail, strataInviteEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
@@ -134,7 +135,8 @@ export class InvitationsService {
     if (input.email !== undefined && input.handle !== undefined) {
       throw new BadRequestException('Invite by email or by handle, not both');
     }
-    await this.access.assertSpace(userId, spaceId, 'manage');
+    const role = await this.assertInviter(userId, spaceId);
+    if (input.role === 'owner' && role !== SpaceRole.OWNER) throw new ForbiddenException('Only owners can invite another owner');
     const [space, inviter] = await Promise.all([
       this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { name: true } }),
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } }),
@@ -202,13 +204,19 @@ export class InvitationsService {
   }
 
   async forSpace(userId: string, spaceId: string) {
-    await this.access.assertSpace(userId, spaceId, 'manage');
+    await this.assertInviter(userId, spaceId);
     const invitations = await this.prisma.invitation.findMany({
       where: { spaceId, ...this.pending() },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       select: sentFields,
     });
     return invitations.map(presentSent);
+  }
+
+  private async assertInviter(userId: string, spaceId: string) {
+    await this.access.assertSpace(userId, spaceId, 'read');
+    const { access } = spaceDefaults((await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } })).defaults);
+    return this.access.assertSpace(userId, spaceId, access.inviters === 'editors' ? 'edit' : 'manage');
   }
 
   async withdraw(userId: string, invitationId: string) {

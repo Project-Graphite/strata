@@ -66,8 +66,14 @@ export class DriveService {
       where: { userId, space: this.access.spacesOf(userId) },
       select: { role: true, space: { select: { id: true, slug: true, name: true, color: true, _count: { select: { items: { where: { kind: ItemKind.FILE, trashedAt: null } } } } } } },
     });
+    const latest = await this.prisma.item.groupBy({
+      by: ['spaceId'],
+      where: { spaceId: { in: memberships.map(({ space }) => space.id) }, kind: ItemKind.FILE, trashedAt: null },
+      _max: { updatedAt: true },
+    });
+    const changedAt = new Map(latest.map((row) => [row.spaceId, row._max.updatedAt]));
     return memberships
-      .map(({ role, space: { _count, ...space } }) => ({ ...space, role: role.toLowerCase(), fileCount: _count.items }))
+      .map(({ role, space: { _count, ...space } }) => ({ ...space, role: role.toLowerCase(), fileCount: _count.items, updatedAt: changedAt.get(space.id) ?? null }))
       .sort((first, second) => first.name.localeCompare(second.name));
   }
 

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ItemKind, Prisma } from '@prisma/client';
+import { isUUID } from 'class-validator';
 import * as Y from 'yjs';
 import { AccessService, audienceOf, type Home, homeOf, inHome } from '../access/access.service';
 import { ActivityService } from '../activity/activity.service';
@@ -11,7 +12,7 @@ import { valueMap } from './database';
 import { boardThumbnail } from './board-thumbnail';
 import { boardElementsKey, documentText, pageKinds } from './document-text';
 import { CreateNoteDto, PageChildrenQueryDto, UpdateNoteDto } from './dto/notes.dto';
-import { importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
+import { builtInTemplates, importedDocument, templateDocument, textDocument, type BuiltInTemplate } from './templates';
 import { readPageDraft } from './page-draft';
 import { PageAccessService, type PageAccess } from './page-access.service';
 import { WatchersService } from '../watchers/watchers.service';
@@ -25,8 +26,10 @@ export const noteFields = {
   title: true,
   createdAt: true,
   updatedAt: true,
-  note: { select: { parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true, narrow: true, coverId: true, coverAlt: true } },
+  note: { select: { slug: true, parentId: true, position: true, icon: true, pinnedAt: true, template: true, quick: true, narrow: true, coverId: true, coverAlt: true } },
   databaseSchema: { select: { itemId: true } },
+  weeklyReview: { select: { noteId: true } },
+  _count: { select: { journalEntries: true } },
 } satisfies Prisma.ItemSelect;
 
 type NoteRow = Prisma.ItemGetPayload<{ select: typeof noteFields }>;
@@ -40,6 +43,10 @@ export const draftWhere = {
 } satisfies Prisma.ItemWhereInput;
 
 const notDraft = { NOT: draftWhere } satisfies Prisma.ItemWhereInput;
+
+const notOthersDraft = (userId: string) => ({ OR: [notDraft, { createdById: userId }] }) satisfies Prisma.ItemWhereInput;
+
+const pageKindOf = (kind: 'note' | 'board' | undefined) => (kind === 'note' ? ItemKind.NOTE : kind === 'board' ? ItemKind.BOARD : { in: pageKinds });
 
 const outsideJournal = { journalEntries: { none: {} }, weeklyReview: { is: null } } satisfies Prisma.ItemWhereInput;
 
@@ -60,6 +67,7 @@ function siblingsOf(parentId: string | null): Prisma.NoteWhereInput {
 export function present(row: NoteRow, draft = false) {
   return {
     id: row.id,
+    slug: row.note?.slug ?? row.id,
     spaceId: row.spaceId,
     title: row.title,
     kind: row.kind === ItemKind.BOARD ? ('board' as const) : ('note' as const),
@@ -72,6 +80,7 @@ export function present(row: NoteRow, draft = false) {
     narrow: row.note?.narrow ?? false,
     cover: row.note?.coverId ? { id: row.note.coverId, alt: row.note.coverAlt } : null,
     database: Boolean(row.databaseSchema),
+    journal: row._count.journalEntries > 0 || Boolean(row.weeklyReview),
     draft,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -93,11 +102,12 @@ export class NotesService {
   async list(userId: string, spaceId: string) {
     await this.access.assertSpace(userId, spaceId, 'read');
     const rows = await this.prisma.item.findMany({
-      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft, note: { quick: false } },
+      where: { spaceId, kind: { in: pageKinds }, trashedAt: null, archivedAt: null, ...notOthersDraft(userId), note: { quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       select: noteFields,
     });
-    return rows.map((row) => present(row));
+    const drafts = await this.draftsAmong(rows);
+    return rows.map((row) => present(row, drafts.has(row.id)));
   }
 
   async everywhere(userId: string, kind: 'note' | 'board' | 'quick' | undefined, query: SpaceQueryDto = {}) {
@@ -106,7 +116,7 @@ export class NotesService {
         kind: kind === 'board' ? ItemKind.BOARD : kind === 'note' || kind === 'quick' ? ItemKind.NOTE : { in: pageKinds },
         trashedAt: null,
         archivedAt: null,
-        AND: [this.pages.pagesOf(userId), notDraft, outsideJournal],
+        AND: [this.pages.pagesOf(userId), notOthersDraft(userId), outsideJournal],
         note: { template: false, quick: kind === 'quick' },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
@@ -136,7 +146,7 @@ export class NotesService {
     const home = await this.access.assertHome(userId, spaceId, 'read');
     if (query.parentId) await this.parentIn(home, query.parentId);
     const rows = await this.prisma.item.findMany({
-      where: { ...inHome(home), kind: query.kind === 'note' ? ItemKind.NOTE : { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft, ...outsideJournal, note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
+      where: { ...inHome(home), kind: pageKindOf(query.kind), trashedAt: null, archivedAt: null, AND: [notOthersDraft(userId), outsideJournal], note: { ...siblingsOf(query.parentId ?? null), template: false, quick: false } },
       orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
       cursor: query.cursor ? { id: query.cursor } : undefined,
       skip: query.cursor ? 1 : 0,
@@ -146,11 +156,12 @@ export class NotesService {
     const parents = rows.length
       ? await this.prisma.note.groupBy({
           by: ['parentId'],
-          where: { parentId: { in: rows.map((row) => row.id) }, template: false, quick: false, item: { kind: query.kind === 'note' ? ItemKind.NOTE : { in: pageKinds }, trashedAt: null, archivedAt: null, ...notDraft } },
+          where: { parentId: { in: rows.map((row) => row.id) }, template: false, quick: false, item: { kind: pageKindOf(query.kind), trashedAt: null, archivedAt: null, ...notOthersDraft(userId) } },
         })
       : [];
     const withChildren = new Set(parents.map((parent) => parent.parentId));
-    const listed = (row: NoteRow) => ({ ...present(row), hasChildren: withChildren.has(row.id) });
+    const drafts = await this.draftsAmong(rows);
+    const listed = (row: NoteRow) => ({ ...present(row, drafts.has(row.id)), hasChildren: withChildren.has(row.id) });
     return { pages: rows.slice(0, 100).map(listed), nextCursor: rows.length > 100 ? rows[99]!.id : null, nextPage: rows[100] ? listed(rows[100]) : null };
   }
 
@@ -177,9 +188,10 @@ export class NotesService {
     const home = await this.access.assertHome(userId, spaceId, 'edit');
     if (input.quick && input.board) throw new BadRequestException('A board cannot be a note');
     if (input.quick && input.parentId) throw new BadRequestException('A note cannot go inside a page');
-    const initial = document ?? (await this.initialState(home, input));
     const defaults = spaceDefaults(spaceId ? (await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } })).defaults : undefined);
-    const look = input.board ? { icon: defaults.board.icon } : input.quick ? {} : defaults.page;
+    const blank = !document && !input.board && !input.quick && !input.template && !input.fromNoteId && !input.text?.trim() && !input.state;
+    const initial = document ?? (await this.initialState(home, blank ? { ...input, ...(await this.defaultTemplate(home, defaults.page.template)) } : input));
+    const look = input.board ? { icon: defaults.board.icon } : input.quick ? {} : { icon: defaults.page.icon, narrow: defaults.page.narrow };
     const result = await this.prisma.$transaction(async (transaction) => {
       await lockHome(transaction, home);
       if (recoveryId) {
@@ -246,7 +258,9 @@ export class NotesService {
     }
   }
 
-  async get(userId: string, noteId: string) {
+  async get(userId: string, address: string) {
+    const noteId = isUUID(address) ? address : (await this.prisma.note.findUnique({ where: { slug: address }, select: { itemId: true } }))?.itemId;
+    if (!noteId) throw new NotFoundException('Nothing was found at this address');
     const found = await this.note(userId, noteId, 'read');
     const row = await this.prisma.item.findUniqueOrThrow({ where: { id: noteId }, select: noteFields });
     const parentId = row.note?.parentId ?? null;
@@ -259,7 +273,7 @@ export class NotesService {
       parentId: parentReadable ? parentId : null,
       editable: found.permissions.edit,
       permissions: found.permissions,
-      path: path.slice(path.findLastIndex((ancestor) => !ancestor.visible || !readable.has(ancestor.id)) + 1).map(({ id, title }) => ({ id, title })),
+      path: path.slice(path.findLastIndex((ancestor) => !ancestor.visible || !readable.has(ancestor.id)) + 1).map(({ id, slug, title }) => ({ id, slug, title })),
       row: database
         ? { properties: database.properties, values: valueMap(await this.prisma.noteProperty.findMany({ where: { itemId: noteId } })) }
         : null,
@@ -414,10 +428,24 @@ export class NotesService {
     return (await this.prisma.item.count({ where: { id: noteId, ...draftWhere } })) > 0;
   }
 
+  private async defaultTemplate(home: Home, template: string | null): Promise<{ template?: string; fromNoteId?: string }> {
+    if (!template) return {};
+    if (template in builtInTemplates) return { template };
+    if (!isUUID(template)) return {};
+    const saved = await this.prisma.note.count({ where: { itemId: template, template: true, item: { ...inHome(home), trashedAt: null } } });
+    return saved ? { fromNoteId: template } : {};
+  }
+
+  private async draftsAmong(rows: { id: string }[]) {
+    if (rows.length === 0) return new Set<string>();
+    return new Set((await this.prisma.item.findMany({ where: { id: { in: rows.map((row) => row.id) }, ...draftWhere }, select: { id: true } })).map((row) => row.id));
+  }
+
   private async visibleRows(userId: string, rows: NoteRow[]) {
-    if (!rows.some((row) => row.note?.parentId)) return rows.map((row) => present(row));
+    const drafts = await this.draftsAmong(rows);
+    if (!rows.some((row) => row.note?.parentId)) return rows.map((row) => present(row, drafts.has(row.id)));
     const readable = new Set((await this.prisma.item.findMany({ where: { id: { in: rows.flatMap((row) => row.note?.parentId ? [row.note.parentId] : []) }, AND: this.pages.pagesOf(userId) }, select: { id: true } })).map((row) => row.id));
-    return rows.map((row) => ({ ...present(row), parentId: row.note?.parentId && readable.has(row.note.parentId) ? row.note.parentId : null }));
+    return rows.map((row) => ({ ...present(row, drafts.has(row.id)), parentId: row.note?.parentId && readable.has(row.note.parentId) ? row.note.parentId : null }));
   }
 
   private async initialState(home: Home, input: CreateNoteDto) {
@@ -448,16 +476,16 @@ export class NotesService {
   }
 
   private async ancestors(parentId: string | null, transaction: Prisma.TransactionClient = this.prisma) {
-    const path: { id: string; title: string; visible: boolean }[] = [];
+    const path: { id: string; slug: string; title: string; visible: boolean }[] = [];
     let current = parentId;
     while (current) {
       if (path.some((step) => step.id === current)) throw new BadRequestException('The page hierarchy contains a cycle');
-      const row: { id: string; title: string; kind: ItemKind; trashedAt: Date | null; archivedAt: Date | null; note: { parentId: string | null; quick: boolean; template: boolean } | null } | null = await transaction.item.findUnique({
+      const row: { id: string; title: string; kind: ItemKind; trashedAt: Date | null; archivedAt: Date | null; note: { slug: string; parentId: string | null; quick: boolean; template: boolean } | null } | null = await transaction.item.findUnique({
         where: { id: current },
-        select: { id: true, title: true, kind: true, trashedAt: true, archivedAt: true, note: { select: { parentId: true, quick: true, template: true } } },
+        select: { id: true, title: true, kind: true, trashedAt: true, archivedAt: true, note: { select: { slug: true, parentId: true, quick: true, template: true } } },
       });
       if (!row) break;
-      path.unshift({ id: row.id, title: row.title, visible: row.kind === ItemKind.NOTE && !row.trashedAt && !row.archivedAt && Boolean(row.note && !row.note.quick && !row.note.template) });
+      path.unshift({ id: row.id, slug: row.note?.slug ?? row.id, title: row.title, visible: row.kind === ItemKind.NOTE && !row.trashedAt && !row.archivedAt && Boolean(row.note && !row.note.quick && !row.note.template) });
       current = row.note?.parentId ?? null;
     }
     return path;

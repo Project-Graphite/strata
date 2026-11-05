@@ -3,6 +3,7 @@ import { Card, Placeholder, Skeleton } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { PageActionsMenu } from '../components/PageActionsMenu';
 import { BoardPreview } from '../components/BoardPreview';
+import { NoteTitle } from '../components/NoteMark';
 import { AddButton, Button } from '../components/Button';
 import { Drafts } from '../components/Drafts';
 import { Empty } from '../components/Empty';
@@ -11,14 +12,14 @@ import { useMovePageToTrash } from '../components/MovePageToTrash';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { boardsTabs, noteEdited, noteHref, noteTitle, type Note } from '../notes';
-import { homePath, useChosenSpace } from '../spaces';
+import { homePath, useCurrentSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 
 export function useCreateBoard() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const { spaceId, editable } = useChosenSpace();
+  const { spaceId, editable } = useCurrentSpace();
   const creating = useAction();
   const create = () =>
     void creating.run(async () => {
@@ -31,7 +32,7 @@ export function useCreateBoard() {
 
 export function BoardGrid() {
   const listed = useResource<Note[]>('/me/notes?kind=board', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
-  const { editable } = useChosenSpace();
+  const { editable } = useCurrentSpace();
   const creating = useCreateBoard();
   const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
 
@@ -62,7 +63,7 @@ export function BoardGrid() {
         <Card as="li" className="board-card" interactive key={board.id} padding="sm">
           <Link className="board-card-link" to={noteHref(board)}>
             <BoardPreview boardId={board.id} label={`Preview of ${noteTitle(board)}`} />
-            <RowText detail={noteEdited(board)} title={noteTitle(board)} />
+            <RowText detail={noteEdited(board)} title={<NoteTitle note={board} />} />
           </Link>
           <span className="board-card-menu">
             <PageActionsMenu note={board} onTrash={editable ? () => moveToTrash(board, 0) : undefined} />

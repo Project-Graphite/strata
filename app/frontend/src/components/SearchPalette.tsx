@@ -4,10 +4,9 @@ import { CommandPalette, errorMessage, isAbortError, type CommandItem } from '@p
 import { isAdmin, useAuth } from '../auth';
 import { enabledApps } from '../apps';
 import { searchableAreas } from '../navigation';
-import { homePath, itemHref, itemKindName, spaceHref, useChosenSpace, useSpaces, type Tag } from '../spaces';
+import { homePath, itemHref, itemKindName, spaceHref, useAllSpaces, useCurrentSpace, type Tag } from '../spaces';
 import { useAction } from '../useAction';
-import { inActiveSpace } from '../active-space';
-import { pageHref } from '../notes';
+import { noteHref, type Note } from '../notes';
 
 interface SearchResults {
   items: { id: string; spaceId: string | null; spaceName: string | null; kind: string; quick: boolean; title: string; archived: boolean }[];
@@ -16,8 +15,9 @@ interface SearchResults {
 
 export function SearchPalette({ onClose }: { onClose: () => void }) {
   const { request, user } = useAuth();
-  const spaces = useSpaces();
-  const { spaceId, editable } = useChosenSpace();
+  const spaces = useAllSpaces();
+  const { space, editable } = useCurrentSpace();
+  const spaceId = editable ? space?.id : undefined;
   const navigate = useNavigate();
   const creating = useAction();
   const [query, setQuery] = useState('');
@@ -35,7 +35,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     }
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      request<SearchResults>(inActiveSpace(`/search?q=${encodeURIComponent(text)}`, spaceId), { signal: controller.signal }).then(
+      request<SearchResults>(`/search?q=${encodeURIComponent(text)}`, { signal: controller.signal }).then(
         setResults,
         (reason: unknown) => {
           if (!isAbortError(reason)) setResults({ items: [], tags: [], error: errorMessage(reason, 'Search failed') });
@@ -46,20 +46,21 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [request, text, spaceId]);
+  }, [request, text]);
 
   const matches = (label: string) => label.toLowerCase().includes(text.toLowerCase());
   const spaceName = (spaceId: string) => spaces.data?.find((space) => space.id === spaceId)?.name;
-  const actions: CommandItem[] = editable
+  const actions: CommandItem[] = user?.features.includes('pages')
     ? [
         {
           group: 'Create',
+          hint: space && editable ? space.name : 'Yours',
           id: 'new-page',
           label: 'New page',
           onSelect: () =>
             void creating.run(async () => {
-              const created = await request<{ id: string }>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({}) });
-              navigate(pageHref(created.id));
+              const created = await request<Note>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({}) });
+              navigate(noteHref(created));
               return '';
             }, 'Could not create the page'),
         },
@@ -84,7 +85,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     ...(spaces.data ?? [])
       .filter((space) => matches(space.name))
       .map((space) => ({ group: 'Spaces', href: spaceHref(space), id: `space-${space.id}`, label: space.name })),
-    ...searchableAreas(enabledApps(user?.features), isAdmin(user))
+    ...searchableAreas(enabledApps(user), isAdmin(user))
       .filter((area) => matches(area.label) || (area.hint && matches(area.hint)))
       .map((area) => ({ group: 'Go to', hint: area.hint, href: area.href, id: `page-${area.href}`, label: area.label })),
   ];

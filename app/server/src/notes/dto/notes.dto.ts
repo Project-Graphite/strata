@@ -227,6 +227,6 @@ export class PageChildrenQueryDto {
   cursor?: string;
 
   @IsOptionalNotNull()
-  @IsIn(['note'])
-  kind?: 'note';
+  @IsIn(['note', 'board'])
+  kind?: 'note' | 'board';
 }

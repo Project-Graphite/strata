@@ -1,10 +1,11 @@
-import { Component, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';
 import { ActionsMenu } from '../components/ActionsMenu';
+import { CrashBoundary } from '../components/CrashBoundary';
 import { Button, ButtonLink, TextButton } from '../components/Button';
 import { DialogActions } from '../components/DialogActions';
 import { FileButton } from '../components/FileButton';
@@ -20,7 +21,7 @@ import { DashboardGrid } from './DashboardGrid';
 import { WidgetGallery } from './WidgetGallery';
 import { gridColumns, minColumns, placed, sizeWidths } from './grid';
 import { Greeting, NowStrip } from './NowStrip';
-import { useWide, WidgetEmpty, WidgetHeading } from './widget-parts';
+import { useWide, WidgetHeading } from './widget-parts';
 import { widgetKinds, type CardPadding, type PlacedWidget, type Widget } from './widgets';
 import { LoadError } from '../components/LoadError';
 import { clockTime, profileDay } from '../time';
@@ -65,22 +66,6 @@ const cardTitle = (widget: Widget) => widget.title ?? widgetKinds[widget.type].t
 function BackgroundPreview({ background }: { background: Background }) {
   const { image } = useBackdrop(background);
   return <span aria-label="Chosen image" className="h-10 w-16 rounded-field border border-line bg-cover bg-center" role="img" style={{ backgroundImage: image || undefined }} />;
-}
-
-class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  render() {
-    return this.state.failed ? (
-      <WidgetEmpty icon="alert" title="This widget stopped working, reload the page" />
-    ) : (
-      this.props.children
-    );
-  }
 }
 
 function WidgetSettings({ onChange, onClose, widget }: { onChange: (fields: Partial<PlacedWidget>) => void; onClose: () => void; widget: PlacedWidget }) {
@@ -197,9 +182,9 @@ function WallDisplay({ dashboard }: { dashboard: Dashboard }) {
             return (
               <>
                 {!widget.hideTitle && <WidgetHeading icon={kind.icon} title={cardTitle(widget)} />}
-                <WidgetBoundary>
+                <CrashBoundary compact label={cardTitle(widget)}>
                   <kind.View settings={widget.settings} />
-                </WidgetBoundary>
+                </CrashBoundary>
               </>
             );
           }}
@@ -394,7 +379,7 @@ export function DashboardHome() {
                     {menu || open}
                   </WidgetHeading>
                 )}
-                <WidgetBoundary>
+                <CrashBoundary compact label={cardTitle(widget)}>
                   <kind.View
                     configure={() => {
                       if (!editing) startEditing();
@@ -402,7 +387,7 @@ export function DashboardHome() {
                     }}
                     settings={widget.settings}
                   />
-                </WidgetBoundary>
+                </CrashBoundary>
               </>
             );
           }}

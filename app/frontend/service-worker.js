@@ -1,8 +1,13 @@
 const cacheName = 'strata-__VERSION__';
-const offlinePage = '/offline.html';
-const maintenancePage = '/maintenance.html';
+const outagePages = __OUTAGE_PAGES__;
 const shareCache = 'strata-share';
-const precache = [...__ASSETS__, offlinePage, maintenancePage, '/offline.css', '/favicon.svg'];
+const precache = [...__ASSETS__, ...Object.values(outagePages), '/outage.css', '/outage.js', '/favicon.svg'];
+
+function outagePageFor(response) {
+  if (response.status >= 502 && response.status <= 504) return outagePages.updating;
+  if (response.status >= 500) return outagePages.failing;
+  return null;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(precache)));
@@ -57,8 +62,11 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).then(
-        async (response) => (response.status >= 502 && response.status <= 504 ? ((await caches.match(maintenancePage)) ?? response) : response),
-        () => caches.match(offlinePage),
+        async (response) => {
+          const page = outagePageFor(response);
+          return page ? ((await caches.match(page)) ?? response) : response;
+        },
+        async () => (await caches.match(outagePages.offline)) ?? Response.error(),
       ),
     );
   } else if (url.pathname.startsWith('/assets/')) {

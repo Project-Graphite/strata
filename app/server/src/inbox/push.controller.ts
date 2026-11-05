@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PushEndpointDto, SavePushSubscriptionDto } from './dto/push.dto';
 import { PushService } from './push.service';
+import { UuidPipe } from '../validation/uuid.pipe';
 
 @Controller()
 export class PushController {
@@ -22,6 +23,17 @@ export class PushController {
   @HttpCode(200)
   find(@CurrentUser() user: AuthenticatedUser, @Body() input: PushEndpointDto) {
     return this.push.find(user.id, input.endpoint);
+  }
+
+  @Get('me/push-subscriptions')
+  devices(@CurrentUser() user: AuthenticatedUser) {
+    return this.push.devices(user.id);
+  }
+
+  @Delete('me/push-subscriptions/:id')
+  @HttpCode(204)
+  async removeDevice(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+    await this.push.removeDevice(user.id, id);
   }
 
   @Delete('me/push-subscriptions')

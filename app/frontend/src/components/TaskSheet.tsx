@@ -1,33 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { DatePicker, LinesSkeleton, Select, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
+import { ConfirmDialog, DatePicker, LinesSkeleton, Select, TagChip, TextField, useSnackbar } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { priorityNames } from '../quick-add';
 import { homePath, spaceHref, useAllSpaces, type Member, type Tag } from '../spaces';
-import { builtInTaskTypes, defaultEpicName, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type Task, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
+import { builtInTaskTypes, defaultEpicName, repeatOptions, taskStatuses, taskTypeLabel, useWeekStart, type TaskDetail, type TaskFilterChoices, type TaskList } from '../tasks';
+import { hasInput, newTaskDraft, type TaskDraft } from '../task-draft';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { Button, TextButton } from './Button';
+import { ComposerMenu } from './NewTask';
 import type { OpenTaskProps } from './OpenTask';
 import { RichTextEditor } from './RichText';
 import { TaskFrame } from './TaskFrame';
 import { TaskShare } from './TaskShare';
+import { UserAvatar } from './UserAvatar';
 import { WatchButton } from './WatchButton';
 import { Attachments, Relations, Subtasks, TaskActivity, TaskDescription } from './TaskTicket';
 
-interface Fields {
-  title: string;
-  status: Task['status'];
-  type: string;
-  dueDate: string | null;
-  dueTime: string | null;
-  priority: number;
-  listId: string | null;
-  assigneeId: string | null;
-  repeatRule: string | null;
-  description: Record<string, unknown> | null;
-}
+type Fields = Omit<TaskDraft, 'labels'>;
 
 const priorityOptions = priorityNames.map((label, value) => ({ value: String(value), label }));
 
@@ -54,7 +46,7 @@ function applied(task: TaskDetail, { assigneeId, ...change }: Partial<Fields>, m
   };
 }
 
-export default function TaskSheet({ listId, onChanged, onClose, onCreated, spaceId: newIn, status, task: given, taskId }: OpenTaskProps) {
+export default function TaskSheet({ composer, draft: controlledDraft, onChanged, onChoose, onClose, onCreated, onDraft, spaceId: newIn, task: given, taskId }: OpenTaskProps) {
   const auth = useAuth();
   const show = useSnackbar();
   const action = useAction();
@@ -62,19 +54,11 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
   const weekStart = useWeekStart();
   const [id, setId] = useState(given?.id ?? taskId);
   const [title, setTitle] = useState<string>();
-  const [draft, setDraft] = useState<Fields & { labels: Tag[] }>(() => ({
-    title: '',
-    status: status ?? 'open',
-    type: 'task',
-    dueDate: null,
-    dueTime: null,
-    priority: 0,
-    listId: listId ?? null,
-    assigneeId: auth.user?.id ?? null,
-    repeatRule: null,
-    description: null,
-    labels: [],
-  }));
+  const [ownDraft, setOwnDraft] = useState(() => newTaskDraft({ userId: auth.user?.id }));
+  const draft = controlledDraft ?? ownDraft;
+  const setDraft = onDraft ?? setOwnDraft;
+  const [leaving, setLeaving] = useState(false);
+  const requestClose = () => (!id && hasInput(draft) ? setLeaving(true) : onClose());
   const detail = useResource<TaskDetail>(id ? `/tasks/${id}` : null, true, id ? { live: ['tasks', 'task-details'], itemIds: [id] } : undefined);
   const task = id ? detail.data : undefined;
   const heading = task ?? (given?.id === id ? given : undefined);
@@ -110,7 +94,16 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
         const saved = await auth.request<TaskDetail>(`/tasks/${before.id}`, { method: 'PATCH', body: JSON.stringify(change) });
         detail.mutate(() => saved);
         onChanged(saved);
-        return '';
+        if (!saved.completedAt || before.completedAt) return '';
+        return {
+          message: `Completed ${saved.title}.`,
+          undo: async () => {
+            const reopened = await auth.request<TaskDetail>(`/tasks/${before.id}/reopen`, { method: 'POST' });
+            detail.mutate(() => reopened);
+            onChanged(reopened);
+            return '';
+          },
+        };
       } catch (reason) {
         detail.mutate(() => before);
         throw reason;
@@ -188,15 +181,17 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
         )
       }
       eyebrow={task?.parentId && <TextButton icon="chevron-left" label="Parent task" onClick={() => setId(task.parentId!)} />}
+      view={composer}
+      viewMenu={composer && onChoose && <ComposerMenu onChoose={onChoose} value={composer} />}
       footer={
         !id && (
           <>
-            <Button label="Cancel" large onClick={onClose} />
+            <Button label="Cancel" large onClick={requestClose} />
             <Button disabled={!draft.title.trim() || !editable || action.busy} label={action.busy ? 'Adding…' : 'Add task'} large onClick={create} primary />
           </>
         )
       }
-      onClose={onClose}
+      onClose={requestClose}
       title={
         editable && (!id || task) ? (
           <input
@@ -307,7 +302,7 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
                 disabled={!editable}
                 label="Assigned to"
                 onChange={(chosen) => save({ assigneeId: chosen || null })}
-                options={[{ value: '', label: 'Nobody' }, ...(members.data ?? []).map((member) => ({ value: member.userId, label: member.displayName }))]}
+                options={[{ value: '', label: 'Nobody' }, ...(members.data ?? []).map((member) => ({ value: member.userId, label: member.displayName, leading: <UserAvatar name={member.displayName} size="sm" userId={member.userId} /> }))]}
                 value={values.assigneeId ?? ''}
               />
               <Select
@@ -348,6 +343,11 @@ export default function TaskSheet({ listId, onChanged, onClose, onCreated, space
             </aside>
           </div>
         </div>
+      )}
+      {leaving && (
+        <ConfirmDialog confirmLabel="Discard" errorFallback="Could not close the task" onClose={() => setLeaving(false)} onConfirm={async () => onClose()} title="Discard this task?" tone="danger">
+          What you typed is not saved.
+        </ConfirmDialog>
       )}
     </TaskFrame>
   );

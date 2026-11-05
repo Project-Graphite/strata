@@ -36,7 +36,7 @@ export function FileButton({
       )}
       <input
         accept={accept}
-        aria-label={inputLabel}
+        aria-label={inputLabel ?? label}
         className="sr-only"
         disabled={busy}
         multiple={multiple}

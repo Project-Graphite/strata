@@ -40,7 +40,9 @@ export class InboxService {
   ) {}
 
   async notify(client: Prisma.TransactionClient, entries: InboxEntry[]) {
-    await client.inboxNotification.createMany({ data: entries });
+    if (entries.length === 0) return;
+    const muted = new Map((await client.user.findMany({ where: { id: { in: [...new Set(entries.map((entry) => entry.userId))] } }, select: { id: true, inboxMuted: true } })).map((user) => [user.id, user.inboxMuted]));
+    await client.inboxNotification.createMany({ data: entries.map((entry) => ({ ...entry, shown: !muted.get(entry.userId)?.includes(entry.kind) })) });
     await this.push.queue(client, entries);
     await this.mail.queue(client, entries);
     for (const userId of new Set(entries.map((entry) => entry.userId))) this.changes.notify('inbox', { userId });
@@ -48,9 +50,9 @@ export class InboxService {
 
   async list(userId: string, page: number) {
     const [total, notifications] = await this.prisma.$transaction([
-      this.prisma.inboxNotification.count({ where: { userId } }),
+      this.prisma.inboxNotification.count({ where: { userId, shown: true } }),
       this.prisma.inboxNotification.findMany({
-        where: { userId },
+        where: { userId, shown: true },
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -66,7 +68,7 @@ export class InboxService {
   }
 
   async summary(userId: string) {
-    return { unread: await this.prisma.inboxNotification.count({ where: { userId, readAt: null } }) };
+    return { unread: await this.prisma.inboxNotification.count({ where: { userId, readAt: null, shown: true } }) };
   }
 
   async setRead(userId: string, id: string, read: boolean) {

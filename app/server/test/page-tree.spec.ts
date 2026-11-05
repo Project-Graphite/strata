@@ -6,7 +6,7 @@ function tree() {
   const pages = new Map(['a', 'b', 'c'].map((id, index) => [id, {
     id, title: id, spaceId: 'space', kind: ItemKind.NOTE, trashedAt: null, archivedAt: null,
     note: { parentId: null as string | null, position: index + 1, quick: false, template: false },
-    createdAt: new Date(), updatedAt: new Date(), databaseSchema: null,
+    createdAt: new Date(), updatedAt: new Date(), databaseSchema: null, weeklyReview: null, _count: { journalEntries: 0 },
   }]));
   const locks: string[] = [];
   const changed = vi.fn();
@@ -126,15 +126,15 @@ describe('paginated page children', () => {
     expect(first.nextCursor).toBe('page-99');
     expect(first.nextPage).toMatchObject({ id: 'page-100' });
     expect(assertHome).toHaveBeenCalledWith('member', 'space', 'read');
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ spaceId: 'space', NOT: draftWhere, note: { OR: [{ parentId: null }, { parent: { isNot: { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } } }], template: false, quick: false }, trashedAt: null, archivedAt: null }), take: 101, orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }] }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ spaceId: 'space', AND: [{ OR: [{ NOT: draftWhere }, { createdById: 'member' }] }, { journalEntries: { none: {} }, weeklyReview: { is: null } }], note: { OR: [{ parentId: null }, { parent: { isNot: { kind: ItemKind.NOTE, trashedAt: null, archivedAt: null, note: { is: { quick: false, template: false } } } } }], template: false, quick: false }, trashedAt: null, archivedAt: null }), take: 101, orderBy: [{ note: { position: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }] }));
     findMany.mockResolvedValueOnce([rows[100]!]);
     const second = await notes.children('member', 'space', { cursor: first.nextCursor! });
     expect(second).toMatchObject({ pages: [{ id: 'page-100' }], nextCursor: null });
     expect(second.nextPage).toBeNull();
-    expect(findMany).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: { id: 'page-99' }, skip: 1 }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ cursor: { id: 'page-99' }, skip: 1 }));
   });
 
-  it('says which listed pages have pages inside, not counting drafts', async () => {
+  it('says which listed pages have pages inside, not counting other people’s drafts', async () => {
     const base = tree().pages.get('a')!;
     const rows = [{ ...base, id: 'parent' }, { ...base, id: 'leaf' }];
     const groupBy = vi.fn(async () => [{ parentId: 'parent' }]);
@@ -147,7 +147,7 @@ describe('paginated page children', () => {
         parentId: { in: ['parent', 'leaf'] },
         template: false,
         quick: false,
-        item: { kind: { in: [ItemKind.NOTE, ItemKind.BOARD] }, trashedAt: null, archivedAt: null, NOT: draftWhere },
+        item: { kind: { in: [ItemKind.NOTE, ItemKind.BOARD] }, trashedAt: null, archivedAt: null, OR: [{ NOT: draftWhere }, { createdById: 'member' }] },
       },
     });
   });

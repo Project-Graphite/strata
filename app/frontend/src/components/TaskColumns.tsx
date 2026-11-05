@@ -71,6 +71,8 @@ export function useTaskColumns(home: string | null, listId: string | null | unde
   return {
     columns: columns.data ?? [],
     add: editable ? () => setEditing({}) : undefined,
+    rename: (column: TaskColumn) => setEditing({ column }),
+    remove: setRemoving,
     actions: editable
       ? (column: TaskColumn): NestedMenuItem[] => [
           { label: 'Rename column', onSelect: () => setEditing({ column }) },

@@ -3,6 +3,7 @@ import { CapturedMessage, MoneyAccount, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { tokenPrefix } from '../../access-tokens/scopes';
 import { AuditService } from '../../audit/audit.service';
+import { InboxService } from '../../inbox/inbox.service';
 import { AuthService } from '../../auth/auth.service';
 import { ProofDto } from '../../auth/dto/account.dto';
 import { ChangesService } from '../../changes/changes.service';
@@ -80,6 +81,7 @@ export class CaptureService implements OnModuleInit {
     private readonly changes: ChangesService,
     private readonly auth: AuthService,
     private readonly audit: AuditService,
+    private readonly inbox: InboxService,
   ) {}
 
   onModuleInit() {
@@ -183,7 +185,10 @@ export class CaptureService implements OnModuleInit {
     const spentOn = read.occurredOn ?? localDate(user.timeZone, receivedAt);
     const paid = ready && !duplicate ? await this.payCard(userId, message, suggestion, accounts, spentOn) : undefined;
     if (paid) return { status: 'recorded', expenseId: paid };
-    if (!ready || (!duplicate && (paid === null || (pair ? !pair.confirmed : !suggestion.category)))) return { status: 'review', expenseId: null };
+    if (!ready || (!duplicate && (paid === null || (pair ? !pair.confirmed : !suggestion.category)))) {
+      await this.inbox.notify(this.prisma, [{ userId, kind: 'capture_review', title: `Check ${suggestion.title ?? 'a captured payment'}`, body: 'Strata could not record it on its own. Review it in Spending.', link: '/spending' }]);
+      return { status: 'review', expenseId: null };
+    }
     const draft: CreateExpenseDto = {
       title: suggestion.title!,
       amountMinor: suggestion.amountMinor!,

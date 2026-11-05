@@ -10,7 +10,7 @@ import { dateText, dateValue, dayMs, localDate } from '../recurrence/dates';
 import { occurrences, zonedInstant } from '../recurrence/occurrences';
 import { formatRule, parseRule, RuleError } from '../recurrence/rule';
 import { presentTag, tagFields } from '../tags/tags.service';
-import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskFieldsDto, UpdateTaskDto } from './dto/tasks.dto';
+import { CreateListDto, CreateTaskDto, ListTasksDto, MoveTaskDto, ShareTaskDto, TaskColumnDto, TaskFieldsDto, type TaskView, UpdateTaskDto } from './dto/tasks.dto';
 import { uniqueViolation } from '../prisma/errors';
 import { spaceDefaults } from '../spaces/space-defaults';
 import { SpaceQueryDto } from '../validation/space-query.dto';
@@ -144,13 +144,14 @@ export class TasksService implements OnModuleInit {
 
   async createList(userId: string, spaceId: string | null, input: CreateListDto) {
     const home = await this.access.assertHome(userId, spaceId, 'edit');
+    const view = spaceDefaults(spaceId ? (await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } })).defaults : undefined).task.view;
     return this.prisma.$transaction(async (transaction) => {
       const list = await transaction.item.create({
-        data: { ...inHome(home), kind: ItemKind.LIST, title: input.title, createdById: userId, updatedById: userId },
+        data: { ...inHome(home), kind: ItemKind.LIST, title: input.title, createdById: userId, updatedById: userId, listView: { create: { view } } },
         select: { id: true, spaceId: true, title: true, createdAt: true },
       });
       await this.activity.record(transaction, { ...inHome(home), actorId: userId, itemId: list.id, verb: 'item.created', data: { title: input.title } });
-      return { ...list, openTasks: 0 };
+      return { ...list, view, openTasks: 0 };
     });
   }
 
@@ -216,10 +217,19 @@ export class TasksService implements OnModuleInit {
         spaceId: true,
         title: true,
         createdAt: true,
+        listView: { select: { view: true } },
         _count: { select: { listTasks: { where: { completedAt: null, item: { trashedAt: null } } } } },
       },
     });
-    return lists.map(({ _count, ...list }) => ({ ...list, openTasks: _count.listTasks }));
+    return lists.map(({ _count, listView, ...list }) => ({ ...list, view: listView?.view ?? null, openTasks: _count.listTasks }));
+  }
+
+  async setListView(userId: string, listId: string, view: TaskView) {
+    const list = await this.access.assertItem(userId, listId, 'edit');
+    if ((await this.prisma.item.count({ where: { id: listId, kind: ItemKind.LIST, trashedAt: null } })) === 0) throw new NotFoundException('Item not found');
+    await this.prisma.taskListView.upsert({ where: { itemId: listId }, create: { itemId: listId, view }, update: { view } });
+    this.changes.notify('tasks', audienceOf(homeOf(list)));
+    return { id: listId, view };
   }
 
   async create(userId: string, spaceId: string | null, input: CreateTaskDto) {
@@ -227,7 +237,9 @@ export class TasksService implements OnModuleInit {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timeZone: true } });
     const defaults = spaceDefaults(spaceId ? (await this.prisma.space.findUniqueOrThrow({ where: { id: spaceId }, select: { defaults: true } })).defaults : undefined).task;
     const assigneeId = input.assigneeId === undefined ? (defaults.assignee === 'creator' ? userId : null) : input.assigneeId;
-    const fields = await this.checkedFields(home, null, { timeZone: user.timeZone, type: defaults.type, priority: defaults.priority, ...input, assigneeId }, input.listId ?? null);
+    const defaultList = input.listId === undefined && defaults.listId ? await this.prisma.item.findFirst({ where: { id: defaults.listId, ...inHome(home), kind: ItemKind.LIST, trashedAt: null }, select: { id: true } }) : null;
+    const listId = input.listId === undefined ? (defaultList?.id ?? null) : input.listId;
+    const fields = await this.checkedFields(home, null, { timeZone: user.timeZone, type: defaults.type, priority: defaults.priority, status: defaults.status, ...input, assigneeId, listId }, listId ?? null);
     const id = await this.prisma.$transaction(async (transaction) => {
       const item = await transaction.item.create({
         data: {
@@ -411,7 +423,7 @@ export class TasksService implements OnModuleInit {
       dueDate: input.dueDate === undefined ? dateText(item.task.dueDate) : input.dueDate,
       repeatRule: input.repeatRule === undefined ? item.task.repeatRule : input.repeatRule,
     }, listId);
-    const columnLeft = input.columnId === undefined && (Boolean(input.status) || Boolean(item.task.column && item.task.column.listId !== listId));
+    const columnLeft = input.columnId === undefined && ((Boolean(input.status) && input.status !== 'done') || Boolean(item.task.column && item.task.column.listId !== listId));
     await this.prisma.$transaction(async (transaction) => {
       await transaction.item.update({
         where: { id: itemId },
@@ -451,7 +463,10 @@ export class TasksService implements OnModuleInit {
   async reopen(userId: string, itemId: string) {
     const item = await this.editableTask(userId, itemId);
     await this.prisma.$transaction(async (transaction) => {
-      await this.changeStatus(transaction, userId, itemId, TaskStatus.OPEN);
+      const { doneFromStatus, doneFromColumn, listId } = await transaction.task.findUniqueOrThrow({ where: { itemId }, select: { doneFromStatus: true, doneFromColumn: true, listId: true } });
+      const column = doneFromColumn && (await transaction.taskColumn.findFirst({ where: { id: doneFromColumn, listId }, select: { id: true } }));
+      await this.changeStatus(transaction, userId, itemId, doneFromStatus ?? TaskStatus.OPEN);
+      if (column) await transaction.task.update({ where: { itemId }, data: { columnId: column.id } });
       await this.afterChange(transaction, itemId, userId, item.task.assigneeId);
       await this.watchers.watch(transaction, itemId, [userId]);
       await this.watchers.notify(transaction, itemId, userId, { title: `${await this.watchers.actorName(transaction, userId)} reopened “${item.title}”`, link: taskLink(itemId) });
@@ -483,16 +498,18 @@ export class TasksService implements OnModuleInit {
   private async changeStatus(transaction: Prisma.TransactionClient, userId: string, itemId: string, status: TaskStatus) {
     const { spaceId, ownerId, title, task } = await transaction.item.findUniqueOrThrow({
       where: { id: itemId },
-      select: { spaceId: true, ownerId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true, repeatRule: true, status: true, completedAt: true } } },
+      select: { spaceId: true, ownerId: true, title: true, task: { select: { dueDate: true, dueTime: true, timeZone: true, repeatRule: true, status: true, columnId: true, completedAt: true } } },
     });
     const current = task!;
     if (status === current.status) return;
     const next = status === TaskStatus.DONE ? this.nextOccurrence(current) : null;
+    const finished = status === TaskStatus.DONE && !next;
     await transaction.task.update({
       where: { itemId },
       data: {
         ...(next ? { dueDate: dateValue(next.date), repeatRule: next.rule, ...statusFields(TaskStatus.OPEN, null) } : statusFields(status, current.completedAt)),
         ...(status === TaskStatus.IN_PROGRESS ? {} : { columnId: null }),
+        ...(finished ? { doneFromStatus: current.status, doneFromColumn: current.columnId } : { doneFromStatus: null, doneFromColumn: null }),
       },
     });
     await this.activity.record(transaction, {

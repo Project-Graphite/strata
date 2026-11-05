@@ -1,10 +1,12 @@
 import { Transform } from 'class-transformer';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsString, IsTimeZone, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { IsOptionalNotNull } from '../../validation/is-optional-not-null.decorator';
-import { emailableKinds } from '../../inbox/inbox-kinds';
+import { emailableKinds, inboxKinds } from '../../inbox/inbox-kinds';
 import { featureKeys } from '../features';
 
 export const timeFormats = ['auto', '12h', '24h'] as const;
+
+export const taskComposers = ['condensed', 'modal', 'panel'] as const;
 
 export class UpdateProfileDto {
   @IsOptionalNotNull()
@@ -69,6 +71,26 @@ export class UpdateProfileDto {
   @IsOptionalNotNull()
   @IsArray()
   @ArrayUnique()
+  @IsIn(featureKeys, { each: true, message: 'Choose apps from the list.' })
+  appOrder?: string[];
+
+  @IsOptionalNotNull()
+  @IsIn(taskComposers, { message: 'Write new tasks in the quick dialog, a full dialog or the side panel.' })
+  taskComposer?: (typeof taskComposers)[number];
+
+  @IsOptionalNotNull()
+  @IsArray()
+  @ArrayUnique()
   @IsIn(emailableKinds, { each: true, message: 'Choose notifications from the list.' })
   emailKinds?: string[];
+
+  @IsOptionalNotNull()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(inboxKinds, { each: true, message: 'Choose notifications from the list.' })
+  inboxMuted?: string[];
+
+  @IsOptionalNotNull()
+  @IsBoolean()
+  journalReminder?: boolean;
 }

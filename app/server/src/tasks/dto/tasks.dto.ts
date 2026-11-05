@@ -25,6 +25,14 @@ import { IsRichText } from '../../validation/rich-text.decorator';
 import { Trimmed } from '../../validation/trimmed.decorator';
 import { taskStatuses } from '../task-status';
 
+export const taskViews = ['list', 'board'] as const;
+export type TaskView = (typeof taskViews)[number];
+
+export class ListViewDto {
+  @IsIn(taskViews, { message: 'Show an epic as a list or a board.' })
+  view!: TaskView;
+}
+
 const nullable = (value: unknown) => value === null;
 
 export class CreateListDto {
