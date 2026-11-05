@@ -7,14 +7,15 @@ Strata asks Google for two kinds of scopes:
 | `openid`, `email`, `profile` | Sign in with Google | Non-sensitive |
 | `https://www.googleapis.com/auth/drive.file` | Drive import (Picker) | Non-sensitive |
 | `https://www.googleapis.com/auth/calendar.events` | Two-way Calendar sync | **Sensitive** |
-| `https://www.googleapis.com/auth/calendar.calendarlist.readonly` | Choosing calendars to sync | **Sensitive** |
+| `https://www.googleapis.com/auth/calendar.calendarlist.readonly` | Choosing calendars to sync | Accepted without review |
 
-Until the two calendar scopes are verified, they are left off the consent screen's **Data access** list. Calendar
-sync still works, but:
+Every scope that reads calendar events is sensitive, read-only ones included, so Strata asks for `calendar.events`
+and syncs both ways. Until it is verified, `calendar.events` is left off the consent screen's **Data access** list.
+Calendar sync still works, but:
 
 - whoever connects Google Calendar sees "Google hasn't verified this app" and continues through
   **Advanced → Go to Strata**;
-- at most 100 Google accounts can grant the calendar scopes.
+- at most 100 Google accounts can grant `calendar.events`.
 
 Sign-in and Drive import are unaffected.
 
@@ -37,7 +38,7 @@ Sign-in and Drive import are unaffected.
    - this sentence, word for word: "Strata's use and transfer of information received from Google APIs will adhere
      to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
      including the Limited Use requirements."
-5. **Data access.** Add the two calendar scopes back to the **Data access** list, then open
+5. **Data access.** Add `calendar.events` to the **Data access** list, then open
    **Verification Center → Prepare for verification**.
 
 ## Scope justification
