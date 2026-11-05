@@ -12,6 +12,7 @@ describe('AuthController', () => {
     const controller = new AuthController(
       auth as never,
       new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example', APP_URL: 'https://strata.example' }),
+      {} as never,
     );
     const request = (origin?: string) =>
       ({ headers: origin ? { origin } : {}, cookies: { strata_refresh: 'current' } }) as never;
@@ -45,6 +46,7 @@ describe('AuthController', () => {
     const controller = new AuthController(
       auth as never,
       new ConfigService({ AUTH_TRUSTED_ORIGINS: 'https://strata.example', APP_URL: 'https://strata.example' }),
+      {} as never,
     );
     const request = (origin?: string) => ({ headers: origin ? { origin } : {}, cookies: {} }) as never;
     const response = { cookie: vi.fn() };
@@ -69,7 +71,7 @@ describe('AuthController', () => {
     const input = { email: 'sam@example.com', password: 'correct horse battery' };
     const signIn = async (appUrl: string) => {
       const response = { cookie: vi.fn() };
-      await new AuthController(auth as never, new ConfigService({ AUTH_TRUSTED_ORIGINS: appUrl, APP_URL: appUrl })).login(
+      await new AuthController(auth as never, new ConfigService({ AUTH_TRUSTED_ORIGINS: appUrl, APP_URL: appUrl }), {} as never).login(
         input,
         { headers: {}, cookies: {}, ip: '203.0.113.9' } as never,
         response as never,

@@ -8,6 +8,7 @@ const event = {
   endTime: '22:30',
   timeZone: 'Europe/Lisbon',
   repeatRule: null,
+  excludedDates: [],
   location: 'Rua Augusta, 12',
   description: 'Bring wine; and snacks\nSee you',
 };
@@ -49,6 +50,20 @@ describe('calendarText', () => {
     );
     expect(lines.every((line) => Buffer.byteLength(line) <= 75)).toBe(true);
     expect(text.replace(/\r\n /g, '')).toContain(`SUMMARY:${longTitle}\r\n`);
+  });
+
+  it('leaves skipped dates out of repeating events', () => {
+    const weekly = { ...event, repeatRule: 'FREQ=WEEKLY', excludedDates: [new Date('2026-11-13T00:00:00Z')] };
+    const text = calendarText(
+      'Agenda',
+      [
+        { id: 'weekly', title: 'Dinner', updatedAt: new Date('2026-10-07T10:00:00Z'), event: weekly },
+        { id: 'daily', title: 'Gym', updatedAt: new Date('2026-10-07T10:00:00Z'), event: { ...weekly, startTime: null, endTime: null, repeatRule: 'FREQ=DAILY' } },
+      ],
+      (path) => `https://strata.example${path}`,
+    );
+
+    expect(text.split('\r\n')).toEqual(expect.arrayContaining(['EXDATE;TZID=Europe/Lisbon:20261113T200000', 'EXDATE;VALUE=DATE:20261113']));
   });
 
   it('escapes every kind of line break so text cannot add properties', () => {

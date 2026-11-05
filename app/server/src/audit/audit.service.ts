@@ -23,6 +23,8 @@ export const authActions = [
   'access_token_revoked',
   'capture_device_connected',
   'capture_device_revoked',
+  'google_linked',
+  'google_unlinked',
   'account_deleted',
 ] as const;
 

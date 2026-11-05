@@ -197,16 +197,53 @@ export class AuthService implements OnModuleInit {
     const account = user?.email ?? identifier;
     await this.attempts.assertAllowed(account, device.address);
     if (!user) {
-      this.unknownAccountHash ??= this.passwords.hash(randomBytes(16).toString('hex'));
-      await this.passwords.verify(input.password, await this.unknownAccountHash);
+      await this.passwords.verify(input.password, await this.unknownHash());
       await this.attempts.failed(account, device.address);
       throw new UnauthorizedException('Email or password is incorrect');
     }
-    if (!(await this.passwords.verify(input.password, user.passwordHash))) {
+    if (!(await this.passwords.verify(input.password, user.passwordHash ?? (await this.unknownHash()))) || !user.passwordHash) {
       await this.audit.record(user.id, 'sign_in_failed', { reason: 'password', device: device.label });
       await this.attempts.failed(account, device.address);
       throw new UnauthorizedException('Email or password is incorrect');
     }
+    const result = await this.finishSignIn(user, device);
+    if ('session' in result) await this.attempts.clear(account);
+    return result;
+  }
+
+  async signInWithGoogle(userId: string, device: Device) {
+    return this.finishSignIn(await this.prisma.user.findUniqueOrThrow({ where: { id: userId } }), device);
+  }
+
+  async registerWithGoogle(input: { email: string; displayName: string; subject: string; invite?: string }) {
+    if (!input.invite && (await this.site.get()).inviteOnly) {
+      throw new ForbiddenException('Strata is invite-only right now. Ask someone who uses it for an invite.');
+    }
+    const handle = await this.freeHandle(input.email);
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const user = await transaction.user.create({
+          data: {
+            email: input.email,
+            handle,
+            displayName: input.displayName.slice(0, 80),
+            verifiedAt: new Date(),
+            googleAccount: { create: { subject: input.subject, email: input.email } },
+          },
+          select: { id: true, email: true },
+        });
+        if (input.invite) {
+          await this.invitations.redeemOnSignUp(transaction, input.invite, user);
+        }
+        return user;
+      });
+    } catch (error) {
+      if (uniqueViolation(error)) throw new ConflictException('This account was just created. Sign in with Google again.');
+      throw error;
+    }
+  }
+
+  private async finishSignIn(user: SessionUser & { verifiedAt: Date | null; isActive: boolean }, device: Device) {
     if (!user.verifiedAt) {
       throw new UnauthorizedException('Verify your email before signing in');
     }
@@ -224,8 +261,22 @@ export class AuthService implements OnModuleInit {
       });
       return { challenge };
     }
-    await this.attempts.clear(account);
     return { session: await this.issueSession(user, device, { alertNewDevice: true }) };
+  }
+
+  private async freeHandle(email: string) {
+    const local = email.split('@')[0]!.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^[-_]+|[-_]+$/g, '').slice(0, 24);
+    const base = local.length >= 3 ? local : `${local}user`.replace(/^[-_]+/, '');
+    const candidates = [base, ...Array.from({ length: 5 }, () => `${base}${randomBytes(2).readUInt16BE() % 10_000}`)];
+    const taken = new Set((await this.prisma.user.findMany({ where: { handle: { in: candidates } }, select: { handle: true } })).map((user) => user.handle));
+    const free = candidates.find((candidate) => !taken.has(candidate));
+    if (!free) throw new ConflictException('Could not choose a handle for you. Try again.');
+    return free;
+  }
+
+  private unknownHash() {
+    this.unknownAccountHash ??= this.passwords.hash(randomBytes(16).toString('hex'));
+    return this.unknownAccountHash;
   }
 
   async completeTwoStep(challenge: string, code: string, device: Device) {
@@ -420,6 +471,9 @@ export class AuthService implements OnModuleInit {
 
   async reauthenticate(userId: string, proof: Proof) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.passwordHash) {
+      throw new ForbiddenException('You sign in with Google, so set a password first in Settings → Security.');
+    }
     await this.attempts.assertAllowed(user.email);
     if (!(await this.passwords.verify(proof.password, user.passwordHash))) {
       await this.reauthenticationFailed(user, 'password');

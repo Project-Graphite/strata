@@ -18,6 +18,8 @@ import { FilesModule } from './files/files.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { ChangesModule } from './changes/changes.module';
 import { GoalsModule } from './goals/goals.module';
+import { GoogleClientModule } from './google/google-client.module';
+import { GoogleModule } from './google/google.module';
 import { HabitsModule } from './habits/habits.module';
 import { PeopleModule } from './people/people.module';
 import { RecipesModule } from './recipes/recipes.module';
@@ -54,6 +56,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
     PrismaModule,
     CryptoModule,
+    GoogleClientModule,
     AccessModule,
     TokenAuthModule,
     ActivityModule,
@@ -84,6 +87,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     ExchangeRatesModule,
     TidyModule,
     CalendarModule,
+    GoogleModule,
     HabitsModule,
     GoalsModule,
     PeopleModule,

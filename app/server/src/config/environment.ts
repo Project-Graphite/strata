@@ -83,6 +83,23 @@ class Environment {
   @IsString()
   @MinLength(32)
   METRICS_TOKEN?: string;
+
+  @IsOptional()
+  @Matches(/^[\w-]+\.apps\.googleusercontent\.com$/, { message: 'GOOGLE_CLIENT_ID must be an OAuth client ID ending in .apps.googleusercontent.com' })
+  GOOGLE_CLIENT_ID?: string;
+
+  @ValidateIf((environment: Environment) => environment.GOOGLE_CLIENT_ID !== undefined)
+  @IsString()
+  @MinLength(16)
+  GOOGLE_CLIENT_SECRET?: string;
+
+  @IsOptional()
+  @Matches(/^[\w-]{20,}$/, { message: 'GOOGLE_API_KEY must be a Google API key' })
+  GOOGLE_API_KEY?: string;
+
+  @IsOptional()
+  @Matches(/^\d+$/, { message: 'GOOGLE_APP_ID must be the Google Cloud project number' })
+  GOOGLE_APP_ID?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>) {

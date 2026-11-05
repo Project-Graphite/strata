@@ -1,8 +1,9 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, Placeholder, TextField } from '@project-graphite/ui';
+import { Icon, IconButton, Placeholder, TextField } from '@project-graphite/ui';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
+import { connectGoogle, googleAllowed, pickDriveFiles, type GoogleStatus } from '../google';
 import { filesTabs, saveBlob, uploadFiles, type DriveEntry, type DriveListing } from '../files';
 import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
@@ -111,6 +112,7 @@ export function DrivePage() {
   const [dialog, setDialog] = useState<{ kind: 'folder' } | { kind: 'rename' | 'share'; entry: DriveEntry } | { kind: 'move'; entries: DriveEntry[] }>();
   const [over, setOver] = useState<string | null>();
   const picker = useRef<HTMLInputElement>(null);
+  const google = useResource<GoogleStatus>(googleAllowed ? '/me/google' : null, true);
   const spaceFolders = new Set(listing.data?.spaces?.map((space) => space.id));
   const entries: (DriveEntry & { detail?: string })[] = [
     ...(listing.data?.entries ?? []),
@@ -162,6 +164,24 @@ export function DrivePage() {
       return message;
     }, 'Could not upload the files');
 
+  const importFromDrive = () =>
+    void action.run(async () => {
+      if (!google.data?.account?.drive) {
+        await connectGoogle(auth.request, 'drive', `/files${window.location.search}`);
+        return '';
+      }
+      const fileIds = await pickDriveFiles(auth.request);
+      if (fileIds.length === 0) return '';
+      const { imported, failed } = await auth.request<{ imported: unknown[]; failed: { name: string; reason: string }[] }>('/me/google/drive', {
+        method: 'POST',
+        body: JSON.stringify({ fileIds, ...(spaceId ? { spaceId } : folderId ? { folderId } : {}) }),
+      });
+      listing.reload();
+      const skipped = failed.map((file) => `${file.name}: ${file.reason}`).join('; ');
+      if (imported.length === 0) throw new Error(skipped || 'Nothing was imported');
+      return `Imported ${imported.length === 1 ? 'one file' : `${imported.length} files`} from Google Drive.${skipped ? ` Skipped ${skipped}.` : ''}`;
+    }, 'Could not import from Google Drive');
+
   const dragged = (event: DragEvent) => {
     const raw = event.dataTransfer.getData(dragType);
     return raw ? entries.filter((entry) => (JSON.parse(raw) as string[]).includes(entry.id)) : [];
@@ -192,6 +212,7 @@ export function DrivePage() {
         writable && (
           <>
             {!spaceId && <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />}
+            {google.data?.picker && <IconButton disabled={action.busy} icon="download" label="Import from Google Drive" onClick={importFromDrive} />}
             <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
           </>
         )

@@ -11,6 +11,7 @@ export interface FeedEvent {
     endTime: string | null;
     timeZone: string;
     repeatRule: string | null;
+    excludedDates: Date[];
     location: string | null;
     description: string;
   };
@@ -19,6 +20,12 @@ export interface FeedEvent {
 const escapeText = (text: string) => text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
 const compactDate = (date: Date) => dateText(date).replaceAll('-', '');
 const clock = (time: string) => `${time.replace(':', '')}00`;
+
+export function exdateLines(event: { startTime: string | null; timeZone: string; excludedDates: string[] }) {
+  return event.excludedDates.map((day) =>
+    event.startTime ? `EXDATE;TZID=${event.timeZone}:${day.replaceAll('-', '')}T${clock(event.startTime)}` : `EXDATE;VALUE=DATE:${day.replaceAll('-', '')}`,
+  );
+}
 
 function fold(line: string) {
   const parts: string[] = [];
@@ -46,7 +53,7 @@ export function calendarText(name: string, items: FeedEvent[], link: (path: stri
     } else {
       lines.push(`DTSTART;VALUE=DATE:${compactDate(event.startsOn)}`, `DTEND;VALUE=DATE:${compactDate(new Date(event.endsOn.getTime() + dayMs))}`);
     }
-    if (event.repeatRule) lines.push(`RRULE:${event.repeatRule}`);
+    if (event.repeatRule) lines.push(`RRULE:${event.repeatRule}`, ...exdateLines({ ...event, excludedDates: event.excludedDates.map((day) => dateText(day)) }));
     if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
     if (event.description) lines.push(`DESCRIPTION:${escapeText(event.description)}`);
     lines.push(`URL:${link(`/events/${id}`)}`, 'END:VEVENT');

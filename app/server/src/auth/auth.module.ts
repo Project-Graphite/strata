@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { GoogleAuthService } from '../google/google-auth.service';
 import { InvitationsModule } from '../invitations/invitations.module';
 import { RateLimitGuard } from '../redis/rate-limit.guard';
 import { AuthController } from './auth.controller';
@@ -20,7 +21,7 @@ import { TwoStepService } from './two-step.service';
     InvitationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, { provide: APP_GUARD, useExisting: JwtAuthGuard }, { provide: APP_GUARD, useExisting: RateLimitGuard }, PasswordService, SessionsService, SignInAttemptsService, TwoStepService],
-  exports: [PassportModule, JwtModule, JwtStrategy, JwtAuthGuard, AuthService, SessionsService, TwoStepService],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, { provide: APP_GUARD, useExisting: JwtAuthGuard }, { provide: APP_GUARD, useExisting: RateLimitGuard }, PasswordService, SessionsService, SignInAttemptsService, TwoStepService, GoogleAuthService],
+  exports: [PassportModule, JwtModule, JwtStrategy, JwtAuthGuard, AuthService, SessionsService, TwoStepService, GoogleAuthService],
 })
 export class AuthModule {}

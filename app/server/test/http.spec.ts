@@ -55,9 +55,9 @@ describe('HTTP layer', () => {
     const policy = response.headers.get('content-security-policy') ?? '';
 
     expect(policy).toContain("default-src 'self'");
-    expect(policy).toContain("script-src 'self'");
+    expect(policy).toContain("script-src 'self' https://apis.google.com;");
     expect(policy).toContain("frame-ancestors 'none'");
-    expect(policy).toContain('frame-src https://www.youtube-nocookie.com;');
+    expect(policy).toContain('frame-src https://www.youtube-nocookie.com https://docs.google.com;');
     expect(policy).not.toContain('unsafe-inline');
     expect(response.headers.get('x-frame-options')).toBe('DENY');
     expect(response.headers.get('cross-origin-opener-policy')).toBe('same-origin');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Banner, ConfirmDialog, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, IconButton, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
 import { useAuth } from '../auth';
+import { connectGoogle, googleAllowed, type GoogleStatus } from '../google';
 import { ActionsMenu } from '../components/ActionsMenu';
 import { AddButton, Button } from '../components/Button';
 import { Copyable } from '../components/Copyable';
@@ -141,6 +142,132 @@ function FollowedCalendars({ following, onClose }: { following: boolean; onClose
   );
 }
 
+interface GoogleCalendarRow {
+  id: string | null;
+  calendarId: string;
+  name: string;
+  writable: boolean;
+  isDefault: boolean;
+  lastSyncedAt: string | null;
+  lastError: string | null;
+  synced: boolean;
+  events: number;
+}
+
+interface GoogleCalendars {
+  connected: boolean;
+  error: string | null;
+  calendars: GoogleCalendarRow[];
+}
+
+function googleMeta(calendar: GoogleCalendarRow) {
+  if (!calendar.synced) return calendar.writable ? 'Not synced' : 'Not synced · view only';
+  return [
+    `${calendar.events} event${calendar.events === 1 ? '' : 's'}`,
+    calendar.lastSyncedAt ? `synced ${timeAgo(calendar.lastSyncedAt)}` : 'waiting for the first sync',
+    calendar.isDefault ? 'new Strata events go here' : !calendar.writable && 'view only',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function GoogleCalendarsSection() {
+  const auth = useAuth();
+  const status = useResource<GoogleStatus>(googleAllowed ? '/me/google' : null, true);
+  const calendars = useResource<GoogleCalendars>(status.data?.account?.calendar ? '/me/google/calendars' : null, true);
+  const action = useAction();
+  const [stopping, setStopping] = useState<GoogleCalendarRow>();
+
+  if (!status.data?.available) return null;
+  const save = (path: string, method: string, body: unknown, done: string) =>
+    void action.run(async () => {
+      const next = await auth.request<GoogleCalendars>(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
+      calendars.mutate(() => next);
+      return done;
+    }, 'Could not change Google Calendar sync');
+  const connect = () =>
+    void action.run(async () => {
+      await connectGoogle(auth.request, 'calendar', '/agenda/calendars');
+      return '';
+    }, 'Could not open Google');
+
+  return (
+    <Section
+      action={
+        status.data.account?.calendar ? (
+          <IconButton disabled={action.busy} icon="refresh" label="Sync Google Calendar now" onClick={() => save('/me/google/calendars/sync', 'POST', null, 'Synced with Google Calendar.')} />
+        ) : (
+          <IconButton disabled={action.busy} icon="link" label="Connect Google Calendar" onClick={connect} />
+        )
+      }
+      description="Events from the Google calendars you sync appear in your Agenda, and events you add or change in Strata go to your default Google calendar. Changes on either side arrive within a few minutes."
+      title="Google Calendar"
+    >
+      {!status.data.account?.calendar ? (
+        <Empty title="Google Calendar isn’t connected">Connect it to choose which of your Google calendars to sync.</Empty>
+      ) : calendars.error ? (
+        <LoadError compact error={calendars.error} onRetry={calendars.reload} />
+      ) : !calendars.data ? (
+        <Placeholder label="Loading your Google calendars">
+          <RowsSkeleton rows={2} trail={<IconButtonSkeleton />} />
+        </Placeholder>
+      ) : (
+        <>
+          {calendars.data.error && <Banner tone="danger">{calendars.data.error}</Banner>}
+          <ul className="panel-rows">
+            {calendars.data.calendars.map((calendar) => (
+              <ListRow
+                key={calendar.calendarId}
+                meta={googleMeta(calendar)}
+                title={calendar.name}
+                trail={
+                  calendar.id ? (
+                    <ActionsMenu
+                      items={[
+                        ...(calendar.writable && !calendar.isDefault
+                          ? [{ label: 'Send new Strata events here', onSelect: () => save(`/me/google/calendars/${calendar.id}/default`, 'POST', null, `New Strata events now go to ${calendar.name}.`) }]
+                          : []),
+                        { label: 'Stop syncing', separated: true, onSelect: () => setStopping(calendar) },
+                      ]}
+                      name={calendar.name}
+                    />
+                  ) : (
+                    <IconButton
+                      disabled={action.busy}
+                      icon="plus"
+                      label={`Sync ${calendar.name}`}
+                      onClick={() => save('/me/google/calendars', 'POST', { calendarId: calendar.calendarId }, `Syncing ${calendar.name}. Its events appear in a few moments.`)}
+                    />
+                  )
+                }
+              >
+                {calendar.lastError && <Banner tone="danger">The last sync failed: {calendar.lastError}</Banner>}
+              </ListRow>
+            ))}
+          </ul>
+        </>
+      )}
+      {stopping?.id && (
+        <ConfirmDialog
+          busyLabel="Stopping…"
+          confirmLabel="Stop syncing"
+          errorFallback="Could not stop syncing the calendar"
+          onClose={() => setStopping(undefined)}
+          onConfirm={async () => {
+            await auth.request(`/me/google/calendars/${stopping.id}`, { method: 'DELETE' });
+            calendars.reload();
+            action.report(`Stopped syncing ${stopping.name}.`);
+          }}
+          title={`Stop syncing ${stopping.name}?`}
+          tone="danger"
+        >
+          Events Strata brought in from it move to the trash. Events you made in Strata stay, and stay in Google.
+        </ConfirmDialog>
+      )}
+    </Section>
+  );
+}
+
 export function CalendarsPage() {
   const auth = useAuth();
   const [following, setFollowing] = useState(false);
@@ -200,6 +327,7 @@ export function CalendarsPage() {
           />
         )}
       </Section>
+      <GoogleCalendarsSection />
       <Section
         description="Follow a public calendar, such as holidays, fixtures or a shared Google calendar’s secret address. Its events appear in your Agenda, read-only. They are checked again whenever you open the Agenda, and every 15 minutes otherwise."
         title="Calendars from elsewhere"

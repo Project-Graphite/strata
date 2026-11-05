@@ -3,6 +3,7 @@ import { GuestResponse, ItemKind, Prisma } from '@prisma/client';
 import { AccessService } from '../access/access.service';
 import { ChangesService } from '../changes/changes.service';
 import { linkTokenHash, newLinkToken } from '../crypto/link-token';
+import { CalendarSyncNudge } from '../google/calendar-sync-nudge';
 import { InboxService } from '../inbox/inbox.service';
 import { JobsService } from '../jobs/jobs.service';
 import { MailService } from '../mail/mail.service';
@@ -20,7 +21,7 @@ const reminderKind = 'event.reminder';
 const maxAgendaDays = 100;
 
 type EventRow = NonNullable<Prisma.ItemGetPayload<{ select: { event: true } }>['event']>;
-type EventTimes = Pick<EventRow, 'startsOn' | 'startTime' | 'endsOn' | 'endTime' | 'timeZone' | 'repeatRule'>;
+type EventTimes = Pick<EventRow, 'startsOn' | 'startTime' | 'endsOn' | 'endTime' | 'timeZone' | 'repeatRule'> & { excludedDates?: Date[] };
 
 interface Slot {
   start: Date;
@@ -55,12 +56,14 @@ function slots(event: EventTimes, from: Date, to: Date, limit = 200): Slot[] {
   if (!event.repeatRule) {
     return overlaps(first, from) && first.start < to ? [first] : [];
   }
+  const skipped = new Set(event.excludedDates?.map((day) => dateText(day)));
   return occurrences(
     parseRule(event.repeatRule),
     { date: dateText(event.startsOn), time: event.startTime ?? '00:00', timeZone: event.timeZone },
     { from: new Date(from.getTime() - length), to },
     limit,
   )
+    .filter((start) => skipped.size === 0 || !skipped.has(localDate(event.timeZone, start)))
     .map((start) => ({ start, end: new Date(start.getTime() + length) }))
     .filter((slot) => overlaps(slot, from));
 }
@@ -112,6 +115,7 @@ export class EventsService implements OnModuleInit {
     private readonly jobs: JobsService,
     private readonly mail: MailService,
     private readonly changes: ChangesService,
+    private readonly googleSync: CalendarSyncNudge,
   ) {}
 
   onModuleInit() {
@@ -152,6 +156,7 @@ export class EventsService implements OnModuleInit {
       return item.id;
     });
     this.changes.notify('items', { userId });
+    await this.googleSync.eventChanged(id);
     return this.get(userId, id);
   }
 
@@ -210,6 +215,7 @@ export class EventsService implements OnModuleInit {
       await this.reschedule(transaction, itemId, new Date());
     });
     this.changes.notify('items', { userId });
+    await this.googleSync.eventChanged(itemId);
     return this.get(userId, itemId);
   }
 

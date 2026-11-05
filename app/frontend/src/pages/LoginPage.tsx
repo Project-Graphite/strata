@@ -4,11 +4,12 @@ import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Page } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
+import { GoogleSignInButton, useGoogleSignIn } from '../google';
 import { required, useFormErrors } from '../validation';
 
 const unverified = 'Verify your email before signing in';
 
-function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: () => void }) {
+export function TwoStepForm({ challenge, onRestart }: { challenge: string; onRestart: () => void }) {
   const auth = useAuth();
   const form = useFormErrors();
   const [recovery, setRecovery] = useState(false);
@@ -74,6 +75,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [challenge, setChallenge] = useState('');
+  const google = useGoogleSignIn();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,6 +115,7 @@ export function LoginPage() {
         <TextField autoComplete="current-password" label="Password" type="password" {...form.field('password')} />
         {error && <Banner tone="danger">{error}</Banner>}
         <Button disabled={busy} label={busy ? 'Signing in…' : 'Sign in'} large primary submit />
+        {google && <GoogleSignInButton onError={(reason) => setError(errorMessage(reason, 'Could not start signing in with Google'))} />}
       </form>
       {error === unverified && email && <ResendVerification email={email} key={email} />}
       <p className="mt-6 text-small text-muted">

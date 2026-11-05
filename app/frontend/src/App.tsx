@@ -46,6 +46,7 @@ const NotePage = lazy(() => import('./pages/NotePage').then((module) => ({ defau
 const ForgotPasswordPage = lazy(() => import('./pages/PasswordPages').then((module) => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/PasswordPages').then((module) => ({ default: module.ResetPasswordPage })));
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((module) => ({ default: module.RegisterPage })));
+const GoogleCallbackPage = lazy(() => import('./pages/GoogleCallbackPage').then((module) => ({ default: module.GoogleCallbackPage })));
 const RsvpPage = lazy(() => import('./pages/RsvpPages').then((module) => ({ default: module.RsvpPage })));
 const SharePage = lazy(() => import('./pages/RsvpPages').then((module) => ({ default: module.SharePage })));
 const SavePage = lazy(() => import('./pages/SavePage').then((module) => ({ default: module.SavePage })));
@@ -180,6 +181,7 @@ export function App() {
             <Route path="register" element={<RegisterPage />} />
             <Route path="verify" element={<VerifyPage />} />
             <Route path="login" element={<SignedOutLogin />} />
+            <Route path="google/callback" element={<GoogleCallbackPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="invite/:code" element={<InvitePage />} />
