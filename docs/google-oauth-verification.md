@@ -26,18 +26,9 @@ Sign-in and Drive import are unaffected.
 2. **Branding.** Branding is already verified.
 3. **Homepage.** `https://strata.project-graphite.com/` loads for a signed-out visitor, names Strata, says what it
    does and links to the privacy policy.
-4. **Privacy policy.** `https://strata.project-graphite.com/privacy` must state how Google user data is used. Add a
-   Google section to `PrivacyPage` in `app/frontend/src/pages/LegalPages.tsx` that says:
-   - Strata reads events from the Google calendars the user chooses, writes the events they create, change or
-     delete in Strata back to their chosen Google calendar, and lists their calendars so they can pick which to
-     sync;
-   - this data is used only to show and keep the user's own agenda in sync, and is not shared, sold, used for
-     advertising, or read by people except for security, legal compliance, or with the user's consent;
-   - disconnecting Google in Settings → Security, or deleting the account, removes synced Google events and
-     revokes access;
-   - this sentence, word for word: "Strata's use and transfer of information received from Google APIs will adhere
-     to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
-     including the Limited Use requirements."
+4. **Privacy policy.** The Google section of `https://strata.project-graphite.com/privacy` (`Privacy` in
+   `app/frontend/src/pages/LegalPages.tsx`) says what Strata does with Google data and has the Limited Use statement.
+   Keep it in step with any change to what Strata does with Google data.
 5. **Data access.** Add `calendar.events` to the **Data access** list, then open
    **Verification Center → Prepare for verification**.
 
