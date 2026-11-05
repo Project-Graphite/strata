@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Card, CodeInput, Dialog, Placeholder, TextField, TextLink } from '@project-graphite/ui';
+import { Card, CodeInput, ConfirmDialog, Dialog, IconButton, Placeholder, TextField, TextLink } from '@project-graphite/ui';
 import { useAuth } from '../../auth';
+import { connectGoogle, googleAllowed, type GoogleStatus } from '../../google';
 import { ActionsMenu } from '../../components/ActionsMenu';
 import { DialogActions } from '../../components/DialogActions';
 import { FormDialog } from '../../components/FormDialog';
@@ -18,7 +19,7 @@ import { SettingsRow, SettingsRowSkeleton, SettingsRows, type TwoStepStatus } fr
 import { Button } from '../../components/Button';
 import { saveBlob } from '../../files';
 
-type Opened = 'password' | 'enable' | 'codes' | 'disable';
+type Opened = 'password' | 'enable' | 'codes' | 'disable' | 'unlink';
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const download = () =>
@@ -160,6 +161,8 @@ function RecoveryCodesDialog({ enabled, onClose }: { enabled: boolean; onClose: 
 export function SecuritySettings() {
   const auth = useAuth();
   const twoStep = useResource<TwoStepStatus>('/me/two-step', true);
+  const google = useResource<GoogleStatus>('/me/google', true);
+  const linking = useAction();
   const password = useAction();
   const disabling = useAction();
   const passwordForm = useFormErrors();
@@ -205,7 +208,52 @@ export function SecuritySettings() {
     <>
       <Section title="Sign-in">
         <SettingsRows>
-          <SettingsRow action={button('Change', 'password')} label="Password" />
+          {google.data?.hasPassword === false ? (
+            <SettingsRow
+              action={
+                <IconButton
+                  disabled={linking.busy}
+                  icon="key"
+                  label="Email me a link to set a password"
+                  onClick={() =>
+                    void linking.run(async () => {
+                      await auth.request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: auth.user!.email }) });
+                      return `We emailed ${auth.user!.email} a link to set a password.`;
+                    }, 'Could not send the link')
+                  }
+                />
+              }
+              label="Password"
+            >
+              Not set. You sign in with Google.
+            </SettingsRow>
+          ) : (
+            <SettingsRow action={button('Change', 'password')} label="Password" />
+          )}
+          {googleAllowed && google.data?.available && (
+            <SettingsRow
+              action={
+                google.data.account ? (
+                  <ActionsMenu items={[{ label: 'Unlink Google…', onSelect: () => setOpened('unlink') }]} name="Google" />
+                ) : (
+                  <IconButton
+                    disabled={linking.busy}
+                    icon="link"
+                    label="Link your Google account"
+                    onClick={() =>
+                      void linking.run(async () => {
+                        await connectGoogle(auth.request, 'link', '/settings/security');
+                        return '';
+                      }, 'Could not open Google')
+                    }
+                  />
+                )
+              }
+              label="Google"
+            >
+              {google.data.account ? `Linked to ${google.data.account.email}` : 'Not linked'}
+            </SettingsRow>
+          )}
           <SettingsRow
             action={
               status.enabled ? (
@@ -259,6 +307,24 @@ export function SecuritySettings() {
             {...passwordForm.field('newPassword')}
           />
         </FormDialog>
+      )}
+
+      {opened === 'unlink' && google.data?.account && (
+        <ConfirmDialog
+          busyLabel="Unlinking…"
+          confirmLabel="Unlink"
+          errorFallback="Could not unlink Google"
+          onClose={close}
+          onConfirm={async () => {
+            await auth.request('/me/google', { method: 'DELETE' });
+            google.reload();
+            linking.report('Google is unlinked.');
+          }}
+          title={`Unlink ${google.data.account.email}?`}
+          tone="danger"
+        >
+          You won’t be able to sign in with Google. Your Google calendars stop syncing and the events Strata brought in from them move to the trash. Events you made in Strata stay.
+        </ConfirmDialog>
       )}
 
       {opened === 'enable' && (

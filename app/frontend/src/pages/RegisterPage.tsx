@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Page } from '../components/Page';
 import { ResendVerification } from '../components/ResendVerification';
 import { ButtonSkeleton, FieldSkeleton, SkeletonLine } from '../components/Skeletons';
+import { GoogleSignInButton, useGoogleSignIn } from '../google';
 import { invitedLine, type InviteDetails } from '../invitations';
 import { useResource } from '../useResource';
 import { atLeast, atMost, emailAddress, password, required, useFormErrors } from '../validation';
@@ -20,6 +21,7 @@ export function RegisterPage() {
   const code = params.get('invite');
   const invite = useResource<InviteDetails>(code ? `/invitations/lookup/${encodeURIComponent(code)}` : null);
   const site = useResource<{ inviteOnly: boolean }>('/site');
+  const google = useGoogleSignIn();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -145,6 +147,12 @@ export function RegisterPage() {
         {error && <Banner tone="danger">{error}</Banner>}
 
         <Button disabled={busy} label={busy ? 'Creating…' : 'Create account'} large primary submit />
+        {google && (
+          <GoogleSignInButton
+            invite={invite.data && code ? code : undefined}
+            onError={(reason) => setError(errorMessage(reason, 'Could not start signing up with Google'))}
+          />
+        )}
       </form>
       <p className="mt-6 text-small text-muted">
         Already registered? <TextLink href="/login">Sign in</TextLink>

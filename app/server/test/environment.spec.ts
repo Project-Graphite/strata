@@ -72,6 +72,15 @@ describe('validateEnvironment', () => {
     expect(() => validateEnvironment({ ...settings, METRICS_TOKEN: 'too-short' })).toThrow('METRICS_TOKEN');
   });
 
+  it('takes optional Google settings and needs the client secret alongside the client ID', () => {
+    const client = { GOOGLE_CLIENT_ID: '1234-abc.apps.googleusercontent.com', GOOGLE_CLIENT_SECRET: 'GOCSPX-secret-value-1234' };
+    expect(() => validateEnvironment({ ...settings, ...client, GOOGLE_API_KEY: 'AIzaSyA-example_key_123456', GOOGLE_APP_ID: '123456789012' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' })).not.toThrow();
+    expect(() => validateEnvironment({ ...settings, GOOGLE_CLIENT_ID: client.GOOGLE_CLIENT_ID })).toThrow('GOOGLE_CLIENT_SECRET');
+    expect(() => validateEnvironment({ ...settings, ...client, GOOGLE_CLIENT_ID: 'not-a-client' })).toThrow('GOOGLE_CLIENT_ID');
+    expect(() => validateEnvironment({ ...settings, ...client, GOOGLE_APP_ID: 'project-name' })).toThrow('GOOGLE_APP_ID');
+  });
+
   it('accepts only an absolute files directory', () => {
     expect(() => validateEnvironment({ ...settings, FILES_ROOT: resolve('files') })).not.toThrow();
     expect(() => validateEnvironment({ ...settings, FILES_ROOT: '' })).not.toThrow();

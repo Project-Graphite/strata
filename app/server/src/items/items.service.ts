@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { ItemKind, LinkKind, Prisma } from '@prisma/client';
 import { AccessService, homeOf, inHome } from '../access/access.service';
 import { ActivityService, type ActivityVerb } from '../activity/activity.service';
+import { CalendarSyncNudge } from '../google/calendar-sync-nudge';
 import { uniqueViolation } from '../prisma/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { presentTag, tagFields } from '../tags/tags.service';
@@ -70,6 +71,7 @@ export class ItemsService {
     private readonly activity: ActivityService,
     private readonly pages: PageAccessService,
     private readonly watchers: WatchersService,
+    private readonly googleSync: CalendarSyncNudge,
   ) {}
 
   async list(userId: string, spaceId: string, query: ListItemsDto) {
@@ -248,7 +250,7 @@ export class ItemsService {
     change: (transaction: Prisma.TransactionClient) => Promise<{ count: number }>,
   ) {
     const item = await this.access.assertItem(userId, itemId, 'edit');
-    return this.prisma.$transaction(async (transaction) => {
+    const changed = await this.prisma.$transaction(async (transaction) => {
       const { count } = await change(transaction);
       if (count === 1) {
         await this.activity.record(transaction, {
@@ -267,6 +269,8 @@ export class ItemsService {
       }
       return count;
     });
+    if (changed === 1 && verb !== 'item.deleted') await this.googleSync.eventChanged(itemId);
+    return changed;
   }
 
   private async page(

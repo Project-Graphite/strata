@@ -3,11 +3,11 @@ import type { NextFunction, Request, Response } from 'express';
 
 const contentSecurityPolicy = (nonce: string) => [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' https://apis.google.com",
   `style-src 'self' 'nonce-${nonce}'`,
   "img-src 'self' data: blob:",
   "connect-src 'self'",
-  'frame-src https://www.youtube-nocookie.com',
+  'frame-src https://www.youtube-nocookie.com https://docs.google.com',
   "font-src 'self'",
   "worker-src 'self'",
   "manifest-src 'self'",

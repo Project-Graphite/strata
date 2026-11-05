@@ -44,6 +44,8 @@ export interface Proof {
   code?: string;
 }
 
+export type GoogleFinish = { signedIn: true } | { challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string };
+
 interface AuthContextValue {
   user?: User;
   ready: boolean;
@@ -59,6 +61,7 @@ interface AuthContextValue {
   verify(token: string): Promise<void>;
   login(login: string, password: string): Promise<{ challenge: string } | undefined>;
   completeTwoStep(challenge: string, code: string): Promise<void>;
+  finishGoogle(code: string, state: string): Promise<GoogleFinish>;
   logout(): Promise<void>;
   changePassword(proof: Proof, newPassword: string): Promise<void>;
   deleteAccount(proof: Proof): Promise<void>;
@@ -182,6 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify({ challenge, code }),
           }),
         );
+      },
+      finishGoogle: async (code, state) => {
+        const result = await apiRequest<Session | { twoStep: true; challenge: string } | { connected: 'link' | 'calendar' | 'drive'; returnTo: string }>('/auth/google/finish', {
+          method: 'POST',
+          body: JSON.stringify({ code, state }),
+        });
+        if ('challenge' in result) return { challenge: result.challenge };
+        if ('connected' in result) return result;
+        applySession(result);
+        return { signedIn: true };
       },
       logout: async () => {
         await apiRequest('/auth/logout', { method: 'POST' });

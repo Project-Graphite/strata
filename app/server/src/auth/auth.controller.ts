@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   Req,
@@ -9,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
+import { GoogleAuthService } from '../google/google-auth.service';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { AuthService, refreshLifetimeMs } from './auth.service';
 import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { deviceHash, deviceLabel, newDeviceId, type Device } from './device';
 import { ChangePasswordDto, CompleteSignInDto, EmailDto, ResetPasswordDto } from './dto/account.dto';
+import { GoogleConnectDto, GoogleFinishDto, GoogleStartDto } from './dto/google.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -22,6 +25,7 @@ import { Public } from './public.decorator';
 
 const refreshCookie = 'strata_refresh';
 const deviceCookie = 'strata_device';
+const googleCookie = 'strata_google';
 const deviceLifetimeMs = 400 * 24 * 60 * 60 * 1000;
 
 @Controller('auth')
@@ -29,6 +33,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly google: GoogleAuthService,
   ) {}
 
   @Public()
@@ -146,6 +151,58 @@ export class AuthController {
     await this.auth.logout(request.cookies[refreshCookie] as string | undefined);
     response.clearCookie(refreshCookie, { path: '/api/v1/auth' });
     return { loggedOut: true };
+  }
+
+  @Public()
+  @Get('google')
+  googleConfig() {
+    return this.google.config();
+  }
+
+  @Public()
+  @Post('google/start')
+  @RateLimit('google-start', 30, 900)
+  startGoogle(@Body() input: GoogleStartDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    this.assertNotCrossSite(request);
+    const { url, flow } = this.google.begin('sign-in', { invite: input.invite });
+    this.setGoogleCookie(response, flow);
+    return { url };
+  }
+
+  @Post('google/connect')
+  @RateLimit('google-connect', 30, 3_600)
+  async connectGoogle(@CurrentUser() user: AuthenticatedUser, @Body() input: GoogleConnectDto, @Res({ passthrough: true }) response: Response) {
+    const { url, flow } = await this.google.connect(user.id, input.purpose, input.returnTo);
+    this.setGoogleCookie(response, flow);
+    return { url };
+  }
+
+  @Public()
+  @Post('google/finish')
+  @RateLimit('google-finish', 30, 900)
+  async finishGoogle(@Body() input: GoogleFinishDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    this.assertNotCrossSite(request);
+    try {
+      const result = await this.google.finish(request.cookies[googleCookie] as string | undefined, input, this.device(request, response));
+      if ('challenge' in result) return { twoStep: true, challenge: result.challenge };
+      if ('session' in result) {
+        this.setRefreshCookie(response, result.session.refreshToken);
+        return { accessToken: result.session.accessToken, user: result.session.user };
+      }
+      return result;
+    } finally {
+      response.clearCookie(googleCookie, { path: '/api/v1/auth' });
+    }
+  }
+
+  private setGoogleCookie(response: Response, flow: string) {
+    response.cookie(googleCookie, flow, {
+      httpOnly: true,
+      maxAge: 10 * 60 * 1000,
+      path: '/api/v1/auth',
+      sameSite: 'lax',
+      secure: this.config.getOrThrow<string>('APP_URL').startsWith('https://'),
+    });
   }
 
   private device(request: Request, response: Response): Device {

@@ -44,8 +44,8 @@ export function Privacy({ level }: { level?: 2 | 3 }) {
     <>
       <Section level={level} title="What is stored">
         <p className="m-0 text-muted">
-          Your account details: email address, handle, display name, time zone and a salted, slow
-          hash of your password. Each signed-in device holds a sign-in cookie that scripts cannot
+          Your account details: email address, handle, display name, time zone and, if you set one, a
+          salted, slow hash of your password. Each signed-in device holds a sign-in cookie that scripts cannot
           read. The server keeps only a hash of it, and it stops working after 30 days.
         </p>
         <p className="m-0 text-muted">
@@ -132,12 +132,36 @@ export function Privacy({ level }: { level?: 2 | 3 }) {
           delete it or your account.
         </p>
       </Section>
+      <Section level={level} title="Google">
+        <p className="m-0 text-muted">
+          Strata asks for each Google permission only when you use the feature that needs it.
+          Signing in with Google gives Strata your Google account's id, name and email address,
+          used only to sign you in. With Google Calendar, Strata lists your calendars so you can
+          choose which to sync, reads the events in the ones you choose to show them in your Agenda,
+          and writes the events you create, change or delete in Strata to the Google calendar you pick
+          for new events. With Google Drive, Strata opens only the files you pick in Google's
+          file picker and copies them into your Strata files.
+        </p>
+        <p className="m-0 text-muted">
+          Google's access key is stored encrypted. Events and files brought in from Google are
+          kept like anything else you add. Strata never shares, sells or uses Google data for ads,
+          and no person reads it unless you ask, it is needed for security, or the law requires it.
+          Unlinking Google in Settings, Security, or deleting your account revokes Strata's
+          access and moves the events it brought in from Google to the trash; files you imported stay
+          until you delete them. You can also remove Strata's access from your Google Account.
+        </p>
+        <p className="m-0 text-muted">
+          Strata's use and transfer to any other app of information received from Google APIs
+          will adhere to the{' '}
+          <External href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</External>,
+          including the Limited Use requirements.
+        </p>
+      </Section>
       <Section level={level} title="Other services">
         <p className="m-0 text-muted">
-          There are no ads, no analytics, no tracking cookies and no third-party scripts. Email is
-          sent through an SMTP provider. When you connect a service such as Google Calendar, Strata
-          asks only for the access that feature needs, uses that data only for it, and you can
-          disconnect it at any time.
+          There are no ads, no analytics and no tracking cookies. The only third-party script is
+          Google's file picker, which loads when you choose to import from Google Drive. Email is
+          sent through an SMTP provider.
         </p>
         <p className="m-0 text-muted">
           When error reporting is switched on, an unexpected server error sends a report to Sentry

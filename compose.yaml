@@ -16,6 +16,10 @@ services:
       DEFAULT_FROM_EMAIL: Strata <strata@localhost>
       EMAIL_HOST: mailpit
       EMAIL_PORT: '1025'
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_APP_ID: ${GOOGLE_APP_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

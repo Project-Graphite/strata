@@ -25,16 +25,20 @@ function badName() {
   return new BadRequestException('Give the file a name of 1 to 200 characters');
 }
 
+export function cleanFileName(name: string) {
+  return [...name.trim()]
+    .map((character) => (character.charCodeAt(0) < 32 || '\u007f/\\'.includes(character) ? '_' : character))
+    .join('');
+}
+
 function fileName(encoded: string | undefined) {
   let name: string;
   try {
-    name = decodeURIComponent(encoded ?? '').trim();
+    name = decodeURIComponent(encoded ?? '');
   } catch {
     throw badName();
   }
-  const cleaned = [...name]
-    .map((character) => (character.charCodeAt(0) < 32 || '\u007f/\\'.includes(character) ? '_' : character))
-    .join('');
+  const cleaned = cleanFileName(name);
   if (!cleaned || cleaned.length > 200) {
     throw badName();
   }

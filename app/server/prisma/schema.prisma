@@ -88,7 +88,7 @@ model User {
   email                String                 @unique
   handle               String                 @unique
   displayName          String                 @map("display_name")
-  passwordHash         String                 @map("password_hash")
+  passwordHash         String?                @map("password_hash")
   verifiedAt           DateTime?              @map("verified_at")
   timeZone             String                 @default("Etc/UTC") @map("time_zone")
   timeFormat           String                 @default("auto") @map("time_format")
@@ -126,6 +126,8 @@ model User {
   ownedSearchDocuments SearchDocument[]       @relation("OwnedSearchDocuments")
   habits               Habit[]
   calendars            CalendarSubscription[]
+  googleAccount        GoogleAccount?
+  googleCalendars      GoogleCalendar[]
   mealPlan             MealPlanEntry[]
   updatedItems         Item[]                 @relation("UpdatedItems")
   createdLinks         ItemLink[]
@@ -325,6 +327,7 @@ model Item {
   listColumns    TaskColumn[]      @relation("ListColumns")
   subtasks       Task[]            @relation("TaskParent")
   event          Event?
+  googleEvent    GoogleEvent?
   guests         EventGuest[]
   note           Note?             @relation("NoteItem")
   childNotes     Note[]            @relation("NoteParent")
@@ -762,18 +765,19 @@ model Dashboard {
 }
 
 model Event {
-  itemId          String   @id @map("item_id") @db.Uuid
-  startsOn        DateTime @map("starts_on") @db.Date
-  startTime       String?  @map("start_time")
-  endsOn          DateTime @map("ends_on") @db.Date
-  endTime         String?  @map("end_time")
-  timeZone        String   @map("time_zone")
-  repeatRule      String?  @map("repeat_rule")
+  itemId          String     @id @map("item_id") @db.Uuid
+  startsOn        DateTime   @map("starts_on") @db.Date
+  startTime       String?    @map("start_time")
+  endsOn          DateTime   @map("ends_on") @db.Date
+  endTime         String?    @map("end_time")
+  timeZone        String     @map("time_zone")
+  repeatRule      String?    @map("repeat_rule")
+  excludedDates   DateTime[] @default([]) @map("excluded_dates") @db.Date
   location        String?
-  meetingUrl      String?  @map("meeting_url")
-  description     String   @default("")
-  reminderMinutes Int?     @map("reminder_minutes")
-  item            Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  meetingUrl      String?    @map("meeting_url")
+  description     String     @default("")
+  reminderMinutes Int?       @map("reminder_minutes")
+  item            Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([startsOn])
   @@map("events")
@@ -1065,6 +1069,59 @@ model CalendarSubscription {
   @@index([userId])
   @@index([lastFetchedAt])
   @@map("calendar_subscriptions")
+}
+
+model GoogleAccount {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @unique @map("user_id") @db.Uuid
+  subject              String    @unique
+  email                String
+  refreshTokenSealed   String?   @map("refresh_token_sealed")
+  scopes               String[]  @default([])
+  calendarSyncedAt     DateTime? @map("calendar_synced_at")
+  calendarSyncingUntil DateTime? @map("calendar_syncing_until")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([calendarSyncedAt])
+  @@map("google_accounts")
+}
+
+model GoogleCalendar {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  calendarId   String        @map("calendar_id")
+  name         String
+  color        String?
+  writable     Boolean       @default(true)
+  isDefault    Boolean       @default(false) @map("is_default")
+  syncToken    String?       @map("sync_token")
+  lastSyncedAt DateTime?     @map("last_synced_at")
+  lastError    String?       @map("last_error")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events       GoogleEvent[]
+
+  @@unique([userId, calendarId])
+  @@map("google_calendars")
+}
+
+model GoogleEvent {
+  id               String         @id @default(uuid()) @db.Uuid
+  calendarId       String         @map("calendar_id") @db.Uuid
+  itemId           String?        @unique @map("item_id") @db.Uuid
+  eventId          String         @map("event_id")
+  recurringEventId String?        @map("recurring_event_id")
+  originalStartsOn DateTime?      @map("original_starts_on") @db.Date
+  etag             String
+  strataHash       String         @map("strata_hash")
+  fromGoogle       Boolean        @map("from_google")
+  unreadableRule   Boolean        @default(false) @map("unreadable_rule")
+  calendar         GoogleCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  item             Item?          @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@unique([calendarId, eventId])
+  @@map("google_events")
 }
 
 model SubscribedEvent {

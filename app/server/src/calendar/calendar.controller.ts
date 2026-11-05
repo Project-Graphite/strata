@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { GoogleCalendarService } from '../google/google-calendar.service';
 import { RateLimit } from '../redis/rate-limit.guard';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CalendarFeedService } from './calendar-feed.service';
@@ -15,6 +16,7 @@ export class CalendarController {
   constructor(
     private readonly feeds: CalendarFeedService,
     private readonly subscriptions: CalendarSubscriptionsService,
+    private readonly google: GoogleCalendarService,
   ) {}
 
   @Get('me/calendar-feed')
@@ -51,8 +53,10 @@ export class CalendarController {
   @Post('me/calendars/refresh')
   @Scope('items:read')
   @RateLimit('calendars-refresh', 600, 3_600)
-  refreshMine(@CurrentUser() user: AuthenticatedUser) {
-    return this.subscriptions.refreshMine(user.id, new Date());
+  async refreshMine(@CurrentUser() user: AuthenticatedUser) {
+    const now = new Date();
+    const [followed, google] = await Promise.all([this.subscriptions.refreshMine(user.id, now), this.google.syncIfStale(user.id, now)]);
+    return { refreshed: followed.refreshed + google };
   }
 
   @Post('me/calendars')
