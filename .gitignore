@@ -7,3 +7,4 @@ __pycache__/
 app/frontend/public/licenses.json
 app/frontend/shots/
 app/frontend/.lighthouseci/
+.claude/
