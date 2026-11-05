@@ -232,24 +232,29 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('DELETE', `/items/${task.id}/watch`)).body.watching).toBe(false);
     await partner.call('POST', `/tasks/${task.id}/complete`);
     expect(await watching(owner)).not.toEqual(expect.arrayContaining([expect.stringContaining('finished')]));
-    expect((await outsider.call('PUT', `/items/${task.id}/watch`)).status).toBe(404);
+    expect((await outsider.call('DELETE', `/items/${task.id}/watch`)).status).toBe(404);
   });
 
-  it('lets editors add and remove other watchers who can see the task', async () => {
+  it('starts watching only by taking part, and nobody can change who else is watching', async () => {
     const owner = await member('watch-lead');
     const editor = await member('watch-editor');
     const viewer = await member('watch-viewer');
-    const outsider = await member('watch-stranger');
     const team = (await owner.call('POST', '/spaces', { name: 'Watchlist' })).body;
     await strata.join(team.id, editor, SpaceRole.EDITOR);
     await strata.join(team.id, viewer, SpaceRole.VIEWER);
     const task = (await owner.call('POST', `/spaces/${team.id}/tasks`, { title: 'Review copy' })).body;
-    const ids = (reply: { body: { watchers: { id: string }[] } }) => reply.body.watchers.map((watcher) => watcher.id).sort();
+    const ids = async () => (await viewer.call('GET', `/items/${task.id}/watchers`)).body.watchers.map((watcher: { id: string }) => watcher.id).sort();
 
-    expect(ids(await editor.call('PUT', `/items/${task.id}/watchers/${viewer.id}`))).toEqual([owner.id, viewer.id].sort());
-    expect((await editor.call('PUT', `/items/${task.id}/watchers/${outsider.id}`)).status).toBe(400);
-    expect((await viewer.call('PUT', `/items/${task.id}/watchers/${editor.id}`)).status).toBe(403);
-    expect(ids(await editor.call('DELETE', `/items/${task.id}/watchers/${viewer.id}`))).toEqual([owner.id]);
+    expect((await editor.call('PUT', `/items/${task.id}/watchers/${viewer.id}`)).status).toBe(404);
+    expect((await owner.call('DELETE', `/items/${task.id}/watchers/${owner.id}`)).status).toBe(404);
+    expect((await viewer.call('PUT', `/items/${task.id}/watch`)).status).toBe(404);
+    expect(await ids()).toEqual([owner.id]);
+
+    const comment = (await owner.call('POST', `/tasks/${task.id}/comments`, { body: 'Thoughts?' })).body;
+    await viewer.call('PUT', `/tasks/${task.id}/comments/${comment.id}/reactions/${encodeURIComponent('👍')}`);
+    expect(await ids()).toEqual([owner.id, viewer.id].sort());
+    expect((await viewer.call('DELETE', `/items/${task.id}/watch`)).body.watching).toBe(false);
+    expect(await ids()).toEqual([owner.id]);
   });
 
   it('shares a task with people in its space, who start watching it, and with anyone by a view-only link', async () => {

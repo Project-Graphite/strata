@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Banner, ConfirmDialog, IconButton, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, ListRow, Placeholder, Skeleton, TextField, timeAgo } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { useAuth } from '../auth';
 import { connectGoogle, googleAllowed, type GoogleStatus } from '../google';
 import { ActionsMenu } from '../components/ActionsMenu';

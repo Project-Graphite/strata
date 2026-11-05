@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { IconButton } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 
 const widthKey = 'strata-comments-width';
 const minWidth = 348;

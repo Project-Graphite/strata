@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { IconButton, ListRow, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { ListRow, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAuth } from '../auth';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { TagChip, TextField } from '@project-graphite/ui';
 import { useAuth } from '../auth';
@@ -17,6 +17,26 @@ import { IconButtonSkeleton } from './Skeletons';
 import { useTaskColumns } from './TaskColumns';
 import { TaskPanel } from './TaskPanel';
 
+function relayed(items: NestedMenuItem[], latest: RefObject<NestedMenuItem[]>, path: number[] = []): NestedMenuItem[] {
+  return items.map((item, index) => {
+    const at = [...path, index];
+    if ('items' in item) return { ...item, items: relayed(item.items, latest, at) };
+    if (!('onSelect' in item)) return item;
+    return {
+      ...item,
+      onSelect: () => {
+        let found: NestedMenuItem | undefined;
+        let level = latest.current;
+        for (const step of at) {
+          found = level[step];
+          level = found && 'items' in found ? found.items : [];
+        }
+        if (found && 'onSelect' in found) found.onSelect();
+      },
+    };
+  });
+}
+
 export function TaskWorkspace({
   base,
   defaultAssignee,
@@ -25,6 +45,7 @@ export function TaskWorkspace({
   failed,
   linked = false,
   listsPath,
+  menuInto,
   ready,
   shape,
   spaceId,
@@ -38,6 +59,7 @@ export function TaskWorkspace({
   failed?: { error: string; reload: () => void };
   linked?: boolean;
   listsPath: string;
+  menuInto?: (items: NestedMenuItem[]) => void;
   ready: boolean;
   shape: string;
   spaceId: string | null;
@@ -130,9 +152,18 @@ export function TaskWorkspace({
       : []),
   ];
 
+  const latestMenu = useRef(menu);
+  latestMenu.current = menu;
+  const menuShape = filters ? JSON.stringify(menu, (_key, value: unknown) => (typeof value === 'function' ? undefined : value)) : '';
+  useEffect(() => {
+    if (!menuInto || !menuShape) return;
+    menuInto(relayed(latestMenu.current, latestMenu));
+    return () => menuInto([]);
+  }, [menuInto, menuShape]);
+
   usePagePrimary(
     <>
-      {filters ? <ActionsMenu items={menu} name={shownList?.title ?? 'Tasks'} /> : !lists.error && <IconButtonSkeleton />}
+      {!menuInto && (filters ? <ActionsMenu items={menu} name={shownList?.title ?? 'Tasks'} /> : !lists.error && <IconButtonSkeleton />)}
       {filters ? <FilterMenu compact groups={filters} label="Filter tasks" /> : !lists.error && <IconButtonSkeleton />}
       {editable && (
         <span className="page-primary-action">

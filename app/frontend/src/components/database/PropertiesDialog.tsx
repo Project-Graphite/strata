@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Banner, ConfirmDialog, IconButton, Select, tagColors, TextField } from '@project-graphite/ui';
+import { Banner, ConfirmDialog, Select, tagColors, TextField } from '@project-graphite/ui';
+import { IconButton } from '../IconButton';
 import { AddButton } from '../Button';
 import { FormDialog } from '../FormDialog';
 import { propertyTypes, type Property, type PropertyType } from '../../notes';

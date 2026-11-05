@@ -6,6 +6,7 @@ import { LoadError } from './LoadError';
 import { ButtonSkeleton, IconButtonSkeleton, SkeletonLine } from './Skeletons';
 import { HeaderTitleContext } from '../header-title';
 import { areaOf } from '../navigation';
+import { Tip } from './Tip';
 
 export interface Back {
   to: string;
@@ -31,10 +32,12 @@ export function useDocumentTitle(title: string | undefined, heading?: { title?: 
 
 export function BackLink({ back }: { back: Back }) {
   return (
-    <Link className="back-link" title={back.label} to={back.to}>
-      <span className="shrink-0"><Icon name="chevron-left" size={16} /></span>
-      <span className="min-w-0 truncate">{back.label}</span>
-    </Link>
+    <Tip title={back.label}>
+      <Link className="back-link" to={back.to}>
+        <span className="shrink-0"><Icon name="chevron-left" size={16} /></span>
+        <span className="min-w-0 truncate">{back.label}</span>
+      </Link>
+    </Tip>
   );
 }
 

@@ -12,6 +12,7 @@ import { LoadError } from '../components/LoadError';
 import { SkeletonLine } from '../components/Skeletons';
 import { ShowAll, SplitRowsSkeleton, WidgetEmpty } from './widget-parts';
 import { journalPageHref } from '../notes';
+import { Tip } from '../components/Tip';
 
 const moods = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
@@ -72,16 +73,16 @@ export function Journal() {
       </Hint>
       <div aria-label="Today’s mood" className="flex flex-wrap gap-1.5" role="group">
         {moods.map((label, index) => (
-          <button
-            aria-label={label}
-            aria-pressed={todayEntry?.mood === index + 1}
-            className={`widget-mood journal-day mood-${index + 1}`}
-            disabled={action.busy}
-            key={label}
-            onClick={() => setMood(index + 1)}
-            title={label}
-            type="button"
-          />
+          <Tip key={label} title={label}>
+            <button
+              aria-label={label}
+              aria-pressed={todayEntry?.mood === index + 1}
+              className={`widget-mood journal-day mood-${index + 1}`}
+              disabled={action.busy}
+              onClick={() => setMood(index + 1)}
+              type="button"
+            />
+          </Tip>
         ))}
       </div>
       <div className="grid gap-1">

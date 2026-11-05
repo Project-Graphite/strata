@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ConfirmDialog, Dialog, IconButton, ListRow, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { ConfirmDialog, Dialog, ListRow, Placeholder, SectionHeading, Select, TextField } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAuth } from '../auth';
 import { formatMoment } from '../time';
 import { useAction } from '../useAction';

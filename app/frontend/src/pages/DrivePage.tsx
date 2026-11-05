@@ -1,11 +1,11 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Icon, IconButton, Placeholder, TextField } from '@project-graphite/ui';
+import { Icon, Placeholder, TextField } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { connectGoogle, googleAllowed, pickDriveFiles, type GoogleStatus } from '../google';
 import { filesTabs, saveBlob, uploadFiles, type DriveEntry, type DriveListing } from '../files';
-import { Button } from '../components/Button';
 import { Empty } from '../components/Empty';
 import { FileBrowser, type BrowserSort } from '../components/FileBrowser';
 import { FileButton } from '../components/FileButton';
@@ -211,9 +211,9 @@ export function DrivePage() {
       actions={
         writable && (
           <>
-            {!spaceId && <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />}
+            {!spaceId && <IconButton icon="folder" label="New folder" onClick={() => setDialog({ kind: 'folder' })} />}
             {google.data?.picker && <IconButton disabled={action.busy} icon="download" label="Import from Google Drive" onClick={importFromDrive} />}
-            <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
+            <FileButton busy={action.busy} iconOnly inputLabel="Files to upload" label="Upload files" large multiple onFiles={upload} primary />
           </>
         )
       }

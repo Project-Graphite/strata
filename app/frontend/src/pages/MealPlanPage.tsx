@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { DatePicker, formatDay, IconButton, Placeholder, Select, TextField, useSnackbar } from '@project-graphite/ui';
+import { DatePicker, formatDay, Placeholder, Select, TextField, useSnackbar } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { useAuth } from '../auth';
 import { addDays, dayKey } from '../agenda';
 import { AddButton } from '../components/Button';

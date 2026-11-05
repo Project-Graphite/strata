@@ -22,7 +22,7 @@ type TextNode = { type?: string; text?: string; content?: TextNode[] };
 
 export const paragraphOf = (text: string) => ({ type: 'doc', content: text.split('\n').map((line) => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
 
-export const plainDescription = (text: string) => (text.trim() ? paragraphOf(text) : null);
+export const plainDescription = (text: string) => (text.trim() ? paragraphOf(text.trimEnd()) : null);
 
 function textOf(node: TextNode): string {
   if (node.text) return node.text;

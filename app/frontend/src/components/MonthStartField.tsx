@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatDay, SegmentedControl, TextField } from '@project-graphite/ui';
 import { dayKey } from '../agenda';
 
@@ -14,13 +14,14 @@ function currentPeriod(startDay: number, today: string) {
   return [start, end].map((day) => day.toISOString().slice(0, 10)) as [string, string];
 }
 
-export function MonthStartField({ defaultValue, name }: { defaultValue: number; name: string }) {
+export function MonthStartField({ defaultValue, name, onChange }: { defaultValue: number; name: string; onChange?: (startDay: number | null) => void }) {
   const [mode, setMode] = useState<Mode>(defaultValue === 1 ? 'calendar' : 'payday');
   const [payday, setPayday] = useState(String(defaultValue === 1 ? 25 : defaultValue));
   const day = Number(payday);
   const valid = /^\d{1,2}$/.test(payday.trim()) && day >= 1 && day <= 28;
   const startDay = mode === 'calendar' ? 1 : valid ? day : null;
   const period = startDay && currentPeriod(startDay, dayKey(new Date()));
+  useEffect(() => onChange?.(startDay), [onChange, startDay]);
 
   return (
     <div className="grid gap-3">

@@ -1,7 +1,8 @@
 import MuiIconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import { startTransition, useDeferredValue, useState, ViewTransition } from 'react';
-import { Badge, Checkbox, IconButton, LinesSkeleton, SectionHeading, SegmentedControl, Select, TextField, useSnackbar } from '@project-graphite/ui';
+import { Badge, Checkbox, LinesSkeleton, SectionHeading, SegmentedControl, Select, TextField, useSnackbar } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { describeActivity, type ActivityEvent } from '../activity';
 import { readBlob, type Page as ResultPage } from '../api';
 import { useAuth } from '../auth';
@@ -19,6 +20,7 @@ import { ReplyGlyph, SmileGlyph } from './glyphs';
 import { UserAvatar } from './UserAvatar';
 import { LoadError } from './LoadError';
 import { RichTextEditor, RichTextView, type RichDocument } from './RichText';
+import { Tip } from './Tip';
 
 const sameDocument = (first: RichDocument, second: RichDocument) => JSON.stringify(first) === JSON.stringify(second);
 
@@ -273,9 +275,11 @@ function Reactions({ comment, onReact }: { comment: Comment; onReact: (emoji: st
           <span className="tabular-nums">{reaction.count}</span>
         </button>
       ))}
-      <MuiIconButton aria-label="Add a reaction" onClick={(event) => setAnchor(event.currentTarget)} size="small" title="Add a reaction">
-        <SmileGlyph />
-      </MuiIconButton>
+      <Tip title="Add a reaction">
+        <MuiIconButton aria-label="Add a reaction" onClick={(event) => setAnchor(event.currentTarget)} size="small">
+          <SmileGlyph />
+        </MuiIconButton>
+      </Tip>
       <Popover anchorEl={anchor} anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }} onClose={() => setAnchor(null)} open={Boolean(anchor)} slotProps={{ paper: { className: 'reaction-picker' } }}>
         {reactionChoices.map((emoji) => (
           <button
@@ -341,65 +345,69 @@ export function TaskActivity({ editable, members, owner, taskId }: { editable: b
     const replies = reply ? [] : (comments.data ?? []).filter((shown) => shown.parentId === comment.id);
     return (
       <li className="task-comment comment-entry" data-posted={posted === comment.id || undefined} key={comment.id}>
-        <p className="comment-head m-0 text-small text-muted">
-          <UserAvatar name={comment.author?.displayName ?? 'Someone'} size="sm" userId={comment.author?.id} />
-          <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
-          {comment.editedAt && ' · edited'}
-        </p>
-        {editing === comment.id ? (
-          <CommentEditor
-            initial={comment.document ?? paragraphOf(comment.body)}
-            label="Edit comment"
-            members={members}
-            onCancel={() => setEditing(undefined)}
-            onSave={(document, body) =>
-              save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', { document, body }, (saved) => {
-                replace(saved);
-                setEditing(undefined);
-              })
-            }
-            saveLabel="Save"
-          />
-        ) : comment.document ? (
-          <RichTextView value={comment.document} />
-        ) : (
-          <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
-        )}
-        {editing !== comment.id && (
-          <div className="task-comment-actions">
-            <Reactions comment={comment} onReact={(emoji, on) => react(comment, emoji, on)} />
-            {editable && !reply && (
-              <MuiIconButton aria-label="Reply" onClick={() => setReplying(comment.id)} size="small" title="Reply">
-                <ReplyGlyph />
-              </MuiIconButton>
-            )}
-            {editable && mine && <IconButton icon="pencil" label="Edit comment" onClick={() => setEditing(comment.id)} size="small" />}
-            {editable && (mine || owner) && <IconButton disabled={action.busy} icon="trash" label="Delete comment" onClick={() => remove(comment)} size="small" />}
-          </div>
-        )}
-        {(replies.length > 0 || replying === comment.id) && (
-          <ol className="task-comment-replies">
-            {replies.map((shown) => item(shown, true))}
-            {replying === comment.id && (
-              <li>
-                <CommentEditor
-                  initial={null}
-                  label="Reply"
-                  members={members}
-                  onCancel={() => setReplying(undefined)}
-                  onSave={(document, body) =>
-                    save(`/tasks/${taskId}/comments`, 'POST', { document, body, parentId: comment.id }, (added) => {
-                      comments.mutate((current) => [...current, added]);
-                      setPosted(added.id);
-                      setReplying(undefined);
-                    })
-                  }
-                  saveLabel="Reply"
-                />
-              </li>
-            )}
-          </ol>
-        )}
+        <UserAvatar name={comment.author?.displayName ?? 'Someone'} size="sm" userId={comment.author?.id} />
+        <div className="task-comment-main">
+          <p className="comment-head m-0 text-small text-muted">
+            <span className="text-ink">{comment.author?.displayName ?? 'Someone'}</span> · {formatMoment(comment.createdAt)}
+            {comment.editedAt && ' · edited'}
+          </p>
+          {editing === comment.id ? (
+            <CommentEditor
+              initial={comment.document ?? paragraphOf(comment.body)}
+              label="Edit comment"
+              members={members}
+              onCancel={() => setEditing(undefined)}
+              onSave={(document, body) =>
+                save(`/tasks/${taskId}/comments/${comment.id}`, 'PATCH', { document, body }, (saved) => {
+                  replace(saved);
+                  setEditing(undefined);
+                })
+              }
+              saveLabel="Save"
+            />
+          ) : comment.document ? (
+            <RichTextView value={comment.document} />
+          ) : (
+            <p className="m-0 whitespace-pre-wrap break-words text-body text-ink">{comment.body}</p>
+          )}
+          {editing !== comment.id && (
+            <div className="task-comment-actions">
+              <Reactions comment={comment} onReact={(emoji, on) => react(comment, emoji, on)} />
+              {editable && !reply && (
+                <Tip title="Reply">
+                  <MuiIconButton aria-label="Reply" onClick={() => setReplying(comment.id)} size="small">
+                    <ReplyGlyph />
+                  </MuiIconButton>
+                </Tip>
+              )}
+              {editable && mine && <IconButton icon="pencil" label="Edit comment" onClick={() => setEditing(comment.id)} size="small" />}
+              {editable && (mine || owner) && <IconButton disabled={action.busy} icon="trash" label="Delete comment" onClick={() => remove(comment)} size="small" />}
+            </div>
+          )}
+          {(replies.length > 0 || replying === comment.id) && (
+            <ol className="task-comment-replies">
+              {replies.map((shown) => item(shown, true))}
+              {replying === comment.id && (
+                <li>
+                  <CommentEditor
+                    initial={null}
+                    label="Reply"
+                    members={members}
+                    onCancel={() => setReplying(undefined)}
+                    onSave={(document, body) =>
+                      save(`/tasks/${taskId}/comments`, 'POST', { document, body, parentId: comment.id }, (added) => {
+                        comments.mutate((current) => [...current, added]);
+                        setPosted(added.id);
+                        setReplying(undefined);
+                      })
+                    }
+                    saveLabel="Reply"
+                  />
+                </li>
+              )}
+            </ol>
+          )}
+        </div>
       </li>
     );
   };

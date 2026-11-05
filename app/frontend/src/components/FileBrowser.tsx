@@ -1,5 +1,6 @@
 import { Fragment, lazy, Suspense, useRef, useState, type HTMLAttributes, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type SyntheticEvent } from 'react';
-import { Dialog, Icon, IconButton, type IconName } from '@project-graphite/ui';
+import { Dialog, Icon, type IconName } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { FilePreview, fileSize, previewable } from '../files';
 import { formatMoment } from '../time';
 import { ActionsMenu } from './ActionsMenu';
@@ -9,6 +10,7 @@ import { DialogActions } from './DialogActions';
 import { FilterMenu, type FilterGroup } from './FilterMenu';
 import { Hint } from './Hint';
 import { ContextMenu, NestedMenu, type NestedMenuItem } from './NestedMenu';
+import { Tip } from './Tip';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
 
@@ -281,9 +283,11 @@ export function FileBrowser<T extends BrowserEntry>({
                         <span className="list-row-title">
                           {entry.name}
                           {entry.shared && (
-                            <span className="drive-shared" title="Shared by link">
-                              <Icon name="users" size={14} />
-                            </span>
+                            <Tip title="Shared by link">
+                              <span aria-label="Shared by link" className="drive-shared" role="img">
+                                <Icon name="users" size={14} />
+                              </span>
+                            </Tip>
                           )}
                         </span>
                         {entry.detail && <span className="list-row-meta">{entry.detail}</span>}

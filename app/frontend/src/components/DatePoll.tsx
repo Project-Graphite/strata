@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { DatePicker, formatDay, IconButton } from '@project-graphite/ui';
+import { DatePicker, formatDay } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAction } from '../useAction';
 import { clockTime, TimeField } from '../time';
 import { Hint } from './Hint';

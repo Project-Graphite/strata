@@ -4,7 +4,9 @@ import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Icon, IconButton, Button as UiButton } from '@project-graphite/ui';
+import { Icon, Button as UiButton } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
+import { Tip } from './Tip';
 
 export interface FilterOption {
   label: string;
@@ -49,20 +51,21 @@ export function FilterMenu({ children, compact = false, groups, label, large = f
       {compact ? (
         <IconButton aria-expanded={Boolean(anchor)} aria-haspopup="menu" badge={count || undefined} icon="filter" label={count ? `${label}, ${count} active: ${summary}` : label} onClick={open} />
       ) : (
-      <UiButton
-        aria-expanded={Boolean(anchor)}
-        aria-haspopup="menu"
-        aria-label={`${label}: ${summary}`}
-        className="w-fit max-w-full shrink-0"
-        icon="filter"
-        onClick={open}
-        size={large ? 'medium' : 'small'}
-        title={label}
-        type="button"
-        variant="secondary"
-      >
-        <span className="truncate">{summary || label}</span>
-      </UiButton>
+      <Tip title={label}>
+        <UiButton
+          aria-expanded={Boolean(anchor)}
+          aria-haspopup="menu"
+          aria-label={`${label}: ${summary}`}
+          className="w-fit max-w-full shrink-0"
+          icon="filter"
+          onClick={open}
+          size={large ? 'medium' : 'small'}
+          type="button"
+          variant="secondary"
+        >
+          <span className="truncate">{summary || label}</span>
+        </UiButton>
+      </Tip>
       )}
       {children}
       <MuiMenu anchorEl={anchor} onClose={close} open={Boolean(anchor)} slotProps={{ list: { 'aria-label': drilled === undefined ? label : groups[drilled]!.label }, paper: { className: 'nested-menu min-w-56' } }}>

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
-import { IconButton, LinesSkeleton } from '@project-graphite/ui';
+import { LinesSkeleton } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { readBlob } from '../api';
 import { useAuth } from '../auth';
 import { WatchButton } from '../components/WatchButton';
@@ -110,7 +111,7 @@ export function BoardPage() {
               ),
               actions: (
                 <>
-                  {details.spaceId && <WatchButton itemId={details.id} manage={details.editable} spaceId={details.spaceId} />}
+                  {details.spaceId && <WatchButton itemId={details.id} />}
                   {details.permissions.share && <IconButton icon="link" label="Share" onClick={() => setOpen('share')} />}
                   <CommentsButton count={threads} onClick={() => setCommenting(!commenting)} open={commenting} />
                 </>

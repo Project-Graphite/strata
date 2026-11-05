@@ -9,6 +9,7 @@ import { useLiveRefresh, useResource } from '../useResource';
 import { SkeletonLine } from '../components/Skeletons';
 import { LinkRowsSkeleton, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { Button } from '../components/Button';
+import { Tip } from '../components/Tip';
 
 const outsideRefresh = { every: 15 * 60_000 };
 
@@ -91,11 +92,13 @@ export function Weather({ configure, settings }: WidgetProps) {
       </div>
       <ul className="m-0 grid list-none grid-cols-7 gap-1 p-0 text-center text-body">
         {daily.map((day) => (
-          <li className="grid gap-0.5" key={day.date} title={condition(day.code)}>
-            <span className="text-muted">{formatDay(day.date, { weekday: 'narrow' })}</span>
-            <span className="text-ink">{day.high}°</span>
-            <span className="text-muted">{day.low}°</span>
-          </li>
+          <Tip key={day.date} title={condition(day.code)}>
+            <li className="grid gap-0.5">
+              <span className="text-muted">{formatDay(day.date, { weekday: 'narrow' })}</span>
+              <span className="text-ink">{day.high}°</span>
+              <span className="text-muted">{day.low}°</span>
+            </li>
+          </Tip>
         ))}
       </ul>
     </div>

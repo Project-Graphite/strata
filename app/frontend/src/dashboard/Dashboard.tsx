@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
-import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, IconButton, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
+import { ColorSwatches, ConfirmDialog, Dialog, Fieldset, formatDay, PageSkeleton, Radio, Select, TextField, type TagColor } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { appCatalogue } from '../apps';
 import { useAuth } from '../auth';
 import { uploadFile } from '../files';

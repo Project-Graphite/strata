@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { Badge, Card, Checkbox, Icon, IconButton, SectionHeading, useSnackbar } from '@project-graphite/ui';
+import { Badge, Card, Checkbox, Icon, SectionHeading, useSnackbar } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { useAuth } from '../auth';
 import { pageScroller } from '../page-scroll';
 import { usePageVirtualizer } from '../page-virtualizer';

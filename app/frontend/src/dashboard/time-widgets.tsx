@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { formatDay, IconButton, Meter, type TagColor } from '@project-graphite/ui';
+import { formatDay, Meter, type TagColor } from '@project-graphite/ui';
+import { IconButton } from '../components/IconButton';
 import { addDays, dayKey, entryDay, monthDays, shiftMonth, useAgenda } from '../agenda';
 import { LoadError } from '../components/LoadError';
 import { useWeekStart } from '../tasks';

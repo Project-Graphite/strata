@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { FloatingToolbar, Icon, IconButton, ToolbarButton, useSnackbar } from '@project-graphite/ui';
+import { FloatingToolbar, Icon, ToolbarButton, useSnackbar } from '@project-graphite/ui';
+import { IconButton } from './IconButton';
 import { Node } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Youtube from '@tiptap/extension-youtube';

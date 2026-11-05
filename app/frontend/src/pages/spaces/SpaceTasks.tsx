@@ -1,6 +1,6 @@
 import { TaskWorkspace } from '../../components/TaskWorkspace';
 import { spaceHref } from '../../spaces';
-import { useSpace } from './SpaceLayout';
+import { useSpace, useSpaceMenu } from './SpaceLayout';
 
 export function SpaceTasks() {
   const space = useSpace();
@@ -13,6 +13,7 @@ export function SpaceTasks() {
       editableTask={() => editable}
       linked
       listsPath={`/spaces/${space.id}/lists`}
+      menuInto={useSpaceMenu()}
       ready
       shape={`space-tasks-${space.id}`}
       spaceId={space.id}

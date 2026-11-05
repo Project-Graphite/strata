@@ -1,5 +1,6 @@
 import Checkbox from '@mui/material/Checkbox';
-import { Icon, IconButton, ListRow, Placeholder } from '@project-graphite/ui';
+import { Icon, ListRow, Placeholder } from '@project-graphite/ui';
+import { IconButton } from '../../components/IconButton';
 import { useAuth } from '../../auth';
 import { DevicePush, useDevicePush } from '../../components/DevicePush';
 import { LoadError } from '../../components/LoadError';

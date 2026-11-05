@@ -430,12 +430,14 @@ export class AuthService implements OnModuleInit {
     if (email === user.email) {
       throw new BadRequestException('This is already your email address');
     }
+    const thread = `<email-change-${randomBytes(12).toString('hex')}@${new URL(this.mail.link('/')).host}>`;
+    const headers = { 'In-Reply-To': thread, References: thread };
     const taken = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (!taken && !(await this.sendVerification(this.prisma, user, TokenPurpose.CHANGE_EMAIL, email))) {
+    if (!taken && !(await this.sendVerification(this.prisma, user, TokenPurpose.CHANGE_EMAIL, email, headers))) {
       throw emailUnavailable();
     }
     await this.audit.record(userId, 'email_change_requested');
-    await this.mail.trySend({ to: user.email, ...emailChangeRequestedEmail(this.mail.link, { name: user.displayName }) });
+    await this.mail.trySend({ to: user.email, headers, ...emailChangeRequestedEmail(this.mail.link, { name: user.displayName }) });
   }
 
   async deleteAccount(userId: string, proof: Proof) {
@@ -582,10 +584,11 @@ export class AuthService implements OnModuleInit {
     user: { id: string; displayName: string },
     purpose: typeof TokenPurpose.VERIFY_EMAIL | typeof TokenPurpose.CHANGE_EMAIL,
     to: string,
+    headers?: Record<string, string>,
   ) {
     const changing = purpose === TokenPurpose.CHANGE_EMAIL;
     const token = await this.createToken(client, user.id, purpose, changing ? to : null);
-    return this.mail.trySend({ to, ...verifyEmail(this.mail.link, { name: user.displayName, token, changing }) });
+    return this.mail.trySend({ to, headers, ...verifyEmail(this.mail.link, { name: user.displayName, token, changing }) });
   }
 
   private async createToken(
