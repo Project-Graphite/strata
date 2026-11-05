@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { Placeholder } from '@project-graphite/ui';
 import { useAuth } from '../auth';
 import { invitedLine, type InviteDetails } from '../invitations';
-import { addJoinedSpace, spaceHref, useSpaces } from '../spaces';
+import { addJoinedSpace, spaceHref, useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { Button, ButtonLink } from '../components/Button';
@@ -16,7 +16,7 @@ export function InvitePage() {
   const auth = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const invite = useResource<InviteDetails>(`/invitations/lookup/${encodeURIComponent(code)}`);
   const joining = useAction();
 

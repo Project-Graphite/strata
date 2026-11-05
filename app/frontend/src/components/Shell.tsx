@@ -5,7 +5,6 @@ import {
   AppShell,
   ErrorState,
   IconButton,
-  OutageGate,
   PageSkeleton,
   PageTransition,
   Sidebar,
@@ -20,7 +19,7 @@ import { useAuth } from '../auth';
 import { InboxContext } from '../inbox';
 import { enabledApps } from '../apps';
 import { AreaContext, areaOf, phoneTabBar, sidebarSections, useSlowNavigation } from '../navigation';
-import { ActiveSpaceProvider, SpacesContext, useChosenSpace, type Space } from '../spaces';
+import { ActiveSpaceProvider, SpacesContext, type Space } from '../spaces';
 import { PageNavigationProvider } from '../page-navigation';
 import { pageScroller } from '../page-scroll';
 import { useAction } from '../useAction';
@@ -29,6 +28,7 @@ import { AboutLinks } from './AboutLinks';
 import { AccountMenu } from './AccountMenu';
 import { ButtonLink, IconLink } from './Button';
 import { CrashBoundary } from './CrashBoundary';
+import { OutageGate } from './OutageGate';
 import { PageTree } from './PageTree';
 import { UpdatePrompt } from './UpdatePrompt';
 import { StrataMark } from './StrataMark';
@@ -77,7 +77,6 @@ const routeLayout = (pathname: string) => /^\/(?:spaces\/(?!invitations(?:\/|$))
 
 function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; spaces: Resource<Space[]> }) {
   const auth = useAuth();
-  const { spaceId } = useChosenSpace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const signingOut = useAction();
@@ -91,7 +90,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const active = areaOverride ?? areaOf(pathname);
   const signedIn = Boolean(auth.user);
   const transitions = useMediaQuery('(min-width: 64rem) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
-  const apps = enabledApps(auth.user?.features);
+  const apps = enabledApps(auth.user);
   const openSearch = useCallback(() => signedIn && setSearching(true), [signedIn]);
   useCommandShortcut(openSearch);
 
@@ -104,16 +103,15 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
   const showSidebar = auth.user || (!auth.ready && expectSession);
   const slowNavigation = useSlowNavigation(pathname);
   const layout = routeLayout(pathname);
-  const crashKey = pageRoute ? layout : spaceId;
   const content = useMemo(
     () => (
-      <CrashBoundary key={crashKey}>
+      <CrashBoundary resetKey={pathname}>
         <Suspense fallback={<PageSkeleton label="Loading page" />}>
           {transitions ? <PageTransition page={areaOf(layout) ?? layout}><Fragment key={layout}><Outlet /></Fragment></PageTransition> : <Fragment key={layout}><Outlet /></Fragment>}
         </Suspense>
       </CrashBoundary>
     ),
-    [crashKey, layout, transitions],
+    [layout, pathname, transitions],
   );
 
   return (
@@ -171,7 +169,7 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
               ]
         }
       >
-        <OutageGate healthUrl={apiUrl('/health')} key={pageRoute ? 'page' : 'app'} offlineHint="Reconnect to the internet to carry on." productName="Strata" subscribe={subscribeToOutage}>
+        <OutageGate healthUrl={apiUrl('/health')} key={pageRoute ? 'page' : 'app'} subscribe={subscribeToOutage}>
           {auth.restoreError ? (
             <ErrorState onRetry={() => window.location.reload()} title="Your session could not be restored">
               {auth.restoreError}
@@ -185,7 +183,9 @@ function ShellFrame({ inbox, spaces }: { inbox: Resource<{ unread: number }>; sp
       </AppShell>
       {searching && (
         <Suspense fallback={null}>
-          <SearchPalette key={spaceId} onClose={() => setSearching(false)} />
+          <CrashBoundary compact label="Search">
+            <SearchPalette onClose={() => setSearching(false)} />
+          </CrashBoundary>
         </Suspense>
       )}
       <UpdatePrompt />

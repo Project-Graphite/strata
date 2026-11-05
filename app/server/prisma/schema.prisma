@@ -101,6 +101,10 @@ model User {
   budgetsEnabled       Boolean                @default(true) @map("budgets_enabled")
   features             String[]               @default(["tasks", "agenda", "pages", "boards", "bookmarks", "journal", "files", "spending"])
   emailKinds           String[]               @default([]) @map("email_kinds")
+  appOrder             String[]               @default([]) @map("app_order")
+  taskComposer         String                 @default("condensed") @map("task_composer")
+  inboxMuted           String[]               @default([]) @map("inbox_muted")
+  journalReminder      Boolean                @default(false) @map("journal_reminder")
   calendarFeedHash     String?                @unique @map("calendar_feed_hash")
   avatarId             String?                @unique @map("avatar_id") @db.Uuid
   avatar               Item?                  @relation("UserAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
@@ -254,6 +258,7 @@ model Space {
   name            String
   color           String           @default("gray")
   slug            String           @unique
+  archivedAt      DateTime?        @map("archived_at")
   description     String           @default("")
   defaults        Json             @default("{}")
   createdById     String?          @map("created_by") @db.Uuid
@@ -331,6 +336,7 @@ model Item {
   tidyChanges    TidyChange[]
   journalEntries JournalEntry[]
   weeklyReview   WeeklyReview?
+  listView       TaskListView?
   comments       NoteComment[]
   pollOptions    EventPollOption[]
   bookmark       Bookmark?
@@ -528,6 +534,7 @@ model InboxNotification {
   link      String?
   readAt    DateTime? @map("read_at")
   emailedAt DateTime? @map("emailed_at")
+  shown     Boolean   @default(true)
   createdAt DateTime  @default(now()) @map("created_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -631,6 +638,8 @@ model Task {
   columnId        String?     @map("column_id") @db.Uuid
   description     Json?
   completedAt     DateTime?   @map("completed_at")
+  doneFromStatus  TaskStatus? @map("done_from_status")
+  doneFromColumn  String?     @map("done_from_column_id") @db.Uuid
   item            Item        @relation("TaskItem", fields: [itemId], references: [id], onDelete: Cascade)
   list            Item?       @relation("TaskList", fields: [listId], references: [id], onDelete: SetNull)
   parent          Item?       @relation("TaskParent", fields: [parentId], references: [id], onDelete: SetNull)
@@ -858,6 +867,7 @@ model Note {
   narrow   Boolean   @default(false)
   coverId  String?   @map("cover_id") @db.Uuid
   coverAlt String    @default("") @map("cover_alt")
+  slug     String    @unique @default(dbgenerated("substr(md5(((random())::text || (clock_timestamp())::text)), 1, 10)"))
   item     Item      @relation("NoteItem", fields: [itemId], references: [id], onDelete: Cascade)
   parent   Item?     @relation("NoteParent", fields: [parentId], references: [id], onDelete: SetNull)
   cover    Item?     @relation("NoteCover", fields: [coverId], references: [id], onDelete: SetNull)
@@ -952,6 +962,14 @@ model JournalEntry {
   @@id([userId, day])
   @@index([noteId])
   @@map("journal_entries")
+}
+
+model TaskListView {
+  itemId String @id @map("item_id") @db.Uuid
+  view   String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("task_list_views")
 }
 
 model WeeklyReview {

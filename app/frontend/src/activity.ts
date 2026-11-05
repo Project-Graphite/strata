@@ -3,7 +3,7 @@ import { formatDay } from '@project-graphite/ui';
 export interface ActivityEvent {
   id: string;
   verb: string;
-  actor: { handle: string; displayName: string } | null;
+  actor: { id: string; handle: string; displayName: string } | null;
   item: { id: string; kind: string; title: string } | null;
   data: Record<string, string | boolean | undefined>;
   createdAt: string;

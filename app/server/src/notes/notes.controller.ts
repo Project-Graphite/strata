@@ -6,6 +6,7 @@ import { Scope } from '../access-tokens/scopes';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UploadQueue } from '../files/upload-queue';
+import { NoteAddressPipe } from '../validation/note-address.pipe';
 import { UuidPipe } from '../validation/uuid.pipe';
 import { CreateNoteDto, PageChildrenQueryDto, PageKindQueryDto, SaveDatabaseDto, SetContentDto, SetPropertiesDto, UpdateNoteDto } from './dto/notes.dto';
 import { NoteDatabasesService } from './note-databases.service';
@@ -94,7 +95,7 @@ export class NotesController {
 
   @Get('notes/:id')
   @Scope('items:read')
-  get(@CurrentUser() user: AuthenticatedUser, @Param('id', UuidPipe) id: string) {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id', NoteAddressPipe) id: string) {
     return this.notes.get(user.id, id);
   }
 

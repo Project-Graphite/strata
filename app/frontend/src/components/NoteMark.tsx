@@ -1,5 +1,14 @@
 import { Icon } from '@project-graphite/ui';
-import type { Note } from '../notes';
+import { noteTitle, type Note } from '../notes';
+
+export function NoteTitle({ note }: { note: Pick<Note, 'draft' | 'title'> }) {
+  return (
+    <>
+      {noteTitle(note)}
+      {note.draft && <span className="note-draft"> (draft)</span>}
+    </>
+  );
+}
 
 export function NoteMark({ note }: { note: Pick<Note, 'icon' | 'kind'> }) {
   return (

@@ -64,6 +64,7 @@ export class NoteCommentsService {
       await this.watchers.watch(transaction, noteId, [userId]);
       const mentioned = await this.mentioned(transaction, noteId, home, userId, created.body);
       const recipients = (await this.recipients(transaction, noteId, home, userId)).filter((recipient) => !mentioned.includes(recipient));
+      const link = await this.watchers.linkTo(transaction, noteId);
       await this.inbox.notify(transaction, [
         ...mentioned.map((recipient) => ({ recipient, verb: 'mentioned you on' })),
         ...recipients.map((recipient) => ({ recipient, verb: 'commented on' })),
@@ -72,7 +73,7 @@ export class NoteCommentsService {
         kind: 'comment' as const,
         title: `${created.author?.displayName} ${verb} ${found.title || 'Untitled'}`,
         body: created.body.slice(0, 200),
-        link: `/pages/${noteId}`,
+        link,
       })));
       return created;
     });

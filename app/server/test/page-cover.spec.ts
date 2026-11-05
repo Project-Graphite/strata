@@ -13,7 +13,7 @@ const messages = async (value: object) =>
 
 function setup({ quick = false, organize = true, image = true } = {}) {
   const row = {
-    id: 'page', spaceId: 'home', title: 'Trip', kind: ItemKind.NOTE, createdAt: new Date(), updatedAt: new Date(), databaseSchema: null,
+    id: 'page', spaceId: 'home', title: 'Trip', kind: ItemKind.NOTE, createdAt: new Date(), updatedAt: new Date(), databaseSchema: null, weeklyReview: null, _count: { journalEntries: 0 },
     note: { parentId: null, position: 1, icon: null, pinnedAt: null, template: false, quick, narrow: false, coverId: null as string | null, coverAlt: '' },
   };
   const upsert = vi.fn(async ({ update }: { update: Record<string, unknown> }) => {

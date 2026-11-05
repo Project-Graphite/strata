@@ -5,7 +5,7 @@ import { useAuth } from '../auth';
 import { fetchArticle, firstLink, quickBookmark, siteLabel, type Bookmark } from '../bookmarks';
 import { isNativeAndroid, StrataCapture } from '../native-capture';
 import { fileSize, uploadFiles } from '../files';
-import { homePath, useChosenSpace, useSpaces } from '../spaces';
+import { homePath, useCurrentSpace, useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { atMost, required, useFormErrors } from '../validation';
 import { Button } from '../components/Button';
@@ -70,7 +70,7 @@ export function SavePage() {
 
 function SaveShared() {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const navigate = useNavigate();
   const saving = useAction();
   const form = useFormErrors();
@@ -78,7 +78,7 @@ function SaveShared() {
   const [saved, setSaved] = useState<{ bookmark: Bookmark; created: boolean } | null>(null);
   const [failed, setFailed] = useState(false);
   const started = useRef(false);
-  const { spaceId = null, editable } = useChosenSpace();
+  const { spaceId = null, editable } = useCurrentSpace();
   const link = shared && !shared.files.length ? firstLink(shared.url, shared.text, shared.title) : '';
 
   function save(shared: Shared) {

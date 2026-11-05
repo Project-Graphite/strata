@@ -4,7 +4,7 @@ import MuiMenu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Icon, Button as UiButton } from '@project-graphite/ui';
+import { Icon, IconButton, Button as UiButton } from '@project-graphite/ui';
 
 export interface FilterOption {
   label: string;
@@ -28,7 +28,9 @@ function OptionText({ option }: { option: FilterOption }) {
   );
 }
 
-export function FilterMenu({ children, groups, label, large = false }: { children?: ReactNode; groups: FilterGroup[]; label: string; large?: boolean }) {
+export const activeFilters = (groups: FilterGroup[]) => groups.filter((group) => group.options.findIndex((option) => option.active) > 0).length;
+
+export function FilterMenu({ children, compact = false, groups, label, large = false }: { children?: ReactNode; compact?: boolean; groups: FilterGroup[]; label: string; large?: boolean }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [drilled, setDrilled] = useState<number>();
   const close = () => {
@@ -40,15 +42,20 @@ export function FilterMenu({ children, groups, label, large = false }: { childre
   const summary = groups
     .flatMap((group) => group.options.filter((option, index) => option.active && (groups.length === 1 || index > 0)).map((option) => option.label))
     .join(' · ');
+  const count = activeFilters(groups);
+  const open = (event: { currentTarget: HTMLElement }) => setAnchor(anchor ? null : event.currentTarget);
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
+      {compact ? (
+        <IconButton aria-expanded={Boolean(anchor)} aria-haspopup="menu" badge={count || undefined} icon="filter" label={count ? `${label}, ${count} active: ${summary}` : label} onClick={open} />
+      ) : (
       <UiButton
         aria-expanded={Boolean(anchor)}
         aria-haspopup="menu"
         aria-label={`${label}: ${summary}`}
         className="w-fit max-w-full shrink-0"
         icon="filter"
-        onClick={(event: { currentTarget: HTMLElement }) => setAnchor(anchor ? null : event.currentTarget)}
+        onClick={open}
         size={large ? 'medium' : 'small'}
         title={label}
         type="button"
@@ -56,6 +63,7 @@ export function FilterMenu({ children, groups, label, large = false }: { childre
       >
         <span className="truncate">{summary || label}</span>
       </UiButton>
+      )}
       {children}
       <MuiMenu anchorEl={anchor} onClose={close} open={Boolean(anchor)} slotProps={{ list: { 'aria-label': drilled === undefined ? label : groups[drilled]!.label }, paper: { className: 'nested-menu min-w-56' } }}>
         {nested &&

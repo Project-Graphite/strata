@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App';
 import { AuthProvider } from './auth';
+import { applyStoredSidebarWidth } from './components/SidebarResize';
 import './styles/global.css';
 
 function measureScrollbar() {
@@ -18,6 +19,7 @@ function holdPageBehindMenu(event: WheelEvent | TouchEvent) {
 }
 
 measureScrollbar();
+applyStoredSidebarWidth();
 window.addEventListener('resize', measureScrollbar);
 document.addEventListener('wheel', holdPageBehindMenu, { passive: false });
 document.addEventListener('touchmove', holdPageBehindMenu, { passive: false });

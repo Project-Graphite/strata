@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon, Placeholder, Skeleton } from '@project-graphite/ui';
+import { Icon, Placeholder } from '@project-graphite/ui';
 import type { Page as ResultPage } from '../api';
 import { taskDetails, TaskListFooter, TaskRow, useAllTasks, useWeekStart, type Task, type TaskColumn, type TaskLink, type TaskView } from '../tasks';
 import type { NestedMenuItem } from './NestedMenu';
@@ -9,7 +9,6 @@ import { Empty } from './Empty';
 import { Hint } from './Hint';
 import { LoadError } from './LoadError';
 import { OpenTask } from './OpenTask';
-import { QuickAddTask } from './QuickAddTask';
 import { TaskRowsSkeleton, useRememberedShape } from './Skeletons';
 import { TaskBoard, TaskGroups, useTaskChanges } from './TaskViews';
 
@@ -86,7 +85,7 @@ export function TaskPanel({
   const problem = failed?.error ? failed : open.error ? { error: open.error, reload: open.reload } : finished.error ? finished : undefined;
   const empty = completed
     ? { title: 'No finished tasks yet', hint: 'Tasks you finish show up here.' }
-    : { title: 'No tasks yet', hint: addTo ? 'Add a task above, or press New task.' : 'Tasks added to this space show up here.' };
+    : { title: 'No tasks yet', hint: addTo ? 'Press New task to add one.' : 'Tasks added to this space show up here.' };
   const emptyAction = addTo && <Button icon="plus" label="New task" onClick={onCreate} primary />;
   const loaded = ready && shown && (!board || finished.data);
 
@@ -96,7 +95,6 @@ export function TaskPanel({
         <LoadError error={problem.error} onRetry={problem.reload} />
       ) : !loaded ? (
         <Placeholder className="grid gap-8" label="Loading the tasks">
-          {!completed && addTo && <Skeleton className="h-11 rounded-field" />}
           {rows ? (
             <TaskRowsSkeleton detailed={detailed} rows={rows} />
           ) : (
@@ -107,17 +105,6 @@ export function TaskPanel({
         </Placeholder>
       ) : (
         <>
-          {(!completed || board) && addTo && (
-            <QuickAddTask
-              key={`${addTo.spaceId}/${addTo.listId ?? ''}`}
-              listId={addTo.listId}
-              onAdded={(task) => {
-                open.mutate((tasks) => [...tasks, task]);
-                onListsChanged();
-              }}
-              spaceId={addTo.spaceId}
-            />
-          )}
           {open.more && <Hint>Showing the first 1,000 open tasks.</Hint>}
           {board ? (
             <TaskBoard

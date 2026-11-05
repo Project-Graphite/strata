@@ -11,7 +11,7 @@ export function MorePage() {
 
   return (
     <Page title="More" titleHidden>
-      {moreSections(areaOf(pathname), enabledApps(auth.user?.features)).map((section, index) => (
+      {moreSections(areaOf(pathname), enabledApps(auth.user)).map((section, index) => (
         <nav aria-label={section.label ?? 'Areas'} className="grid gap-3" key={section.label ?? index}>
           {section.label && <SectionHeading title={section.label} />}
           <ul className="panel-rows">

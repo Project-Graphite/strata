@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { EmptyState, Icon, timeAgo, type IconName } from '@project-graphite/ui';
 import { noteHref, type Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { useAllSpaces } from '../spaces';
 import { ButtonLink } from '../components/Button';
 import { Subheading } from '../components/Page';
 import { rowsOf, SkeletonLine } from '../components/Skeletons';
@@ -86,7 +86,7 @@ export function SplitRowsSkeleton({ className = '', rows }: { className?: string
 }
 
 export function PageLinks({ heading, pages }: { heading: string; pages: Note[] }) {
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   return (
     <section className="grid gap-1">
       <Subheading>{heading}</Subheading>

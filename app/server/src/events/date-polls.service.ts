@@ -84,6 +84,8 @@ export class DatePollsService {
     const found = await this.access.assertItem(userId, itemId, 'read');
     if (found.trashedAt) throw new BadRequestException('Restore this event from the trash before voting');
     await this.vote(itemId, { userId }, votes);
+    const [voter, item] = await Promise.all([this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } }), this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { title: true, ownerId: true } })]);
+    if (item.ownerId !== userId) await this.events.tellHost(itemId, `${voter.displayName} picked dates for “${item.title}”`);
     return this.forMember(userId, itemId);
   }
 
@@ -95,6 +97,7 @@ export class DatePollsService {
   async voteAsGuest(code: string, votes: Record<string, string>) {
     const guest = await this.guest(code);
     await this.vote(guest.itemId, { guestId: guest.id }, votes);
+    await this.events.tellHost(guest.itemId, `${guest.name} picked dates for “${guest.item.title}”`);
     return this.forGuest(code);
   }
 
@@ -150,7 +153,7 @@ export class DatePollsService {
   private async guest(code: string) {
     const guest = await this.prisma.eventGuest.findUnique({
       where: { tokenHash: linkTokenHash(code) },
-      select: { id: true, itemId: true, item: { select: { trashedAt: true } } },
+      select: { id: true, itemId: true, name: true, item: { select: { title: true, trashedAt: true } } },
     });
     if (!guest || guest.item.trashedAt) throw new NotFoundException('This invitation is no longer open');
     return guest;

@@ -44,13 +44,46 @@ export function useAvatarUrl(userId: string | undefined) {
   return userId ? url : null;
 }
 
-export function UserAvatar({ name, present, size = 'md', userId }: { name: string; present?: boolean; size?: 'sm' | 'md' | 'lg'; userId?: string }) {
+export function initialsOf(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters = words.length > 1 ? [words[0]!, words.at(-1)!] : words.slice(0, 1);
+  return letters.map((word) => [...word][0]!.toLocaleUpperCase()).join('') || '?';
+}
+
+type AvatarSize = 'sm' | 'md' | 'lg';
+
+export function UserAvatar({ name, present, size = 'md', userId }: { name: string; present?: boolean; size?: AvatarSize; userId?: string }) {
   const url = useAvatarUrl(userId);
+  const label = present ? `${name}, here now` : name;
   return (
-    <Badge anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }} color="success" invisible={!present} overlap="circular" variant="dot">
-      <MuiAvatar aria-label={present ? `${name}, here now` : name} className={`avatar avatar-${size}`} role="img" src={url ?? undefined}>
-        <span aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</span>
+    <Badge anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }} color="success" invisible={!present} overlap="circular" title={label} variant="dot">
+      <MuiAvatar aria-label={label} className={`avatar avatar-${size}`} role="img" src={url ?? undefined}>
+        <span aria-hidden="true">{initialsOf(name)}</span>
       </MuiAvatar>
     </Badge>
+  );
+}
+
+export interface AvatarPerson {
+  id: string;
+  name: string;
+  present?: boolean;
+  userId?: string;
+}
+
+export function AvatarStack({ label, max = 4, people, size = 'sm' }: { label: string; max?: number; people: AvatarPerson[]; size?: AvatarSize }) {
+  const shown = people.length > max ? people.slice(0, max - 1) : people;
+  const hidden = people.slice(shown.length);
+  return (
+    <span aria-label={`${label}: ${people.map((person) => person.name).join(', ')}`} className="avatar-stack" role="group">
+      {shown.map((person) => (
+        <UserAvatar key={person.id} name={person.name} present={person.present} size={size} userId={person.userId} />
+      ))}
+      {hidden.length > 0 && (
+        <span aria-hidden="true" className={`avatar avatar-${size} avatar-more`} title={hidden.map((person) => person.name).join(', ')}>
+          +{hidden.length}
+        </span>
+      )}
+    </span>
   );
 }

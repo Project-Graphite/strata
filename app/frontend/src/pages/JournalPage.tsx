@@ -9,7 +9,7 @@ import { Button, ButtonLink } from '../components/Button';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { Empty } from '../components/Empty';
 import { LoadError } from '../components/LoadError';
-import { NotificationToggle } from '../components/NotificationToggle';
+import { NotificationsLink } from '../components/NotificationsLink';
 import { Page, Section } from '../components/Page';
 import { PeriodNav } from '../components/PeriodNav';
 import { ButtonSkeleton, IconButtonSkeleton, rowsOf, RowsSkeleton, SkeletonLine } from '../components/Skeletons';
@@ -177,13 +177,7 @@ export function JournalPage() {
           </CommentsPanel>
         </>
       )}
-      <NotificationToggle
-        description={`Sundays at ${clockTime('18:00')}, with a link that writes the review page for you.`}
-        field="weeklyReview"
-        label="Weekly review reminder"
-        offMessage="Weekly review reminders are off."
-        onMessage="You will be reminded on Sundays."
-      />
+      <NotificationsLink>{`A daily reminder at ${clockTime('20:00')} if you haven’t written, and a weekly review on Sundays at ${clockTime('18:00')}.`}</NotificationsLink>
     </Page>
   );
 }

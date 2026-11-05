@@ -148,7 +148,7 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(await roots()).toEqual(expect.arrayContaining([root.id, first.id, second.id]));
     expect(await roots()).not.toContain(parent.id);
     expect((await owner.call('GET', `/notes/${first.id}`)).body.path).toEqual([]);
-    expect((await owner.call('GET', `/notes/${nested.id}`)).body.path).toEqual([{ id: first.id, title: 'First child' }]);
+    expect((await owner.call('GET', `/notes/${nested.id}`)).body.path).toEqual([{ id: first.id, slug: first.slug, title: 'First child' }]);
     await strata.prisma.note.update({ where: { itemId: second.id }, data: { position: 1_000 } });
     const appended = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Appended after visible roots' })).body;
     expect((await roots()).at(-1)).toBe(appended.id);
@@ -156,7 +156,7 @@ describe('Notes and real-time editing against Postgres', () => {
     expect((await owner.call('PATCH', `/notes/${root.id}`, { relativeTo: second.id, placement: 'after' })).body.parentId).toBeNull();
     expect((await owner.call('POST', `/items/${parent.id}/restore`)).status).toBe(204);
     expect(await roots()).not.toContain(second.id);
-    expect((await owner.call('GET', `/notes/${second.id}`)).body.path).toEqual([{ id: parent.id, title: 'Hidden parent' }]);
+    expect((await owner.call('GET', `/notes/${second.id}`)).body.path).toEqual([{ id: parent.id, slug: parent.slug, title: 'Hidden parent' }]);
     expect((await owner.call('GET', `/spaces/${owner.soloSpaceId}/page-children?parentId=${parent.id}`)).body.pages.map((page: { id: string }) => page.id)).toEqual([second.id]);
     expect((await owner.call('PATCH', `/notes/${parent.id}`, { template: true })).status).toBe(200);
     expect(await roots()).toContain(second.id);
@@ -276,6 +276,21 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, note.id]);
   });
 
+  it('opens pages and boards by their short address as well as their ID', async () => {
+    const owner = await member('short-linker');
+    const outsider = await member('short-outsider');
+    const page = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Short' })).body;
+    const board = (await owner.call('POST', `/spaces/${owner.soloSpaceId}/notes`, { title: 'Wide', board: true })).body;
+    expect(page.slug).toMatch(/^[0-9a-f]{10}$/);
+    expect(board.slug).not.toBe(page.slug);
+    expect((await owner.call('GET', `/notes/${page.slug}`)).body).toMatchObject({ id: page.id, slug: page.slug, title: 'Short' });
+    expect((await owner.call('GET', `/notes/${board.slug}`)).body).toMatchObject({ id: board.id, kind: 'board' });
+    expect((await owner.call('GET', `/notes/${page.id}`)).body.slug).toBe(page.slug);
+    expect((await outsider.call('GET', `/notes/${page.slug}`)).status).toBe(404);
+    expect((await owner.call('GET', '/notes/0000000000')).status).toBe(404);
+    expect((await owner.call('GET', '/notes/not-a-page')).status).toBe(404);
+  });
+
   it('keeps untitled empty pages and boards in drafts until they get a title', async () => {
     const owner = await member('drafter');
     const friend = await member('draft-friend');
@@ -291,14 +306,19 @@ describe('Notes and real-time editing against Postgres', () => {
     expect(ids((await owner.call('GET', '/me/drafts?kind=note')).body)).toEqual([page.id]);
     expect(ids((await owner.call('GET', '/me/drafts?kind=board')).body)).toEqual([board.id]);
     expect((await friend.call('GET', '/me/drafts')).body).toEqual([]);
-    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([titled.id]);
-    expect(ids((await owner.call('GET', `/spaces/${space.id}/page-children`)).body.pages)).toEqual([titled.id]);
-    expect(ids((await owner.call('GET', '/me/notes?kind=note')).body)).toEqual([titled.id]);
+    const drafts = (listed: { id: string; draft: boolean }[]) => listed.map((shown) => [shown.id, shown.draft]);
+    expect(drafts((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([[page.id, true], [board.id, true], [titled.id, false]]);
+    expect(drafts((await owner.call('GET', `/spaces/${space.id}/page-children`)).body.pages)).toEqual([[page.id, true], [board.id, true], [titled.id, false]]);
+    expect(drafts((await owner.call('GET', `/spaces/${space.id}/page-children?kind=board`)).body.pages)).toEqual([[board.id, true]]);
+    expect(drafts((await owner.call('GET', '/me/notes?kind=note')).body)).toEqual([[titled.id, false], [page.id, true]]);
+    expect(ids((await friend.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([titled.id]);
+    expect(ids((await friend.call('GET', `/spaces/${space.id}/page-children`)).body.pages)).toEqual([titled.id]);
     expect(ids((await owner.call('GET', '/me/pages')).body.recent)).toEqual([titled.id]);
 
     expect((await owner.call('PATCH', `/notes/${page.id}`, { title: 'Garden' })).body.draft).toBe(false);
     expect((await owner.call('GET', '/me/drafts?kind=note')).body).toEqual([]);
-    expect(ids((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, titled.id]);
+    expect(drafts((await owner.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([[page.id, false], [board.id, true], [titled.id, false]]);
+    expect(ids((await friend.call('GET', `/spaces/${space.id}/notes`)).body)).toEqual([page.id, titled.id]);
   });
 
   it('syncs edits between people, saves them, feeds search and drops a viewer’s changes', async () => {

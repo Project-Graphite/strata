@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Avatar, DatePicker, formatDay, Meter, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type IconName, type TagColor } from '@project-graphite/ui';
+import { Avatar, DatePicker, formatDay, Icon, IconButton, Meter, Placeholder, Select, Skeleton, TagChip, TextField, timeAgo, type IconName, type TagColor } from '@project-graphite/ui';
 import type { Page } from '../api';
 import { useAuth } from '../auth';
 import { siteLabel, type Bookmark } from '../bookmarks';
@@ -9,8 +9,9 @@ import { HabitRow, type Habit } from '../habits';
 import { noteTitle, type Note } from '../notes';
 import { addDays, dayKey, useAgenda, useTodaySchedule } from '../agenda';
 import { useInbox, type InboxNotification } from '../inbox';
+import { notificationIcon } from '../notifications';
 import { timeZoneOptions } from '../choices';
-import { useChosenSpace, useSpaces } from '../spaces';
+import { useCurrentSpace, useAllSpaces } from '../spaces';
 import { money, shortDate, type Subscription } from '../subscriptions';
 import { completeTask, TaskRow, type Task, type TaskList } from '../tasks';
 import { useAction } from '../useAction';
@@ -20,7 +21,6 @@ import { BoardPreview } from '../components/BoardPreview';
 import { AgendaRowsSkeleton, HabitRowSkeleton, SkeletonLine, TaskRowsSkeleton } from '../components/Skeletons';
 import { Hint } from '../components/Hint';
 import { LoadError } from '../components/LoadError';
-import { QuickAddTask } from '../components/QuickAddTask';
 import { OpenTask } from '../components/OpenTask';
 import { Capture } from './capture-widget';
 import { PaymentsWidget, SavingsWidget, SpendingWidget } from './money-widgets';
@@ -30,7 +30,7 @@ import { quoteFor } from './quotes';
 import { CalendarWidget, DayProgress } from './time-widgets';
 import { LinkRowsSkeleton, PageLinks, PageLinksSkeleton, ShowAll, SplitRowsSkeleton, useListRows, WidgetEmpty, type SettingsProps, type WidgetProps } from './widget-parts';
 import { clockTime, profileDay } from '../time';
-import { Button, ButtonLink, TextButton } from '../components/Button';
+import { Button, ButtonLink } from '../components/Button';
 
 export type WidgetType = 'clock' | 'today' | 'tasks' | 'shortcuts' | 'recurring' | 'inbox' | 'agenda' | 'calendar' | 'countdown' | 'focus' | 'progress' | 'tidy' | 'weather' | 'news' | 'capture' | 'habits' | 'journal' | 'goals' | 'birthdays' | 'pages' | 'board' | 'bookmarks' | 'files' | 'quote' | 'spending' | 'payments' | 'savings';
 export const widgetGroups = ['Your day', 'Money', 'Notes and links', 'Around you'] as const;
@@ -116,10 +116,9 @@ function ClockSettings({ onChange, settings }: SettingsProps) {
   );
 }
 
-function TasksSkeleton({ adding }: { adding: boolean }) {
+function TasksSkeleton() {
   return (
     <Placeholder className="grid gap-2" label="Loading tasks">
-      {adding && <Skeleton className="h-11 rounded-field" />}
       <TaskRowsSkeleton flush rows={3} />
     </Placeholder>
   );
@@ -127,18 +126,23 @@ function TasksSkeleton({ adding }: { adding: boolean }) {
 
 function TaskWidget({ add, empty, path }: { add?: { spaceId: string | null; listId?: string }; empty?: ReactNode; path: string }) {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const tasks = useResource<Task[] | Page<Task>>(path, true, { live: ['tasks', 'items'] });
   const action = useAction();
   const rows = useListRows(8);
   const [opened, setOpened] = useState<Task>();
+  const [creating, setCreating] = useState(false);
   if (tasks.error) return <LoadError compact error={tasks.error} onRetry={tasks.reload} />;
-  if (!tasks.data) return <TasksSkeleton adding={Boolean(add)} />;
+  if (!tasks.data) return <TasksSkeleton />;
   const list = Array.isArray(tasks.data) ? tasks.data : tasks.data.results;
   const total = Array.isArray(tasks.data) ? tasks.data.length : tasks.data.totalResults;
   return (
     <div className="fade-in grid gap-2">
-      {add && <QuickAddTask listId={add.listId} onAdded={tasks.reload} spaceId={add.spaceId} />}
+      {add && (
+        <div className="flex justify-end">
+          <IconButton icon="plus" label="New task" onClick={() => setCreating(true)} />
+        </div>
+      )}
       {list.length === 0 && empty}
       {list.length > 0 && (
         <ul className="panel-rows panel-rows-flush">
@@ -155,6 +159,7 @@ function TaskWidget({ add, empty, path }: { add?: { spaceId: string | null; list
       )}
       {total > rows && <ShowAll count={total} href="/tasks" />}
       {opened && <OpenTask onChanged={tasks.reload} onClose={() => setOpened(undefined)} task={opened} />}
+      {creating && add && <OpenTask listId={add.listId} onChanged={tasks.reload} onClose={() => setCreating(false)} spaceId={add.spaceId} />}
     </div>
   );
 }
@@ -193,7 +198,7 @@ function Today() {
 }
 
 function Tasks({ settings }: WidgetProps) {
-  const { spaceId = null, editable } = useChosenSpace();
+  const { spaceId = null, editable } = useCurrentSpace();
   const listId = (settings.spaceId ?? null) === spaceId && typeof settings.listId === 'string' ? settings.listId : undefined;
   return (
     <TaskWidget
@@ -206,7 +211,7 @@ function Tasks({ settings }: WidgetProps) {
 }
 
 function TasksSettings({ onChange, settings }: SettingsProps) {
-  const { spaceId = null } = useChosenSpace();
+  const { spaceId = null } = useCurrentSpace();
   const lists = useResource<TaskList[]>(spaceId ? `/spaces/${spaceId}/lists` : '/me/lists?home=account', true);
   return (
     <div className="grid gap-3">
@@ -259,7 +264,7 @@ function ShortcutsSettings({ onChange, settings }: SettingsProps) {
             <span className="min-w-0 truncate text-ink">
               {link.label} <span className="text-muted">{link.url}</span>
             </span>
-            <TextButton label="Remove" onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })} />
+            <IconButton icon="trash" label={`Remove ${link.label}`} onClick={() => onChange({ links: links.filter((_, kept) => kept !== index) })} />
           </li>
         ))}
       </ul>
@@ -342,7 +347,10 @@ function Inbox() {
     <ul className="m-0 grid list-none gap-2 p-0">
       {unread.map((notification) => (
         <li className="flex gap-2.5 text-body" key={notification.id}>
-          <span aria-hidden="true" className="unread-dot mt-2" />
+          <span aria-hidden="true" className="inbox-lead mt-0.5 text-muted">
+            <Icon name={notificationIcon(notification.kind)} size={16} />
+            <span className="unread-dot inbox-unread" />
+          </span>
           <span className="min-w-0">
             <Link
               className="text-ink no-underline hover:underline"

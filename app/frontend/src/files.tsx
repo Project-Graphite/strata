@@ -34,8 +34,8 @@ export interface DriveEntry {
   name: string;
   mimeType: string | null;
   sizeBytes: number | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | null;
+  updatedAt: string | null;
   shared?: boolean;
 }
 
@@ -46,6 +46,7 @@ export interface DriveSpace {
   color: TagColor;
   role: SpaceRole;
   fileCount?: number;
+  updatedAt?: string | null;
 }
 
 export interface DriveListing {

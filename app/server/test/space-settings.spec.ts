@@ -24,17 +24,19 @@ function spaces(role: SpaceRole | null) {
 describe('space settings', () => {
   it('fills in every default a space has not chosen', () => {
     expect(spaceDefaults({ task: { priority: 2 } })).toEqual({
-      page: { icon: null, narrow: false },
-      board: { icon: null },
-      task: { type: 'task', priority: 2, assignee: 'creator' },
+      page: { icon: null, narrow: false, template: null },
+      board: { icon: null, template: null },
+      task: { type: 'task', priority: 2, assignee: 'creator', status: 'open', listId: null, view: 'board' },
+      access: { inviteRole: 'editor', inviters: 'owners', sharers: 'editors', linkDays: 30 },
     });
   });
 
   it('changes only the defaults that are sent', () => {
-    expect(mergedDefaults({ page: { narrow: true } }, { page: { icon: '📌', narrow: undefined }, task: { assignee: 'none' } })).toEqual({
-      page: { icon: '📌', narrow: true },
-      board: { icon: null },
-      task: { type: 'task', priority: 0, assignee: 'none' },
+    expect(mergedDefaults({ page: { narrow: true }, task: { listId: 'epic' } }, { page: { icon: '📌', narrow: undefined }, task: { assignee: 'none', view: 'list', listId: null } })).toEqual({
+      page: { icon: '📌', narrow: true, template: null },
+      board: { icon: null, template: null },
+      task: { type: 'task', priority: 0, assignee: 'none', status: 'open', listId: null, view: 'list' },
+      access: { inviteRole: 'editor', inviters: 'owners', sharers: 'editors', linkDays: 30 },
     });
   });
 

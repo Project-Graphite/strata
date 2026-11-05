@@ -5,6 +5,7 @@ import { useAuth } from '../../auth';
 import { findSpace, roleOptions, SpaceMark, spaceHref, useAllSpaces, type Space } from '../../spaces';
 import { useAction } from '../../useAction';
 import { ActionsMenu } from '../../components/ActionsMenu';
+import { CrashBoundary } from '../../components/CrashBoundary';
 import type { NestedMenuItem } from '../../components/NestedMenu';
 import { Hint } from '../../components/Hint';
 import { NotFoundPage } from '../NotFoundPage';
@@ -111,7 +112,7 @@ export function useSpaceActions(onInvited?: () => void) {
     </>
   );
 
-  return { items, dialog, invite: (space: Space) => setOpened({ action: 'invite', space }) };
+  return { items, dialog, open: (action: SpaceAction, space: Space) => setOpened({ action, space }), invite: (space: Space) => setOpened({ action: 'invite', space }) };
 }
 
 export function SpaceLayout() {
@@ -187,7 +188,9 @@ export function SpaceLayout() {
         </span>
       }
     >
-      <Outlet context={{ space, invite: () => actions.invite(space), invited, setMenu } satisfies SpaceOutlet} />
+      <CrashBoundary resetKey={pathname}>
+        <Outlet context={{ space, invite: () => actions.invite(space), invited, setMenu } satisfies SpaceOutlet} />
+      </CrashBoundary>
       {actions.dialog}
     </Page>
   );

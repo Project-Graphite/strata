@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ListRow, Placeholder } from '@project-graphite/ui';
 import { noteHref, noteTitle, onPagesChanged, type Note } from '../notes';
-import { useSpaces } from '../spaces';
+import { useAllSpaces } from '../spaces';
 import { formatMoment } from '../time';
 import { useResource } from '../useResource';
 import { PageActionsMenu } from './PageActionsMenu';
@@ -12,7 +12,7 @@ import { NoteMark } from './NoteMark';
 import { IconSkeleton, RowsSkeleton } from './Skeletons';
 
 export function Drafts({ kind }: { kind: 'note' | 'board' }) {
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const drafts = useResource<Note[]>(`/me/drafts?kind=${kind}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const reload = drafts.reload;
   useEffect(() => onPagesChanged(reload), [reload]);

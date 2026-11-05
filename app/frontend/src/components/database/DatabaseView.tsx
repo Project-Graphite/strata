@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { formatDay, IconButton, ListRow, Placeholder, SegmentedControl, Select, Skeleton } from '@project-graphite/ui';
 import { addDays, dayKey, monthDays } from '../../agenda';
 import { useAuth } from '../../auth';
-import { databaseViews, noteHref, noteTitle, pageHref, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
+import { databaseViews, noteHref, noteTitle, type DatabaseRow, type Note, type NoteDatabase, type Property, type PropertyValues } from '../../notes';
 import { homePath, type Member } from '../../spaces';
 import { useWeekStart } from '../../tasks';
 import { useAction } from '../../useAction';
@@ -112,7 +112,7 @@ export function DatabaseView({ editable, noteId, spaceId }: { editable: boolean;
     void adding.run(async () => {
       const created = await auth.request<Note>(homePath(spaceId, 'notes'), { method: 'POST', body: JSON.stringify({ parentId: noteId }) });
       if (Object.keys(values).length) await auth.request(`/notes/${created.id}/properties`, { method: 'PATCH', body: JSON.stringify({ values }) });
-      navigate(pageHref(created.id));
+      navigate(noteHref(created));
       return '';
     }, 'Could not add the page');
   }

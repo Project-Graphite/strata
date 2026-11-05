@@ -10,13 +10,13 @@ import { Empty } from '../components/Empty';
 import { ImportPages } from '../components/ImportPages';
 import { LoadError } from '../components/LoadError';
 import { useMovePageToTrash } from '../components/MovePageToTrash';
-import { NoteMark } from '../components/NoteMark';
+import { NoteMark, NoteTitle } from '../components/NoteMark';
 import { Page } from '../components/Page';
 import { RowText } from '../components/RowText';
 import { SearchField } from '../components/SearchField';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { announcePagesChanged, childPagesPath, nestedUnder, noteEdited, noteHref, noteTitle, onPagesChanged, pageIndent, pagesTabs, type ChildPages, type Note, type PagesSection } from '../notes';
-import { homePath, useChosenSpace } from '../spaces';
+import { homePath, useCurrentSpace } from '../spaces';
 import { Reveal } from '../motion';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
@@ -63,7 +63,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
         </TreeNote>
       )}
       {!listed.data && !listed.error && <TreeNote depth={depth}>Loading pages…</TreeNote>}
-      {listed.data && pages.length === 0 && !cursor && !listed.data.nextCursor && <TreeNote depth={depth}>{parentId ? 'No pages inside' : 'No pages in this space yet'}</TreeNote>}
+      {listed.data && pages.length === 0 && !cursor && !listed.data.nextCursor && <TreeNote depth={depth}>{parentId ? 'No pages inside' : 'No pages yet'}</TreeNote>}
       {pages.map((page) => {
         const expanded = page.hasChildren && tree.open.has(page.id);
         return (
@@ -83,7 +83,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
                     <NoteMark note={page} />
                   </span>
                 )}
-                <RowText detail={noteEdited(page)} title={noteTitle(page)} />
+                <RowText detail={noteEdited(page)} title={<NoteTitle note={page} />} />
               </RowLink>
               <PageActionsMenu note={page} onTrash={writable ? () => tree.trash(page) : undefined} />
             </div>
@@ -110,7 +110,7 @@ function TreeLevel({ cursor, depth, parentId, spaceId, writable }: { cursor?: st
 }
 
 function PagesTree({ firstRun }: { firstRun: ReactNode }) {
-  const { spaceId = null, editable } = useChosenSpace();
+  const { spaceId = null, editable } = useCurrentSpace();
   const notes = useResource<Note[]>('/me/notes?kind=note', true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const navigate = useNavigate();
   const [open, setOpen] = useState(() => new Set<string>());
@@ -205,7 +205,7 @@ function PageSearch({ query }: { query: string }) {
           key={note.id}
           lead={<NoteMark note={note} />}
           meta={noteEdited(note)}
-          title={noteTitle(note)}
+          title={<NoteTitle note={note} />}
         />
       ))}
     </ul>
@@ -213,7 +213,7 @@ function PageSearch({ query }: { query: string }) {
 }
 
 function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-notes' }) {
-  const { editable } = useChosenSpace();
+  const { editable } = useCurrentSpace();
   const listed = useResource<Note[]>(`/me/notes?kind=${section === 'quick-notes' ? 'quick' : 'note'}`, true, { live: ['page-details', 'pages', 'items', 'spaces'] });
   const pages = listed.data ?? [];
   const moveToTrash = useMovePageToTrash(listed.reload, listed.reload);
@@ -229,7 +229,7 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-
         key={note.id}
         lead={<NoteMark note={note} />}
         meta={noteEdited(note)}
-        title={noteTitle(note)}
+        title={<NoteTitle note={note} />}
         trail={<PageActionsMenu note={note} onTrash={editable ? () => moveToTrash(note, nestedUnder(pages, note.id).length) : undefined} />}
       />,
       ...rows(note.id, depth + 1),
@@ -263,7 +263,7 @@ function NoteList({ firstRun, section }: { firstRun: ReactNode; section: 'quick-
 export function PagesIndex({ section }: { section: PagesSection }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const { spaceId = null, editable } = useChosenSpace();
+  const { spaceId = null, editable } = useCurrentSpace();
   const creating = useAction();
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');

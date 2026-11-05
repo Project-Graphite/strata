@@ -4,6 +4,7 @@ import { FilePreview, fileSize, previewable } from '../files';
 import { formatMoment } from '../time';
 import { ActionsMenu } from './ActionsMenu';
 import { Button } from './Button';
+import { CrashBoundary } from './CrashBoundary';
 import { DialogActions } from './DialogActions';
 import { FilterMenu, type FilterGroup } from './FilterMenu';
 import { Hint } from './Hint';
@@ -17,7 +18,7 @@ export interface BrowserEntry {
   name: string;
   mimeType: string | null;
   sizeBytes: number | null;
-  updatedAt: string;
+  updatedAt: string | null;
   shared?: boolean;
   detail?: string | null;
 }
@@ -39,11 +40,12 @@ export const sortGroups = (sort: BrowserSort, onSort: (sort: BrowserSort) => voi
   { label: 'Order', options: directions[sort.key].map((label, index) => ({ label, active: sort.descending === (index === 1), onSelect: () => onSort({ ...sort, descending: index === 1 }) })) },
 ];
 
-function compare(sort: BrowserSort) {
+export function compareEntries(sort: BrowserSort) {
   return (a: BrowserEntry, b: BrowserEntry) => {
     if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+    if (sort.key === 'updatedAt' && (!a.updatedAt || !b.updatedAt)) return a.updatedAt === b.updatedAt ? a.name.localeCompare(b.name) : a.updatedAt ? -1 : 1;
     const order =
-      sort.key === 'name' ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) : sort.key === 'updatedAt' ? a.updatedAt.localeCompare(b.updatedAt) : (a.sizeBytes ?? 0) - (b.sizeBytes ?? 0);
+      sort.key === 'name' ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) : sort.key === 'updatedAt' ? a.updatedAt!.localeCompare(b.updatedAt!) : (a.sizeBytes ?? 0) - (b.sizeBytes ?? 0);
     return sort.descending ? -order : order;
   };
 }
@@ -52,6 +54,7 @@ function Preview({ entry, onClose, onDownload }: { entry: BrowserEntry; onClose:
   return (
     <Dialog onClose={onClose} title={entry.name}>
       <div className="mt-5 grid gap-4">
+        <CrashBoundary compact label="The preview">
         {entry.mimeType === 'application/pdf' ? (
           <Suspense fallback={<span aria-hidden="true" className="skeleton block h-64 w-full" />}>
             <PdfViewer fileId={entry.id} name={entry.name} />
@@ -61,6 +64,7 @@ function Preview({ entry, onClose, onDownload }: { entry: BrowserEntry; onClose:
         ) : (
           <Hint>There is no preview for this kind of file. Download it to open it.</Hint>
         )}
+        </CrashBoundary>
         <DialogActions>
           <Button icon="download" label="Download" large onClick={onDownload} primary />
         </DialogActions>
@@ -100,7 +104,7 @@ export function FileBrowser<T extends BrowserEntry>({
   const [box, setBox] = useState<{ left: number; top: number; width: number; height: number }>();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: NestedMenuItem[] }>();
   const [preview, setPreview] = useState<T>();
-  const ordered = sections.map((section) => ({ ...section, entries: [...section.entries].sort(compare(sort)) }));
+  const ordered = sections.map((section) => ({ ...section, entries: [...section.entries].sort(compareEntries(sort)) }));
   const flat = ordered.flatMap((section) => section.entries);
   const chosen = flat.filter((entry) => selected.has(entry.id));
 
@@ -283,7 +287,7 @@ export function FileBrowser<T extends BrowserEntry>({
                           )}
                         </span>
                         {entry.detail && <span className="list-row-meta">{entry.detail}</span>}
-                        <span className="list-row-meta drive-narrow">{[formatMoment(entry.updatedAt), entry.sizeBytes !== null && fileSize(entry.sizeBytes)].filter(Boolean).join(' · ')}</span>
+                        <span className="list-row-meta drive-narrow">{[entry.updatedAt && formatMoment(entry.updatedAt), entry.sizeBytes !== null && fileSize(entry.sizeBytes)].filter(Boolean).join(' · ')}</span>
                       </span>
                     </span>
                     <span className="drive-cell">{formatMoment(entry.updatedAt)}</span>

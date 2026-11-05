@@ -8,13 +8,18 @@ and files, built by Project Graphite.
 - **Home**: dashboards of widgets (agenda, tasks, pages, weather, news feeds, countdown, focus timer,
   app status and more), picked by time of day and device, and a wall display.
 - **Tasks**: grouped task lists and a board view, with status, descriptions, comments,
-  attachments, repeating tasks, assignment and reminders, and a quick-add box that reads dates,
-  tags and priority. Ticking off a task can be undone.
+  attachments, repeating tasks, assignment and reminders. New tasks open in a quick dialog that
+  reads dates, tags and priority, or in a full dialog or side panel, whichever you used last. Each
+  epic remembers whether it shows as a list or a board. Ticking off a task can be undone, and it
+  goes back to the status and column it had.
 - **Agenda**: Day, Week, Month and List views with drag to create, move and resize, events with
   guest RSVPs and date polls, followed outside calendars and a private calendar link. Events and
   calendars are yours; tasks due in your spaces show alongside them.
 - **Pages**: notes with live co-editing, offline drafts, version history, templates, mentions,
-  comments and database views. Pages and boards can be moved to the trash.
+  comments and database views. Pages, Boards and Tasks show your own items; a space's items live
+  under that space. Empty pages and boards you start show as drafts until they get a title or
+  content. Pages and boards have short addresses, and old links still work. Pages and boards can
+  be moved to the trash.
 - **Boards**: full-screen whiteboards drawn with Excalidraw, with templates, sticky notes and
   following a collaborator, embeddable in pages and events and editable by guests through a share
   link.
@@ -30,7 +35,9 @@ and files, built by Project Graphite.
 - **Files**: your own library of uploads, previews and downloads, with metadata stripped.
   Attachments in pages and tasks stay with their space and count toward the same storage quota.
 - **Spaces**: shared spaces that hold pages, tasks and boards, with members, invitations, tags,
-  share links, activity and trash. Everything else belongs to your account, with its own tags.
+  share links, activity and trash. Owners set defaults for new pages, boards, tasks and epics,
+  choose who can invite people and make share links and how long links last, and can hand a
+  space over, archive it or delete it. Everything else belongs to your account, with its own tags.
 - **Trash and undo**: anything moved to the trash can be undone from the notice that follows, and
   restored from the Trash for 30 days.
 - **Confirmations**: deleting for good, discarding edits and cutting off someone's access ask first.
@@ -39,7 +46,9 @@ and files, built by Project Graphite.
 - **Optional features**, turned on in Settings: Goals, People, Recipes and meals and Tidy. Tidy
   suggests stale uploads in your spaces, and unread bookmarks, overdue goals and unplanned recipes
   of your own, to clear with bulk actions, undo and tagging rules.
-- **Inbox**: notices in the app and as push notifications to chosen devices.
+- **Inbox**: notices in the app, as push notifications and by email, chosen per kind and per
+  channel in one place, with a daily journal reminder, RSVP answers and captured payments waiting
+  for review.
 - **Search** and a command palette, an installable app, personal access tokens that can be limited
   to one space and can write page content, and webhooks.
 - **Accounts**:
@@ -75,9 +84,12 @@ and files, built by Project Graphite.
   - errors that never expose internals;
   - scrypt password hashes that store their own cost settings.
 - **Layout**: the shared [`@project-graphite/ui`](https://github.com/Project-Graphite/graphite-ui)
-  shell, with a sidebar on desktop and a tab bar on phones, and browser tabs named after the page.
+  shell, with a resizable sidebar on desktop that holds your apps in the order you set and a tree
+  of spaces and pages, a tab bar on phones, and browser tabs named after the page.
 - **Errors** say what went wrong and what to do next: inline on forms, with Try again on anything
-  that failed to load, and in plain words when a followed calendar can't be read.
+  that failed to load, and in plain words when a followed calendar can't be read. A feature that
+  breaks stays contained while the rest of Strata keeps working, and being offline, an update in
+  progress and a server error each show one screen that retries by itself.
 - Privacy and terms pages.
 
 ## Stack

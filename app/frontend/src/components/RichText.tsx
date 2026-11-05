@@ -11,6 +11,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import { cspNonce } from '../csp-nonce';
 import type { Member } from '../spaces';
 import { LinkActions } from './LinkActions';
+import { UserAvatar } from './UserAvatar';
 
 export type RichDocument = Record<string, unknown> | null;
 
@@ -196,7 +197,10 @@ export function RichTextEditor({
               }}
               role="option"
             >
-              <span className="min-w-0 truncate text-ink">{person.displayName}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <UserAvatar name={person.displayName} size="sm" userId={person.userId} />
+                <span className="min-w-0 truncate text-ink">{person.displayName}</span>
+              </span>
               <span className="shrink-0 text-small text-muted">@{person.handle}</span>
             </li>
           ))}

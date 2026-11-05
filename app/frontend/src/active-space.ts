@@ -1,10 +1,7 @@
 import { createContext } from 'react';
 import type { Space } from './spaces';
 
-export const ActiveSpaceContext = createContext<{
-  space?: Space;
-  choose(spaceId: string | null): void;
-} | null>(null);
+export const ActiveSpaceContext = createContext<Space | undefined>(undefined);
 
 const scopedPaths = new Set(['/tasks/today', '/search', '/me/notes', '/me/pages', '/me/tasks', '/me/lists', '/tidy/scan']);
 

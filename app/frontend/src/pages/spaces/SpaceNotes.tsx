@@ -6,7 +6,7 @@ import { AddButton } from '../../components/Button';
 import { Empty } from '../../components/Empty';
 import { LoadError } from '../../components/LoadError';
 import { useMovePageToTrash } from '../../components/MovePageToTrash';
-import { NoteMark } from '../../components/NoteMark';
+import { NoteMark, NoteTitle } from '../../components/NoteMark';
 import { PageActionsMenu } from '../../components/PageActionsMenu';
 import { Section, usePagePrimary } from '../../components/Page';
 import { IconSkeleton, RowsSkeleton, useRememberedShape } from '../../components/Skeletons';
@@ -27,7 +27,7 @@ function PageRow({ depth = 0, note, onTrash }: { depth?: number; note: Note; onT
       href={noteHref(note)}
       lead={<NoteMark note={note} />}
       meta={capitalised([note.kind === 'board' && 'Board', note.pinnedAt && 'Pinned', formatMoment(note.updatedAt)].filter(Boolean).join(' · '))}
-      title={noteTitle(note)}
+      title={<NoteTitle note={note} />}
       trail={<PageActionsMenu note={note} onTrash={onTrash} />}
     />
   );

@@ -25,9 +25,28 @@ function storeView(view: FrameView) {
   }
 }
 
-export function TaskFrame({ actions, children, eyebrow, footer, onClose, title }: { actions?: ReactNode; children: ReactNode; eyebrow?: ReactNode; footer?: ReactNode; onClose: () => void; title: ReactNode }) {
+export function TaskFrame({
+  actions,
+  children,
+  eyebrow,
+  footer,
+  onClose,
+  title,
+  view: chosenView,
+  viewMenu,
+}: {
+  actions?: ReactNode;
+  children: ReactNode;
+  eyebrow?: ReactNode;
+  footer?: ReactNode;
+  onClose: () => void;
+  title: ReactNode;
+  view?: FrameView;
+  viewMenu?: ReactNode;
+}) {
   const phone = useMediaQuery('(max-width: 47.99rem)', { noSsr: true });
-  const [view, setView] = useState(storedView);
+  const [storedChoice, setView] = useState(storedView);
+  const view = chosenView ?? storedChoice;
   const [pointerOpener] = useState(() => (document.activeElement instanceof HTMLElement && !document.activeElement.matches(':focus-visible') ? document.activeElement : null));
   useEffect(
     () => () =>
@@ -38,7 +57,7 @@ export function TaskFrame({ actions, children, eyebrow, footer, onClose, title }
   );
   const titleId = useId();
   const toggleLabel = view === 'modal' ? 'Open in the side panel' : 'Open in the middle of the screen';
-  const toggle = !phone && (
+  const toggle = viewMenu ?? (!phone && (
     <MuiIconButton
       aria-label={toggleLabel}
       onClick={() => {
@@ -50,7 +69,7 @@ export function TaskFrame({ actions, children, eyebrow, footer, onClose, title }
     >
       {view === 'modal' ? <Icon name="panel" size={18} /> : <ExpandGlyph />}
     </MuiIconButton>
-  );
+  ));
 
   if (phone || view === 'panel') {
     return (

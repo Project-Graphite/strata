@@ -14,6 +14,9 @@ export const inboxKinds = [
   'budget_alert',
   'payment_due',
   'watching',
+  'event_response',
+  'capture_review',
+  'journal_reminder',
 ] as const;
 
 export type InboxKind = (typeof inboxKinds)[number];

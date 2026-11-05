@@ -10,6 +10,7 @@ import { DriveService } from '../files/drive.service';
 import { FilesService } from '../files/files.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { spaceDefaults } from '../spaces/space-defaults';
 import { dateText } from '../recurrence/dates';
 import { RealtimeService } from '../realtime/realtime.service';
 import { documentLinks, pageKinds } from '../notes/document-text';
@@ -54,12 +55,15 @@ export class ShareLinksService {
     if (item.trashedAt) {
       throw new BadRequestException('Restore this item from the trash before sharing it');
     }
-    const target = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true } });
+    const target = await this.prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true, spaceId: true, space: { select: { defaults: true } } } });
     if (input.access === 'edit' && !pageKinds.includes(target.kind)) {
       throw new BadRequestException('Only pages and boards can be shared for editing');
     }
+    const { access } = spaceDefaults(target.space?.defaults);
+    if (target.spaceId && access.sharers === 'owners') await this.access.assertSpace(userId, target.spaceId, 'manage');
     const id = randomUUID();
-    const minutes = input.expiresInMinutes === undefined ? (input.expiresInDays ?? 30) * dayMinutes : input.expiresInMinutes;
+    const days = input.expiresInDays ?? (target.spaceId ? access.linkDays : 30);
+    const minutes = input.expiresInMinutes === undefined ? (days === null ? null : days * dayMinutes) : input.expiresInMinutes;
     const slug = input.slug ?? shortSlug();
     await this.releaseSlug(slug);
     const link = await this.prisma.shareLink

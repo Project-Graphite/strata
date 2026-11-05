@@ -59,6 +59,17 @@ describe('The file store against Postgres', () => {
     expect(await status(mate)).toBe(404);
   });
 
+  it('dates each space folder by its latest file change, and leaves an empty space undated', async () => {
+    const owner = await member('drive-dated');
+    const filled = (await owner.call('POST', '/spaces', { name: 'Filled' })).body;
+    const empty = (await owner.call('POST', '/spaces', { name: 'Empty' })).body;
+    const file = await (await upload(owner, filled.id, 'dated.png', png('dated'))).json();
+    const spaces = (await owner.call('GET', '/me/drive')).body.spaces as { id: string; updatedAt: string | null }[];
+
+    expect(spaces.find((space) => space.id === filled.id)?.updatedAt).toBe(file.updatedAt);
+    expect(spaces.find((space) => space.id === empty.id)?.updatedAt).toBeNull();
+  });
+
   it('keeps files in nested folders, moves and trashes them together and shares a folder by link', async () => {
     const owner = await member('drive-owner');
     const other = await member('drive-other');

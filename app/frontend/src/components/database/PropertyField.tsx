@@ -4,6 +4,7 @@ import type { Property } from '../../notes';
 import type { Member } from '../../spaces';
 import { Hint } from '../Hint';
 import { CommitInput } from '../CommitInput';
+import { UserAvatar } from '../UserAvatar';
 import { count } from '../../time';
 
 const optionsOf = (property: Property, ids: unknown) =>
@@ -88,7 +89,7 @@ export function PropertyField({
             { value: '', label: '—' },
             ...(property.type === 'select'
               ? (property.options ?? []).map((option) => ({ value: option.id, label: option.name, leading: <span aria-hidden="true" className={`swatch-dot tag-${option.color}`} /> }))
-              : (members ?? []).map((member) => ({ value: member.userId, label: member.displayName }))),
+              : (members ?? []).map((member) => ({ value: member.userId, label: member.displayName, leading: <UserAvatar name={member.displayName} size="sm" userId={member.userId} /> }))),
           ]}
           quiet
           size="small"

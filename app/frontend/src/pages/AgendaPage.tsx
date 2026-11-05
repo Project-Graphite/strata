@@ -15,7 +15,7 @@ import { PeriodNav } from '../components/PeriodNav';
 import { AgendaRowsSkeleton, SkeletonLine, TaskRowsSkeleton, useRememberedShape } from '../components/Skeletons';
 import { OpenTask } from '../components/OpenTask';
 import { DayNumber, TimeGrid, type Reschedule, type Slot } from '../components/TimeGrid';
-import { useSpaces } from '../spaces';
+import { useAllSpaces } from '../spaces';
 import { completeTask, taskDetails, TaskRow, type Task } from '../tasks';
 import { capitalised, clockTime, formatDate, formatRange, profileDay, profileMinutes } from '../time';
 import { useAction } from '../useAction';
@@ -94,7 +94,7 @@ function EditEvent({ id, onClose }: { id: string; onClose: () => void }) {
 
 function DueToday() {
   const auth = useAuth();
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const tasks = useResource<Task[]>('/tasks/today', true);
   const action = useAction();
   const [opened, setOpened] = useState<Task>();
@@ -114,7 +114,7 @@ function DueToday() {
             onEdit={() => setOpened(task)}
             onToggle={() =>
               void action.run(
-                () => completeTask(auth.request, task, (completed) => (completed ? tasks.mutate((current) => current.filter((shown) => shown.id !== task.id)) : tasks.reload())),
+                () => completeTask(auth.request, task, (changed) => (changed.completedAt ? tasks.mutate((current) => current.filter((shown) => shown.id !== task.id)) : tasks.reload())),
                 'Could not update the task',
               )
             }

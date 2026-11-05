@@ -64,18 +64,25 @@ export function SpacesPage() {
         </Placeholder>
       ) : (
         <>
-          <ul className="panel-rows">
-            {spaces.data.map((space) => (
-              <ListRow
-                href={spaceHref(space)}
-                key={space.id}
-                lead={<SpaceMark space={space} />}
-                meta={spaceDescription(space)}
-                title={space.name}
-                trail={<ActionsMenu items={actions.items(space)} name={space.name} />}
-              />
-            ))}
-          </ul>
+          {[spaces.data.filter((space) => !space.archived), spaces.data.filter((space) => space.archived)].map((shown, archived) =>
+            shown.length === 0 ? null : (
+              <section aria-label={archived ? 'Archived spaces' : 'Your spaces'} className="grid gap-3" key={archived}>
+                {archived === 1 && <h2 className="m-0 text-h3 text-ink">Archived</h2>}
+                <ul className="panel-rows">
+                  {shown.map((space) => (
+                    <ListRow
+                      href={spaceHref(space)}
+                      key={space.id}
+                      lead={<SpaceMark space={space} />}
+                      meta={spaceDescription(space)}
+                      title={space.name}
+                      trail={<ActionsMenu items={actions.items(space)} name={space.name} />}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ),
+          )}
           {spaces.data.length === 0 && (
             <Empty title="No spaces yet">A shared space holds pages, tasks and an agenda you keep with other people. Make one, or accept an invitation.</Empty>
           )}

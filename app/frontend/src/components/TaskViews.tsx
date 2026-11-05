@@ -51,7 +51,7 @@ export function useTaskChanges(update: Update, finished?: Update) {
           replace(await auth.request<Task>(`/tasks/${task.id}/reopen`, { method: 'POST' }));
           return '';
         }
-        return completeTask(auth.request, task, (updated) => replace(updated ?? { ...task, completedAt: null, status: 'open' }));
+        return completeTask(auth.request, task, replace);
       },
       'Could not update the task',
     );
@@ -61,8 +61,9 @@ export function useTaskChanges(update: Update, finished?: Update) {
       task,
       { ...task, status, completedAt: status === 'done' ? (task.completedAt ?? new Date().toISOString()) : null },
       async () => {
-        replace(await auth.request<Task>(`/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ status }) }));
-        return '';
+        const saved = await auth.request<Task>(`/tasks/${task.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+        replace(saved);
+        return saved.completedAt && !task.completedAt ? { message: `Completed ${task.title}.`, undo: async () => (replace(await auth.request<Task>(`/tasks/${task.id}/reopen`, { method: 'POST' })), '') } : '';
       },
       'Could not move the task',
     );

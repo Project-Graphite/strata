@@ -40,7 +40,7 @@ const eventFields = {
   verb: true,
   data: true,
   createdAt: true,
-  actor: { select: { handle: true, displayName: true } },
+  actor: { select: { id: true, handle: true, displayName: true } },
   item: { select: { id: true, kind: true, title: true } },
 } satisfies Prisma.ActivityEventSelect;
 

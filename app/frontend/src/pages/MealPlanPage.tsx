@@ -8,7 +8,7 @@ import { Empty } from '../components/Empty';
 import { FormDialog } from '../components/FormDialog';
 import { LoadError } from '../components/LoadError';
 import { meals, type Meal, type PlannedMeal, type Recipe } from '../recipes';
-import { useChosenSpace } from '../spaces';
+import { useCurrentSpace } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { RecipesArea } from './RecipesPage';
@@ -32,7 +32,7 @@ export function MealPlanPage() {
   const [params, setParams] = useSearchParams();
   const today = dayKey(new Date());
   const monday = mondayOf(params.get('week') ?? today);
-  const { spaceId, space, editable } = useChosenSpace();
+  const { spaceId, space, editable } = useCurrentSpace();
   const plan = useResource<PlannedMeal[]>(`/me/meal-plan?from=${monday}`, true);
   const [adding, setAdding] = useState<{ day: string; meal: Meal }>();
   const days = Array.from({ length: 7 }, (_, index) => addDays(monday, index));

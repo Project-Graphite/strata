@@ -3,7 +3,6 @@ import { agendaPath, agendaPeriod, type AgendaView } from './agenda';
 import { apiRequest } from './api';
 import { initialSession } from './auth';
 import { routePage } from './route-pages';
-import { storedSpace } from './spaces';
 import { applyTimePreferences, profileDay } from './time';
 import { cachedRequest } from './useResource';
 
@@ -30,7 +29,7 @@ function prefetchData(pathname: string, userId: string, request: Request) {
   for (const [pattern, paths] of firstData) {
     const match = pattern.exec(pathname);
     if (!match) continue;
-    for (const path of ['/spaces', ...paths(match)]) cachedRequest(request, userId, path, storedSpace(userId))?.catch(() => undefined);
+    for (const path of ['/spaces', ...paths(match)]) cachedRequest(request, userId, path, undefined)?.catch(() => undefined);
     return;
   }
 }

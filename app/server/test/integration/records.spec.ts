@@ -42,7 +42,7 @@ describe('Activity, the security log, the inbox and background work against Post
       'member.joined',
     ]);
     expect(activity[4]).toMatchObject({
-      actor: { handle: joiner.handle, displayName: 'joiner' },
+      actor: { id: joiner.id, handle: joiner.handle, displayName: 'joiner' },
       item: { id: note.id, kind: 'note', title: 'Seed list' },
       data: { title: 'Seed list', renamedFrom: 'Seeds' },
     });

@@ -4,7 +4,7 @@ import { ActionsMenu } from './ActionsMenu';
 import { TextButton } from './Button';
 import { setCollaboratorsHidden, useCollaboratorsHidden } from './collaborator-visibility';
 import type { Person } from './live-document';
-import { UserAvatar } from './UserAvatar';
+import { AvatarStack, UserAvatar } from './UserAvatar';
 
 export interface PresenceActions {
   positions: ReadonlyMap<string, string>;
@@ -37,9 +37,9 @@ export function LivePresence({ people, actions, onRemove }: { people: Person[]; 
   return (
     <>
       <div className="live-presence">
-        <div aria-hidden="true" className="live-presence-avatars flex -space-x-2">
-          {people.slice(0, 5).map((person) => <UserAvatar key={person.id} name={person.name} present={person.activity !== 'idle'} userId={person.guest ? undefined : person.id} />)}
-        </div>
+        <span aria-hidden="true">
+          <AvatarStack label="People here" max={3} people={people.map((person) => ({ id: person.id, name: person.name, present: person.activity !== 'idle', userId: person.guest ? undefined : person.id }))} size="md" />
+        </span>
         <TextButton label={`${people.length} ${people.length === 1 ? 'person' : 'people'} here`} onClick={() => setOpen(true)} />
         {actions?.following && <div className="live-presence-follow"><span className="text-small text-muted" role="status">Following {people.find((person) => person.id === actions.following)?.name ?? 'collaborator'}</span><TextButton label="Stop following" onClick={actions.onStop} /></div>}
       </div>

@@ -71,7 +71,7 @@ export function AdminPage() {
             />
           </div>
           <form
-            className="grid max-w-narrow gap-4"
+            className="settings-columns"
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
@@ -106,7 +106,7 @@ export function AdminPage() {
             <div className="panel-rows">
               <ToggleSkeleton description />
             </div>
-            <div className="grid max-w-narrow gap-4">
+            <div className="settings-columns">
               <div className="grid gap-4 sm:grid-cols-2">
                 <FieldSkeleton hint />
               </div>

@@ -189,8 +189,9 @@ describe('Tasks against Postgres', () => {
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { status: 'open' })).body).toMatchObject({ status: 'open', columnId: null });
     await owner.call('PATCH', `/tasks/${task.id}`, { columnId: qa.body.id });
     expect((await owner.call('POST', `/tasks/${task.id}/complete`)).body).toMatchObject({ columnId: null });
-    await owner.call('POST', `/tasks/${task.id}/reopen`);
-    await owner.call('PATCH', `/tasks/${task.id}`, { columnId: qa.body.id });
+    expect((await owner.call('POST', `/tasks/${task.id}/reopen`)).body).toMatchObject({ status: 'in_progress', columnId: qa.body.id });
+    await owner.call('PATCH', `/tasks/${task.id}`, { status: 'done' });
+    expect((await owner.call('POST', `/tasks/${task.id}/reopen`)).body).toMatchObject({ status: 'in_progress', columnId: qa.body.id });
 
     expect((await owner.call('PATCH', `/task-columns/${qa.body.id}`, { name: 'Testing' })).body).toMatchObject({ name: 'Testing' });
     expect((await viewer.call('GET', `/spaces/${team.id}/task-columns`)).body).toEqual([expect.objectContaining({ id: qa.body.id, name: 'Testing' })]);
@@ -371,7 +372,7 @@ describe('Tasks against Postgres', () => {
     expect(done.status).toBe('done');
     expect(done.completedAt).not.toBeNull();
     expect((await owner.call('GET', `/spaces/${owner.soloSpaceId}/tasks?completed=true`)).body.results.map((row: { id: string }) => row.id)).toEqual([task.id]);
-    expect((await owner.call('POST', `/tasks/${task.id}/reopen`)).body).toMatchObject({ status: 'open', completedAt: null });
+    expect((await owner.call('POST', `/tasks/${task.id}/reopen`)).body).toMatchObject({ status: 'in_progress', completedAt: null });
     expect((await owner.call('POST', `/tasks/${task.id}/complete`)).body.status).toBe('done');
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { status: 'in_progress' })).body).toMatchObject({ status: 'in_progress', completedAt: null });
     expect((await owner.call('PATCH', `/tasks/${task.id}`, { status: 'finished' })).status).toBe(400);

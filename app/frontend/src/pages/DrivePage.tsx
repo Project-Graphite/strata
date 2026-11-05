@@ -114,7 +114,7 @@ export function DrivePage() {
   const spaceFolders = new Set(listing.data?.spaces?.map((space) => space.id));
   const entries: (DriveEntry & { detail?: string })[] = [
     ...(listing.data?.entries ?? []),
-    ...(listing.data?.spaces ?? []).map((space) => ({ id: space.id, kind: 'folder' as const, name: space.name, mimeType: null, sizeBytes: null, createdAt: '', updatedAt: '', detail: `Space · ${space.fileCount ?? 0} file${space.fileCount === 1 ? '' : 's'}` })),
+    ...(listing.data?.spaces ?? []).map((space) => ({ id: space.id, kind: 'folder' as const, name: space.name, mimeType: null, sizeBytes: null, createdAt: null, updatedAt: space.updatedAt ?? null, detail: `Space · ${space.fileCount ?? 0} file${space.fileCount === 1 ? '' : 's'}` })),
   ];
   const ownEntries = (selection: DriveEntry[]) => selection.filter((entry) => !spaceFolders.has(entry.id));
   const writable = !listing.data?.space || listing.data.space.role !== 'viewer';

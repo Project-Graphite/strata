@@ -12,7 +12,9 @@ const home: Area = { href: '/', label: 'Home', icon: 'home' };
 
 const otherAreas = ['/spaces', '/inbox', '/settings', '/admin', '/save', '/more', '/habits'];
 
-const phoneApps = (apps: AppEntry[]) => apps.filter((app) => app.phoneTab);
+export const phoneTabCount = 2;
+
+const phoneApps = (apps: AppEntry[]) => apps.slice(0, phoneTabCount);
 
 const inside = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -23,8 +25,6 @@ export function areaOf(pathname: string) {
   const app = appCatalogue.find((candidate) => [candidate.href, ...(candidate.within ?? [])].some((href) => inside(pathname, href)));
   return app?.href ?? otherAreas.find((href) => inside(pathname, href)) ?? null;
 }
-
-export const inSpaceArea = (area: string | null) => Boolean(area && (area.startsWith('/spaces/') || appCatalogue.some((app) => app.href === area && app.scope === 'space')));
 
 function onNavigation(changed: () => void) {
   window.navigation?.addEventListener('currententrychange', changed);
@@ -85,7 +85,7 @@ export function phoneTabBar(active: string | null, apps: AppEntry[]): ShellTab[]
 export function searchableAreas(apps: AppEntry[], admin: boolean): { href: string; label: string; hint?: string }[] {
   return [
     { href: home.href, label: home.label, hint: 'Account' },
-    ...apps.map((app) => ({ href: app.href, label: app.label, hint: app.scope === 'space' ? 'Space' : 'Account' })),
+    ...apps.map((app) => ({ href: app.href, label: app.label, hint: 'Account' })),
     ...[
       { app: 'agenda', href: '/agenda/calendars', label: 'Calendars', hint: 'Agenda' },
       { app: 'pages', href: '/pages/quick-notes', label: 'Quick notes', hint: 'Pages' },

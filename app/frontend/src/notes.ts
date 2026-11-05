@@ -4,6 +4,8 @@ import { formatMoment } from './time';
 
 export interface Note {
   id: string;
+  slug: string;
+  journal: boolean;
   spaceId: string | null;
   title: string;
   kind: 'note' | 'board';
@@ -26,7 +28,7 @@ export interface ChildPages {
   nextCursor: string | null;
 }
 
-export function childPagesPath(spaceId: string | null, parentId: string | null, cursor?: string, kind?: 'note') {
+export function childPagesPath(spaceId: string | null, parentId: string | null, cursor?: string, kind?: 'note' | 'board') {
   return `${spaceId ? `/spaces/${spaceId}` : '/me'}/page-children?${new URLSearchParams({ ...(parentId ? { parentId } : {}), ...(cursor ? { cursor } : {}), ...(kind ? { kind } : {}) })}`;
 }
 
@@ -65,7 +67,7 @@ export const noteParent = (note: Pick<Note, 'kind' | 'quick' | 'spaceId'>) =>
 export interface NoteDetails extends Note {
   editable: boolean;
   permissions: { edit: boolean; comment: boolean; share: boolean; organize: boolean; history: boolean; spaceRole: string | null; pageRole: string | null };
-  path: { id: string; title: string }[];
+  path: { id: string; slug: string; title: string }[];
   row: { properties: Property[]; values: PropertyValues } | null;
 }
 
@@ -166,10 +168,16 @@ export const noteTitle = (note: { title: string }) => note.title || 'Untitled';
 
 export const noteEdited = (note: { updatedAt: string }) => `Edited ${formatMoment(note.updatedAt)}`;
 
-export const pageHref = (id: string) => `/pages/${id}`;
+export const pageHref = (address: string) => `/pages/${address}`;
 
 export const journalPageHref = (id: string) => `/journal/${id}`;
 
-export const noteHref = (note: { id: string; kind: string; spaceId?: string | null }) => (note.kind === 'board' ? `/boards/${note.id}` : note.spaceId === null ? journalPageHref(note.id) : pageHref(note.id));
+type Addressed = { id: string; slug?: string | null };
+
+export const noteAddress = (note: Addressed) => note.slug ?? note.id;
+
+export const addressOf = (note: Addressed, address: string) => note.id === address || note.slug === address;
+
+export const noteHref = (note: Addressed & { kind: string; journal?: boolean }) => (note.kind === 'board' ? `/boards/${noteAddress(note)}` : note.journal ? journalPageHref(noteAddress(note)) : pageHref(noteAddress(note)));
 
 export const pageNoun = (note: Pick<Note, 'kind' | 'quick'>) => (note.kind === 'board' ? 'board' : note.quick ? 'note' : 'page');

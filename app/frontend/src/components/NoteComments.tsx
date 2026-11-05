@@ -6,6 +6,7 @@ import { useAction } from '../useAction';
 import { useResource } from '../useResource';
 import { ActionsMenu } from './ActionsMenu';
 import { LoadError } from './LoadError';
+import { UserAvatar } from './UserAvatar';
 import { Button, TextButton } from './Button';
 import type { Member } from '../spaces';
 import { pageAnchorText, showPageBlock } from './page-blocks';
@@ -210,8 +211,9 @@ export function NoteComments({
         : changes;
     return (
       <div className="comment-entry grid gap-1" data-posted={posted === comment.id || undefined} key={comment.id}>
-        <p className="m-0 text-small text-muted">
-          {author} · {formatMoment(comment.createdAt)}
+        <p className="comment-head m-0 text-small text-muted">
+          <UserAvatar name={author} size="sm" userId={comment.author?.id} />
+          <span className="text-ink">{author}</span> · {formatMoment(comment.createdAt)}
           {comment.editedAt ? ' · edited' : ''}
         </p>
         {comment.blockId && (

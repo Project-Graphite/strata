@@ -6,12 +6,12 @@ import { Empty } from '../components/Empty';
 import { Choice, SelectionBar, toggled } from '../components/Selection';
 import { batchSummary, itemsText, TidyPreview, undoSummary, type TidyAction, type TidyBatch, type TidyRequest } from '../components/TidyPreview';
 import { fileSize, fileTypeNames } from '../files';
-import { useSpaces } from '../spaces';
+import { useAllSpaces } from '../spaces';
 import { useAction } from '../useAction';
 import { useResource, type Resource } from '../useResource';
 import { FolderScan } from './FolderScan';
 import { LoadError } from '../components/LoadError';
-import { NotificationToggle } from '../components/NotificationToggle';
+import { NotificationsLink } from '../components/NotificationsLink';
 import { Page, Section } from '../components/Page';
 import { Button } from '../components/Button';
 import { ButtonSkeleton, RowsSkeleton, SkeletonLine, StatsSkeleton, useRememberedShape } from '../components/Skeletons';
@@ -99,7 +99,7 @@ function useTidySelection(scan: Resource<Scan>) {
 }
 
 function TidySuggestions() {
-  const spaces = useSpaces();
+  const spaces = useAllSpaces();
   const scan = useResource<Scan>('/tidy/scan', true);
   const { selected, setSelected, toggle, bar, preview } = useTidySelection(scan);
   const found = scan.data;
@@ -342,13 +342,7 @@ export function TidyPage({ section }: { section: 'suggestions' | 'yours' | 'fold
     >
       {section === 'history' ? <TidyHistory /> : section === 'folder' ? <FolderScan /> : section === 'yours' ? <TidyYours /> : <TidySuggestions />}
       {section === 'suggestions' && (
-        <NotificationToggle
-          description={`Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}
-          field="tidySummary"
-          label="Weekly Tidy summary"
-          offMessage="Weekly Tidy summaries are off."
-          onMessage="You will get a Tidy summary on Mondays."
-        />
+        <NotificationsLink>{`A weekly Tidy summary on Mondays at ${clockTime('09:00')}, only when Tidy finds something.`}</NotificationsLink>
       )}
     </Page>
   );

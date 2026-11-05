@@ -101,6 +101,8 @@ function presentGuest(guest: { id: string; name: string; email: string | null; r
   };
 }
 
+const answered = { yes: 'is coming to', no: 'can’t come to', maybe: 'might come to' } as const;
+
 @Injectable()
 export class EventsService implements OnModuleInit {
   constructor(
@@ -358,7 +360,13 @@ export class EventsService implements OnModuleInit {
       where: { id: guest.id },
       data: { response: input.response.toUpperCase() as GuestResponse, note: input.note ?? null, respondedAt: new Date() },
     });
+    await this.tellHost(guest.itemId, `${guest.name} ${answered[input.response]} “${guest.item.title}”`, input.note);
     return this.rsvpView(code);
+  }
+
+  async tellHost(itemId: string, title: string, body?: string | null) {
+    const item = await this.prisma.item.findUnique({ where: { id: itemId }, select: { ownerId: true } });
+    if (item?.ownerId) await this.inbox.notify(this.prisma, [{ userId: item.ownerId, kind: 'event_response', title, body: body ?? undefined, link: `/events/${itemId}` }]);
   }
 
   async rsvpByShareLink(code: string, input: OpenRsvpDto) {
@@ -368,6 +376,8 @@ export class EventsService implements OnModuleInit {
     });
     if (!link) throw new NotFoundException('This link has expired or was turned off');
     const { token, tokenHash } = newLinkToken();
+    const { title } = await this.prisma.item.findUniqueOrThrow({ where: { id: link.itemId }, select: { title: true } });
+    await this.tellHost(link.itemId, `${input.name} ${answered[input.response]} “${title}”`, input.note);
     await this.prisma.eventGuest.create({
       data: {
         itemId: link.itemId,
@@ -384,7 +394,7 @@ export class EventsService implements OnModuleInit {
   private async guestByCode(code: string) {
     const guest = await this.prisma.eventGuest.findUnique({
       where: { tokenHash: linkTokenHash(code) },
-      select: { id: true, name: true, response: true, note: true, item: { select: { title: true, trashedAt: true, event: true } } },
+      select: { id: true, itemId: true, name: true, response: true, note: true, item: { select: { title: true, trashedAt: true, event: true } } },
     });
     if (!guest || guest.item.trashedAt || !guest.item.event) throw new NotFoundException('This invitation is no longer open');
     return guest;
