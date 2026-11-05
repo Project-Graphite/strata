@@ -138,7 +138,7 @@ export class GoogleAuthService {
   private async link(userId: string, purpose: Exclude<GooglePurpose, 'sign-in'>, grant: GoogleGrant) {
     const { identity } = grant;
     if (purposeScopes[purpose].some((scope) => !grant.scopes.includes(scope))) {
-      throw new ForbiddenException(purpose === 'calendar' ? 'Allow Strata to access your Google calendars to sync them.' : 'Allow Strata to open the Drive files you pick to import them.');
+      throw new ForbiddenException(purpose === 'calendar' ? 'Allow Strata to see and edit your Google calendars to sync them.' : 'Allow Strata to open the Drive files you pick to import them.');
     }
     const owner = await this.prisma.googleAccount.findUnique({ where: { subject: identity.subject }, select: { userId: true } });
     if (owner && owner.userId !== userId) throw new ConflictException('This Google account is linked to another Strata account.');

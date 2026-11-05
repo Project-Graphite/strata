@@ -96,7 +96,6 @@ export class GoogleCalendarService implements OnModuleInit {
     }
     return {
       connected,
-      twoWay: connected && account!.scopes.includes(googleScopes.calendarWrite),
       error,
       calendars: [
         ...synced.map(({ _count, ...calendar }) => ({ ...calendar, synced: true, events: _count.events })),
@@ -196,9 +195,8 @@ export class GoogleCalendarService implements OnModuleInit {
           await this.prisma.googleCalendar.updateMany({ where: { id: calendar.id }, data: { lastError: problem(error) } });
         }
       }
-      const { scopes } = await this.prisma.googleAccount.findUniqueOrThrow({ where: { userId }, select: { scopes: true } });
       try {
-        if (scopes.includes(googleScopes.calendarWrite)) await this.push(userId, calendars);
+        await this.push(userId, calendars);
       } catch (error) {
         this.logger.warn(`Events for ${userId} could not be sent to Google: ${error instanceof Error ? error.message : String(error)}`);
         await this.prisma.googleCalendar.updateMany({ where: { userId, isDefault: true }, data: { lastError: problem(error) } });

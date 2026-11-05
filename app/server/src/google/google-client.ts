@@ -5,8 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const googleScopes = {
   identity: ['openid', 'email', 'profile'],
-  calendar: ['https://www.googleapis.com/auth/calendar.events.readonly', 'https://www.googleapis.com/auth/calendar.calendarlist.readonly'],
-  calendarWrite: 'https://www.googleapis.com/auth/calendar.events',
+  calendar: ['https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/calendar.calendarlist.readonly'],
   drive: ['https://www.googleapis.com/auth/drive.file'],
 } as const;
 

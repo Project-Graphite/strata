@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { storedEvent, strataHash, type EventFields } from '../src/google/calendar-mapping';
-import { GoogleApiError, googleScopes } from '../src/google/google-client';
+import { GoogleApiError } from '../src/google/google-client';
 import { GoogleCalendarService } from '../src/google/google-calendar.service';
 
 const calendar = { id: 'cal-1', userId: 'user-1', calendarId: 'primary', writable: true, isDefault: true, syncToken: null, createdAt: new Date('2026-11-01T00:00:00Z') };
@@ -28,12 +28,9 @@ const googleEvent = (id: string, etag: string, extra: Record<string, unknown> = 
   ...extra,
 });
 
-function setup(options: { links?: unknown[]; fresh?: unknown[]; found?: Record<string, unknown>; events?: unknown[]; claimed?: number; scopes?: string[] } = {}) {
+function setup(options: { links?: unknown[]; fresh?: unknown[]; found?: Record<string, unknown>; events?: unknown[]; claimed?: number } = {}) {
   const prisma = {
-    googleAccount: {
-      updateMany: vi.fn().mockResolvedValueOnce({ count: options.claimed ?? 1 }).mockResolvedValue({ count: 1 }),
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ scopes: options.scopes ?? [...googleScopes.calendar, googleScopes.calendarWrite] }),
-    },
+    googleAccount: { updateMany: vi.fn().mockResolvedValueOnce({ count: options.claimed ?? 1 }).mockResolvedValue({ count: 1 }) },
     googleCalendar: { findMany: vi.fn().mockResolvedValue([calendar]), updateMany: vi.fn() },
     googleEvent: {
       findUnique: vi.fn(({ where }: { where: { calendarId_eventId: { eventId: string } } }) => Promise.resolve(options.found?.[where.calendarId_eventId.eventId] ?? null)),
@@ -107,16 +104,6 @@ describe('GoogleCalendarService.sync', () => {
     await service.sync('user-1', new Date('2026-11-05T10:00:00Z'));
     expect(prisma.item.update).not.toHaveBeenCalled();
     expect(prisma.googleEvent.update).toHaveBeenCalledWith({ where: { id: 'link-both' }, data: { etag: '"2"' } });
-  });
-
-  it('only reads from Google while the account has granted read-only calendar access', async () => {
-    const changed = { id: 'link-changed', calendarId: 'cal-1', eventId: 'g-changed', etag: '"3"', strataHash: 'stale', unreadableRule: false, recurringEventId: null, item: { id: 'i-1', title: 'Dinner', trashedAt: null, event: stored } };
-    const { prisma, google, service } = setup({ links: [changed], fresh: [{ id: '0f8b2d36-1c1e-4a51-9a4e-5b3c1f6a7d20', title: 'Dinner', event: stored }], scopes: [...googleScopes.calendar] });
-
-    await service.sync('user-1', new Date('2026-11-05T10:00:00Z'));
-    expect(google.request.mock.calls.filter(([, init]) => init?.method)).toEqual([]);
-    expect(prisma.item.findMany).not.toHaveBeenCalled();
-    expect(prisma.googleCalendar.updateMany).toHaveBeenCalledWith({ where: { id: 'cal-1' }, data: expect.objectContaining({ syncToken: 'next-sync' }) });
   });
 
   it('sends only changed Strata events, deletes trashed ones and adds new ones to the default calendar', async () => {
