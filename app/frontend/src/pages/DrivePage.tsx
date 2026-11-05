@@ -213,7 +213,7 @@ export function DrivePage() {
           <>
             {!spaceId && <Button icon="folder" label="New folder" large onClick={() => setDialog({ kind: 'folder' })} />}
             {google.data?.picker && <IconButton disabled={action.busy} icon="download" label="Import from Google Drive" onClick={importFromDrive} />}
-            <FileButton busy={action.busy} inputLabel="Files to upload" label={action.busy ? 'Working…' : 'Upload'} large multiple onFiles={upload} primary />
+            <FileButton busy={action.busy} inputLabel="Files to upload" label={''} large multiple onFiles={upload} primary />
           </>
         )
       }
