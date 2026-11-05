@@ -5,7 +5,7 @@ import { NoteDatabasesService } from '../src/notes/note-databases.service';
 import { NotesService } from '../src/notes/notes.service';
 
 function page() {
-  const row = { id: 'page', title: 'Original', kind: ItemKind.NOTE, spaceId: 'space', createdAt: new Date(), updatedAt: new Date(), note: { quick: false }, databaseSchema: null };
+  const row = { id: 'page', title: 'Original', kind: ItemKind.NOTE, spaceId: 'space', createdAt: new Date(), updatedAt: new Date(), note: { quick: false }, databaseSchema: null, weeklyReview: null, _count: { journalEntries: 0 } };
   const changed = vi.fn();
   const titleChanged = vi.fn();
   const transaction = {
@@ -172,7 +172,7 @@ describe('live comment changes', () => {
       { note: async () => ({ spaceId: 'space', trashedAt: null, role: SpaceRole.OWNER }) } as never,
       { notify: async () => undefined } as never,
       { notify: changed } as never,
-      { watch: async () => undefined } as never,
+      { watch: async () => undefined, linkTo: async () => '/pages/0123456789' } as never,
     );
     await comments.create('member', 'page', { body: 'First' });
     await comments.update('member', 'comment', 'Edited');
